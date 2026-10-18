@@ -14,7 +14,11 @@ from src.domains.connectors.map_load_metering import (
     issue_load_token,
     verify_load_token,
 )
-from src.domains.connectors.map_load_router import MapLoadReport, admit_map_load, report_map_load
+from src.domains.connectors.map_load_router import (
+    MapLoadReport,
+    admit_map_load,
+    report_map_load,
+)
 from src.domains.google_api.pricing_service import GoogleApiPricingService
 
 
@@ -53,8 +57,8 @@ def test_token_tampering_and_secret_rotation_invalidate_admission(monkeypatch):
         verify_load_token(token, user_id)
 
 
-@pytest.mark.parametrize("browser_key", ["", "server-key", " server-key "])
-def test_shared_google_key_is_reused_with_optional_browser_override(monkeypatch, browser_key):
+@pytest.mark.parametrize("browser_key", ["browser-key", " browser-key "])
+def test_only_explicit_browser_key_can_be_released(monkeypatch, browser_key):
     monkeypatch.setattr(settings, "google_api_key", "server-key")
     monkeypatch.setattr(settings, "google_maps_browser_api_key", browser_key)
     monkeypatch.setattr(
@@ -62,7 +66,56 @@ def test_shared_google_key_is_reused_with_optional_browser_override(monkeypatch,
         "get_cost_per_request",
         lambda *_: (Decimal("0.007"), Decimal("0.006"), Decimal(1)),
     )
-    assert browser_maps_key() == "server-key"
+    assert browser_maps_key() == "browser-key"
+
+
+def test_server_key_is_never_a_browser_fallback(monkeypatch):
+    monkeypatch.setattr(settings, "google_api_key", "private-server-key")
+    monkeypatch.setattr(settings, "google_maps_browser_api_key", "")
+    with pytest.raises(BaseAPIException):
+        browser_maps_key()
+
+
+@pytest.mark.parametrize("map_id", ["", "bad map id", "DEMO_MAP_ID"])
+def test_unconfigured_public_position_offer_is_quiet(monkeypatch, capsys, caplog, map_id):
+    from src.domains.connectors.map_load_metering import position_map_config
+
+    monkeypatch.setattr(settings, "google_maps_browser_api_key", "browser-key")
+    monkeypatch.setattr(settings, "google_maps_map_id", map_id)
+    monkeypatch.setattr(settings, "environment", "production")
+    monkeypatch.setattr(
+        GoogleApiPricingService,
+        "get_cost_per_request",
+        lambda *_: (Decimal("0.007"), Decimal("0.006"), Decimal(1)),
+    )
+    capsys.readouterr()
+    assert position_map_config() == {"enabled": False}
+    captured = capsys.readouterr()
+    assert "google_maps_service_error" not in captured.out + captured.err
+    assert not [record for record in caplog.records if record.levelno >= 40]
+
+
+async def test_position_admission_requires_its_map_id_and_does_not_meter(monkeypatch):
+    import json
+
+    import src.domains.connectors.map_load_router as router
+
+    monkeypatch.setattr(router, "browser_maps_key", lambda: "public-key")
+    monkeypatch.setattr(
+        router.UsageLimitService,
+        "check_user_allowed",
+        AsyncMock(return_value=SimpleNamespace(allowed=True)),
+    )
+    meter = AsyncMock()
+    monkeypatch.setattr(router, "record_map_load", meter)
+    monkeypatch.setattr(settings, "google_maps_map_id", "")
+    user = SimpleNamespace(id=uuid4())
+    with pytest.raises(BaseAPIException):
+        await admit_map_load(user, purpose="places")
+    monkeypatch.setattr(settings, "google_maps_map_id", "configured-map-id")
+    response = await admit_map_load(user, purpose="places")
+    assert json.loads(response.body)["map_id"] == "configured-map-id"
+    meter.assert_not_awaited()
 
 
 def test_missing_google_keys_refuse_activation(monkeypatch):
@@ -141,7 +194,9 @@ async def test_invalid_beneficiary_report_does_not_reach_any_ledger(monkeypatch)
     meter.assert_not_awaited()
 
 
-async def test_failed_persistence_is_never_acknowledged_and_same_token_can_retry(monkeypatch):
+async def test_failed_persistence_is_never_acknowledged_and_same_token_can_retry(
+    monkeypatch,
+):
     import src.domains.connectors.map_load_router as router
 
     user = SimpleNamespace(id=uuid4())
@@ -195,7 +250,9 @@ async def test_public_configuration_requires_pricing_and_contains_no_credentials
     monkeypatch.setattr(settings, "google_maps_browser_api_key", "browser-key")
     monkeypatch.setattr(settings, "google_api_key", "private-server-key")
     monkeypatch.setattr(
-        GoogleApiPricingService, "get_cost_per_request", lambda *_: (price, price, Decimal(1))
+        GoogleApiPricingService,
+        "get_cost_per_request",
+        lambda *_: (price, price, Decimal(1)),
     )
     payload = map_load_config()
     assert payload["enabled"] is (price > 0)

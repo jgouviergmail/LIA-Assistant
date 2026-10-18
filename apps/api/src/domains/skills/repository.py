@@ -16,7 +16,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
-from src.domains.skills.models import THIRD_PARTY_PROVENANCES, Skill, UserSkillState
+from src.domains.skills.models import Skill, UserSkillState, skill_is_third_party
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -31,6 +31,11 @@ class StateRow:
     admin_enabled: bool
     provenance: str
     is_active: bool
+    peer_authored: bool = False
+
+    @property
+    def third_party(self) -> bool:
+        return skill_is_third_party(self.provenance, peer_authored=self.peer_authored)
 
 
 @dataclass(frozen=True)
@@ -60,13 +65,12 @@ def resolve_request_state(user_id: UUID, rows: list[StateRow]) -> RequestSkillSt
     Returns:
         The active and third-party names.
     """
-    third_party_values = {p.value for p in THIRD_PARTY_PROVENANCES}
     own = {row.name: row for row in rows if row.owner_id == user_id}
     system = {row.name: row for row in rows if row.owner_id is None and row.name not in own}
     active = {name for name, row in own.items() if row.is_active} | {
         name for name, row in system.items() if row.is_active and row.admin_enabled
     }
-    third_party = {name for name, row in own.items() if row.provenance in third_party_values}
+    third_party = {name for name, row in own.items() if row.third_party}
     return RequestSkillState(active=frozenset(active), third_party=frozenset(third_party))
 
 
@@ -173,6 +177,7 @@ class UserSkillStateRepository:
                 Skill.admin_enabled,
                 Skill.provenance,
                 UserSkillState.is_active,
+                Skill.peer_authored,
             )
             .join(UserSkillState, UserSkillState.skill_id == Skill.id)
             .where(UserSkillState.user_id == user_id)
@@ -187,6 +192,7 @@ class UserSkillStateRepository:
                     admin_enabled=row.admin_enabled,
                     provenance=row.provenance,
                     is_active=row.is_active,
+                    peer_authored=row.peer_authored,
                 )
                 for row in rows
             ],

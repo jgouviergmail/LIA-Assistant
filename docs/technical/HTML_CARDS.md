@@ -1,5 +1,32 @@
 # Deterministic HTML cards in assistant answers
 
+## Selected Google Places and advisory qualifications
+
+Answers with selected native Google Places start with one Position card in every
+display mode, including HTML and Markdown. It precedes native place cards and
+model-authored place descriptions. It uses only received finite coordinates, retains coincident distinct
+places, fits antimeridian bounds and keeps links for unlocated places. The wire
+is bounded and the complete fallback list remains reachable when it overflows.
+No geocoding, GPS or extra Places request fills missing coordinates. No new
+registry entity or model prompt block is created. The browser shares the route
+SDK/admission/report lifecycle and makes no Maps request before explicit
+cost-disclosed activation. Advanced markers require `GOOGLE_MAPS_MAP_ID`, with a
+production map ID rather than the demonstration ID. Local development can use
+Google's documented `DEMO_MAP_ID`; it remains rejected in production. An unavailable
+map shows a compact explanation and source links, without reserving a blank canvas.
+Initial map color scheme
+follows the app theme; changing theme does not reconstruct a paid map. Missing
+configuration or SDK/network failure preserves the source list. Configuration
+does not itself establish that a real Cloud key/restriction/map ID is valid.
+Markers use the [quarterly SDK's DOM `gmp-click` contract](https://developers.google.com/maps/documentation/javascript/reference/3.65/advanced-markers)
+and abort their listeners on cleanup. The [map color scheme is initialization-only](https://developers.google.com/maps/documentation/javascript/reference/map#MapOptions.colorScheme),
+so theme changes never silently construct another paid map.
+
+Email/appointment cards display the same accepted native advisory labels used
+by the assistant. Unknown labels stay absent; phishing has stable red ground
+contrast and a finite outside halo respecting reduced motion and archive replay.
+See [the qualification contract and current disabled status](EMAIL_EVENT_CLASSIFICATION.md).
+
 The assistant renders received data as domain cards in the HTML-card and rich-HTML-with-cards display modes. The shared presentation makes the first useful facts easy to scan and keeps complete supplied detail reachable through native disclosures. Existing action approvals, source ownership and provider capabilities remain authoritative.
 
 This guide describes the current chat contract; the decisions behind it are recorded in [ADR-332](../architecture/ADR-332-Deterministic-Cards-Received-Facts-And-Message-Owned-Actions.md). [CARD_SYSTEM.md](CARD_SYSTEM.md) also documents the general React cards and historical CSS vocabulary.
@@ -88,9 +115,9 @@ backgrounds. It retains the existing route overlays and selection; changing the
 background does not reconstruct the map or recalculate an itinerary. This follows
 the [Maps JavaScript controls contract](https://developers.google.com/maps/documentation/javascript/controls).
 
-Maps JavaScript reuses `GOOGLE_API_KEY`, as explicitly chosen for this deployment.
-`GOOGLE_MAPS_BROWSER_API_KEY` is an optional override for deployments using a
-separate browser key. The selected key is necessarily visible in the browser's
+Maps JavaScript requires the explicit `GOOGLE_MAPS_BROWSER_API_KEY`; the server's
+`GOOGLE_API_KEY` is no longer a browser fallback. This separation was adopted
+with the Position card. The browser key is necessarily visible in the browser's
 SDK request; it is released only through authenticated, budget-gated admission,
 never in public configuration or a `NEXT_PUBLIC_*` variable. Enable Maps JavaScript
 API on its Google project and use restrictions compatible with the selected key.

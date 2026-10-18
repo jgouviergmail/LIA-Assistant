@@ -15,18 +15,19 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.config import settings
 from src.core.constants import MCP_USER_DEFAULT_API_KEY_HEADER
 from src.core.exceptions import ResourceNotFoundError, ValidationError
 from src.core.security.utils import decrypt_data, encrypt_data
 from src.domains.user_mcp.connection_embeddings import build_connection_embeddings
 from src.domains.user_mcp.description_generation import generate_domain_description
+from src.domains.user_mcp.installation import OfflineMCPInstallation, check_creation_constraints
 from src.domains.user_mcp.models import (
     UserMCPAuthType,
     UserMCPServer,
     UserMCPServerStatus,
 )
 from src.domains.user_mcp.repository import UserMCPServerRepository
+from src.domains.user_mcp.response_metadata import build_response_metadata
 from src.domains.user_mcp.schemas import UserMCPServerCreate, UserMCPServerUpdate
 from src.infrastructure.mcp.security import validate_http_endpoint
 from src.infrastructure.observability.logging import get_logger
@@ -69,6 +70,7 @@ class UserMCPServerService:
         plugin_id: UUID | None = None,
         extra_headers: dict[str, str] | None = None,
         before_write: Callable[[AsyncSession], Awaitable[None]] | None = None,
+        offline_install: OfflineMCPInstallation | None = None,
     ) -> UserMCPServer:
         """
         Create a new user MCP server.
@@ -88,25 +90,26 @@ class UserMCPServerService:
         """
         await self._check_creation_constraints(user_id, data.name)
 
-        # SSRF prevention: validate URL
-        is_valid, error_msg = await validate_http_endpoint(data.url)
-        if not is_valid:
-            raise ValidationError(f"Invalid MCP server URL: {error_msg}")
+        await self._validate_creation_endpoint(data.url, offline_install)
 
         # Build encrypted credentials
-        credentials_encrypted = self._encrypt_credentials(data)
+        credentials_encrypted = self._encrypt_credentials(data) if offline_install is None else None
+        auth_type = offline_install.auth_type if offline_install else data.auth_type
 
         # Determine initial status
         initial_status = (
             UserMCPServerStatus.AUTH_REQUIRED.value
-            if data.auth_type == UserMCPAuthType.OAUTH2
+            if auth_type == UserMCPAuthType.OAUTH2
             else UserMCPServerStatus.ACTIVE.value
         )
+        if offline_install is not None:
+            initial_status = offline_install.status
 
         # Store OAuth scopes in oauth_metadata if provided
         oauth_metadata = None
-        if data.auth_type == UserMCPAuthType.OAUTH2 and data.oauth_scopes:
-            oauth_metadata = {"requested_scopes": data.oauth_scopes}
+        oauth_scopes = offline_install.oauth_scopes if offline_install else data.oauth_scopes
+        if auth_type == UserMCPAuthType.OAUTH2 and oauth_scopes:
+            oauth_metadata = {"requested_scopes": oauth_scopes}
 
         # DNS/network validation precedes the shared account lock. The early
         # checks above are only a fast refusal, never the final quota decision.
@@ -119,17 +122,20 @@ class UserMCPServerService:
                 "user_id": user_id,
                 "name": data.name,
                 "url": data.url,
-                "auth_type": data.auth_type.value,
+                "auth_type": auth_type.value,
                 "credentials_encrypted": credentials_encrypted,
                 "oauth_metadata": oauth_metadata,
                 "status": initial_status,
-                "is_enabled": True,
+                "is_enabled": offline_install is None,
                 "domain_description": data.domain_description,
                 "timeout_seconds": data.timeout_seconds,
-                "hitl_required": data.hitl_required,
+                "hitl_required": (data.hitl_required if offline_install is None else None),
                 "iterative_mode": data.iterative_mode,
                 "plugin_id": plugin_id,
                 "extra_headers": extra_headers,
+                "required_header_name": (
+                    offline_install.credential_header if offline_install else None
+                ),
             }
         )
 
@@ -138,18 +144,23 @@ class UserMCPServerService:
             server_id=str(server.id),
             user_id=str(user_id),
             name=data.name,
-            auth_type=data.auth_type.value,
+            auth_type=auth_type.value,
             status=initial_status,
         )
 
         return server
 
+    async def _validate_creation_endpoint(
+        self, url: str, offline: OfflineMCPInstallation | None
+    ) -> None:
+        if offline is not None and offline.endpoint is not None and offline.endpoint.url == url:
+            return
+        is_valid, error_msg = await validate_http_endpoint(url)
+        if not is_valid:
+            raise ValidationError(f"Invalid MCP server URL: {error_msg}")
+
     async def _check_creation_constraints(self, user_id: UUID, name: str) -> None:
-        maximum = settings.mcp_user_max_servers_per_user
-        if await self.repository.count_for_user(user_id) >= maximum:
-            raise ValidationError(f"Maximum of {maximum} MCP servers per user")
-        if await self.repository.get_by_name_for_user(user_id, name):
-            raise ValidationError(f"An MCP server named '{name}' already exists")
+        await check_creation_constraints(self.repository, user_id, name)
 
     async def update_server(
         self,
@@ -321,6 +332,8 @@ class UserMCPServerService:
         server = await self.get_with_ownership_check(server_id, user_id)
 
         new_enabled = not server.is_enabled if enabled is None else enabled
+        if new_enabled and server.status != UserMCPServerStatus.ACTIVE.value:
+            raise ValidationError("user_mcp_validation_required")
         update_data: dict = {"is_enabled": new_enabled}
 
         if not new_enabled:
@@ -468,7 +481,9 @@ class UserMCPServerService:
                 from src.domains.agents.services.tool_embeddings_envelope import (
                     wrap_server_cache,
                 )
-                from src.domains.agents.services.tool_selector import compute_tool_embeddings
+                from src.domains.agents.services.tool_selector import (
+                    compute_tool_embeddings,
+                )
 
                 tool_embeddings = await build_connection_embeddings(
                     user_id,
@@ -738,24 +753,10 @@ class UserMCPServerService:
 
         Returns a dict with keys: header_name, has_credentials, has_oauth_credentials, oauth_scopes.
         """
-        header_name: str | None = None
-        has_credentials = bool(server.credentials_encrypted)
-        has_oauth_credentials = False
-
-        if has_credentials:
-            creds = self._decrypt_existing_credentials(server)
-            if creds:
-                header_name = creds.get("header_name")
-                has_oauth_credentials = bool(creds.get("client_id"))
-
-        oauth_scopes = (server.oauth_metadata or {}).get("requested_scopes")
-
-        return {
-            "header_name": header_name,
-            "has_credentials": has_credentials,
-            "has_oauth_credentials": has_oauth_credentials,
-            "oauth_scopes": oauth_scopes,
-        }
+        credentials = (
+            self._decrypt_existing_credentials(server) if server.credentials_encrypted else None
+        )
+        return build_response_metadata(server, credentials)
 
     # =========================================================================
     # Private helpers
@@ -809,7 +810,10 @@ class UserMCPServerService:
             api_key = update_data.get("api_key") or existing.get("api_key")
             header_name = update_data.get(
                 "header_name",
-                existing.get("header_name", MCP_USER_DEFAULT_API_KEY_HEADER),
+                existing.get(
+                    "header_name",
+                    server.required_header_name or MCP_USER_DEFAULT_API_KEY_HEADER,
+                ),
             )
             if api_key:
                 return encrypt_data(

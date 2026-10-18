@@ -35,6 +35,7 @@ from src.domains.briefing.cache_keys import (
     last_good_key,
     section_cache_key,
 )
+from src.domains.briefing.classification import expire_cached_annotations
 from src.domains.briefing.constants import (
     BRIEFING_SHARED_BUILD_WAIT_SECONDS,
     ERROR_CODE_INTERNAL,
@@ -769,7 +770,9 @@ class BriefingService:
                     on_read(name, section.status)
                 except Exception as exc:  # noqa: BLE001 — observing never breaks the read
                     logger.warning(
-                        "briefing_read_observer_failed", section=name, error_type=type(exc).__name__
+                        "briefing_read_observer_failed",
+                        section=name,
+                        error_type=type(exc).__name__,
                     )
 
     async def _fetch_and_map(
@@ -845,7 +848,9 @@ class BriefingService:
             The fully scoped Redis key.
         """
         return section_cache_key(
-            user_id=self.user.id, language=self.language, section=self._cache_section(name)
+            user_id=self.user.id,
+            language=self.language,
+            section=self._cache_section(name),
         )
 
     def _cache_section(self, name: str) -> str:
@@ -967,7 +972,7 @@ class BriefingService:
                 return None
             if isinstance(raw, bytes):
                 raw = raw.decode("utf-8")
-            return CardSection.model_validate_json(raw)
+            return expire_cached_annotations(CardSection.model_validate_json(raw))
         except Exception as exc:
             logger.debug(
                 "briefing_cache_read_failed",
@@ -996,7 +1001,9 @@ class BriefingService:
     def _last_good_key(self, name: str) -> str:
         """The long-TTL side key holding this section's last known-good payload."""
         return last_good_key(
-            user_id=self.user.id, language=self.language, section=self._cache_section(name)
+            user_id=self.user.id,
+            language=self.language,
+            section=self._cache_section(name),
         )
 
     async def _write_last_good(self, name: str, section: CardSection) -> None:

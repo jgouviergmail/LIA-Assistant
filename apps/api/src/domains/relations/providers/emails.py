@@ -39,8 +39,10 @@ from typing import TYPE_CHECKING, Any
 import httpx
 import structlog
 
+from src.core.classification_projection import email_classification
 from src.core.config import settings
 from src.core.exceptions import MaxRetriesExceededError
+from src.domains.relations.providers.classification import capture_source, qualify_rows
 from src.domains.relations.providers.client import open_category_client
 from src.domains.relations.providers.schemas import ExchangedEmail
 
@@ -129,7 +131,13 @@ async def _search_one(
     """
     try:
         response = await client.search_emails(query, max_results=limit, use_cache=True)
-    except (TimeoutError, httpx.HTTPError, MaxRetriesExceededError, ValueError, KeyError) as exc:
+    except (
+        TimeoutError,
+        httpx.HTTPError,
+        MaxRetriesExceededError,
+        ValueError,
+        KeyError,
+    ) as exc:
         logger.info(
             "relations_email_search_degraded",
             user_id=str(user_id),
@@ -177,7 +185,30 @@ async def fetch_exchanged_emails(
                     # Two addresses of one person can surface the same thread;
                     # the first sighting wins, so a message is listed once.
                     seen.setdefault(email.id, email)
+        source = capture_source(client, opened.connector_type)
     ordered = sorted(
-        seen.values(), key=lambda email: email.occurred_at or _UNDATED_SORT_KEY, reverse=True
+        seen.values(),
+        key=lambda email: email.occurred_at or _UNDATED_SORT_KEY,
+        reverse=True,
     )
-    return ordered[:limit]
+    selected = ordered[:limit]
+    annotations = await qualify_rows(
+        [
+            {
+                "id": item.id,
+                "subject": item.subject,
+                "snippet": item.excerpt,
+                "date": item.occurred_at.isoformat() if item.occurred_at else None,
+            }
+            for item in selected
+        ],
+        source=source,
+        user_id=user_id,
+        kind="email",
+    )
+    return [
+        item.model_copy(
+            update={"classification": email_classification(annotations.get(str(index)))}
+        )
+        for index, item in enumerate(selected)
+    ]

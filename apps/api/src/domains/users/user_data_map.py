@@ -167,6 +167,16 @@ TABLE_RULES: dict[str, TableRule] = {
             "each participant gets their own words — and purged on deletion."
         ),
     ),
+    "peer_capability_transfers": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason="Recipient-owned copies; recipient purge deletes, sender erasure anonymizes origin.",
+    ),
+    "peer_capability_components": TableRule(
+        data_class=TableDataClass.USER_CASCADE,
+        export=ExportPolicy.FULL,
+        reason="Durable copy identities cascade from the recipient-owned transfer receipt.",
+    ),
     "agent_effects": TableRule(
         data_class=TableDataClass.USER_PURGED,
         export=ExportPolicy.FULL,

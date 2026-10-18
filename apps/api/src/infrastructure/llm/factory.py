@@ -242,6 +242,8 @@ LLMType = Literal[
     "jev_memory_reference_presence",
     "jev_hitl_rejection",
     "jev_parameter_kind",
+    "jev_email_classification",
+    "jev_event_classification",
     # Relationship debrief — daily synthesis of one contact's file (personal CRM)
     "relation_debrief",
     "vision_analysis",
@@ -307,7 +309,11 @@ def get_llm(
         >>> # OLD pattern: TypedDict override (backward compatible)
         >>> contacts_llm = get_llm("contacts_agent", config_override={"temperature": 0.8})
     """
-    logger.debug("llm_factory_request", llm_type=llm_type, has_override=config_override is not None)
+    logger.debug(
+        "llm_factory_request",
+        llm_type=llm_type,
+        has_override=config_override is not None,
+    )
 
     # ========================================================================
     # Phase X: LLM Config Refactoring - Support both old and new config types

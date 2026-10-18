@@ -130,6 +130,8 @@ class SystemSettingKey(str, enum.Enum):
     JEV_MEMORY_REFERENCE_PRESENCE_ENABLED = "jev_memory_reference_presence_enabled"
     JEV_HITL_REJECTION_ENABLED = "jev_hitl_rejection_enabled"
     JEV_PARAMETER_KIND_ENABLED = "jev_parameter_kind_enabled"
+    JEV_EMAIL_CLASSIFICATION_ENABLED = "jev_email_classification_enabled"
+    JEV_EVENT_CLASSIFICATION_ENABLED = "jev_event_classification_enabled"
 
     # Future settings can be added here:
     # MAINTENANCE_MODE = "maintenance_mode"

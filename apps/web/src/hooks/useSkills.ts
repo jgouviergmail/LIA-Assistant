@@ -7,7 +7,7 @@ import { useApiMutation } from './useApiMutation';
 import { useResourceRevision } from '@/stores/revisionStore';
 
 /** How a skill's content arrived (ADR-327). */
-export type SkillProvenance = 'system' | 'authored' | 'url' | 'plugin' | 'library';
+export type SkillProvenance = 'system' | 'authored' | 'url' | 'plugin' | 'library' | 'peer';
 
 const THIRD_PARTY: ReadonlySet<string> = new Set<SkillProvenance>(['url', 'plugin', 'library']);
 
@@ -15,8 +15,8 @@ const THIRD_PARTY: ReadonlySet<string> = new Set<SkillProvenance>(['url', 'plugi
  * Whether a skill was written outside LIA (an address, a plugin, a library):
  * it runs isolated, draws no image or web content, and says so in the gallery.
  */
-export function isThirdPartySkill(skill: Pick<Skill, 'provenance'>): boolean {
-  return THIRD_PARTY.has(skill.provenance ?? '');
+export function isThirdPartySkill(skill: Pick<Skill, 'provenance' | 'is_third_party'>): boolean {
+  return skill.is_third_party ?? THIRD_PARTY.has(skill.provenance ?? '');
 }
 
 /**
@@ -49,6 +49,8 @@ export interface Skill {
   skill_id?: string | null;
   /** How its content arrived (ADR-327); absent from an older API. */
   provenance?: SkillProvenance | null;
+  is_third_party?: boolean;
+  shared_origin?: import('@/lib/capability-sharing').CapabilityOrigin | null;
 }
 
 /**
@@ -392,6 +394,7 @@ export function useSkills(adminView = false) {
 
   return {
     // Data
+    ownerId,
     skills,
     total,
     loading,

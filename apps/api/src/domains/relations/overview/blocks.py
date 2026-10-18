@@ -20,6 +20,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from src.core.classification_projection import classification_fields
 from src.domains.relations.overview_scope import (
     OverviewDirection,
     OverviewSection,
@@ -187,6 +188,7 @@ def _mail_block(context: RelationContext, scope: RelationOverviewScope) -> dict[
                         email.occurred_at.isoformat() if email.occurred_at else None,
                     ),
                     ("excerpt", email.excerpt),
+                    *classification_fields(email.classification).items(),
                 )
                 if value is not None
             }
@@ -209,6 +211,7 @@ def _meeting_block(context: RelationContext, scope: RelationOverviewScope) -> di
                 "starts_at": event.starts_at.isoformat() if event.starts_at else None,
                 "ends_at": event.ends_at.isoformat() if event.ends_at else None,
                 "is_past": event.is_past,
+                **classification_fields(event.classification),
             }
             for event in context.events.events
             # A role nobody verified must not be filtered ON: under a provider

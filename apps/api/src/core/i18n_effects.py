@@ -59,6 +59,7 @@ EFFECT_LABELS: dict[str, dict[str, str]] = {
     "fr": {
         "effects.labels.proactive_notification": "Notification envoyée ({kind})",
         "effects.labels.peer_image_share": "Image partagée avec une connexion",
+        "effects.labels.peer_capability_share": "Partage d’une ressource avec une connexion",
         "effects.labels.email_share": "E-mail envoyé à {count} destinataire(s)",
         "effects.labels.skill_proposal_install": "Compétence « {target} » ajoutée à ta bibliothèque",
         "effects.labels.generic": "Action « {tool} » exécutée",
@@ -125,6 +126,7 @@ EFFECT_LABELS: dict[str, dict[str, str]] = {
     "en": {
         "effects.labels.proactive_notification": "Notification sent ({kind})",
         "effects.labels.peer_image_share": "Shared an image with a connection",
+        "effects.labels.peer_capability_share": "Shared a capability with a connection",
         "effects.labels.email_share": "Sent an e-mail to {count} recipient(s)",
         "effects.labels.skill_proposal_install": "Added the “{target}” skill to your library",
         "effects.labels.generic": "Ran the “{tool}” action",
@@ -191,6 +193,7 @@ EFFECT_LABELS: dict[str, dict[str, str]] = {
     "de": {
         "effects.labels.proactive_notification": "Benachrichtigung gesendet ({kind})",
         "effects.labels.peer_image_share": "Bild mit einer Verbindung geteilt",
+        "effects.labels.peer_capability_share": "Erweiterung mit einer Verbindung geteilt",
         "effects.labels.email_share": "E-Mail an {count} Empfänger gesendet",
         "effects.labels.skill_proposal_install": "Fähigkeit „{target}“ zu deiner Bibliothek hinzugefügt",
         "effects.labels.generic": "Aktion „{tool}“ ausgeführt",
@@ -257,6 +260,7 @@ EFFECT_LABELS: dict[str, dict[str, str]] = {
     "es": {
         "effects.labels.proactive_notification": "Notificación enviada ({kind})",
         "effects.labels.peer_image_share": "Imagen compartida con una conexión",
+        "effects.labels.peer_capability_share": "Recurso compartido con una conexión",
         "effects.labels.email_share": "Correo enviado a {count} destinatario(s)",
         "effects.labels.skill_proposal_install": "Habilidad «{target}» añadida a tu biblioteca",
         "effects.labels.generic": "Acción «{tool}» ejecutada",
@@ -323,6 +327,7 @@ EFFECT_LABELS: dict[str, dict[str, str]] = {
     "it": {
         "effects.labels.proactive_notification": "Notifica inviata ({kind})",
         "effects.labels.peer_image_share": "Immagine condivisa con una connessione",
+        "effects.labels.peer_capability_share": "Risorsa condivisa con una connessione",
         "effects.labels.email_share": "E-mail inviata a {count} destinatario/i",
         "effects.labels.skill_proposal_install": "Competenza «{target}» aggiunta alla tua libreria",
         "effects.labels.generic": "Azione «{tool}» eseguita",
@@ -389,6 +394,7 @@ EFFECT_LABELS: dict[str, dict[str, str]] = {
     "zh-CN": {
         "effects.labels.proactive_notification": "已发送通知（{kind}）",
         "effects.labels.peer_image_share": "与互联用户分享了一张图片",
+        "effects.labels.peer_capability_share": "与互联用户分享扩展",
         "effects.labels.email_share": "已向 {count} 位收件人发送电子邮件",
         "effects.labels.skill_proposal_install": "已将技能「{target}」加入你的资料库",
         "effects.labels.generic": "已执行「{tool}」操作",

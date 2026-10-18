@@ -1,4 +1,4 @@
-"""Owner-safe settings projection: three queries regardless of plugin count."""
+"""Owner-safe settings projection with a bounded query count for every list."""
 
 from collections import defaultdict
 from uuid import UUID
@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.plugins.models import UserPlugin
 from src.domains.plugins.schemas import PluginListResponse, PluginResponse
+from src.domains.shared.capability_origins import capability_origins
 from src.domains.skills.models import Skill
 from src.domains.user_mcp.models import UserMCPServer
 
@@ -35,6 +36,7 @@ async def list_plugin_projection(db: AsyncSession, owner_id: UUID) -> PluginList
     if not rows:
         return PluginListResponse()
     ids = [row["id"] for row in rows]
+    origins = await capability_origins(db, owner_id, "plugin", ids)
     skills: dict[UUID, list[str]] = defaultdict(list)
     for plugin_id, name in (
         await db.execute(
@@ -54,7 +56,12 @@ async def list_plugin_projection(db: AsyncSession, owner_id: UUID) -> PluginList
     ).all():
         servers[plugin_id].append(name)
     items = [
-        PluginResponse(**row, skill_names=skills[row["id"]], server_names=servers[row["id"]])
+        PluginResponse(
+            **row,
+            skill_names=skills[row["id"]],
+            server_names=servers[row["id"]],
+            shared_origin=origins.get(row["id"]),
+        )
         for row in rows
     ]
     return PluginListResponse(plugins=items, total=len(items))

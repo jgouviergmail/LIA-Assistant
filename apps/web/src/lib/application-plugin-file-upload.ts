@@ -1,4 +1,5 @@
 import { z } from '@/lib/zod';
+import { capabilityOriginSchema } from '@/lib/capability-sharing';
 import type {
   InstalledPlugin,
   PluginImportReport,
@@ -17,6 +18,7 @@ const plugin = z
     server_names: z.array(z.string()),
     created_at: z.string().datetime({ offset: true }).nullable(),
     updated_at: z.string().datetime({ offset: true }).nullable(),
+    shared_origin: capabilityOriginSchema.nullable().optional(),
   } satisfies Record<keyof InstalledPlugin, z.ZodType>)
   .strict();
 

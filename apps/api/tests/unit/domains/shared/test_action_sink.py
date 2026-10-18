@@ -76,6 +76,24 @@ class TestTheSeamImportsNothing:
         assert imports == []
 
 
+async def test_capability_attempt_identity_is_stable_but_a_new_attempt_is_distinct() -> None:
+    from src.domains.agents.effects.out_of_turn_effects import USER_ACTION_RECORDER
+    from src.domains.shared.action_sink import PEER_CAPABILITY_SHARE_CAPABILITY
+
+    claim = AsyncMock(return_value="ticket")
+    receipt = str(uuid.uuid4())
+    with patch("src.domains.agents.effects.runtime._LEDGER.claim", claim):
+        for attempt in ("1", "1", "2"):
+            await USER_ACTION_RECORDER.claim(
+                user_id=USER,
+                capability=PEER_CAPABILITY_SHARE_CAPABILITY,
+                arguments={"receipt_id": receipt, "attempt": attempt},
+            )
+    requests = [call.args[0] for call in claim.await_args_list]
+    assert requests[0].idempotency_key == requests[1].idempotency_key
+    assert requests[0].idempotency_key != requests[2].idempotency_key
+
+
 class TestWithNothingInstalled:
     async def test_the_act_happens_and_nothing_is_recorded(self) -> None:
         action_sink._recorder = action_sink._IGNORE
@@ -94,19 +112,27 @@ class TestOnceInstalled:
         order: list[str] = []
 
         async with recorded_action(
-            user_id=USER, capability=PEER_IMAGE_SHARE_CAPABILITY, arguments={"count": "1"}
+            user_id=USER,
+            capability=PEER_IMAGE_SHARE_CAPABILITY,
+            arguments={"count": "1"},
         ) as action:
             order.append(f"act after {len(recorder.claimed)} claim")
             action.succeeded = True
 
         assert order == ["act after 1 claim"]
         assert recorder.claimed == [
-            {"user_id": USER, "capability": "peer_image_share", "arguments": {"count": "1"}}
+            {
+                "user_id": USER,
+                "capability": "peer_image_share",
+                "arguments": {"count": "1"},
+            }
         ]
         assert recorder.settled == [("ticket", True)]
         assert action_recorder_is_installed() is True
 
-    async def test_an_act_that_never_said_it_succeeded_settles_as_a_failure(self) -> None:
+    async def test_an_act_that_never_said_it_succeeded_settles_as_a_failure(
+        self,
+    ) -> None:
         recorder = Recorder()
         install_action_recorder(recorder)
 
@@ -149,7 +175,8 @@ class TestTheBoot:
         from src.infrastructure.startup.registries import _install_action_recorder
 
         with patch(
-            "src.domains.shared.action_sink.action_recorder_is_installed", return_value=False
+            "src.domains.shared.action_sink.action_recorder_is_installed",
+            return_value=False,
         ):
             with pytest.raises(RuntimeError, match="action"):
                 _install_action_recorder()
@@ -164,7 +191,9 @@ class TestTheRegistersRecorder:
         claim = AsyncMock(return_value="ticket")
         with patch("src.domains.agents.effects.runtime._LEDGER.claim", claim):
             ticket = await USER_ACTION_RECORDER.claim(
-                user_id=USER, capability=EMAIL_SHARE_CAPABILITY, arguments={"count": "2"}
+                user_id=USER,
+                capability=EMAIL_SHARE_CAPABILITY,
+                arguments={"count": "2"},
             )
 
         request = claim.await_args.args[0]

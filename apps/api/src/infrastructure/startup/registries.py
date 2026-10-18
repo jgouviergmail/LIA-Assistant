@@ -51,10 +51,14 @@ def init_notification_devices() -> None:
 
 def init_live_connector_preferences() -> None:
     """Withdraw prior Live connector bindings before installing the current owner."""
-    from src.infrastructure.live_connector_preferences import configure_live_connector_preferences
+    from src.infrastructure.live_connector_preferences import (
+        configure_live_connector_preferences,
+    )
 
     configure_live_connector_preferences(None)
-    from src.domains.live.connector_preference_gateway import SavedLiveConnectorPreferences
+    from src.domains.live.connector_preference_gateway import (
+        SavedLiveConnectorPreferences,
+    )
 
     configure_live_connector_preferences(SavedLiveConnectorPreferences())
 
@@ -66,6 +70,16 @@ def init_account_exports() -> None:
     from src.domains.account_export.gateway import SavedAccountExports
 
     configure_account_exports(SavedAccountExports())
+
+
+def init_content_qualification() -> None:
+    """Bind read-only consumers without introducing a CRM/agents import cycle."""
+    from src.domains.shared.content_qualification import configure_content_qualifier
+
+    configure_content_qualifier(None)
+    from src.domains.agents.services.qualification.publication import classify_selected
+
+    configure_content_qualifier(classify_selected)
 
 
 def init_phone_identity() -> None:
@@ -90,7 +104,9 @@ def init_phone_history() -> None:
 
 def init_phone_number() -> None:
     """Withdraw prior number owners before installing the current saved-state owner."""
-    from src.infrastructure.phone_number_preferences import configure_phone_number_preferences
+    from src.infrastructure.phone_number_preferences import (
+        configure_phone_number_preferences,
+    )
 
     configure_phone_number_preferences(None)
     from src.domains.telephony.number_gateway import SavedPhoneNumber
@@ -182,7 +198,9 @@ def init_meeting_pdf() -> None:
 
 def init_meeting_report_updates() -> None:
     """Withdraw the previous sparse writer before a disabled or failed restart."""
-    from src.infrastructure.meeting_report_updates import configure_meeting_report_updates
+    from src.infrastructure.meeting_report_updates import (
+        configure_meeting_report_updates,
+    )
 
     configure_meeting_report_updates(None)
     if not settings.meetings_enabled:
@@ -501,26 +519,38 @@ def _install_portrait_sources() -> None:
         memories_source.KEY, memories_source.read_memories, memories_source.FRESHNESS
     )
     install_portrait_source(
-        interests_source.KEY, interests_source.read_interests, interests_source.FRESHNESS
+        interests_source.KEY,
+        interests_source.read_interests,
+        interests_source.FRESHNESS,
     )
     install_portrait_source(habits_source.KEY, habits_source.read_habits, habits_source.FRESHNESS)
     install_portrait_source(
-        debriefs_source.KEY, debriefs_source.read_relation_debriefs, debriefs_source.FRESHNESS
+        debriefs_source.KEY,
+        debriefs_source.read_relation_debriefs,
+        debriefs_source.FRESHNESS,
     )
     install_portrait_source(
-        open_loops_source.KEY, open_loops_source.read_open_loops, open_loops_source.FRESHNESS
+        open_loops_source.KEY,
+        open_loops_source.read_open_loops,
+        open_loops_source.FRESHNESS,
     )
     install_portrait_source(
-        workboard_source.KEY, workboard_source.read_workboard, workboard_source.FRESHNESS
+        workboard_source.KEY,
+        workboard_source.read_workboard,
+        workboard_source.FRESHNESS,
     )
     install_portrait_source(
         routines_source.KEY, routines_source.read_routines, routines_source.FRESHNESS
     )
     install_portrait_source(
-        reminders_source.KEY, reminders_source.read_reminders, reminders_source.FRESHNESS
+        reminders_source.KEY,
+        reminders_source.read_reminders,
+        reminders_source.FRESHNESS,
     )
     install_portrait_source(
-        bookmarks_source.KEY, bookmarks_source.read_bookmarks, bookmarks_source.FRESHNESS
+        bookmarks_source.KEY,
+        bookmarks_source.read_bookmarks,
+        bookmarks_source.FRESHNESS,
     )
 
     try:
@@ -857,11 +887,17 @@ def init_response_feedback_hooks() -> None:
     startup step is the composition point allowed to see both domains. Runs
     unconditionally: the ``journals_enabled`` flag is checked at call time.
     """
-    from src.domains.conversations.response_feedback import register_journal_feedback_hooks
+    from src.domains.conversations.response_feedback import (
+        register_journal_feedback_hooks,
+    )
     from src.domains.journals.feedback_hooks import JournalResponseFeedbackHooks
 
     register_journal_feedback_hooks(JournalResponseFeedbackHooks())
-    from src.domains.agents.services.efficacy_feedback import EfficacyResponseFeedbackHooks
-    from src.domains.conversations.efficacy_feedback import register_efficacy_feedback_hooks
+    from src.domains.agents.services.efficacy_feedback import (
+        EfficacyResponseFeedbackHooks,
+    )
+    from src.domains.conversations.efficacy_feedback import (
+        register_efficacy_feedback_hooks,
+    )
 
     register_efficacy_feedback_hooks(EfficacyResponseFeedbackHooks())

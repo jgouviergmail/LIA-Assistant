@@ -103,14 +103,18 @@ async def get_active_meeting(
 async def list_meetings(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    q: str | None = Query(default=None, max_length=200, pattern=r"^[^\x00]*$"),
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> MeetingListResponse:
     """Newest first, with the EXACT total (ADR-185)."""
     service = MeetingService(db)
-    items, total = await service.list_meetings(user.id, limit=limit, offset=offset)
+    items, total = await service.list_meetings(user.id, limit=limit, offset=offset, query=q)
     return MeetingListResponse(
-        items=[service.to_summary(m) for m in items], total=total, limit=limit, offset=offset
+        items=[service.to_summary(m) for m in items],
+        total=total,
+        limit=limit,
+        offset=offset,
     )
 
 
@@ -134,7 +138,9 @@ async def bulk_delete_meetings(
 
 
 @router.get(
-    "/templates", response_model=MeetingTemplateListResponse, summary="The template library"
+    "/templates",
+    response_model=MeetingTemplateListResponse,
+    summary="The template library",
 )
 async def list_templates(
     user: User = Depends(get_current_active_session),
@@ -198,7 +204,9 @@ async def get_template(
 
 
 @router.put(
-    "/templates/{ref}", response_model=MeetingTemplateResponse, summary="Replace a user template"
+    "/templates/{ref}",
+    response_model=MeetingTemplateResponse,
+    summary="Replace a user template",
 )
 async def update_template(
     ref: str,
@@ -211,7 +219,9 @@ async def update_template(
 
 
 @router.delete(
-    "/templates/{ref}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a user template"
+    "/templates/{ref}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a user template",
 )
 async def delete_template(
     ref: str,
@@ -230,7 +240,9 @@ async def get_preferences(
 
 
 @router.put(
-    "/preferences", response_model=MeetingPreferencesResponse, summary="Replace preferences"
+    "/preferences",
+    response_model=MeetingPreferencesResponse,
+    summary="Replace preferences",
 )
 async def put_preferences(
     body: MeetingPreferencesUpdate,
@@ -301,7 +313,9 @@ async def stop_meeting(
 
 
 @router.post(
-    "/{meeting_id}/resume", response_model=MeetingActionResponse, summary="Resume recording"
+    "/{meeting_id}/resume",
+    response_model=MeetingActionResponse,
+    summary="Resume recording",
 )
 async def resume_meeting(
     meeting_id: uuid.UUID,

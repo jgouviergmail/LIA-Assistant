@@ -65,7 +65,10 @@ from src.domains.scheduled_actions.models import (
     CONDITION_TYPES,
 )
 from src.domains.scheduled_actions.schemas import WEATHER_CONDITION_KINDS
-from src.domains.shared.consultation_sink import collector_is_active, consultation_collector
+from src.domains.shared.consultation_sink import (
+    collector_is_active,
+    consultation_collector,
+)
 from src.domains.shared.consultation_surfaces import record_surface_consultations
 from src.domains.users.models import User
 from src.infrastructure.proactive.tracking import out_of_turn_spend
@@ -249,7 +252,10 @@ async def _eval_mail_match(user: User, params: dict[str, Any]) -> ConditionVerdi
     if not query:  # defensive — the API schema already refuses this
         return ConditionVerdict(note_prefix="Matching mails: ")
     data = await fetch_mails(
-        user=user, user_tz=_user_tz(user), language=normalize_language(user.language)
+        user=user,
+        user_tz=_user_tz(user),
+        language=normalize_language(user.language),
+        qualify_items=False,
     )
     facts = tuple(
         # With no id, the sender and the subject — never ``received_local``,
@@ -300,6 +306,7 @@ async def _eval_calendar_event(user: User, params: dict[str, Any]) -> ConditionV
         user_tz=_user_tz(user),
         language=normalize_language(user.language),
         lookahead_hours=within,
+        qualify_items=False,
     )
     now = now_utc()
     horizon = now + timedelta(hours=within)

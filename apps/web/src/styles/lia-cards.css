@@ -1,3 +1,97 @@
+.lia-place-position__preview {
+  display: grid;
+  min-height: 12rem;
+  place-content: center;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  color: var(--color-muted-foreground);
+  text-align: center;
+}
+.lia-place-position__stage[data-available='false'],
+.lia-place-position__stage[data-available='false'] .lia-place-position__preview {
+  min-height: 0;
+}
+.lia-place-position__choices,
+.lia-place-position__fallback {
+  margin: 0.75rem 0;
+  padding: 0;
+  list-style: none;
+}
+.lia-place-position__choices li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.lia-place-position__choices button,
+.lia-place-position__choices a {
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0.4rem;
+  padding: 0.4rem;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+.lia-place-position__choices [aria-pressed='true'] {
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+.lia-place-position__choices :is(button, a):focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+.lia-place-position__number {
+  min-width: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Stable label and foreground; only its outside halo attracts attention. */
+.content-classification-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  max-width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.lia-classification .content-classification-badge {
+  color: var(--color-primary);
+  background: color-mix(in oklch, var(--color-primary) 10%, var(--color-card));
+  border-color: color-mix(in oklch, var(--color-primary) 20%, var(--color-card));
+}
+.lia-classification .content-classification-badge--warning {
+  color: var(--color-warning);
+  background: color-mix(in oklch, var(--color-warning) 10%, var(--color-card));
+  border-color: color-mix(in oklch, var(--color-warning) 20%, var(--color-card));
+}
+.lia-classification .content-classification-badge--alert,
+.content-classification-badge--alert {
+  color: var(--color-destructive-foreground);
+  background: var(--color-destructive);
+  border-color: var(--color-destructive);
+}
+@keyframes classification-attention {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-destructive) 45%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .content-classification-badge {
+    animation: none !important;
+  }
+}
+
 /* Deterministic data cards. Historical markup and HITL/widget surfaces keep
    their established styles. New cards inherit the app's theme and font. */
 .lia-response-wrapper[data-card-version='2'] {

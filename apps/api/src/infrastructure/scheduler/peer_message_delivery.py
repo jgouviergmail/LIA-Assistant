@@ -45,6 +45,7 @@ from src.core.i18n import get_language_name
 from src.core.i18n_proactive import ProactiveMessages
 from src.core.llm_usage import LLMBillingRecord
 from src.domains.agents.prompts import load_prompt
+from src.domains.peers.capability_notifications import maintain_capability_transfers
 from src.domains.peers.constants import (
     PEER_CONNECTION_TASK_TYPE,
     PEER_MESSAGE_TASK_TYPE,
@@ -195,7 +196,10 @@ async def _generate_delivery_text(
             config=RunnableConfig(callbacks=[capture]),
         )
         capture.ensure_response_record(
-            result, model_name=model_name, started_at=started_at, snapshot=pricing_snapshot
+            result,
+            model_name=model_name,
+            started_at=started_at,
+            snapshot=pricing_snapshot,
         )
         records = capture.get_billing_records(model_name)
         return _DeliveryText(
@@ -442,6 +446,9 @@ async def sweep_pending_deliveries() -> dict[str, int]:
         "pruned_access_log": 0,
         "purged_texts": 0,
     }
+    await maintain_capability_transfers()
+    if not settings.peers_enabled:
+        return counters
     async with get_db_context() as db:
         repo = PeersRepository(db)
         counters["recovered"] = await repo.recover_stale_delivering(

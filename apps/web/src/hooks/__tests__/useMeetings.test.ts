@@ -5,6 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { StrictMode } from 'react';
 
 import { ApiError } from '@/lib/api-client';
 import { MEETING_STATUS_POLL_MS } from '@/lib/constants';
@@ -97,6 +98,45 @@ describe('useMeeting', () => {
 });
 
 describe('useMeetingList', () => {
+  it('makes one initial read under Strict Mode and refuses a retained callback after unmount', async () => {
+    api.get.mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 });
+    const { result, unmount } = renderHook(() => useMeetingList(20), { wrapper: StrictMode });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(api.get).toHaveBeenCalledTimes(1);
+    const retained = result.current.refetch;
+    unmount();
+    await retained();
+    expect(api.get).toHaveBeenCalledTimes(1);
+  });
+
+  it('scopes searches and aborts the previous transport before publishing another query', async () => {
+    let finishOld: ((page: MeetingListResponse) => void) | undefined;
+    api.get
+      .mockImplementationOnce(
+        () =>
+          new Promise<MeetingListResponse>(resolve => {
+            finishOld = resolve;
+          })
+      )
+      .mockResolvedValueOnce({ items: [], total: 3, limit: 20, offset: 0 });
+    const { result, rerender, unmount } = renderHook(
+      ({ query }) => useMeetingList(20, 0, true, query),
+      { initialProps: { query: 'alpha' } }
+    );
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
+    const oldConfig = api.get.mock.calls[0][1];
+    expect(oldConfig.params.q).toBe('alpha');
+    expect(oldConfig.signal).toBeInstanceOf(AbortSignal);
+    rerender({ query: 'beta' });
+    await waitFor(() => expect(result.current.total).toBe(3));
+    expect(oldConfig.signal.aborted).toBe(true);
+    await act(async () => finishOld?.({ items: [], total: 99, limit: 20, offset: 0 }));
+    expect(result.current.total).toBe(3);
+    const currentConfig = api.get.mock.calls.at(-1)?.[1];
+    unmount();
+    expect(currentConfig.signal.aborted).toBe(true);
+  });
+
   it('returns the page and the exact total', async () => {
     const page: MeetingListResponse = {
       items: [],
@@ -108,7 +148,10 @@ describe('useMeetingList', () => {
     const { result } = renderHook(() => useMeetingList(20));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.total).toBe(42);
-    expect(api.get).toHaveBeenCalledWith('/meetings', { params: { limit: 20, offset: 0 } });
+    expect(api.get).toHaveBeenCalledWith('/meetings', {
+      params: { limit: 20, offset: 0 },
+      signal: expect.any(AbortSignal),
+    });
   });
 
   it('reads a 404 as the feature being off', async () => {

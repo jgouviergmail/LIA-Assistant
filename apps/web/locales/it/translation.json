@@ -1301,6 +1301,19 @@
       "omitted_one": "Impossibile mostrare {{count}} itinerario incompleto.",
       "omitted_other": "Impossibile mostrare {{count}} itinerari incompleti.",
       "report_error": "Registrazione del caricamento non riuscita. Riprova senza riaprire la mappa."
+    },
+    "position_map": {
+      "activate": "Esplora la mappa",
+      "map": "Posizione dei luoghi",
+      "choose": "Luoghi di questa risposta",
+      "recenter": "Mostra tutti i segnaposto",
+      "preview": "Attiva la mappa interattiva per esplorare questi luoghi.",
+      "open_place": "Apri {{name}} in Google Maps",
+      "unlocated": "Senza coordinate: {{count}}",
+      "omitted": "{{count}} altri luoghi sono disponibili nell’elenco completo.",
+      "all_places": "Elenco completo dei luoghi",
+      "list_preview": "Consulta i luoghi qui sotto.",
+      "unavailable": "La mappa interattiva non è al momento disponibile. Puoi comunque aprire i luoghi qui sotto."
     }
   },
   "skill_apps": {
@@ -2803,7 +2816,9 @@
           "meeting_template_selection": "Selezione nativa del modello di resoconto con Jev; il modello esistente continua a scrivere la sintesi.",
           "jev_memory_reference_presence": "Evita l’estrazione dei riferimenti quando la richiesta non contiene persone o luoghi impliciti. I ricordi restano disponibili; i casi incerti seguono il processo esistente.",
           "jev_hitl_rejection": "Riconosce solo il rifiuto esplicito di tutte le azioni proposte. Approvazioni, modifiche, rifiuti parziali e ambiguità usano il classificatore esistente. JEV non può approvare alcuna azione.",
-          "jev_parameter_kind": "Prima di chiamare uno strumento, valuta che cosa sia ogni valore di indirizzo, luogo o email. Solo un giudizio sicuro può rifiutare un valore di altro tipo (un nome di persona, un numero di telefono, una data). Un giudizio incerto o fallito lascia la decisione alla protezione esistente, e JEV non può accettare alcun valore che quella protezione rifiuta."
+          "jev_parameter_kind": "Prima di chiamare uno strumento, valuta che cosa sia ogni valore di indirizzo, luogo o email. Solo un giudizio sicuro può rifiutare un valore di altro tipo (un nome di persona, un numero di telefono, una data). Un giudizio incerto o fallito lascia la decisione alla protezione esistente, e JEV non può accettare alcun valore che quella protezione rifiuta.",
+          "jev_email_classification": "Classifica le informazioni email già disponibili con una categoria indicativa e un unico livello di attenzione. In caso di dubbio nessun badge. Non vengono letti altri messaggi, link o allegati.",
+          "jev_event_classification": "Classifica le informazioni degli appuntamenti già disponibili come professionali o personali. In caso di dubbio nessun badge; l’appuntamento resta invariato."
         },
         "voiceTts": {
           "sectionTitle": "Voce e impostazioni provider",
@@ -3174,7 +3189,9 @@
           "filter_file": "Filtro anticipato dei documenti",
           "memory_reference_presence": "Riferimenti personali in memoria",
           "hitl_rejection": "Rifiuto completo di una conferma",
-          "parameter_kind": "Valori dei parametri protetti"
+          "parameter_kind": "Valori dei parametri protetti",
+          "email_classification": "Categoria e priorità email",
+          "event_classification": "Categoria degli appuntamenti"
         }
       }
     },
@@ -4978,6 +4995,47 @@
       "voice_portal": "La voce, la lingua e i turni di parola sono quelli dell'agente, gestiti sul portale {{brand}}; LIA invia solo il suo prompt e i suoi strumenti.",
       "agent_models": "voce {{voice}} · LLM {{llm}}",
       "vendor_billed": "Le sessioni su {{brand}} sono fatturate sulla tua chiave, dal fornitore: qui non si imposta alcun tetto — l'importo esatto compare alla fine di ogni sessione."
+    },
+    "capability_share": {
+      "origin_by": "Condiviso da {{name}}",
+      "origin_on": "il {{date}}",
+      "unknown_sender": "un altro utente",
+      "title": "Condividi una risorsa",
+      "action": "Condividi {{name}}",
+      "description": "Il tuo contatto riceve una copia indipendente, installata disattivata. Le credenziali di connessione salvate sono escluse.",
+      "execution_notice": "Dopo l’attivazione manuale, le competenze ricevute hanno le stesse capacità di quelle create dal destinatario.",
+      "recipient": "Destinatario",
+      "preview": "Anteprima",
+      "send": "Invia e installa",
+      "retry": "Riprova i componenti mancanti",
+      "refresh": "Verifica stato",
+      "new_preview": "Nuova anteprima",
+      "files": "File inclusi",
+      "omitted": "File esclusi",
+      "bytes": "{{size}} byte",
+      "credentials": "Il destinatario dovrà configurare le credenziali di connessione necessarie.",
+      "component_installed": "Installato",
+      "component_missing": "Non installato",
+      "pending_notice": "Il trasferimento confermato può continuare dopo la chiusura di questa finestra.",
+      "readiness": "Verifica la connessione prima di attivare questo server.",
+      "status": {
+        "preparing": "Pronto per l’invio",
+        "installing": "Installazione in corso",
+        "installed": "Installato per il destinatario, inizialmente disattivato",
+        "partial": "Installazione parziale: mancano alcuni componenti",
+        "failed": "Nessun componente è stato installato",
+        "cancelled": "Trasferimento scaduto o annullato"
+      },
+      "errors": {
+        "generic": "Impossibile confermare il trasferimento. Verifica lo stato prima di riprovare.",
+        "changed": "La risorsa è cambiata. Prepara una nuova anteprima.",
+        "expired": "Il trasferimento è scaduto. Prepara una nuova anteprima.",
+        "busy": "Un’installazione è già in corso. Verificane lo stato.",
+        "quota": "È stato raggiunto il limite di condivisione. Riprova più tardi.",
+        "conflict": "Il destinatario ha già una risorsa con questo nome.",
+        "recipient_changed": "Il destinatario ha modificato o eliminato l’installazione parziale. Non è stata sovrascritta.",
+        "not_shareable": "Questa risorsa non può essere condivisa così com’è. Controlla i file, i segreti incorporati e la configurazione."
+      }
     }
   },
   "relations": {
@@ -16707,6 +16765,10 @@
       "indexing": "Aggiunta allo spazio di conoscenza"
     },
     "list": {
+      "search_placeholder": "Cerca nei verbali delle riunioni…",
+      "no_results_title": "Nessuna riunione corrispondente",
+      "no_results_description": "Prova un altro termine o cancella la ricerca.",
+      "clear_search": "Cancella ricerca",
       "title": "Riunioni",
       "subtitle": "Le tue registrazioni e i loro verbali",
       "empty_title": "Nessuna riunione per ora",
@@ -17138,7 +17200,8 @@
       "proactive_notification": "Notifica inviata ({{kind}})",
       "peer_image_share": "Immagine condivisa con una connessione",
       "email_share": "E-mail inviata a {{count}} destinatario/i",
-      "skill_proposal_install": "Competenza «{{target}}» aggiunta alla tua libreria"
+      "skill_proposal_install": "Competenza «{{target}}» aggiunta alla tua libreria",
+      "peer_capability_share": "Risorsa condivisa con una connessione"
     },
     "export": {
       "group_label": "Esporta questo registro",
@@ -18107,5 +18170,13 @@
       "original": "Originale",
       "original_label": "Originale — {{outlet}}, in una nuova scheda"
     }
+  },
+  "classification": {
+    "professional": "Professionale",
+    "personal": "Personale",
+    "spam": "Spam",
+    "phishing_scam": "Phishing/Truffa",
+    "urgent": "Urgente",
+    "critical": "Critico"
   }
 }

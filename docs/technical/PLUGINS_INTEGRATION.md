@@ -1,5 +1,10 @@
 # Agent Plugins Integration (agent-plugins.org v1.0.0)
 
+An owned plugin can also be [shared with an accepted peer](PEER_CAPABILITY_TRANSFERS.md).
+Its independent recipient copy and native children commit disabled without
+credentials. The server-written peer trust exception applies to its skill
+children; ordinary plugin imports retain their existing third-party policy.
+
 **Status**: implemented (ADR-225) · **Domain**: `apps/api/src/domains/plugins/` · **Since**: v1.31.x
 
 LIA implements the [Agent Plugins v1.0.0 package format](https://agent-plugins.org/specification) for **skills + remote streamable-http MCP servers over HTTPS**, following the incremental-adoption scope (§11.2). The import report identifies loaded, skipped and invalid components. Stdio, legacy SSE and client-specific extension behavior are outside this implementation. A package used by another client may contain unsupported components; portable packaging does not promise identical features or a complete installation across clients. This describes implementation scope, not an external certification.

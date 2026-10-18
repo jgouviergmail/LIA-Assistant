@@ -54,10 +54,15 @@ export function isMeetingInFlight(meeting: Pick<MeetingDetail, 'status' | 'stage
   return IN_FLIGHT_MEETING_STATUSES.includes(meeting.status) || meeting.stage !== null;
 }
 
-export function useMeetingList(limit: number, offset = 0, enabled = true): UseMeetingListReturn {
+export function useMeetingList(
+  limit: number,
+  offset = 0,
+  enabled = true,
+  query = ''
+): UseMeetingListReturn {
   const { user } = useAuth();
   const ownerId = user?.id;
-  const scopeId = enabled && ownerId ? `${ownerId}:${limit}:${offset}` : undefined;
+  const scopeId = enabled && ownerId ? JSON.stringify([ownerId, limit, offset, query]) : undefined;
   const { lifetime, isCurrent } = useApplicationAccountLifetime(scopeId);
   const [meetings, setMeetings] = useApplicationAccountState<MeetingSummary[]>(scopeId, []);
   const [total, setTotal] = useApplicationAccountState(scopeId, 0);
@@ -67,20 +72,26 @@ export function useMeetingList(limit: number, offset = 0, enabled = true): UseMe
   const [isDeleting, setIsDeleting] = useApplicationAccountState(scopeId, false);
   const pending = useRef<typeof lifetime | null>(null);
   const guard = useStaleGuard();
+  const transport = useRef<AbortController | null>(null);
 
   const read = useCallback(async () => {
     if (!enabled || !isCurrent()) return false;
+    transport.current?.abort();
+    const controller = new AbortController();
+    transport.current = controller;
     const isStale = guard.begin();
+    const obsolete = () => controller.signal.aborted || isStale() || !isCurrent();
+    setIsLoading(true);
     try {
-      const page = await meetingsApi.list(limit, offset);
-      if (isStale() || !isCurrent()) return false;
+      const page = await meetingsApi.list(limit, offset, query, controller.signal);
+      if (obsolete()) return false;
       setMeetings(page.items);
       setTotal(page.total);
       setError(null);
       setIsUnavailable(false);
       return true;
     } catch (err) {
-      if (isStale() || !isCurrent()) return false;
+      if (obsolete()) return false;
       if (err instanceof ApiError && err.status === 404) {
         setIsUnavailable(true);
         setMeetings([]);
@@ -90,13 +101,14 @@ export function useMeetingList(limit: number, offset = 0, enabled = true): UseMe
       logger.error('meetings_list_failed', err as Error, { component: 'useMeetingList' });
       return false;
     } finally {
-      if (!isStale() && isCurrent()) setIsLoading(false);
+      if (!obsolete()) setIsLoading(false);
     }
   }, [
     enabled,
     guard,
     limit,
     offset,
+    query,
     isCurrent,
     setMeetings,
     setTotal,
@@ -113,7 +125,14 @@ export function useMeetingList(limit: number, offset = 0, enabled = true): UseMe
   useApplicationResourceSync(scopeId ? ownerId : undefined, 'meetings', refetchVerified);
 
   useEffect(() => {
-    void refetch();
+    let disposed = false;
+    queueMicrotask(() => {
+      if (!disposed) void refetch();
+    });
+    return () => {
+      disposed = true;
+      transport.current?.abort();
+    };
   }, [refetch]);
 
   const bulkDelete = useCallback(

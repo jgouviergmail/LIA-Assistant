@@ -146,7 +146,12 @@ class ConnectorsSettings(BaseSettings):
 
     google_maps_browser_api_key: str = Field(
         default="",
-        description="Optional Maps JavaScript key override; empty reuses GOOGLE_API_KEY",
+        description="Explicit HTTP-referrer-restricted Maps JavaScript browser key; no server-key fallback",
+    )
+    google_maps_map_id: str = Field(
+        default="",
+        max_length=128,
+        description="Google Maps map ID for interactive place markers",
     )
 
     # ========================================================================

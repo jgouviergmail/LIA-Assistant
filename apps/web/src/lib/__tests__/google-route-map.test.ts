@@ -88,6 +88,8 @@ describe('one SDK, exact local overlays', () => {
   it('shares pending initialization and rejects changing the public key mid-page', async () => {
     const { loadRouteMaps } = await import('../google-route-map');
     const first = loadRouteMaps('public-key');
+    const { loadMapsSdk } = await import('../google-maps-sdk');
+    expect(loadMapsSdk('public-key')).toBe(first);
     const second = loadRouteMaps('public-key');
     expect(first).toBe(second);
     expect(document.head.querySelectorAll('script[src*="maps.googleapis.com"]')).toHaveLength(1);

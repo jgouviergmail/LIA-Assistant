@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 import math
 from collections.abc import Awaitable, Callable, Sequence
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -34,20 +34,23 @@ from src.core.constants import (
 )
 from src.core.exceptions import ConnectorAPIError, MaxRetriesExceededError
 from src.core.time_utils import now_utc
+from src.domains.agents.services.qualification.publication import source_binding
 from src.domains.agents.tools.weather_environment_enrichment import (
     environment_enrichment_active,
     fetch_environment_extras,
 )
+from src.domains.briefing.classification import classify_briefing_items
 from src.domains.briefing.constants import (
     BRIEFING_WEATHER_FORECAST_CNT,
     EDITORIAL_MAIL_SCAN_MAX,
-    ERROR_CODE_CONNECTOR_NETWORK,
     ERROR_CODE_CONNECTOR_OAUTH_EXPIRED,
-    ERROR_CODE_CONNECTOR_RATE_LIMIT,
 )
 from src.domains.briefing.exceptions import (
     ConnectorAccessError,
     ConnectorNotConfiguredError,
+)
+from src.domains.briefing.exceptions import (
+    classify_http_error as _classify_http_error,
 )
 from src.domains.briefing.formatters import (
     ForecastAlertRule,
@@ -61,6 +64,9 @@ from src.domains.briefing.formatters import (
     is_event_past,
     make_health_summary_item,
 )
+from src.domains.briefing.formatters import (
+    format_task_item as _task_to_item,
+)
 from src.domains.briefing.schemas import (
     AgendaData,
     BirthdaysData,
@@ -73,7 +79,6 @@ from src.domains.briefing.schemas import (
     HealthData,
     MailsData,
     RemindersData,
-    TaskItem,
     TasksData,
     WeatherData,
     WorkboardData,
@@ -88,7 +93,10 @@ from src.domains.connectors.weather_provider import (
     open_platform_weather_client,
     resolve_weather_client,
 )
-from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
+from src.domains.feature_switches.registry import (
+    PlatformCapability,
+    is_capability_enabled,
+)
 from src.domains.health_metrics.service import HealthMetricsService
 from src.domains.heartbeat.geocoding import resolve_city_name
 from src.domains.reminders.service import ReminderService
@@ -115,22 +123,6 @@ logger = structlog.get_logger(__name__)
 # =============================================================================
 
 
-def _classify_http_error(exc: Exception) -> str:
-    """Map an HTTP/network exception to a stable error_code."""
-    # The API-key client hands a 429 it could not wait out back typed (ADR-108
-    # amendment 2026-10-13). Only that status is read here: a 401 on Google
-    # Weather is the instance's key, which nobody can reconnect (ADR-307).
-    if isinstance(exc, ConnectorAPIError) and exc.upstream_status_code == 429:
-        return ERROR_CODE_CONNECTOR_RATE_LIMIT
-    if isinstance(exc, httpx.HTTPStatusError):
-        status = exc.response.status_code
-        if status == 401:
-            return ERROR_CODE_CONNECTOR_OAUTH_EXPIRED
-        if status == 429:
-            return ERROR_CODE_CONNECTOR_RATE_LIMIT
-    return ERROR_CODE_CONNECTOR_NETWORK
-
-
 # =============================================================================
 # Weather
 # =============================================================================
@@ -152,7 +144,10 @@ async def fetch_weather(
         ConnectorAccessError: on HTTP/network failure (token expired, rate-limit, etc.).
     """
     client, location, environment_active = await _open_weather(
-        user, open_client=resolve_weather_client, source=_CARD_WEATHER_SOURCE, with_environment=True
+        user,
+        open_client=resolve_weather_client,
+        source=_CARD_WEATHER_SOURCE,
+        with_environment=True,
     )
 
     # Fail-quiet: None and the card renders exactly as before.
@@ -180,7 +175,12 @@ async def fetch_weather(
             resolve_city_name(lat=location.lat, lon=location.lon, client=client),
             return_exceptions=False,
         )
-    except (TimeoutError, httpx.HTTPError, MaxRetriesExceededError, ConnectorAPIError) as exc:
+    except (
+        TimeoutError,
+        httpx.HTTPError,
+        MaxRetriesExceededError,
+        ConnectorAPIError,
+    ) as exc:
         # MaxRetriesExceededError: retry-exhaustion from the migrated OWM client
         # (BaseAPIKeyClient); classify from the underlying cause when available.
         cause = getattr(exc, "last_error", None) or exc
@@ -254,7 +254,12 @@ async def _open_weather(
 
 
 async def fetch_forecast_alert(
-    *, user: User, user_tz: ZoneInfo, language: str, now: datetime, rule: ForecastAlertRule
+    *,
+    user: User,
+    user_tz: ZoneInfo,
+    language: str,
+    now: datetime,
+    rule: ForecastAlertRule,
 ) -> ForecastAlert | None:
     """The first change the rule accepts, from Google Weather — what a weather routine checks.
 
@@ -296,7 +301,12 @@ async def fetch_forecast_alert(
                 lat=location.lat, lon=location.lon, lang=language, hours=hours
             ),
         )
-    except (TimeoutError, httpx.HTTPError, MaxRetriesExceededError, ConnectorAPIError) as exc:
+    except (
+        TimeoutError,
+        httpx.HTTPError,
+        MaxRetriesExceededError,
+        ConnectorAPIError,
+    ) as exc:
         cause = getattr(exc, "last_error", None) or exc
         raise ConnectorAccessError(
             _ROUTINE_WEATHER_SOURCE, _classify_http_error(cause), str(exc)
@@ -319,6 +329,7 @@ async def fetch_agenda(
     user_tz: ZoneInfo,
     language: str,
     lookahead_hours: int | None = None,
+    qualify_items: bool = True,
 ) -> AgendaData:
     """Fetch the next ~24 h calendar events from the active provider.
 
@@ -366,11 +377,24 @@ async def fetch_agenda(
         except (TimeoutError, httpx.HTTPError) as exc:
             raise ConnectorAccessError("calendar", _classify_http_error(exc), str(exc)) from exc
 
+        binding = source_binding(access.client)
+        provider = getattr(access.connector_type, "value", "")
+        calendar_id = access.calendar_id
+
     raw_events = result.get("items", []) or []
     # Drop any event whose end is already past (defensive — Google's timeMin
     # filter is end-time-based but edge cases like all-day events ending at
     # midnight may still slip through).
     upcoming = [e for e in raw_events if not is_event_past(e, now, user_tz)]
+    upcoming = await classify_briefing_items(
+        upcoming,
+        kind="event",
+        user_id=user.id,
+        provider=provider,
+        binding=binding if qualify_items else "",
+        timezone=str(user_tz),
+        container=calendar_id,
+    )
     return AgendaData(events=[format_agenda_event(e, user_tz, language) for e in upcoming])
 
 
@@ -385,6 +409,7 @@ async def fetch_mails(
     user_tz: ZoneInfo,
     language: str,
     exclude_commercial_mails: bool = False,
+    qualify_items: bool = True,
 ) -> MailsData:
     """Fetch today's unread inbox emails from the active provider.
 
@@ -419,16 +444,23 @@ async def fetch_mails(
                 else None
             ),
         )
+        binding = source_binding(opened.client)
+        provider = getattr(opened.connector_type, "value", "")
 
     eligible = (
         [m for m in full_messages if not commercial_mail(m)]
         if exclude_commercial_mails
         else full_messages
     )
-    items = [
-        format_email_item(m, user_tz, language)
-        for m in eligible[: settings.briefing_max_mails_items]
-    ]
+    selected = await classify_briefing_items(
+        eligible[: settings.briefing_max_mails_items],
+        kind="email",
+        user_id=user.id,
+        provider=provider,
+        binding=binding if qualify_items else "",
+        timezone=str(user_tz),
+    )
+    items = [format_email_item(m, user_tz, language) for m in selected]
     return MailsData(items=items, total_unread_today=len(full_messages))
 
 
@@ -444,7 +476,7 @@ async def _unread_inbox(
     try:
         result = await client.search_emails(
             query="is:unread in:inbox",
-            max_results=scan_max if scan_max is not None else settings.briefing_max_mails_items,
+            max_results=(scan_max if scan_max is not None else settings.briefing_max_mails_items),
             use_cache=True,
         )
     except (TimeoutError, httpx.HTTPError) as exc:
@@ -613,36 +645,6 @@ async def fetch_health(*, user: User) -> HealthData:
 # =============================================================================
 # For you (open loops + automations digest — P15, interdomain Lot 4)
 # =============================================================================
-
-
-def _task_to_item(task: dict[str, Any], today_local: date) -> TaskItem | None:
-    """Map one provider-normalized task to a TaskItem (None if not pending).
-
-    Due semantics are DATE-ONLY in the user's local frame (birthdays
-    doctrine): a task due today is on time — never "overdue" merely because
-    00:00 UTC has passed.
-    """
-    if task.get("status") != "needsAction":
-        return None
-    due_date_iso: str | None = None
-    days_until: int | None = None
-    raw_due = task.get("due")
-    if raw_due:
-        try:
-            due_date = datetime.fromisoformat(str(raw_due).replace("Z", "+00:00")).date()
-            due_date_iso = due_date.isoformat()
-            days_until = (due_date - today_local).days
-        except ValueError, TypeError:
-            # Provider sent an unparseable due — keep the task, undated.
-            logger.debug("briefing_task_due_unparseable", raw_due=str(raw_due)[:40])
-    task_id = task.get("id")
-    return TaskItem(
-        title=task.get("title") or "Untitled",
-        due_date_iso=due_date_iso,
-        days_until_due=days_until,
-        overdue=days_until is not None and days_until < 0,
-        id=str(task_id) if task_id else None,
-    )
 
 
 async def fetch_tasks(*, user: User, user_tz: ZoneInfo, whole_page: bool = False) -> TasksData:
@@ -894,7 +896,10 @@ async def fetch_workboard(*, user_id: UUID) -> WorkboardData:
     now = now_utc()
     async with get_db_context() as db:
         figures = await read_attention(
-            WorkboardRepository(db), user_id, now, limit=settings.briefing_max_workboard_items
+            WorkboardRepository(db),
+            user_id,
+            now,
+            limit=settings.briefing_max_workboard_items,
         )
         items = [_workboard_item(ticket, now) for ticket in figures.needs_me_first]
         previews = WorkboardPreviews.model_validate(

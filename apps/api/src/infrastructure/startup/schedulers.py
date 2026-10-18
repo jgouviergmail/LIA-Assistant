@@ -55,15 +55,21 @@ from src.core.constants import (
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.scheduler.currency_sync import sync_currency_rates
 from src.infrastructure.scheduler.interest_cleanup import cleanup_interests
-from src.infrastructure.scheduler.interest_notification import process_interest_notifications
+from src.infrastructure.scheduler.interest_notification import (
+    process_interest_notifications,
+)
 from src.infrastructure.scheduler.leader_elector import SchedulerLeaderElector
 from src.infrastructure.scheduler.memory_cleanup import cleanup_memories
 from src.infrastructure.scheduler.memory_consolidation import consolidate_memories
 from src.infrastructure.scheduler.oauth_health import check_oauth_health_all_users
 from src.infrastructure.scheduler.reminder_notification import process_pending_reminders
-from src.infrastructure.scheduler.scheduled_action_executor import process_scheduled_actions
+from src.infrastructure.scheduler.scheduled_action_executor import (
+    process_scheduled_actions,
+)
 from src.infrastructure.scheduler.token_refresh import refresh_expiring_tokens
-from src.infrastructure.scheduler.unverified_account_cleanup import cleanup_unverified_accounts
+from src.infrastructure.scheduler.unverified_account_cleanup import (
+    cleanup_unverified_accounts,
+)
 from src.infrastructure.startup.scheduler_jitter import jitter_seconds_for
 from src.infrastructure.startup.scheduler_ledger import register_ledger_jobs
 from src.infrastructure.startup.scheduler_meetings import register_meetings_jobs
@@ -75,6 +81,26 @@ if TYPE_CHECKING:
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 logger = structlog.get_logger(__name__)
+
+
+def register_peer_maintenance(scheduler: AsyncIOScheduler) -> None:
+    """Retention runs while peers is off; the sweep gates all delivery itself."""
+    from src.core.constants import SCHEDULER_JOB_PEERS_DELIVERY_SWEEP
+    from src.infrastructure.scheduler.peer_message_delivery import (
+        sweep_pending_deliveries,
+    )
+
+    scheduler.add_job(
+        sweep_pending_deliveries,
+        trigger="interval",
+        seconds=settings.peers_delivery_sweep_seconds,
+        jitter=jitter_seconds_for(seconds=settings.peers_delivery_sweep_seconds),
+        id=SCHEDULER_JOB_PEERS_DELIVERY_SWEEP,
+        name="Peers retention and enabled-message delivery sweep",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=60,
+    )
 
 
 async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
@@ -345,34 +371,20 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
         # shortens the happy-path latency. Also recovers crash-stranded
         # claims and expires stale pending requests (one job owns every
         # peers time-based transition).
-        if getattr(settings, "peers_enabled", False):
-            from src.core.constants import SCHEDULER_JOB_PEERS_DELIVERY_SWEEP
-            from src.infrastructure.scheduler.peer_message_delivery import (
-                sweep_pending_deliveries,
-            )
-
-            scheduler.add_job(
-                sweep_pending_deliveries,
-                trigger="interval",
-                seconds=settings.peers_delivery_sweep_seconds,
-                jitter=jitter_seconds_for(seconds=settings.peers_delivery_sweep_seconds),
-                id=SCHEDULER_JOB_PEERS_DELIVERY_SWEEP,
-                name="Peers relayed-message delivery sweep",
-                replace_existing=True,
-                max_instances=1,
-                misfire_grace_time=60,
-            )
-            logger.info(
-                "peers_delivery_sweep_job_scheduled",
-                interval_seconds=settings.peers_delivery_sweep_seconds,
-            )
+        register_peer_maintenance(scheduler)
+        logger.info(
+            "peers_delivery_sweep_job_scheduled",
+            interval_seconds=settings.peers_delivery_sweep_seconds,
+        )
         # Workboard run sweep (ADR-276, lot 2): the ONE job that owns every
         # time-based transition of a ticket — it reaps the claims a dead worker
         # left, drops the hidden transcripts past retention, and runs at most
         # one ticket assigned to LIA.
         if getattr(settings, "workboard_enabled", False):
             from src.core.constants import SCHEDULER_JOB_WORKBOARD_RUN_SWEEP
-            from src.infrastructure.scheduler.workboard_runner import sweep_workboard_runs
+            from src.infrastructure.scheduler.workboard_runner import (
+                sweep_workboard_runs,
+            )
 
             scheduler.add_job(
                 sweep_workboard_runs,
@@ -592,7 +604,9 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
         # design, part A) — one job, one lock; the composition module keeps
         # the reaper first and each half independently best-effort.
         if getattr(settings, "rag_spaces_enabled", False):
-            from src.infrastructure.scheduler.rag_maintenance import rag_maintenance_tick
+            from src.infrastructure.scheduler.rag_maintenance import (
+                rag_maintenance_tick,
+            )
 
             scheduler.add_job(
                 rag_maintenance_tick,

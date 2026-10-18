@@ -37,6 +37,8 @@ class SkillProvenance(StrEnum):
     SYSTEM = "system"
     #: Uploaded by the person, or generated with them in chat.
     AUTHORED = "authored"
+    #: Explicit peer transfer; disabled on receipt, authored-equivalent on activation.
+    PEER = "peer"
     #: Fetched by LIA from an https address the person gave.
     URL = "url"
     #: Installed by an Agent Plugins package (ADR-225).
@@ -52,6 +54,10 @@ THIRD_PARTY_PROVENANCES: Final = frozenset(
 #: Owned by the channel that installed them: only that channel replaces them
 #: (a plugin update, a library update) — never an upload or a chat edit.
 MANAGED_PROVENANCES: Final = frozenset({SkillProvenance.PLUGIN, SkillProvenance.LIBRARY})
+
+
+def skill_is_third_party(provenance: str, *, peer_authored: bool) -> bool:
+    return provenance in THIRD_PARTY_PROVENANCES and not peer_authored
 
 
 class Skill(BaseModel):
@@ -118,6 +124,13 @@ class Skill(BaseModel):
         nullable=False,
         doc="English description (DB is source of truth for display)",
     )
+    peer_authored: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+        doc="Server-written execution grant for a peer-delivered plugin child; never frontmatter.",
+    )
     descriptions: Mapped[dict | None] = mapped_column(
         JSONB,
         nullable=True,
@@ -168,7 +181,7 @@ class Skill(BaseModel):
         # one of system provenance (the owner FK cascades, so no FK action
         # moves a row between the two).
         CheckConstraint(
-            "provenance IN ('system', 'authored', 'url', 'plugin', 'library') "
+            "provenance IN ('system', 'authored', 'url', 'plugin', 'library', 'peer') "
             "AND (provenance = 'system') = is_system",
             name="ck_skills_provenance",
         ),

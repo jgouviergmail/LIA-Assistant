@@ -312,6 +312,7 @@ export interface ContactCard {
 }
 
 export interface ExchangedEmail {
+  classification?: import('@/lib/content-classification').ContentClassification | null;
   id: string;
   direction: PeerMessageDirection;
   subject: string;
@@ -323,6 +324,7 @@ export interface ExchangedEmail {
 }
 
 export interface SharedEvent {
+  classification?: import('@/lib/content-classification').ContentClassification | null;
   id: string;
   summary: string;
   starts_at: string | null;

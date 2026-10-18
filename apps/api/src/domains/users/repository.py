@@ -34,6 +34,7 @@ from src.domains.users.admin_columns import (
     ADMIN_USER_SUBQUERY_SORTS,
 )
 from src.domains.users.models import AdminAuditLog, User
+from src.domains.users.resource_release import build_capability_origin_scrub
 
 logger = structlog.get_logger(__name__)
 
@@ -85,10 +86,14 @@ def _statistic_sort_expressions() -> dict[str, ColumnElement[Any]]:
         "cycle_google_api_requests": total(stats.cycle_google_api_requests),
         # Tokens: prompt + completion + cached.
         "total_tokens": total(
-            stats.total_prompt_tokens, stats.total_completion_tokens, stats.total_cached_tokens
+            stats.total_prompt_tokens,
+            stats.total_completion_tokens,
+            stats.total_cached_tokens,
         ),
         "cycle_tokens": total(
-            stats.cycle_prompt_tokens, stats.cycle_completion_tokens, stats.cycle_cached_tokens
+            stats.cycle_prompt_tokens,
+            stats.cycle_completion_tokens,
+            stats.cycle_cached_tokens,
         ),
         # Cost: LLM + Google API + image generation.
         "total_cost_eur": total(
@@ -291,6 +296,7 @@ class UserRepository(BaseRepository[User]):
         Args:
             user: User object to delete
         """
+        await self.db.execute(build_capability_origin_scrub(user.id))
         await BaseRepository.delete(self, user)
         logger.info("user_hard_deleted", user_id=str(user.id))
 

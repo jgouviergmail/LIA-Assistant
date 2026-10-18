@@ -1,0 +1,881 @@
+{
+  "version": 1,
+  "reference_time": "2026-10-18T12:00:00Z",
+  "timezone": "UTC",
+  "source": "Original fictional fixtures; no real mailbox/calendar data. Same-author disjoint execution holdout, not a population-accuracy claim.",
+  "quality_gate": {
+    "maximum_wrong_accepted_labels": 0,
+    "minimum_positive_coverage": 0.6,
+    "minimum_phishing_coverage": 0.7
+  },
+  "items": [
+    {
+      "id": "cases-000",
+      "language": "en",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Quarterly project report",
+        "body": "The quarterly project report is filed for your records. No action is required.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-001",
+      "language": "en",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Family photos",
+        "body": "Here are our family holiday photos. Enjoy them whenever you have time.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "personal",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-002",
+      "language": "en",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Unsolicited bulk offer",
+        "body": "Unsolicited mass advertisement: buy our follower packages. Sent to a harvested mailing list.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "spam",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-003",
+      "language": "en",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Payroll verification",
+        "body": "Your payroll account is suspended. To restore it, reply to this external address with your password and latest one-time login code. Do not contact your usual IT team.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "phishing_scam",
+      "expected_priority": "unknown"
+    },
+    {
+      "id": "cases-004",
+      "language": "en",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Release blocked now",
+        "body": "The release is blocked waiting for your approval. Please review the rollback immediately so the team can restore service promptly.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "urgent"
+    },
+    {
+      "id": "cases-005",
+      "language": "en",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Active production incident",
+        "body": "Our payment production service is completely offline right now. Customers cannot pay. On-call lead: activate the major-incident response immediately.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "critical"
+    },
+    {
+      "id": "cases-006",
+      "language": "fr",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Rapport du projet",
+        "body": "Le rapport trimestriel du projet est classé pour information. Aucune action attendue.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-007",
+      "language": "fr",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Photos de famille",
+        "body": "Voici les photos de nos vacances en famille. Regarde-les quand tu auras le temps.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "personal",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-008",
+      "language": "fr",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Publicité de masse non sollicitée",
+        "body": "Publicité non sollicitée envoyée en masse à une liste récoltée : achetez nos abonnés artificiels.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "spam",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-009",
+      "language": "fr",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Vérification de la paie",
+        "body": "Votre compte de paie est suspendu. Pour le rétablir, répondez à cette adresse externe avec votre mot de passe et votre dernier code de connexion à usage unique. Ne contactez pas votre équipe informatique habituelle.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "phishing_scam",
+      "expected_priority": "unknown"
+    },
+    {
+      "id": "cases-010",
+      "language": "fr",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Déploiement bloqué",
+        "body": "Le déploiement attend votre validation. Merci de revoir le retour arrière tout de suite pour que l’équipe rétablisse rapidement le service.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "urgent"
+    },
+    {
+      "id": "cases-011",
+      "language": "fr",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Incident majeur en cours",
+        "body": "Le service de paiement en production est totalement indisponible maintenant. Les clients ne peuvent plus payer. Responsable d’astreinte : activez immédiatement la gestion d’incident majeur.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "critical"
+    },
+    {
+      "id": "cases-012",
+      "language": "de",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Projektbericht",
+        "body": "Der Quartalsbericht zum Projekt ist zur Information abgelegt. Es ist keine Aktion erforderlich.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-013",
+      "language": "de",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Familienfotos",
+        "body": "Hier sind die Bilder unseres Familienurlaubs. Schau sie an, wenn du Zeit hast.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "personal",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-014",
+      "language": "de",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Unerwünschte Massenwerbung",
+        "body": "Unverlangte Massenwerbung an eine abgegriffene Adressliste: Kaufen Sie unsere künstlichen Follower.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "spam",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-015",
+      "language": "de",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Gehaltsprüfung",
+        "body": "Ihr Gehaltskonto ist gesperrt. Antworten Sie zur Wiederherstellung an diese externe Adresse mit Ihrem Passwort und dem neuesten Einmalcode. Kontaktieren Sie nicht Ihre übliche IT-Abteilung.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "phishing_scam",
+      "expected_priority": "unknown"
+    },
+    {
+      "id": "cases-016",
+      "language": "de",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Veröffentlichung blockiert",
+        "body": "Die Veröffentlichung wartet auf Ihre Freigabe. Prüfen Sie bitte sofort das Rollback, damit das Team den Dienst zügig wiederherstellen kann.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "urgent"
+    },
+    {
+      "id": "cases-017",
+      "language": "de",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Schwerer Produktionsausfall",
+        "body": "Unser produktiver Zahlungsdienst ist jetzt vollständig ausgefallen. Kunden können nicht zahlen. Bereitschaftsleitung: Starten Sie sofort die Behandlung des Großvorfalls.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "critical"
+    },
+    {
+      "id": "cases-018",
+      "language": "es",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Informe del proyecto",
+        "body": "El informe trimestral del proyecto está archivado para información. No se requiere ninguna acción.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-019",
+      "language": "es",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Fotos de familia",
+        "body": "Aquí están las fotos de nuestras vacaciones familiares. Míralas cuando tengas tiempo.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "personal",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-020",
+      "language": "es",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Publicidad masiva no solicitada",
+        "body": "Publicidad masiva no solicitada enviada a una lista recopilada: compre nuestros seguidores artificiales.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "spam",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-021",
+      "language": "es",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Verificación de nóminas",
+        "body": "Su cuenta de nóminas está suspendida. Para restaurarla, responda a esta dirección externa con su contraseña y último código de acceso de un solo uso. No contacte con su equipo informático habitual.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "phishing_scam",
+      "expected_priority": "unknown"
+    },
+    {
+      "id": "cases-022",
+      "language": "es",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Publicación bloqueada",
+        "body": "La publicación está esperando su aprobación. Revise la reversión ahora para que el equipo restablezca pronto el servicio.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "urgent"
+    },
+    {
+      "id": "cases-023",
+      "language": "es",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Incidente grave activo",
+        "body": "El servicio de pagos de producción está totalmente caído ahora. Los clientes no pueden pagar. Responsable de guardia: active inmediatamente la respuesta a incidentes graves.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "critical"
+    },
+    {
+      "id": "cases-024",
+      "language": "it",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Rapporto del progetto",
+        "body": "Il rapporto trimestrale del progetto è archiviato per informazione. Non è richiesta alcuna azione.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-025",
+      "language": "it",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Foto di famiglia",
+        "body": "Ecco le foto delle nostre vacanze in famiglia. Guardale quando hai tempo.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "personal",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-026",
+      "language": "it",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Pubblicità di massa indesiderata",
+        "body": "Pubblicità di massa non richiesta inviata a indirizzi raccolti: comprate i nostri follower artificiali.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "spam",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-027",
+      "language": "it",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Verifica delle paghe",
+        "body": "Il vostro account paghe è sospeso. Per ripristinarlo, rispondete a questo indirizzo esterno con password e ultimo codice di accesso monouso. Non contattate il solito reparto informatico.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "phishing_scam",
+      "expected_priority": "unknown"
+    },
+    {
+      "id": "cases-028",
+      "language": "it",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Rilascio bloccato",
+        "body": "Il rilascio attende la vostra approvazione. Verificate subito il ripristino in modo che il team possa riattivare rapidamente il servizio.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "urgent"
+    },
+    {
+      "id": "cases-029",
+      "language": "it",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Grave incidente in corso",
+        "body": "Il servizio di pagamento in produzione è completamente fuori servizio ora. I clienti non possono pagare. Responsabile reperibile: attivate immediatamente la gestione dell’incidente grave.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "critical"
+    },
+    {
+      "id": "cases-030",
+      "language": "zh",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "项目报告",
+        "body": "季度项目报告已存档，仅供参考，不需要采取任何行动。",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-031",
+      "language": "zh",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "家庭照片",
+        "body": "这是我们全家度假的照片。有空时再看就好。",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "personal",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-032",
+      "language": "zh",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "未经请求的群发广告",
+        "body": "这是向收集的地址名单群发的未经请求的广告：购买我们的虚假粉丝套餐。",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "spam",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-033",
+      "language": "zh",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "工资账户验证",
+        "body": "你的工资账户已暂停。要恢复账户，请回复这个外部地址并提供密码和最新的一次性登录验证码。不要联系你平时的信息技术团队。",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "phishing_scam",
+      "expected_priority": "unknown"
+    },
+    {
+      "id": "cases-034",
+      "language": "zh",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "发布受阻",
+        "body": "发布正在等待你的批准。请立即检查回滚方案，让团队尽快恢复服务。",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "urgent"
+    },
+    {
+      "id": "cases-035",
+      "language": "zh",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "正在发生的严重故障",
+        "body": "生产支付服务现在已完全中断，客户无法付款。值班负责人请立即启动重大事故应急响应。",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "critical"
+    },
+    {
+      "id": "cases-036",
+      "language": "en",
+      "kind": "event",
+      "evidence_scope": "event",
+      "evidence": {
+        "summary": "Customer project review",
+        "description": "Work meeting with our customer to review the contract.",
+        "start": {
+          "dateTime": "2026-10-18T14:00:00Z"
+        }
+      },
+      "expected_category": "professional",
+      "expected_priority": null
+    },
+    {
+      "id": "cases-037",
+      "language": "en",
+      "kind": "event",
+      "evidence_scope": "event",
+      "evidence": {
+        "summary": "Family birthday dinner",
+        "description": "Private birthday dinner with my parents and siblings.",
+        "start": {
+          "dateTime": "2026-10-18T14:00:00Z"
+        }
+      },
+      "expected_category": "personal",
+      "expected_priority": null
+    },
+    {
+      "id": "cases-038",
+      "language": "en",
+      "kind": "event",
+      "evidence_scope": "event",
+      "evidence": {
+        "summary": "Coffee",
+        "description": "",
+        "start": {
+          "dateTime": "2026-10-18T14:00:00Z"
+        }
+      },
+      "expected_category": "unknown",
+      "expected_priority": null
+    },
+    {
+      "id": "cases-039",
+      "language": "fr",
+      "kind": "event",
+      "evidence_scope": "event",
+      "evidence": {
+        "summary": "Revue du projet client",
+        "description": "Réunion de travail avec notre client pour revoir le contrat.",
+        "start": {
+          "dateTime": "2026-10-18T14:00:00Z"
+        }
+      },
+      "expected_category": "professional",
+      "expected_priority": null
+    },
+    {
+      "id": "cases-040",
+      "language": "fr",
+      "kind": "event",
+      "evidence_scope": "event",
+      "evidence": {
+        "summary": "Anniversaire en famille",
+        "description": "Dîner privé avec mes parents et ma sœur pour son anniversaire.",
+        "start": {
+          "dateTime": "2026-10-18T14:00:00Z"
+        }
+      },
+      "expected_category": "personal",
+      "expected_priority": null
+    },
+    {
+      "id": "cases-041",
+      "language": "fr",
+      "kind": "event",
+      "evidence_scope": "event",
+      "evidence": {
+        "summary": "Café",
+        "description": "",
+        "start": {
+          "dateTime": "2026-10-18T14:00:00Z"
+        }
+      },
+      "expected_category": "unknown",
+      "expected_priority": null
+    },
+    {
+      "id": "cases-042",
+      "language": "de",
+      "kind": "event",
+      "evidence_scope": "event",
+      "evidence": {
+        "summary": "Kundenprojekt prüfen",
+        "description": "Arbeitstreffen mit unserem Kunden zum Vertrag.",
+        "start": {
+          "dateTime": "2026-10-18T14:00:00Z"
+        }
+      },
+      "expected_category": "professional",
+      "expected_priority": null
+    },
+    {
+      "id": "cases-043",
+      "language": "de",
+      "kind": "event",
+      "evidence_scope": "event",
+      "evidence": {
+        "summary": "Geburtstag mit Familie",
+        "description": "Privates Geburtstagsessen mit Eltern und Geschwistern.",
+        "start": {
+          "dateTime": "2026-10-18T14:00:00Z"
+        }
+      },
+      "expected_category": "personal",
+      "expected_priority": null
+    },
+    {
+      "id": "cases-044",
+      "language": "de",
+      "kind": "event",
+      "evidence_scope": "event",
+      "evidence": {
+        "summary": "Kaffee",
+        "description": "",
+        "start": {
+          "dateTime": "2026-10-18T14:00:00Z"
+        }
+      },
+      "expected_category": "unknown",
+      "expected_priority": null
+    },
+    {
+      "id": "cases-045",
+      "language": "es",
+      "kind": "event",
+      "evidence_scope": "event",
+      "evidence": {
+        "summary": "Revisión con el cliente",
+        "description": "Reunión de trabajo con nuestro cliente para revisar el contrato.",
+        "start": {
+          "dateTime": "2026-10-18T14:00:00Z"
+        }
+      },
+      "expected_category": "professional",
+      "expected_priority": null
+    },
+    {
+      "id": "cases-046",
+      "language": "es",
+      "kind": "event",
+      "evidence_scope": "event",
+      "evidence": {
+        "summary": "Cumpleaños familiar",
+        "description": "Cena privada con mis padres y hermanos por su cumpleaños.",
+        "start": {
+          "dateTime": "2026-10-18T14:00:00Z"
+        }
+      },
+      "expected_category": "personal",
+      "expected_priority": null
+    },
+    {
+      "id": "cases-047",
+      "language": "es",
+      "kind": "event",
+      "evidence_scope": "event",
+      "evidence": {
+        "summary": "Café",
+        "description": "",
+        "start": {
+          "dateTime": "2026-10-18T14:00:00Z"
+        }
+      },
+      "expected_category": "unknown",
+      "expected_priority": null
+    },
+    {
+      "id": "cases-048",
+      "language": "it",
+      "kind": "event",
+      "evidence_scope": "event",
+      "evidence": {
+        "summary": "Revisione con il cliente",
+        "description": "Riunione di lavoro con il nostro cliente per rivedere il contratto.",
+        "start": {
+          "dateTime": "2026-10-18T14:00:00Z"
+        }
+      },
+      "expected_category": "professional",
+      "expected_priority": null
+    },
+    {
+      "id": "cases-049",
+      "language": "it",
+      "kind": "event",
+      "evidence_scope": "event",
+      "evidence": {
+        "summary": "Compleanno in famiglia",
+        "description": "Cena privata con genitori e fratelli per il compleanno.",
+        "start": {
+          "dateTime": "2026-10-18T14:00:00Z"
+        }
+      },
+      "expected_category": "personal",
+      "expected_priority": null
+    },
+    {
+      "id": "cases-050",
+      "language": "it",
+      "kind": "event",
+      "evidence_scope": "event",
+      "evidence": {
+        "summary": "Caffè",
+        "description": "",
+        "start": {
+          "dateTime": "2026-10-18T14:00:00Z"
+        }
+      },
+      "expected_category": "unknown",
+      "expected_priority": null
+    },
+    {
+      "id": "cases-051",
+      "language": "zh",
+      "kind": "event",
+      "evidence_scope": "event",
+      "evidence": {
+        "summary": "客户项目评审",
+        "description": "与公司客户召开工作会议，讨论项目合同。",
+        "start": {
+          "dateTime": "2026-10-18T14:00:00Z"
+        }
+      },
+      "expected_category": "professional",
+      "expected_priority": null
+    },
+    {
+      "id": "cases-052",
+      "language": "zh",
+      "kind": "event",
+      "evidence_scope": "event",
+      "evidence": {
+        "summary": "家庭生日晚餐",
+        "description": "与父母和兄弟姐妹共进私人生日晚餐。",
+        "start": {
+          "dateTime": "2026-10-18T14:00:00Z"
+        }
+      },
+      "expected_category": "personal",
+      "expected_priority": null
+    },
+    {
+      "id": "cases-053",
+      "language": "zh",
+      "kind": "event",
+      "evidence_scope": "event",
+      "evidence": {
+        "summary": "咖啡",
+        "description": "",
+        "start": {
+          "dateTime": "2026-10-18T14:00:00Z"
+        }
+      },
+      "expected_category": "unknown",
+      "expected_priority": null
+    },
+    {
+      "id": "cases-054",
+      "language": "en",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Security awareness training",
+        "body": "For our employee training, analyse this quoted scam: \"Send me your password\". This is a report, not a request to send any secret.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-055",
+      "language": "fr",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Formation cybersécurité",
+        "body": "Pour notre formation professionnelle, étudiez cet exemple cité : « envoyez votre mot de passe ». Aucun secret ne vous est demandé.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-056",
+      "language": "en",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Requested payment receipt",
+        "body": "Your requested personal bank transfer is complete. This receipt is informational; no payment, password or action is requested.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "personal",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-057",
+      "language": "fr",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Reçu de votre virement personnel",
+        "body": "Votre virement personnel demandé est terminé. Reçu pour information, sans action ni demande de mot de passe.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "personal",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-058",
+      "language": "en",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Fraud report archived",
+        "body": "For the company fraud team: the phishing incident report is archived. No action is needed. Do not follow the suspicious links quoted in the report.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-059",
+      "language": "fr",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Rapport de fraude archivé",
+        "body": "Pour l’équipe antifraude de l’entreprise : rapport d’incident archivé pour information. Aucune action demandée ; ne suivez pas les liens suspects cités.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-060",
+      "language": "en",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Subscribed club newsletter",
+        "body": "You subscribed to our family hiking club newsletter. Here is the weekend walk summary. Read whenever convenient; unsubscribe if you wish.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "personal",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-061",
+      "language": "fr",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Lettre du club familial",
+        "body": "Vous êtes abonné à la lettre de notre club familial de randonnée. Voici le résumé de la promenade ; lecture libre, désinscription possible.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "personal",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "cases-062",
+      "language": "en",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Confidential CEO favour",
+        "body": "I am your CEO, unavailable by phone. Buy gift cards with your own money and email all redemption codes to my private mailbox. Keep this from finance and do not verify with anyone.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "phishing_scam",
+      "expected_priority": "unknown"
+    },
+    {
+      "id": "cases-063",
+      "language": "fr",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "subject": "Demande confidentielle du directeur",
+        "body": "Je suis votre directeur, injoignable au téléphone. Achetez des cartes cadeaux avec votre argent et envoyez tous les codes à mon adresse privée. Cachez cela à la comptabilité et ne vérifiez auprès de personne.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "phishing_scam",
+      "expected_priority": "unknown"
+    }
+  ]
+}

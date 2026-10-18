@@ -2,8 +2,19 @@
 
 from typing import TYPE_CHECKING
 
-from src.domains.user_mcp.models import UserMCPAuthType, UserMCPServer, UserMCPServerStatus
-from src.domains.user_mcp.schemas import MCPDiscoveredToolResponse, UserMCPServerResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.core.capability_origin import CapabilityOrigin
+from src.domains.shared.capability_origins import capability_origins
+from src.domains.user_mcp.models import (
+    UserMCPAuthType,
+    UserMCPServer,
+    UserMCPServerStatus,
+)
+from src.domains.user_mcp.schemas import (
+    MCPDiscoveredToolResponse,
+    UserMCPServerResponse,
+)
 
 if TYPE_CHECKING:
     from src.domains.user_mcp.service import UserMCPServerService
@@ -16,6 +27,7 @@ def server_to_response(
     tools_offset: int = 0,
     tools_limit: int | None = None,
     include_tool_schemas: bool = True,
+    shared_origin: CapabilityOrigin | None = None,
 ) -> UserMCPServerResponse:
     tools: list[MCPDiscoveredToolResponse] = []
     tool_count = 0
@@ -35,6 +47,7 @@ def server_to_response(
         ]
     metadata = service.build_response_metadata(server)
     return UserMCPServerResponse(
+        shared_origin=shared_origin,
         id=server.id,
         name=server.name,
         url=server.url,
@@ -57,3 +70,10 @@ def server_to_response(
         created_at=server.created_at,
         updated_at=server.updated_at,
     )
+
+
+async def owned_server_response(
+    db: AsyncSession, server: UserMCPServer, service: UserMCPServerService
+) -> UserMCPServerResponse:
+    origins = await capability_origins(db, server.user_id, "mcp", [server.id])
+    return server_to_response(server, service, shared_origin=origins.get(server.id))

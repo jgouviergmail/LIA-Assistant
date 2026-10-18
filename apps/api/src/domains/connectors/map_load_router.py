@@ -1,5 +1,7 @@
 """Authenticated explicit map activation; no server credential is public."""
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
@@ -9,6 +11,7 @@ from src.domains.auth.dependencies import create_user_rate_limiter
 from src.domains.connectors.map_load_metering import (
     browser_maps_key,
     issue_load_token,
+    position_map_id,
     record_map_load,
     verify_load_token,
 )
@@ -34,12 +37,17 @@ class MapLoadReport(BaseModel):
 @map_load_router.post("/google-maps/load-admissions", dependencies=[Depends(_admission_limit)])
 async def admit_map_load(
     user: User = Depends(get_current_active_session_for_stream),
+    purpose: Literal["route", "places"] = "route",
 ) -> JSONResponse:
     key = browser_maps_key()
+    extra = {"map_id": position_map_id()} if purpose == "places" else {}
     verdict = await UsageLimitService.check_user_allowed(user.id)
     if not verdict.allowed:
         raise_for_blocked_verdict(verdict, layer="interactive_map")
-    return JSONResponse({"api_key": key, "load_token": issue_load_token(user.id)}, headers=_HEADERS)
+    return JSONResponse(
+        {"api_key": key, "load_token": issue_load_token(user.id), **extra},
+        headers=_HEADERS,
+    )
 
 
 @map_load_router.post("/google-maps/load-reports", dependencies=[Depends(_report_limit)])

@@ -48,6 +48,8 @@ import { useSkills, type Skill } from '@/hooks/useSkills';
 import { skillLibraryAvailable } from '@/lib/skill-library/availability';
 import type { LibraryTab } from '@/lib/skill-library/dialog-state';
 import { usePlugins } from '@/hooks/usePlugins';
+import { useCapabilitySharing } from '@/hooks/useCapabilitySharing';
+import { CapabilitySharingDialog } from '@/components/peers/CapabilitySharingDialog';
 import { toast } from 'sonner';
 import type { Language } from '@/i18n/settings';
 
@@ -253,6 +255,7 @@ function ScopeDisclosure(props: {
   onOpenSkill: (skill: Skill) => void;
   onToggle: (skill: Skill) => void;
   toggling: boolean;
+  onShare?: (skill: Skill) => void;
 }) {
   const { icon, title, skills, lng, t, onOpenSkill, onToggle, toggling } = props;
   return (
@@ -267,6 +270,7 @@ function ScopeDisclosure(props: {
           onOpen={onOpenSkill}
           onToggle={onToggle}
           toggling={toggling}
+          onShare={props.onShare}
         />
       )}
     </Disclosure>
@@ -276,6 +280,7 @@ function ScopeDisclosure(props: {
 export function SkillsSettings({ lng }: SkillsSettingsProps) {
   const { t } = useTranslation(lng);
   const hook = useSkills();
+  const sharing = useCapabilitySharing(hook.ownerId);
   const { skills, loading, error, refetch, importFromUrl, importingFromUrl, deleting, toggling } =
     hook;
   // ADR-225 arbitrage F: skills installed by a plugin leave through the
@@ -291,6 +296,12 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
   // The skill library (ADR-327): open on a tab, or closed.
   const { config } = useAppConfig();
   const libraryOffered = skillLibraryAvailable(config);
+  const sharingEnabled = sharing.enabled;
+  const shareSkill = sharingEnabled
+    ? (skill: Skill) => {
+        if (skill.skill_id) sharing.share({ kind: 'skill', id: skill.skill_id, name: skill.name });
+      }
+    : undefined;
   const [libraryTab, setLibraryTab] = useState<LibraryTab | null>(null);
   const [selected, setSelected] = useState<Skill | null>(null);
 
@@ -357,6 +368,7 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
               onOpenSkill={setSelected}
               onToggle={handleToggle}
               toggling={toggling}
+              onShare={shareSkill}
             />
           )}
           <ScopeDisclosure
@@ -368,6 +380,7 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
             onOpenSkill={setSelected}
             onToggle={handleToggle}
             toggling={toggling}
+            onShare={shareSkill}
           />
         </div>
       )}
@@ -436,6 +449,7 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <CapabilitySharingDialog sharing={sharing} ownerId={hook.ownerId} enabled={sharingEnabled} />
     </SettingsSection>
   );
 }

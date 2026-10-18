@@ -173,6 +173,24 @@ class TestTheLimitIsCountedTheWayTelegramCounts:
         assert [_utf16(part) for part in parts] == [100, 60]
 
 
+def _measure_split(message: str) -> tuple[list[str], float]:
+    """Amortize Windows CPU-clock quanta without relaxing the growth bound.
+
+    A short sample can read zero CPU ticks on Windows. Dividing a longer
+    sample by an arbitrary floor then reports superlinear growth for linear
+    work. Measure enough CPU time and compare the average cost of one call.
+    """
+    started = time.thread_time()
+    repetitions = 0
+    elapsed = 0.0
+    parts: list[str] = []
+    while elapsed < 0.125:
+        parts = split_html_message(message, max_length=100)
+        repetitions += 1
+        elapsed = time.thread_time() - started
+    return parts, elapsed / repetitions
+
+
 class TestTextWithoutTags:
     def test_plain_text_in_html_mode_is_split_at_its_boundaries(self) -> None:
         parts = _split("First paragraph.\n\nSecond paragraph.", limit=25)
@@ -186,11 +204,9 @@ class TestTextWithoutTags:
         for pair in range(3):
             seconds = {}
             for size in ((128_000, 512_000) if pair % 2 == 0 else (512_000, 128_000)):
-                started = time.thread_time()
-                parts = split_html_message(messages[size], max_length=100)
-                seconds[size] = time.thread_time() - started
+                parts, seconds[size] = _measure_split(messages[size])
                 assert "".join(parts) == messages[size]
                 assert max(map(_utf16, parts)) <= 100
             assert seconds[512_000] < 1.5, seconds
-            growth.append(seconds[512_000] / max(seconds[128_000], 0.005))
+            growth.append(seconds[512_000] / seconds[128_000])
         assert median(growth) <= 8.0, growth

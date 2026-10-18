@@ -2,6 +2,7 @@
 
 import os
 import stat
+from collections.abc import Callable
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -57,7 +58,10 @@ def _open_resource(path: Path) -> int:
         os.close(parent)
 
 
-def _resources(root: Path) -> list[Path]:
+def _resources(
+    root: Path, *, max_files: int | None = None, manifest: str = "SKILL.md"
+) -> list[Path]:
+    limit = settings.skills_zip_max_files if max_files is None else max_files
     pending = [root]
     paths: list[Path] = []
     visited = 0
@@ -66,7 +70,7 @@ def _resources(root: Path) -> list[Path]:
         with os.scandir(current) as children:
             for entry in children:
                 visited += 1
-                if visited > settings.skills_zip_max_files * 4:
+                if visited > limit * 4:
                     raise ValueError("Skill archive has too many entries")
                 path = Path(entry.path)
                 if entry.is_symlink() or path.is_junction():
@@ -75,11 +79,11 @@ def _resources(root: Path) -> list[Path]:
                     pending.append(path)
                 elif entry.is_file(follow_symlinks=False):
                     paths.append(path)
-                    if len(paths) > settings.skills_zip_max_files:
+                    if len(paths) > limit:
                         raise ValueError("Skill archive has too many files")
                 else:
                     raise ValueError("Skill archive contains a nonregular resource")
-    if root / "SKILL.md" not in paths:
+    if root / manifest not in paths:
         raise ValueError("Skill manifest unavailable")
     return sorted(paths, key=lambda item: item.relative_to(root).as_posix())
 
@@ -95,7 +99,13 @@ def _file_version(metadata: os.stat_result) -> tuple[int, int, int, int, int]:
 
 
 def _read_resource(skill: dict[str, Any], path: Path, root: Path, remaining: int) -> bytes:
-    _root(skill)
+    return _read_checked_resource(path, root, remaining, lambda: _root(skill))
+
+
+def _read_checked_resource(
+    path: Path, root: Path, remaining: int, check_scope: Callable[[], object]
+) -> bytes:
+    check_scope()
     if path.is_symlink() or not path.resolve().is_relative_to(root.resolve()):
         raise ValueError("Skill resource changed scope")
     descriptor = _open_resource(path)
@@ -106,7 +116,7 @@ def _read_resource(skill: dict[str, Any], path: Path, root: Path, remaining: int
         linked = path.stat(follow_symlinks=False)
         if (linked.st_dev, linked.st_ino) != (before.st_dev, before.st_ino):
             raise ValueError("Skill resource identity changed")
-        _root(skill)
+        check_scope()
         data = resource.read(remaining + 1)
         after = os.fstat(resource.fileno())
         if _file_version(before) != _file_version(after) or len(data) != before.st_size:
@@ -114,7 +124,7 @@ def _read_resource(skill: dict[str, Any], path: Path, root: Path, remaining: int
         linked = path.stat(follow_symlinks=False)
         if (linked.st_dev, linked.st_ino) != (after.st_dev, after.st_ino):
             raise ValueError("Skill resource identity changed")
-        _root(skill)
+        check_scope()
     return data
 
 

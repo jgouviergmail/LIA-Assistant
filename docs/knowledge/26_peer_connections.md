@@ -1,5 +1,15 @@
 # Peer Connections
 
+## Sharing a skill, MCP server or plugin
+
+Use **Share with a connection** on your own settings card, choose an accepted
+peer and confirm the preview. They receive their own copy, installed disabled,
+with a badge naming you and the sharing time. They can edit, activate or delete
+it independently. Credentials stay private: the recipient supplies their own.
+Once enabled, a shared skill has the same execution capabilities as one the
+recipient authored, under their connector permissions and ordinary approvals.
+See [the implementation contract](../technical/PEER_CAPABILITY_TRANSFERS.md).
+
 ## How do I connect with someone?
 Both of you enable **discovery** in Settings → Connections (it is off by default), then one searches the other's **exact full name** — your own searchable name is shown in the section with a copy button. Send a request (with an optional note); the other person accepts or declines in one click, from the chat card or the settings.
 

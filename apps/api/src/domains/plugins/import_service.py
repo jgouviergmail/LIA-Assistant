@@ -114,7 +114,12 @@ class PluginImportService:
             )
 
     async def _install_from_root(
-        self, plugin_root: Path, *, owner_id: UUID, settings: Any, hooks: PluginImportHooks
+        self,
+        plugin_root: Path,
+        *,
+        owner_id: UUID,
+        settings: Any,
+        hooks: PluginImportHooks,
     ) -> PluginImportReport:
         """Validate a staged plugin root, then install/update its components."""
         from src.domains.skills import import_service as skills_import
@@ -153,20 +158,20 @@ class PluginImportService:
         }
 
         # ADR-225: quotas pre-checked globally BEFORE any write.
+        pending_skills, pending_servers = hooks.pending_components(
+            incoming_skill_names, incoming_server_names, manifest.name
+        )
         await self._pre_check_component_quotas(
             skill_importer,
             mcp_service,
             owner_id=owner_id,
-            incoming_skill_names=incoming_skill_names,
-            incoming_server_names=incoming_server_names,
+            incoming_skill_names=pending_skills,
+            incoming_server_names=pending_servers,
             prev_server_names=prev_server_names,
             settings=settings,
         )
 
-        if hooks.before_write is not None:
-            await hooks.before_write(self.db)
-        plugin_row = await self._upsert_plugin_row(existing, manifest, owner_id)
-        hooks.plugin_written(plugin_row)
+        plugin_row = await self._write_plugin_row(existing, manifest, owner_id, hooks)
 
         components: list[PluginComponentReport] = []
         components.extend(
@@ -195,7 +200,7 @@ class PluginImportService:
         )
         live_root = Path(settings.plugins_users_path) / str(owner_id) / manifest.name
         from src.domains.plugins.dropped_files import retain_dropped_files
-        from src.domains.plugins.root_commit import commit_plugin_root
+        from src.domains.plugins.root_commit import publish_plugin_root
 
         if hooks.before_drop is not None:
             await hooks.before_drop(self.db, components)
@@ -217,13 +222,8 @@ class PluginImportService:
                 settings=settings,
             )
 
-            root_result = await commit_plugin_root(
-                self.db,
-                plugin_root,
-                live_root,
-                before_commit=partial(hooks.check_commit, self.db),
-                after_stage=hooks.after_root_stage,
-                after_commit=partial(hooks.root_committed, plugin_row),
+            root_result = await publish_plugin_root(
+                self.db, plugin_root, live_root, plugin_row, hooks
             )
         components.extend(removed_components)
 
@@ -246,6 +246,23 @@ class PluginImportService:
         )
         self._log_import_summary(report, owner_id)
         return report
+
+    async def _write_plugin_row(
+        self,
+        existing: UserPlugin | None,
+        manifest: PluginManifest,
+        owner_id: UUID,
+        hooks: PluginImportHooks,
+    ) -> UserPlugin:
+        if hooks.before_write is not None:
+            await hooks.before_write(self.db)
+        row = (
+            existing
+            if hooks.preserve_root and existing is not None
+            else await self._upsert_plugin_row(existing, manifest, owner_id)
+        )
+        hooks.plugin_written(row)
+        return row
 
     async def _check_plugin_quota(
         self, existing: UserPlugin | None, owner_id: UUID, settings: Any
@@ -444,12 +461,17 @@ class PluginImportService:
         """Install each discovered skill; failures are per-skill, never fatal."""
         reports: list[PluginComponentReport] = []
         for skill_dir in skill_dirs:
+            if hooks.completed_skills:
+                names = await read_disk_step(partial(self._incoming_skill_names, [skill_dir]))
+                if names and names[0] in hooks.completed_skills:
+                    continue
             try:
                 result = await skill_importer.import_directory(
                     skill_dir,
                     owner_id=owner_id,
                     provenance=SkillProvenance.PLUGIN,
                     plugin_id=plugin_id,
+                    after_register=hooks.after_skill_register,
                     before_swap=partial(hooks.check_skill_swap, skill_dir),
                     before_commit=hooks.before_commit,
                     after_commit=hooks.after_skill_commit,
@@ -517,10 +539,15 @@ class PluginImportService:
         hooks: PluginImportHooks,
     ) -> list[PluginComponentReport]:
         """Create/update the plugin's streamable-http servers, one by one."""
-        from src.domains.user_mcp.schemas import UserMCPServerCreate, UserMCPServerUpdate
+        from src.domains.user_mcp.schemas import (
+            UserMCPServerCreate,
+            UserMCPServerUpdate,
+        )
 
         reports: list[PluginComponentReport] = []
         for server in supported_servers:
+            if server.key in hooks.completed_servers:
+                continue
             name = _server_display_name(manifest.name, server.key)
             if len(name) > _MCP_SERVER_NAME_MAX:
                 reports.append(
@@ -565,6 +592,7 @@ class PluginImportService:
                         plugin_id=plugin_row.id,
                         extra_headers=dict(server.headers) or None,
                         before_write=partial(hooks.check_server_write, name, None),
+                        offline_install=(hooks.offline_servers or {}).get(server.key),
                     )
                     outcome = PluginComponentStatus.INSTALLED
                 else:

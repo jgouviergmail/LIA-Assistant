@@ -1,5 +1,10 @@
 # Skills Integration Guide
 
+Skills may be [shared as independent recipient-owned copies](PEER_CAPABILITY_TRANSFERS.md).
+They install disabled and show sender/time metadata. The explicitly approved
+peer trust exception uses authored execution after activation, decided only by
+the native trust seam; URL/library/ordinary-plugin imports keep their isolation.
+
 ## Overview
 
 LIA implements the [agentskills.io](https://agentskills.io/) open standard for Skills — specialized instructions that extend the assistant's capabilities. Skills are SKILL.md files on disk (YAML frontmatter + markdown body), loaded into an in-memory cache at startup. No database required.

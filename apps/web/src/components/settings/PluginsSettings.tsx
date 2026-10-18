@@ -5,7 +5,11 @@ import { PluginImportReportDetails } from './PluginImportReportDetails';
 import { useRef } from 'react';
 import { useApplicationAccountState } from '@/hooks/useApplicationAccountState';
 import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
-import { Puzzle, Trash2, Link2, Upload, Blocks, Server } from 'lucide-react';
+import { Puzzle, Trash2, Link2, Upload, Blocks, Server, Send } from 'lucide-react';
+import { RowActions, type RowAction } from '@/components/ui/row-actions';
+import { CapabilityOriginBadge } from '@/components/peers/CapabilityOriginBadge';
+import { CapabilitySharingDialog } from '@/components/peers/CapabilitySharingDialog';
+import { useCapabilitySharing } from '@/hooks/useCapabilitySharing';
 import { useApplicationAccountToast } from '@/hooks/useApplicationAccountToast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
@@ -45,12 +49,33 @@ function PluginRow({
   t,
   uninstalling,
   onUninstall,
+  onShare,
+  lng,
 }: {
   plugin: InstalledPlugin;
   t: Translator;
   uninstalling: boolean;
   onUninstall: (plugin: InstalledPlugin) => void;
+  onShare?: (plugin: InstalledPlugin) => void;
+  lng: Language;
 }) {
+  const actions: RowAction[] = [
+    {
+      key: 'uninstall',
+      label: t('settings.plugins.uninstall_aria', { name: plugin.name }),
+      icon: Trash2,
+      tone: 'destructive',
+      loading: uninstalling,
+      onSelect: () => onUninstall(plugin),
+    },
+  ];
+  if (onShare)
+    actions.unshift({
+      key: 'share',
+      label: t('settings.capability_share.action', { name: plugin.name }),
+      icon: Send,
+      onSelect: () => onShare(plugin),
+    });
   return (
     <li className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
@@ -66,29 +91,22 @@ function PluginRow({
           <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{plugin.description}</p>
         )}
         <div className="mt-1.5 flex flex-wrap items-center gap-2">
-          <Badge variant="secondary" className="gap-1">
+          <Badge variant="outline" className="gap-1">
             <Blocks className="h-3 w-3" aria-hidden="true" />
             {t('settings.plugins.skills_count', { count: plugin.skill_names.length })}
           </Badge>
-          <Badge variant="secondary" className="gap-1">
+          <Badge variant="outline" className="gap-1">
             <Server className="h-3 w-3" aria-hidden="true" />
             {t('settings.plugins.servers_count', { count: plugin.server_names.length })}
           </Badge>
         </div>
+        <CapabilityOriginBadge origin={plugin.shared_origin} lng={lng} />
       </div>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="shrink-0 self-end text-destructive hover:text-destructive sm:self-center"
-        aria-disabled={uninstalling}
-        aria-label={t('settings.plugins.uninstall_aria', { name: plugin.name })}
-        onClick={() => {
-          if (!uninstalling) onUninstall(plugin);
-        }}
-      >
-        <Trash2 className="mr-1.5 h-4 w-4" aria-hidden="true" />
-        {t('settings.plugins.uninstall')}
-      </Button>
+      <RowActions
+        actions={actions}
+        menuLabel={t('common.actions_for', { name: plugin.name })}
+        className="shrink-0 self-end sm:self-center"
+      />
     </li>
   );
 }
@@ -182,6 +200,8 @@ export function PluginsSettings({ lng }: PluginsSettingsProps) {
     refetch,
   } = usePlugins();
   const { isCurrent } = useApplicationAccountLifetime(ownerId);
+  const sharing = useCapabilitySharing(ownerId);
+  const sharingEnabled = sharing.enabled;
   const toast = useApplicationAccountToast(ownerId);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -336,12 +356,19 @@ export function PluginsSettings({ lng }: PluginsSettingsProps) {
               t={t}
               uninstalling={uninstalling}
               onUninstall={setPluginToUninstall}
+              lng={lng}
+              onShare={
+                sharingEnabled
+                  ? plugin => sharing.share({ kind: 'plugin', id: plugin.id, name: plugin.name })
+                  : undefined
+              }
             />
           ))}
         </ul>
       )}
 
       <ImportReportDialog report={report} t={t} onClose={() => setReport(null)} />
+      <CapabilitySharingDialog sharing={sharing} ownerId={ownerId} enabled={sharingEnabled} />
       <UninstallConfirmDialog
         plugin={pluginToUninstall}
         t={t}

@@ -22,7 +22,7 @@ from typing import Any
 from uuid import UUID
 
 import structlog
-from sqlalchemy import or_, select
+from sqlalchemy import exists, or_, select
 
 from src.core.config import settings
 from src.core.i18n import normalize_language, resolve_language
@@ -58,6 +58,9 @@ _OWNER_COLUMN_OVERRIDES: dict[str, str] = {
 # Columns stripped from exported rows even on FULL tables: secrets, key
 # material, or server-internal bookkeeping. Asserted by the exclusion test.
 _REDACTED_COLUMNS: dict[str, frozenset[str]] = {
+    "peer_capability_transfers": frozenset(
+        {"snapshot", "lease_owner", "lease_expires_at", "fence"}
+    ),
     "phone_calls": frozenset({"return_webhook_encrypted"}),
 }
 
@@ -77,6 +80,7 @@ _DECRYPTED_COLUMNS: dict[str, frozenset[str]] = {
 
 # Tables whose rows resolve through a parent (no owner column of their own).
 _VIA_PARENT: dict[str, tuple[str, str, str]] = {
+    "peer_capability_components": ("peer_capability_transfers", "transfer_id", "recipient_id"),
     # table → (parent_table, local_fk_column, parent_owner_column)
     "conversation_messages": ("conversations", "conversation_id", "user_id"),
     # Workboard (ADR-276): a ticket's thread and history reach the archive
@@ -106,6 +110,7 @@ _SIDE_SCOPED_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
 # requester sits on EITHER column — connections, relayed correspondence and
 # the cross-user read audit are genuinely shared records.
 _TWO_SIDED: dict[str, tuple[str, str]] = {
+    "peer_capability_transfers": ("sender_id", "recipient_id"),
     # table → (side_a_column, side_b_column)
     "peer_connections": ("user_a_id", "user_b_id"),
     "peer_messages": ("sender_id", "recipient_id"),
@@ -177,7 +182,17 @@ async def _fetch_table_rows(table_name: str, user_id: UUID) -> list[dict[str, An
     table = Base.metadata.tables[table_name]
 
     async with get_db_context() as db:
-        if table_name in _VIA_PARENT:
+        if table_name == "peer_capability_transfers":
+            components = Base.metadata.tables["peer_capability_components"]
+            published = exists(
+                select(components.c.id).where(
+                    components.c.transfer_id == table.c.id, components.c.resource_id.is_not(None)
+                )
+            )
+            query = select(table).where(
+                or_(table.c.sender_id == user_id, (table.c.recipient_id == user_id) & published)
+            )
+        elif table_name in _VIA_PARENT:
             parent_name, fk_column, parent_owner = _VIA_PARENT[table_name]
             parent = Base.metadata.tables[parent_name]
             subquery = select(parent.c.id).where(parent.c[parent_owner] == user_id)

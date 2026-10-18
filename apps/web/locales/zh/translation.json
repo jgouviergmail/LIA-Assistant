@@ -1307,6 +1307,19 @@
       "omitted_one": "{{count}} 条不完整路线无法显示。",
       "omitted_other": "{{count}} 条不完整路线无法显示。",
       "report_error": "未能记录地图加载。请重试，无需重新打开地图。"
+    },
+    "position_map": {
+      "activate": "探索地图",
+      "map": "地点位置",
+      "choose": "本次回复中的地点",
+      "recenter": "显示所有标记",
+      "preview": "启用交互式地图以探索这些地点。",
+      "open_place": "在 Google 地图中打开{{name}}",
+      "unlocated": "无坐标：{{count}}",
+      "omitted": "完整列表中还可查看其他{{count}}个地点。",
+      "all_places": "完整地点列表",
+      "list_preview": "浏览下方地点。",
+      "unavailable": "互动地图暂时不可用。你仍可打开下方的地点。"
     }
   },
   "skill_apps": {
@@ -2809,7 +2822,9 @@
           "meeting_template_selection": "由 Jev 原生接口选择纪要模板，现有模型仍负责撰写纪要。",
           "jev_memory_reference_presence": "当请求不包含隐含的人物或地点时，跳过引用提取。记忆仍然可用；不确定的情况使用现有流程。",
           "jev_hitl_rejection": "仅识别对所有提议操作的明确拒绝。批准、修改、部分拒绝或歧义仍由现有分类器处理。JEV 不能批准任何操作。",
-          "jev_parameter_kind": "调用工具前，判断每个地址、地点或电子邮件参数值属于哪一类。只有确定的判断才能拒绝类型不符的值（人名、电话号码、日期）。不确定或失败的判断交由现有防护决定，JEV 也不能接受现有防护拒绝的任何值。"
+          "jev_parameter_kind": "调用工具前，判断每个地址、地点或电子邮件参数值属于哪一类。只有确定的判断才能拒绝类型不符的值（人名、电话号码、日期）。不确定或失败的判断交由现有防护决定，JEV 也不能接受现有防护拒绝的任何值。",
+          "jev_email_classification": "根据已获取的邮件信息给出参考类别和单一关注级别。不确定时不显示徽章，不额外读取邮件、链接或附件。",
+          "jev_event_classification": "根据已获取的日程信息判断工作或私人类别。不确定时不显示徽章，日程本身保持不变。"
         },
         "voiceTts": {
           "sectionTitle": "语音和提供商设置",
@@ -3180,7 +3195,9 @@
           "filter_file": "提前筛选文档",
           "memory_reference_presence": "个人记忆引用",
           "hitl_rejection": "完全拒绝确认",
-          "parameter_kind": "受保护的参数值"
+          "parameter_kind": "受保护的参数值",
+          "email_classification": "邮件类别与优先级",
+          "event_classification": "日程类别"
         }
       }
     },
@@ -4984,6 +5001,47 @@
       "voice_portal": "语音、语言和轮流发言均由智能体决定，在 {{brand}} 门户中设置；LIA 只发送自己的提示词和工具。",
       "agent_models": "语音 {{voice}} · LLM {{llm}}",
       "vendor_billed": "{{brand}} 上的会话由服务商向你自己的密钥计费：此处无法设置上限——每次会话结束时显示准确金额。"
+    },
+    "capability_share": {
+      "origin_by": "由{{name}}分享",
+      "origin_on": "于{{date}}",
+      "unknown_sender": "其他用户",
+      "title": "分享扩展",
+      "action": "分享{{name}}",
+      "description": "你的互联用户将收到独立副本，安装后默认停用。已保存的连接凭据不会复制。",
+      "execution_notice": "手动启用后，收到的技能与接收者自行创建的技能具有相同能力。",
+      "recipient": "接收者",
+      "preview": "预览",
+      "send": "发送并安装",
+      "retry": "重试缺失的组件",
+      "refresh": "查看状态",
+      "new_preview": "重新预览",
+      "files": "包含的文件",
+      "omitted": "排除的文件",
+      "bytes": "{{size}}字节",
+      "credentials": "接收者需要自行配置所需的连接凭据。",
+      "component_installed": "已安装",
+      "component_missing": "未安装",
+      "pending_notice": "已确认的分享可能在关闭此窗口后继续。",
+      "readiness": "请先验证连接，再启用此服务器。",
+      "status": {
+        "preparing": "可以发送",
+        "installing": "正在安装",
+        "installed": "已为接收者安装，初始状态为停用",
+        "partial": "部分安装：仍有组件待安装",
+        "failed": "未安装任何组件",
+        "cancelled": "分享已过期或取消"
+      },
+      "errors": {
+        "generic": "无法确认分享结果。请先查看状态，再重试。",
+        "changed": "扩展已更改，请重新预览。",
+        "expired": "分享已过期，请重新预览。",
+        "busy": "安装正在进行，请查看状态。",
+        "quota": "已达到分享限额，请稍后重试。",
+        "conflict": "接收者已有同名扩展。",
+        "recipient_changed": "接收者已修改或删除部分安装的内容，系统未覆盖这些内容。",
+        "not_shareable": "无法按当前状态分享此扩展。请检查文件、嵌入的秘密信息和配置。"
+      }
     }
   },
   "relations": {
@@ -16700,6 +16758,10 @@
       "indexing": "正在加入知识空间"
     },
     "list": {
+      "search_placeholder": "搜索会议纪要…",
+      "no_results_title": "没有匹配的会议",
+      "no_results_description": "请尝试其他关键词或清除搜索。",
+      "clear_search": "清除搜索",
       "title": "会议",
       "subtitle": "你的录音及其纪要",
       "empty_title": "还没有会议",
@@ -17131,7 +17193,8 @@
       "proactive_notification": "已发送通知（{{kind}}）",
       "peer_image_share": "与互联用户分享了一张图片",
       "email_share": "已向 {{count}} 位收件人发送电子邮件",
-      "skill_proposal_install": "已将技能「{{target}}」加入你的资料库"
+      "skill_proposal_install": "已将技能「{{target}}」加入你的资料库",
+      "peer_capability_share": "与互联用户分享扩展"
     },
     "export": {
       "group_label": "导出此登记簿",
@@ -18100,5 +18163,13 @@
       "original": "原文",
       "original_label": "原文 — {{outlet}}，在新标签页中打开"
     }
+  },
+  "classification": {
+    "professional": "工作",
+    "personal": "个人",
+    "spam": "垃圾邮件",
+    "phishing_scam": "网络钓鱼/诈骗",
+    "urgent": "紧急",
+    "critical": "严重"
   }
 }

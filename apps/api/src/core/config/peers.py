@@ -18,6 +18,15 @@ from pydantic_settings import BaseSettings
 
 from src.core.constants import (
     PEERS_ACCESS_LOG_RETENTION_DAYS_DEFAULT,
+    PEERS_CAPABILITY_DAILY_BYTES_DEFAULT,
+    PEERS_CAPABILITY_LEASE_SECONDS_DEFAULT,
+    PEERS_CAPABILITY_PAIR_DAILY_LIMIT_DEFAULT,
+    PEERS_CAPABILITY_PREVIEW_TTL_SECONDS_DEFAULT,
+    PEERS_CAPABILITY_RATE_LIMIT_CALLS_DEFAULT,
+    PEERS_CAPABILITY_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
+    PEERS_CAPABILITY_RECIPIENT_DAILY_LIMIT_DEFAULT,
+    PEERS_CAPABILITY_RETRY_TTL_SECONDS_DEFAULT,
+    PEERS_CAPABILITY_SENDER_DAILY_LIMIT_DEFAULT,
     PEERS_DELIVERY_MAX_ATTEMPTS_DEFAULT,
     PEERS_DELIVERY_SWEEP_SECONDS_DEFAULT,
     PEERS_DISCOVERY_RATE_LIMIT_CALLS_DEFAULT,
@@ -35,6 +44,37 @@ from src.core.constants import (
 
 class PeersSettings(BaseSettings):
     """Env-overridable settings for user-to-user peer connections."""
+
+    peers_capability_preview_ttl_seconds: int = Field(
+        default=PEERS_CAPABILITY_PREVIEW_TTL_SECONDS_DEFAULT, ge=60, le=3600
+    )
+    peers_capability_lease_seconds: int = Field(
+        default=PEERS_CAPABILITY_LEASE_SECONDS_DEFAULT, ge=30, le=600
+    )
+    peers_capability_retry_ttl_seconds: int = Field(
+        default=PEERS_CAPABILITY_RETRY_TTL_SECONDS_DEFAULT,
+        ge=600,
+        le=86400,
+        description="Fixed retention after first confirmation; retries never renew it.",
+    )
+    peers_capability_sender_daily_limit: int = Field(
+        default=PEERS_CAPABILITY_SENDER_DAILY_LIMIT_DEFAULT, ge=1, le=500
+    )
+    peers_capability_pair_daily_limit: int = Field(
+        default=PEERS_CAPABILITY_PAIR_DAILY_LIMIT_DEFAULT, ge=1, le=100
+    )
+    peers_capability_recipient_daily_limit: int = Field(
+        default=PEERS_CAPABILITY_RECIPIENT_DAILY_LIMIT_DEFAULT, ge=1, le=1000
+    )
+    peers_capability_daily_bytes: int = Field(
+        default=PEERS_CAPABILITY_DAILY_BYTES_DEFAULT, ge=1024, le=1073741824
+    )
+    peers_capability_rate_limit_calls: int = Field(
+        default=PEERS_CAPABILITY_RATE_LIMIT_CALLS_DEFAULT, ge=1, le=100
+    )
+    peers_capability_rate_limit_window_seconds: int = Field(
+        default=PEERS_CAPABILITY_RATE_LIMIT_WINDOW_SECONDS_DEFAULT, ge=10, le=3600
+    )
 
     peers_enabled: bool = Field(
         default=False,
