@@ -3,7 +3,10 @@
 import pytest
 from pydantic import ValidationError
 
-from src.domains.agents.application.plugin_read_schemas import PluginReadInput, PluginReadItem
+from src.domains.agents.application.plugin_read_schemas import (
+    PluginReadInput,
+    PluginReadItem,
+)
 from src.domains.agents.application.plugin_read_spec import PLUGIN_READ_MANIFEST
 from src.domains.agents.tools.application_plugin_tools import get_lia_plugins_tool
 from src.domains.plugins.schemas import PluginResponse
@@ -29,7 +32,8 @@ def test_scope_and_paging_are_strict(query):
 
 def test_new_ui_metadata_requires_explicit_native_review():
     assert (
-        set(PluginResponse.model_fields)
+        # Peer origin belongs to the settings UI, not the assistant's plugin inventory.
+        set(PluginResponse.model_fields) - {"shared_origin"}
         == set(PluginReadItem.model_fields)
         == {
             "id",

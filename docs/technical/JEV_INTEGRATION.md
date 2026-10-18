@@ -1,5 +1,11 @@
 # JEV — intégration native et bascule administrative
 
+Les usages email/agenda ajoutent des [qualifications consultatives typées](EMAIL_EVENT_CLASSIFICATION.md)
+aux données affichées et au contexte de réponse. Ils restent désactivés : la
+calibration fictive passe, mais les tentatives de validation gelée ont été
+interrompues par des réponses natives invalides. Les rapports comptabilisés sont
+conservés ; ni l'absence de badge ni une forte concentration ne prouvent la sûreté.
+
 Décision d'architecture : [ADR-325 — décisions bornées, bascules à chaud et replis comptabilisés](../architecture/ADR-325-JEV-Bounded-Decisions-With-Hot-Switches-And-Accounted-Fallbacks.md).
 
 Le lot 1 ajoute TypeSafe/Jev pour le choix automatique du modèle de compte rendu

@@ -30,7 +30,9 @@ from src.core.oauth.native_return import make_native_flow_probe, oauth_return_re
 from src.core.session_dependencies import get_current_active_session
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
+from src.domains.shared.capability_origins import capability_origins
 from src.domains.user_mcp.authorization import initiate_personal_mcp_authorization
+from src.domains.user_mcp.projection import owned_server_response
 from src.domains.user_mcp.projection import server_to_response as _server_to_response
 from src.domains.user_mcp.schemas import (
     McpAppCallToolRequest,
@@ -48,8 +50,13 @@ from src.domains.user_mcp.schemas import (
 )
 from src.domains.user_mcp.service import UserMCPServerService
 from src.domains.users.models import User
-from src.infrastructure.mcp.oauth_application_guard import application_command_from_state
-from src.infrastructure.mcp.oauth_flow import MCPOAuthFlowHandler, safe_oauth_error_code_value
+from src.infrastructure.mcp.oauth_application_guard import (
+    application_command_from_state,
+)
+from src.infrastructure.mcp.oauth_flow import (
+    MCPOAuthFlowHandler,
+    safe_oauth_error_code_value,
+)
 from src.infrastructure.mcp.personal_oauth_contract import (
     check_application_mcp_oauth,
     get_application_mcp_oauth,
@@ -121,6 +128,7 @@ async def list_servers(
     """List all MCP servers for the current user."""
     service = UserMCPServerService(db)
     servers = await service.list_servers(user.id)
+    origins = await capability_origins(db, user.id, "mcp", (s.id for s in servers))
 
     logger.debug(
         "user_mcp_servers_listed",
@@ -129,7 +137,7 @@ async def list_servers(
     )
 
     return UserMCPServerListResponse(
-        servers=[_server_to_response(s, service) for s in servers],
+        servers=[_server_to_response(s, service, shared_origin=origins.get(s.id)) for s in servers],
         total=len(servers),
     )
 
@@ -160,7 +168,7 @@ async def create_server(
     server = await service.create_server(user.id, data)
     await db.commit()
     await db.refresh(server)
-    return _server_to_response(server, service)
+    return await owned_server_response(db, server, service)
 
 
 # =============================================================================
@@ -188,7 +196,7 @@ async def update_server(
     server = await service.update_server(server_id, user.id, data)
     await db.commit()
     await db.refresh(server)
-    return _server_to_response(server, service)
+    return await owned_server_response(db, server, service)
 
 
 # =============================================================================
@@ -246,7 +254,7 @@ async def toggle_server(
     server = await service.toggle_server(server_id, user.id)
     await db.commit()
     await db.refresh(server)
-    return _server_to_response(server, service)
+    return await owned_server_response(db, server, service)
 
 
 # =============================================================================
@@ -354,7 +362,7 @@ async def oauth_disconnect(
     server = await service.disconnect_oauth(server_id, user.id)
     await db.commit()
     await db.refresh(server)
-    return _server_to_response(server, service)
+    return await owned_server_response(db, server, service)
 
 
 # =============================================================================
@@ -505,7 +513,8 @@ async def oauth_callback(
                     await get_application_mcp_oauth().fail(linked)
             except Exception as failure:
                 logger.warning(
-                    "user_mcp_oauth_rejection_settlement_failed", error_type=type(failure).__name__
+                    "user_mcp_oauth_rejection_settlement_failed",
+                    error_type=type(failure).__name__,
                 )
         # `error` is provider-controlled free text: log only an allowlisted
         # code (SEC-030) and never reflect the raw value into the redirect.
@@ -529,7 +538,10 @@ async def oauth_callback(
     async with MCPOAuthFlowHandler() as handler:
         try:
             server_id, user_id, encrypted_creds = await handler.handle_callback(
-                code=code, state=state, iss=iss, application_check=check_application_mcp_oauth
+                code=code,
+                state=state,
+                iss=iss,
+                application_check=check_application_mcp_oauth,
             )
 
             if isinstance(handler.application_command_id, UUID):

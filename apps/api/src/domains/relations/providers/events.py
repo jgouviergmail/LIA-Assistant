@@ -37,7 +37,13 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 
+from src.core.classification_projection import event_classification
 from src.domains.connectors.calendar_access import CalendarAccess, open_active_calendar
+from src.domains.relations.providers.classification import (
+    ClassificationSource,
+    capture_source,
+    qualify_rows,
+)
 from src.domains.relations.providers.client import ProviderNotConfigured
 from src.domains.relations.providers.schemas import SharedEvent
 from src.domains.shared.text_normalization import fold_email
@@ -131,7 +137,9 @@ def _sort_key(event: SharedEvent, now: datetime) -> tuple[int, float]:
     return (0, delta) if not event.is_past else (1, -delta)
 
 
-async def _read_window(user_id: UUID, *, window_days: int, now: datetime) -> list[dict[str, Any]]:
+async def _read_window(
+    user_id: UUID, *, window_days: int, now: datetime
+) -> tuple[list[dict[str, Any]], ClassificationSource]:
     """Fetch the event window from the OWNER's configured calendar.
 
     Split from the matching so each half stays readable — and so the calendar
@@ -149,7 +157,8 @@ async def _read_window(user_id: UUID, *, window_days: int, now: datetime) -> lis
             max_results=_WINDOW_PAGE_SIZE,
             calendar_id=access.calendar_id,
         )
-    return [event for event in (response.get("items") or []) if isinstance(event, dict)]
+        source = capture_source(access.client, access.connector_type, access.calendar_id)
+    return [event for event in (response.get("items") or []) if isinstance(event, dict)], source
 
 
 def _shared_with(
@@ -208,7 +217,20 @@ async def fetch_shared_events(
     folded = {fold_email(address) for address in addresses if address.strip()}
     if not folded:
         return []
-    items = await _read_window(user_id, window_days=window_days, now=now)
+    items, source = await _read_window(user_id, window_days=window_days, now=now)
     shared = _shared_with(items, folded, now)
     shared.sort(key=lambda event: _sort_key(event, now))
-    return shared[:limit]
+    selected = shared[:limit]
+    raw_by_id = {str(item.get("id")): item for item in items}
+    annotations = await qualify_rows(
+        [raw_by_id[event.id] for event in selected],
+        source=source,
+        user_id=user_id,
+        kind="event",
+    )
+    return [
+        event.model_copy(
+            update={"classification": event_classification(annotations.get(str(index)))}
+        )
+        for index, event in enumerate(selected)
+    ]

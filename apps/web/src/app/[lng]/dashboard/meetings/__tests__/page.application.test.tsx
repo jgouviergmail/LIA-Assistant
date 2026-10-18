@@ -20,7 +20,7 @@ import type {
 } from '@/types/meetings';
 
 const { list, bulkDelete, toast, push } = vi.hoisted(() => ({
-  list: vi.fn<(limit: number, offset: number) => Promise<MeetingListResponse>>(),
+  list: vi.fn<typeof import('@/lib/meetings/api').meetingsApi.list>(),
   bulkDelete: vi.fn<(ids: string[]) => Promise<MeetingBulkDeleteResponse>>(),
   toast: { success: vi.fn(), info: vi.fn(), error: vi.fn() },
   push: vi.fn(),
@@ -155,7 +155,7 @@ describe('meetings list application recovery', () => {
     invalidate();
 
     await screen.findByText('Remaining meeting');
-    expect(list.mock.calls).toEqual([
+    expect(list.mock.calls.map(([limit, offset]) => [limit, offset])).toEqual([
       [20, 0],
       [20, 20],
       [20, 20],
@@ -306,7 +306,7 @@ describe('meetings list state and account boundaries', () => {
     rerender(page('one'));
     await screen.findByText('Fresh A');
     expect(rowBox('Fresh A')).not.toBeChecked();
-    expect(list.mock.calls).toEqual([
+    expect(list.mock.calls.map(([limit, offset]) => [limit, offset])).toEqual([
       [20, 0],
       [20, 20],
       [20, 20],
@@ -446,7 +446,7 @@ describe('meetings list retry focus', () => {
       await screen.findByText('meetings.list.load_error');
       const retryAction = screen.getByRole('button', { name: 'common.retry' });
       const heading = screen.getByRole('heading', { name: 'meetings.list.title', level: 1 });
-      const backToChat = screen.getByRole('button', { name: 'navigation.chat' });
+      const search = screen.getByRole('searchbox');
       await user.click(retryAction);
       expect(retryAction).toHaveFocus();
       expect(retryAction).toHaveAttribute('aria-busy', 'true');
@@ -454,13 +454,13 @@ describe('meetings list retry focus', () => {
       expect(list).toHaveBeenCalledTimes(2);
       if (!keepRetryFocus) {
         await user.tab({ shift: true });
-        expect(backToChat).toHaveFocus();
+        expect(search).toHaveFocus();
       }
 
       await act(async () => retryRead.resolve(response([meeting('Recovered after retry')])));
       await screen.findByText('Recovered after retry');
 
-      await waitFor(() => expect(keepRetryFocus ? heading : backToChat).toHaveFocus());
+      await waitFor(() => expect(keepRetryFocus ? heading : search).toHaveFocus());
       expect(screen.queryByText('meetings.list.load_error')).not.toBeInTheDocument();
       expect(list).toHaveBeenCalledTimes(2);
       expect(bulkDelete).not.toHaveBeenCalled();

@@ -16,6 +16,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.core.content_classification import EmailClassification, EventClassification
+
 # Re-exported: the shape moved to `core` when the relationship debrief
 # needed the same one (a second holder for one concept is how two
 # surfaces come to report a cost differently). Every caller here, and
@@ -125,7 +127,8 @@ class AirQuality(BaseModel):
 
     value: int | None = Field(None, description="Index value, when the chosen index provides one")
     category: str = Field(
-        ..., description="Provider's own localized category (never re-derived from the value)"
+        ...,
+        description="Provider's own localized category (never re-derived from the value)",
     )
     index_label: str = Field(
         "", description="Display name of the index ('IQA (FR)', 'Universal AQI')"
@@ -160,13 +163,16 @@ class WeatherData(BaseModel):
         ..., description="Current temperature in Celsius (rounded one decimal)"
     )
     temperature_min_c: float | None = Field(
-        None, description="Today's expected minimum temperature in Celsius (from forecast)"
+        None,
+        description="Today's expected minimum temperature in Celsius (from forecast)",
     )
     temperature_max_c: float | None = Field(
-        None, description="Today's expected maximum temperature in Celsius (from forecast)"
+        None,
+        description="Today's expected maximum temperature in Celsius (from forecast)",
     )
     condition_code: str = Field(
-        ..., description="OpenWeatherMap main condition code: 'Clear', 'Rain', 'Snow', etc."
+        ...,
+        description="OpenWeatherMap main condition code: 'Clear', 'Rain', 'Snow', etc.",
     )
     description: str = Field(..., description="Localized humanized description (e.g. 'sunny')")
     icon_emoji: str = Field(..., description="Single emoji representing the condition")
@@ -218,15 +224,18 @@ class AgendaEventItem(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     title: str
+    classification: EventClassification | None = None
     start_local: str = Field(
-        ..., description="Pre-formatted local start time, e.g. '14:00' or '2026-04-23 09:00'"
+        ...,
+        description="Pre-formatted local start time, e.g. '14:00' or '2026-04-23 09:00'",
     )
     end_local: str | None = Field(
         None,
         description="Pre-formatted local end time, e.g. '15:30'. None for events without an end.",
     )
     time_range_local: str | None = Field(
-        default=None, description="Date-first timed interval; None retains the legacy labels."
+        default=None,
+        description="Date-first timed interval; None retains the legacy labels.",
     )
     location: str | None = None
     # Machine identity beside the display strings (ADR-322): a condition
@@ -234,7 +243,8 @@ class AgendaEventItem(BaseModel):
     # rewrites itself at midnight ('09:00 tomorrow' becomes '09:00').
     id: str | None = Field(default=None, description="Provider event id, when it sent one.")
     start_at: datetime | None = Field(
-        default=None, description="Start instant (UTC); local midnight for an all-day event."
+        default=None,
+        description="Start instant (UTC); local midnight for an all-day event.",
     )
 
 
@@ -260,6 +270,7 @@ class MailItem(BaseModel):
         None, description="Sender email address (parsed from the From header)"
     )
     subject: str
+    classification: EmailClassification | None = None
     received_local: str = Field(..., description="Pre-formatted local received time")
     # The message's identity (ADR-322): `received_local` rewrites itself as the
     # days pass, so it cannot say whether a mail was already announced.
@@ -290,7 +301,8 @@ class ReminderItem(BaseModel):
     id: str | None = None
     content: str
     trigger_at_local: str = Field(
-        ..., description="Pre-formatted local time, e.g. 'today 14:30' or 'tomorrow 09:00'"
+        ...,
+        description="Pre-formatted local time, e.g. 'today 14:30' or 'tomorrow 09:00'",
     )
     repeats: bool = Field(
         default=False,
@@ -522,7 +534,8 @@ class CardSection(BaseModel):
         ..., description="When this section was last fetched/computed (UTC)."
     )
     error_code: str | None = Field(
-        None, description="Stable error code for frontend CTA mapping (see constants.py)."
+        None,
+        description="Stable error code for frontend CTA mapping (see constants.py).",
     )
     error_message: str | None = Field(None, description="Localized human-readable error message.")
     # D-04 honest freshness — all additive with safe defaults, so payloads

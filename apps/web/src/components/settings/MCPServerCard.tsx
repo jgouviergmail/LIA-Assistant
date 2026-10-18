@@ -19,7 +19,8 @@
 
 import { ExpandableDescription } from '@/components/ui/expandable-description';
 import type { TFunction } from 'i18next';
-import { AlertTriangle, Pencil, Plug, Server, Trash2, Unplug, Zap } from 'lucide-react';
+import { AlertTriangle, Pencil, Plug, Server, Trash2, Unplug, Zap, Send } from 'lucide-react';
+import { CapabilityOriginBadge } from '@/components/peers/CapabilityOriginBadge';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -89,6 +90,7 @@ export interface MCPServerCardProps {
   onDelete: (server: UserMCPServer) => void;
   onConnectOAuth: (server: UserMCPServer) => void;
   onDisconnectOAuth: (server: UserMCPServer) => void;
+  onShare?: (server: UserMCPServer) => void;
 }
 
 /** The OAuth call to action the server's state asks for, or nothing. */
@@ -189,6 +191,13 @@ export function MCPServerCard(props: MCPServerCardProps) {
       onSelect: () => onDelete(server),
     },
   ];
+  if (props.onShare)
+    actions.unshift({
+      key: 'share',
+      label: t('settings.capability_share.action', { name: server.name }),
+      icon: Send,
+      onSelect: () => props.onShare?.(server),
+    });
 
   return (
     <li className="flex h-full min-w-0 flex-col gap-3 rounded-[var(--lia-radius-lg)] border bg-background p-4">
@@ -208,16 +217,21 @@ export function MCPServerCard(props: MCPServerCardProps) {
               <Badge variant="outline">{t('settings.plugins.via_plugin')}</Badge>
             )}
           </div>
+          <CapabilityOriginBadge origin={server.shared_origin} lng={lng} />
         </div>
         <Switch
           className="mt-1.5 shrink-0"
           checked={server.is_enabled}
+          disabled={!server.is_enabled && server.status !== 'active'}
           onCheckedChange={() => onToggle(server)}
           aria-label={t('settings.mcp.toggle_server', { name: server.name })}
         />
       </div>
 
       {server.domain_description && <ExpandableDescription text={server.domain_description} />}
+      {!server.is_enabled && server.status !== 'active' && (
+        <p className="text-xs text-foreground/80">{t('settings.capability_share.readiness')}</p>
+      )}
 
       {/* `mt-auto`: in a grid row the footers line up whatever each card holds. */}
       <div className="mt-auto space-y-3 border-t pt-3">

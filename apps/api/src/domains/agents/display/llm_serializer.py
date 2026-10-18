@@ -147,7 +147,13 @@ def payload_to_text(
 
     # 2. Serialize other fields
     parts = []
+    from src.core.classification_projection import classification_text
+
+    if qualification := classification_text(payload.get("classification")):
+        parts.append(qualification)
     for key, value in payload.items():
+        if key == "classification":
+            continue
         if _should_skip(key, value):  # Pass value for content length check
             continue
 
@@ -281,7 +287,14 @@ def _summarize_value(
 
     # Dict → try to extract a meaningful value
     if isinstance(value, dict):
-        for extract_key in ("name", "displayName", "value", "formattedValue", "formatted", "text"):
+        for extract_key in (
+            "name",
+            "displayName",
+            "value",
+            "formattedValue",
+            "formatted",
+            "text",
+        ):
             if extract_key in value and value[extract_key]:
                 return f"{label}: {_truncate(str(value[extract_key]), max_length)}"
         # Non-empty dict without extractable field → skip (probably nested structure)

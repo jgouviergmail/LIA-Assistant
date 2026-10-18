@@ -62,6 +62,8 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [HITL.md](./technical/HITL.md) | Human-in-the-Loop (approbations utilisateur) |
 | [LLM_PRICING_MANAGEMENT.md](./technical/LLM_PRICING_MANAGEMENT.md) | Gestion des coûts LLM |
 | [JEV_INTEGRATION.md](./technical/JEV_INTEGRATION.md) | Décisions natives TypeSafe, bascule à chaud par usage, repli et comptabilité |
+| [EMAIL_EVENT_CLASSIFICATION.md](./technical/EMAIL_EVENT_CLASSIFICATION.md) | Qualifications natives email/agenda, preuves fictives et statut de validation |
+| [PEER_CAPABILITY_TRANSFERS.md](./technical/PEER_CAPABILITY_TRANSFERS.md) | Copies de skills/MCP/plugins entre peers, désactivation initiale, confiance et rétention |
 | [JEV_SEMANTIC_QUALIFICATION.md](./technical/JEV_SEMANTIC_QUALIFICATION.md) | Qualification mesurée de JEV pour le typage sémantique, et réalignement des questions livrées |
 | [APPLICATION_COMMANDS.md](./technical/APPLICATION_COMMANDS.md) | Account-scoped application commands, current authority, confirmations and secure browser continuations |
 | [NATIVE_AVATAR_VOLUME.md](./technical/NATIVE_AVATAR_VOLUME.md) | Reviewed native artwork, bounded body relief, facial projection and graphics lifecycle |

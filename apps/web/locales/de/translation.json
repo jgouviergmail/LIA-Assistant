@@ -1299,6 +1299,19 @@
       "omitted_one": "{{count}} unvollständige Route kann nicht angezeigt werden.",
       "omitted_other": "{{count}} unvollständige Routen können nicht angezeigt werden.",
       "report_error": "Das Laden konnte nicht erfasst werden. Erneut versuchen, ohne die Karte neu zu öffnen."
+    },
+    "position_map": {
+      "activate": "Karte erkunden",
+      "map": "Positionen der Orte",
+      "choose": "Orte in dieser Antwort",
+      "recenter": "Alle Markierungen anzeigen",
+      "preview": "Aktivieren Sie die interaktive Karte, um diese Orte zu erkunden.",
+      "open_place": "{{name}} in Google Maps öffnen",
+      "unlocated": "Ohne Koordinaten: {{count}}",
+      "omitted": "{{count}} weitere Orte sind in der vollständigen Liste verfügbar.",
+      "all_places": "Vollständige Ortsliste",
+      "list_preview": "Sehen Sie sich die Orte unten an.",
+      "unavailable": "Die interaktive Karte ist derzeit nicht verfügbar. Die Orte können unten weiterhin geöffnet werden."
     }
   },
   "skill_apps": {
@@ -2801,7 +2814,9 @@
           "meeting_template_selection": "Native Auswahl der Berichtsvorlage durch Jev; das bisherige Modell schreibt weiterhin das Protokoll.",
           "jev_memory_reference_presence": "Überspringt die Referenzextraktion, wenn die Anfrage keine implizite Person oder keinen impliziten Ort enthält. Erinnerungen bleiben verfügbar; unsichere Fälle nutzen das bestehende Verfahren.",
           "jev_hitl_rejection": "Erkennt nur eine ausdrückliche Ablehnung aller vorgeschlagenen Aktionen. Zustimmung, Änderungen, teilweise Ablehnungen und Unklarheiten nutzen den bestehenden Klassifikator. JEV kann keine Aktion genehmigen.",
-          "jev_parameter_kind": "Prüft vor einem Werkzeugaufruf, was jeder Adress-, Orts- oder E-Mail-Wert ist. Nur ein sicheres Urteil kann einen Wert anderer Art ablehnen (einen Personennamen, eine Telefonnummer, ein Datum). Ein unsicheres oder fehlgeschlagenes Urteil überlässt die Entscheidung der bestehenden Prüfung, und JEV kann keinen Wert zulassen, den diese Prüfung ablehnt."
+          "jev_parameter_kind": "Prüft vor einem Werkzeugaufruf, was jeder Adress-, Orts- oder E-Mail-Wert ist. Nur ein sicheres Urteil kann einen Wert anderer Art ablehnen (einen Personennamen, eine Telefonnummer, ein Datum). Ein unsicheres oder fehlgeschlagenes Urteil überlässt die Entscheidung der bestehenden Prüfung, und JEV kann keinen Wert zulassen, den diese Prüfung ablehnt.",
+          "jev_email_classification": "Ordnet bereits verfügbare E-Mail-Inhalte einer unverbindlichen Kategorie und einer Aufmerksamkeitsstufe zu. Bei Unsicherheit kein Badge. Keine zusätzlichen Nachrichten, Links oder Anhänge werden abgerufen.",
+          "jev_event_classification": "Ordnet bereits verfügbare Termininhalte als beruflich oder privat ein. Bei Unsicherheit kein Badge; der Termin bleibt unverändert."
         },
         "voiceTts": {
           "sectionTitle": "Stimme & Provider-Einstellungen",
@@ -3172,7 +3187,9 @@
           "filter_file": "Frühe Dokumentfilterung",
           "memory_reference_presence": "Persönliche Gedächtnisreferenzen",
           "hitl_rejection": "Vollständige Ablehnung einer Bestätigung",
-          "parameter_kind": "Geschützte Parameterwerte"
+          "parameter_kind": "Geschützte Parameterwerte",
+          "email_classification": "E-Mail-Kategorie und Priorität",
+          "event_classification": "Terminkategorie"
         }
       }
     },
@@ -4976,6 +4993,47 @@
       "voice_portal": "Stimme, Sprache und Gesprächsführung gehören dem Agenten und werden im {{brand}}-Portal verwaltet; LIA sendet nur ihren Prompt und ihre Werkzeuge.",
       "agent_models": "Stimme {{voice}} · LLM {{llm}}",
       "vendor_billed": "Sitzungen auf {{brand}} werden vom Anbieter auf deinem eigenen Schlüssel berechnet: hier lässt sich keine Obergrenze setzen — der genaue Betrag erscheint am Ende jeder Sitzung."
+    },
+    "capability_share": {
+      "origin_by": "Geteilt von {{name}}",
+      "origin_on": "am {{date}}",
+      "unknown_sender": "einem anderen Benutzer",
+      "title": "Erweiterung teilen",
+      "action": "{{name}} teilen",
+      "description": "Deine Verbindung erhält eine unabhängige, zunächst deaktivierte Kopie. Gespeicherte Zugangsdaten werden ausgeschlossen.",
+      "execution_notice": "Nach manueller Aktivierung haben empfangene Skills dieselben Möglichkeiten wie vom Empfänger erstellte Skills.",
+      "recipient": "Empfänger",
+      "preview": "Vorschau",
+      "send": "Senden und installieren",
+      "retry": "Fehlende Komponenten erneut versuchen",
+      "refresh": "Status prüfen",
+      "new_preview": "Neue Vorschau",
+      "files": "Enthaltene Dateien",
+      "omitted": "Ausgeschlossene Dateien",
+      "bytes": "{{size}} Bytes",
+      "credentials": "Der Empfänger muss die benötigten Zugangsdaten selbst einrichten.",
+      "component_installed": "Installiert",
+      "component_missing": "Nicht installiert",
+      "pending_notice": "Die bestätigte Übertragung kann nach dem Schließen dieses Fensters weiterlaufen.",
+      "readiness": "Prüfe die Verbindung, bevor du diesen Server aktivierst.",
+      "status": {
+        "preparing": "Bereit zum Senden",
+        "installing": "Installation läuft",
+        "installed": "Beim Empfänger installiert, zunächst deaktiviert",
+        "partial": "Teilweise installiert: Komponenten fehlen noch",
+        "failed": "Keine Komponente wurde installiert",
+        "cancelled": "Übertragung abgelaufen oder abgebrochen"
+      },
+      "errors": {
+        "generic": "Die Übertragung konnte nicht bestätigt werden. Prüfe den Status vor einem erneuten Versuch.",
+        "changed": "Die Erweiterung wurde geändert. Erstelle eine neue Vorschau.",
+        "expired": "Diese Übertragung ist abgelaufen. Erstelle eine neue Vorschau.",
+        "busy": "Eine Installation läuft bereits. Prüfe ihren Status.",
+        "quota": "Das Freigabelimit ist erreicht. Versuche es später erneut.",
+        "conflict": "Der Empfänger hat bereits eine Erweiterung mit diesem Namen.",
+        "recipient_changed": "Der Empfänger hat die Teilinstallation geändert oder gelöscht. Sie wurde nicht überschrieben.",
+        "not_shareable": "Diese Erweiterung kann so nicht geteilt werden. Prüfe Dateien, eingebettete Geheimnisse und Konfiguration."
+      }
     }
   },
   "relations": {
@@ -16705,6 +16763,10 @@
       "indexing": "Wird zum Wissensraum hinzugefügt"
     },
     "list": {
+      "search_placeholder": "In Besprechungsprotokollen suchen…",
+      "no_results_title": "Keine passenden Besprechungen",
+      "no_results_description": "Versuchen Sie einen anderen Begriff oder löschen Sie die Suche.",
+      "clear_search": "Suche löschen",
       "title": "Besprechungen",
       "subtitle": "Deine Aufnahmen und ihre Protokolle",
       "empty_title": "Noch keine Besprechung",
@@ -17136,7 +17198,8 @@
       "proactive_notification": "Benachrichtigung gesendet ({{kind}})",
       "peer_image_share": "Bild mit einer Verbindung geteilt",
       "email_share": "E-Mail an {{count}} Empfänger gesendet",
-      "skill_proposal_install": "Fähigkeit „{{target}}“ zu deiner Bibliothek hinzugefügt"
+      "skill_proposal_install": "Fähigkeit „{{target}}“ zu deiner Bibliothek hinzugefügt",
+      "peer_capability_share": "Erweiterung mit einer Verbindung geteilt"
     },
     "export": {
       "group_label": "Dieses Register exportieren",
@@ -18105,5 +18168,13 @@
       "original": "Original",
       "original_label": "Original — {{outlet}}, in einem neuen Tab"
     }
+  },
+  "classification": {
+    "professional": "Beruflich",
+    "personal": "Privat",
+    "spam": "Spam",
+    "phishing_scam": "Phishing/Betrug",
+    "urgent": "Dringend",
+    "critical": "Kritisch"
   }
 }

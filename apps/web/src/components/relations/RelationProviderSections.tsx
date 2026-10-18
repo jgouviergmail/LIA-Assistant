@@ -1,4 +1,5 @@
 'use client';
+import { ClassificationBadges } from '@/components/chat/ClassificationBadges';
 
 /**
  * The three provider-backed sections of the 360° view (Bloc C).
@@ -210,6 +211,7 @@ export function ProviderEmailsSection({
                 whole subject line would wrap into a coloured block, and this
                 one has to stay readable at any length. */}
             <span className="w-full text-sm font-semibold text-foreground">{email.subject}</span>
+            <ClassificationBadges value={email.classification} />
             {/* The subject alone rarely says what an exchange was about
                 ("Re: Re: point"). Two lines at most: the excerpt informs the
                 row, it must not become it. Full `text-muted-foreground` — the
@@ -251,6 +253,7 @@ function EventRow({ event, showRole }: { event: SharedEvent; showRole: boolean }
     <div className="border-l-2 border-sky-500/40 pl-3">
       <p className="flex flex-wrap items-baseline gap-2 text-sm text-foreground/90">
         {event.summary}
+        <ClassificationBadges value={event.classification} />
         {event.starts_at && (
           <span className="text-px-11 text-muted-foreground">
             {timeAgoLabel(t, event.starts_at)}

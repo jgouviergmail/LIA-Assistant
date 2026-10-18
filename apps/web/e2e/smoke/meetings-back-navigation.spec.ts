@@ -13,6 +13,8 @@
  * alone while the pair does nothing.
  */
 import { test, expect, waitForHydration, type MockRoute } from '../fixtures';
+import { pagedMeetingTimeline, meetingTimelineRoutes } from '../fixtures/meeting-timeline';
+import { meetingDetail } from '../../src/__tests__/fixtures/meeting-detail';
 
 /** A node the meetings list really renders once hydrated. */
 const TITLE = 'h1';
@@ -47,6 +49,70 @@ function meetingRoutes(): MockRoute[] {
 }
 
 test.describe('the meetings list', () => {
+  for (const width of [1280, 320]) {
+    test(`searches beyond the first page and returns from detail at ${width}px`, async ({
+      page,
+      authenticate,
+      mockApi,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const errors: string[] = [];
+      page.on('pageerror', error => errors.push(error.message));
+      const owner = await authenticate({ language: 'fr' });
+      const rows = pagedMeetingTimeline();
+      const target = { ...rows[22], title: 'Budget café international' };
+      rows[22] = target;
+      await mockApi([
+        ...meetingRoutes(),
+        ...meetingTimelineRoutes(owner, rows),
+        { url: '**/api/v1/notifications/broadcasts/unread', json: { broadcasts: [] } },
+        {
+          url: '**/api/v1/meetings?*',
+          handler: async route => {
+            const params = new URL(route.request().url()).searchParams;
+            const q = params.get('q');
+            const offset = Number(params.get('offset'));
+            const selected = q === 'cafe' ? [target] : rows;
+            await route.fulfill({
+              json: {
+                items: selected.slice(offset, offset + 20),
+                total: selected.length,
+                limit: 20,
+                offset,
+              },
+            });
+          },
+        },
+        {
+          url: `**/api/v1/meetings/${target.id}`,
+          json: meetingDetail({
+            id: target.id,
+            report: { title: target.title, participants: [], sections: [] },
+          }),
+        },
+      ]);
+      await page.goto('/fr/dashboard/meetings?from=chat');
+      await waitForHydration(page, TITLE);
+      const search = page.getByRole('searchbox', { name: 'Rechercher dans les comptes rendus…' });
+      await expect(search).toBeVisible();
+      await expect(page.getByRole('link', { name: target.title, exact: true })).toHaveCount(0);
+      await search.fill('cafe');
+      const result = page.getByRole('link', { name: target.title, exact: true });
+      await expect(result).toBeVisible();
+      await expect(search).toBeFocused();
+      await result.click();
+      await expect(page).toHaveURL(new RegExp(`/meetings/${target.id}\\?q=cafe&from=chat$`));
+      await page.getByRole('button', { name: 'Retour aux réunions', exact: true }).click();
+      await expect(page).toHaveURL(/\/meetings\?q=cafe&from=chat$/);
+      await expect(search).toHaveValue('cafe');
+      await expect(result).toBeVisible();
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
+      ).toBe(true);
+      expect(errors).toEqual([]);
+    });
+  }
+
   test('offers the chat as a way out when no door was recorded', async ({
     page,
     authenticate,

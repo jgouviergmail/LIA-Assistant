@@ -22,6 +22,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from src.core.capability_origin import CapabilityOrigin
+
 
 class PluginIssueCode(str, Enum):
     """Closed taxonomy of plugin validation/import issue reasons."""
@@ -225,7 +227,8 @@ class PluginImportReport(BaseModel):
 
     plugin_id: str = Field(description="Installed plugin row id")
     file_cleanup_pending: bool = Field(
-        default=False, description="Known import with predecessor files awaiting cleanup"
+        default=False,
+        description="Known import with predecessor files awaiting cleanup",
     )
     name: str = Field(description="Plugin name from the manifest")
     version: str | None = Field(default=None, description="Manifest version")
@@ -246,6 +249,7 @@ class PluginResponse(BaseModel):
     """One installed plugin in API responses (settings section)."""
 
     model_config = ConfigDict(from_attributes=True)
+    shared_origin: CapabilityOrigin | None = None
 
     id: UUID = Field(description="Installed plugin row id")
     name: str = Field(description="Plugin name")

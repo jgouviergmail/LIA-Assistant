@@ -40,6 +40,7 @@ from src.domains.agents.display.components.card_content import (
     render_linked_title,
     render_text_content,
 )
+from src.domains.agents.display.components.classification_badges import classification_badges
 from src.domains.agents.display.components.email_body import render_email_body
 from src.domains.agents.display.icons import Icons, icon
 from src.domains.agents.display.mailbox_draft import is_mailbox_draft
@@ -247,6 +248,7 @@ class EmailCard(BaseComponent):
         if thread_count > 1:
             chips.append(render_chip(f"{thread_count}", "thread", Icons.FORUM))
         chip_row_html = render_chip_row(" ".join(chips)) if chips else ""
+        chip_row_html += classification_badges(data.get("classification"), ctx.language)
 
         # --- Snippet ---
         snippet_html = (

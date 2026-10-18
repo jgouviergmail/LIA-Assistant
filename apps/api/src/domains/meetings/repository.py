@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import case, delete, func, literal, select, text, update
+from sqlalchemy import case, delete, func, literal, select, text, true, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
@@ -26,11 +26,20 @@ from src.domains.meetings.models import (
     MeetingStatus,
     MeetingTemplate,
 )
-from src.domains.meetings.regeneration_repository import MeetingRegenerationRepositoryMixin
+from src.domains.meetings.regeneration_repository import (
+    MeetingRegenerationRepositoryMixin,
+)
 from src.domains.meetings.schemas import TemplateSelection
+from src.domains.meetings.search import (
+    minutes_search_predicate,
+    normalize_minutes_query,
+)
 
 # Statuses under which a recording still accepts segments.
-LIVE_STATUSES: tuple[MeetingStatus, ...] = (MeetingStatus.RECORDING, MeetingStatus.INTERRUPTED)
+LIVE_STATUSES: tuple[MeetingStatus, ...] = (
+    MeetingStatus.RECORDING,
+    MeetingStatus.INTERRUPTED,
+)
 
 
 def _lease_from_now(ttl_seconds: int) -> Any:
@@ -83,20 +92,32 @@ class MeetingRepository(MeetingRegenerationRepositoryMixin, BaseRepository[Meeti
         return result.scalar_one_or_none()
 
     async def list_for_user(
-        self, user_id: UUID, *, limit: int, offset: int
+        self, user_id: UUID, *, limit: int, offset: int, query: str | None = None
     ) -> tuple[list[Meeting], int]:
         """A page of the user's meetings, newest first, with the EXACT total (ADR-185)."""
-        total = await self.db.scalar(
-            select(func.count()).select_from(Meeting).where(Meeting.user_id == user_id)
-        )
-        rows = await self.db.execute(
-            select(Meeting)
-            .where(Meeting.user_id == user_id)
-            .order_by(Meeting.started_at.desc())
+        filtered = select(Meeting.id, Meeting.started_at).where(Meeting.user_id == user_id)
+        needle = normalize_minutes_query((query or "").strip())
+        if needle:
+            filtered = filtered.where(minutes_search_predicate(needle))
+        matches = filtered.cte("matching_minutes")
+        count = select(func.count().label("total")).select_from(matches).subquery()
+        page = (
+            select(matches)
+            .order_by(matches.c.started_at.desc(), matches.c.id.desc())
             .limit(limit)
             .offset(offset)
+            .subquery()
         )
-        return list(rows.scalars().all()), int(total or 0)
+        # LEFT JOIN keeps the aggregate even when the requested page is empty.
+        result = await self.db.execute(
+            select(Meeting, count.c.total)
+            .select_from(count)
+            .outerjoin(page, true())
+            .outerjoin(Meeting, Meeting.id == page.c.id)
+            .order_by(page.c.started_at.desc(), page.c.id.desc())
+        )
+        rows = result.all()
+        return [row[0] for row in rows if row[0] is not None], int(rows[0][1])
 
     # ------------------------------------------------------- recording phase
 
@@ -274,7 +295,10 @@ class MeetingRepository(MeetingRegenerationRepositoryMixin, BaseRepository[Meeti
             .where(Meeting.id == meeting_id, Meeting.status == MeetingStatus.PROCESSING)
             .values(
                 status=case(
-                    (Meeting.attempts >= max_attempts, _status_literal(MeetingStatus.FAILED)),
+                    (
+                        Meeting.attempts >= max_attempts,
+                        _status_literal(MeetingStatus.FAILED),
+                    ),
                     else_=_status_literal(MeetingStatus.STOPPED),
                 ),
                 stage=None,
@@ -398,7 +422,11 @@ class MeetingRepository(MeetingRegenerationRepositoryMixin, BaseRepository[Meeti
         return [row[0] for row in result.all()]
 
     async def requeue_for_retry(
-        self, meeting_id: UUID, *, from_statuses: tuple[MeetingStatus, ...], commit: bool = True
+        self,
+        meeting_id: UUID,
+        *,
+        from_statuses: tuple[MeetingStatus, ...],
+        commit: bool = True,
     ) -> bool:
         """``failed|stopped → stopped`` with a fresh retry budget (user-triggered)."""
         stmt = (
@@ -433,7 +461,10 @@ class MeetingRepository(MeetingRegenerationRepositoryMixin, BaseRepository[Meeti
         commit: bool = True,
     ) -> None:
         """Replace the user-visible minutes (and optionally the location label)."""
-        values: dict[str, Any] = {"report_current": report, "report_edited_at": edited_at}
+        values: dict[str, Any] = {
+            "report_current": report,
+            "report_edited_at": edited_at,
+        }
         if touch_location:
             values["location_label"] = location_label
         await self.db.execute(
@@ -457,7 +488,11 @@ class MeetingRepository(MeetingRegenerationRepositoryMixin, BaseRepository[Meeti
         await self.db.execute(
             update(Meeting)
             .where(Meeting.id == meeting_id)
-            .values(index_state=state, rag_document_id=rag_document_id, indexed_at=indexed_at)
+            .values(
+                index_state=state,
+                rag_document_id=rag_document_id,
+                indexed_at=indexed_at,
+            )
             .execution_options(synchronize_session=False)
         )
         await self.db.commit()
@@ -627,7 +662,9 @@ def derived_meeting_values(
             "report_generated": None,
             "report_current": None,
             "report_edited_at": None,
-            "index_state": MeetingIndexState.PENDING if rag_enabled else MeetingIndexState.DISABLED,
+            "index_state": (
+                MeetingIndexState.PENDING if rag_enabled else MeetingIndexState.DISABLED
+            ),
             "template_selection": TemplateSelection.USER.value,
             "template_selection_reason": None,
         }

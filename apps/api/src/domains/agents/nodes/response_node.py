@@ -48,7 +48,10 @@ from src.core.i18n_api_messages import (
 )
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.core.run_config import run_id_of
-from src.domains.agents.analysis.query_intelligence_helpers import get_qi_attr, turn_references
+from src.domains.agents.analysis.query_intelligence_helpers import (
+    get_qi_attr,
+    turn_references,
+)
 from src.domains.agents.analysis.resolved_references import ResolvedReferenceEntry
 from src.domains.agents.constants import (
     DATA_FILTERING_GENERATION_ERROR_MARKER,
@@ -97,7 +100,10 @@ from src.domains.agents.display.sentinel_filter import strip_widget_sentinels
 from src.domains.agents.drafts.card_html import card_surface
 from src.domains.agents.drafts.models import DraftAction
 from src.domains.agents.drafts.result_renderer import render_execution_result
-from src.domains.agents.expressivity.turn import inject_tone_instruction, take_tone_annotation
+from src.domains.agents.expressivity.turn import (
+    inject_tone_instruction,
+    take_tone_annotation,
+)
 
 # Extracted modules (Phase 3 refactoring)
 from src.domains.agents.formatters.agent_results import format_agent_results_for_prompt
@@ -125,7 +131,10 @@ from src.domains.agents.prompts import (
     get_error_fallback_message,
     get_response_prompt,
 )
-from src.domains.agents.prompts.prompt_loader import inject_before_final_reminder, load_prompt
+from src.domains.agents.prompts.prompt_loader import (
+    inject_before_final_reminder,
+    load_prompt,
+)
 from src.domains.agents.services.performed_actions_directive import (
     build_performed_actions_block,
 )
@@ -134,6 +143,7 @@ from src.domains.agents.services.plan_blockers import (
     format_plan_blockers,
     summarize_plan_blockers,
 )
+from src.domains.agents.services.rejection_indicators import RESULT_CONTENT_INDICATORS
 from src.domains.agents.utils.message_filters import (
     drop_current_turn_responses,
     filter_for_llm_context,
@@ -378,83 +388,9 @@ def _is_safe_photo_url(url: str | None) -> bool:
 # ANTI-HALLUCINATION - MESSAGE FILTERING FOR REJECTED PLANS
 # ============================================================================
 
+
 # Indicators that an AI message contains result data (should be filtered when plan rejected)
 # i18n: All supported languages (fr, en, es, de, it, zh-CN)
-_RESULT_INDICATORS_BY_LANG: dict[str, set[str]] = {
-    "fr": {
-        "trouvé",
-        "voici",
-        "résultat",
-        "résultats",
-        "contact",
-        "événement",
-        "email",
-        "lieu",
-        "fichier",
-    },
-    "en": {
-        "found",
-        "result",
-        "results",
-        "here is",
-        "here are",
-        "contact",
-        "event",
-        "email",
-        "place",
-        "file",
-    },
-    "es": {
-        "encontrado",
-        "aquí",
-        "resultado",
-        "resultados",
-        "contacto",
-        "evento",
-        "correo",
-        "lugar",
-        "archivo",
-    },
-    "de": {
-        "gefunden",
-        "hier ist",
-        "hier sind",
-        "ergebnis",
-        "ergebnisse",
-        "kontakt",
-        "termin",
-        "e-mail",
-        "ort",
-        "datei",
-    },
-    "it": {
-        "trovato",
-        "ecco",
-        "risultato",
-        "risultati",
-        "contatto",
-        "evento",
-        "email",
-        "luogo",
-        "file",
-    },
-    "zh-CN": {"找到", "结果", "这里是", "联系人", "事件", "邮件", "地点", "文件"},
-}
-
-# Build combined frozenset for all languages + JSON indicators
-RESULT_CONTENT_INDICATORS: frozenset[str] = frozenset(
-    indicator for indicators in _RESULT_INDICATORS_BY_LANG.values() for indicator in indicators
-) | frozenset(
-    {
-        # JSON/data indicators (language-agnostic)
-        "```json",
-        "```",
-        '"id":',
-        '"name":',
-    }
-)
-
-
 def _filter_messages_for_rejection_context(
     messages: list[BaseMessage],
     has_rejection: bool,
@@ -552,7 +488,9 @@ async def _execute_draft_if_confirmed(
 
     try:
         # Lazy import to avoid circular dependencies
-        from src.domains.agents.services.draft_executor import execute_draft_if_confirmed
+        from src.domains.agents.services.draft_executor import (
+            execute_draft_if_confirmed,
+        )
 
         # Delegate to central executor service
         # Handles confirm/edit/cancel routing and metrics
@@ -1150,7 +1088,10 @@ def _plan_already_produced_skill_app(state: MessagesState, skill_name: str) -> b
 
 
 async def _instrument_business_metrics(
-    state: MessagesState, config: RunnableConfig, run_id: str, draft: dict[str, Any] | None
+    state: MessagesState,
+    config: RunnableConfig,
+    run_id: str,
+    draft: dict[str, Any] | None,
 ) -> None:
     """Instrument business-level KPIs for the turn — best-effort.
 
@@ -1503,8 +1444,8 @@ def _render_response_html(
 ) -> str:
     """Inject structured HTML after the LLM response and return the new content.
 
-    Extracted verbatim from ``response_node``. Two paths: interactive widgets
-    (SKILL_APP/MCP_APP/DRAFT — always injected) and data cards (cards / html_cards).
+    Interactive widgets and the selected-place Position map exist in every mode.
+    Ordinary data cards remain restricted to cards / html_cards.
     Read-only on the registry; only the (possibly appended) content is returned.
 
     Widget sentinels are host-owned: any the model authored itself is stripped
@@ -1552,6 +1493,15 @@ def _render_response_html(
             html_length=len(widget_html),
             user_display_mode=user_display_mode,
         )
+
+    # The host-owned map leads even a model-authored HTML/Markdown place list.
+    from src.domains.agents.display.places_position import render_positions
+
+    position_html = render_positions(
+        current_turn_registry, resolved=resolved_context_for_html, language=user_language
+    )
+    if position_html:
+        final_content = position_html + "\n\n" + final_content
 
     # ---------- Path 2: data cards (cards / html_cards) ----------
     # In modes with cards, render data-oriented items. Interactive widgets
@@ -1704,7 +1654,7 @@ def _apply_relevant_ids_filtering(
                 run_id=run_id,
                 relevant_ids_count=len(relevant_ids),
                 original_count=original_registry_count,
-                filtered_count=len(current_turn_registry) if current_turn_registry else 0,
+                filtered_count=(len(current_turn_registry) if current_turn_registry else 0),
                 user_query_length=len(last_user_message) if last_user_message else 0,
             )
         elif require_selection or "<relevant_ids>" in original_content.lower():
@@ -1872,7 +1822,7 @@ def _build_response_system_prompt(
         viewport=user_viewport,
         has_filtering_data=bool(data_for_filtering),
         has_initiative_suggestion=initiative_suggestion is not None,
-        user_query_for_prompt=user_query_for_prompt[:80] if user_query_for_prompt else "",
+        user_query_for_prompt=(user_query_for_prompt[:80] if user_query_for_prompt else ""),
         last_user_message=last_user_message[:80] if last_user_message else "",
         used_original_query=user_query_for_prompt != last_user_message,
     )
@@ -2338,7 +2288,9 @@ async def _prepare_conversational_messages(
     # Phase: Performance Optimization - Message Windowing
     # Apply windowing BEFORE filtering to reduce token count
     # Response needs rich context for creative synthesis (20 turns default)
-    from src.domains.agents.utils.message_windowing import get_response_windowed_messages
+    from src.domains.agents.utils.message_windowing import (
+        get_response_windowed_messages,
+    )
 
     # Drop current-turn assistant output (ReAct passthrough leaves its final answer in
     # state["messages"]) so the synthesis LLM's message array ends on the user query,
@@ -2541,7 +2493,9 @@ def _extract_qi_response_hints(
     resolved_references = turn_references(state)
     if resolved_references:
         logger.info(
-            "response_node_resolved_references", run_id=run_id, count=len(resolved_references)
+            "response_node_resolved_references",
+            run_id=run_id,
+            count=len(resolved_references),
         )
     # Extract enriched query from QueryIntelligence for context-aware filtering
     # Example: "I want the details" + history "where do the duponds live"
@@ -2580,8 +2534,12 @@ def _build_conversation_history(
     conversation once, as the message array (ADR-309) — only a script skill's
     sub-agent, which runs outside that array, receives the text.
     """
-    from src.domains.agents.utils.conversation_context import format_conversation_history
-    from src.domains.agents.utils.message_windowing import get_response_windowed_messages
+    from src.domains.agents.utils.conversation_context import (
+        format_conversation_history,
+    )
+    from src.domains.agents.utils.message_windowing import (
+        get_response_windowed_messages,
+    )
 
     # Drop current-turn assistant output before windowing: in ReAct passthrough the
     # agent's final answer lives in state["messages"], and leaving it in the history
@@ -3113,7 +3071,10 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         )
 
         efficacy_block = await build_efficacy_block(
-            efficacy_context_from_state(state), run_id=run_id, state=state, can_verify=False
+            efficacy_context_from_state(state),
+            run_id=run_id,
+            state=state,
+            can_verify=False,
         )
         psyche_context = "\n\n".join(filter(None, (context_bundle.psyche_context, efficacy_block)))
         peer_context = context_bundle.peer_context
@@ -3299,7 +3260,10 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                 DraftAction.CONFIRM_BATCH.value,
             ):
                 # Generate short confirmation/cancellation message (i18n)
-                if draft_action in (DraftAction.CONFIRM.value, DraftAction.CONFIRM_BATCH.value):
+                if draft_action in (
+                    DraftAction.CONFIRM.value,
+                    DraftAction.CONFIRM_BATCH.value,
+                ):
                     # Use the formatted draft execution result (already set in agent_results_summary)
                     short_response = agent_results_summary or APIMessages.draft_action_completed(
                         user_language

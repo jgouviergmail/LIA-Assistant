@@ -109,6 +109,7 @@ export interface WeatherData {
 }
 
 export interface AgendaEventItem {
+  classification?: import('@/lib/content-classification').ContentClassification | null;
   /** Existing server identity/date; optional for payloads cached before ADR-322. */
   id?: string | null;
   start_at?: string | null;
@@ -125,6 +126,7 @@ export interface AgendaData {
 }
 
 export interface MailItem {
+  classification?: import('@/lib/content-classification').ContentClassification | null;
   sender_name: string | null;
   sender_email: string | null;
   subject: string;

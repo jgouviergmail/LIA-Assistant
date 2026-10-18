@@ -58,7 +58,10 @@ from src.domains.skills.exceptions import (
     raise_skill_name_conflict,
     raise_skill_quota_exceeded,
 )
-from src.domains.skills.import_commit import SkillImportCompletionUnknown, commit_skill_import
+from src.domains.skills.import_commit import (
+    SkillImportCompletionUnknown,
+    commit_skill_import,
+)
 from src.domains.skills.import_disk import finish_disk_step, run_disk_step
 from src.domains.skills.import_hooks import AfterSkillCommit, BeforeSkillSwap
 from src.domains.skills.models import SkillProvenance
@@ -323,6 +326,7 @@ class SkillImportService:
         owner_id: UUID | None,
         is_system: bool,
         provenance: SkillProvenance = SkillProvenance.AUTHORED,
+        after_register: RegistrationHook | None = None,
         before_swap: BeforeSkillSwap | None = None,
         before_commit: BeforeSkillSwap | None = None,
         after_commit: AfterSkillCommit | None = None,
@@ -358,6 +362,7 @@ class SkillImportService:
                 is_system=is_system,
                 settings=settings,
                 provenance=provenance,
+                after_register=after_register,
                 before_swap=before_swap,
                 before_commit=before_commit,
                 after_commit=after_commit,

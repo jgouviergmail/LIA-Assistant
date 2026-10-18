@@ -21,6 +21,7 @@ from src.domains.skills.models import (
     Skill,
     SkillProvenance,
     UserSkillState,
+    skill_is_third_party,
 )
 from src.domains.skills.repository import (
     RequestSkillState,
@@ -257,6 +258,9 @@ class SkillPreferenceService:
                 raise ValueError(f"Skill '{name}' is managed by another channel")
             if provenance is not None and not is_system:
                 existing.provenance = provenance.value
+                # New external bytes resolve trust anew; ordinary chat edits
+                # (provenance=None) retain the explicitly granted peer policy.
+                existing.peer_authored = False
             existing.description = description
             existing.descriptions = descriptions
             self.db.add(existing)
@@ -565,6 +569,9 @@ class SkillPreferenceService:
             "admin_enabled": skill.admin_enabled,
             "skill_id": str(skill.id),
             "provenance": skill.provenance,
+            "is_third_party": skill_is_third_party(
+                skill.provenance, peer_authored=skill.peer_authored
+            ),
         }
 
     @staticmethod

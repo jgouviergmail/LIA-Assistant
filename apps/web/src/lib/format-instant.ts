@@ -12,8 +12,12 @@
 
 const CACHE = new Map<string, Intl.DateTimeFormat | null>();
 
-function formatter(locale: string, style: 'short' | 'medium'): Intl.DateTimeFormat | null {
-  const key = `${locale}|${style}`;
+function formatter(
+  locale: string,
+  style: 'short' | 'medium',
+  timeZone?: string
+): Intl.DateTimeFormat | null {
+  const key = `${locale}|${style}|${timeZone ?? ''}`;
   if (!CACHE.has(key)) {
     try {
       CACHE.set(
@@ -21,6 +25,7 @@ function formatter(locale: string, style: 'short' | 'medium'): Intl.DateTimeForm
         new Intl.DateTimeFormat(locale, {
           dateStyle: style === 'short' ? 'short' : 'medium',
           timeStyle: 'short',
+          timeZone,
         })
       );
     } catch {
@@ -44,9 +49,10 @@ function formatter(locale: string, style: 'short' | 'medium'): Intl.DateTimeForm
 export function formatInstant(
   iso: string,
   locale: string,
-  style: 'short' | 'medium' = 'medium'
+  style: 'short' | 'medium' = 'medium',
+  timeZone?: string
 ): string {
-  const instance = formatter(locale, style);
+  const instance = formatter(locale, style, timeZone);
   if (!instance) return iso;
   try {
     return instance.format(new Date(iso));

@@ -13,6 +13,9 @@ import { Switch } from '@/components/ui/switch';
 import { isThirdPartySkill, type Skill } from '@/hooks/useSkills';
 import type { SkillsTranslator } from '@/components/settings/SkillDetailModal';
 import { skillTraitTone } from '@/lib/status-tone';
+import { Send } from 'lucide-react';
+import { RowActions } from '@/components/ui/row-actions';
+import { CapabilityOriginBadge } from '@/components/peers/CapabilityOriginBadge';
 
 function CardBadges({ skill, t }: { skill: Skill; t: SkillsTranslator }) {
   return (
@@ -57,6 +60,7 @@ export function SkillGallery({
   onOpen,
   onToggle,
   toggling,
+  onShare,
 }: {
   skills: Skill[];
   lng: string;
@@ -64,6 +68,7 @@ export function SkillGallery({
   onOpen: (skill: Skill) => void;
   onToggle: (skill: Skill) => void;
   toggling: boolean;
+  onShare?: (skill: Skill) => void;
 }) {
   return (
     <div className="grid gap-2 sm:grid-cols-2">
@@ -77,7 +82,7 @@ export function SkillGallery({
         return (
           <div
             key={skill.name}
-            className={`flex items-start gap-2 rounded-lg border p-3 ${
+            className={`flex flex-wrap items-start gap-2 rounded-lg border p-3 ${
               isAdmin ? 'bg-card/50' : 'bg-card'
             }`}
           >
@@ -101,6 +106,25 @@ export function SkillGallery({
               disabled={toggling}
               aria-label={t('settings.skills.toggle_skill', { name: skill.name })}
             />
+            {skill.shared_origin && (
+              <div className="w-full min-w-0">
+                <CapabilityOriginBadge origin={skill.shared_origin} lng={lng} />
+              </div>
+            )}
+            {onShare && skill.scope === 'user' && skill.skill_id && (
+              <RowActions
+                className="ml-auto w-full justify-end"
+                actions={[
+                  {
+                    key: 'share',
+                    label: t('settings.capability_share.action', { name: skill.name }),
+                    icon: Send,
+                    onSelect: () => onShare(skill),
+                  },
+                ]}
+                menuLabel={t('common.actions_for', { name: skill.name })}
+              />
+            )}
           </div>
         );
       })}

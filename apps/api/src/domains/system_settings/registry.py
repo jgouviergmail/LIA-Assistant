@@ -141,6 +141,8 @@ SETTING_SPECS: dict[SystemSettingKey, SettingSpec[Any]] = {
             SystemSettingKey.JEV_MEMORY_REFERENCE_PRESENCE_ENABLED,
             SystemSettingKey.JEV_HITL_REJECTION_ENABLED,
             SystemSettingKey.JEV_PARAMETER_KIND_ENABLED,
+            SystemSettingKey.JEV_EMAIL_CLASSIFICATION_ENABLED,
+            SystemSettingKey.JEV_EVENT_CLASSIFICATION_ENABLED,
         )
     },
     SystemSettingKey.JEV_ENABLED: SettingSpec(
@@ -295,7 +297,9 @@ async def read_setting(key: SystemSettingKey) -> Any:
         return spec.default
 
 
-async def read_settings(keys: Collection[SystemSettingKey]) -> dict[SystemSettingKey, Any]:
+async def read_settings(
+    keys: Collection[SystemSettingKey],
+) -> dict[SystemSettingKey, Any]:
     """Read several settings in two round trips at most.
 
     One cache ``MGET``, then one ``SELECT … IN`` for whatever the cache did
@@ -320,7 +324,9 @@ async def read_settings(keys: Collection[SystemSettingKey]) -> dict[SystemSettin
             await _write_many_to_cache(_cache_entries(pending), stored)
     except Exception as exc:  # noqa: BLE001 — bounded: a toggle never 500s
         logger.error(
-            "system_settings_read_failed", setting_count=len(specs), error=type(exc).__name__
+            "system_settings_read_failed",
+            setting_count=len(specs),
+            error=type(exc).__name__,
         )
     return values
 
@@ -355,7 +361,9 @@ async def _read_many_from_cache(
     return pending
 
 
-async def _read_many_from_database(specs: list[SettingSpec[Any]]) -> dict[SystemSettingKey, Any]:
+async def _read_many_from_database(
+    specs: list[SettingSpec[Any]],
+) -> dict[SystemSettingKey, Any]:
     """The decoded stored values of ``specs`` — one query, a key per existing row.
 
     A row that does not decode is left out: it reads as its default, like a

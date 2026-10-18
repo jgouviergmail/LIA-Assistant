@@ -5,7 +5,7 @@
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { act, renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import type { MeetingSummary } from '@/types/meetings';
 
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'meeting-list-owner' } }) }));
@@ -21,9 +21,13 @@ const list = vi.hoisted(() => ({
   isDeleting: false,
   bulkDelete: vi.fn(),
   refetch: vi.fn(),
+  read: vi.fn(),
 }));
 vi.mock('@/hooks/useMeetings', () => ({
-  useMeetingList: () => ({ ...list, error: null }),
+  useMeetingList: (...args: unknown[]) => {
+    list.read(...args);
+    return { ...list, error: null };
+  },
 }));
 const confirm = vi.hoisted(() => ({ answer: true, calls: [] as unknown[] }));
 vi.mock('@/components/ui/use-confirm', () => ({
@@ -83,6 +87,8 @@ const params = Promise.resolve({ lng: 'en' });
 
 beforeEach(() => {
   vi.clearAllMocks();
+  searchParams.value = new URLSearchParams();
+  window.history.replaceState({}, '', '/');
   list.meetings = [];
   list.total = 0;
   list.isLoading = false;
@@ -94,6 +100,54 @@ beforeEach(() => {
 });
 
 describe('MeetingsPage', () => {
+  it('debounces typing, resets the page, retains focus and restores browser history', async () => {
+    searchParams.value = new URLSearchParams('page=3&from=chat');
+    list.meetings = [summary()];
+    list.total = 60;
+    const { user } = renderWithProviders(<MeetingsPage params={params} />);
+    const input = screen.getByRole('searchbox');
+    await user.type(input, 'budget');
+    expect(list.read).toHaveBeenLastCalledWith(20, 40, true, '');
+    await waitFor(() => expect(list.read).toHaveBeenLastCalledWith(20, 0, true, 'budget'));
+    expect(input).toHaveFocus();
+    expect(new URLSearchParams(window.location.search).get('q')).toBe('budget');
+    expect(new URLSearchParams(window.location.search).has('page')).toBe(false);
+    act(() => {
+      window.history.pushState({}, '', '?page=2&q=autre');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    await waitFor(() => expect(input).toHaveValue('autre'));
+    expect(list.read).toHaveBeenLastCalledWith(20, 20, true, 'autre');
+    await user.click(screen.getByRole('button', { name: 'settings.search.clear' }));
+    expect(list.read).toHaveBeenLastCalledWith(20, 0, true, '');
+    expect(screen.getByRole('searchbox')).toBe(input);
+  });
+
+  it('searches on the server and preserves query and origin on the detail link', async () => {
+    searchParams.value = new URLSearchParams('q=Caf%C3%A9&page=3&from=chat');
+    list.meetings = [summary()];
+    list.total = 60;
+    renderWithProviders(<MeetingsPage params={params} />);
+    expect(screen.getByRole('searchbox')).toHaveValue('Café');
+    expect(list.read).toHaveBeenLastCalledWith(20, 40, true, 'Café');
+    expect(screen.getByRole('link', { name: 'Point projet' })).toHaveAttribute(
+      'href',
+      '/en/dashboard/meetings/m1?page=3&q=Caf%C3%A9&from=chat'
+    );
+    searchParams.value = new URLSearchParams();
+  });
+
+  it('distinguishes a filtered empty result and keeps its search control mounted', () => {
+    searchParams.value = new URLSearchParams('q=absent');
+    const { rerender } = renderWithProviders(<MeetingsPage params={params} />);
+    const input = screen.getByRole('searchbox');
+    expect(screen.getByText('meetings.list.no_results_title')).toBeInTheDocument();
+    list.isLoading = true;
+    rerender(<MeetingsPage params={params} />);
+    expect(screen.getByRole('searchbox')).toBe(input);
+    searchParams.value = new URLSearchParams();
+  });
+
   it('announces the first load', () => {
     list.isLoading = true;
     renderWithProviders(<MeetingsPage params={params} />);

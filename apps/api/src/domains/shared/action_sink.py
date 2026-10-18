@@ -40,9 +40,15 @@ EMAIL_SHARE_CAPABILITY = "email_share"
 #: A skill the chat wrote, installed from its card (ADR-327): the model only
 #: proposes, the person's click installs it into their library.
 SKILL_PROPOSAL_INSTALL_CAPABILITY = "skill_proposal_install"
+PEER_CAPABILITY_SHARE_CAPABILITY = "peer_capability_share"
 #: Every act this seam records — the register refuses any other name.
 USER_ACTION_CAPABILITIES = frozenset(
-    {PEER_IMAGE_SHARE_CAPABILITY, EMAIL_SHARE_CAPABILITY, SKILL_PROPOSAL_INSTALL_CAPABILITY}
+    {
+        PEER_IMAGE_SHARE_CAPABILITY,
+        EMAIL_SHARE_CAPABILITY,
+        SKILL_PROPOSAL_INSTALL_CAPABILITY,
+        PEER_CAPABILITY_SHARE_CAPABILITY,
+    }
 )
 
 
@@ -130,7 +136,9 @@ class recorded_action:  # noqa: N801 — used as a context manager, named like o
 
     async def __aenter__(self) -> recorded_action:
         self._ticket = await self._recorder.claim(
-            user_id=self._user_id, capability=self._capability, arguments=self._arguments
+            user_id=self._user_id,
+            capability=self._capability,
+            arguments=self._arguments,
         )
         return self
 

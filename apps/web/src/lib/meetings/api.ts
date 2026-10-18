@@ -41,8 +41,11 @@ export const meetingsApi = {
     return detail ?? null;
   },
 
-  list: (limit: number, offset: number) =>
-    apiClient.get<MeetingListResponse>(BASE, { params: { limit, offset } }),
+  list: (limit: number, offset: number, query = '', signal?: AbortSignal) =>
+    apiClient.get<MeetingListResponse>(BASE, {
+      params: { limit, offset, ...(query ? { q: query } : {}) },
+      ...(signal ? { signal } : {}),
+    }),
 
   detail: (id: string, includeTranscript = false) =>
     apiClient.get<MeetingDetail>(`${BASE}/${id}`, {

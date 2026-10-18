@@ -47,6 +47,11 @@ CADDYFILE = repo_root_or_skip() / "infrastructure" / "demo-instance" / "Caddyfil
 #: process's routers rather than the demonstrator's.
 EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
     {
+        # Authenticated, owned peer receipts. All transferable native families
+        # are disabled in the demonstrator; preview/send recheck those guards.
+        "GET /api/v1/peers/capability-transfers/{transfer_id}",
+        "POST /api/v1/peers/capability-transfers/preview",
+        "POST /api/v1/peers/capability-transfers/{transfer_id}/send",
         # Original owned-command continuations; each disabled family still refuses.
         "GET /api/v1/application-commands/{command_id}",
         "GET /api/v1/application-commands/{command_id}/asset-download",

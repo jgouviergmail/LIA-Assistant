@@ -419,8 +419,25 @@ class ConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin, ABC)
                 # Step 6: Format response (Data Registry or legacy mode); a failure
                 # the payload declared stays a failure whatever the formatter says.
                 if self.registry_enabled:
-                    return keep_declared_failure(
-                        result, self.format_registry_response(result), tool_name=self.tool_name
+                    from src.domains.agents.services.qualification.publication import (
+                        qualify_tool_output,
+                    )
+
+                    output = keep_declared_failure(
+                        result,
+                        self.format_registry_response(result),
+                        tool_name=self.tool_name,
+                    )
+                    return await qualify_tool_output(
+                        output,
+                        client=client,
+                        provider=effective_connector_type.value,
+                        user_id=user_uuid,
+                        timezone=(
+                            runtime.context.timezone
+                            if isinstance(runtime.context, LiaRuntimeContext)
+                            else "UTC"
+                        ),
                     )
                 else:
                     return self.format_response(result)
@@ -673,7 +690,8 @@ class ConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin, ABC)
         """
         return UnifiedToolOutput.failure(
             message=APIMessages.connector_not_activated(
-                get_connector_display_name(self.connector_type), resolve_language(language)
+                get_connector_display_name(self.connector_type),
+                resolve_language(language),
             ),
             error_code=ToolErrorCode.CONNECTOR_NOT_ACTIVATED,
         )
@@ -728,7 +746,9 @@ class ConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin, ABC)
             # Silent fallback to defaults
             # Logging is already done in get_user_preferences()
             with suppress(Exception):
-                from src.domains.agents.tools.runtime_helpers import get_user_preferences
+                from src.domains.agents.tools.runtime_helpers import (
+                    get_user_preferences,
+                )
 
                 fetched_tz, _, fetched_locale = await get_user_preferences(self.runtime)
                 user_timezone = fetched_tz
@@ -873,7 +893,9 @@ class APIKeyConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin
                 # failure whatever the formatter says.
                 if self.registry_enabled:
                     return keep_declared_failure(
-                        result, self.format_registry_response(result), tool_name=self.tool_name
+                        result,
+                        self.format_registry_response(result),
+                        tool_name=self.tool_name,
                     )
                 else:
                     return self.format_response(result)
@@ -897,7 +919,9 @@ class APIKeyConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin
         """
         effective_type = self.connector_type
         if self.functional_category:
-            from src.domains.connectors.provider_resolver import resolve_active_connector
+            from src.domains.connectors.provider_resolver import (
+                resolve_active_connector,
+            )
 
             resolved = await resolve_active_connector(
                 user_uuid, self.functional_category, connector_service

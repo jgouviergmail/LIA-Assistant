@@ -1333,6 +1333,19 @@
       "omitted_one": "{{count}} tracé incomplet ne peut pas être affiché.",
       "omitted_other": "{{count}} tracés incomplets ne peuvent pas être affichés.",
       "report_error": "Le suivi du chargement a échoué. Réessaie sans rouvrir la carte."
+    },
+    "position_map": {
+      "activate": "Explorer la carte",
+      "map": "Position des lieux",
+      "choose": "Lieux de la réponse",
+      "recenter": "Voir tous les repères",
+      "preview": "Activez la carte interactive pour explorer les lieux.",
+      "open_place": "Ouvrir {{name}} dans Google Maps",
+      "unlocated": "Sans coordonnées : {{count}}",
+      "omitted": "{{count}} autres lieux restent accessibles dans la liste complète.",
+      "all_places": "Liste complète des lieux",
+      "list_preview": "Consultez les lieux ci-dessous.",
+      "unavailable": "La carte interactive est indisponible pour le moment. Les lieux restent accessibles ci-dessous."
     }
   },
   "skill_apps": {
@@ -3431,7 +3444,9 @@
           "meeting_template_selection": "Sélection native Jev du modèle de compte rendu ; le modèle existant rédige toujours la synthèse.",
           "jev_memory_reference_presence": "Évite l’extraction de références lorsque la demande ne désigne aucune personne ni aucun lieu implicite. Les souvenirs restent disponibles ; les cas incertains suivent le traitement existant.",
           "jev_hitl_rejection": "Reconnaît uniquement un refus explicite de toutes les actions proposées. Une approbation, une correction, un refus partiel ou une ambiguïté restent confiés au classifieur existant. JEV ne peut approuver aucune action.",
-          "jev_parameter_kind": "Avant l’appel d’un outil, juge la nature de chaque valeur d’adresse, de lieu ou d’email. Seul un jugement sûr peut refuser une valeur d’une autre nature (un nom de personne, un numéro de téléphone, une date). Un jugement incertain ou en échec laisse décider le garde-fou existant, et JEV ne peut accepter aucune valeur que ce garde-fou refuse."
+          "jev_parameter_kind": "Avant l’appel d’un outil, juge la nature de chaque valeur d’adresse, de lieu ou d’email. Seul un jugement sûr peut refuser une valeur d’une autre nature (un nom de personne, un numéro de téléphone, une date). Un jugement incertain ou en échec laisse décider le garde-fou existant, et JEV ne peut accepter aucune valeur que ce garde-fou refuse.",
+          "jev_email_classification": "Qualifie les preuves déjà disponibles d’un email avec une catégorie indicative et un seul niveau d’attention. En cas de doute, aucun badge. Aucun message, lien ou document supplémentaire n’est lu.",
+          "jev_event_classification": "Qualifie les preuves déjà disponibles d’un rendez-vous comme professionnelles ou personnelles. En cas de doute, aucun badge ; le rendez-vous est conservé tel quel."
         },
         "voiceTts": {
           "sectionTitle": "Voix & réglages provider",
@@ -3802,7 +3817,9 @@
           "filter_file": "Filtrage anticipé des documents",
           "memory_reference_presence": "Références personnelles en mémoire",
           "hitl_rejection": "Refus complet d’une confirmation",
-          "parameter_kind": "Valeurs de paramètres protégés"
+          "parameter_kind": "Valeurs de paramètres protégés",
+          "email_classification": "Catégorie et priorité des emails",
+          "event_classification": "Catégorie des rendez-vous"
         }
       }
     },
@@ -5010,6 +5027,47 @@
       "voice_portal": "La voix, la langue et le tour de parole sont ceux de l'agent, réglés sur le portail {{brand}} ; LIA n'envoie que son prompt et ses outils.",
       "agent_models": "voix {{voice}} · LLM {{llm}}",
       "vendor_billed": "Les sessions sur {{brand}} sont facturées sur ta propre clé, par le fournisseur : aucun plafond ne se règle ici — le montant exact s'affiche à la fin de chaque session."
+    },
+    "capability_share": {
+      "origin_by": "Partagé par {{name}}",
+      "origin_on": "le {{date}}",
+      "unknown_sender": "un utilisateur",
+      "title": "Partager une ressource",
+      "action": "Partager {{name}}",
+      "description": "Ta connexion reçoit une copie indépendante, installée désactivée. Les identifiants de connexion enregistrés sont exclus.",
+      "execution_notice": "Après activation manuelle, les skills reçus disposent des mêmes capacités que ceux créés par le destinataire.",
+      "recipient": "Destinataire",
+      "preview": "Prévisualiser",
+      "send": "Envoyer et installer",
+      "retry": "Réessayer les composants manquants",
+      "refresh": "Vérifier l’état",
+      "new_preview": "Nouvelle prévisualisation",
+      "files": "Fichiers inclus",
+      "omitted": "Fichiers exclus",
+      "bytes": "{{size}} octets",
+      "credentials": "Le destinataire devra configurer les identifiants de connexion nécessaires.",
+      "component_installed": "Installé",
+      "component_missing": "Non installé",
+      "pending_notice": "Le partage déjà confirmé peut se poursuivre après la fermeture de cette fenêtre.",
+      "readiness": "Valide la connexion avant d’activer ce serveur.",
+      "status": {
+        "preparing": "Prêt à envoyer",
+        "installing": "Installation en cours",
+        "installed": "Installé chez le destinataire, initialement désactivé",
+        "partial": "Installation partielle : certains composants restent à installer",
+        "failed": "Aucun composant n’a été installé",
+        "cancelled": "Partage expiré ou annulé"
+      },
+      "errors": {
+        "generic": "Le partage n’a pas pu être confirmé. Vérifie son état avant de réessayer.",
+        "changed": "La ressource a changé. Prépare une nouvelle prévisualisation.",
+        "expired": "Ce partage a expiré. Prépare une nouvelle prévisualisation.",
+        "busy": "Une installation est déjà en cours. Vérifie son état.",
+        "quota": "La limite de partage est atteinte. Réessaie plus tard.",
+        "conflict": "Une ressource du même nom existe déjà chez le destinataire.",
+        "recipient_changed": "Le destinataire a modifié ou supprimé l’installation partielle. Elle n’a pas été écrasée.",
+        "not_shareable": "Cette ressource ne peut pas être partagée en l’état. Vérifie les fichiers, les secrets intégrés et la configuration."
+      }
     }
   },
   "relations": {
@@ -16718,6 +16776,10 @@
       "indexing": "Ajout à l'espace de connaissances"
     },
     "list": {
+      "search_placeholder": "Rechercher dans les comptes rendus…",
+      "no_results_title": "Aucune réunion correspondante",
+      "no_results_description": "Essayez un autre terme ou effacez la recherche.",
+      "clear_search": "Effacer la recherche",
       "title": "Réunions",
       "subtitle": "Tes enregistrements et leurs comptes rendus",
       "empty_title": "Aucune réunion pour l'instant",
@@ -17149,7 +17211,8 @@
       "proactive_notification": "Notification envoyée ({{kind}})",
       "peer_image_share": "Image partagée avec une connexion",
       "email_share": "E-mail envoyé à {{count}} destinataire(s)",
-      "skill_proposal_install": "Compétence « {{target}} » ajoutée à ta bibliothèque"
+      "skill_proposal_install": "Compétence « {{target}} » ajoutée à ta bibliothèque",
+      "peer_capability_share": "Partage d’une ressource avec une connexion"
     },
     "export": {
       "group_label": "Exporter ce registre",
@@ -18118,5 +18181,13 @@
       "original": "Original",
       "original_label": "Original — {{outlet}}, dans un nouvel onglet"
     }
+  },
+  "classification": {
+    "professional": "Professionnel",
+    "personal": "Personnel",
+    "spam": "Spam",
+    "phishing_scam": "Phishing/Arnaque",
+    "urgent": "Urgent",
+    "critical": "Critique"
   }
 }

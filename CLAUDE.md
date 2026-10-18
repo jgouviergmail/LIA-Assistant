@@ -487,7 +487,14 @@ Docker client, no code), proven by `task sandbox:libraries:check`. The chat's im
 PROPOSES: the card's click installs (`skills/proposal_service.py`), never a version it did not
 describe. A command's `hosts` go through ADR-298's decision (`skills/command_network.py`): an
 unknown host is asked in the ReAct loop only, refused elsewhere naming the settings; a
-third-party skill never reaches a connector. See [ADR-327](docs/architecture/ADR-327-Skill-Library-And-Third-Party-Skills.md).
+third-party skill never reaches a connector. The explicit peer-sharing exception
+(2026-10-18) is decided by the same trust seam: server-owned `peer` provenance,
+or `plugin` with server-owned `peer_authored`, receives the recipient-authored
+execution policy after activation. A received copy commits disabled, without
+credentials, grants or an HITL override; client metadata cannot confer this trust.
+Origin metadata is informational, not execution authority. See
+[ADR-327](docs/architecture/ADR-327-Skill-Library-And-Third-Party-Skills.md) and
+[peer capability transfers](docs/technical/PEER_CAPABILITY_TRANSFERS.md).
 
 ### Mermaid diagrams in guides
 

@@ -20,7 +20,9 @@ export type JevUsage =
   | 'initiative_utility'
   | 'memory_reference_presence'
   | 'hitl_rejection'
-  | 'parameter_kind';
+  | 'parameter_kind'
+  | 'email_classification'
+  | 'event_classification';
 export type JevReadiness =
   | 'ready'
   | 'missing_key'

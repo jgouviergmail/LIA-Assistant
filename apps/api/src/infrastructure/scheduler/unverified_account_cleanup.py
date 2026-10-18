@@ -17,7 +17,11 @@ from typing import Any
 
 import structlog
 
-from src.core.constants import SCHEDULER_JOB_UNVERIFIED_CLEANUP, UNVERIFIED_ACCOUNT_CLEANUP_DAYS
+from src.core.constants import (
+    SCHEDULER_JOB_UNVERIFIED_CLEANUP,
+    UNVERIFIED_ACCOUNT_CLEANUP_DAYS,
+)
+from src.domains.users.resource_release import build_capability_origin_scrub
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.database.session import get_db_session
 from src.infrastructure.locks import SchedulerLock
@@ -85,12 +89,13 @@ async def cleanup_unverified_accounts() -> dict[str, Any]:
 
         async for session in get_db_session():
             # First, count and log the accounts to be deleted
-            count_query = select(func.count(User.id)).where(
-                User.is_verified.is_(False),
-                User.is_active.is_(False),
-                User.oauth_provider.is_(None),  # Not OAuth
-                User.created_at < cutoff,
+            eligible = (
+                User.is_verified.is_(False)
+                & User.is_active.is_(False)
+                & User.oauth_provider.is_(None)
+                & (User.created_at < cutoff)
             )
+            count_query = select(func.count(User.id)).where(eligible)
             result = await session.execute(count_query)
             stats["total_checked"] = result.scalar() or 0
 
@@ -102,21 +107,14 @@ async def cleanup_unverified_accounts() -> dict[str, Any]:
                 )
             else:
                 # Get emails for logging (before deletion)
-                select_query = select(User.email).where(
-                    User.is_verified.is_(False),
-                    User.is_active.is_(False),
-                    User.oauth_provider.is_(None),
-                    User.created_at < cutoff,
-                )
+                select_query = select(User.email).where(eligible)
                 result = await session.execute(select_query)
                 emails = [row[0] for row in result.fetchall()]
 
                 # Delete the accounts
-                delete_query = delete(User).where(
-                    User.is_verified.is_(False),
-                    User.is_active.is_(False),
-                    User.oauth_provider.is_(None),
-                    User.created_at < cutoff,
+                delete_query = delete(User).where(eligible)
+                await session.execute(
+                    build_capability_origin_scrub(select(User.id).where(eligible))
                 )
                 delete_result = await session.execute(delete_query)
                 await session.commit()

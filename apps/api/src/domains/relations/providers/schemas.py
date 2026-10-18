@@ -22,6 +22,11 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.core.content_classification import (
+    LiveEmailClassification,
+    LiveEventClassification,
+)
+
 
 class ContextStatus(str, Enum):
     """Per-section outcome — drives the frontend rendering branch.
@@ -113,7 +118,8 @@ class ContactCard(BaseModel):
         default_factory=list, description="Postal addresses, formatted by the provider."
     )
     relations: list[ContactValue] = Field(
-        default_factory=list, description="People this person is related to (Google only)."
+        default_factory=list,
+        description="People this person is related to (Google only).",
     )
     links: list[ContactValue] = Field(default_factory=list, description="Web links (Google only).")
     important_dates: list[ContactValue] = Field(
@@ -135,6 +141,7 @@ class ExchangedEmail(BaseModel):
     id: str = Field(description="Provider message id — the stable render key.")
     direction: str = Field(description="received | sent, relative to the CRM owner.")
     subject: str = Field(description="Subject line, or a stated placeholder.")
+    classification: LiveEmailClassification = None
     occurred_at: datetime | None = Field(
         default=None, description="UTC instant, when the provider gave a usable one."
     )
@@ -158,6 +165,7 @@ class SharedEvent(BaseModel):
 
     id: str = Field(description="Provider event id — the stable render key.")
     summary: str = Field(description="Event title, or a stated placeholder.")
+    classification: LiveEventClassification = None
     starts_at: datetime | None = Field(default=None, description="UTC start, when parseable.")
     ends_at: datetime | None = Field(
         default=None,

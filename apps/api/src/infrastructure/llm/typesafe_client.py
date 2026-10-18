@@ -19,7 +19,14 @@ from decimal import Decimal
 from typing import Annotated, Literal, Self
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    JsonValue,
+    ValidationError,
+    field_validator,
+)
 
 from src.infrastructure.utils.bounded_read import BodyTooLargeError, read_bounded
 
@@ -60,7 +67,9 @@ class ChoiceQuestion(BaseModel):
     type: Literal["choice"] = Field(default="choice", description="Native primitive.")
     instructions: Instructions = Field(description="The judgment to make.")
     criteria: dict[str, Criterion] = Field(
-        min_length=2, max_length=255, description="Allowed answers, in the order offered."
+        min_length=2,
+        max_length=255,
+        description="Allowed answers, in the order offered.",
     )
 
     @field_validator("instructions")
@@ -303,7 +312,10 @@ def _parse_batch(raw: bytes, questions: Mapping[str, DecisionQuestion]) -> Choic
                 answers[key] = _parse_answer(envelope.answers[key], question)
     except TypeSafeError as exc:
         raise TypeSafeError(
-            "invalid_response", usage=envelope.usage, model=envelope.model, reason=exc.reason
+            "invalid_response",
+            usage=envelope.usage,
+            model=envelope.model,
+            reason=exc.reason,
         ) from None
     return ChoiceBatchResult(envelope.model, answers, envelope.usage, nouls)
 
@@ -316,7 +328,12 @@ class TypeSafeClient:
         self._api_key = api_key
 
     async def choose(
-        self, *, model: str, state: JsonValue, question: ChoiceQuestion, timeout_seconds: float
+        self,
+        *,
+        model: str,
+        state: JsonValue,
+        question: ChoiceQuestion,
+        timeout_seconds: float,
     ) -> ChoiceResult:
         """Evaluate once within a total deadline; the caller decides how to recover."""
         result = await self.choose_many(
@@ -337,7 +354,7 @@ class TypeSafeClient:
     ) -> ChoiceBatchResult:
         """Evaluate independent questions once, atomically validating the answer set."""
         _validate_questions(questions)
-        body = _encode_request(model, state, questions)
+        body = encode_decision_request(model, state, questions)
         raw: bytes | None = None
         try:
             async with asyncio.timeout(timeout_seconds):
@@ -372,10 +389,11 @@ class TypeSafeClient:
         return _parse_batch(raw, questions)
 
 
-def _encode_request(
+def encode_decision_request(
     model: str, state: JsonValue, questions: Mapping[str, DecisionQuestion]
 ) -> bytes:
     """Reject malformed state before HTTP; do not leak its values in exceptions."""
+    _validate_questions(questions)
     try:
         body = json.dumps(
             {

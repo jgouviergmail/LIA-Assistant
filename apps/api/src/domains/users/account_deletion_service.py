@@ -37,6 +37,10 @@ from src.domains.connectors.models import (
 )
 from src.domains.conversations.models import Conversation
 from src.domains.users.models import User
+from src.domains.users.resource_release import (
+    build_capability_origin_scrub,
+    workboard_release,
+)
 from src.infrastructure.database.registry import import_all_models
 from src.infrastructure.database.session import Base
 from src.infrastructure.observability.logging import get_logger
@@ -74,20 +78,7 @@ def build_workboard_release(user_id: UUID) -> Update:
     Returns:
         The UPDATE to execute before the purge loop.
     """
-    import_all_models()
-    tickets = Base.metadata.tables["workboard_tickets"]
-    return (
-        update(tickets)
-        .where(
-            tickets.c.assignee_user_id == user_id,
-            tickets.c.owner_user_id != user_id,
-        )
-        .values(
-            assignee_kind="human",
-            assignee_user_id=None,
-            follow_assignee=False,
-        )
-    )
+    return workboard_release(user_id)
 
 
 def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
@@ -191,6 +182,7 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
             ),
         ),
         by_either_side("peer_messages", "sender_id", "recipient_id"),
+        by_user("peer_capability_transfers", "recipient_id"),
         by_either_side("peer_image_shares", "sender_id", "recipient_id"),
         by_either_side("peer_access_log", "accessor_id", "owner_id"),
         by_either_side("peer_blocks", "blocker_id", "blocked_id"),
@@ -854,6 +846,7 @@ class AccountDeletionService:
         # this statement a departing account would stay named as the assignee
         # of somebody else's ticket, for good.
         released = await self.db.execute(build_workboard_release(user_id))
+        await self.db.execute(build_capability_origin_scrub(user_id))
         released_rows = int(released.rowcount or 0)  # type: ignore[attr-defined]
         if released_rows:
             logger.info(

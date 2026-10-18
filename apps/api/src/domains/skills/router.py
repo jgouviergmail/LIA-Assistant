@@ -12,6 +12,7 @@ import shutil
 from io import BytesIO
 from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 import yaml
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
@@ -28,6 +29,7 @@ from src.core.session_dependencies import (
 )
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
+from src.domains.shared.capability_origins import capability_origins
 from src.domains.skills.archive import create_skill_archive as _create_skill_zip
 from src.domains.skills.exceptions import (
     raise_admin_skill_delete_forbidden,
@@ -41,7 +43,9 @@ from src.domains.skills.exceptions import (
 from src.domains.skills.models import SkillProvenance
 from src.domains.skills.ui_projection import merge_skill_metadata as _merge_with_cache
 from src.domains.skills.ui_projection import parsed_skill_metadata as _skill_to_response
-from src.domains.skills.url_rate_limit import rate_limit_url_import as _url_import_rate_limit
+from src.domains.skills.url_rate_limit import (
+    rate_limit_url_import as _url_import_rate_limit,
+)
 from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 
@@ -124,6 +128,13 @@ async def list_skills(
     db_skills = await svc.get_user_visible_skills(user.id)
 
     items = [_merge_with_cache(s, enabled_for_user=s["is_active"]) for s in db_skills]
+    origins = await capability_origins(
+        db, user.id, "skill", (UUID(s["skill_id"]) for s in db_skills)
+    )
+    for item, source in zip(items, db_skills, strict=True):
+        origin = origins.get(UUID(source["skill_id"]))
+        item["shared_origin"] = origin.model_dump(mode="json") if origin else None
+        item["is_third_party"] = source["is_third_party"]
     return {"skills": items, "total": len(items)}
 
 
@@ -236,7 +247,9 @@ async def update_admin_skill_description(
         translations = await _translate_description_all_langs(body.description, invoke_config)
     except (json.JSONDecodeError, ValueError) as exc:
         logger.warning(
-            "skill_description_translation_parse_error", skill_name=skill_name, error=str(exc)
+            "skill_description_translation_parse_error",
+            skill_name=skill_name,
+            error=str(exc),
         )
         raise_skill_translation_invalid(skill_name)
     except Exception as exc:
@@ -407,7 +420,9 @@ async def import_skill_from_url(
     """Import a user skill from a remote https URL (UXR Lot 10, B12)."""
     from src.domains.skills.import_service import SkillImportService
     from src.domains.skills.url_import import fetch_skill_from_url
-    from src.infrastructure.observability.metrics_registry import skill_url_imports_total
+    from src.infrastructure.observability.metrics_registry import (
+        skill_url_imports_total,
+    )
 
     if not settings.skills_url_import_enabled:
         raise_skill_invalid_format("URL import is disabled")
@@ -493,7 +508,11 @@ async def delete_skill(
 ) -> None:
     """Delete a user skill (cannot delete admin skills)."""
     from src.domains.skills.cache import SkillsCache
-    from src.domains.skills.removal import cleanup_removal, observe_removal, stage_removal
+    from src.domains.skills.removal import (
+        cleanup_removal,
+        observe_removal,
+        stage_removal,
+    )
 
     user_id = str(user.id)
 
@@ -620,7 +639,9 @@ async def translate_skill_description(
         translations = await _translate_description_all_langs(skill["description"], invoke_config)
     except (json.JSONDecodeError, ValueError) as exc:
         logger.warning(
-            "skill_description_translation_parse_error", skill_name=skill_name, error=str(exc)
+            "skill_description_translation_parse_error",
+            skill_name=skill_name,
+            error=str(exc),
         )
         raise_skill_translation_invalid(skill_name)
     except Exception as exc:

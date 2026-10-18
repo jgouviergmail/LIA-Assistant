@@ -31,6 +31,8 @@ class JevUsage(StrEnum):
     MEMORY_REFERENCE_PRESENCE = "memory_reference_presence"
     HITL_REJECTION = "hitl_rejection"
     PARAMETER_KIND = "parameter_kind"
+    EMAIL_CLASSIFICATION = "email_classification"
+    EVENT_CLASSIFICATION = "event_classification"
 
 
 @dataclass(frozen=True)
@@ -147,6 +149,16 @@ JEV_USAGES: dict[JevUsage, JevUsageSpec] = {
         SystemSettingKey.JEV_PARAMETER_KIND_ENABLED,
         "jev_parameter_kind",
         "settings.admin.jev.usages.parameter_kind",
+    ),
+    JevUsage.EMAIL_CLASSIFICATION: JevUsageSpec(
+        SystemSettingKey.JEV_EMAIL_CLASSIFICATION_ENABLED,
+        "jev_email_classification",
+        "settings.admin.jev.usages.email_classification",
+    ),
+    JevUsage.EVENT_CLASSIFICATION: JevUsageSpec(
+        SystemSettingKey.JEV_EVENT_CLASSIFICATION_ENABLED,
+        "jev_event_classification",
+        "settings.admin.jev.usages.event_classification",
     ),
 }
 

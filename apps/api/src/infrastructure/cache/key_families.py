@@ -70,6 +70,7 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     "gmail:search": KeyScope.USER_CACHE,
     "gmail:labels": KeyScope.USER_CACHE,
     "email:digest": KeyScope.USER_CACHE,
+    "content:classification": KeyScope.USER_CACHE,
     "relations:context:v2": KeyScope.USER_CACHE,
     "briefing:v2": KeyScope.USER_CACHE,
     "heartbeat:birthdays": KeyScope.USER_CACHE,
@@ -214,7 +215,12 @@ BARE_PREFIX_FAMILIES: dict[str, KeyScope] = {
 
 _RESET_PURGED: frozenset[KeyScope] = frozenset({KeyScope.CONVERSATION, KeyScope.USER_CACHE})
 _USER_SCOPED: frozenset[KeyScope] = frozenset(
-    {KeyScope.CONVERSATION, KeyScope.USER_CACHE, KeyScope.USER_LEARNING, KeyScope.USER_RUNTIME}
+    {
+        KeyScope.CONVERSATION,
+        KeyScope.USER_CACHE,
+        KeyScope.USER_LEARNING,
+        KeyScope.USER_RUNTIME,
+    }
 )
 
 #: Constant names in ``core.constants`` that declare a Redis key prefix.

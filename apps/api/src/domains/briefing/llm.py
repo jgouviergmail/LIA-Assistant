@@ -21,6 +21,7 @@ import structlog
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 
+from src.core.classification_projection import classification_fields
 from src.core.config import settings as app_settings
 from src.core.i18n import get_language_name, resolve_language
 from src.core.llm_config_helper import get_llm_config_for_agent
@@ -49,11 +50,17 @@ from src.infrastructure.database.session import get_db_context
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.llm.token_capture import TokenCaptureHandler, priced_call
-from src.infrastructure.llm.usage_metadata import model_name_of_response, tokens_from_response
+from src.infrastructure.llm.usage_metadata import (
+    model_name_of_response,
+    tokens_from_response,
+)
 from src.infrastructure.observability.metrics_briefing import (
     briefing_llm_invocations_total,
 )
-from src.infrastructure.proactive.tracking import capture_spend_on_failure, track_proactive_tokens
+from src.infrastructure.proactive.tracking import (
+    capture_spend_on_failure,
+    track_proactive_tokens,
+)
 
 if TYPE_CHECKING:
     from src.domains.users.models import User
@@ -259,7 +266,11 @@ async def _invoke_and_track(
         # non-empty, and a provider reporting a zero-token call still reported one.
         reported_usage = getattr(response, "usage_metadata", None)
         measured = tokens_from_response(response)
-        tokens_in, tokens_out, tokens_cache = measured.prompt, measured.completion, measured.cached
+        tokens_in, tokens_out, tokens_cache = (
+            measured.prompt,
+            measured.completion,
+            measured.cached,
+        )
         if capture.has_usage:
             tokens_in, tokens_out, tokens_cache = (
                 capture.tokens_in,
@@ -362,7 +373,9 @@ async def _resolve_user_model_block(user: User) -> str:
     portrait = ""
     if getattr(user, "journals_enabled", False):
         try:
-            from src.domains.journals.portrait_builder import build_journal_user_model_block
+            from src.domains.journals.portrait_builder import (
+                build_journal_user_model_block,
+            )
 
             portrait = await build_journal_user_model_block(
                 user_id=str(user.id), format="brief", flow="briefing"
@@ -441,7 +454,13 @@ def _summarize_cards_for_llm(cards: CardsBundle, *, verbose: bool) -> str:
         events = getattr(cards.agenda.data, "events", []) or []
         if verbose:
             summary["agenda"] = [
-                {"title": e.title, "start": e.start_local, "loc": e.location} for e in events[:3]
+                {
+                    "title": e.title,
+                    "start": e.start_local,
+                    "loc": e.location,
+                    **classification_fields(e.classification),
+                }
+                for e in events[:3]
             ]
         else:
             # Greeting: give the upcoming events (≤3, next ~24h) with a per-event
@@ -450,7 +469,14 @@ def _summarize_cards_for_llm(cards: CardsBundle, *, verbose: bool) -> str:
             # can name an imminent one. Deliberately NO aggregate count — a bare
             # count made the greeting lump tomorrow's events into today ("deux
             # rendez-vous cet après-midi"); a per-event list keeps each day explicit.
-            summary["agenda"] = [{"title": e.title, "start": e.start_local} for e in events[:3]]
+            summary["agenda"] = [
+                {
+                    "title": e.title,
+                    "start": e.start_local,
+                    **classification_fields(e.classification),
+                }
+                for e in events[:3]
+            ]
 
     if cards.mails.status == CardStatus.OK and cards.mails.data is not None:
         items = getattr(cards.mails.data, "items", []) or []
@@ -462,11 +488,12 @@ def _summarize_cards_for_llm(cards: CardsBundle, *, verbose: bool) -> str:
                     {
                         "from": (m.sender_name or m.sender_email or "(unknown)"),
                         "subject": m.subject,
+                        **classification_fields(m.classification),
                     }
                     for m in items[:3]
                 ],
             }
-            if verbose
+            if verbose or any(classification_fields(m.classification) for m in items[:3])
             else {"unread_today": total}
         )
 
@@ -483,7 +510,11 @@ def _summarize_cards_for_llm(cards: CardsBundle, *, verbose: bool) -> str:
         nxt = getattr(fy, "next_automation", None)
         summary["for_you"] = {
             "open_loops": [
-                {"subject": ol.subject, "direction": ol.direction, "days_open": ol.days_open}
+                {
+                    "subject": ol.subject,
+                    "direction": ol.direction,
+                    "days_open": ol.days_open,
+                }
                 for ol in loops[:3]
             ],
             "automations_ran_24h": [a.title for a in recents[:3]],
@@ -499,7 +530,11 @@ def _summarize_cards_for_llm(cards: CardsBundle, *, verbose: bool) -> str:
         summary["tasks"] = {
             "overdue_count": getattr(cards.tasks.data, "overdue_count", 0),
             "top": [
-                {"title": t.title, "days_until_due": t.days_until_due, "overdue": t.overdue}
+                {
+                    "title": t.title,
+                    "days_until_due": t.days_until_due,
+                    "overdue": t.overdue,
+                }
                 for t in t_items[:3]
             ],
         }

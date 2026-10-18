@@ -39,7 +39,11 @@ from typing import Any
 
 import structlog
 
-from src.domains.shared.action_sink import USER_ACTION_CAPABILITIES, install_action_recorder
+from src.domains.shared.action_sink import (
+    PEER_CAPABILITY_SHARE_CAPABILITY,
+    USER_ACTION_CAPABILITIES,
+    install_action_recorder,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -256,7 +260,14 @@ class _UserActionRecorder:
         try:
             from src.domains.agents.effects.models import EffectSource
 
-            run_id = f"{capability}_{uuid.uuid4().hex}"
+            identity = uuid.uuid4().hex
+            if capability == PEER_CAPABILITY_SHARE_CAPABILITY:
+                receipt_id = uuid.UUID(arguments["receipt_id"])
+                attempt = int(arguments["attempt"])
+                if attempt < 1:
+                    raise ValueError("Invalid transfer attempt")
+                identity = f"{receipt_id.hex}_{attempt}"
+            run_id = f"{capability}_{identity}"
             return await _claim_effect(
                 user_id=user_id,
                 run_id=run_id,
@@ -268,7 +279,9 @@ class _UserActionRecorder:
             )
         except Exception as exc:  # noqa: BLE001 - the register never costs the act
             logger.warning(
-                "user_action_not_claimed", capability=capability, error_type=type(exc).__name__
+                "user_action_not_claimed",
+                capability=capability,
+                error_type=type(exc).__name__,
             )
             return None
 

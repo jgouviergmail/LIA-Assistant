@@ -1,6 +1,6 @@
 """UI-facing formatters — raw API/DB data to UI-ready models.
 
-Pure functions: no DB, no I/O, no global state. Trivially unit-testable.
+No DB/provider I/O or business state. Malformed-source diagnostics retain their logs.
 """
 
 from __future__ import annotations
@@ -12,6 +12,12 @@ from datetime import UTC, date, datetime, timedelta, tzinfo
 from typing import Any, Final
 from zoneinfo import ZoneInfo
 
+import structlog
+
+from src.core.classification_projection import (
+    email_classification,
+    event_classification,
+)
 from src.core.geo_utils import wind_deg_to_cardinal
 from src.core.i18n import resolve_language
 from src.core.i18n_v3 import V3Messages
@@ -27,6 +33,7 @@ from src.domains.briefing.schemas import (
     MailItem,
     PollenItem,
     ReminderItem,
+    TaskItem,
     WeatherData,
 )
 
@@ -135,7 +142,11 @@ def format_weather_data(
     pop_first = _first_forecast_pop(forecast)
 
     forecast_alert = detect_forecast_alert(
-        current=current, forecast=forecast, user_tz=user_tz, now=now, rule=BRIEFING_CARD_ALERT_RULE
+        current=current,
+        forecast=forecast,
+        user_tz=user_tz,
+        now=now,
+        rule=BRIEFING_CARD_ALERT_RULE,
     )
 
     # 5-day daily summary aggregated from the 3-h forecast slots.
@@ -553,6 +564,7 @@ def format_agenda_event(
     event_id = raw_event.get("id")
     return AgendaEventItem(
         title=title,
+        classification=event_classification(raw_event.get("classification")),
         start_local=start_local,
         end_local=end_local,
         location=location if location else None,
@@ -578,13 +590,21 @@ def agenda_time_range(
         return None
     start, end = start.astimezone(user_tz), end.astimezone(user_tz)
     first = format_time_with_date_context(
-        start, reference_dt=reference, locale=language, include_year=True, time_first=False
+        start,
+        reference_dt=reference,
+        locale=language,
+        include_year=True,
+        time_first=False,
     ).lower()
     last = (
         end.strftime("%H:%M")
         if start.date() == end.date()
         else format_time_with_date_context(
-            end, reference_dt=reference, locale=language, include_year=True, time_first=False
+            end,
+            reference_dt=reference,
+            locale=language,
+            include_year=True,
+            time_first=False,
         ).lower()
     )
     if start.utcoffset() != end.utcoffset():
@@ -706,6 +726,7 @@ def format_email_item(raw_msg: dict[str, Any], user_tz: ZoneInfo, language: str)
     message_id = raw_msg.get("id")
     return MailItem(
         sender_name=sender_name,
+        classification=email_classification(raw_msg.get("classification")),
         sender_email=sender_email,
         subject=subject,
         received_local=received_local,
@@ -931,3 +952,35 @@ def extract_today_value_from_summary(
         return float(value)
     except TypeError, ValueError:
         return None
+
+
+def format_task_item(task: dict[str, Any], today_local: date) -> TaskItem | None:
+    """Map one provider-normalized task to a TaskItem (None if not pending).
+
+    Due semantics are DATE-ONLY in the user's local frame (birthdays
+    doctrine): a task due today is on time — never "overdue" merely because
+    00:00 UTC has passed.
+    """
+    if task.get("status") != "needsAction":
+        return None
+    due_date_iso: str | None = None
+    days_until: int | None = None
+    raw_due = task.get("due")
+    if raw_due:
+        try:
+            due_date = datetime.fromisoformat(str(raw_due).replace("Z", "+00:00")).date()
+            due_date_iso = due_date.isoformat()
+            days_until = (due_date - today_local).days
+        except ValueError, TypeError:
+            # Provider sent an unparseable due — keep the task, undated.
+            structlog.get_logger(__name__).debug(
+                "briefing_task_due_unparseable", raw_due=str(raw_due)[:40]
+            )
+    task_id = task.get("id")
+    return TaskItem(
+        title=task.get("title") or "Untitled",
+        due_date_iso=due_date_iso,
+        days_until_due=days_until,
+        overdue=days_until is not None and days_until < 0,
+        id=str(task_id) if task_id else None,
+    )

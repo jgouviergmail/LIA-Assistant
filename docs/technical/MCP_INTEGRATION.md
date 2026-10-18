@@ -1,5 +1,10 @@
 # MCP Integration — Technical Documentation
 
+Personal MCP servers support [peer-owned capability copies](PEER_CAPABILITY_TRANSFERS.md).
+Only sanitized public connection/auth configuration transfers. Installation is
+offline and disabled; credentials, OAuth grants and HITL exemptions stay with
+the sender. The recipient uses the existing credential/test/authorization flow.
+
 ## Overview
 
 MCP (Model Context Protocol) support enables LIA to connect external tool servers using the standard Anthropic MCP protocol. External tools are discovered at startup and registered in the existing catalogue, making them available to any agent through the normal orchestration pipeline.

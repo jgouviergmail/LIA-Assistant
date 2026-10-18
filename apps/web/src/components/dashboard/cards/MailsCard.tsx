@@ -9,6 +9,7 @@ import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
 import { canWatch } from '@/lib/mail-watch';
 import { useMailWatch } from '@/hooks/useMailWatch';
+import { ClassificationBadges } from '@/components/chat/ClassificationBadges';
 import type { CardSection, MailsData } from '@/types/briefing';
 
 interface MailsCardProps {
@@ -131,6 +132,7 @@ function MailsContent({
                 {mail.subject}
               </span>
               <span className="line-clamp-2 break-words text-xs text-muted-foreground">{from}</span>
+              <ClassificationBadges value={mail.classification} />
             </CardItemRow>
           );
         })}

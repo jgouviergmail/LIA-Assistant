@@ -104,6 +104,11 @@ class UserMCPServer(BaseModel):
     )
 
     # OAuth 2.1 metadata (cached discovery results)
+    required_header_name: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        doc="Non-secret authentication requirement for an offline shared installation.",
+    )
     oauth_metadata: Mapped[dict | None] = mapped_column(
         JSONB,
         nullable=True,

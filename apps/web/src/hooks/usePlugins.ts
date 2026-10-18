@@ -58,6 +58,7 @@ export interface PluginImportReport {
 
 /** One installed plugin from the listing API. */
 export interface InstalledPlugin {
+  shared_origin?: import('@/lib/capability-sharing').CapabilityOrigin | null;
   id: string;
   name: string;
   version: string | null;

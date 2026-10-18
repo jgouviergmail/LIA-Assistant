@@ -27,7 +27,10 @@ from src.domains.agents.tools.application_personal_mcp_tools import (
 )
 from src.domains.user_mcp.management_projection import read_personal_mcp_metadata
 from src.domains.user_mcp.models import UserMCPAuthType, UserMCPServerStatus
-from src.domains.user_mcp.schemas import MCPDiscoveredToolResponse, UserMCPServerResponse
+from src.domains.user_mcp.schemas import (
+    MCPDiscoveredToolResponse,
+    UserMCPServerResponse,
+)
 from src.infrastructure.mcp.personal_metadata_gateway import (
     configure_personal_mcp_metadata,
     get_personal_mcp_metadata,
@@ -49,7 +52,12 @@ def test_personal_mcp_fields_have_explicit_public_or_private_policy():
         "has_connection_error",
         "next_tool_offset",
     }
-    assert set(UserMCPServerResponse.model_fields) == native | {"url", "last_error"}
+    # The assistant inventory deliberately omits UI-only sender identity/time.
+    assert set(UserMCPServerResponse.model_fields) == native | {
+        "url",
+        "last_error",
+        "shared_origin",
+    }
     assert set(MCPDiscoveredToolResponse.model_fields) == set(PersonalMCPToolItem.model_fields) | {
         "input_schema"
     }
@@ -71,7 +79,9 @@ def test_personal_mcp_read_is_registered_for_both_modes_without_side_effects():
     assert set(get_lia_personal_mcp_servers_tool.tool_call_schema.model_fields) == {"query"}
 
 
-async def test_personal_metadata_lifetime_fails_closed_and_survives_pool_failure(monkeypatch):
+async def test_personal_metadata_lifetime_fails_closed_and_survives_pool_failure(
+    monkeypatch,
+):
     previous = configure_personal_mcp_metadata(None)
     try:
         with pytest.raises(AuthorizationError):

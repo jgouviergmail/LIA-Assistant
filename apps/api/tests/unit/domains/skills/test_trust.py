@@ -65,6 +65,21 @@ def pdf_is_third_party() -> Iterator[None]:
 
 
 class TestTheRequestStateResolvesByName:
+    def test_peer_grant_is_explicit_and_does_not_change_ordinary_plugin_isolation(
+        self,
+    ) -> None:
+        me = UUID(_ME)
+        rows = [
+            StateRow("received", me, True, "peer", False),
+            StateRow("received-plugin", me, True, "plugin", True, peer_authored=True),
+            StateRow("ordinary-plugin", me, True, "plugin", True),
+            StateRow("ordinary-url", me, True, "url", True),
+        ]
+        state = resolve_request_state(me, rows)
+        assert "received" not in state.active
+        assert "received-plugin" in state.active
+        assert state.third_party == frozenset({"ordinary-plugin", "ordinary-url"})
+
     def test_own_skill_wins_and_carries_its_provenance(self) -> None:
         me = UUID(_ME)
         rows = [

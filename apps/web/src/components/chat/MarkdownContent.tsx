@@ -25,6 +25,7 @@ import { apiImageProps } from '@/lib/utils/api-resource-url';
 import { codeBlockOf } from '@/lib/markdown-code-block';
 import { MarkdownCardButton } from './markdown-card-actions';
 import { cardDivComponent } from './markdown-presentation-div';
+import { MarkdownClassificationSpan } from './ClassificationBadges';
 import {
   MarkdownTable,
   MarkdownTableBody,
@@ -488,6 +489,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
             return url;
           }}
           components={{
+            span: MarkdownClassificationSpan,
             button: MarkdownCardButton,
             // Headings
             h1: ({ children }) => (

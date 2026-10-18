@@ -44,7 +44,9 @@ logger = get_logger(__name__)
 # tokens, never as substrings: the sentinel's own children carry
 # `lia-skill-app__placeholder` / `lia-mcp-app__loading`, which must not be
 # treated as sentinels in their own right.
-_SENTINEL_CLASSES = frozenset({"lia-skill-app", "lia-mcp-app"})
+_SENTINEL_CLASSES = frozenset(
+    {"lia-skill-app", "lia-mcp-app", "lia-classification", "lia-place-position"}
+)
 
 
 class _SentinelLocator(HTMLParser):

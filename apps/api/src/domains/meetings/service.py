@@ -62,7 +62,10 @@ from src.domains.meetings.schemas import (
     TemplateSelection,
     TranscriptTurn,
 )
-from src.domains.meetings.template_service import MeetingTemplateService, ResolvedTemplate
+from src.domains.meetings.template_service import (
+    MeetingTemplateService,
+    ResolvedTemplate,
+)
 from src.domains.meetings.templates import parse_sections
 from src.domains.usage_limits.service import UsageLimitService
 from src.infrastructure.meeting_deletions import MeetingDeletionConfirmation
@@ -255,8 +258,8 @@ class MeetingService:
                     "started_at": now,
                     "last_segment_at": now,
                     "client_timezone": request.timezone,
-                    "location_lat": request.geolocation.lat if request.geolocation else None,
-                    "location_lon": request.geolocation.lon if request.geolocation else None,
+                    "location_lat": (request.geolocation.lat if request.geolocation else None),
+                    "location_lon": (request.geolocation.lon if request.geolocation else None),
                     "location_accuracy_m": (
                         request.geolocation.accuracy_m if request.geolocation else None
                     ),
@@ -329,13 +332,18 @@ class MeetingService:
         )
         if sequence >= max_segments:
             raise_meeting_too_large(
-                "duration_cap_reached", max_duration_minutes=settings.meetings_max_duration_minutes
+                "duration_cap_reached",
+                max_duration_minutes=settings.meetings_max_duration_minutes,
             )
 
         try:
             added, replaced = await self.store.write_segment(user_id, meeting_id, sequence, body)
         except AudioStorageError as exc:
-            logger.error("meeting_segment_write_failed", meeting_id=str(meeting_id), error=str(exc))
+            logger.error(
+                "meeting_segment_write_failed",
+                meeting_id=str(meeting_id),
+                error=str(exc),
+            )
             raise_meeting_storage_unavailable()
 
         recorded = await self.repo.record_segment(meeting_id, sequence=sequence, added_bytes=added)
@@ -425,10 +433,10 @@ class MeetingService:
         return await self.repo.get_live_for_user(user_id)
 
     async def list_meetings(
-        self, user_id: uuid.UUID, *, limit: int, offset: int
+        self, user_id: uuid.UUID, *, limit: int, offset: int, query: str | None = None
     ) -> tuple[list[Meeting], int]:
         """A page of meetings with the exact total."""
-        return await self.repo.list_for_user(user_id, limit=limit, offset=offset)
+        return await self.repo.list_for_user(user_id, limit=limit, offset=offset, query=query)
 
     async def get(self, user_id: uuid.UUID, meeting_id: uuid.UUID) -> Meeting:
         """One owned meeting or 404."""
@@ -612,7 +620,10 @@ class MeetingService:
         return self._preferences_response(row)
 
     async def put_preferences(
-        self, user_id: uuid.UUID, request: MeetingPreferencesUpdate, language: str | None = None
+        self,
+        user_id: uuid.UUID,
+        request: MeetingPreferencesUpdate,
+        language: str | None = None,
     ) -> MeetingPreferencesResponse:
         """Replace the preferences; the retention is clamped, the default template resolved.
 
@@ -626,7 +637,9 @@ class MeetingService:
         )
 
     @staticmethod
-    def _preferences_response(row: MeetingPreference | None) -> MeetingPreferencesResponse:
+    def _preferences_response(
+        row: MeetingPreference | None,
+    ) -> MeetingPreferencesResponse:
         from src.domains.meetings.preference_commands import preference_response
 
         return preference_response(row)

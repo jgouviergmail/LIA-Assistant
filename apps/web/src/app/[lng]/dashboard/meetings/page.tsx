@@ -19,6 +19,7 @@ import {
   Mic,
   Moon,
   RefreshCw,
+  Search,
   Sun,
   Sunrise,
 } from 'lucide-react';
@@ -35,6 +36,7 @@ import { TimelineDayGroup, TimelineGroup } from '@/components/ui/timeline-group'
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingAnnouncement } from '@/components/ui/loading-announcement';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SearchInput } from '@/components/ui/search-input';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { useBackOrigin } from '@/hooks/useBackOrigin';
 import { useLanguageParam } from '@/hooks/useLanguageParam';
@@ -48,7 +50,7 @@ import type { Language } from '@/i18n/settings';
 import { backDestination, withOrigin } from '@/lib/back-origin';
 import { useSearchParams } from 'next/navigation';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
-import { meetingListPage } from '@/lib/meetings/list-location';
+import { meetingListPage, meetingListQuery, meetingListSearch } from '@/lib/meetings/list-location';
 import { projectMeetingTimeline, type MeetingPeriod } from '@/lib/meetings/timeline';
 import { isSelectable, pageSelectionState, toggleId } from '@/lib/meetings/selection';
 
@@ -73,12 +75,14 @@ function MeetingRows({
   onDeleted,
   page,
   origin,
+  query,
 }: {
   lng: Language;
   list: UseMeetingListReturn;
   onDeleted: (deletedCount: number) => Promise<void>;
   page: number;
   origin: string | null;
+  query: string;
 }) {
   const { t } = useTranslation(lng);
   const { confirm, confirmDialog } = useConfirm();
@@ -173,7 +177,7 @@ function MeetingRows({
                       lng={lng}
                       detailHref={buildLocalizedPath(
                         withOrigin(
-                          `/dashboard/meetings/${encodeURIComponent(item.meeting.id)}${page > 1 ? `?page=${page}` : ''}`,
+                          `/dashboard/meetings/${encodeURIComponent(item.meeting.id)}${meetingListSearch(page, query)}`,
                           origin
                         ),
                         lng
@@ -222,6 +226,7 @@ function AccountMeetingsPage({ params }: MeetingsPageProps) {
   const back = backDestination(origin);
   const searchParams = useSearchParams();
   const toolbar = useToolbarActions(t);
+  const [query, setQuery] = useState(() => meetingListQuery(searchParams.get('q')));
   const [offset, setOffset] = useState(
     () => (meetingListPage(searchParams.get('page')) - 1) * PAGE_SIZE
   );
@@ -229,17 +234,26 @@ function AccountMeetingsPage({ params }: MeetingsPageProps) {
     const url = new URL(window.location.href);
     if (offset > 0) url.searchParams.set('page', String(offset / PAGE_SIZE + 1));
     else url.searchParams.delete('page');
+    if (query) url.searchParams.set('q', query);
+    else url.searchParams.delete('q');
     window.history.replaceState(window.history.state, '', url);
-  }, [offset]);
+  }, [offset, query]);
   useEffect(() => {
-    const restore = () =>
-      setOffset(
-        (meetingListPage(new URLSearchParams(window.location.search).get('page')) - 1) * PAGE_SIZE
-      );
+    const restore = () => {
+      const params = new URLSearchParams(window.location.search);
+      setOffset((meetingListPage(params.get('page')) - 1) * PAGE_SIZE);
+      setQuery(meetingListQuery(params.get('q')));
+    };
     window.addEventListener('popstate', restore);
     return () => window.removeEventListener('popstate', restore);
   }, []);
-  const list = useMeetingList(PAGE_SIZE, offset);
+  const list = useMeetingList(PAGE_SIZE, offset, true, query);
+  const search = (value: string) => {
+    const next = meetingListQuery(value);
+    if (next === query) return;
+    setOffset(0);
+    setQuery(next);
+  };
   const headingRef = useRef<HTMLHeadingElement>(null);
   const { meetings, total, isLoading, isUnavailable, error } = list;
 
@@ -294,8 +308,16 @@ function AccountMeetingsPage({ params }: MeetingsPageProps) {
             ) : undefined
           }
         />
+        <SearchInput
+          value={query}
+          onSearchChange={search}
+          placeholder={t('meetings.list.search_placeholder')}
+          aria-label={t('meetings.list.search_placeholder')}
+          maxLength={200}
+          loading={isLoading && meetings.length > 0}
+        />
         {total > 0 && (
-          <p className="text-sm text-muted-foreground">
+          <p aria-live="polite" aria-atomic="true" className="text-sm text-muted-foreground">
             {t('meetings.list.total', { count: total })}
           </p>
         )}
@@ -307,37 +329,17 @@ function AccountMeetingsPage({ params }: MeetingsPageProps) {
         hasError={!!error && !isUnavailable}
         focusTarget={headingRef}
       />
-      {isLoading ? (
-        <div className="space-y-3">
-          <LoadingAnnouncement />
-          {[1, 2, 3].map(i => (
-            <Skeleton key={i} className="h-16 w-full" />
-          ))}
-        </div>
-      ) : !isUnavailable && error && meetings.length === 0 ? null : isUnavailable ||
-        meetings.length === 0 ? (
-        <EmptyState
-          variant="page"
-          icon={ClipboardList}
-          title={t('meetings.list.empty_title')}
-          description={t('meetings.list.empty_description')}
-          reason="no-data"
-          action={{
-            label: t('meetings.list.empty_action'),
-            onClick: () => router.push('/dashboard/chat'),
-            icon: MessageSquare,
-          }}
-        />
-      ) : (
-        <MeetingRows
-          key={offset}
+      <div aria-busy={isLoading}>
+        <MeetingListContent
           lng={lng}
           list={list}
           onDeleted={afterDelete}
           page={offset / PAGE_SIZE + 1}
           origin={origin}
+          query={query}
+          onEmptyAction={() => (query ? search('') : router.push('/dashboard/chat'))}
         />
-      )}
+      </div>
 
       <Pagination
         currentPage={Math.floor(offset / PAGE_SIZE) + 1}
@@ -347,6 +349,66 @@ function AccountMeetingsPage({ params }: MeetingsPageProps) {
         onPageChange={page => setOffset((page - 1) * PAGE_SIZE)}
       />
     </div>
+  );
+}
+
+/** Loading, failed, empty and populated are distinct presentation states. */
+function MeetingListContent(props: {
+  lng: Language;
+  list: UseMeetingListReturn;
+  onDeleted: (count: number) => Promise<void>;
+  page: number;
+  origin: string | null;
+  query: string;
+  onEmptyAction: () => void;
+}) {
+  const { list } = props;
+  if (list.isLoading && list.meetings.length === 0)
+    return (
+      <div className="space-y-3">
+        <LoadingAnnouncement />
+        {[1, 2, 3].map(i => (
+          <Skeleton key={i} className="h-16 w-full" />
+        ))}
+      </div>
+    );
+  if (!list.isUnavailable && list.error && list.meetings.length === 0) return null;
+  if (list.isUnavailable || list.meetings.length === 0)
+    return (
+      <MeetingListEmpty
+        lng={props.lng}
+        filtered={!!props.query && !list.isUnavailable}
+        onAction={props.onEmptyAction}
+      />
+    );
+  return <MeetingRows key={JSON.stringify([props.page, props.query])} {...props} />;
+}
+
+function MeetingListEmpty({
+  lng,
+  filtered,
+  onAction,
+}: {
+  lng: Language;
+  filtered: boolean;
+  onAction: () => void;
+}) {
+  const { t } = useTranslation(lng);
+  return (
+    <EmptyState
+      variant="page"
+      icon={filtered ? Search : ClipboardList}
+      title={t(filtered ? 'meetings.list.no_results_title' : 'meetings.list.empty_title')}
+      description={t(
+        filtered ? 'meetings.list.no_results_description' : 'meetings.list.empty_description'
+      )}
+      reason={filtered ? 'no-match' : 'no-data'}
+      action={{
+        label: t(filtered ? 'meetings.list.clear_search' : 'meetings.list.empty_action'),
+        onClick: onAction,
+        icon: filtered ? Search : MessageSquare,
+      }}
+    />
   );
 }
 

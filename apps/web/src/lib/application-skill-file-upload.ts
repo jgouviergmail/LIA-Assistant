@@ -16,7 +16,7 @@ const skill = z
     dialogue: z.boolean(),
     outputs: z.array(z.string()).nullable(),
     skill_id: z.string().uuid(),
-    provenance: z.enum(['system', 'authored', 'url', 'plugin', 'library']).nullable(),
+    provenance: z.enum(['system', 'authored', 'url', 'plugin', 'library', 'peer']).nullable(),
   })
   .strict();
 

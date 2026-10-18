@@ -1,4 +1,5 @@
 'use client';
+import { ClassificationBadges } from '@/components/chat/ClassificationBadges';
 
 import { Calendar, CalendarDays, Clock3, MapPin, Navigation, NotebookPen } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -207,6 +208,7 @@ function AgendaEntry({
       <span className="line-clamp-3 break-words text-sm font-semibold leading-relaxed text-foreground">
         {event.title}
       </span>
+      <ClassificationBadges value={event.classification} />
       {event.location && (
         <span className="flex items-start gap-1.5 text-xs leading-relaxed text-muted-foreground">
           <MapPin

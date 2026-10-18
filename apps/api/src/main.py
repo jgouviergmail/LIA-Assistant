@@ -142,6 +142,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     await caches.init_pricing_caches()
     checkpointer = await agents.init_checkpointer()
     await caches.init_config_caches()
+    registries.init_content_qualification()
 
     registry = await agents.init_agent_registry(checkpointer, scheduler)
     mcp_manager = await integrations.init_mcp(registry)

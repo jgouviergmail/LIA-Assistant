@@ -1291,7 +1291,11 @@ LOG_LEVEL_DEFAULT = "INFO"
 
 # HTTP request logging
 HTTP_LOG_LEVEL_DEFAULT = "DEBUG"  # DEBUG in production (Prometheus handles metrics)
-HTTP_LOG_EXCLUDE_PATHS_DEFAULT = ["/metrics", "/health", "/ready"]  # Exclude noisy endpoints
+HTTP_LOG_EXCLUDE_PATHS_DEFAULT = [
+    "/metrics",
+    "/health",
+    "/ready",
+]  # Exclude noisy endpoints
 
 # OpenTelemetry
 OTEL_SERVICE_NAME_DEFAULT = "lia-api"
@@ -3759,6 +3763,23 @@ JEV_HITL_REJECTION_MIN_CONFIDENCE = 0.99
 JEV_PARAMETER_KIND_MIN_CONFIDENCE = 0.30
 JEV_PARAMETER_KIND_MAX_VALUES = 8
 
+# Advisory source classifications: conservative gates, not accuracy guarantees.
+# Calibrate on the dedicated corpus before enabling either independently gated usage.
+JEV_CLASSIFICATION_MIN_CONFIDENCE = 0.95
+JEV_CLASSIFICATION_ALERT_MIN_CONFIDENCE = 0.99
+JEV_CLASSIFICATION_EMAIL_TTL_SECONDS = 300
+JEV_CLASSIFICATION_EVENT_TTL_SECONDS = 3600
+JEV_CLASSIFICATION_UNKNOWN_TTL_SECONDS = 30
+JEV_CLASSIFICATION_MAX_ITEMS = 48
+JEV_CLASSIFICATION_MAX_BATCHES = 4
+JEV_CLASSIFICATION_MAX_CONCURRENT_BATCHES = 2
+JEV_CLASSIFICATION_TOTAL_REQUEST_BYTES = 64_000
+JEV_CLASSIFICATION_ESTIMATED_INPUT_TOKENS = 16_000
+JEV_CLASSIFICATION_TIMEOUT_SECONDS = 5.0
+JEV_CLASSIFICATION_CACHE_TIMEOUT_SECONDS = 0.25
+JEV_CLASSIFICATION_CLAIM_TTL_SECONDS = 7
+JEV_CLASSIFICATION_CLAIM_POLL_SECONDS = 0.02
+
 # ============================================================================
 # LOCALIZATION DEFAULTS
 # ============================================================================
@@ -4197,7 +4218,13 @@ INSUFFICIENT_CONTENT_REQUIRED_FIELDS: dict[str, list[dict]] = {
         },
         {
             "field": "end_or_duration",
-            "param_names": ["end", "end_time", "end_datetime", "duration", "duration_minutes"],
+            "param_names": [
+                "end",
+                "end_time",
+                "end_datetime",
+                "duration",
+                "duration_minutes",
+            ],
             "required": True,
             "priority": 3,
             "options": None,
@@ -4387,7 +4414,14 @@ EARLY_DETECTION_DRAFT_WORDS: frozenset[str] = frozenset(
 # Fields that are skipped in early detection (handled by planner defaults or post-planner detection)
 # These fields are rarely provided upfront and don't justify blocking the planner
 EARLY_DETECTION_SKIP_FIELDS: frozenset[str] = frozenset(
-    ["priority", "due_date", "start_date", "end_date", "start_datetime", "end_or_duration"]
+    [
+        "priority",
+        "due_date",
+        "start_date",
+        "end_date",
+        "start_datetime",
+        "end_or_duration",
+    ]
 )
 
 # Content fields that should be checked via inline content detection
@@ -6423,6 +6457,15 @@ PEERS_CONTEXT_MESSAGE_MAX_CHARS = 500
 # per UTC day, counted on the share ledger (a copy lives only as long as the
 # attachment TTL, so it cannot be what a daily quota counts).
 PEERS_IMAGE_SHARE_MAX_PER_DAY_DEFAULT = 20
+PEERS_CAPABILITY_PREVIEW_TTL_SECONDS_DEFAULT = 600
+PEERS_CAPABILITY_RETRY_TTL_SECONDS_DEFAULT = 86400
+PEERS_CAPABILITY_LEASE_SECONDS_DEFAULT = 120
+PEERS_CAPABILITY_SENDER_DAILY_LIMIT_DEFAULT = 20
+PEERS_CAPABILITY_PAIR_DAILY_LIMIT_DEFAULT = 5
+PEERS_CAPABILITY_RECIPIENT_DAILY_LIMIT_DEFAULT = 50
+PEERS_CAPABILITY_DAILY_BYTES_DEFAULT = 20 * 1024 * 1024
+PEERS_CAPABILITY_RATE_LIMIT_CALLS_DEFAULT = 20
+PEERS_CAPABILITY_RATE_LIMIT_WINDOW_SECONDS_DEFAULT = 60
 PEERS_IMAGE_SHARE_MAX_PER_DAY_PER_PAIR_DEFAULT = 10
 # Hard cap on the optional comment travelling with a shared image, quoted
 # literally in the recipient's chat. Mirrored by the web app's share dialog.
@@ -6845,7 +6888,11 @@ LIVE_BIDI_METHOD: str = "bidiGenerateContent"
 #: conversation (measured 2026-09-18: the listing marks a transcription, a
 #: translation and a robotics model ``bidiGenerateContent`` too, and nothing
 #: structural tells them apart). A name carrying one of these is not offered.
-LIVE_NON_CONVERSATIONAL_MODEL_WORDS: tuple[str, ...] = ("transcribe", "translate", "robotics")
+LIVE_NON_CONVERSATIONAL_MODEL_WORDS: tuple[str, ...] = (
+    "transcribe",
+    "translate",
+    "robotics",
+)
 #: The model preselected in the connector form. A DEFAULT, never « the model
 #: used »: the person picks among what their key discovers.
 GEMINI_LIVE_DEFAULT_MODEL: str = "gemini-3.8-live"

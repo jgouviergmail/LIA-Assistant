@@ -36,6 +36,8 @@ import {
 import { useApplicationAccountToast } from '@/hooks/useApplicationAccountToast';
 
 import { MCPServerCard } from './MCPServerCard';
+import { useCapabilitySharing } from '@/hooks/useCapabilitySharing';
+import { CapabilitySharingDialog } from '@/components/peers/CapabilitySharingDialog';
 import { ToolDisplayName } from './ToolDisplayName';
 import { MCPServerFormFields } from './MCPServerFormFields';
 import {
@@ -117,6 +119,8 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
     ownerId,
   } = useUserMCPServers();
   const toast = useApplicationAccountToast(ownerId);
+  const sharing = useCapabilitySharing(ownerId);
+  const sharingEnabled = sharing.enabled;
 
   // Dialog state
   const [showCreateDialog, setShowCreateDialog] = useApplicationAccountState(ownerId, false);
@@ -475,11 +479,17 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
               onDelete={requestDelete}
               onConnectOAuth={handleOAuth}
               onDisconnectOAuth={handleDisconnectOAuth}
+              onShare={
+                sharingEnabled
+                  ? server => sharing.share({ kind: 'mcp', id: server.id, name: server.name })
+                  : undefined
+              }
             />
           ))}
         </ul>
       )}
 
+      <CapabilitySharingDialog sharing={sharing} ownerId={ownerId} enabled={sharingEnabled} />
       {/* Create Dialog */}
       {formDialog(showCreateDialog, () => setShowCreateDialog(false), 'settings.mcp.add_title')}
 

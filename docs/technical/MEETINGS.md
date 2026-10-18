@@ -1,5 +1,14 @@
 # Réunions — enregistrement et comptes rendus structurés (ADR-258, bibliothèque de modèles ADR-259)
 
+La liste propose une recherche dans le compte rendu courant complet : titre,
+participants et sections structurées. Le serveur filtre avant pagination et
+calcule le total sur ce même ensemble, sans appel LLM. Les anciennes versions,
+transcriptions et métadonnées techniques ne sont pas interrogées. La recherche
+ignore casse, accents et variantes d'apostrophes/espaces ; les jokers saisis sont
+littéraux. La requête, la page et l'origine de navigation suivent l'URL et le
+retour depuis un détail. Voir [la normalisation](../../apps/api/src/domains/meetings/search.py)
+et [les tests PostgreSQL](../../apps/api/tests/integration/domains/meetings/test_minutes_search.py).
+
 > Décision : [ADR-258](../architecture/ADR-258-Meeting-Recording-And-Structured-Minutes.md).
 > Spécification et mesures : `docs/superpowers/specs/2026-09-02-meeting-recording-and-minutes-design.md`.
 

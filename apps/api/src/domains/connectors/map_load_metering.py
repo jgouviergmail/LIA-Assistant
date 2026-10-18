@@ -6,13 +6,17 @@ before construction are not loads. No charge is invented at admission time.
 
 import hashlib
 import hmac
+import re
 import time
 from uuid import UUID, uuid4
 
 from sqlalchemy import select, text
 
 from src.core.config import settings
-from src.core.exceptions import raise_configuration_missing, raise_invalid_input
+from src.core.exceptions import (
+    raise_configuration_missing,
+    raise_invalid_input,
+)
 from src.domains.chat.service import TrackingContext
 from src.domains.connectors.clients.google_api_tracker import track_google_api_call
 from src.domains.google_api.models import GoogleApiUsageLog
@@ -53,7 +57,23 @@ def verify_load_token(token: str, user_id: UUID) -> UUID:
 
 
 def _configured_maps_key() -> str:
-    return settings.google_maps_browser_api_key.strip() or (settings.google_api_key or "").strip()
+    return settings.google_maps_browser_api_key.strip()
+
+
+def _configured_position_map_id() -> str:
+    value = settings.google_maps_map_id.strip()
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", value) or (
+        settings.is_production and value == "DEMO_MAP_ID"
+    ):
+        return ""
+    return value
+
+
+def position_map_id() -> str:
+    value = _configured_position_map_id()
+    if not value:
+        raise_configuration_missing("google_maps", "map_id")
+    return value
 
 
 def browser_maps_key() -> str:
@@ -108,3 +128,10 @@ def map_load_config() -> dict[str, object]:
     if usd <= 0 or eur <= 0:
         return {"enabled": False}
     return {"enabled": True, "estimated_cost_eur": str(eur)}
+
+
+def position_map_config() -> dict[str, object]:
+    config = map_load_config()
+    if not config["enabled"] or not _configured_position_map_id():
+        return {"enabled": False}
+    return config

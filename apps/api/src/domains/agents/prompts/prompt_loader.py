@@ -79,6 +79,9 @@ PromptName = Literal[
     "jev_hitl_reference_scope_question",
     "jev_memory_reference_presence_question",
     "jev_parameter_kind_question",
+    "jev_email_category_question",
+    "jev_email_priority_question",
+    "jev_event_category_question",
     "jev_hitl_rejection_question",
     "jev_initiative_question",
     "jev_radio_question",
@@ -473,7 +476,10 @@ def load_prompt(
             raise PromptIntegrityError(msg)
 
         logger.info(
-            "prompt_integrity_validated", prompt_name=name, version=version, hash=actual_hash[:8]
+            "prompt_integrity_validated",
+            prompt_name=name,
+            version=version,
+            hash=actual_hash[:8],
         )
 
     # Dashboard 15: prompt version usage counter (Langfuse-adjacent analytics)

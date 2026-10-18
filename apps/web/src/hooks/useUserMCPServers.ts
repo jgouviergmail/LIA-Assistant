@@ -33,6 +33,7 @@ export interface MCPDiscoveredTool {
  * User MCP server from the API.
  */
 export interface UserMCPServer {
+  shared_origin?: import('@/lib/capability-sharing').CapabilityOrigin | null;
   id: string;
   name: string;
   url: string;

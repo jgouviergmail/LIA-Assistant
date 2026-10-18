@@ -13,6 +13,19 @@ and the installer carry a third app image).
 
 ## Context
 
+### Amendment 2026-10-18 — recipient-owned peer copies
+
+The owner explicitly chose the authored execution policy for skills received
+from accepted peers, including skill children of a shared plugin. This is a
+trust exception to the external-source runner rule below. `skills/trust.py`
+remains the only decider: the transfer service writes `peer` provenance or a
+plugin child's server-owned `peer_authored` marker. Neither a package manifest
+nor the displayed sender badge grants that policy. Copies are independent,
+recipient-owned and durably disabled at installation; activation grants no
+system/admin rights and retains ordinary connector permissions and HITL.
+Credentials are not transferred. Public-library/URL/ordinary-plugin imports
+retain their isolation. See [the transfer contract](../technical/PEER_CAPABILITY_TRANSFERS.md).
+
 Measured before deciding (2026-09-30):
 
 - The portal's search is anonymous (`GET https://skills.sh/api/search?q=&limit=`); its file and

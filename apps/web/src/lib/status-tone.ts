@@ -35,6 +35,12 @@ export type BadgeTone =
 
 const NEUTRAL: BadgeTone = 'secondary';
 
+/** Accepted content labels, independent from provider read/important flags. */
+export function classificationTone(value: string): BadgeTone {
+  if (value === 'phishing_scam' || value === 'critical') return 'alert';
+  return value === 'urgent' ? 'warning' : NEUTRAL;
+}
+
 /** Priority as the card's leading edge — a ramp, not a binary. */
 const PRIORITY_ACCENT: Record<string, string> = {
   urgent: 'border-l-destructive',

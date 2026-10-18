@@ -7,6 +7,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from sqlalchemy.exc import IntegrityError
@@ -18,6 +19,10 @@ from src.domains.skills.import_disk import finish_disk_step, run_disk_step
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+if TYPE_CHECKING:
+    from src.domains.plugins.import_hooks import PluginImportHooks
+    from src.domains.plugins.models import UserPlugin
 
 
 class PluginImportCompletionUnknown(RuntimeError):
@@ -49,6 +54,27 @@ def _identity(path: Path) -> tuple[int, int] | None:
 class PluginRootCommitResult:
     committed: bool
     cleanup_pending: bool
+
+
+async def publish_plugin_root(
+    db: AsyncSession,
+    incoming: Path,
+    live: Path,
+    plugin: UserPlugin,
+    hooks: PluginImportHooks,
+) -> PluginRootCommitResult:
+    if hooks.preserve_root:
+        await hooks.check_commit(db)
+        await db.commit()
+        return PluginRootCommitResult(committed=True, cleanup_pending=False)
+    return await commit_plugin_root(
+        db,
+        incoming,
+        live,
+        before_commit=partial(hooks.check_commit, db),
+        after_stage=hooks.after_root_stage,
+        after_commit=partial(hooks.root_committed, plugin),
+    )
 
 
 def _slot(live: Path) -> PluginRootSlot:

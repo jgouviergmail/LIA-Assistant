@@ -48,11 +48,20 @@ from src.domains.agents.display.components.base import (
     safe_url,
     wrap_with_response,
 )
-from src.domains.agents.display.components.calendar_details import render_reminder_settings
+from src.domains.agents.display.components.calendar_details import (
+    render_reminder_settings,
+)
 from src.domains.agents.display.components.card_content import render_linked_title
-from src.domains.agents.display.components.conference_details import render_conference_details
+from src.domains.agents.display.components.classification_badges import (
+    classification_badges,
+)
+from src.domains.agents.display.components.conference_details import (
+    render_conference_details,
+)
 from src.domains.agents.display.components.source_details import event_native_details
-from src.domains.agents.display.components.source_recurrence import render_source_recurrence
+from src.domains.agents.display.components.source_recurrence import (
+    render_source_recurrence,
+)
 from src.domains.agents.display.icons import Icons, icon
 from src.domains.agents.display.values import list_values
 
@@ -363,7 +372,9 @@ class EventCard(BaseComponent):
         if is_all_day:
             chips.append(
                 render_chip(
-                    V3Messages.get_all_day(ctx.language, long_form=True), "allday", "wb_sunny"
+                    V3Messages.get_all_day(ctx.language, long_form=True),
+                    "allday",
+                    "wb_sunny",
                 )
             )
         else:
@@ -372,6 +383,7 @@ class EventCard(BaseComponent):
             if duration:
                 chips.append(render_chip(duration, "", "timer"))
         chip_row_html = render_chip_row(" ".join(chips))
+        chip_row_html += classification_badges(data.get("classification"), ctx.language)
 
         # --- Location (extra top margin after chip separator) ---
         location_raw = self._render_location_v4(location, ctx)
@@ -426,8 +438,14 @@ class EventCard(BaseComponent):
         """Render status badge for non-confirmed events."""
         if status and status != "confirmed":
             status_map = {
-                "tentative": ("lia-badge--warning", V3Messages.get_tentative(ctx.language)),
-                "cancelled": ("lia-badge--danger", V3Messages.get_cancelled(ctx.language)),
+                "tentative": (
+                    "lia-badge--warning",
+                    V3Messages.get_tentative(ctx.language),
+                ),
+                "cancelled": (
+                    "lia-badge--danger",
+                    V3Messages.get_cancelled(ctx.language),
+                ),
             }
             badge_class, badge_text = status_map.get(status, ("", ""))
             if badge_class:

@@ -9,7 +9,9 @@ from src.core import constants
 from src.core.config import settings
 from src.core.field_names import FIELD_STATUS
 from src.domains.agents.api.router import router as agents_router
-from src.domains.agents.application.command_router import router as application_commands_router
+from src.domains.agents.application.command_router import (
+    router as application_commands_router,
+)
 from src.domains.agents.effects.admin_router import router as effects_admin_router
 from src.domains.agents.effects.chain_router import admin_router as chain_admin_router
 from src.domains.agents.effects.chain_router import router as chain_router
@@ -61,7 +63,9 @@ from src.domains.product.public_demo_link_admin import (
 from src.domains.relations.router import router as relations_router
 from src.domains.reminders.router import router as reminders_router
 from src.domains.scheduled_actions.router import router as scheduled_actions_router
-from src.domains.system_settings.public_router import router as system_settings_public_router
+from src.domains.system_settings.public_router import (
+    router as system_settings_public_router,
+)
 from src.domains.system_settings.router import router as system_settings_router
 from src.domains.users.router import router as users_router
 from src.domains.voice.admin_router import router as voice_admin_router
@@ -166,9 +170,11 @@ if getattr(settings, "product_analytics_enabled", False):
     api_router.include_router(showroom_router)  # Credential-less showroom collector (P0)
 
 if getattr(settings, "peers_enabled", False):
+    from src.domains.peers.capability_router import router as peer_capability_router
     from src.domains.peers.router import router as peers_router
 
     api_router.include_router(peers_router)  # User-to-user connections (peers program)
+    api_router.include_router(peer_capability_router)
 
 if getattr(settings, "workboard_enabled", False):
     from src.domains.workboard.router import router as workboard_router
@@ -177,7 +183,9 @@ if getattr(settings, "workboard_enabled", False):
 
 if getattr(settings, "diagnostics_enabled", False):
     from src.domains.diagnostics.router import router as diagnostics_admin_router
-    from src.domains.diagnostics.webhook_router import router as diagnostics_webhook_router
+    from src.domains.diagnostics.webhook_router import (
+        router as diagnostics_webhook_router,
+    )
 
     # Alertmanager → incident webhook (internal, shared-secret gated; the
     # handler itself 404s while the secret is unset).
@@ -264,7 +272,9 @@ if getattr(settings, "skills_enabled", False):
 if getattr(settings, "python_sandbox_tool_enabled", False) or getattr(
     settings, "skills_enabled", False
 ):
-    from src.domains.agents.python_sandbox.egress.router import router as egress_grants_router
+    from src.domains.agents.python_sandbox.egress.router import (
+        router as egress_grants_router,
+    )
 
     api_router.include_router(egress_grants_router)
 if getattr(settings, "plugins_enabled", False) and getattr(settings, "skills_enabled", False):
@@ -288,7 +298,9 @@ if getattr(settings, "journals_enabled", False):
 
     api_router.include_router(journals_router)
 if getattr(settings, "health_metrics_enabled", False):
-    from src.domains.health_metrics.ingest_router import ingest_router as health_ingest_router
+    from src.domains.health_metrics.ingest_router import (
+        ingest_router as health_ingest_router,
+    )
     from src.domains.health_metrics.router import router as health_metrics_router
 
     api_router.include_router(health_metrics_router)
@@ -304,7 +316,9 @@ if getattr(settings, "usage_limits_enabled", False):
     api_router.include_router(usage_limits_router)
     api_router.include_router(usage_limits_ws_router)
 if getattr(settings, "telephony_enabled", False):
-    from src.domains.agents.telephony.live_tools_router import router as telephony_tools_router
+    from src.domains.agents.telephony.live_tools_router import (
+        router as telephony_tools_router,
+    )
     from src.domains.telephony.router import router as telephony_router
 
     api_router.include_router(telephony_router)
@@ -417,11 +431,15 @@ async def get_client_config() -> dict:
 
     This endpoint is public and does not require authentication.
     """
-    from src.domains.connectors.map_load_metering import map_load_config
+    from src.domains.connectors.map_load_metering import (
+        map_load_config,
+        position_map_config,
+    )
 
     maps_config = map_load_config()
     return {
         "route_maps": maps_config,
+        "place_maps": position_map_config(),
         "sse": {
             "heartbeat_interval_seconds": settings.sse_heartbeat_interval,
         },

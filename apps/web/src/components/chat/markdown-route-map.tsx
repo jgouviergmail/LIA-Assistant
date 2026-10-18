@@ -1,21 +1,14 @@
 'use client';
 
-import {
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ComponentPropsWithoutRef,
-} from 'react';
+import { useContext, useEffect, useMemo, useState, type ComponentPropsWithoutRef } from 'react';
 import type { ExtraProps } from 'react-markdown';
 import { useTranslation } from 'react-i18next';
 import { MapPinned, LocateFixed } from 'lucide-react';
 import { AppConfigSeedContext, type AppConfig } from '@/hooks/useAppConfig';
-import { apiClient } from '@/lib/api-client';
+import { usePaidMap } from '@/hooks/usePaidMap';
+import { AuthContext } from '@/lib/auth';
 import { parseRouteMap, type MapRoute, type RouteMapData } from '@/lib/route-map-data';
 import { loadRouteMaps, mountRouteMap } from '@/lib/google-route-map';
-import { parseMapAdmission, reportRouteMapLoad } from '@/lib/route-map-metering';
 import { hasSearchMatch } from './markdown-search-matches';
 
 type Props = ComponentPropsWithoutRef<'div'> & ExtraProps & { 'data-route-map'?: string };
@@ -23,10 +16,11 @@ type Props = ComponentPropsWithoutRef<'div'> & ExtraProps & { 'data-route-map'?:
 /** A changed archived source owns a new controller; late promises cannot attach to it. */
 export function MarkdownRouteMap({ node, children, 'data-route-map': wire, ...props }: Props) {
   const data = useMemo(() => parseRouteMap(wire), [wire]);
+  const owner = useContext(AuthContext)?.user?.id ?? 'anonymous';
   return (
     <div {...props}>
       {data && !hasSearchMatch(node) ? (
-        <RouteMap key={wire} data={data}>
+        <RouteMap key={`${owner}:${wire}`} data={data}>
           {children}
         </RouteMap>
       ) : (
@@ -62,78 +56,18 @@ function RouteMap({ data, children }: { data: RouteMapData; children: React.Reac
   // The authenticated layout owns the config read; a family of cards adds none.
   const config = useContext(AppConfigSeedContext);
   const [selected, setSelected] = useState(data.primary_id);
-  const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
-  const [reportFailed, setReportFailed] = useState(false);
-  const element = useRef<HTMLDivElement>(null);
-  const controller = useRef<ReturnType<typeof mountRouteMap> | null>(null);
-  const pending = useRef(false);
-  const mounted = useRef(false);
-  const admission = useRef<string | null>(null);
-  const request = useRef<AbortController | null>(null);
-  const selectedRef = useRef(selected);
-  useEffect(() => {
-    selectedRef.current = selected;
-  }, [selected]);
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-      request.current?.abort();
-      controller.current?.destroy();
-    };
-  }, []);
-
+  const { state, reportFailed, element, controller, activate, retryReport } = usePaidMap({
+    prepare: grant => loadRouteMaps(grant.api_key),
+    mount: (maps, element, _grant, failure, construct) =>
+      mountRouteMap(maps, element, data, select, failure, construct),
+  });
   function select(id: string) {
     setSelected(id);
     controller.current?.select(id);
   }
-  async function report(token: string) {
-    try {
-      await reportRouteMapLoad(token);
-      if (mounted.current) setReportFailed(false);
-    } catch {
-      if (mounted.current) setReportFailed(true);
-    }
-  }
-  async function activate() {
-    if (pending.current || controller.current) return;
-    pending.current = true;
-    setState('loading');
-    request.current = new AbortController();
-    try {
-      const grant = parseMapAdmission(
-        await apiClient.post<unknown>('/connectors/google-maps/load-admissions', undefined, {
-          signal: request.current.signal,
-          timeout: 10000,
-        })
-      );
-      if (!grant) throw new Error('Invalid map admission');
-      if (!mounted.current) return;
-      const maps = await loadRouteMaps(grant.api_key);
-      if (!mounted.current || !element.current) return;
-      admission.current = grant.load_token;
-      controller.current = mountRouteMap(
-        maps,
-        element.current,
-        data,
-        select,
-        () => {
-          controller.current?.destroy();
-          controller.current = null;
-          if (mounted.current) setState('error');
-        },
-        () => {
-          void report(grant.load_token);
-        }
-      );
-      controller.current.select(selectedRef.current);
-      setState('ready');
-    } catch {
-      if (mounted.current) setState('error');
-    } finally {
-      pending.current = false;
-    }
-  }
+  useEffect(() => {
+    controller.current?.select(selected);
+  }, [controller, selected, state]);
   const cost = mapOffer(config, i18n.language);
   return (
     <div className="lia-route-map__content">
@@ -183,12 +117,7 @@ function RouteMap({ data, children }: { data: RouteMapData; children: React.Reac
       {reportFailed && (
         <p role="alert" className="lia-route-map__notice">
           {t('chat.route_map.report_error')}{' '}
-          <button
-            type="button"
-            onClick={() => {
-              if (admission.current) void report(admission.current);
-            }}
-          >
+          <button type="button" onClick={retryReport}>
             {t('common.retry')}
           </button>
         </p>

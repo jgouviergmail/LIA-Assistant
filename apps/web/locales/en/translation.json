@@ -998,7 +998,13 @@
       "reactivate_description": "Your device paused location sharing while the app was closed. Re-enable it so LIA keeps using your real position instead of your home address.",
       "reactivate_button": "Re-enable",
       "detection": {
-        "keywords": ["nearby", "vicinity", "neighborhood", "surroundings", "area"],
+        "keywords": [
+          "nearby",
+          "vicinity",
+          "neighborhood",
+          "surroundings",
+          "area"
+        ],
         "patterns": [
           "around (me|here|us)",
           "close (by|to me)",
@@ -1322,6 +1328,19 @@
       "omitted_one": "{{count}} incomplete route cannot be displayed.",
       "omitted_other": "{{count}} incomplete routes cannot be displayed.",
       "report_error": "Load reporting failed. Retry without reopening the map."
+    },
+    "position_map": {
+      "activate": "Explore map",
+      "map": "Place positions",
+      "choose": "Places in this answer",
+      "recenter": "Show all markers",
+      "preview": "Activate the interactive map to explore these places.",
+      "open_place": "Open {{name}} in Google Maps",
+      "unlocated": "Without coordinates: {{count}}",
+      "omitted": "{{count}} additional places remain available in the complete list.",
+      "all_places": "Complete list of places",
+      "list_preview": "Browse the places below.",
+      "unavailable": "The interactive map is currently unavailable. You can still open the places below."
     }
   },
   "skill_apps": {
@@ -3113,7 +3132,9 @@
           "meeting_template_selection": "Native Jev selection of the report format; the existing model still writes the minutes.",
           "jev_memory_reference_presence": "Skips reference extraction when the request contains no implicit person or place. Memories remain available; uncertain cases use the existing process.",
           "jev_hitl_rejection": "Recognizes only an explicit rejection of all proposed actions. Approvals, edits, partial rejections and ambiguity use the existing classifier. JEV cannot approve any action.",
-          "jev_parameter_kind": "Before a tool call, judges what each address, place or email value is. Only a confident judgment can refuse a value of another kind (a person's name, a phone number, a date). An uncertain or failed judgment leaves the decision to the existing guard, and JEV cannot accept a value that guard refuses."
+          "jev_parameter_kind": "Before a tool call, judges what each address, place or email value is. Only a confident judgment can refuse a value of another kind (a person's name, a phone number, a date). An uncertain or failed judgment leaves the decision to the existing guard, and JEV cannot accept a value that guard refuses.",
+          "jev_email_classification": "Classifies already available email evidence into an advisory category and one attention level. Uncertainty shows no badge. No extra message, link or attachment is fetched.",
+          "jev_event_classification": "Classifies already available appointment evidence as professional or personal. Uncertainty shows no badge; the appointment is unchanged."
         },
         "voiceTts": {
           "sectionTitle": "Voice & provider tuning",
@@ -3484,7 +3505,9 @@
           "filter_file": "Early document filtering",
           "memory_reference_presence": "Personal memory references",
           "hitl_rejection": "Complete confirmation rejection",
-          "parameter_kind": "Guarded parameter values"
+          "parameter_kind": "Guarded parameter values",
+          "email_classification": "Email category and priority",
+          "event_classification": "Appointment category"
         }
       }
     },
@@ -4999,6 +5022,47 @@
       "voice_portal": "The voice, the language and the turn-taking are the agent's, administered on the {{brand}} portal; LIA sends only its prompt and its tools.",
       "agent_models": "voice {{voice}} · LLM {{llm}}",
       "vendor_billed": "Sessions on {{brand}} are billed on your own key, by the provider: no ceiling can be set here — the exact amount is shown at the end of every session."
+    },
+    "capability_share": {
+      "origin_by": "Shared by {{name}}",
+      "origin_on": "on {{date}}",
+      "unknown_sender": "another user",
+      "title": "Share a capability",
+      "action": "Share {{name}}",
+      "description": "Your connection receives an independent copy, installed disabled. Saved connection credentials are excluded.",
+      "execution_notice": "After manual activation, received skills have the same capabilities as skills created by the recipient.",
+      "recipient": "Recipient",
+      "preview": "Preview",
+      "send": "Send and install",
+      "retry": "Retry missing components",
+      "refresh": "Check status",
+      "new_preview": "New preview",
+      "files": "Included files",
+      "omitted": "Excluded files",
+      "bytes": "{{size}} bytes",
+      "credentials": "The recipient will need to configure the required connection credentials.",
+      "component_installed": "Installed",
+      "component_missing": "Not installed",
+      "pending_notice": "The confirmed transfer may continue after closing this window.",
+      "readiness": "Validate the connection before enabling this server.",
+      "status": {
+        "preparing": "Ready to send",
+        "installing": "Installing",
+        "installed": "Installed for the recipient, initially disabled",
+        "partial": "Partially installed: some components still need installation",
+        "failed": "No component was installed",
+        "cancelled": "Transfer expired or cancelled"
+      },
+      "errors": {
+        "generic": "The transfer could not be confirmed. Check its status before retrying.",
+        "changed": "The capability has changed. Prepare a new preview.",
+        "expired": "This transfer has expired. Prepare a new preview.",
+        "busy": "An installation is already running. Check its status.",
+        "quota": "The sharing limit has been reached. Try again later.",
+        "conflict": "The recipient already has a capability with this name.",
+        "recipient_changed": "The recipient changed or deleted the partial installation. It was not overwritten.",
+        "not_shareable": "This capability cannot be shared as it is. Check its files, embedded secrets and configuration."
+      }
     }
   },
   "relations": {
@@ -16707,6 +16771,10 @@
       "indexing": "Adding to the knowledge space"
     },
     "list": {
+      "search_placeholder": "Search meeting minutes…",
+      "no_results_title": "No matching meetings",
+      "no_results_description": "Try another term or clear the search.",
+      "clear_search": "Clear search",
       "title": "Meetings",
       "subtitle": "Your recordings and their minutes",
       "empty_title": "No meeting yet",
@@ -17138,7 +17206,8 @@
       "proactive_notification": "Notification sent ({{kind}})",
       "peer_image_share": "Shared an image with a connection",
       "email_share": "Sent an e-mail to {{count}} recipient(s)",
-      "skill_proposal_install": "Added the “{{target}}” skill to your library"
+      "skill_proposal_install": "Added the “{{target}}” skill to your library",
+      "peer_capability_share": "Shared a capability with a connection"
     },
     "export": {
       "group_label": "Export this register",
@@ -18107,5 +18176,13 @@
       "original": "Original",
       "original_label": "Original — {{outlet}}, in a new tab"
     }
+  },
+  "classification": {
+    "professional": "Professional",
+    "personal": "Personal",
+    "spam": "Spam",
+    "phishing_scam": "Phishing/Scam",
+    "urgent": "Urgent",
+    "critical": "Critical"
   }
 }

@@ -40,7 +40,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/i18n/client';
 import { withOrigin } from '@/lib/back-origin';
 import { useSearchParams } from 'next/navigation';
-import { meetingListPage } from '@/lib/meetings/list-location';
+import { meetingListPage, meetingListQuery, meetingListSearch } from '@/lib/meetings/list-location';
 import type { MeetingDetail, MeetingReport } from '@/types/meetings';
 
 interface MeetingPageProps {
@@ -77,8 +77,10 @@ function AccountMeetingPage({ params }: MeetingPageProps) {
   // back means one hop returns to the screen the reader actually came from,
   // not to a list they never chose to visit.
   const origin = useBackOrigin();
-  const page = meetingListPage(useSearchParams().get('page'));
-  const listHref = withOrigin(`/dashboard/meetings${page > 1 ? `?page=${page}` : ''}`, origin);
+  const searchParams = useSearchParams();
+  const page = meetingListPage(searchParams.get('page'));
+  const query = meetingListQuery(searchParams.get('q'));
+  const listHref = withOrigin(`/dashboard/meetings${meetingListSearch(page, query)}`, origin);
   const { confirm, confirmDialog } = useConfirm();
   const [showTranscript, setShowTranscript] = useState(false);
   const [draft, setDraft] = useState<MeetingReport | null>(null);

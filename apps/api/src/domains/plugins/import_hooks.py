@@ -13,6 +13,8 @@ from src.domains.plugins.removal_disk import RemovalMove
 from src.domains.plugins.root_commit import PluginRootSlot
 from src.domains.plugins.schemas import PluginComponentReport
 from src.domains.skills.import_hooks import AfterSkillCommit, BeforeSkillSwap
+from src.domains.skills.models import Skill
+from src.domains.user_mcp.installation import OfflineMCPInstallation
 
 if TYPE_CHECKING:
     from src.domains.user_mcp.models import UserMCPServer
@@ -20,6 +22,11 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class PluginImportHooks:
+    completed_skills: frozenset[str] = frozenset()
+    completed_servers: frozenset[str] = frozenset()
+    preserve_root: bool = False
+    offline_servers: dict[str, OfflineMCPInstallation] | None = None
+    after_skill_register: Callable[[AsyncSession, Skill], Awaitable[None]] | None = None
     before_write: Callable[[AsyncSession], Awaitable[None]] | None = None
     before_skill_swap: Callable[[AsyncSession, Path], Awaitable[None]] | None = None
     before_drop: Callable[[AsyncSession, list[PluginComponentReport]], Awaitable[None]] | None = (
@@ -57,3 +64,11 @@ class PluginImportHooks:
     def plugin_written(self, plugin: UserPlugin) -> None:
         if self.after_plugin_write is not None:
             self.after_plugin_write(plugin)
+
+    def pending_components(
+        self, skill_names: list[str], server_names: set[str], plugin_name: str
+    ) -> tuple[list[str], set[str]]:
+        return (
+            [name for name in skill_names if name not in self.completed_skills],
+            server_names - {f"{plugin_name}:{key}" for key in self.completed_servers},
+        )
