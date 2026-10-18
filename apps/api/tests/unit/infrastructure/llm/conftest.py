@@ -55,7 +55,6 @@ def mock_settings_class():
         # Provider-specific config fields (JSON strings)
         router_llm_provider_config = "{}"
         response_llm_provider_config = "{}"
-        contacts_agent_llm_provider_config = "{}"
         planner_llm_provider_config = "{}"
         hitl_classifier_llm_provider_config = "{}"
 

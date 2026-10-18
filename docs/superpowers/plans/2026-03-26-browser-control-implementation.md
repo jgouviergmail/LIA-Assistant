@@ -144,7 +144,7 @@ BROWSER_BLOCKED_SCHEMES = frozenset({"file", "javascript", "data", "chrome", "ab
 
 Note : les valeurs paramétrables (rate limits, token budget, timeouts) sont dans `BrowserSettings` (Phase A1).
 
-**Fichiers de référence** : [constants.py](apps/api/src/core/constants.py), [config/__init__.py](apps/api/src/core/config/__init__.py)
+**Fichiers de référence** : [constants.py](../../../apps/api/src/core/constants.py), [config/__init__.py](../../../apps/api/src/core/config/__init__.py)
 
 ---
 
@@ -200,14 +200,14 @@ Politique de sécurité browser, **réutilisant** `validate_url()` de `src/domai
   - `validate_key(key) → bool` : whitelist de touches autorisées (Enter, Tab, Escape, ArrowUp/Down/Left/Right, Backspace, Delete, Space, Home, End, PageUp, PageDown)
   - `sanitize_fill_value(value) → str` : empêche l'injection via fill (max length, strip control chars)
 
-**Réutilisation directe** : `validate_url()`, `check_ip_safety()` de [url_validator.py](apps/api/src/domains/agents/web_fetch/url_validator.py)
+**Réutilisation directe** : `validate_url()`, `check_ip_safety()` de [url_validator.py](../../../apps/api/src/domains/agents/web_fetch/url_validator.py)
 
 ### B4. `src/infrastructure/browser/accessibility.py` (NEW)
 
 Extraction et formatage de l'arbre d'accessibilité :
 
 - `AccessibilityTreeExtractor` :
-  - `extract(page) → list[AXNode]` : utilise **CDP direct** via `cdp = await page.context.new_cdp_session(page)` puis `await cdp.send("Accessibility.getFullAXTree")`. API standard Chrome DevTools Protocol, stable et non-deprecated. Retourne un arbre JSON complet avec roles, names, values, states. Appels CDP wrappés dans `get_circuit_breaker("browser_cdp")` de [circuit_breaker.py](apps/api/src/infrastructure/resilience/circuit_breaker.py).
+  - `extract(page) → list[AXNode]` : utilise **CDP direct** via `cdp = await page.context.new_cdp_session(page)` puis `await cdp.send("Accessibility.getFullAXTree")`. API standard Chrome DevTools Protocol, stable et non-deprecated. Retourne un arbre JSON complet avec roles, names, values, states. Appels CDP wrappés dans `get_circuit_breaker("browser_cdp")` de [circuit_breaker.py](../../../apps/api/src/infrastructure/resilience/circuit_breaker.py).
   - `assign_refs(nodes) → list[AXNode]` : assigne `[E1]`, `[E2]`... aux éléments interactifs (`BROWSER_INTERACTIVE_ROLES`) et contenus nommés (`BROWSER_CONTENT_ROLES`)
   - `compact_tree(nodes, max_depth) → list[AXNode]` : supprime branches structurelles sans ref (~60% réduction tokens)
   - `format_for_llm(nodes) → str` : texte indenté lisible par le LLM. **Hard truncation** : si le résultat dépasse `settings.browser_ax_tree_max_tokens`, tronquer les branches les plus profondes en priorité et ajouter `[... N additional elements truncated]`. Format :
@@ -225,7 +225,7 @@ Extraction et formatage de l'arbre d'accessibilité :
 
 ### B5. `src/infrastructure/browser/pool.py` (NEW)
 
-Singleton pool suivant le pattern `get_redis_cache()` de [redis.py](apps/api/src/infrastructure/cache/redis.py) :
+Singleton pool suivant le pattern `get_redis_cache()` de [redis.py](../../../apps/api/src/infrastructure/cache/redis.py) :
 
 ```python
 _browser_pool: BrowserPool | None = None
@@ -275,7 +275,7 @@ async def close_browser_pool() -> None:
   - Auto-naviguer vers l'URL stockée dans Redis
   - Retourner un snapshot frais (recovery transparent)
 
-**Fichiers de référence** : [redis.py](apps/api/src/infrastructure/cache/redis.py) pour le singleton pattern, [circuit_breaker.py](apps/api/src/infrastructure/resilience/circuit_breaker.py) pour le pattern async
+**Fichiers de référence** : [redis.py](../../../apps/api/src/infrastructure/cache/redis.py) pour le singleton pattern, [circuit_breaker.py](../../../apps/api/src/infrastructure/resilience/circuit_breaker.py) pour le pattern async
 
 ### B6. `src/infrastructure/browser/session.py` (NEW)
 
@@ -351,7 +351,7 @@ Chaque action met à jour `last_activity` et vérifie les limites (max_pages, ma
 
 ### C1. `src/domains/agents/tools/browser_tools.py` (NEW)
 
-6 tools suivant le pattern exact de [web_fetch_tools.py](apps/api/src/domains/agents/tools/web_fetch_tools.py) — même stacking de decorators `@tool` + `@track_tool_metrics` + `@rate_limit`, même return type `UnifiedToolOutput`, même pattern `validate_runtime_config()` en première ligne.
+6 tools suivant le pattern exact de [web_fetch_tools.py](../../../apps/api/src/domains/agents/tools/web_fetch_tools.py) — même stacking de decorators `@tool` + `@track_tool_metrics` + `@rate_limit`, même return type `UnifiedToolOutput`, même pattern `validate_runtime_config()` en première ligne.
 
 ```python
 # Note : les browser tools n'utilisent PAS @connector_tool (pas de context domain, pas d'OAuth).
@@ -495,7 +495,7 @@ async def browser_screenshot_tool(
 | Recovery navigation failed | `EXTERNAL_API_ERROR` | "Could not reconnect to previous page: {details}" |
 | Memory limit exceeded | `RATE_LIMIT_EXCEEDED` | "Browser memory limit exceeded, try again later" |
 
-**Content wrapping** : tout contenu extrait de page est wrappé via `wrap_external_content(content, url, source_type="browser_page")` de [content_wrapper.py](apps/api/src/domains/agents/utils/content_wrapper.py) avant injection dans le contexte LLM.
+**Content wrapping** : tout contenu extrait de page est wrappé via `wrap_external_content(content, url, source_type="browser_page")` de [content_wrapper.py](../../../apps/api/src/domains/agents/utils/content_wrapper.py) avant injection dans le contexte LLM.
 
 ### C2. `src/domains/agents/tools/__init__.py` (MODIFY)
 
@@ -525,7 +525,7 @@ except Exception:
 
 ### D0. `src/domains/agents/browser/catalogue_manifests.py` (NEW)
 
-Tool manifests pour le catalogue du planner (pattern [wikipedia/catalogue_manifests.py](apps/api/src/domains/agents/wikipedia/catalogue_manifests.py)) :
+Tool manifests pour le catalogue du planner (pattern [wikipedia/catalogue_manifests.py](../../../apps/api/src/domains/agents/wikipedia/catalogue_manifests.py)) :
 
 6 `ToolManifest` entries avec les champs requis :
 - `name`, `agent`, `description` (user-facing)
@@ -544,7 +544,7 @@ Minimal — exports des manifests.
 
 ### D1. `src/domains/agents/graphs/browser_agent_builder.py` (NEW)
 
-Pattern [wikipedia_agent_builder.py](apps/api/src/domains/agents/graphs/wikipedia_agent_builder.py) :
+Pattern [wikipedia_agent_builder.py](../../../apps/api/src/domains/agents/graphs/wikipedia_agent_builder.py) :
 
 ```python
 def build_browser_agent() -> Any:
@@ -627,7 +627,7 @@ BROWSER_PAGE = "BROWSER_PAGE"  # Browser page snapshot
 ```
 à `RegistryItemType` enum (pattern `WIKIPEDIA_ARTICLE`, `WEB_PAGE`).
 
-**Dans `browser_tools.py`** — Enregistrer le context type (pattern [wikipedia_tools.py:65-75](apps/api/src/domains/agents/tools/wikipedia_tools.py#L65-L75)) :
+**Dans `browser_tools.py`** — Enregistrer le context type (pattern [wikipedia_tools.py:65-75](../../../apps/api/src/domains/agents/tools/wikipedia_tools.py#L65-L75)) :
 ```python
 class BrowserPageItem(BaseModel):
     """Schema for browser page data in context registry."""

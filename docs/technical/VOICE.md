@@ -244,19 +244,16 @@ Postgres query.
 The 14 legacy `VOICE_TTS_*` env vars (Standard/HD modes) were retired by
 ADR-081. Per-provider tuning now lives in the admin UI's
 `provider_config` JSONB. The remaining voice-related env vars cover the
-voice-comment LLM, the Sherpa local STT pipeline, and the WebSocket
+voice comment's behaviour, the Sherpa local STT pipeline, and the WebSocket
 transport defaults — see [.env.example](../../.env.example) section
-"VOICE — TTS / STT" for the live list.
+"VOICE — TTS / STT" for the live list. The voice comment's model is the
+`voice_comment` slot ("Configuration LLM" in the admin UI).
 
 ```bash
 # .env — TTS provider/model/voice/tuning are NOT here anymore.
 # Configure them under "Configuration LLM → Voice Synthesis (TTS)".
 
-# Voice Comment LLM (still env-driven)
-VOICE_LLM_PROVIDER=openai
-VOICE_LLM_MODEL=gpt-4.1-nano
-VOICE_LLM_TEMPERATURE=0.7
-VOICE_LLM_MAX_TOKENS=500
+# Voice comment behaviour (its model is the `voice_comment` slot)
 VOICE_MAX_SENTENCES=3
 VOICE_EXPRESSIVE_CUES_MAX=2   # cues per spoken comment, 0 = none (ADR-345)
 

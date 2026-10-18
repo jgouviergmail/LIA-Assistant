@@ -252,15 +252,12 @@ origin = await resolve_location(
 GOOGLE_API_KEY=AIza...
 ```
 
-### Variables d'Environnement - LLM Agent
+### LLM de l'agent
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ROUTES_AGENT_LLM_PROVIDER` | openai | Provider LLM pour agent routes |
-| `ROUTES_AGENT_LLM_MODEL` | gpt-4.1-nano | Modele LLM (fast, cheap) |
-| `ROUTES_AGENT_LLM_TEMPERATURE` | 0.3 | Temperature pour generation |
-| `ROUTES_AGENT_LLM_MAX_TOKENS` | 2000 | Max tokens reponse |
-| `ROUTES_AGENT_LLM_REASONING_EFFORT` | low | Effort de raisonnement (o-series) |
+L'agent routes est le poste `routes_agent` : ses valeurs par defaut sont dans
+`LLM_DEFAULTS` (`apps/api/src/domains/llm_config/constants.py`) et un administrateur
+les remplace dans Settings > Administration > LLM Configuration. Aucune variable
+d'environnement ne le configure.
 
 ### Variables d'Environnement - Limites API
 
@@ -285,12 +282,6 @@ GOOGLE_API_KEY=AIza...
 ```bash
 # Routes API Configuration
 GOOGLE_API_KEY=AIza...
-
-# Routes LLM Agent
-ROUTES_AGENT_LLM_PROVIDER=openai
-ROUTES_AGENT_LLM_MODEL=gpt-4.1-nano
-ROUTES_AGENT_LLM_TEMPERATURE=0.3
-ROUTES_AGENT_LLM_REASONING_EFFORT=low
 
 # Routes Tool Limits
 ROUTES_MAX_WAYPOINTS=25

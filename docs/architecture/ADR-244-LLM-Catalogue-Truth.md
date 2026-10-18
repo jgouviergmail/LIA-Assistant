@@ -384,3 +384,37 @@ permanent refusal of another kind is still retried three times under a
 misleading message. And the two provenance writers above also stand behind
 `get_effective_context_window`, which trusts a vouched row's input figure, the
 untouched input default included.
+
+## Amendment 2026-10-18 b — the env settings of fourteen slots had no reader
+
+The voice comment and the thirteen domain agents (contacts to routes) each kept
+a family of nine env-backed settings (provider, provider config, model, the
+four sampling values, budget, reasoning) and seven constants feeding them, long
+after their LLM calls moved to `LLM_DEFAULTS` and the database overrides. A
+census of every settings field over the committed tree found no reader for any
+of the 126 fields but the validator listing their names; the model constants of
+twelve of them still named `gpt-4.1-nano`, which retires on 2026-10-23.
+
+**Decision.** The fourteen families leave with their 98 constants, their
+validator entries, the ranges `scripts/validate_config.py` checked for them and
+`scripts/validate_llm_config.py` — a validator no command ran, which no longer
+imported and still checked the `router` family this ADR had removed. `Settings`
+ignores unknown variables, and no environment template ever declared these keys.
+
+**What the census missed, and the linter did not.** Two of those constants were
+not dead: `openai_organization_id` defaulted to `CONTACTS_AGENT_LLM_MODEL_DEFAULT`
+and `openweathermap_api_key` to `EMAILS_AGENT_LLM_MODEL_DEFAULT`, wired by a
+configuration-alignment pass in 2026-03 — and the first constant was filled in
+2026-08 with the maintainer's real organization id, copied from a production
+environment. The adapter sends that setting as the `organization` of every
+OpenAI client, so an installation whose environment carries no
+`OPENAI_ORGANIZATION_ID` — every one the installer writes, since
+`.env.min.prod.example` has no such key — presented a foreign organization with
+its own key (read from the code, not measured on such an instance). Both fields
+now default to an empty value, like their neighbours.
+
+**Left open.** A default is meant to be read from the constant named for its
+own field; 75 of the 1 218 constant-backed fields still read another name.
+Most are spelling variants (`*_TTL` for `*_TTL_SECONDS`), a few are not (three
+`hitl_*_llm_provider` fields read `HEARTBEAT_*` constants), and no guard holds
+the convention yet. Ten more slot families are read by nobody either.

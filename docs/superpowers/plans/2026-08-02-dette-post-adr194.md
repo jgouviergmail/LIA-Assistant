@@ -53,7 +53,7 @@ calculé mais jamais remonté au niveau de l'étape.
 ---
 
 ## Contexte d'origine (avant traitement)
-**Origine** : [ADR-194](../architecture/ADR-194-Reference-Truth-Is-A-CI-Guard.md)
+**Origine** : [ADR-194](../../architecture/ADR-194-Reference-Truth-Is-A-CI-Guard.md)
 (suppression du validateur de références et extension de la garde CI).
 **Nature** : dossier de passation. Ce n'est ni un ADR, ni un changelog.
 

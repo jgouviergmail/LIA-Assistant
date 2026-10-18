@@ -72,7 +72,7 @@ Excluded: 35 secrets, 102 infrastructure/identity,
 | `MCP_REACT_MAX_ITERATIONS` | `10` | `50` |
 | `MCP_SERVERS_CONFIG` | `{}` | `{"excalidraw":{"transport":"streamable_http","url":"https://mcp.excalidraw.com","timeout_seconds":60,"enabled":true,"hitl_required":false,"iterative_mode":true,"description":"Provides interactive hand-drawn diagram creation and sharing using Excalidraw element format. It can render streaming, animated diagrams from element definitions, upload finished diagrams to Excalidraw and return shareable URLs, and save/restore user-edited diagram states. Call the element format reference before first render."}}` |
 | `MCP_USER_MAX_SERVERS_PER_USER` | `5` | `20` |
-| `OPENAI_ORGANIZATION_ID` | `` | `org-OnXqR6efQ6MlqGP4A1XuFUqo` |
+| `OPENAI_ORGANIZATION_ID` | `` | `<redacted>` |
 | `OPEN_LOOPS_ENABLED` | `false` | `true` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4317` | `http://tempo:4317` |
 | `PERPLEXITY_SEARCH_MODEL` | `sonar` | `sonar-pro` |

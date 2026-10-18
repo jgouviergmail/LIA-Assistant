@@ -111,7 +111,7 @@ URL utilisateur
 | `apps/api/src/domains/agents/graphs/web_fetch_agent_builder.py` | Builder de l'agent LangChain |
 | `apps/api/src/domains/agents/prompts/v1/web_fetch_agent_prompt.txt` | Prompt systeme de l'agent |
 | `apps/api/src/core/constants.py` | Constantes `WEB_FETCH_*` |
-| `apps/api/src/core/config/llm.py` | Settings LLM `web_fetch_agent_llm_*` |
+| `apps/api/src/domains/llm_config/constants.py` | Poste LLM `web_fetch_agent` (`LLM_DEFAULTS`) |
 
 ### Agent Builder
 
@@ -179,18 +179,12 @@ Le corps n'est jamais lu par `aread()` : httpx decompresse un morceau brut entie
 
 ## Configuration
 
-### Variables d'environnement - LLM Agent
+### LLM de l'agent
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `WEB_FETCH_AGENT_LLM_PROVIDER` | `openai` | Provider LLM |
-| `WEB_FETCH_AGENT_LLM_MODEL` | `gpt-4.1-nano` | Modele LLM (rapide, economique) |
-| `WEB_FETCH_AGENT_LLM_TEMPERATURE` | `0.3` | Temperature (extraction precise) |
-| `WEB_FETCH_AGENT_LLM_TOP_P` | `1.0` | Nucleus sampling |
-| `WEB_FETCH_AGENT_LLM_FREQUENCY_PENALTY` | `0.0` | Penalite de frequence |
-| `WEB_FETCH_AGENT_LLM_PRESENCE_PENALTY` | `0.0` | Penalite de presence |
-| `WEB_FETCH_AGENT_LLM_MAX_TOKENS` | `3000` | Max tokens reponse |
-| `WEB_FETCH_AGENT_LLM_REASONING_EFFORT` | `minimal` | Effort de raisonnement (o-series) |
+L'agent web fetch est le poste `web_fetch_agent` : ses valeurs par defaut sont dans
+`LLM_DEFAULTS` (`apps/api/src/domains/llm_config/constants.py`) et un administrateur
+les remplace dans Settings > Administration > LLM Configuration. Aucune variable
+d'environnement ne le configure.
 
 ### Constantes (`core/constants.py`)
 

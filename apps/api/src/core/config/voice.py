@@ -2,7 +2,6 @@
 Voice configuration module (Text-to-Speech and Speech-to-Text).
 
 Contains settings for:
-- Voice comment LLM (model, temperature, max tokens, provider, reasoning_effort)
 - STT configuration (Sherpa-onnx: offline, multi-language, free)
 - WebSocket STT settings (ticket auth, rate limiting, timeouts)
 - ElevenLabs Scribe remote STT (paid, audio-billed)
@@ -22,9 +21,7 @@ Updated: 2026-02-01 - Added STT configuration (Sherpa-onnx Whisper Small INT8)
 Updated: 2026-05-07 - TTS provider config relocated to llm_config_overrides (ADR-081)
 """
 
-from typing import Any, Literal
-
-from pydantic import AliasChoices, Field, field_validator
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
@@ -35,13 +32,6 @@ from src.core.constants import (
     VOICE_CHAT_MODE_MAX_SENTENCES_DEFAULT,
     VOICE_CONTEXT_MAX_CHARS_DEFAULT,
     VOICE_EXPRESSIVE_CUES_MAX_DEFAULT,
-    VOICE_LLM_FREQUENCY_PENALTY_DEFAULT,
-    VOICE_LLM_MAX_TOKENS_DEFAULT,
-    VOICE_LLM_MODEL_DEFAULT,
-    VOICE_LLM_PRESENCE_PENALTY_DEFAULT,
-    VOICE_LLM_PROVIDER_CONFIG_DEFAULT,
-    VOICE_LLM_TEMPERATURE_DEFAULT,
-    VOICE_LLM_TOP_P_DEFAULT,
     VOICE_MAX_SENTENCES_DEFAULT,
     VOICE_PARALLEL_TIMEOUT_SECONDS_DEFAULT,
     VOICE_SENTENCE_DELIMITERS_DEFAULT,
@@ -130,97 +120,6 @@ class VoiceSettings(BaseSettings):
             "Off = the admin-configured settings are used verbatim."
         ),
     )
-
-    # ========================================================================
-    # Voice Comment LLM Configuration
-    # ========================================================================
-    # Follows standard LLM configuration pattern (see llm.py for reference)
-    # All parameters configurable via VOICE_LLM_* environment variables
-    # ========================================================================
-
-    voice_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
-    ] = Field(
-        default="openai",
-        description="LLM provider for voice comment generation",
-    )
-
-    voice_llm_provider_config: str = Field(
-        default=VOICE_LLM_PROVIDER_CONFIG_DEFAULT,
-        description="Advanced provider-specific config for voice LLM (JSON string)",
-    )
-
-    voice_llm_model: str = Field(
-        default=VOICE_LLM_MODEL_DEFAULT,
-        description="LLM model for voice comment generation (fast, cheap model recommended)",
-    )
-
-    voice_llm_temperature: float = Field(
-        default=VOICE_LLM_TEMPERATURE_DEFAULT,
-        ge=0.0,
-        le=2.0,
-        description="LLM temperature for voice comments (0.7 = creative but controlled)",
-    )
-
-    voice_llm_top_p: float = Field(
-        default=VOICE_LLM_TOP_P_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description="Nucleus sampling for voice LLM (1.0 = disabled)",
-    )
-
-    voice_llm_frequency_penalty: float = Field(
-        default=VOICE_LLM_FREQUENCY_PENALTY_DEFAULT,
-        ge=-2.0,
-        le=2.0,
-        description="Frequency penalty for voice LLM (reduce repetition)",
-    )
-
-    voice_llm_presence_penalty: float = Field(
-        default=VOICE_LLM_PRESENCE_PENALTY_DEFAULT,
-        ge=-2.0,
-        le=2.0,
-        description="Presence penalty for voice LLM (encourage diversity)",
-    )
-
-    voice_llm_max_tokens: int = Field(
-        default=VOICE_LLM_MAX_TOKENS_DEFAULT,
-        gt=0,
-        le=2000,
-        description="Max tokens for voice comment (500 ~ 6 sentences)",
-    )
-
-    voice_llm_reasoning_effort: Literal["none", "minimal", "low", "medium", "high"] | None = Field(
-        default=None,
-        description=(
-            "Reasoning effort for voice LLM (OpenAI o-series/GPT-5 only). "
-            "Controls reasoning depth: minimal=sub-second, low=1-3s, medium=5-15s, high=30+s. "
-            "Recommended: 'low' or None for voice comments (fast creative generation)."
-        ),
-    )
-
-    # ========================================================================
-    # VALIDATOR - Empty String to None Conversion
-    # ========================================================================
-
-    @field_validator("voice_llm_reasoning_effort", mode="before")
-    @classmethod
-    def empty_string_to_none(cls, v: Any) -> Any:
-        """
-        Convert empty strings to None for reasoning_effort field.
-
-        Environment variables with empty values (VAR=) are read as "" (empty string).
-        Since reasoning_effort accepts Literal[...] | None, we convert "" to None.
-
-        Args:
-            v: Raw value from environment or settings
-
-        Returns:
-            None if empty string, otherwise original value
-        """
-        if v == "" or v is None:
-            return None
-        return v
 
     # ========================================================================
     # Voice Comment Behavior

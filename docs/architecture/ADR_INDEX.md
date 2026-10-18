@@ -4316,6 +4316,8 @@ graph TD
 
 **Amendement 2026-10-18** : le `max_tokens` d'un poste est tenu au plafond de sortie qu'une ligne garantie du catalogue déclare (`imported` ou `verified`, sur un fournisseur qui en applique un — `infrastructure/llm/output_cap.py`), lu par la résolution du poste, la porte du client et les métadonnées d'administration, qui signalent un budget au-dessus ; dans le doute, la requête part telle que configurée.
 
+**Amendement 2026-10-18 b** : les réglages d'environnement de quatorze postes (le commentaire vocal et treize agents de domaine : 126 champs, 98 constantes) n'avaient plus aucun lecteur depuis le passage à `LLM_DEFAULTS` + overrides — retirés, avec les plages de `scripts/validate_config.py` et l'ancien validateur des postes LLM, que rien ne lançait et qui n'importait plus. Deux de ces constantes servaient en réalité de défaut à d'autres champs : `openai_organization_id` portait l'identifiant d'organisation réel du mainteneur, envoyé par toute installation sans `OPENAI_ORGANIZATION_ID` (donc toute installation écrite par l'installeur), et `openweathermap_api_key` ; les deux ont désormais un défaut vide.
+
 ---
 
 ### ADR-245 : une intention de raisonnement, un traducteur, une autorité par question

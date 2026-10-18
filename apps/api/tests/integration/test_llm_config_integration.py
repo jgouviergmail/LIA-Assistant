@@ -5,7 +5,8 @@ import pytest
 from src.core.config import settings
 from src.core.llm_agent_config import LLMAgentConfig
 from src.core.llm_config_helper import get_all_llm_configs, get_llm_config_for_agent
-from src.domains.llm_config.constants import LLM_TYPES_REGISTRY
+from src.domains.llm_config.cache import LLMConfigOverrideCache
+from src.domains.llm_config.constants import LLM_DEFAULTS, LLM_TYPES_REGISTRY
 from src.infrastructure.llm.factory import get_llm
 
 #: A slot that exists, taken FROM the registry rather than written by hand.
@@ -142,18 +143,19 @@ class TestLLMConfigIntegration:
         assert metadata.get("run_id") == "t-1"
 
     @pytest.mark.integration
-    def test_provider_selection_from_settings(self):
-        """The resolved provider is the one the matching setting declares.
+    def test_provider_selection_follows_the_override_then_the_default(self):
+        """The resolved provider is the override's, else the slot's code default.
 
-        Read through ``getattr`` on the slot's own field rather than a literal
-        ``settings.router_llm_provider``: that attribute went with the slot,
-        and an AttributeError is a poor way to learn a registry changed.
+        A slot's provider is not a setting: ``get_llm_config_for_agent`` keeps
+        ``settings`` for its signature only and reads ``LLM_DEFAULTS``, then the
+        database override cache. Comparing with a ``{slot}_llm_provider`` field
+        asserted nothing once the per-slot env families were removed (ADR-244).
         """
         config = get_llm_config_for_agent(settings, _A_SLOT)
 
-        declared = getattr(settings, f"{_A_SLOT}_llm_provider", None)
-        if declared is not None:
-            assert config.provider == declared
+        override = LLMConfigOverrideCache.get_override(_A_SLOT) or {}
+        expected = override.get("provider") or LLM_DEFAULTS[_A_SLOT].provider
+        assert config.provider == expected
 
     @pytest.mark.integration
     def test_model_selection_from_settings(self):

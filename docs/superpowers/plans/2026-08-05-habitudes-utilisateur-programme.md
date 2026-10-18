@@ -2,7 +2,7 @@
 
 **Date** : 2026-08-05
 **Statut** : **IMPLÉMENTÉ** (même jour, feu vert propriétaire) — voir
-[ADR-214](../architecture/ADR-214-Habitudes-Utilisateur-Apprentissage-Deterministe.md).
+[ADR-214](../../architecture/ADR-214-Habitudes-Utilisateur-Apprentissage-Deterministe.md).
 Les 6 lots (0→5) sont livrés code + tests ; flag `HABITS_ENABLED` défaut OFF.
 Ce dossier reste l'historique de l'enquête et la référence de calibration
 (les seuils codés viennent des simulations §4 — les recalibrer impose de

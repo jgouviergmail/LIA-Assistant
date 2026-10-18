@@ -3,7 +3,7 @@
 > **⚠️ Document historique (2025-11-25).** Plusieurs composants décrits ici ont
 > été retirés en v1.21.16 (ADR-107) : `EnhancedPlanEditor`/`SecurePlanEditor`,
 > le framework de stratégies d'approbation et l'orchestrateur HITL. L'état
-> courant fait foi dans [HITL.md](./HITL.md) et ADR-106/107.
+> courant fait foi dans [HITL.md](../../technical/HITL.md) et ADR-106/107.
 
 **Version**: 2.0 - Revue Professionnelle
 **Date**: 2025-11-25

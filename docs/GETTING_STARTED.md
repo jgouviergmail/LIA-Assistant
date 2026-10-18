@@ -1271,21 +1271,21 @@ The tables below show the **effective production configuration** (code defaults 
 
 | Slot | Provider | Model | Temp | Max Tokens | Reasoning |
 |------|----------|-------|------|------------|-----------|
-| `contacts_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 2 000 | — |
-| `emails_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 2 000 | — |
-| `calendar_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 2 000 | — |
-| `drive_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 2 000 | — |
-| `tasks_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 2 000 | — |
-| `weather_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 1 000 | — |
-| `wikipedia_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 2 000 | — |
-| `perplexity_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 3 000 | — |
-| `brave_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 2 000 | — |
-| `web_search_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 4 000 | — |
-| `web_fetch_agent` | OpenAI | `gpt-4.1-nano` | 0.3 | 3 000 | — |
-| `places_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 2 000 | — |
-| `routes_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 2 000 | — |
-| `hue_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 1 000 | — |
-| `health_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 1 500 | — |
+| `contacts_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 2 000 | — |
+| `emails_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 2 000 | — |
+| `calendar_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 2 000 | — |
+| `drive_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 2 000 | — |
+| `tasks_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 2 000 | — |
+| `weather_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 1 000 | — |
+| `wikipedia_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 2 000 | — |
+| `perplexity_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 3 000 | — |
+| `brave_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 2 000 | — |
+| `web_search_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 4 000 | — |
+| `web_fetch_agent` | OpenAI | `gpt-4.1-mini` | 0.3 | 3 000 | — |
+| `places_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 2 000 | — |
+| `routes_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 2 000 | — |
+| `hue_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 1 000 | — |
+| `health_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 1 500 | — |
 | `browser_agent` | DeepSeek | `deepseek-v4-flash` | 0.5 | 20 000 | off |
 | `react_agent` | DeepSeek | `deepseek-v4-flash` | 0.2 | 20 000 | off |
 | `mcp_react_agent` | DeepSeek | `deepseek-v4-flash` | 0.5 | 30 000 | off |
@@ -1322,7 +1322,7 @@ The tables below show the **effective production configuration** (code defaults 
 | `psyche_summary` | DeepSeek | `deepseek-v4-flash` | 1.0 | 5 000 | off |
 | `briefing` | OpenAI | `gpt-5.4-mini` | 1.0 | 5 000 | none |
 | `broadcast_translator` | DeepSeek | `deepseek-v4-flash` | 0.5 | 5 000 | off |
-| `personality_translation` | OpenAI | `gpt-4.1-nano` | 0.3 | 500 | — |
+| `personality_translation` | Anthropic | `claude-haiku-5-5` | 0.3 | 500 | low |
 
 #### Specialized
 
@@ -1341,7 +1341,7 @@ The tables below show the **effective production configuration** (code defaults 
 #### Design Principles of the Production Configuration
 
 1. **DeepSeek V4 Flash** carries the bulk of the pipeline (routing, planning, response, ReAct, HITL, heartbeat): near-frontier quality at a fraction of the cost, with thinking (`high`) enabled only where depth pays (compaction, journal consolidation, heartbeat) and disabled (`off`) on latency-sensitive nodes.
-2. **`gpt-4.1-nano`** powers the structured tool-calling domain agents — they need reliable function calling, not reasoning, and they represent the majority of calls for a tiny fraction of cost.
+2. **`gpt-4.1-mini`** powers the structured tool-calling domain agents — they need reliable function calling, not reasoning, and they represent the majority of calls for a tiny fraction of cost.
 3. **`gpt-5.2`** handles precision extraction (memory, journals, interests) where structured-output quality matters most.
 4. **`gemini-3.5-flash`** (vision), **`claude-opus-4-6`** (interactive MCP apps / diagram generation), **`gpt-image-2`** (images) and **ElevenLabs** (voice) cover the specialized slots.
 

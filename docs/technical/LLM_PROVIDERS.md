@@ -489,10 +489,6 @@ RESPONSE_LLM_PROVIDER=openai
 RESPONSE_LLM_MODEL=gpt-4.1-mini
 RESPONSE_LLM_TEMPERATURE=0.7
 RESPONSE_LLM_MAX_TOKENS=8000
-
-# Agents domaine : nano pour les taches simples
-CONTACTS_AGENT_LLM_PROVIDER=openai
-CONTACTS_AGENT_LLM_MODEL=gpt-4.1-nano
 ```
 
 ### Configuration hybride OpenAI + Anthropic
@@ -510,11 +506,9 @@ RESPONSE_LLM_MODEL=claude-sonnet-4-5
 RESPONSE_LLM_TEMPERATURE=0.7
 RESPONSE_LLM_MAX_TOKENS=8000
 
-# Router + Agents : OpenAI pour le cout
+# Router : OpenAI pour le cout
 ROUTER_LLM_PROVIDER=openai
 ROUTER_LLM_MODEL=gpt-4.1-nano
-CONTACTS_AGENT_LLM_PROVIDER=openai
-CONTACTS_AGENT_LLM_MODEL=gpt-4.1-nano
 ```
 
 ### Configuration avec reasoning (GPT-5)
@@ -541,10 +535,6 @@ PLANNER_LLM_TEMPERATURE=0.0
 RESPONSE_LLM_PROVIDER=deepseek
 RESPONSE_LLM_MODEL=deepseek-chat
 RESPONSE_LLM_TEMPERATURE=0.7
-
-# Agents domaine : OBLIGATOIREMENT deepseek-chat (pas reasoner)
-CONTACTS_AGENT_LLM_PROVIDER=deepseek
-CONTACTS_AGENT_LLM_MODEL=deepseek-chat
 ```
 
 ### Configuration Gemini (gratuit pour faible volume)

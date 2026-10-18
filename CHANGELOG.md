@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- 🔑 **An installation no longer presents someone else's OpenAI organization.**
+  `openai_organization_id` defaulted to a constant named for another setting, and
+  that constant had held the maintainer's real organization id since v1.29.0. The
+  adapter sends the setting as the `organization` of every OpenAI client, and
+  `.env.min.prod.example` — the installer's template — declares no
+  `OPENAI_ORGANIZATION_ID`, so every installation the installer wrote presented
+  that organization with its own key. The setting now defaults to empty (an
+  organization is sent only when the operator sets one); `openweathermap_api_key`
+  borrowed the same kind of constant and defaults to empty too.
+
+### Removed
+
+- 🧹 **The env settings of fourteen LLM slots, which nothing read** (ADR-244
+  amendment 2026-10-18 b): the voice comment and the thirteen domain agents
+  resolve through `LLM_DEFAULTS` and the admin overrides. 126 settings fields, 98
+  constants (twelve still named `gpt-4.1-nano`, which retires on 2026-10-23), their
+  ranges in `scripts/validate_config.py` and `scripts/validate_llm_config.py` — a
+  validator no command ran and which no longer imported — are gone. Unknown
+  variables are ignored, so a `.env` still carrying one keeps booting.
+
+### Documentation
+
+- 🔗 Seventeen broken relative links in four dated plans now resolve; the
+  « effective production configuration » table of `GETTING_STARTED.md` names the
+  models production runs (no slot runs `gpt-4.1-nano`), and the documents that
+  described the removed settings point at the slot instead.
+
 ## [3.2.0] - 2026-10-18
 
 **A FAQ for every feature.**

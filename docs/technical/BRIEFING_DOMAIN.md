@@ -439,7 +439,7 @@ The briefing uses a single LLM slot in `LLM_TYPES_REGISTRY`:
 )
 ```
 
-Default config: `openai/gpt-4.1-nano`, `temperature=0.7`, `max_tokens=500`, `timeout_seconds=20.0`. Admin can override via the existing LLM config UI.
+Default config: `openai/gpt-4.1-mini`, `temperature=0.7`, `max_tokens=500`, `timeout_seconds=20.0`. Admin can override via the existing LLM config UI.
 
 Prompts live in `apps/api/src/domains/agents/prompts/v1/`:
 - `briefing_greeting_prompt.txt` — single sentence, max 20 words

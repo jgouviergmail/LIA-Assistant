@@ -3340,9 +3340,8 @@ once by `core/remote_stt.py`, ADR-345).
 
 ```bash
 # .env — TTS no longer here (moved to admin LLM catalogue)
-# Only voice-comment LLM, Sherpa STT path, and WebSocket transport vars remain
-VOICE_LLM_PROVIDER=openai
-VOICE_LLM_MODEL=gpt-4.1-nano
+# Only the voice-comment behaviour, Sherpa STT path, and WebSocket transport vars
+# remain (the voice comment's model is the `voice_comment` slot, admin UI)
 VOICE_CHAT_MODE_MAX_SENTENCES=3   # 1..50 cap on sentence streaming
 
 # Wake Word : pas de variable d'environnement (VOICE_WAKE_WORD_ENABLED et
