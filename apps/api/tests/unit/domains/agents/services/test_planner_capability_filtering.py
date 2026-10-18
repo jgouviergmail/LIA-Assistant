@@ -1,21 +1,21 @@
-"""A disabled capability disappears from what the planner can reach.
+"""A disabled capability disappears from what a turn can reach.
 
 Two layers protect a switched-off capability. The routes REFUSE it — that is
-the enforcing one. This is the other: the planner must not even be offered
-the tools, for three reasons that all matter.
+the enforcing one. This is the other: no turn may even be offered the tools,
+for three reasons that all matter.
 
-- **Honesty.** A planner that keeps proposing image generation on an instance
-  where it is off produces plans that fail at execution, and the user reads a
-  refusal instead of an answer.
-- **Cost.** Every tool in the catalogue is prompt tokens, on every planning
-  call.
-- **Reuse over invention.** The exclusion rides on ``exclude_tools``, the
-  post-filter that already exists for sub-agent rejection (F6). One mechanism,
-  one place to reason about, one place to break.
+- **Honesty.** A turn that keeps proposing image generation on an instance
+  where it is off produces calls that fail, and the user reads a refusal
+  instead of an answer.
+- **Cost.** Every tool in the catalogue is prompt tokens, on every call.
+- **One answer for both modes.** The exclusion is applied where the request
+  builds its catalogue, which the pipeline planner and the ReAct loop both
+  read: it used to ride on the planner's post-filter alone, and the loop bound
+  the tools of a switched-off capability.
 
-Failure mode this pins: reading the switches must never take planning down.
-An unreachable settings store means "nothing disabled" — the product stays
-whole and the routes still refuse what is off.
+Failure mode this pins: reading the switches must never take a turn down. An
+unreachable settings store means "nothing disabled" — the product stays whole
+and the routes still refuse what is off.
 """
 
 from __future__ import annotations
@@ -127,47 +127,47 @@ async def test_a_failing_switch_read_never_breaks_planning() -> None:
     assert hidden == set()
 
 
-async def test_the_planner_merges_the_hidden_tools_into_its_own_exclusions() -> None:
-    """The wiring: capability exclusions ride on the existing F6 post-filter."""
+def _manifests(*names: str) -> list[SimpleNamespace]:
+    return [SimpleNamespace(name=name) for name in names]
+
+
+async def test_the_turn_catalogue_loses_the_tools_of_a_disabled_capability() -> None:
     from src.domains.agents.services.planner_capability_filter import (
-        merge_capability_exclusions,
+        without_disabled_capability_tools,
     )
 
-    with patch(
-        "src.domains.agents.services.planner_capability_filter.tools_hidden_by_capabilities",
-        AsyncMock(return_value={"generate_image"}),
-    ):
-        merged = await merge_capability_exclusions(MagicMock(), {"delegate_to_sub_agent"})
+    registry = _registry({"image_generation_agent": ["generate_image", "edit_image"]})
+    catalogue = _manifests("get_emails_tool", "generate_image", "edit_image", "get_events_tool")
+    with _patch_disabled({PlatformCapability.IMAGE_GENERATION}):
+        offered = await without_disabled_capability_tools(catalogue, registry)
 
-    # Both survive: a user rejection and an operator switch are independent.
-    assert merged == {"delegate_to_sub_agent", "generate_image"}
+    # The rest keeps its order: the catalogue order is what the ReAct loop
+    # binds in, and what the cross-turn cache depends on (ADR-308).
+    assert [manifest.name for manifest in offered] == ["get_emails_tool", "get_events_tool"]
 
 
-async def test_merging_with_no_prior_exclusion_returns_only_capability_tools() -> None:
+async def test_nothing_hidden_hands_the_same_catalogue_back() -> None:
     from src.domains.agents.services.planner_capability_filter import (
-        merge_capability_exclusions,
+        without_disabled_capability_tools,
     )
 
-    with patch(
-        "src.domains.agents.services.planner_capability_filter.tools_hidden_by_capabilities",
-        AsyncMock(return_value={"generate_image"}),
-    ):
-        merged = await merge_capability_exclusions(MagicMock(), None)
+    catalogue = _manifests("get_emails_tool", "generate_image")
+    with _patch_disabled(set()):
+        offered = await without_disabled_capability_tools(catalogue, _registry({}))
 
-    assert merged == {"generate_image"}
+    assert offered is catalogue
 
 
-async def test_merging_returns_none_when_there_is_nothing_to_exclude() -> None:
+async def test_a_failing_switch_read_keeps_the_whole_catalogue() -> None:
     from src.domains.agents.services.planner_capability_filter import (
-        merge_capability_exclusions,
+        without_disabled_capability_tools,
     )
 
+    catalogue = _manifests("browser_navigate", "get_emails_tool")
     with patch(
-        "src.domains.agents.services.planner_capability_filter.tools_hidden_by_capabilities",
-        AsyncMock(return_value=set()),
+        "src.domains.feature_switches.registry.disabled_capabilities",
+        AsyncMock(side_effect=RuntimeError("store down")),
     ):
-        merged = await merge_capability_exclusions(MagicMock(), None)
+        offered = await without_disabled_capability_tools(catalogue, _registry({}))
 
-    # None, not an empty set: the caller's fast path checks truthiness, and an
-    # empty set would walk the whole tool list for nothing.
-    assert merged is None
+    assert offered is catalogue

@@ -85,16 +85,16 @@ On the login page, your browser will then offer the passkey directly in the emai
 
 ## How do I add a second verification step (TOTP)?
 
-The **authenticator app** adds a 6-digit code as a second step to password sign-in.
+The **authenticator app** adds a 6-digit code as a second step when you sign in with your **password** or with **Google**. A passkey sign-in does not ask for it: a passkey is already a strong proof on its own.
 
 **⚙️ Setup:**
-1. **Settings > Security > Authenticator app (TOTP)** → Enable
-2. Scan the QR code with Google Authenticator, 1Password, Aegis…
-3. Enter the 6-digit code shown by the app
+1. **Settings › Preferences › Strong authentication › Authenticator app (TOTP)** → **Enable** (you may first be asked to confirm it's you)
+2. Scan the QR code with Google Authenticator, 1Password, Aegis… — or enter the secret manually
+3. Type the 6-digit code the app shows, then **Activate**
 
-**🔒 Backup codes:** 10 single-use codes are shown **exactly once** — store them safely; each one replaces the app code if you lose your phone. You can regenerate a fresh set at any time (the old set is invalidated).
+**🔒 Backup codes:** 10 single-use codes are shown **exactly once** — store them safely; each one replaces the app code if you lose your phone. **Regenerate backup codes** gives you a fresh set at any time (the old set stops working).
 
-Signing in then takes two steps: password, then the current code from your app.
+Signing in then takes two steps: your password or Google, then the current code from your app. The section appears when your instance offers strong authentication.
 
 ## Why does LIA sometimes ask me to confirm my identity?
 
@@ -179,11 +179,15 @@ It **never** rewrites your content. An email stays exactly what its author wrote
 
 ## Can I get the complete log of what LIA did for me?
 
-Yes, and **complete** means complete. From the **Registers** page — its shortcut is on the Home page — you download what LIA **did**, what it **consulted**, the conversation **turns**, the detail of every **model call**, and any **gaps** in the register itself — as readable Markdown, as CSV, or as pseudonymised JSON Lines.
+Yes, and **complete** means complete. Open the **Transparency registers** page — its **Registers** shortcut is on the Home page:
+• the **Actions** and **Consultations** tabs each take their whole register out as **Export (readable)** (Markdown), **Export (CSV)** or **Technical** (pseudonymised JSON Lines)
+• below the tabs, **Unified extraction** gathers all five records — your turns, the actions, the consultations, the model calls and any gap in the record itself — into one JSON Lines file with no content and every identifier replaced by a handle, so you can attach it to a request or a complaint as it is
 
-**Nothing is truncated**, whatever the volume: the header states the **exact count** along with the moment the extraction was taken. The download is compressed on the fly when your browser accepts it, without the file name changing.
+**Nothing is truncated**, whatever the volume: each file states the **exact count** (per record in the unified file) along with the moment the extraction was taken. The download is compressed on the fly when your browser accepts it, without the file name changing.
 
-**🗣️ Or just ask:** "*what did you do for me this week?*" — LIA reads the same registers and answers with exact totals: what it did, what it consulted, and what it did on its own initiative.
+**🗣️ Or just ask:**
+• *What did you do for me this week?*
+LIA reads the same registers and answers with exact totals: what it did, what it consulted, and what it did on its own initiative.
 
 ## Does a script written by LIA ever see my API keys or send my data somewhere?
 
@@ -197,11 +201,11 @@ No key, and no data without your word.
 **📦 Data**
 • a script that declares no host runs fully offline, with the data of the turn on its standard input
 • a script that wants a host you never allowed is stopped, and you choose: **with** the data, **without** it, or not at all
-• « without » means the script receives nothing of what LIA gathered — it can only reach the host
+• "Without" means the script receives nothing of what LIA gathered — it can only reach the host
 
 **📖 Traces**
 • every network run is claimed in your register before it starts, with the hosts it declared
-• the script itself is visible to an administrator in the debug panel, nowhere else
+• the script's code never appears in the answer: it is shown in the chat's **debug panel**, on a wide screen — to an administrator who turned the panel on, and to you if the administrator lets users open it and you switch on **Enable debug panel** in **Settings › Preferences › Debug Panel**
 
 ## In a Live session, what does the provider see and what does LIA keep?
 

@@ -13,12 +13,15 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+import structlog
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from src.core.llm_usage import LLMBillingRecord
+
+logger = structlog.get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # LLM Structured Output
@@ -45,8 +48,30 @@ HeartbeatSourceLabel = Literal[
 """Canonical source labels for the decision structured output (ADR-135).
 
 Free-text labels drifted in production ("USER_MEMORIES" vs "USER MEMORIES"),
-making per-source statistics approximate. The Literal makes the LLM comply
-(bench 2026-07-18: 8/8 valid) and the API reject any drift."""
+making per-source statistics approximate. The Literal is published to the model
+as the schema's enum, and what comes back is held to it by REPAIR, never by
+refusal (``HeartbeatDecision.keep_canonical_source_labels``): refusing cost the
+whole decision — production 2026-10-17, three ticks of five for one account;
+replayed on five model families, 6 calls of 120 cited a section that has no
+label (``USER RHYTHM``, the recent notifications)."""
+
+_SOURCE_LABELS: frozenset[str] = frozenset(get_args(HeartbeatSourceLabel))
+
+
+def _canonical_source_label(raw: object) -> str | None:
+    """The canonical label ``raw`` spells, whatever its case and separators.
+
+    Args:
+        raw: One item the model wrote in ``sources_used``.
+
+    Returns:
+        The label of :data:`HeartbeatSourceLabel` it spells, or None when it
+        names no source.
+    """
+    if not isinstance(raw, str):
+        return None
+    label = "_".join(raw.replace("-", " ").split()).upper()
+    return label if label in _SOURCE_LABELS else None
 
 
 class HeartbeatDecision(BaseModel):
@@ -95,6 +120,40 @@ class HeartbeatDecision(BaseModel):
             "listed under MISSED ROUTINE; false otherwise."
         ),
     )
+
+    @field_validator("sources_used", mode="before")
+    @classmethod
+    def keep_canonical_source_labels(cls, value: Any) -> Any:
+        """Repair a label's spelling and drop a label that names no source.
+
+        The labels are an audit trail (an offer is declared by
+        ``habit_offered``): a word outside the vocabulary must never cost the
+        decision it annotates. A section the prompt shows without a label of
+        its own is dropped, never mapped — ``USER RHYTHM`` is context, and
+        filing it as ``HABITS`` would read as an offer nobody declared.
+
+        Args:
+            value: What the model wrote for the field.
+
+        Returns:
+            The canonical labels in their order; anything but a list, a single
+            label or null is returned unchanged, so a wrong type stays an error.
+        """
+        if value is None:
+            return []
+        if isinstance(value, str):
+            value = [value]
+        if not isinstance(value, list):
+            return value
+        kept = [label for label in map(_canonical_source_label, value) if label is not None]
+        if len(kept) < len(value):
+            logger.info(
+                "heartbeat_source_labels_dropped",
+                dropped=len(value) - len(kept),
+                kept=len(kept),
+            )
+            logger.debug("heartbeat_source_labels_dropped_values", labels=value)
+        return kept
 
     @model_validator(mode="after")
     def validate_message_draft_on_notify(self) -> HeartbeatDecision:

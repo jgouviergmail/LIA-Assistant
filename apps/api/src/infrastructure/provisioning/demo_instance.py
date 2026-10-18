@@ -31,7 +31,10 @@ from src.core.config import settings
 from src.domains.system_settings.models import SystemSetting, SystemSettingKey
 from src.domains.system_settings.registry import invalidate_setting_cache
 from src.infrastructure.database import get_db_context
-from src.infrastructure.provisioning.demo_defaults import apply_demo_setting_defaults
+from src.infrastructure.provisioning.demo_defaults import (
+    apply_demo_setting_defaults,
+    invalidate_demo_setting_caches,
+)
 from src.infrastructure.provisioning.demo_llm import (
     apply_demo_llm_configuration,
     unbillable_model,
@@ -142,6 +145,7 @@ async def provision_demo_instance(*, force: bool = False) -> ProvisionReport:
             llm_types = await apply_demo_llm_configuration(db)
             defaults = await apply_demo_setting_defaults(db)
             await db.commit()
+            await invalidate_demo_setting_caches()
             logger.info(
                 "demo_instance_already_provisioned",
                 llm_types_configured=llm_types,
@@ -187,6 +191,7 @@ async def provision_demo_instance(*, force: bool = False) -> ProvisionReport:
         await db.commit()
 
     await invalidate_setting_cache(SystemSettingKey.DEMO_INSTANCE_MARKER)
+    await invalidate_demo_setting_caches()
     logger.warning(
         "demo_instance_provisioned",
         forced=force,

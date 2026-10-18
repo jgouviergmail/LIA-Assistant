@@ -38,12 +38,49 @@ CURRENT_CORE_LLM_TYPES: tuple[str, ...] = (
 #: seed), never a required install key.
 CURRENT_CORE_PROVIDER_IDS: tuple[str, ...] = ("deepseek", "openai")
 
-#: Seeded capabilities that stay degraded without their (optional) key.
+#: Seeded slots that stay degraded without their (optional) provider key —
+#: every seeded slot outside the core whose provider needs a key, held equal
+#: to the post-seed derivation by the anti-drift test.
 OPTIONAL_SEEDED_CAPABILITIES: dict[str, str] = {
     "vision_analysis": "gemini",
     "voice_tts": "elevenlabs",
+    "voice_transcription": "elevenlabs",
     "mcp_app_react_agent": "anthropic",
 }
+
+#: What else stays degraded without a key: the embeddings behind memory
+#: recall and the search in documents, journals and interests read the Gemini
+#: key (``resolve_gemini_embedding_key``) — no LLM slot names them.
+OPTIONAL_PLATFORM_CAPABILITIES: dict[str, str] = {
+    "semantic_search": "gemini",
+}
+
+#: Providers of seeded slots that need no install key, each with its reason.
+KEYLESS_SEEDED_PROVIDERS: dict[str, str] = {
+    "edge": "Edge voices are free and keyless",
+    "typesafe": "JEV runs only once an administrator switches it on, and falls back",
+}
+
+#: The optional provider keys the questionnaire asks and the bootstrap accepts:
+#: the one whose absence degrades features every account uses.
+OPTIONAL_INSTALL_PROVIDER_IDS: tuple[str, ...] = ("gemini",)
+
+
+def unkeyed_capabilities(keyed_providers: frozenset[str]) -> dict[str, str]:
+    """What an installation leaves degraded, given the provider keys it holds.
+
+    Args:
+        keyed_providers: The providers a key was given for.
+
+    Returns:
+        Capability → the provider whose key it waits for.
+    """
+    degraded = {**OPTIONAL_SEEDED_CAPABILITIES, **OPTIONAL_PLATFORM_CAPABILITIES}
+    return {
+        capability: provider
+        for capability, provider in degraded.items()
+        if provider not in keyed_providers
+    }
 
 
 def _find_seed_file() -> Path:

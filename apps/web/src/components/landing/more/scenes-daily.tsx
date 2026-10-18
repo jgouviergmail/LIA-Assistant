@@ -29,6 +29,7 @@ import {
   Radio,
   CalendarDays,
   Loader2,
+  Smile,
   Sun,
   Sunrise,
   ToggleLeft,
@@ -907,6 +908,60 @@ function MusicMakesWayScene({ active, labels }: SceneProps) {
   );
 }
 
+type ReactionPhase = 'news' | 'debate' | 'reaction';
+const REACTION_STEPS: readonly TimelineStep<ReactionPhase>[] = [
+  { at: 0, state: 'news' },
+  { at: 1200, state: 'debate' },
+  { at: 2000, state: 'reaction' },
+];
+
+/**
+ * Voices that react: a line of the news is read plainly, while in a debate a
+ * commentator may open a reply with a chuckle — never on a line of the news.
+ */
+function VoicesReactScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(REACTION_STEPS, { active });
+  const debating = phase !== 'news';
+  const reacting = phase === 'reaction';
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center gap-2')}>
+      <div className="flex items-center gap-2">
+        <Radio className="h-3 w-3 shrink-0 text-muted-foreground" />
+        <span className="w-16 shrink-0 truncate text-px-9 text-muted-foreground">
+          {labels.news}
+        </span>
+        <SkeletonLine w="w-3/5" />
+      </div>
+      <div
+        className={cn(
+          'flex items-center gap-2 transition-opacity duration-300 motion-reduce:transition-none',
+          debating ? 'opacity-100' : 'opacity-30'
+        )}
+      >
+        <Mic
+          className={cn(
+            'h-3 w-3 shrink-0 transition-colors duration-300',
+            debating ? 'text-primary' : 'text-muted-foreground'
+          )}
+        />
+        <span className="w-16 shrink-0 truncate text-px-9 text-muted-foreground">
+          {labels.debate}
+        </span>
+        <span
+          className={cn(
+            'flex shrink-0 items-center gap-1 rounded-full border border-primary/40 bg-primary/5 px-1.5 py-0.5 text-px-9 text-primary transition-all duration-300 motion-reduce:transition-none',
+            reacting ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
+          )}
+        >
+          <Smile className="h-2.5 w-2.5" aria-hidden="true" />
+          {labels.chuckle}
+        </span>
+        <SkeletonLine w="w-1/4" />
+      </div>
+    </div>
+  );
+}
+
 type DayPhase = 'day' | 'morning' | 'afternoon' | 'live';
 const DAY_STEPS: readonly TimelineStep<DayPhase>[] = [
   { at: 0, state: 'day' },
@@ -1185,6 +1240,7 @@ export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   live_standby: LiveStandbyScene,
   radio_companion: RadioCompanionScene,
   music_makes_way: MusicMakesWayScene,
+  voices_react: VoicesReactScene,
   server_escape_hatch: ServerEscapeHatchScene,
   day_timeline: DayTimelineScene,
   voices_in_language: VoicesInLanguageScene,

@@ -222,6 +222,7 @@ tests:
         exp_alerts: []
 
   # ===== SSELatencyP95High: all traffic lands in the 60–120s bucket =====
+  # Ten turns a minute: a hundred per window, well above the 20 a p95 needs.
   - interval: 1m
     input_series:
       - series: 'sse_time_to_first_token_seconds_bucket{le="30"}'
@@ -231,6 +232,8 @@ tests:
       - series: 'sse_time_to_first_token_seconds_bucket{le="120"}'
         values: '0+10x25'
       - series: 'sse_time_to_first_token_seconds_bucket{le="+Inf"}'
+        values: '0+10x25'
+      - series: 'sse_time_to_first_token_seconds_count'
         values: '0+10x25'
     alert_rule_test:
       - eval_time: 22m
@@ -242,8 +245,29 @@ tests:
               tier: core
             exp_annotations:
               summary: "SSE time-to-first-token p95 degraded"
-              description: "TTFT p95 is 117s over 10 minutes (threshold: 60s — set above the measured production baseline; tighten it after the latency optimization work lands)."
+              description: "TTFT p95 is 117s over 10 minutes (threshold: 60s — set above the measured production baseline; tighten it after the latency optimization work lands — evaluated only over at least 20 turns a person waited for, below which a p95 is the slowest single turn)."
               runbook: "docs/runbooks/alerts/AgentsTTFTViolation.md"
+
+  # ===== …but a few slow turns are no p95 — this is what buys the floor =====
+  # One turn a minute, every one slow: ten per window, so the « p95 » is the
+  # slowest of ten turns (rank 9.5 of 10). Production fired on exactly this
+  # shape every morning for a month (2026-09-19 → 10-18), with routines.
+  - interval: 1m
+    input_series:
+      - series: 'sse_time_to_first_token_seconds_bucket{le="30"}'
+        values: '0x25'
+      - series: 'sse_time_to_first_token_seconds_bucket{le="60"}'
+        values: '0x25'
+      - series: 'sse_time_to_first_token_seconds_bucket{le="120"}'
+        values: '0+1x25'
+      - series: 'sse_time_to_first_token_seconds_bucket{le="+Inf"}'
+        values: '0+1x25'
+      - series: 'sse_time_to_first_token_seconds_count'
+        values: '0+1x25'
+    alert_rule_test:
+      - eval_time: 22m
+        alertname: SSELatencyP95High
+        exp_alerts: []
 
   # ===== GlobalRateLimitDegraded: the limiter cannot reach Redis (SEC-016) =====
   # 60 unchecked admissions per minute = 1 req/s crossing the API with no rate

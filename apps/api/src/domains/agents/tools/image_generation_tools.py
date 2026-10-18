@@ -47,6 +47,7 @@ from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.tool_registry import registered_tool
 from src.domains.agents.utils.rate_limiting import rate_limit
 from src.domains.attachments.urls import attachment_url
+from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
 from src.domains.image_generation.options_cache import ModelOptions
 from src.domains.image_generation.providers.base import (
     ImageDeliveryError,
@@ -130,10 +131,12 @@ async def _resolve_caller(
         return UnifiedToolOutput.failure(
             message="Could not identify user. Please try again.", error_code="AUTH_ERROR"
         )
-    if not settings.image_generation_enabled:
+    # The EFFECTIVE state — the deployment ceiling AND the administrator's
+    # switch. The flag alone let a switched-off capability run in ReAct mode.
+    if not await is_capability_enabled(PlatformCapability.IMAGE_GENERATION):
         return UnifiedToolOutput.failure(
             message="Image generation is currently disabled by the administrator.",
-            error_code="TOOL_ERROR",
+            error_code="CONFIGURATION_ERROR",
         )
 
     user_id = parse_user_id(user_id_raw)
@@ -145,8 +148,8 @@ async def _resolve_caller(
             if not user.image_generation_enabled:
                 return UnifiedToolOutput.failure(
                     message=(
-                        "Image generation is not enabled in your settings. "
-                        "Enable it in Settings > Features > Image Generation."
+                        "Image generation is not enabled in your settings. Enable it in "
+                        "Settings > Preferences > Voice & Media > Image generation."
                     ),
                     error_code="TOOL_ERROR",
                 )

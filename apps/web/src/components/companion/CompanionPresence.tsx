@@ -24,13 +24,12 @@ import { MessageSquare, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AssistantAvatar } from '@/components/psyche/AssistantAvatar';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
-import { usePsycheStore } from '@/stores/psycheStore';
+import { liveAvatarPsyche, usePsycheStore } from '@/stores/psycheStore';
 import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
 import { useNotifications, type NotificationType } from '@/hooks/useNotifications';
 import { fetchActiveRun } from '@/lib/api/chat';
 import { getLanguageFromPath, buildLocalizedPath } from '@/utils/i18n-path-utils';
 import { fallbackLng } from '@/i18n/settings';
-import type { PsycheStateSummary } from '@/types/psyche';
 
 /** Notification types that count toward the companion's unread badge. */
 const COUNTED_TYPES: ReadonlySet<NotificationType> = new Set<NotificationType>([
@@ -88,20 +87,7 @@ interface CompanionPresenceProps {
 
 /** Only the portrait consumes Psyche; the compact chat action has no face to update. */
 function CompanionAvatar({ working, ringing }: { working: boolean; ringing: boolean }) {
-  const psyche = usePsycheStore();
-  const psycheState: PsycheStateSummary | null =
-    psyche.enabled && psyche.displayAvatar
-      ? {
-          mood_label: psyche.moodLabel,
-          mood_color: psyche.moodColor,
-          mood_pleasure: psyche.moodPleasure,
-          mood_arousal: psyche.moodArousal,
-          mood_dominance: psyche.moodDominance,
-          active_emotion: psyche.activeEmotion,
-          emotion_intensity: psyche.emotionIntensity,
-          relationship_stage: psyche.relationshipStage,
-        }
-      : null;
+  const psycheState = liveAvatarPsyche(usePsycheStore());
   return (
     <AssistantAvatar psycheState={psycheState} animateEmoji animate={working} ring={ringing} />
   );

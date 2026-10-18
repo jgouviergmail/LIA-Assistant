@@ -207,3 +207,19 @@ level → that level, `True` → no stated depth).
   The discovered layer moves the network to the moments the URL may change.
 - **A ladder of `none` only for every Ollama tag**: honest but blind — it would have
   switched thinking OFF on a thinking model whose operator configured a depth.
+
+## Amendment 2026-10-18 — an unreachable address is retried, not on every reload
+
+« A server down at boot is retried » made EVERY config reload retry it: an empty
+discovered layer is « nothing known yet » for as long as the server stays down, so
+each admin save of ANY slot, and each cross-worker invalidation it publishes, waited
+the discovery timeout — the cost this ADR set out to avoid. Production 2026-10-17, an
+Ollama address configured for a machine that was off and used by no slot: 16 timeouts
+in 17 minutes, each save 5.0 s longer, its invalidation published 5 s late, then 5 s
+again on each other worker. The guard now asks an address that answered nothing again
+at most once per `OLLAMA_DISCOVERY_RETRY_SECONDS` (`0` keeps the former behaviour); a
+changed address is still discovered at once, and the admin's listing still asks the
+server on every open. Simulated against a server that hangs then answers on ONE
+address: the saves no longer wait, and the layer heals on the first reload after the
+window. Marking the address as attempted whatever the outcome was rejected: it lost
+the healing altogether.

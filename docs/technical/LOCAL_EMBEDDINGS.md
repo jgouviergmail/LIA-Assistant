@@ -26,7 +26,7 @@
 | Languages | 100+ |
 | Cost | $0.15/1M tokens |
 | Task Types | `RETRIEVAL_QUERY` (search), `RETRIEVAL_DOCUMENT` (storage) |
-| API Key | `GOOGLE_GEMINI_API_KEY` (dedicated, restricted to Generative Language API) |
+| API Key | The Google Gemini key of **LLM Configuration** (Admin UI), else `GOOGLE_GEMINI_API_KEY`, else `GOOGLE_API_KEY` — one resolver, `resolve_gemini_embedding_key`, read at every call (a key added in the Admin UI needs no restart, except for the tool ranking and the tool-context store's index, both built at boot) |
 
 ---
 

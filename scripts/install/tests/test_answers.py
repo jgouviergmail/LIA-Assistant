@@ -7,7 +7,11 @@
   error, never a prompt;
 - the POSIX answers file must be private (0o600 — group/world access is
   rejected);
-- every exposure branch yields a coherent PublicAnswers.
+- every exposure branch yields a coherent PublicAnswers;
+- the optional Gemini key is asked through getpass and may be left empty —
+  interactively or by leaving it out of the answers file;
+- a reconfiguration offers the answers in force as defaults and never asks
+  the administrator's identity or a secret.
 """
 
 from __future__ import annotations
@@ -20,12 +24,18 @@ import pytest
 
 from scripts.install.answers import (
     InstallInputError,
+    ask_yes_no,
     collect_answers,
+    collect_reconfiguration,
     is_valid_email,
     load_answers_file,
 )
 from scripts.install.model import Exposure, InstallMode, IOAdapter
-from scripts.install.questions import build_questions
+from scripts.install.questions import (
+    build_env_changes_confirmation,
+    build_questions,
+    build_reconfiguration_questions,
+)
 
 ADMIN_PASSWORD = "Xx12!!abcdA9$Z"
 BASE_PUBLIC = {
@@ -46,6 +56,8 @@ SECRETS = {
     "admin_password": ADMIN_PASSWORD,
     "provider_key_deepseek": "dk-secret",
     "provider_key_openai": "sk-secret",
+    # The optional key, left empty at the prompt: skipped.
+    "provider_key_gemini": "",
 }
 
 
@@ -134,8 +146,70 @@ def test_interactive_lan_flow_routes_secrets_through_getpass_only() -> None:
         "admin_password",
         "provider_key_deepseek",
         "provider_key_openai",
+        "provider_key_gemini",
     }
     assert not set(io.secret_served) & set(io.public_served)
+
+
+def test_a_given_gemini_key_joins_the_provider_keys() -> None:
+    io = _ScriptedIO(BASE_PUBLIC, {**SECRETS, "provider_key_gemini": "gm-secret"})
+    _public, secrets = _collect(io)
+    assert secrets.provider_keys == {
+        "deepseek": "dk-secret",
+        "openai": "sk-secret",
+        "gemini": "gm-secret",
+    }
+
+
+def test_an_answers_file_may_leave_the_optional_key_out(tmp_path: Path) -> None:
+    without_gemini = {k: v for k, v in {**BASE_PUBLIC, **SECRETS}.items() if k != "provider_key_gemini"}
+    answers = _write_answers(tmp_path / "answers.env", without_gemini)
+    io = _ScriptedIO({}, {})
+    _public, secrets = _collect(io, non_interactive=True, answers_path=answers)
+    assert set(secrets.provider_keys) == {"deepseek", "openai"}
+
+
+def test_a_reconfiguration_keeps_what_runs_when_every_answer_is_enter() -> None:
+    io = _ScriptedIO(BASE_PUBLIC, SECRETS)
+    current, _secrets = _collect(io)
+    enter_everywhere = _ScriptedIO({key: "" for key in BASE_PUBLIC}, {})
+    candidate = collect_reconfiguration(
+        build_reconfiguration_questions(current), io=enter_everywhere.adapter(), current=current
+    )
+    assert candidate == current
+    # Neither the administrator's identity nor any secret is asked again.
+    assert enter_everywhere.secret_served == []
+    assert not {"admin_email", "admin_name"} & set(enter_everywhere.public_served)
+
+
+def test_a_reconfiguration_to_caddy_asks_what_the_new_exposure_needs() -> None:
+    io = _ScriptedIO(BASE_PUBLIC, SECRETS)
+    current, _secrets = _collect(io)
+    answers = {key: "" for key in BASE_PUBLIC}
+    answers.update(
+        exposure="caddy",
+        web_domain="lia.example.org",
+        api_domain="api.example.org",
+        caddy_email="ops@example.org",
+        observability="yes",
+    )
+    scripted = _ScriptedIO(answers, {})
+    candidate = collect_reconfiguration(
+        build_reconfiguration_questions(current), io=scripted.adapter(), current=current
+    )
+    assert candidate.exposure is Exposure.CADDY
+    assert candidate.server_host is None
+    assert (candidate.web_domain, candidate.api_domain) == ("lia.example.org", "api.example.org")
+    assert candidate.observability is True
+    assert (candidate.admin_email, candidate.mode) == (current.admin_email, current.mode)
+
+
+@pytest.mark.parametrize(("typed", "applied"), [("", False), ("no", False), ("yes", True)])
+def test_the_env_changes_confirmation_applies_only_on_yes(typed: str, applied: bool) -> None:
+    io = _ScriptedIO({"apply_env_changes": typed}, {})
+    confirmed = ask_yes_no(build_env_changes_confirmation(), io=io.adapter(), language="fr")
+    assert confirmed is applied
+    assert io.public_served == ["apply_env_changes"] and io.secret_served == []
 
 
 def test_speaking_avatar_opt_in_is_public_and_has_no_provider_key_question() -> None:

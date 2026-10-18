@@ -170,11 +170,19 @@ groups:
           description: "{{ $value | humanize }}% of requests returned 5xx over 5 minutes (threshold: <<<ALERT_CORE_ERROR_RATE_PERCENT>>>%, evaluated only above <<<ALERT_CORE_ERROR_RATE_MIN_RPS>>> req/s to avoid low-traffic noise)."
           runbook: "docs/runbooks/alerts/HighErrorRate.md"
 
+      # A p95 needs observations: below 20 (= 1 / (1 - 0.95)) the quantile's
+      # rank 0.95*N exceeds N-1, so the « p95 » of a histogram IS its slowest
+      # observation — one slow turn, not a degradation. Measured on production
+      # 2026-10-18: one to two observations per 10 minutes, every one a morning
+      # routine above 90 s, fired this alert daily for a month. Routines are no
+      # longer observed (streaming/latency_sli); the floor makes the quantile
+      # mean what it says.
       - alert: SSELatencyP95High
         expr: |
           histogram_quantile(0.95,
             sum(rate(sse_time_to_first_token_seconds_bucket[10m])) by (le)
           ) > <<<ALERT_CORE_SSE_TTFT_P95_SECONDS>>>
+          and sum(increase(sse_time_to_first_token_seconds_count[10m])) >= <<<ALERT_CORE_SSE_TTFT_MIN_OBSERVATIONS>>>
         for: 10m
         labels:
           severity: warning
@@ -182,7 +190,7 @@ groups:
           tier: core
         annotations:
           summary: "SSE time-to-first-token p95 degraded"
-          description: "TTFT p95 is {{ $value | humanize }}s over 10 minutes (threshold: <<<ALERT_CORE_SSE_TTFT_P95_SECONDS>>>s — set above the measured production baseline; tighten it after the latency optimization work lands)."
+          description: "TTFT p95 is {{ $value | humanize }}s over 10 minutes (threshold: <<<ALERT_CORE_SSE_TTFT_P95_SECONDS>>>s — set above the measured production baseline; tighten it after the latency optimization work lands — evaluated only over at least <<<ALERT_CORE_SSE_TTFT_MIN_OBSERVATIONS>>> turns a person waited for, below which a p95 is the slowest single turn)."
           runbook: "docs/runbooks/alerts/AgentsTTFTViolation.md"
 
       # SEC-016. The global HTTP limiter fails OPEN when Redis is unreachable:

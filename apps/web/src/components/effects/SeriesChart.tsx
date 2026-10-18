@@ -52,6 +52,32 @@ const TOOLTIP_CONTENT_STYLE: React.CSSProperties = {
 };
 const TOOLTIP_ITEM_STYLE: React.CSSProperties = { color: 'var(--color-popover-foreground)' };
 
+/**
+ * The label the server gives the long tail it folds into one bar, in EVERY
+ * series (`agents/effects/statistics.py::OTHER`, pinned by a backend test).
+ * Translated here, once: the label tables a chart passes to `renderLabel`
+ * never knew it, and five charts pass none — « other » read in English in
+ * every language.
+ */
+export const FOLDED_SLICE_LABEL = 'other';
+
+/**
+ * The text a bar shows.
+ *
+ * @param label - The slice's label as the server sent it.
+ * @param otherLabel - The folded remainder's name in the reader's language.
+ * @param renderLabel - The chart's own vocabulary, when it has one.
+ * @returns The folded remainder's name, else the chart's rendering of the label.
+ */
+export function displayedSliceLabel(
+  label: string,
+  otherLabel: string,
+  renderLabel?: (label: string) => string
+): string {
+  if (label === FOLDED_SLICE_LABEL) return otherLabel;
+  return renderLabel ? renderLabel(label) : label;
+}
+
 /** Height per bar, so a two-bar chart is not as tall as a twelve-bar one. */
 const ROW_HEIGHT = 28;
 const MIN_HEIGHT = 120;
@@ -94,14 +120,15 @@ export function SeriesChart({
   tone = 'primary',
 }: SeriesChartProps) {
   const { t } = useTranslation();
+  const otherLabel = t('registers.charts.other');
   const rows = useMemo(
     () =>
       (series?.slices ?? []).map(slice => ({
-        label: renderLabel ? renderLabel(slice.label) : slice.label,
+        label: displayedSliceLabel(slice.label, otherLabel, renderLabel),
         count: slice.count,
         secondary: slice.secondary,
       })),
-    [series, renderLabel]
+    [series, renderLabel, otherLabel]
   );
 
   const height = Math.max(MIN_HEIGHT, rows.length * ROW_HEIGHT + 24);

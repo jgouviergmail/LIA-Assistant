@@ -27,8 +27,9 @@ from typing import Final
 
 #: The page every Gemini entry was read on.
 GEMINI_DEPRECATIONS_URL: Final[str] = "https://ai.google.dev/gemini-api/docs/deprecations"
-#: When it was read.
-GEMINI_DEPRECATIONS_READ_ON: Final[date] = date(2026, 9, 26)
+#: When it was read: every entry re-read on 2026-10-17 (« Last updated
+#: 2026-10-12 »), six of them since re-dated (migration ``754351d42c74``).
+GEMINI_DEPRECATIONS_READ_ON: Final[date] = date(2026, 10, 17)
 #: The page every Fish Audio entry was read on, and when (ADR-345).
 FISHAUDIO_DEPRECATIONS_URL: Final[str] = (
     "https://docs.fish.audio/developer-guide/models-pricing/deprecations"
@@ -52,22 +53,22 @@ VENDOR_SHUTDOWNS: Final[dict[tuple[str, str], date | None]] = {
     ("gemini", "gemini-3.5-flash-lite"): None,
     ("gemini", "gemini-3.1-flash-lite"): date(2027, 5, 7),
     ("gemini", "gemini-3.1-flash-lite-preview"): date(2026, 5, 25),
-    ("gemini", "gemini-3.1-flash-tts-preview"): None,
-    ("gemini", "gemini-3.1-flash-live-preview"): None,
+    ("gemini", "gemini-3.1-flash-tts-preview"): date(2026, 11, 17),
+    ("gemini", "gemini-3.1-flash-live-preview"): date(2026, 11, 17),
     ("gemini", "gemini-3.1-pro-preview"): None,
     ("gemini", "gemini-3-flash-preview"): None,
     ("gemini", "gemini-3-pro-preview"): date(2026, 3, 9),
     ("gemini", "gemini-3-pro-image-preview"): date(2026, 6, 25),
     ("gemini", "gemini-2.5-pro"): None,
-    ("gemini", "gemini-2.5-pro-preview-tts"): None,
+    ("gemini", "gemini-2.5-pro-preview-tts"): date(2026, 11, 17),
     ("gemini", "gemini-2.5-flash"): None,
-    ("gemini", "gemini-2.5-flash-preview-tts"): None,
+    ("gemini", "gemini-2.5-flash-preview-tts"): date(2026, 11, 17),
     ("gemini", "gemini-2.5-flash-preview-09-2025"): date(2026, 2, 17),
-    ("gemini", "gemini-2.5-flash-image"): date(2026, 10, 2),
+    ("gemini", "gemini-2.5-flash-image"): date(2027, 3, 15),
     ("gemini", "gemini-2.5-flash-image-preview"): date(2026, 1, 15),
     ("gemini", "gemini-2.5-flash-lite"): None,
     ("gemini", "gemini-2.5-flash-lite-preview-09-2025"): date(2026, 3, 31),
-    ("gemini", "gemini-2.5-flash-native-audio-preview-12-2025"): None,
+    ("gemini", "gemini-2.5-flash-native-audio-preview-12-2025"): date(2026, 11, 17),
     ("gemini", "gemini-2.0-flash"): date(2026, 6, 1),
     ("gemini", "gemini-2.0-flash-001"): date(2026, 6, 1),
     ("gemini", "gemini-2.0-flash-lite"): date(2026, 6, 1),

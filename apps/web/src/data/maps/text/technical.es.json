@@ -123,9 +123,9 @@
     },
     "t.config": {
       "name": "Configuración e interruptores",
-      "role": "Ajustes compuestos por dominio, leídos del entorno; un interruptor por capacidad, leído en el momento del acto.",
+      "role": "Ajustes compuestos por dominio, leídos del entorno; un interruptor por capacidad, leído en el momento del acto y aplicado una sola vez al catálogo del turno, que leen los dos modos de ejecución.",
       "stack": ["Pydantic Settings", "Variables de entorno", "Interruptores de capacidad"],
-      "src": "140c6ec37c96"
+      "src": "3a0418ef388e"
     },
     "t.i18n": {
       "name": "Seis idiomas",
@@ -319,9 +319,9 @@
     },
     "t.selfdiag": {
       "name": "Autodiagnóstico",
-      "role": "LIA lee su propia telemetría, reúne las pruebas de un incidente en el momento en que ocurre y guarda memoria de él.",
+      "role": "LIA lee su propia telemetría, reúne las pruebas de un incidente en el momento en que ocurre y guarda memoria de él; un incidente cuya resolución se perdió se concilia con Alertmanager y se cierra.",
       "stack": ["Lectura de Prometheus / Loki / Alertmanager", "Pruebas por receta"],
-      "src": "7cf9e87a4874"
+      "src": "90c359712d84"
     },
     "t.radio": {
       "name": "Radio: redacción y antena",

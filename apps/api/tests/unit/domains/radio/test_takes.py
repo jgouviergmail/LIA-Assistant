@@ -73,3 +73,16 @@ def test_a_line_with_nothing_to_say_is_never_part_of_a_take() -> None:
     lines = [said("a"), said("b", "[serious] …"), said("a"), said("b")]
 
     assert plan_takes(lines, max_bytes=1500) == [(0,), (1,), (2, 3)]
+
+
+def test_a_take_never_carries_more_voices_than_the_engine_takes() -> None:
+    """Production 2026-10-17: a debate take of four voices was refused whole (400)."""
+    lines = [said(voice) for voice in ("anchor", "a", "b", "c", "a", "b", "anchor")]
+
+    assert plan_takes(lines, max_bytes=1500, max_voices=3) == [(0, 1, 2), (3, 4, 5), (6,)]
+
+
+def test_an_engine_declaring_no_voice_limit_keeps_one_take() -> None:
+    lines = [said(voice) for voice in ("anchor", "a", "b", "c", "a")]
+
+    assert plan_takes(lines, max_bytes=1500, max_voices=None) == [(0, 1, 2, 3, 4)]

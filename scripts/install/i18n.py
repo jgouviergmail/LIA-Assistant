@@ -76,6 +76,18 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "API key for {provider} (required by the seeded core; input hidden)",
         "fr": "Clé API pour {provider} (requise par le cœur seedé ; saisie masquée)",
     },
+    "question.optional_provider_key.gemini": {
+        "en": "Google Gemini API key (optional: memory recall, search in documents, journals and interests, and image analysis run on it; leave empty to skip and add it later in the Admin UI; input hidden)",
+        "fr": "Clé API Google Gemini (facultative : le rappel des souvenirs, la recherche dans les documents, les journaux et les centres d'intérêt, et l'analyse d'images s'en servent ; laissez vide pour passer et l'ajouter plus tard dans l'interface d'administration ; saisie masquée)",
+    },
+    "info.env_changes": {
+        "en": "These .env values, each decided by an answer, would change from the file in force (a value edited by hand would be replaced):",
+        "fr": "Ces valeurs du .env, chacune décidée par une réponse, changeraient par rapport au fichier en vigueur (une valeur modifiée à la main serait remplacée) :",
+    },
+    "question.apply_env_changes": {
+        "en": "Apply these changes? yes/no (no stops here; nothing is changed)",
+        "fr": "Appliquer ces changements ? yes/no (no s'arrête ici ; rien n'est modifié)",
+    },
     "error.invalid_value": {
         "en": "Invalid value for [{key}], please retry.",
         "fr": "Valeur invalide pour [{key}], veuillez réessayer.",

@@ -25,7 +25,7 @@ Before dialing anything, LIA shows you a confirmation card: **who** it will call
 LIA's voice agent makes the call from your number and works toward the objective. You can keep chatting with LIA — or close the app — in the meantime.
 
 **4. The summary arrives in the chat**
-A written summary is delivered asynchronously, with a suggested follow-up action when there is something to do next. Every call also appears in your call history (**Settings > Connectors > Telephony**).
+A written summary is delivered asynchronously, with a suggested follow-up action when there is something to do next. Your recent calls are also listed under **Settings › Preferences › Recent calls**, with their status, outcome, summary and cost.
 
 ## What do I need before starting?
 Phone calls use **your own accounts** with two external services — LIA adds no charge of its own:
@@ -120,7 +120,7 @@ LIA then creates its secured agent in your ElevenLabs workspace and the connecto
 
 **4.** The summary appears in the chat a few moments later — asynchronously, so you can chat in the meantime.
 
-You can also target a **contact by name** ("call Marie…"): LIA looks up the number in your contacts and asks you to disambiguate if several match. The call history lives in **Settings > Connectors > Telephony**.
+You can also target a **contact by name** ("call Marie…"): LIA looks up the number in your contacts and asks you to disambiguate if several match. Your recent calls are listed under **Settings › Preferences › Recent calls**.
 
 ## Is telephony private? Can LIA reveal my calendar or record the call?
 Privacy is enforced **by design**, not by instructions:

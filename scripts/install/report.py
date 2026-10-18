@@ -19,16 +19,36 @@ def _origin(public: PublicAnswers) -> str:
     return f"https://{public.web_domain}"
 
 
+INSTALLED_HEADING = "LIA installation complete."
+RECONFIGURED_HEADING = "LIA reconfiguration complete."
+
+
 def render_report(
     public: PublicAnswers,
     *,
     release_summary: str,
     backup_dir: Path,
-    optional_unkeyed: Mapping[str, str],
+    optional_unkeyed: Mapping[str, str] | None,
+    heading: str = INSTALLED_HEADING,
 ) -> str:
-    """Render the final non-secret installation report."""
+    """Render the final non-secret installation report.
+
+    Args:
+        public: The installation's public answers.
+        release_summary: How the images were obtained.
+        backup_dir: Where the database backups land.
+        optional_unkeyed: What the bootstrap reported degraded (capability →
+            provider); ``None`` when this run has no such report — a
+            reconfiguration touches no key, an unreadable bootstrap output
+            says nothing — and the report then points at the Admin UI rather
+            than claiming a list.
+        heading: The first line.
+
+    Returns:
+        The report text.
+    """
     lines = [
-        "LIA installation complete.",
+        heading,
         "",
         f"  Web UI:        {_origin(public)}",
         f"  Admin account: {public.admin_email}",
@@ -39,12 +59,18 @@ def render_report(
     ]
     if public.observability:
         lines.append("  Observability stack: enabled (profile 'observability')")
-    if optional_unkeyed:
+    if optional_unkeyed is None:
+        lines += [
+            "",
+            "Optional capabilities: the Admin UI (LLM Configuration) shows",
+            "which provider keys this instance holds.",
+        ]
+    elif optional_unkeyed:
         lines.append("")
         lines.append("Optional capabilities without a configured key (degraded):")
         lines.extend(
-            f"  - {llm_type} ({provider}) — add the key later in the Admin UI"
-            for llm_type, provider in sorted(optional_unkeyed.items())
+            f"  - {capability} ({provider}) — add the key later in the Admin UI"
+            for capability, provider in sorted(optional_unkeyed.items())
         )
     if public.mode is InstallMode.PREBUILT:
         lines += [

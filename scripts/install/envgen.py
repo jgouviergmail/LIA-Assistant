@@ -14,6 +14,7 @@ import secrets
 import stat
 import time
 from collections.abc import Collection, Mapping
+from dataclasses import dataclass
 from pathlib import Path
 
 from scripts.install.model import Exposure, PublicAnswers
@@ -25,6 +26,39 @@ GENERATED_SECRET_KEYS: tuple[str, ...] = (
     "POSTGRES_PASSWORD",
     "REDIS_PASSWORD",
 )
+
+#: The ``.env`` keys an answer decides — the only ones a reconfiguration
+#: rewrites. Every other installer value is written where the file lacks it,
+#: so a value tuned in place survives. Held complete by a test that varies
+#: every answer and compares the derivations.
+ANSWER_DERIVED_KEYS: frozenset[str] = frozenset(
+    {
+        "SESSION_COOKIE_SECURE",
+        "APP_URL_SERVER",
+        "FRONTEND_URL",
+        "API_URL",
+        "CORS_ORIGINS",
+        "DEFAULT_LANGUAGE",
+        "DIAGNOSTICS_ENABLED",
+        "LIVE_ENABLED",
+        "RADIO_ENABLED",
+        "AVATAR_ENABLED",
+        "DIAGNOSTICS_WEBHOOK_SECRET",
+        "ALERTMANAGER_LIA_WEBHOOK_URL",
+    }
+)
+
+#: Answer-derived values the console never prints: a confirmation names them.
+SECRET_ANSWER_DERIVED_KEYS: frozenset[str] = frozenset({"DIAGNOSTICS_WEBHOOK_SECRET"})
+
+#: The host's Docker socket, whose group the sandbox overlay hands the API
+#: (``group_add: ${DOCKER_GID:-...}``).
+DOCKER_SOCKET = Path("/var/run/docker.sock")
+DOCKER_GID_KEY = "DOCKER_GID"
+
+#: Backups of one file within one second take a numbered suffix; past this
+#: many something is wrong with the directory, not with the clock.
+_BACKUP_NAME_ATTEMPTS = 100
 
 
 class EnvGenError(ValueError):
@@ -43,8 +77,12 @@ def generate_secrets() -> Mapping[str, str]:
 
 
 def _parse_env(path: Path) -> dict[str, str]:
+    return _parse_env_text(path.read_text(encoding="utf-8"))
+
+
+def _parse_env_text(text: str) -> dict[str, str]:
     values: dict[str, str] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in text.splitlines():
         stripped = line.strip()
         if not stripped or stripped.startswith("#") or "=" not in stripped:
             continue
@@ -181,31 +219,204 @@ def render_env(base: str, values: Mapping[str, str]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_reconfigured_env(current_env: str, environment: Mapping[str, str]) -> str:
+    """The ``.env`` a reconfiguration installs: the CURRENT file, updated.
+
+    Only the values an answer decides (:data:`ANSWER_DERIVED_KEYS`) are
+    rewritten; every other installer value is written only where the file
+    lacks it. Starting from the installed file keeps every line the operator
+    added, and writing the defaults only where missing keeps every value they
+    tuned in place — a log level, a provider's concurrency the guides tell
+    them to lower. A diagnostics webhook secret already in force is kept
+    rather than rotated under the containers that read it.
+
+    Args:
+        current_env: The installed ``.env`` content.
+        environment: :func:`derive_environment` for the new answers, with the
+            generated secrets in force.
+
+    Returns:
+        The candidate content.
+    """
+    in_force = _parse_env_text(current_env)
+    values = {
+        key: value
+        for key, value in environment.items()
+        if key in ANSWER_DERIVED_KEYS or key not in in_force
+    }
+    secret_in_force = in_force.get("DIAGNOSTICS_WEBHOOK_SECRET", "")
+    if values.get("DIAGNOSTICS_WEBHOOK_SECRET") and secret_in_force:
+        values["DIAGNOSTICS_WEBHOOK_SECRET"] = secret_in_force
+    return render_env(current_env, values)
+
+
+@dataclass(frozen=True)
+class EnvChange:
+    """One answer-derived ``.env`` value a reconfiguration would change.
+
+    Attributes:
+        key: The variable.
+        before: Its value in the file in force, ``None`` when absent.
+        after: Its value in the candidate, ``None`` when absent.
+    """
+
+    key: str
+    before: str | None
+    after: str | None
+
+
+def derived_changes(current_env: str, candidate_env: str) -> tuple[EnvChange, ...]:
+    """Every answer-derived value the candidate changes against the file in force.
+
+    The questions default to the RECORDED answers while these values are
+    rewritten from them: compared with the recorded answers, a value edited
+    by hand (a second origin in ``CORS_ORIGINS``) would be replaced by a run
+    that changed nothing — so the comparison is with the file in force.
+
+    Args:
+        current_env: The installed ``.env`` content.
+        candidate_env: The candidate ``.env`` content.
+
+    Returns:
+        The changes, sorted by key; empty when no such value moves.
+    """
+    before = _parse_env_text(current_env)
+    after = _parse_env_text(candidate_env)
+    return tuple(
+        EnvChange(key, before.get(key), after.get(key))
+        for key in sorted(ANSWER_DERIVED_KEYS)
+        if before.get(key) != after.get(key)
+    )
+
+
+def describe_change(change: EnvChange) -> str:
+    """``KEY: before -> after`` for the console, which is not redacted.
+
+    Args:
+        change: One derived change.
+
+    Returns:
+        The line; a secret's value is never shown, only whether there is one.
+    """
+    return (
+        f"{change.key}: {_shown(change.key, change.before)} -> "
+        f"{_shown(change.key, change.after)}"
+    )
+
+
+def _shown(key: str, value: str | None) -> str:
+    if value is None:
+        return "(absent)"
+    if not value:
+        return "(empty)"
+    return "(hidden)" if key in SECRET_ANSWER_DERIVED_KEYS else value
+
+
+def docker_socket_gid(socket: Path | None) -> str | None:
+    """The group owning the host's Docker socket, ``None`` where there is none.
+
+    Without ``DOCKER_GID`` the sandbox overlay falls back to a fixed group,
+    which is not every host's: on a host whose socket belongs to another one,
+    the API cannot use the socket.
+
+    Args:
+        socket: The socket's path; ``None`` reads nothing.
+
+    Returns:
+        The group id, as ``.env`` writes it.
+    """
+    if socket is None:
+        return None
+    try:
+        return str(os.stat(socket).st_gid)
+    except FileNotFoundError:
+        return None
+
+
+def with_docker_gid(env_text: str, gid: str | None) -> str:
+    """``env_text`` with ``DOCKER_GID`` set to ``gid`` where it holds none.
+
+    Not answer-derived: a value already there — the operator's — is kept, and
+    so is the one written here, by every later reconfiguration.
+
+    Args:
+        env_text: A ``.env`` content.
+        gid: The socket's group, or ``None`` when there is no socket to read.
+
+    Returns:
+        The content, unchanged when ``gid`` is ``None`` or a value is set.
+    """
+    if gid is None or _parse_env_text(env_text).get(DOCKER_GID_KEY):
+        return env_text
+    return render_env(env_text, {DOCKER_GID_KEY: gid})
+
+
+def _create_private(path: Path, data: bytes) -> None:
+    """Create ``path`` holding ``data``, private from its first byte.
+
+    ``write_bytes`` then ``chmod`` leaves the file, for a moment, at the
+    umask's mode — for a copy of the ``.env``, every generated secret readable
+    by the group and the world. ``O_EXCL`` refuses a path that already exists.
+    """
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
+    descriptor = os.open(path, flags, 0o600)
+    with os.fdopen(descriptor, "wb") as handle:
+        handle.write(data)
+        handle.flush()
+        os.fsync(handle.fileno())
+
+
+def private_backup(path: Path) -> Path:
+    """Copy ``path`` beside itself, private from its first byte.
+
+    Args:
+        path: The file about to be replaced.
+
+    Returns:
+        The copy, ``<name>.backup.<epoch seconds>`` (suffixed when that name is
+        taken, two writes within one second).
+
+    Raises:
+        EnvGenError: ``backup_name_exhausted`` when no free name is left.
+    """
+    stem = f"{path.name}.backup.{int(time.time())}"
+    data = path.read_bytes()
+    for attempt in range(_BACKUP_NAME_ATTEMPTS):
+        backup = path.with_name(stem if attempt == 0 else f"{stem}.{attempt}")
+        try:
+            _create_private(backup, data)
+        except FileExistsError:
+            continue
+        return backup
+    raise EnvGenError("backup_name_exhausted")
+
+
+def replace_private(path: Path, data: bytes) -> None:
+    """Atomically replace ``path`` with ``data``, private from its first byte.
+
+    A sibling temporary file, fsynced, then ``os.replace``: a reader never
+    sees half a file, and a failure — an interrupt included — leaves the
+    previous one untouched.
+    """
+    tmp = path.with_name(f"{path.name}.tmp-{os.getpid()}")
+    tmp.unlink(missing_ok=True)
+    try:
+        # Inside the guard: a write that fails halfway (a full disk) must not
+        # leave a partial copy of the file — a `.env` one holds every secret.
+        _create_private(tmp, data)
+        os.replace(tmp, path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
 def write_atomic_private(path: Path, content: str) -> Path | None:
     """Atomically write a private file; back up any existing one first.
 
     Returns:
         The backup path when a previous file existed, else None. A failed
-        write leaves the existing file untouched (sibling temp + fsync +
-        ``os.replace``).
+        write leaves the existing file untouched (:func:`replace_private`).
     """
-    backup: Path | None = None
-    if path.is_file():
-        backup = path.with_name(f"{path.name}.backup.{int(time.time())}")
-        backup.write_bytes(path.read_bytes())
-        if os.name == "posix":
-            backup.chmod(0o600)
-    tmp = path.with_name(f"{path.name}.tmp-{os.getpid()}")
-    with open(tmp, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(content)
-        handle.flush()
-        os.fsync(handle.fileno())
-    if os.name == "posix":
-        tmp.chmod(0o600)
-    try:
-        os.replace(tmp, path)
-    except OSError:
-        # Fail closed: remove the temp file, keep the original (and backup).
-        tmp.unlink(missing_ok=True)
-        raise
+    backup = private_backup(path) if path.is_file() else None
+    replace_private(path, content.encode("utf-8"))
     return backup

@@ -225,3 +225,21 @@ def test_locked_services_match_the_dependency_catalogue_and_base_file() -> None:
     lan = locked_services(_public(Exposure.LAN, mode=InstallMode.PREBUILT))
     assert "caddy" not in lan
     assert not any(s in lan for s in ("grafana", "prometheus"))
+
+
+def test_every_profile_names_exactly_the_services_it_starts() -> None:
+    # Turning a profile off stops these by name, since Compose never counts a
+    # disabled profile's containers as orphans: a name missing here keeps a
+    # container running, a name that is not a service fails the `rm`.
+    from scripts.install.compose import BASE_COMPOSE, PROFILE_SERVICES
+    from scripts.install.tests.conftest import REPO_ROOT
+
+    services = yaml.safe_load((REPO_ROOT / BASE_COMPOSE).read_text(encoding="utf-8"))["services"]
+    for profile, names in PROFILE_SERVICES.items():
+        declared = {
+            name for name, spec in services.items() if profile in (spec.get("profiles") or [])
+        }
+        assert set(names) == declared, profile
+    for observability in (False, True):
+        invocation = build_invocation(_public(observability=observability), root=Path("."))
+        assert set(invocation.profiles) <= set(PROFILE_SERVICES)

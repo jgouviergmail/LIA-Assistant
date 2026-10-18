@@ -522,6 +522,31 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
         "adr_latest",
         "README.md ADR section (latest ADR number)",
     ),
+    # The FAQ question count: the README and the six `why` guides quote the size
+    # of the in-app FAQ, a value its locale owns (v3.2.0: ten sections joined it,
+    # 375 questions became 491, and nothing would have caught the next change).
+    CountSurface(
+        "README.md",
+        re.compile(rf"whose {_COUNT} questions cover every feature"),
+        "faq_questions",
+        "README.md knowledge spaces sentence (FAQ question count)",
+    ),
+    *(
+        CountSurface(
+            f"{GUIDES_DIR}/why.{locale}.md",
+            re.compile(pattern),
+            "faq_questions",
+            f"why.{locale}.md transparency paragraph (FAQ question count)",
+        )
+        for locale, pattern in (
+            ("en", rf"— {_COUNT} questions, in six languages —"),
+            ("fr", rf"— {_COUNT} questions, en six langues —"),
+            ("de", rf"— {_COUNT} Fragen in sechs Sprachen —"),
+            ("es", rf"—{_COUNT} preguntas, en seis idiomas—"),
+            ("it", rf"— {_COUNT} domande, in sei lingue —"),
+            ("zh", rf"六种语言，共 {_COUNT} 个问题"),
+        )
+    ),
     # Anchored on the TABLE CELL (`| N ...`), not on the words alone: the same
     # guides legitimately say "23 Prometheus metrics files" (a file count) and
     # "11 Prometheus metrics in metrics_journals.py" (a per-module count). A
@@ -747,7 +772,7 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
     ),
     CountSurface(
         "apps/web/locales/de/translation.json",
-        re.compile(rf"Observability mit {_COUNT} Metriken, Grafana"),
+        re.compile(rf"Observability mit {_COUNT} Metriken, dedizierten Grafana"),
         "prometheus_metrics",
         "blog observability article excerpt (de)",
     ),
@@ -765,15 +790,9 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
     ),
     CountSurface(
         "apps/web/locales/zh/translation.json",
-        re.compile(rf"可观测性：{_COUNT} 指标、Grafana"),
+        re.compile(rf"可观测性：{_COUNT}个指标、专用Grafana"),
         "prometheus_metrics",
         "blog observability article excerpt (zh)",
-    ),
-    CountSurface(
-        "docs/knowledge/34_self_diagnostics.md",
-        re.compile(rf"{_COUNT} metrics are defined and"),
-        "prometheus_metrics",
-        "self-diagnostics knowledge mirror (coverage sentence)",
     ),
 )
 
@@ -1012,6 +1031,40 @@ def _prometheus_metric_count(root: Path) -> int:
     return len(module.metrics_defined_in_code(src_dir))
 
 
+#: The in-app FAQ's English locale: the parity reference the five other
+#: locales are held to (`scripts/i18n/validate_translations.py`).
+FAQ_LOCALE_PATH = "apps/web/locales/en/translation.json"
+
+
+def _faq_question_count(root: Path) -> int:
+    """How many questions the in-app FAQ holds, read from its English locale.
+
+    Args:
+        root: Repository root holding the locale.
+
+    Returns:
+        The number of ``faq.sections.<section>.questions.<key>`` entries.
+
+    Raises:
+        SurfaceError: If the locale is missing or unreadable, or holds no
+            question — an absent source is never counted as zero.
+    """
+    try:
+        data = json.loads(_read(root, FAQ_LOCALE_PATH))
+    except (OSError, ValueError) as error:
+        raise SurfaceError(f"Cannot read the FAQ from {FAQ_LOCALE_PATH}: {error}") from error
+    faq = data.get("faq", {}) if isinstance(data, dict) else {}
+    sections = faq.get("sections", {}) if isinstance(faq, dict) else {}
+    count = sum(
+        len(section["questions"])
+        for section in (sections.values() if isinstance(sections, dict) else ())
+        if isinstance(section, dict) and isinstance(section.get("questions"), dict)
+    )
+    if count == 0:
+        raise SurfaceError(f"No FAQ question found in {FAQ_LOCALE_PATH} — wrong root?")
+    return count
+
+
 def derived_counts(root: Path) -> dict[str, int]:
     """Recompute the counts quoted by public surfaces from their sources.
 
@@ -1021,8 +1074,9 @@ def derived_counts(root: Path) -> dict[str, int]:
     Returns:
         ``adr_files`` (ADR markdown files), ``adr_latest`` (highest ADR number
         — ADR-008 has no file, so it runs one above the count),
-        ``changelog_releases`` (``## [x]`` headings, excluding ``Unreleased``)
-        and ``prometheus_metrics`` (metrics defined in the backend).
+        ``changelog_releases`` (``## [x]`` headings, excluding ``Unreleased``),
+        ``prometheus_metrics`` (metrics defined in the backend) and
+        ``faq_questions`` (questions of the in-app FAQ).
 
     Raises:
         SurfaceError: If a source directory or file is missing or empty.
@@ -1048,6 +1102,7 @@ def derived_counts(root: Path) -> dict[str, int]:
         "adr_latest": max(numbers),
         "changelog_releases": len(releases),
         "prometheus_metrics": _prometheus_metric_count(root),
+        "faq_questions": _faq_question_count(root),
     }
 
 

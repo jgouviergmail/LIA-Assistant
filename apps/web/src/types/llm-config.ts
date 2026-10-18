@@ -146,6 +146,11 @@ export interface ModelCapabilities {
   model_id: string;
   kind: LLMModelKind;
   max_output_tokens: number;
+  /** The output cap a request is held to: the figure a curated catalogue row
+   * vouches for, from the same rule the backend enforces. Null when nobody
+   * vouched for one — `max_output_tokens` may then be an uncurated column
+   * default, and this rule adds no cap (a provider branch may keep its own). */
+  vouched_max_output_tokens: number | null;
   supports_tools: boolean;
   supports_structured_output: boolean;
   supports_vision: boolean;

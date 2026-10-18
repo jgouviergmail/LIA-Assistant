@@ -190,6 +190,14 @@ class ModelCapabilities(BaseModel):
     model_id: str
     kind: Literal["chat", "image", "audio", "realtime", "tts", "embedding", "decision"]
     max_output_tokens: int
+    vouched_max_output_tokens: int | None = Field(
+        default=None,
+        description=(
+            "The output cap the request is held to: the catalogue figure a curated "
+            "row vouches for (output_cap.py). None when nobody vouched for one — "
+            "this rule then adds no cap (a provider branch may keep its own ceiling)"
+        ),
+    )
     supports_tools: bool
     supports_structured_output: bool
     supports_vision: bool

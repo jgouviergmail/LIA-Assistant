@@ -74,6 +74,7 @@ from src.core.constants import (
     INTEREST_EXTRACTION_LLM_PROVIDER_CONFIG_DEFAULT,
     INTEREST_EXTRACTION_LLM_TEMPERATURE_DEFAULT,
     INTEREST_EXTRACTION_LLM_TOP_P_DEFAULT,
+    OLLAMA_DISCOVERY_RETRY_SECONDS,
     OLLAMA_DISCOVERY_TIMEOUT_SECONDS,
     PERPLEXITY_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
     PERPLEXITY_AGENT_LLM_MAX_TOKENS_DEFAULT,
@@ -1552,6 +1553,17 @@ class LLMSettings(BaseSettings):
             "HTTP timeout for Ollama discovery endpoints `/api/tags` and "
             "`/api/show` (seconds, default 5s). Bumped if the Ollama host "
             "runs many large models and the cold-cache `/api/show` is slow."
+        ),
+    )
+    ollama_discovery_retry_seconds: float = Field(
+        default=float(OLLAMA_DISCOVERY_RETRY_SECONDS),
+        ge=0.0,
+        le=86400.0,
+        description=(
+            "Least gap (seconds) before a config reload retries the discovery of "
+            "an Ollama address that answered nothing; 0 retries on every reload. "
+            "A changed address is always discovered at once, and the admin's "
+            "model listing always asks the server."
         ),
     )
 

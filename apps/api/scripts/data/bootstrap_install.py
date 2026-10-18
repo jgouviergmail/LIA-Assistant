@@ -9,16 +9,20 @@ JSON document from stdin:
 
 where the required ``provider_keys`` set is DERIVED at runtime by
 ``required_current_core_provider_ids()`` (post-seed effective core,
-B10-bis — currently openai + deepseek), and, in ONE database transaction: creates/promotes the admin (through the
-strict backend password policy) and upserts every required provider key
-(encrypted rows — B10-bis owner arbitration: the seeded LLM overrides are
-read-only here, the questionnaire collects one key per provider the
-POST-SEED effective core resolves to). After the commit, the cross-worker
+B10-bis — currently openai + deepseek), an OPTIONAL key of
+``OPTIONAL_INSTALL_PROVIDER_IDS`` (Gemini) may join it, and, in ONE database
+transaction: creates/promotes the admin (through the strict backend password
+policy) and upserts every provider key received (encrypted rows — B10-bis
+owner arbitration: the seeded LLM overrides are read-only here, the
+questionnaire collects one key per provider the POST-SEED effective core
+resolves to, plus the skippable ones). After the commit, the cross-worker
 LLM cache invalidation is published; its failure returns a stable non-secret
 code and an idempotent resume republishes without duplicating rows.
 
-Output is non-secret only: admin id/email, provider ids, unkeyed optional
-capabilities, status. No secret ever appears in argv, logs, or exceptions.
+Output is non-secret only: admin id/email, provider ids, the optional
+capabilities no STORED key covers (read in the same transaction, so a key an
+earlier run or the Admin UI stored counts), status. No secret ever appears in
+argv, logs, or exceptions.
 """
 
 from __future__ import annotations
@@ -28,7 +32,9 @@ import json
 import sys
 import uuid
 from dataclasses import dataclass
+from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -69,10 +75,6 @@ def parse_payload(raw: str) -> BootstrapPayload:
     Raises:
         BootstrapInputError: With a stable, value-free code.
     """
-    from src.domains.llm_config.install_contract import (
-        required_current_core_provider_ids,
-    )
-
     try:
         document = json.loads(raw)
     except json.JSONDecodeError as exc:
@@ -98,28 +100,62 @@ def parse_payload(raw: str) -> BootstrapPayload:
         TypeAdapter(EmailStr).validate_python(email)
     except ValidationError as exc:
         raise BootstrapInputError("invalid_admin_email") from exc
-    required = required_current_core_provider_ids()
-    missing = [p for p in required if not keys.get(p)]
-    if missing:
-        raise BootstrapInputError(f"missing_provider_keys:{','.join(missing)}")
-    extra = [p for p in keys if p not in required]
-    if extra:
-        raise BootstrapInputError(f"unexpected_provider_keys:{','.join(sorted(extra))}")
     return BootstrapPayload(
         admin_email=str(email),
         admin_password=str(password),
         admin_full_name=str(full_name),
-        provider_keys={p: str(keys[p]) for p in required},
+        provider_keys=_provider_keys_to_store(keys),
     )
+
+
+def _provider_keys_to_store(keys: dict[str, Any]) -> dict[str, str]:
+    """Every required provider key, and each optional one that was given.
+
+    Args:
+        keys: The payload's ``provider_keys`` section.
+
+    Returns:
+        Provider -> key.
+
+    Raises:
+        BootstrapInputError: ``missing_provider_keys:<ids>`` or
+            ``unexpected_provider_keys:<ids>`` (ids only, never a value).
+    """
+    from src.domains.llm_config.install_contract import (
+        OPTIONAL_INSTALL_PROVIDER_IDS,
+        required_current_core_provider_ids,
+    )
+
+    required = required_current_core_provider_ids()
+    missing = [p for p in required if not keys.get(p)]
+    if missing:
+        raise BootstrapInputError(f"missing_provider_keys:{','.join(missing)}")
+    extra = [p for p in keys if p not in required and p not in OPTIONAL_INSTALL_PROVIDER_IDS]
+    if extra:
+        raise BootstrapInputError(f"unexpected_provider_keys:{','.join(sorted(extra))}")
+    # An optional key left empty is no key: it is skipped, never stored blank.
+    given = [*required, *(p for p in OPTIONAL_INSTALL_PROVIDER_IDS if keys.get(p))]
+    return {p: str(keys[p]) for p in given}
+
+
+async def _stored_provider_ids(db: AsyncSession) -> frozenset[str]:
+    """The providers ``provider_api_keys`` holds a key for, read in the caller's transaction."""
+    from src.domains.llm_config.models import ProviderApiKey
+
+    return frozenset((await db.scalars(select(ProviderApiKey.provider))).all())
 
 
 async def bootstrap(payload: BootstrapPayload, db: AsyncSession) -> BootstrapResult:
-    """Admin + every provider key in ONE transaction; publish after commit."""
+    """Admin + every provider key in ONE transaction; publish after commit.
+
+    What stays degraded is computed from the keys the database HOLDS once this
+    run's are written, read inside the same transaction — never from this
+    run's payload alone: a resume that skips the optional key again keeps the
+    row an earlier run stored, and was told its capabilities were degraded.
+    """
     from scripts.data.create_admin import ensure_admin
     from src.domains.llm_config.cache import LLMConfigOverrideCache
-    from src.domains.llm_config.install_contract import (
-        OPTIONAL_SEEDED_CAPABILITIES,
-    )
+    from src.domains.llm_config.install_contract import unkeyed_capabilities
     from src.domains.llm_config.service import upsert_provider_key_uncommitted
 
     async with db.begin():
@@ -133,6 +169,7 @@ async def bootstrap(payload: BootstrapPayload, db: AsyncSession) -> BootstrapRes
             await upsert_provider_key_uncommitted(
                 db, provider=provider, key=key, updated_by=admin_id
             )
+        stored = await _stored_provider_ids(db)
 
     # Post-commit publication (hot-update contract). The installer's real
     # worker barrier is the forced API recreation; this keeps live workers
@@ -149,7 +186,7 @@ async def bootstrap(payload: BootstrapPayload, db: AsyncSession) -> BootstrapRes
         admin_id=admin_id,
         admin_email=payload.admin_email,
         providers=tuple(sorted(payload.provider_keys)),
-        optional_unkeyed=dict(OPTIONAL_SEEDED_CAPABILITIES),
+        optional_unkeyed=unkeyed_capabilities(stored),
         status=status,
     )
 

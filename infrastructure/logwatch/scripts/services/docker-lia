@@ -1,13 +1,17 @@
 #!/bin/bash
 ##########################################################################
 # Logwatch custom service: Docker LIA containers
-# Provides a clear, structured overview of all LIA production containers
+# The containers AS THEY ARE when the report runs (a snapshot). What happened
+# over the report window — restarts, recreations, memory peaks, alerts — is
+# read from Prometheus by the lia-supervision service: a container recreated
+# since a restart loop shows RestartCount 0 here (measured 2026-10-18).
 ##########################################################################
 
 DETAIL=${LOGWATCH_DETAIL_LEVEL:-10}
+SNAPSHOT_AT=$(date '+%Y-%m-%d %H:%M')
 
 echo ""
-echo "  === VUE D ENSEMBLE ==="
+echo "  === VUE D ENSEMBLE (etat au $SNAPSHOT_AT) ==="
 echo ""
 
 # Container status table
@@ -68,44 +72,16 @@ while IFS="|" read -r NAME STATUS STATE; do
     printf "  %-35s %-12s %s\n" "$NAME" "$INDICATOR" "$STATUS"
 done <<< "$CONTAINERS"
 
-# Container restarts
-echo ""
-echo "  === REDEMARRAGES ==="
-echo ""
-
-RESTARTS_FOUND=0
-while IFS="|" read -r NAME STATUS STATE; do
-    RESTART_COUNT=$(docker inspect --format="{{.RestartCount}}" "$NAME" 2>/dev/null)
-    if [ -n "$RESTART_COUNT" ] && [ "$RESTART_COUNT" -gt 0 ]; then
-        LAST_STARTED=$(docker inspect --format="{{.State.StartedAt}}" "$NAME" 2>/dev/null | cut -d. -f1 | tr 'T' ' ')
-        echo "  $NAME : $RESTART_COUNT redemarrage(s) - dernier: $LAST_STARTED"
-        RESTARTS_FOUND=1
-    fi
-done <<< "$CONTAINERS"
-
-if [ "$RESTARTS_FOUND" -eq 0 ]; then
-    echo "  Aucun redemarrage. Tout est stable."
-fi
-
-# Resource usage with alert thresholds
+# Resource usage: one sample, at report time. The window's peaks and the
+# memory alert's verdict are in the lia-supervision section.
 if [ "$DETAIL" -ge 5 ]; then
     echo ""
-    echo "  === RESSOURCES ==="
+    echo "  === RESSOURCES (instantane au $SNAPSHOT_AT) ==="
     echo ""
-    printf "  %-35s %-10s %-25s %s\n" "NOM" "CPU" "MEMOIRE" "ALERTE"
-    printf "  %-35s %-10s %-25s %s\n" "---" "---" "-------" "------"
+    printf "  %-35s %-10s %-25s %s\n" "NOM" "CPU" "MEMOIRE" "% LIMITE"
+    printf "  %-35s %-10s %-25s %s\n" "---" "---" "-------" "--------"
     docker stats --no-stream --format "{{.Name}}|{{.CPUPerc}}|{{.MemUsage}}|{{.MemPerc}}" $(docker ps --format "{{.Names}}" | grep lia- | sort) 2>/dev/null | sort | while IFS="|" read -r NAME CPU MEM MEMPCT; do
-        # Extract numeric percentage
-        PCT=$(echo "$MEMPCT" | tr -d '% ')
-        PCT_INT=${PCT%.*}
-        if [ "$PCT_INT" -ge 90 ] 2>/dev/null; then
-            ALERT="*** CRITIQUE ($MEMPCT) ***"
-        elif [ "$PCT_INT" -ge 80 ] 2>/dev/null; then
-            ALERT="** ATTENTION ($MEMPCT) **"
-        else
-            ALERT=""
-        fi
-        printf "  %-35s %-10s %-25s %s\n" "$NAME" "$CPU" "$MEM" "$ALERT"
+        printf "  %-35s %-10s %-25s %s\n" "$NAME" "$CPU" "$MEM" "$MEMPCT"
     done
 fi
 

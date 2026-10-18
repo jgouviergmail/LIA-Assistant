@@ -2,9 +2,9 @@
 
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
-**Version**: 2.3
-**Datum**: 2026-10-17
-**Anwendung**: LIA v3.1.1
+**Version**: 2.4
+**Datum**: 2026-10-18
+**Anwendung**: LIA v3.2.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Indikator | Wert |
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
-| Quellcodezeilen (ohne Tests) — 55 Fachdomänen | **960.000+** |
+| Quellcodezeilen (ohne Tests) — 55 Fachdomänen | **963.000+** |
 | Inventarisierte automatisierte Tests; passende Suiten für Commit und Release | **63.000+** |
 | Dokumentierte Architekturentscheidungen (ADR) | **347** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **282** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **283** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -78,7 +78,7 @@ Drei strukturelle Entscheidungen, unter den 347 dokumentierten:
 
 Ein System, das nach Instrumenten geflogen wird:
 
-- **Observability**: einunddreißig Dashboards — Anwendungsgesundheit, Service-Verpflichtungen, KI-Kosten, Agentenverhalten, Infrastruktur. Mehr als 600 Metriken; zentralisierte strukturierte Logs; durchgängiges verteiltes Tracing — Logs, Metriken und Traces behalten nur Fakten, nie die Worte oder Namen der Menschen. Rund vierzig schriftliche Betriebsprozeduren — Diagnose, Behebung, Wiederherstellung. Und der Assistent liest diese Telemetrie selbst: periodische Selbstprüfung, ein anhand eben dieser Prozeduren diagnostiziertes Vorfallgedächtnis, Antworten, die einen bekannten Ausfall umfahren. Und eine Diagnose zeigt die Beweise, aus denen sie geschrieben wurde. Und die Instrumente reichen bis zu den Prozessen: jeder API-Worker veröffentlicht, was er im Speicher hält, sodass sich eine Container-Summe Prozess für Prozess lesen lässt.
+- **Observability**: einunddreißig Dashboards — Anwendungsgesundheit, Service-Verpflichtungen, KI-Kosten, Agentenverhalten, Infrastruktur. Mehr als 600 Metriken; zentralisierte strukturierte Logs; durchgängiges verteiltes Tracing — Logs, Metriken und Traces behalten nur Fakten, nie die Worte oder Namen der Menschen. Rund vierzig schriftliche Betriebsprozeduren — Diagnose, Behebung, Wiederherstellung. Und der Assistent liest diese Telemetrie selbst: periodische Selbstprüfung, ein anhand eben dieser Prozeduren diagnostiziertes Vorfallgedächtnis, Antworten, die einen bekannten Ausfall umfahren. Und eine Diagnose zeigt die Beweise, aus denen sie geschrieben wurde. Und die Instrumente reichen bis zu den Prozessen: jeder API-Worker veröffentlicht, was er im Speicher hält, sodass sich eine Container-Summe Prozess für Prozess lesen lässt. Und ein Instrument misst, was es benennt: Der Latenzalarm zählt nur Durchläufe, auf die eine Person wartet, und der Tagesbericht des Hosts beginnt mit dem, was die Überwachung aufgezeichnet hat, statt mit einer Momentaufnahme.
 - **Lieferung**: containerisiertes Deployment, automatisierte Schemamigrationen, Images für zwei Hardwarearchitekturen (amd64/arm64) veröffentlicht.
 - **Lieferkette**: jeder Baustein des Servers per Digest fixiert und mit jeder Version inventarisiert; eine wöchentliche Prüfung liest die Sicherheitshinweise, die jede Abhängigkeit veröffentlicht — auch jene, die keine öffentliche Datenbank weitergibt —, und ein Update wartet eine Karenzzeit ab, ohne je zurückzugehen; jede Version wird vor ihrer Veröffentlichung auf leeren Maschinen installiert.
 - **Kosten**: bewusst frugale Infrastruktur — etwa 150 € Hardware, null Lizenzen, Open-Source-Bausteine, dimensioniert nach dem realen Bedarf.

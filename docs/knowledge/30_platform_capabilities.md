@@ -1,82 +1,50 @@
 # Platform capabilities
 
-## Why can't I use a feature that the documentation describes?
-Because not every LIA instance offers the same features, and that is
-deliberate rather than a bug.
+## Why is a feature I read about missing on my instance?
 
-An administrator can switch every capability on or off for the whole
-instance, from the settings panel, without redeploying and without editing a
-configuration file — every feature a person actually experiences, grouped into
-families so a wall of switches stays readable:
+Because every LIA instance chooses what it offers: this help describes the whole product, and your instance may run only part of it.
 
-- **media and voice** — dictation · speech synthesis · image generation ·
-  document generation · file uploads · telephony · meeting recording
-- **memory and knowledge** — document spaces · personal journals · learned
-  habits · kept answers · the psychological profile · long-term memory ·
-  interest tracking
-- **reach and tools** — web search · web browsing · skills · MCP servers ·
-  external channels · delegated sub-agents · the ephemeral Python sandbox ·
-  the sandbox's network access (a switch of its own: an operator may keep the
-  calculator without the exit) · sending a file or an answer by e-mail
-- **work and initiative** — the ticket board · proactive notifications ·
-  anticipated moments · open loops
-- **people** — connections between accounts · relationship debriefs
+**🧩 Three things decide, and the strictest wins:**
+• **The server's configuration** sets what exists at all. Several features are opt-in when the instance is installed (self-diagnostics, the Live voice mode, the personal radio, the speaking avatar, the script sandbox), and others need a service the operator sets up first, such as the Google or Microsoft connectors
+• **The administrator** can switch any feature off for everyone, at any time, within that configuration
+• **You**: some features wait for a step of your own — a connector, your own provider key, or an option to turn on in your settings
 
-If one of them is off on your instance, LIA says so by name, in your language,
-rather than failing without explanation.
+An administrator cannot turn on what the server's configuration forbids. If something you need is missing, ask your administrator.
 
-## Does switching a capability off delete what it already produced?
-No. **A switch removes the capability, never the record.**
+## How does an administrator switch a feature off?
 
-Switching long-term memory off stops LIA learning new facts about you; every
-memory it already learned stays readable, editable and deletable. The same rule
-holds for interests, relationship debriefs, file uploads, learned habits and
-proactive notifications: turning uploads off closes the door on sending new
-files, never on reading or removing the ones you already have; turning habits
-or proactive notifications off stops the learning and the sending, while the
-habits panel, the notification settings, the history and your feedback stay
-readable and editable.
+In **Settings › Administration › Platform capabilities**. Most features a person experiences have their own switch there, grouped into six families — media and voice, memory and knowledge, reach and tools, work and initiative, people, assistant.
 
-The switch is read at the moment of the call rather than at start-up, so an
-administrator's change takes effect without restarting anything.
+**🔌 A switch removes the capability, never the record:**
+Switching memory off stops new facts being learned; every memory already learned stays readable and deletable. The same rule holds for interests, debriefs, uploads, habits and proactive notifications: switched off, nothing new is learned or sent, while what was learned, the settings and the history stay readable and editable.
 
-## Will LIA still offer me something it cannot do?
-No, and this is the part that matters day to day. When a capability is off, its
-tools also disappear from the catalogue the planner is allowed to choose from.
+**⚡ Immediate effect:**
+The switch is read when the feature is used, not when the server starts: flipping it needs no restart.
 
-That means LIA does not propose an action it would then be refused. You never
-get the sequence where the assistant promises to do something and an error
-appears a few seconds later — the promise is simply never made.
+**📍 Each row says where it takes effect:**
+By removing its tools from the assistant, by refusing its requests, at an internal checkpoint, or several of these. The server's configuration stays above the switch: a feature it does not enable carries an **Unavailable** badge, and its switch cannot be turned on from the screen.
 
-## Who decides, the administrator or the deployment?
-Both, and the stricter one wins.
+## Does switching a feature off delete what it produced?
 
-- The **deployment** (the environment the instance runs in) sets the outer
-  bound: what is allowed at all.
-- The **administrator** chooses inside that bound, from the settings panel.
+No. **A switch removes the ability, never what it already produced.**
 
-The effective state is the logical AND. An administrator cannot re-enable
-something the deployment forbids — and the panel says so explicitly: such a
-capability carries an "Unavailable" badge and states the reason, instead of
-offering a switch that would change nothing.
+• **Long-term memory** off: LIA stops learning new facts; every memory already learned stays readable, editable and deletable
+• **File uploads** off: you cannot attach new files; the ones you have stay readable and deletable
+• **Habits** or **proactive notifications** off: the learning and the sending stop; the panels, the history and your feedback stay
+• **Document spaces** off: your documents stay stored, and are reachable again as soon as the feature is back on
 
-## Where do I see all this?
-**Settings → Admin → System → Platform capabilities**, if you are an
-administrator. Every row shows three things side by side: what the deployment
-allows, what the administrator chose, and what is actually enforced.
+**⚠️ Connectors work differently:** when an administrator disables a whole connector type in **Connector admin**, the active connections of that type are revoked and the people who had set one up are told by e-mail.
 
-Anyone can read the effective state without an account: every instance
-publishes it in its public configuration, one entry per capability of the
-registry. That is what the page presenting the public demonstrator reads —
-server-side, from the demonstrator's own configuration — to list what a
-visitor will find there and what they will not, before offering the link.
-The list follows the demonstrator's environment file; nobody keeps it by hand.
+## Will LIA still offer something that is switched off?
 
-## Does a capability being off affect my existing data?
-No. Switching a capability off stops new use of it; it does not delete what
-already exists. If document spaces are switched off, your documents stay where
-they are and become reachable again when the capability is switched back on.
+No. The tools of a switched-off feature leave what LIA may use before it plans or acts, in both execution modes, so it cannot promise an action it would then be refused. Four switches are the exception, closing only their pages and settings: **Workboard**, **LIA connections**, **MCP servers** and **Skills** — what they already hold stays usable in the chat.
 
-Connectors are a separate mechanism with its own admin section — disabling a
-connector family does revoke active connections, which is why the two are not
-managed in the same place.
+A switched-off feature also leaves your capability map, and its pages refuse a request that still reaches them — an old link, a page left open — rather than carrying it out halfway. What it already produced stays where it was.
+
+## Where can I see which features my instance offers?
+
+**🌌 Everyone:** the **Capabilities** shortcut on the home page opens a star chart of your account. A filled star is a feature you can use now, an outlined one is waiting for you to set it up, and its size shows what it holds. A feature your instance does not offer is simply absent rather than greyed out. Each star leads to where that feature is set up.
+
+**🛠️ Administrators:** **Settings › Administration › Platform capabilities** lists every switch by family, says where each one takes effect, and marks with an **Unavailable** badge what the server's configuration forbids.
+
+An instance also publishes, without sign-in, which of its features are switched on: a page presenting an instance can list what a visitor will find there without anyone keeping that list by hand.

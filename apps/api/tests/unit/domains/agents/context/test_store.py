@@ -11,6 +11,7 @@ Fully mocked: no PostgreSQL connection is ever opened.
 """
 
 import asyncio
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -21,6 +22,16 @@ from src.domains.agents.context.store import (
     reset_tool_context_store,
 )
 from tests._pool_fakes import fake_psycopg_pool
+
+
+@pytest.fixture(autouse=True)
+def gemini_key() -> Iterator[MagicMock]:
+    """A Gemini key is configured unless a test says otherwise."""
+    with patch(
+        "src.infrastructure.llm.gemini_embeddings.resolve_gemini_embedding_key",
+        return_value="test-key",
+    ) as resolver:
+        yield resolver
 
 
 def _configure_settings(mock_settings: MagicMock) -> None:
@@ -34,6 +45,32 @@ def _configure_settings(mock_settings: MagicMock) -> None:
 
 class TestGetToolContextStore:
     """Tests for get_tool_context_store() singleton factory."""
+
+    @pytest.mark.asyncio
+    async def test_without_a_gemini_key_the_store_runs_without_its_index(
+        self, gemini_key: MagicMock
+    ) -> None:
+        # The index is decided at boot (setup creates its table); built without
+        # a key, every indexed write would fail on the missing key instead.
+        reset_tool_context_store()
+        gemini_key.return_value = ""
+        with (
+            patch("src.domains.agents.context.store.AsyncConnectionPool") as mock_pool_cls,
+            patch("src.domains.agents.context.store.AsyncPostgresStore") as mock_store_class,
+            patch("src.domains.agents.context.store.settings") as mock_settings,
+            patch("src.domains.agents.context.store._get_embeddings_model") as mock_embeddings,
+        ):
+            _configure_settings(mock_settings)
+            mock_pool_cls.return_value = fake_psycopg_pool()
+            mock_store = AsyncMock()
+            mock_store.setup = AsyncMock()
+            mock_store_class.return_value = mock_store
+
+            await get_tool_context_store()
+
+            assert "index" not in mock_store_class.call_args.kwargs
+            mock_embeddings.assert_not_called()
+        reset_tool_context_store()
 
     @pytest.mark.asyncio
     async def test_get_tool_context_store_creates_instance(self):

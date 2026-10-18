@@ -22,27 +22,24 @@ Contact your administrator for pricing applicable to your organization.
 Your administrator may have configured usage limits for your account. You can check your current consumption vs limits on the **Dashboard** (period and global tiles). If you reach a limit, your access is temporarily restricted until the next billing period or until your administrator adjusts your quotas. See the [Usage Limits FAQ](19_usage_limits.md) for details.
 
 ## How can I view my usage?
-Track your usage from the **dashboard**:
 
-**📊 Available statistics:**
-• **Messages**: total count and current month
-• **Tokens**: detailed consumption (input/output/cache)
-• **Cost**: monthly cost estimate
+On your **home page**, below the briefing:
 
-**📅 Periods:**
-• Total cumulative since account creation
-• Current month (billing cycle)
-• Current period with start/end dates
+**✅ What LIA achieved**
+Since the start of your current monthly period: useful results confirmed, successful actions, successful routines and commitments closed. Every figure is an exact count — if the instance does not measure outcomes, the block says so rather than showing zeros.
 
-**🔄 Update:**
-Statistics are updated in real-time after each conversation.
+**📊 Consumption**
+One table, with a **Period** column (your current monthly period, its dates shown above) and a **Total** column (since your account was created): messages, tokens (input, output, cached), Google API calls and their cost, and the overall cost. If the administrator set limits on your account, gauges show where you stand.
 
-**💡 Access:**
-Statistics are displayed directly on the home page (dashboard).
+Both blocks fold; the consumption figures refresh on their own while the page is open, and **What LIA achieved** is read when the page opens.
+
+**💡 More detail:**
+• the **Registers** shortcut opens the transparency registers, whose **Overview** tab charts activity, models and tokens
+• **Settings › Features › Usage export** downloads your consumption as CSV
 
 ## Does LIA work on mobile?
 
-Yes, the interface adapts to phones. In a compatible browser, use the offered PWA installation option or add the site to your home screen. The installed interface remains connected to your LIA server; it does not run a model offline. Some cached content remains viewable without a connection, but conversation, synchronisation and actions need the network. Sharing and notifications depend on your browser, system and permissions.
+Yes, the interface adapts to phones. In a compatible browser, use the offered PWA installation option or add the site to your home screen. The installed interface remains connected to your LIA server; it does not run a model offline. Without a connection it shows an offline page; nothing personal is kept on the device for offline reading, and conversation, synchronisation and actions need the network. Sharing and notifications depend on your browser, system and permissions.
 
 ## Are there usage limits?
 Some technical limits exist to ensure performance:

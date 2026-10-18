@@ -28,6 +28,7 @@ from src.core.constants import OLLAMA_BASE_URL_ENV
 from src.core.reasoning_intent import requested_level
 from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.domains.llm_config.constants import LLM_PROVIDERS
+from src.infrastructure.llm.output_cap import cap_max_tokens
 from src.infrastructure.llm.providers.anthropic_kwargs import prepare_anthropic_kwargs
 from src.infrastructure.llm.providers.deepseek_limits import capped_max_tokens
 from src.infrastructure.llm.providers.ollama_urls import ollama_native_root
@@ -142,6 +143,41 @@ def _merge_extra_body(
         kwargs.pop("extra_body", None)
 
 
+def environment_key(env_var: str | None) -> str | None:
+    """The key the environment holds in ``env_var``; a template placeholder is no key.
+
+    Args:
+        env_var: The environment variable, or None when a provider has none.
+
+    Returns:
+        The key, or None when the variable is unset, empty or still the
+        ``CHANGE_ME…`` placeholder of the example files.
+    """
+    import os
+
+    value = os.environ.get(env_var, "") if env_var else ""
+    return value if value and not value.startswith("CHANGE_ME") else None
+
+
+def configured_api_key(provider: str) -> str | None:
+    """The key ``provider`` runs on: the administration's, else the environment's.
+
+    ONE reading of « LLM Configuration first, then ``_ENV_FALLBACK`` » for every
+    provider key — the chat factory (:func:`_require_api_key`) and the Gemini
+    embeddings (``gemini_embeddings.resolve_gemini_embedding_key``) both call it
+    at every use, so a key entered in the administration needs no restart.
+
+    Args:
+        provider: Provider identifier (e.g., "openai", "gemini").
+
+    Returns:
+        The decrypted key, or None when neither source holds one.
+    """
+    return LLMConfigOverrideCache.get_api_key(provider) or environment_key(
+        _ENV_FALLBACK.get(provider)
+    )
+
+
 def _require_api_key(provider: str) -> str:
     """Get API key: DB cache first, then .env fallback.
 
@@ -149,6 +185,8 @@ def _require_api_key(provider: str) -> str:
     1. DB cache (Admin UI, encrypted at rest)
     2. Environment variable fallback (.env)
     3. Graceful degradation: return placeholder to allow startup without keys
+
+    The first two are :func:`configured_api_key`.
 
     Args:
         provider: Provider identifier (e.g., "openai", "anthropic").
@@ -159,19 +197,9 @@ def _require_api_key(provider: str) -> str:
         LLM calls will fail at runtime with a clear error until keys are configured
         via Settings > Administration > LLM Configuration.
     """
-    import os
-
-    # 1. DB cache (Admin UI)
-    key = LLMConfigOverrideCache.get_api_key(provider)
+    key = configured_api_key(provider)
     if key:
         return key
-
-    # 2. .env fallback
-    env_var = _ENV_FALLBACK.get(provider)
-    if env_var:
-        env_key = os.environ.get(env_var, "")
-        if env_key and not env_key.startswith("CHANGE_ME"):
-            return env_key
 
     # 3. Graceful degradation: allow startup without API keys
     # Users can configure keys post-launch via Settings > Administration > LLM Configuration
@@ -263,6 +291,11 @@ class ProviderAdapter:
         # 'context_window' », whether or not an operator had set one (the
         # factory always passes the key, `None` included).
         context_window = kwargs.pop("context_window", None)
+
+        # The output budget the model accepts (output_cap.py), once for every
+        # branch below: a slot resolution arrives already capped, a caller that
+        # passed a budget of its own is held to the same rule here.
+        max_tokens = cap_max_tokens(provider, model, max_tokens, llm_type=llm_type)
 
         # Load advanced provider config (JSON string from LLMAgentConfig)
         provider_config_json = kwargs.pop("provider_config", None) or "{}"

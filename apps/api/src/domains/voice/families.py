@@ -69,6 +69,8 @@ class TtsFamily:
             synthesis; withheld, the line only loses its nuance.
         dialogue_models: The models, by name prefix, that voice several
             speakers in ONE request and say where each turn starts (ADR-345).
+        dialogue_max_voices: The most distinct voices one such request takes,
+            as measured; ``None`` when no limit is known.
     """
 
     provider: str
@@ -78,6 +80,7 @@ class TtsFamily:
     native_format: str
     model_controls: tuple[tuple[str, frozenset[TtsControl]], ...] = ()
     dialogue_models: tuple[str, ...] = ()
+    dialogue_max_voices: int | None = None
 
 
 TTS_FAMILIES: Final[dict[str, TtsFamily]] = {
@@ -129,6 +132,11 @@ TTS_FAMILIES: Final[dict[str, TtsFamily]] = {
         multilingual_voices=True,
         native_format="mp3",
         dialogue_models=("s2", "drama-3"),
+        # Measured 2026-10-17 on s2.1-pro-free: every 3-voice combination of five
+        # library voices accepted (10 of 10), every 4-voice one refused whole —
+        # 400 « Reference audio too long », before any audio (5 of 5). A radio
+        # debate (the anchor and three commentators) was one such take.
+        dialogue_max_voices=3,
     ),
 }
 
@@ -160,6 +168,23 @@ def voices_dialogue(provider: str, model: str) -> bool:
     """Whether ``model`` of ``provider`` voices several speakers in one timed request."""
     family = family_of(provider)
     return family is not None and model.startswith(family.dialogue_models)
+
+
+def dialogue_voice_limit(provider: str, model: str) -> int | None:
+    """The most distinct voices one dialogue request of ``model`` takes.
+
+    Args:
+        provider: LIA's provider id.
+        model: The model, as the provider names it.
+
+    Returns:
+        The family's measured limit when ``model`` voices a dialogue; ``None``
+        when it voices none, or no limit is known.
+    """
+    family = family_of(provider)
+    if family is None or not voices_dialogue(provider, model):
+        return None
+    return family.dialogue_max_voices
 
 
 def billed_text_units(provider: str, text: str) -> int | None:

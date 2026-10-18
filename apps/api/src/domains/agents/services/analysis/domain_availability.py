@@ -3,7 +3,8 @@
 Extracted from ``query_analyzer_service`` (frozen at its audited size
 by the file-size ratchet, so it may only shrink). The concern is cohesive on
 its own: it answers "what can this deployment route to right now", combining
-the static taxonomy with deployment flags and the per-request MCP
+the static taxonomy with deployment flags, the turn's catalogue snapshot (a
+domain it withholds entirely is not offered) and the per-request MCP
 context. It is also the single list the analyzer's output is validated against,
 which is what stops a disabled domain from re-entering through a hallucinated
 answer or through semantic expansion.
@@ -11,10 +12,14 @@ answer or through semantic expansion.
 
 from __future__ import annotations
 
-from typing import Final
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Final
 
 from src.core.application_tools import APPLICATION_DOMAINS, APPLICATION_TOOL_NAMES
 from src.core.config import settings
+
+if TYPE_CHECKING:
+    from src.domains.agents.registry.catalogue import ToolManifest
 
 # Domains whose availability is a DEPLOYMENT decision, mapped to the settings
 # flag that decides it. Each flag already gates that domain's tools and REST
@@ -50,6 +55,45 @@ def _withdraw_disabled_domains(domains: list[dict[str, str]]) -> list[dict[str, 
         domain for domain, flag in FLAG_GATED_DOMAINS.items() if not getattr(settings, flag, False)
     }
     return [d for d in domains if d["name"] not in disabled]
+
+
+def _withdraw_unoffered_domains(
+    domains: list[dict[str, str]], offered: Sequence[ToolManifest]
+) -> list[dict[str, str]]:
+    """Drop every domain the turn's catalogue withholds entirely.
+
+    Two kinds of domain lose ALL their tools to the turn catalogue
+    (``services/turn_catalogue``) while the deployment still allows them: an
+    application domain whose operations the account may not use, and a domain
+    whose agents a switched-off capability withholds (``CapabilitySpec.agents``,
+    e.g. journal, document, telephony). Left in the menu, the router picks a
+    domain the planner then plans over nothing. Every other domain stays: a
+    connector category's tools remain offered without a connector — « no provider
+    is connected » is the honest answer there.
+
+    Args:
+        domains: Candidate domains, already gated by the deployment flags.
+        offered: The turn's catalogue snapshot (``request_tool_manifests_ctx``).
+
+    Returns:
+        The domains the turn can serve, in their order.
+    """
+    from src.domains.agents.registry.domain_taxonomy import DOMAIN_REGISTRY
+    from src.domains.feature_switches.registry import PlatformCapability, disabled_agent_names
+
+    application_agents = {m.agent for m in offered if m.name in APPLICATION_TOOL_NAMES}
+    offered_agents = {m.agent for m in offered}
+    # Every agent a capability switch can withhold: the agents of all of them.
+    switchable_agents = disabled_agent_names(frozenset(PlatformCapability))
+
+    def served(name: str) -> bool:
+        if name in APPLICATION_DOMAINS:
+            return f"{name}_agent" in application_agents
+        config = DOMAIN_REGISTRY.get(name)
+        agents = set(config.agent_names) if config else set()
+        return not agents or not agents <= switchable_agents or bool(agents & offered_agents)
+
+    return [item for item in domains if served(item["name"])]
 
 
 def build_available_domains() -> list[dict[str, str]]:
@@ -90,13 +134,7 @@ def build_available_domains() -> list[dict[str, str]]:
     available_domains = _withdraw_disabled_domains(available_domains)
     offered = request_tool_manifests_ctx.get()
     if offered is not None:
-        available_agents = {m.agent for m in offered if m.name in APPLICATION_TOOL_NAMES}
-        available_domains = [
-            item
-            for item in available_domains
-            if item["name"] not in APPLICATION_DOMAINS
-            or f"{item['name']}_agent" in available_agents
-        ]
+        available_domains = _withdraw_unoffered_domains(available_domains, offered)
 
     # F2.2+F2.5: Unified MCP per-server domain injection (admin + user).
     mcp_domains = collect_all_mcp_domains(

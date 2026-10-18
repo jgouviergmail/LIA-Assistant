@@ -7,13 +7,16 @@ prosody offsets, OpenAI a speed, ElevenLabs a stability/style block, Gemini a
 natural-language direction — on the models measured to take one. :func:`delivery_kwargs`
 renders what the family declares the engine's MODEL accepts
 (:func:`src.domains.voice.families.controls_for`) and REPORTS what it could not
-render, so the pipeline counts it rather than pretending — the
-``kwargs_for`` shape of ADR-245 applied to speech.
+render, so the pipeline counts it (``radio_delivery_unrendered_total``) rather
+than pretending — the ``kwargs_for`` shape of ADR-245 applied to speech.
 
 An engine that performs cues written in the text (ADR-345) is also handed ONE
 delivery cue opening the line — the tone's when the engine performs it, else
-the energy's — spelled the engine's way
-(:func:`src.domains.voice.expressive_cues.cue_dialect`).
+the energy's — and, when the writer asked for one, the vocal reaction that
+opens it (ADR-324 decision 45), each spelled the engine's way
+(:func:`src.domains.voice.expressive_cues.cue_dialect`). Every reaction but
+``none`` is a sound of the cue vocabulary, or the module refuses to import
+(:func:`assert_reaction_cues_complete`).
 
 It never raises: an unknown provider renders nothing and reports everything.
 """
@@ -26,8 +29,8 @@ from typing import Any, Final
 
 from src.core.prompt_store import parse_prompt_sections
 from src.domains.radio.formats import RadioRole
-from src.domains.radio.script import Energy, Pace, RadioDelivery, Tone
-from src.domains.voice.expressive_cues import Cue, CueDialect, cue_dialect
+from src.domains.radio.script import Energy, Pace, RadioDelivery, Reaction, Tone
+from src.domains.voice.expressive_cues import EVENT_CUES, Cue, CueDialect, cue_dialect
 from src.domains.voice.families import TtsControl, controls_for
 
 #: The versioned lines file an engine directed in words is read from.
@@ -75,9 +78,15 @@ _TONE_CUES: Final[dict[Tone, Cue]] = {
     Tone.WARM: Cue.WARM,
     Tone.SERIOUS: Cue.SERIOUS,
     Tone.UPBEAT: Cue.CHEERFUL,
-    Tone.CONCERNED: Cue.EMPATHETIC,
+    Tone.CONCERNED: Cue.CONCERNED,
 }
 _ENERGY_CUES: Final[dict[Energy, Cue]] = {Energy.CALM: Cue.CALM, Energy.LIVELY: Cue.EXCITED}
+#: The sound each vocal reaction is, in the cue vocabulary (decision 45).
+REACTION_CUES: Final[dict[Reaction, Cue]] = {
+    Reaction.LAUGHS: Cue.LAUGHS,
+    Reaction.CHUCKLES: Cue.CHUCKLES,
+    Reaction.SIGHS: Cue.SIGHS,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,7 +115,8 @@ class RenderedDelivery:
     Attributes:
         kwargs: The per-call controls.
         unrendered: The requested dimensions nothing expressed.
-        cue: The cue opening the line, spelled for the engine (empty when none).
+        cue: The cues opening the line — its delivery's, then its reaction's —
+            spelled for the engine (empty when none).
     """
 
     kwargs: dict[str, Any]
@@ -123,6 +133,8 @@ def _requested(delivery: RadioDelivery) -> tuple[str, ...]:
         asked.append("pace")
     if delivery.tone is not Tone.NEUTRAL:
         asked.append("tone")
+    if delivery.reaction is not Reaction.NONE:
+        asked.append("reaction")
     return tuple(asked)
 
 
@@ -156,6 +168,40 @@ def _opening_cue(delivery: RadioDelivery, dialect: CueDialect) -> tuple[str, str
         if spelled is not None:
             return spelled, dimension
     return "", None
+
+
+def performed_reactions(dialect: CueDialect) -> tuple[Reaction, ...]:
+    """The reactions an engine performs in the text, in the vocabulary's order.
+
+    What the writer is offered (ADR-284: a prompt promises only what the voice
+    can do); an engine that performs none is offered none.
+    """
+    return tuple(
+        reaction for reaction, cue in REACTION_CUES.items() if dialect.render(cue) is not None
+    )
+
+
+def _reaction_cue(delivery: RadioDelivery, dialect: CueDialect) -> str | None:
+    """The reaction opening the line, spelled for the engine; ``None`` when none is."""
+    cue = REACTION_CUES.get(delivery.reaction)
+    return dialect.render(cue) if cue is not None else None
+
+
+def _opening_cues(delivery: RadioDelivery, dialect: CueDialect) -> tuple[str, set[str]]:
+    """The cues opening the line — its delivery's, then its reaction's — and what they render.
+
+    Returns:
+        The cues spelled for the engine (empty when none), and the dimensions
+        they express (``tone`` or ``energy``, and ``reaction``).
+    """
+    opening, cued = _opening_cue(delivery, dialect)
+    reaction = _reaction_cue(delivery, dialect)
+    rendered: set[str] = set()
+    if cued is not None:
+        rendered.add(cued)
+    if reaction is not None:
+        rendered.add("reaction")
+    return " ".join(part for part in (opening, reaction) if part), rendered
 
 
 def _style_prompt(role: RadioRole, delivery: RadioDelivery, phrases: StylePhrases) -> str:
@@ -229,19 +275,18 @@ def delivery_kwargs(
             delivery bends (never replaced, never mutated).
 
     Returns:
-        The per-call kwargs, the cue opening the line, and the requested
-        dimensions the engine cannot express.
+        The per-call kwargs, the cues opening the line (its delivery's, then its
+        reaction's), and the requested dimensions the engine cannot express.
     """
     asked = _requested(delivery)
     controls = controls_for(provider, model)
     kwargs: dict[str, Any] = {}
-    rendered: set[str] = set()
-    cue, cued = _opening_cue(delivery, cue_dialect(provider, model))
-    if cued is not None:
-        rendered.add(cued)
+    cue, rendered = _opening_cues(delivery, cue_dialect(provider, model))
     if TtsControl.STYLE_PROMPT in controls:
         kwargs["style"] = _style_prompt(role, delivery, phrases)
-        rendered.update(asked)
+        # The direction words the line's energy, pace and tone; a reaction is a
+        # sound, rendered by a cue or by nothing.
+        rendered.update(set(asked) - {"reaction"})
     if TtsControl.RATE in controls:
         kwargs["rate"] = _EDGE_RATE[delivery.pace]
         rendered.add("pace")
@@ -262,10 +307,45 @@ def delivery_kwargs(
     )
 
 
+def assert_reaction_cues_complete(table: Mapping[Reaction, Cue] | None = None) -> None:
+    """Refuse to import with a vocal reaction no cue voices (ADR-085).
+
+    :data:`REACTION_CUES` is read with ``.get``: a reaction it lacks would be
+    offered to no writer (:func:`performed_reactions`) and voiced by no engine
+    (:func:`_reaction_cue`) — in silence. ``none`` is the one reaction that is no
+    sound, and every cue must be one (a reaction opens the line as a sound).
+
+    Args:
+        table: The table to check. Defaults to the shipped one; a caller passes
+            its own only to prove the guard fires.
+
+    Raises:
+        RuntimeError: Naming the reactions without a cue, the keys that are no
+            reaction to voice, and the cues that are no sound.
+    """
+    cues = REACTION_CUES if table is None else table
+    voiced = set(Reaction) - {Reaction.NONE}
+    missing = sorted(reaction.value for reaction in voiced - set(cues))
+    unexpected = sorted(reaction.value for reaction in set(cues) - voiced)
+    not_sounds = sorted(cue.value for cue in cues.values() if cue not in EVENT_CUES)
+    if missing or unexpected or not_sounds:
+        raise RuntimeError(
+            f"Radio reaction cues incomplete: reactions without a cue={missing}, "
+            f"keys that are no reaction to voice={unexpected}, cues that are no sound={not_sounds}"
+        )
+
+
+# The boot carries this: every process that imports the delivery seam checks it.
+assert_reaction_cues_complete()
+
+
 __all__ = [
     "DELIVERY_LINES",
+    "REACTION_CUES",
     "RenderedDelivery",
     "StylePhrases",
+    "assert_reaction_cues_complete",
     "delivery_kwargs",
     "load_style_phrases",
+    "performed_reactions",
 ]

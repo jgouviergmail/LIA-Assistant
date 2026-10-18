@@ -68,3 +68,21 @@ Migrate all embedding operations from OpenAI `text-embedding-3-small` to Google 
 | Return to local E5 multilingual | ~1 GB RAM per worker, reason for original migration |
 | Cohere embed-multilingual-v3 | Additional vendor dependency, less integrated with existing Google stack |
 | Qwen3-Embedding-8B | Requires OpenRouter or self-hosting |
+
+## Amendment 2026-10-18 — the key is read where every provider key is read
+
+Five getters read `GOOGLE_GEMINI_API_KEY` (else `GOOGLE_API_KEY`) from the
+environment, once, when their singleton was built: a Gemini key entered in LLM
+Configuration — where the guided installer now stores the one it asks
+(ADR-215 amendment) — never reached memory recall, knowledge spaces, journals
+or interests, although GETTING_STARTED documented the Admin UI as the place to
+configure it. One resolver, `resolve_gemini_embedding_key`, reads the order
+every provider key follows (`providers/adapter.py`): the LLM Configuration key,
+then `GOOGLE_GEMINI_API_KEY`, then `GOOGLE_API_KEY`, a `CHANGE_ME…` placeholder
+reading as absent. `GeminiRetrievalEmbeddings(key_resolver=...)` resolves it at
+every call, BEFORE the tracked call — a missing key is a configuration state,
+not a provider failure rate the self-check would report — and rebuilds its
+client when the key changes: a key added in the Admin UI needs no restart,
+except for what is built once at boot — the tool ranking's vectors, and the
+tool-context store's semantic index, which a keyless boot still leaves out
+(built without a key, every indexed write would fail on it).

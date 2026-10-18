@@ -2,13 +2,14 @@
  * psycheStore — live psyche state transitions and selectors.
  *
  * Covers both feed paths (SSE done metadata + full server state), the
- * non-mutation guarantee on React Query cached data (BUG-4 regression) and
- * the reset/preference setters.
+ * non-mutation guarantee on React Query cached data (BUG-4 regression), the
+ * reset/preference setters and what an avatar shows (`liveAvatarPsyche`,
+ * `messageAvatarPsyche`).
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 
-import { usePsycheStore } from '@/stores/psycheStore';
+import { liveAvatarPsyche, messageAvatarPsyche, usePsycheStore } from '@/stores/psycheStore';
 import type { PsycheState, PsycheStateSummary } from '@/types/psyche';
 
 const SSE_SUMMARY: PsycheStateSummary = {
@@ -150,5 +151,72 @@ describe('psycheStore — setters and reset', () => {
     expect(s.fullState).toBeNull();
     expect(s.enabled).toBe(false);
     expect(s.lastUpdated).toBeNull();
+  });
+});
+
+describe('psycheStore — what an avatar shows', () => {
+  const SNAPSHOT: PsycheStateSummary = { ...SSE_SUMMARY, mood_label: 'melancholic' };
+
+  function liveMood(): void {
+    usePsycheStore.getState().updateFromSSE(SSE_SUMMARY);
+    usePsycheStore.getState().setEnabled(true);
+  }
+
+  it('shows no live mood while the psyche is off', () => {
+    usePsycheStore.getState().updateFromSSE(SSE_SUMMARY);
+
+    expect(liveAvatarPsyche(usePsycheStore.getState())).toBeNull();
+  });
+
+  it('shows the live mood once the psyche is on and the avatar displayed', () => {
+    liveMood();
+
+    expect(liveAvatarPsyche(usePsycheStore.getState())).toEqual(SSE_SUMMARY);
+  });
+
+  it('shows no live mood with the avatar hidden', () => {
+    liveMood();
+    usePsycheStore.getState().setDisplayAvatar(false);
+
+    expect(liveAvatarPsyche(usePsycheStore.getState())).toBeNull();
+  });
+
+  it('prefers the mood a message was stored with, which is not the live one', () => {
+    liveMood();
+
+    expect(messageAvatarPsyche(usePsycheStore.getState(), SNAPSHOT)).toEqual({
+      psycheState: SNAPSHOT,
+      live: false,
+    });
+  });
+
+  it('falls back to the live mood for a message stored without one', () => {
+    liveMood();
+
+    expect(messageAvatarPsyche(usePsycheStore.getState(), undefined)).toEqual({
+      psycheState: SSE_SUMMARY,
+      live: true,
+    });
+  });
+
+  it("hides a message's stored mood too once the avatar is hidden", () => {
+    liveMood();
+    usePsycheStore.getState().setDisplayAvatar(false);
+
+    expect(messageAvatarPsyche(usePsycheStore.getState(), SNAPSHOT)).toEqual({
+      psycheState: null,
+      live: false,
+    });
+  });
+
+  it('keeps a stored mood with the psyche off: the avatar switch is what hides it', () => {
+    expect(messageAvatarPsyche(usePsycheStore.getState(), SNAPSHOT)).toEqual({
+      psycheState: SNAPSHOT,
+      live: false,
+    });
+    expect(messageAvatarPsyche(usePsycheStore.getState(), undefined)).toEqual({
+      psycheState: null,
+      live: false,
+    });
   });
 });

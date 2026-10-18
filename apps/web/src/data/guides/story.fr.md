@@ -2,9 +2,9 @@
 
 > Retour d'expérience — un système complet, de la conception à la production.
 
-**Version** : 2.3
-**Date** : 2026-10-17
-**Application** : LIA v3.1.1
+**Version** : 2.4
+**Date** : 2026-10-18
+**Application** : LIA v3.2.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Indicateur | Valeur |
 | --- | --- |
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
-| Lignes de source (hors tests) — 55 domaines fonctionnels | **960 000+** |
+| Lignes de source (hors tests) — 55 domaines fonctionnels | **963 000+** |
 | Tests automatisés inventoriés ; suites adaptées au commit et à la livraison | **63 000+** |
 | Décisions d'architecture documentées (ADR) | **347** |
-| Versions livrées à rythme régulier | **282** |
+| Versions livrées à rythme régulier | **283** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 
@@ -78,7 +78,7 @@ Trois décisions structurantes, parmi les 347 documentées :
 
 Un système qu'on pilote aux instruments :
 
-- **Observabilité** : trente et un tableaux de bord — santé applicative, engagements de service, coûts d'IA, comportement des agents, infrastructure. Plus de 600 métriques ; journaux structurés centralisés ; traçage distribué de bout en bout — journaux, métriques et traces ne gardent que des faits, jamais les mots ni les noms des personnes. Une quarantaine de procédures d'exploitation écrites — diagnostic, remédiation, restauration. Et l'assistant lit lui-même cette télémétrie : auto-contrôle périodique, mémoire d'incidents diagnostiqués sur la base de ces procédures, réponses qui contournent une panne connue. Et un diagnostic montre les preuves dont il est issu. Et les instruments descendent jusqu'aux processus : chaque worker de l'API publie ce qu'il tient en mémoire, si bien qu'un total de conteneur se lit processus par processus.
+- **Observabilité** : trente et un tableaux de bord — santé applicative, engagements de service, coûts d'IA, comportement des agents, infrastructure. Plus de 600 métriques ; journaux structurés centralisés ; traçage distribué de bout en bout — journaux, métriques et traces ne gardent que des faits, jamais les mots ni les noms des personnes. Une quarantaine de procédures d'exploitation écrites — diagnostic, remédiation, restauration. Et l'assistant lit lui-même cette télémétrie : auto-contrôle périodique, mémoire d'incidents diagnostiqués sur la base de ces procédures, réponses qui contournent une panne connue. Et un diagnostic montre les preuves dont il est issu. Et les instruments descendent jusqu'aux processus : chaque worker de l'API publie ce qu'il tient en mémoire, si bien qu'un total de conteneur se lit processus par processus. Et un instrument mesure ce qu'il nomme : l'alerte de latence ne compte que les tours qu'une personne attend, et le rapport quotidien de l'hôte s'ouvre sur ce que la supervision a enregistré plutôt que sur un instantané.
 - **Livraison** : déploiement conteneurisé, migrations de schéma automatisées, images publiées pour deux architectures matérielles (amd64/arm64).
 - **Chaîne logicielle** : chaque brique du serveur épinglée par son empreinte et inventoriée à chaque version ; une veille hebdomadaire lit les alertes de sécurité que publie chacune des dépendances — y compris celles qu'aucune base publique ne relaie — et une mise à jour attend un délai de prudence, sans jamais revenir en arrière ; chaque version s'installe sur des machines vierges avant d'être publiée.
 - **Coûts** : infrastructure frugale par choix — environ 150 € de matériel, zéro licence, briques open-source dimensionnées au besoin réel.

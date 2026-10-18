@@ -160,7 +160,8 @@ def get_stt_service_for_mode(
                 code=f"{slot.provider}_api_key_missing",
                 message=(
                     f"The {slot.provider} API key is not configured. "
-                    "Add it under Settings → Tarification LLM Texte → Provider Keys."
+                    "Add it under Settings → Administration → LLM Configuration → "
+                    "Provider API Keys."
                 ),
             )
         logger.debug(

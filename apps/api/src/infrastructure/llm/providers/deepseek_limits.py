@@ -8,6 +8,7 @@ cohesive on its own -- three families, three ceilings, one authority.
 from __future__ import annotations
 
 from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
+from src.infrastructure.llm.output_cap import is_unproven_default
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -26,7 +27,10 @@ def deepseek_output_cap(model: str, *, thinking_family: bool, reasoner_v3: bool)
 
     For the thinking family the catalogue row is the authority (ADR-244) and
     the literal is only the fallback; the V3 names keep their documented
-    ceilings.
+    ceilings. The column default is no authority unless a registry states it
+    (``output_cap.is_unproven_default``): a row added through the catalogue
+    form keeps it, and read as a cap it cut every request on a model that
+    emits 384 K to 4 096 tokens.
 
     Args:
         model: The DeepSeek model name as configured.
@@ -39,7 +43,10 @@ def deepseek_output_cap(model: str, *, thinking_family: bool, reasoner_v3: bool)
     """
     if thinking_family:
         caps = ModelCapabilitiesCache.get(model)
-        return caps.max_output_tokens if caps is not None else _LARGE_MAX_OUTPUT
+        declared = caps.max_output_tokens if caps is not None else None
+        if declared is None or is_unproven_default("deepseek", model, declared):
+            return _LARGE_MAX_OUTPUT
+        return declared
     return _LARGE_MAX_OUTPUT if reasoner_v3 else _V3_CHAT_MAX_OUTPUT
 
 

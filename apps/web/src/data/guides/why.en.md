@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 6.3
-**Date**: 2026-10-17
-**Application**: LIA v3.1.1
+**Version**: 6.4
+**Date**: 2026-10-18
+**Application**: LIA v3.2.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -45,7 +45,7 @@ Self-hosting has a bad reputation. LIA doesn't pretend to eliminate every techni
 
 Once this installation phase is complete, **day-to-day management is handled entirely through an intuitive web interface**. No more terminal, no more configuration files.
 
-That first phase is itself guided: `./install.sh` at the repository root asks a short questionnaire in your language — how you want to reach the instance, which provider keys you hold — then builds the images from the source you cloned, applies the reference data in a single transaction, creates your administrator account without ever putting a secret on the command line, and finally verifies that the installation genuinely works rather than merely answering. If a step fails, resuming picks up exactly where it stopped.
+That first phase is itself guided: `./install.sh` at the repository root asks a short questionnaire in your language — how you want to reach the instance, which provider keys you hold — then builds the images from the source you cloned, applies the reference data in a single transaction, creates your administrator account without ever putting a secret on the command line, and finally verifies that the installation genuinely works rather than merely answering. If a step fails, resuming picks up exactly where it stopped. Changing a running installation later — putting it behind Caddy, switching an option off — does not mean starting over: `./install.sh --reconfigure` asks the routing and option questions again — never a key or a password — showing your current answers, and puts the previous installation back if the new one does not start. The Google Gemini key is optional, and the final report names what waits for it.
 
 ### 2.2. What each user can configure
 
@@ -88,11 +88,11 @@ The administrator accesses a third tab dedicated to instance management:
 - **Broadcast messages**: send important messages to all users or a selection, with optional expiration date
 - **Global consumption export**: export all-users consumption in CSV
 - **Instance daily budget**: bound in euros what the WHOLE instance may spend in a day — not only what each account consumes. The panel shows the day's spend, the ceiling actually applied and what is left. Once the budget is exhausted, users learn that the deployment is paused and are given the exact reset time, not a misleading message about their personal quota
-- **Platform capabilities**: turn every capability on or off instantly, with no redeploy — every feature a person actually experiences, from dictation and images to the ticket board, journals, long-term memory and proactive notifications — grouped into six families so a panel of switches stays readable. A switch removes the CAPABILITY, never the record: turning memory off stops new facts being learned while everything already learned stays readable and deletable. A disabled capability also disappears from the catalogue offered to the planner, so LIA stops proposing what the routes would refuse; each row shows what the deployment allows, what you chose, what is actually enforced, and where the switch bites
+- **Platform capabilities**: turn every capability on or off instantly, with no redeploy — every feature a person actually experiences, from dictation and images to the ticket board, journals, long-term memory and proactive notifications — grouped into six families so a panel of switches stays readable. A switch removes the CAPABILITY, never the record: turning memory off stops new facts being learned while everything already learned stays readable and deletable. The tools of a disabled capability also leave both execution modes — the planner and the ReAct loop alike, a delegated sub-agent and a skill's ready-made plan included —, so LIA stops proposing what the routes would refuse (four switches — Workboard, LIA connections, MCP servers, Skills — close only their pages and settings); each row shows what the deployment allows, what you chose, what is actually enforced, and where the switch bites
 
 **AI and connectors:**
 
-- **LLM configuration**: configure provider API keys (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, Ollama), assign a model to each role in the pipeline, manage reasoning levels — keys stored encrypted. The interface only exposes the parameters the chosen model actually accepts: a reasoning depth its API refuses cannot be offered, let alone saved
+- **LLM configuration**: configure provider API keys (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, Ollama), assign a model to each role in the pipeline, manage reasoning levels — keys stored encrypted. The interface only exposes the parameters the chosen model actually accepts: a reasoning depth its API refuses cannot be offered, let alone saved; an output budget above what the model accepts is flagged, and every request is held to that cap
 - **Connector activation/deactivation**: enable or disable integrations globally (Google OAuth, Apple, Microsoft 365, Hue, weather, Wikipedia, Perplexity, Brave Search). Deactivation revokes active connections and notifies users
 - **Pricing**: manage pricing per LLM model (cost per million tokens), per Google Maps API and per image generation — with price history, and support for providers whose tariffs vary by time of day, so usage statistics match the real invoice. The whole grid exports as an Excel workbook and re-imports after offline editing: LIA shows you every change field by field before writing anything, and a row missing from the file never deletes anything
 
@@ -164,7 +164,7 @@ LIA offers a complete voice mode:
 
 - **Push-to-Talk**: hold the microphone button to speak, optimized for mobile
 - **"Dis LIA", heard in your browser**: hands-free detection runs **entirely on your device** — no audio is transmitted until the phrase is heard — and "LIA, stop" cuts LIA's voice while it reads an answer. This wake word exists in French for now, in beta: its recognition is still improving; in the other languages, a tap is enough
-- **Voice synthesis**: five admin-configurable providers — Edge TTS (free), OpenAI TTS (`tts-1` / `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`), Gemini or Fish Audio (`s2.1-pro`, `s2-pro`, `drama-3`); on the engines that perform them, LIA's spoken comments carry a few expressive cues (a sigh, a laugh, a whisper); everyone chooses LIA's male and female voice among the engine's voices, and can narrow every voice list to their language
+- **Voice synthesis**: five admin-configurable providers — Edge TTS (free), OpenAI TTS (`tts-1` / `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`), Gemini or Fish Audio (`s2.1-pro`, `s2-pro`, `drama-3`); on the engines that perform them, LIA's spoken comments carry a few expressive cues (a sigh, a laugh, a whisper), kept for what the news calls for — never to say how an action went; everyone chooses LIA's male and female voice among the engine's voices, and can narrow every voice list to their language
 - **Telegram voice messages**: send audio messages, LIA transcribes and responds
 - **Live mode**: a real-time, voice-to-voice conversation on a live model you connect with **your own key** — Gemini Live, GPT-Live or an ElevenLabs agent. The voice holds the conversation and hands every request to LIA, which runs it as an ordinary chat turn while you speak; a direct session lets the voice read your data itself and act on nothing. What the provider bills is shown to you, never recorded. A silence no longer closes a session: it puts it on standby — connection closed, nothing billed — until a tap wakes it with LIA's context; ending it is always yours.
 
@@ -256,7 +256,7 @@ The minutes reach you three ways — a card in the chat, a PDF, your inbox from 
 
 ### A personal medium, and work that remains yours
 
-A useful assistant meets you where attention permits: a conversation that updates from your other devices without moving the page, or a radio you start only when you want to listen. The station talks about your own day alongside sourced public news; it shows the sources and the cost instead of asking for blind trust. What LIA produces is also yours to keep selectively, send from your mailbox, or let expire. A routine follows a chosen time or a chosen condition, never a hidden mixture of the two.
+A useful assistant meets you where attention permits: a conversation that updates from your other devices without moving the page, or a radio you start only when you want to listen. The station talks about your own day alongside sourced public news; it shows the sources and the cost instead of asking for blind trust, and where a programme converses its voices react with a chuckle or a sigh — never during the news. What LIA produces is also yours to keep selectively, send from your mailbox, or let expire. A routine follows a chosen time or a chosen condition, never a hidden mixture of the two.
 
 ## 4. A server for your loved ones
 
@@ -395,7 +395,7 @@ The same requirement governs what LIA retains of your instructions: every lastin
 
 ### 6.8. A surface that describes the product is held to it
 
-Transparency has a failure mode nobody notices: a screen that quietly stops telling the truth. Nothing breaks, no test goes red, and the page that existed to be current becomes the least current in the application. So the capability map — the page answering _what can my assistant do for me?_ — is no longer maintained by hand: every capability the platform can switch on or off must have its declared place on it, and a capability that ships without that decision stops the application from starting. The same conviction, one notch further: what a screen says about your data must be **exact or absent**. A tally is the number the database returns, never a length that happens to be at hand; and while an answer is still on its way, or when it failed, the card says nothing rather than guessing. "Nothing set up yet" is a claim about your account — one worth being sure of before making it.
+Transparency has a failure mode nobody notices: a screen that quietly stops telling the truth. Nothing breaks, no test goes red, and the page that existed to be current becomes the least current in the application. So the capability map — the page answering _what can my assistant do for me?_ — is no longer maintained by hand: every capability the platform can switch on or off must have its declared place on it, and a capability that ships without that decision stops the application from starting. The same conviction, one notch further: what a screen says about your data must be **exact or absent**. A tally is the number the database returns, never a length that happens to be at hand; and while an answer is still on its way, or when it failed, the card says nothing rather than guessing. "Nothing set up yet" is a claim about your account — one worth being sure of before making it. The FAQ obeys the same rule: every feature a person can use has its section there — 491 questions, in six languages —, and a translated section the display order forgot fails the tests instead of staying invisible.
 
 Transparency also applies to the assistant's internal rules. A constraint the system enforces must be published to whoever it affects: when habit learning detects nothing, Settings display the threshold actually required — stricter on weekends, where observed days are fewer — instead of an unexplained silence. And when a setting tunes itself, like the threshold deciding that a journal note enters a reply, it does so inside strict bounds, one small step per day, with a kill switch and every adjustment counted: a learning system is only acceptable if it stays observable and stoppable.
 
@@ -508,7 +508,7 @@ Every request is traced end-to-end, every LLM call is measured, every error is c
 
 That demand reaches down to the machine. A server is several processes, and "the container uses five gigabytes" does not say which one holds what: every LIA process therefore publishes what it holds in memory itself, a dashboard draws it process by process, an alert names the one that overflows — and what a process loads was measured on the target machine before being touched, never assumed.
 
-These signals answer each other: a log line opens its request's trace, a trace its logs and metrics, a latency point the example that produced it. And the pipeline that carries them watches itself: if logs get lost on the way, an alert says so.
+These signals answer each other: a log line opens its request's trace, a trace its logs and metrics, a latency point the example that produced it. And the pipeline that carries them watches itself: if logs get lost on the way, an alert says so. And an alert measures what it names: the latency one observes only the turns a person waits for, and an incident whose resolution notice got lost closes itself.
 
 ### 8.3. An anti-hallucination pipeline
 

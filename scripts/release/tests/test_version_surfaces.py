@@ -21,6 +21,7 @@ What must hold:
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -139,8 +140,44 @@ def _write_metric_source(root: Path, metrics: int) -> None:
     _write(root / "apps" / "api" / "src" / "observability" / "metrics.py", body)
 
 
+def _write_faq_source(root: Path, questions: int) -> None:
+    """Give the English locale a FAQ of ``questions`` questions in two sections.
+
+    Merged into whatever the locale already holds (the blog articles the
+    metric surfaces quote), so neither source overwrites the other.
+    """
+    first = questions // 2
+    sections = {
+        "alpha": {"questions": {f"q{i}": {"question": "?", "answer": "."} for i in range(first)}},
+        "beta": {
+            "questions": {f"q{i}": {"question": "?", "answer": "."} for i in range(questions - first)}
+        },
+    }
+    locale = root / "apps" / "web" / "locales" / "en" / "translation.json"
+    data = json.loads(locale.read_text(encoding="utf-8")) if locale.exists() else {}
+    data["faq"] = {"sections": sections}
+    _write(locale, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+
+
+#: How each `why` guide quotes the FAQ's size (the shape its language uses).
+_WHY_FAQ_LINES = {
+    "en": "every feature has its section \u2014 %d questions, in six languages \u2014, and",
+    "fr": "chaque fonction y a sa section \u2014 %d questions, en six langues \u2014, et",
+    "de": "jede Funktion hat ihren Abschnitt \u2014 %d Fragen in sechs Sprachen \u2014, und",
+    "es": "cada funci\u00f3n tiene su secci\u00f3n \u2014%d preguntas, en seis idiomas\u2014, y",
+    "it": "ogni funzione ha la sua sezione \u2014 %d domande, in sei lingue \u2014, e",
+    "zh": "\u516d\u79cd\u8bed\u8a00\uff0c\u5171 %d \u4e2a\u95ee\u9898",
+}
+
+
 def _fake_counts(
-    root: Path, *, adr_files: int, adr_latest: int, releases: int, metrics: int = 3
+    root: Path,
+    *,
+    adr_files: int,
+    adr_latest: int,
+    releases: int,
+    metrics: int = 3,
+    faq_questions: int = 4,
 ) -> None:
     """Populate the count sources and the surfaces that quote them."""
     _write_metric_source(root, metrics)
@@ -191,7 +228,8 @@ def _fake_counts(
         f"- **Prometheus**: {metrics} custom metrics (agents, LLM, infrastructure)\n\n"
         "### Architecture Decision Records (ADR)\n\n"
         f"{adr_files} ADR files (ADR-001 through ADR-{adr_latest} — ADR-008 has no "
-        "separate file) documenting major architectural decisions:\n",
+        "separate file) documenting major architectural decisions:\n\n"
+        f"- the in-app FAQ, whose {faq_questions} questions cover every feature.\n",
     )
     _write(
         root / "docs" / "INDEX.md",
@@ -207,6 +245,10 @@ def _fake_counts(
         path = guides / name
         existing = path.read_text(encoding="utf-8") if path.exists() else "# Guide\n"
         _write(path, existing + text)
+
+    # The six `why` guides quote the FAQ's size once each (v3.2.0).
+    for locale, line in _WHY_FAQ_LINES.items():
+        _append(f"why.{locale}.md", "\n" + line % faq_questions + "\n")
 
     # The `how` guides quote the ADR count FOUR times each: the codebase-metrics
     # table, the reliability row, and two prose sentences. Only the label is
@@ -294,14 +336,6 @@ def _fake_counts(
         "*As of 2026-07-17: all 419 code-defined metrics were referenced.*\n",
     )
 
-    # The knowledge mirror carries the same sentence in English prose.
-    _write(
-        root / "docs" / "knowledge" / "34_self_diagnostics.md",
-        "# Self-Diagnostics\n\n"
-        f"At the time of writing, {metrics} metrics are defined and 57 of them "
-        "reach nothing — and that list can only get shorter.\n",
-    )
-
     # And the blog article, in the six locales, THREE times each: the title, the
     # body and the excerpt (the excerpt joined on 2026-09-26, found at 589
     # against a real 593). Anchored on what FOLLOWS the number, because the
@@ -316,7 +350,7 @@ def _fake_counts(
          "LIA offre une observabilité de niveau entreprise avec %d métriques, des dashboards."),
         ("de", "%d Prometheus-Metriken, 26 Grafana-Dashboards",
          "%d Prometheus-Metriken für HTTP, Agenten, Token",
-         "LIA bietet Enterprise-Observability mit %d Metriken, Grafana-Dashboards."),
+         "LIA bietet Enterprise-Observability mit %d Metriken, dedizierten Grafana-Dashboards."),
         ("es", "%d métricas Prometheus, 26 dashboards Grafana",
          "%d métricas Prometheus que cubren HTTP, agentes, tokens",
          "LIA ofrece observabilidad empresarial con %d métricas, dashboards Grafana."),
@@ -325,7 +359,7 @@ def _fake_counts(
          "LIA offre osservabilità enterprise con %d metriche, dashboard Grafana."),
         ("zh", "%d个Prometheus指标、26个Grafana仪表板",
          "%d个Prometheus指标，覆盖HTTP、智能体、Token",
-         "LIA提供企业级可观测性：%d 指标、Grafana仪表板。"),
+         "LIA提供企业级可观测性：%d个指标、专用Grafana仪表板。"),
     ):
         _write(
             root / "apps" / "web" / "locales" / locale / "translation.json",
@@ -395,6 +429,9 @@ def _fake_counts(
             f"\n| {adr_label} | **{adr_files}** |\n"
             f"| {release_label} | **{releases}** |\n\n{sentence}\n",
         )
+
+    # Last: the locales above are written whole, the FAQ merges into en.
+    _write_faq_source(root, faq_questions)
 
 
 class TestCanonicalVersion:
@@ -507,6 +544,16 @@ class TestDerivedCounts:
         assert counts["changelog_releases"] == 223
         # Read from the backend tree, not from anything that quotes it.
         assert counts["prometheus_metrics"] == 3
+        # Read from the English locale, the parity reference of the six.
+        assert counts["faq_questions"] == 4
+
+    def test_a_faq_without_questions_fails_loudly(self, tmp_path: Path) -> None:
+        root = _fake_repo(tmp_path)
+        _fake_counts(root, adr_files=3, adr_latest=4, releases=5)
+        _write(root / "apps" / "web" / "locales" / "en" / "translation.json", '{"faq": {}}\n')
+
+        with pytest.raises(SurfaceError, match="No FAQ question"):
+            derived_counts(root)
 
     def test_unreleased_heading_is_not_a_release(self, tmp_path: Path) -> None:
         root = _fake_repo(tmp_path)
@@ -721,6 +768,7 @@ class TestSyncDerivedCounts:
             "adr_latest": 243,
             "changelog_releases": 223,
             "prometheus_metrics": 3,
+            "faq_questions": 4,
         }
         assert all(item.value == counts[item.source] for item in count_occurrences(root))
         assert "CLAUDE.md" in changed

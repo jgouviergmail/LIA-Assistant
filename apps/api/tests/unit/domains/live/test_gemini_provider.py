@@ -2,15 +2,23 @@
 
 from __future__ import annotations
 
+import base64
+import json
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
+import httpx
 import pytest
 
 from src.domains.live.preferences import LivePreferences
 from src.domains.live.providers.gemini import GEMINI_VOICES, GeminiLiveProvider
 from src.domains.live.providers.protocol import LiveSetupInputs
+from src.domains.llm_config.cache import LLMConfigOverrideCache
+from src.domains.voice.exceptions import TTSProviderError
+from src.domains.voice.gemini_tts_client import GeminiTTSClient
 
 pytestmark = pytest.mark.unit
 
@@ -153,44 +161,139 @@ async def test_models_carry_the_thinking_ladder_and_the_capabilities() -> None:
     assert models[0].capabilities.delivery_scheduling is False
 
 
-async def test_sample_voice_asks_the_tts_model_for_the_voice_and_returns_its_pcm() -> None:
-    # The live models refuse no voice name and offer no listing; the TTS model
-    # speaks the same published voices, so the person hears what they choose.
-    part = SimpleNamespace(inline_data=SimpleNamespace(data=b"\x01\x02"))
-    response = SimpleNamespace(candidates=[SimpleNamespace(content=SimpleNamespace(parts=[part]))])
-    generate = AsyncMock(return_value=response)
-    fake_client = SimpleNamespace(
-        aio=SimpleNamespace(models=SimpleNamespace(generate_content=generate))
-    )
-    with (
-        patch(f"{MODULE}.gemini_client_of", return_value=fake_client),
-        patch(f"{MODULE}.settings") as cfg,
-    ):
-        cfg.live_voice_sample_model = "tts-model"
-        pcm = await GeminiLiveProvider().sample_voice("k", "Kore", "Hello.")
-    assert pcm == b"\x01\x02"
-    assert GeminiLiveProvider().sample_rate == 24_000
-    kwargs = generate.call_args.kwargs
-    assert kwargs["model"] == "tts-model" and kwargs["contents"] == "Hello."
-    assert kwargs["config"].response_modalities == ["AUDIO"]
-    assert kwargs["config"].speech_config.voice_config.prebuilt_voice_config.voice_name == "Kore"
-    assert kwargs["config"].automatic_function_calling.disable is True
+class TestVoiceSample:
+    """The sample goes through the ONE Gemini TTS client, on the PERSON's key.
 
+    The live models refuse no voice name and offer no listing; the TTS model
+    speaks the same published voices, so the person hears what they choose. The
+    client answers a WAV; the protocol hands the connector service 16-bit mono
+    PCM at ``sample_rate``, which it wraps for the browser — decoded here, once.
+    """
 
-async def test_sample_voice_without_audio_is_an_error_not_silence() -> None:
-    response = SimpleNamespace(candidates=[SimpleNamespace(content=SimpleNamespace(parts=[]))])
-    fake_client = SimpleNamespace(
-        aio=SimpleNamespace(
-            models=SimpleNamespace(generate_content=AsyncMock(return_value=response))
-        )
-    )
-    with (
-        patch(f"{MODULE}.gemini_client_of", return_value=fake_client),
-        patch(f"{MODULE}.settings") as cfg,
-    ):
-        cfg.live_voice_sample_model = "tts-model"
-        with pytest.raises(ValueError):
-            await GeminiLiveProvider().sample_voice("k", "Kore", "Hello.")
+    WAV = b"RIFF\x00\x00\x00\x00WAVEfmt the-vendor-wav"
+    SETTINGS = SimpleNamespace(live_voice_sample_model="tts-model", live_probe_timeout_seconds=15)
+
+    @staticmethod
+    def _answer(**overrides: object) -> dict[str, object]:
+        answer: dict[str, object] = {
+            "status": "completed",
+            "usage": {"total_input_tokens": 9, "total_output_tokens": 105},
+            "steps": [
+                {
+                    "type": "model_output",
+                    "content": [
+                        {
+                            "type": "audio",
+                            "mime_type": "audio/wav",
+                            "data": base64.b64encode(TestVoiceSample.WAV).decode(),
+                        }
+                    ],
+                }
+            ],
+        }
+        answer.update(overrides)
+        return answer
+
+    @staticmethod
+    def _deployment_key_is_never_read(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+        asked: list[str] = []
+
+        def _get_api_key(cls: type, provider: str) -> str:
+            asked.append(provider)
+            return "k-deployment"
+
+        monkeypatch.setattr(LLMConfigOverrideCache, "get_api_key", classmethod(_get_api_key))
+        return asked
+
+    async def _sample(
+        self, handler: Callable[[httpx.Request], httpx.Response], made: list[GeminiTTSClient]
+    ) -> tuple[bytes, AsyncMock]:
+        def _client(model: str, **kwargs: Any) -> GeminiTTSClient:
+            client = GeminiTTSClient(model, transport=httpx.MockTransport(handler), **kwargs)
+            made.append(client)
+            return client
+
+        decode = AsyncMock(return_value=b"\x01\x02\x03\x04")
+        with (
+            patch(f"{MODULE}.GeminiTTSClient", _client),
+            patch(f"{MODULE}.transcode", decode),
+            patch(f"{MODULE}.settings", self.SETTINGS),
+        ):
+            pcm = await GeminiLiveProvider().sample_voice("k-person", "Kore", "Hello.")
+        return pcm, decode
+
+    async def test_the_sentence_is_spoken_on_the_persons_key_and_handed_back_as_pcm(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        asked = self._deployment_key_is_never_read(monkeypatch)
+        seen: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append(request)
+            return httpx.Response(200, json=self._answer())
+
+        made: list[GeminiTTSClient] = []
+        pcm, decode = await self._sample(handler, made)
+
+        assert pcm == b"\x01\x02\x03\x04"
+        request = seen[0]
+        assert request.url.path.endswith("/v1beta/interactions")
+        assert request.headers["x-goog-api-key"] == "k-person"
+        assert asked == []  # the deployment's key is never read, never a fallback
+        body = json.loads(request.content)
+        assert body["model"] == "tts-model"
+        assert body["generation_config"] == {"speech_config": [{"voice": "Kore"}]}
+        assert body["input"][0]["content"][0] == {"type": "text", "text": "Hello."}
+        # The vendor's WAV is decoded to the protocol's PCM at the provider's rate.
+        decode.assert_awaited_once()
+        assert decode.call_args.args == (self.WAV,)
+        assert decode.call_args.kwargs["output_format"] == "s16le"
+        assert decode.call_args.kwargs["args"] == [
+            "-ac",
+            "1",
+            "-ar",
+            str(GeminiLiveProvider().sample_rate),
+        ]
+        assert GeminiLiveProvider().sample_rate == 24_000
+        assert made[0]._http_client.is_closed
+
+    async def test_an_answer_without_audio_is_a_refusal_never_silence(self) -> None:
+        def handler(_request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=self._answer(status="failed", steps=[]))
+
+        made: list[GeminiTTSClient] = []
+        with pytest.raises(TTSProviderError) as caught:
+            await self._sample(handler, made)
+
+        assert caught.value.code == "provider_invalid_response"
+        # The interaction's own word keeps an in-band refusal apart from « no audio ».
+        assert "interaction failed" in str(caught.value)
+        assert made[0]._http_client.is_closed
+
+    async def test_an_http_refusal_keeps_the_vendors_status_apart(self) -> None:
+        body = {"error": {"code": 400, "status": "INVALID_ARGUMENT", "message": "Hello."}}
+
+        def handler(_request: httpx.Request) -> httpx.Response:
+            return httpx.Response(400, json=body)
+
+        made: list[GeminiTTSClient] = []
+        with pytest.raises(TTSProviderError) as caught:
+            await self._sample(handler, made)
+
+        assert caught.value.code == "provider_http_error"
+        assert isinstance(caught.value.details, dict)
+        assert caught.value.details["vendor_status"] == "INVALID_ARGUMENT"
+        assert "Hello." not in str(caught.value)
+        assert made[0]._http_client.is_closed
+
+    async def test_an_empty_key_is_refused_before_any_request(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        asked = self._deployment_key_is_never_read(monkeypatch)
+        with patch(f"{MODULE}.settings", self.SETTINGS), pytest.raises(TTSProviderError) as caught:
+            await GeminiLiveProvider().sample_voice("", "Kore", "Hello.")
+        assert caught.value.code == "api_key_missing"
+        assert asked == []
 
 
 async def test_mint_constrains_the_model_and_the_setup() -> None:

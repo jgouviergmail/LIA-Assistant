@@ -67,6 +67,10 @@ class InstallState:
     generated_sha256: Mapping[str, str]
     bootstrap_complete: bool
     project_name: str
+    # What the bootstrap reported degraded (capability -> provider), for the
+    # report a later resume prints. None: not reported (an older state, or an
+    # unreadable bootstrap output) — non-secret by construction.
+    degraded_capabilities: Mapping[str, str] | None = None
 
 
 @dataclass(frozen=True)
@@ -150,6 +154,11 @@ def save_state(path: Path, state: InstallState) -> None:
         "generated_sha256": dict(state.generated_sha256),
         "bootstrap_complete": state.bootstrap_complete,
         "project_name": state.project_name,
+        "degraded_capabilities": (
+            dict(state.degraded_capabilities)
+            if state.degraded_capabilities is not None
+            else None
+        ),
     }
     tmp = path.with_name(f"{path.name}.tmp-{os.getpid()}")
     with open(tmp, "w", encoding="utf-8", newline="\n") as handle:
@@ -216,6 +225,11 @@ def load_state(path: Path) -> InstallState | None:
             generated_sha256=dict(payload["generated_sha256"]),
             bootstrap_complete=bool(payload["bootstrap_complete"]),
             project_name=str(payload["project_name"]),
+            degraded_capabilities=(
+                {str(k): str(v) for k, v in dict(payload["degraded_capabilities"]).items()}
+                if payload.get("degraded_capabilities") is not None
+                else None
+            ),
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise StateError("state_parse_error") from exc

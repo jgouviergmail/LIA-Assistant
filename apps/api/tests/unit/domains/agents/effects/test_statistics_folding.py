@@ -110,3 +110,12 @@ class TestAnEmptySet:
         assert series.slices == []
         assert series.total == 0
         assert series.kind is kind
+
+
+def test_the_folded_label_is_the_one_the_web_translates() -> None:
+    """The web names this bar in the reader's language by its EXACT value.
+
+    ``SeriesChart.FOLDED_SLICE_LABEL`` (apps/web) compares to this literal:
+    renaming it here would put the untranslated word back on every chart.
+    """
+    assert OTHER == "other"

@@ -1,115 +1,86 @@
 # Today Briefing — the dashboard home page
 
-## What is the Today briefing?
+## What does the Home page show?
 
-The home page of your dashboard is no longer a static stats display — it's a **daily briefing** that opens with a personalized AI greeting and a 2-3 sentence synthesis ("teleprompter") summarizing what matters today, then renders a grid of 9 operational cards: weather, today's agenda, unread mails, upcoming birthdays, active reminders, health metrics, « For you », pending tasks and latest documents.
+The Home page opens on **your day**, from top to bottom:
+• the **date** as its title, in your time zone — it changes at midnight
+• a welcome card with **LIA's living face** (the small portrait switches to the other avatar in one click), a greeting LIA writes for you with its cost, and **Open Chat** and **Services**
+• the **radio**, when your instance offers it
+• a few hints you can dismiss — the getting-started checklist, installing the app
+• **My shortcuts**: Help, Capabilities, Workboard, Registers, Settings
+• **My dashboard**: **LIA's briefing**, then the cards of your day
+• **What LIA achieved** this billing period: useful results confirmed, successful actions, successful routines, commitments closed
+• **Usage Statistics**: your usage limits, if any, and a **Consumption** table — messages, tokens (input, output, cached), Google API calls and cost, for the period and in total
 
-**Design principle**: read-only orchestration of data that already lives in your connectors and local domains. No data is created here, nothing is pushed to your providers. The briefing is a *view* that brings together what you'd otherwise have to check across many places.
+If the briefing cannot load, the radio and your shortcuts stay available.
 
-## What's on the page?
+## Which cards are on My dashboard, and what can I do from them?
 
-From top to bottom:
+Ten cards, in the order you choose: **Weather** (with air quality and pollen where available), **Birthdays**, **Active reminders**, **Health**, **Agenda** (a timeline, day by day), **Unread mail**, **For you** (commitments being tracked and your next routine), **Tasks** (pending and overdue), **Documents** (recent Drive files) and **Workboard** (what waits on you, what LIA or your connections hold, what is late or open — each count opens the board, filtered).
 
-1. **Hero with greeting overlay** — The LIA avatar fills the hero card; on top of it, a single AI-generated sentence in your language and tuned to the time of day ("Bonjour Jean", "Good evening", etc.), informed by what the cards contain. It reacts to the shape of your day — a free day, a busy one, or a single upcoming event — and, when something is coming up, names it on the right day ("the chimney sweep tomorrow at 8am" rather than vaguely implying it is "today"). While the LLM call is in flight (1-3 s), a static localized tagline is shown so the area is never empty. The exact tokens + EUR cost of the greeting call are displayed discreetly underneath.
-2. **Quick Access** — Two compact tiles (Help + Settings).
-3. **Mon dashboard** (with a sunrise icon 🌅) — Section title. Above the card grid, a 2-3 sentence **synthesis** from the LLM weaves together what matters across the cards. The synthesis is skipped silently if fewer than 2 cards have data — no LLM call when there's nothing meaningful to say.
-4. **Card grid** — 10 cards in a fixed order (Weather — with air quality and in-season pollen when the Google Environment connector is on —, Birthdays, Reminders, Health, Agenda, Mails, « For you » — commitments + the next scheduled automation with its run time; past runs are deliberately not listed —, Tasks — strictly pending/overdue, overdue first —, Documents — latest modified Drive files with a summarize-in-chat intent and an external Drive link —, Workboard — exact counts of the tickets waiting on you, held by LIA, overdue and open, each a link to the filtered board, then the first tickets waiting on you; hidden when the instance switches the workboard off). Each card has its own status (OK / empty / error / hidden) and its own per-card refresh icon (always visible on mobile, revealed on hover on desktop).
-5. **Statistiques d'utilisation** (with a bar chart icon 📊) — Your usage statistics card. Each total counter (messages, tokens, Google API requests, cost) shows the cycle dates AND a small "since DD/MM/YYYY" label below the lifetime total — the reference start of the cumulative figures (your account creation date) is always visible.
+**👆 From an item:**
+• a click opens the chat with a matching request ready — you send it yourself
+• **More actions** (⋯) runs a named action at once: summarise or reply to a mail, prepare for an event or get directions, complete or postpone a task, write a birthday message… anything that changes your accounts still asks for confirmation in the chat
+• some act in place: cancel a reminder (after a confirmation), mark a commitment done or no longer relevant, or edit it
 
-## How fresh is the data?
+## Can I customize the dashboard cards?
 
-Each card has its own cache TTL adapted to how fast its source actually changes:
+Yes — the shortest path: the **Customize** button next to **Refresh all**, right above the grid, leads straight to the right section. Or go through **Settings › Preferences › Personalization › My dashboard**. Hide any of the ten briefing cards — including the Workboard card, which shows what is waiting on you, what LIA is holding and what is overdue — or reorder them (↑/↓ buttons, or drag-and-drop). A hidden card is **not even fetched**: fewer calls to your services, a faster dashboard.
 
-| Card | TTL | Notes |
-|------|-----|-------|
-| Weather | 1 hour | Current conditions + 5-day forecast |
-| Agenda | 10 minutes | Today's events from your default calendar |
-| Mails | 5 minutes | Today's unread inbox |
-| Birthdays | 24 hours | Upcoming birthdays from Google Contacts |
-| Reminders | live (no cache) | Local DB lookup is < 10 ms |
-| Health | 15 minutes | Today's value + 14-day rolling average |
+A starter checklist on the Home page also shows what your instance can do (connectors, voice, channels…) until you dismiss it.
 
-Beyond the TTL, two refresh options:
+## Why is a card missing, empty or showing an error?
 
-- **Per-card refresh** — On desktop, hover any card → click the circular arrow icon top-right. On mobile (where there is no hover), the arrow icon is always visible directly on the card. Only that source is re-fetched and the synthesis is regenerated.
-- **Refresh all** — Top-right button above the grid → bypasses every cache and regenerates the whole briefing.
+Each card says where it stands:
+• **Empty**: the source answered and there is nothing today — "Inbox zero 🎉"
+• **Error**: the source failed this time. The card keeps the last data it received, with its age and the time of the last attempt, and offers **Retry**, **Try again later** or **Reconnect** when your access has expired
+• **Waiting to be set up**: a card whose source is not configured is not drawn. One discreet line under the grid names those cards, each linking to where you switch it on — your connectors for the agenda, mail, birthdays, tasks, documents and weather (which also needs your location), the **Health data** settings for health
+• **Hidden**: a card you hid yourself is never fetched, and never named in that line
 
-Right beside "Refresh all", a **Customize** button (icon-only on mobile) deep-links straight to the settings section where you choose **which cards appear and in what order** — no digging through the settings page. When every card is hidden, the message replacing the grid links to that same section.
+The Workboard card is absent when your instance has switched the workboard off.
 
-## Why doesn't the page wait for the AI?
+## How fresh is the dashboard, and how do I refresh it?
 
-The cards arrive **first** (≈ 1 s on warm cache). The greeting and synthesis arrive **second**, in parallel, when the LLM finishes (typically 1-3 s extra). The page is never blocked by the LLM:
+Each card shows when its data was read — "5 min ago" — and adds "cache" when it was served from memory rather than fetched again. Each source is kept for a time that suits how fast it changes; reminders are always read live, and birthdays move on at your midnight.
 
-- If the LLM call fails for any reason, a static localized greeting is shown instead (`Bonjour Jean.`, `Good morning, Jean.`, etc.) so the page always renders.
-- If your dashboard has too few cards with data (fewer than 2), the synthesis is skipped — no LLM cost incurred for a near-empty board.
+**🔄 One card:** the circular arrow at the top of a card fetches that source again. LIA's greeting and briefing are not rewritten, so no new text is billed.
 
-## Does one page load open my sources twice?
+**🔄 Refresh all:** the button above the grid fetches every visible card again and has LIA write a new greeting and briefing.
 
-No. The page fetches in two pieces on purpose — the cards first, the LLM synthesis second — but the nine-section bundle behind them is built **once**. Whoever asks first builds it; whoever asks while it is being built is handed the same object, so both answers also agree with each other by construction.
+A short "updated ✨" confirms a refresh; if something could not be refreshed, a line says so and the last data received stays on screen. Opening the page reads each source only once, even though the cards and LIA's texts arrive separately — the cards first, the texts as soon as they are written.
 
-This holds across the server's worker processes too, not only inside one: a worker claims the build and the others wait for what it publishes, with the wait bounded and any failure falling back to building rather than to an empty page. A forced refresh never waits, since what a holder publishes is exactly the cache the refresh asked to bypass.
+## What are LIA's greeting and briefing, and what do they cost?
 
-It matters beyond speed: each build opens your connectors and files one batch of consultation rows in the register. Building twice meant your mailbox was opened twice for one act of reading, and the register said so.
+When you open the page, LIA writes two short texts from your cards, in your language and with its personality:
+• the **greeting** on the welcome card — one sentence suited to the time of day and to what your cards hold
+• **LIA's briefing** above the cards — a few sentences tying together what matters today (the Workboard card is left out of it); the ➖/➕ button folds it
 
-## What do the tokens / cost numbers next to the timestamp mean?
+**💶 Cost in view:** each text shows its tokens and its cost in euros — hover it for the model and the input / output / cache breakdown. Both count in your usage, and both are written again when you press **Refresh all**.
 
-Each LLM call (greeting + synthesis) shows two things next to the "il y a X min" timestamp:
+The cards never wait for them. If the model is unavailable or a spending limit is reached, a written greeting takes its place and no briefing is written. When too few cards have something to show, no briefing is written either — nothing is billed — and the page says there is not enough data today.
 
-- **Token count** — total of input + output + cached input tokens used by that specific call.
-- **EUR cost** — the actual price computed from the model's pricing × tokens consumed (e.g. `0,000142 €`).
+## Can I listen to LIA's briefing?
 
-Hover the badge for a tooltip detailing the exact model used (`gpt-4.1-nano` by default) and the `IN / OUT / CACHE` breakdown. These same numbers also feed your usual usage statistics — cached input tokens are correctly subtracted before tracking, so a cached prompt is not charged twice.
+Yes. The speaker button beside **LIA's briefing** reads it aloud in your language, with LIA's voice — the feminine or masculine one that follows the avatar you picked, as set in the voice mode settings. Press it again to stop, even while the audio is still being prepared.
 
-## Some cards are missing entirely. How do I know which?
+The reading uses the same speech engine as LIA's spoken replies and is billed like any reading, in your usage. If the speech service returns no audio, a message tells you so instead of leaving you with silence.
 
-Seven of the nine cards render **nothing at all** when their data source is not
-configured — no card, no message. On a new account that means two empty cards and
-seven invisible gaps.
+## Can I watch for a reply to a mail shown on the dashboard?
 
-A single discreet line above the grid now names those cards, and each name links
-straight to the settings section that switches it on: the connectors for the
-agenda, the mail, the birthdays, the tasks and the documents; the weather key and
-your location for the weather; the health-metrics toggle for health.
+Yes. In the **More actions** menu (⋯) of a mail on the **Unread mail** card, **Watch for a reply from …** creates a watch on that sender for the next **two weeks**, without opening the chat. LIA checks your mailbox on its own — there is no schedule to set — and when that person writes back, it tells you and reminds you what the exchange was about.
+• The watch follows the **sender**, not the subject, which changes with every "Re:".
+• If you already watch that sender, LIA says so instead of creating a second watch.
+• It is a routine like the others: you find it under **Settings › Features › Scheduled Actions**, where you can change it or end it early.
+• The action is offered only when the mail shows a sender.
 
-Cards you hid yourself are never listed there. Asking you to connect something
-you deliberately turned off would be noise, not help.
+## What do the two figures on the Health card mean?
 
-## Why is a card not showing up?
+For each metric (steps, heart rate), the Health card shows two values side by side:
+• **Today** — today's value so far (the total for steps, the average for heart rate)
+• **Avg N d** — the daily average over the last few days; the number of days is set by your administrator
 
-There are 4 possible card states:
+The full charts and statistics live in the **Health data** section of the settings.
 
-- **OK** — Data is present, card renders normally.
-- **Empty** — The connector is configured and reached successfully, but there's nothing to show today (e.g. inbox is clean, no birthdays this week). The card displays a positive empty state ("Tout est calme côté mails ✨").
-- **Error** — The connector failed temporarily (expired token, network blip, rate limit). The card shows a CTA to fix it (e.g. "reconnect Google Calendar").
-- **Hidden** — The connector is not configured for your account. The card is removed from the grid entirely so you don't see clutter for features you don't use.
+## What does the Weather card show?
 
-Configuring a connector (Settings → Connectors) makes its card appear at the next refresh.
-
-## Health card layout
-
-For each metric (step count, heart rate), the health card shows two values side-by-side:
-
-- **TODAY** — today's accumulated value (sum for steps, average for heart rate)
-- **AVG 14J** — average per day over the last 14 days
-
-The vertical separator between the two values is aligned across both metrics so the columns line up — the layout is a fixed 3-column CSS grid (`today | separator | avg`), independent of label widths.
-
-## Weather forecast — 5 days, localized
-
-Below the current conditions, a strip shows the next 5 days (today + 4) with weather icon and min/max. The day abbreviations (`lun`, `mar`, `mer`…) are computed locally in your browser using `Intl.DateTimeFormat` with your active language, so a French user sees `lun. mar. mer.`, an English user sees `Mon Tue Wed`, a Chinese user sees `周一 周二 周三`, etc.
-
-The card's hero emoji also lives with the real sky: rain drops fall on rainy conditions, snowflakes drift on snow, and a subtle sun halo rotates on clear days. It's purely decorative, and it follows your system's reduced-motion preference.
-
-When you refresh a card, a discreet "updated ✨" badge briefly replaces the timestamp to confirm the data was just refreshed.
-
-## Can I listen to my briefing instead of reading it?
-Yes. The daily synthesis card has a **Listen** button that reads the briefing aloud with the same neural voices as voice mode.
-
-**🎙️ Natural prosody:** the text is prepared for speech before synthesis — numbers, times and abbreviations are expanded, and pauses follow the structure of the briefing — so it sounds like a spoken summary, not a screen reader.
-
-**🌍 In your language:** the readout uses your interface language and your configured voice provider (Edge TTS, OpenAI, ElevenLabs, Gemini or Fish Audio, set by the administrator).
-
-If synthesis fails (for example when the voice provider is unavailable), the card says so explicitly instead of playing silence.
-
-## Can I ask LIA to watch for a reply from the briefing?
-Yes. A mail card carries a *Watch for a reply from …* action: it creates a condition routine keyed on that sender, valid for two weeks, without opening the chat — the chat cannot write a condition routine. If you are already watching that sender, LIA says so instead of creating a second watch, because two identical watches would announce one awaited reply twice. The watch is served the minute the reply lands (see *Scheduled actions*).
+The current conditions for your location, drawn as an illustrated sky that matches them, with air quality and in-season pollen where the instance offers them, then a strip of the coming days with their minimum and maximum temperatures — how many days is set by your administrator. Day names follow your interface language.

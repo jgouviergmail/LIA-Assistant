@@ -30,7 +30,7 @@ for (const { width, lostResponse, exporting } of [
 ]) {
   test(`confirmed secure action survives reload at ${width}px, lost response ${lostResponse}, export ${exporting}`, async ({ page, authenticate, mockApi }) => {
     const title = exporting ? 'Terminer la demande d’export du compte' : 'Terminer la déconnexion des autres sessions';
-    const completed = exporting ? 'Export demandé. Sa préparation se poursuit en arrière-plan ; consultez son état dans les réglages.' : '2 sessions déconnectées.';
+    const completed = exporting ? 'Export demandé. Sa préparation se poursuit en arrière-plan ; consulte son état dans les réglages.' : '2 sessions déconnectées.';
     await page.setViewportSize({ width, height: 900 });
     await authenticate();
     await mockApi(chatRoutes([]));
@@ -91,7 +91,7 @@ for (const { width, lostResponse, exporting } of [
     const proceed = card.getByRole('button', { name: 'Poursuivre en sécurité' });
     await proceed.focus(); await page.keyboard.press('Enter');
     if (lostResponse) {
-      await expect(card.getByRole('status')).toHaveText('Le résultat n’est pas encore confirmé. Vérifiez-le sans soumettre à nouveau l’action.');
+      await expect(card.getByRole('status')).toHaveText('Le résultat n’est pas encore confirmé. Vérifie-le sans soumettre à nouveau l’action.');
       await expect(card.getByRole('button', { name: 'Poursuivre en sécurité' })).toHaveCount(0);
       await card.getByRole('button', { name: 'Vérifier le résultat' }).click();
     } else {

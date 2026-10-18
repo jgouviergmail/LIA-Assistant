@@ -131,3 +131,35 @@ class TestTheSlotReaderNeverReturnsSomethingUnusable:
     def test_an_unknown_model_still_answers_a_positive_window(self) -> None:
         with _slot("a-model-nobody-seeded"):
             assert get_effective_context_window_for_slot("response") > 0
+
+
+class TestTheFactoryRequestsWhatTheSlotAccountsWith:
+    def test_the_slot_window_reaches_the_adapter(self) -> None:
+        """ADR-267's invariant at the client door: an Ollama slot's window is its ``num_ctx``.
+
+        The factory used to read the window from a dict that never carried it,
+        so every Ollama slot asked the server for the discovered window while
+        the compaction threshold and the ReAct budget counted with the slot's.
+        """
+        from unittest.mock import MagicMock
+
+        from langchain_core.language_models.chat_models import BaseChatModel
+
+        from src.core.llm_agent_config import LLMAgentConfig
+        from src.infrastructure.llm.factory import get_llm
+
+        config = LLMAgentConfig(
+            provider="ollama",
+            model="qwen3.8:27b",
+            temperature=0.3,
+            top_p=1.0,
+            frequency_penalty=0.0,
+            presence_penalty=0.0,
+            max_tokens=2048,
+            context_window=24576,
+        )
+        with patch("src.infrastructure.llm.factory.ProviderAdapter") as adapter:
+            adapter.create_llm.return_value = MagicMock(spec=BaseChatModel)
+            get_llm("response", config_override=config)
+
+        assert adapter.create_llm.call_args.kwargs["context_window"] == 24576

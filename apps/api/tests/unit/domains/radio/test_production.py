@@ -608,6 +608,31 @@ EXCHANGE = ScriptDraft(
     ],
 )
 DIALOGUE_LIMITS = dataclasses.replace(LIMITS, dialogue_max_bytes=1500)
+#: A debate's body: the anchor and three commentators answer each other.
+DEBATE = ScriptDraft(
+    title="Budget",
+    lines=[
+        _spoken_by(
+            RadioRole.ANCHOR,
+            ScriptPart.BODY,
+            "The parliament adopted the budget by 312 votes.",
+            "n1",
+        ),
+        _spoken_by(RadioRole.SPEAKER_A, ScriptPart.BODY, "The vote closed a long week.", "n1"),
+        _spoken_by(RadioRole.SPEAKER_B, ScriptPart.BODY, "The budget passed at last.", "n1"),
+        _spoken_by(RadioRole.SPEAKER_C, ScriptPart.BODY, "The parliament has voted.", "n1"),
+        _spoken_by(RadioRole.ANCHOR, ScriptPart.BODY, "The budget is adopted.", "n1"),
+    ],
+)
+DEBATE_CAST = Cast(
+    voices=dict.fromkeys(RadioRole, "voice-a")
+    | {
+        RadioRole.ANCHOR: "voice-b",
+        RadioRole.SPEAKER_A: "voice-c",
+        RadioRole.SPEAKER_B: "voice-d",
+        RadioRole.SPEAKER_C: "voice-e",
+    }
+)
 
 
 class TestDialogueTakes:
@@ -690,6 +715,29 @@ class TestDialogueTakes:
         assert len(client.dialogues) == 1  # a refusal is not tried again
         assert len(client.calls) == len(ledger.calls) == 4
         assert self._taken("failed") == failed_before + 1
+
+    async def test_a_take_never_asks_the_engine_for_more_voices_than_it_takes(
+        self, tmp_path: Path, mixer: FakeMixer
+    ) -> None:
+        """Production 2026-10-17: a debate take of four voices was refused whole (400)."""
+        client = FakeDialogueClient()
+
+        debate = FORMAT_SPECS[RadioFormat.DEBATE]
+        result = await produce_segment(
+            replace(REQUEST, format=RadioFormat.DEBATE, roles=debate.roles),
+            tmp_path / "0004.mp3",
+            writer=FakeWriter(DEBATE),
+            engine=VoiceEngine(client=client, model="s2.1-pro", phrases=PHRASES),
+            cast=DEBATE_CAST,
+            ledger=Ledger(),
+            limits=DIALOGUE_LIMITS,
+        )
+
+        assert result.outcome is ProductionOutcome.PRODUCED
+        assert [[turn.voice for turn in turns] for turns in client.dialogues] == [
+            ["voice-b", "voice-c", "voice-d"],
+            ["voice-e", "voice-b"],
+        ]
 
     @pytest.mark.parametrize(
         ("model", "limits"),

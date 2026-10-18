@@ -8,13 +8,14 @@ ceiling: these tests prove that exceeding the settings-driven threshold
 short-circuits the tool with the standard ``rate_limit_exceeded`` payload
 (the tool-layer materialization of ``ToolErrorCode.RATE_LIMIT_EXCEEDED``).
 
-No DB / network: the fake settings disable the feature flag so the tool body
-returns immediately — the rate limiter records the call *before* executing
-the body, so blocked/allowed transitions are still fully exercised.
+No DB / network: the autouse ``capability_off`` patch switches the capability
+off, so the tool body returns at its capability gate — the rate limiter records
+the call *before* executing the body, so blocked/allowed transitions are still
+fully exercised.
 """
 
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from langchain.tools import ToolRuntime
@@ -44,18 +45,25 @@ def mock_runtime() -> ToolRuntime[LiaRuntimeContext, Any]:
     return make_tool_runtime()
 
 
+@pytest.fixture(autouse=True)
+def capability_off():
+    """The capability switched off: the tool body stops before any DB access."""
+    with patch.object(
+        image_generation_tools, "is_capability_enabled", AsyncMock(return_value=False)
+    ) as gate:
+        yield gate
+
+
 @pytest.fixture
 def fake_settings() -> MagicMock:
     """Module-level settings double.
 
-    ``image_generation_enabled=False`` short-circuits the tool body before
-    any DB access. The rate-limit values are deliberately small so the test
-    stays fast; the invocation loop below derives its count from this object
-    (never a duplicated literal), proving the decorator lambdas read the
-    settings at call time.
+    The rate-limit values are deliberately small so the test stays fast; the
+    invocation loop below derives its count from this object (never a
+    duplicated literal), proving the decorator lambdas read the settings at
+    call time.
     """
     settings = MagicMock()
-    settings.image_generation_enabled = False
     settings.image_generation_rate_limit_calls = 3
     settings.image_generation_rate_limit_window = 60
     return settings

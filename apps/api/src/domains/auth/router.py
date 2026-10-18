@@ -838,7 +838,7 @@ async def get_voice_mode_preference(
     "Both fields are optional; pass only the one you want to change. "
     "Selecting ``voice_stt_mode='remote'`` requires the voice_transcription "
     "slot's engine to be switched on and keyed by the admin "
-    "(see Settings → Tarification LLM Texte).",
+    "(see Settings → Administration → LLM Configuration).",
 )
 async def update_voice_mode_preference(
     data: VoiceModePreferenceRequest,

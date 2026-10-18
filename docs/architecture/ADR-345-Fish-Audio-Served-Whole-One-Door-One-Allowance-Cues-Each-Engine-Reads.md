@@ -469,3 +469,119 @@ tests rotate and remove keys, retain a stale worker cache, reload that cache
 during a catalogue response, and observe PostgreSQL actually blocking a rotation
 until the validated transaction commits. Redis tests refuse a preview under a
 different account without uploading its audio. No paid provider call is made.
+
+## Amendment 2026-10-17 — every engine's cues, re-read from its vendor, and what each one means
+
+The owner asked whether the radio and the voice comments use, automatically and
+where they fit, the expression tags of every TTS provider and model LIA offers.
+Each vendor's page was re-read on 2026-10-17 and decision 7 measured against it.
+The spellings it had were right; four things were missing.
+
+- **ElevenLabs before v3 performs one direction: the SSML pause.** ElevenLabs:
+  « all of our models, with the exception of Eleven v4 and Eleven v3, support
+  SSML break tags » (up to 3 s; « too many break tags … can cause
+  instability », which the budget bounds). Multilingual v2, Flash v2/v2.5 and
+  Turbo v2/v2.5 now spell the pause `<break time="0.5s" />`
+  (`ELEVENLABS_SSML_BREAK`); v3 and v4, which refuse SSML, keep `…`. On those
+  engines an angle tag in a text read aloud is markup and is removed: read
+  literally, a third party's `<break time="3s"/>` would have been performed.
+- **A dialect may perform a delivery as the request's direction.** Google
+  separates the two scopes for Gemini 3.8: inline `<…>` tags « only for
+  point-in-time vocal events », sustained delivery in `speech_metadata.style`.
+  The comment is synthesized sentence by sentence, each sentence its own
+  request, so `CueDialect.styles` turns the first delivery cue of a sentence into
+  that request's `style` (`AuthoredSentence.controls()`, counted in the same
+  budget); a guard holds every dialect with styles to models whose family
+  declares `STYLE_PROMPT` — the 2.5 and 3.1 previews answer 400 to any
+  annotation. Before, the voice comment on Gemini 3.8 could only sigh or laugh.
+- **`concerned` is a cue of its own.** The radio's `concerned` tone was played
+  `[empathetic]`; it is now `[concerned]` (ElevenLabs, `drama-3`), `[worried]`
+  (Fish S2 — its own « Worried: concerned, troubled »), `(worried)` (`s1`) and the
+  style `concerned` (Gemini 3.8).
+- **The writer is told what each cue means, and that a cue colours the news.**
+  Told the names alone, writers of two of the first three model families
+  measured put a cue on most comments (74 % and 95 % of them, `[warm]` most
+  often) — a routine confirmation got `[warm]`, a failed weather call
+  `[serious]` — and none of 252 comments ever laughed or sighed (dev,
+  2026-10-17, invented contexts, the real prompt: 14 contexts × 2
+  personalities × 3 runs per family). Each listed cue now carries a
+  `meaning.<cue>` row and the example is the cue's own sentence
+  (`example.<cue>`). A first rule — « decide first whether the result carries
+  an emotion for the person » — helped those three families and made the
+  fourth, measured once Anthropic calls were allowed again, cue 16 of its 24
+  neutral contexts against 2 before: told « an emotion for the person », it
+  read a failure as bad news and a confirmation as good news. The rule now
+  draws a line a writer cannot read two ways: a cue colours the NEWS, never the
+  outcome of LIA's own act (a confirmation, a status, a failure, nothing found),
+  late at night excepted. Over four families, 336 comments per version (initial
+  → first rule → shipped): cues where the context called for none 34 % → 33 % →
+  25 %, comments with a cue outside the fitting set 16 → 7 → 1, comments that
+  call for a cue and carry a fitting one 53 % → 80 % → 73 %. The families still
+  differ widely (their neutral contexts cued 0, 3, 9 and 12 times of 24; a
+  fitting cue used 11 to 58 times of 60), which no wording levels: within a
+  comment, whether a cue fits stays the writer's judgement. Where a comment
+  may carry one at all is the code's, for every model: a comment is written
+  only when the answer retained records (`voice_scope.py`), and an answer that
+  retained none — a failure, nothing found — is read aloud as written, with no
+  cue; so two of the four neutral contexts measured above (the failure, the
+  empty search) test the writer's discrimination more than they reach a
+  listener. The one path that let a comment read the answer itself — its
+  records could not be summarised — now carries no cue either:
+  `speaks_of_records`, declared by every caller with no default, gives that
+  comment no cue block and no budget (`_comment_cue_budget`). A cue on a plain
+  confirmation that carries records stays the prompt's to prevent. A variant
+  asking for the decision BEFORE the list was measured and rejected (one family
+  back to its baseline).
+
+Left without a dialect, on purpose: Gemini's 2.5 and 3.1 previews (shutdown
+announced for 2026-11-17 — recorded in the catalogue by migration
+`754351d42c74` — and a markup guide warning that some bracketed words are
+spoken there), OpenAI `tts-1`/`tts-1-hd` (`instructions` « does not work » with
+them) and Edge (custom SSML refused by Microsoft). The radio's vocal reactions
+are ADR-324 decision 45.
+
+Measured through LIA's own clients (2026-10-17, transcribed by ElevenLabs Scribe
+v2 with audio events, 0.18 $): on 67 clips over ElevenLabs v4, v4 Turbo, v3
+Conversational, Flash v2.5, Multilingual v2, Turbo v2.5, Gemini 3.8 Flash and
+Flash-Lite and Fish `s2.1-pro-free`, no cue was ever read aloud; the SSML pause
+lengthened its sentence by 0.65-0.75 s on the three v2-generation models; every
+`style` was accepted by both Gemini 3.8 models; a laugh was tagged as an event on
+each vendor (ElevenLabs v4 Turbo, Gemini 3.8 Flash and Flash-Lite, Fish), a sigh
+on ElevenLabs v4 and v4 Turbo only, and v3 Conversational's chuckle and sigh
+were not tagged at all. A sound not tagged is not proven absent: Scribe's
+tagging is too unsteady to rank spellings (one « deep sigh » was tagged a
+laugh). A second instrument settles whether a sound is PERFORMED without asking
+the transcriber to name it: when the first word starts, with and without the
+sound opening the same line (the radio's place, decision 45 of ADR-324; three
+samples per engine and sound, 0.17 $). ElevenLabs v4 and v4 Turbo played the
+laugh, the chuckle and the sigh every time (the words start 0.75-1.0 s later,
+medians), Gemini 3.8 Flash and Flash-Lite the laugh and the chuckle every time
+and the sigh two times in three on Flash, once in the two samples Flash-Lite
+answered (a 429 took the third), ElevenLabs v3 Conversational irregularly (the laugh
+once in three, the chuckle and the sigh twice). Fish `s2.1-pro-free` plays the
+laugh every time, but the chuckle clearly only about once in four — otherwise
+a short beat, `[chuckling]` and `[chuckles]` alike over eight interleaved
+samples, so neither spelling is better — and the sigh as a short breath
+(+0.3 s). Measured end to end the same day, the real `stream_voice_comment` —
+on the dev slot as configured, then with the slot's model swapped for another
+family — sent a writer's `[cheerful]` to Fish as `[happy]` and to Gemini 3.8
+Flash as the sentence's `style`, a `[concerned]` to Fish as `[worried]`, and
+nothing was read aloud. Not measured: drama-3 and `s1` (no paid Fish call),
+whether a style changes what a listener hears beyond the duration (the
+transcript cannot say).
+
+## Amendment 2026-10-18 — a dialogue take holds no more voices than the engine takes
+
+A radio debate (the anchor and three commentators) planned ONE take of four voices,
+and Fish answered 400 with no error code (production 2026-10-17); the take fell back
+to its lines, so the segment aired, one refused request later. Measured on
+`s2.1-pro-free` through the real client: every 3-voice combination of five library
+voices accepted (10 of 10), every 4-voice one refused whole in 0.4 s — « Reference
+audio too long », before any audio (5 of 5) — while the number of turns (nine) and
+the length of the text (up to 1 256 bytes) changed nothing.
+`TtsFamily.dialogue_max_voices` declares the limit per engine family (measured on
+Fish; `None` where none is known), `families.dialogue_voice_limit` reads it, and
+`plan_takes(..., max_voices=)` opens a new take where one more voice would pass it.
+Over 20 000 seeded scripts the plan is unchanged wherever no take passed the limit,
+and for every engine that declares none; the debate, replayed for real, aired as
+three takes. Not measured: `drama-3`'s own limit (the family's applies to it).

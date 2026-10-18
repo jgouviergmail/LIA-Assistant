@@ -1,7 +1,9 @@
 """
 LLM Configuration Helper — Resolves effective LLM config for any agent type.
 
-Resolution flow: LLM_DEFAULTS (code constants) → DB override (in-memory cache) → Effective config.
+Resolution flow: LLM_DEFAULTS (code constants) → DB override (in-memory cache) → the
+output cap the catalogue vouches for the configured model
+(``infrastructure/llm/output_cap.py``) → Effective config.
 
 The `settings` parameter is kept for backward compatibility but is no longer used
 for LLM config resolution (code constants replace .env settings).
@@ -51,7 +53,11 @@ def get_llm_config_for_agent(settings: Settings, agent_type: str) -> LLMAgentCon
     """
     Get effective LLM config for a specific agent type.
 
-    Resolution: LLM_DEFAULTS (code) → DB override cache (if exists) → Effective config.
+    Resolution: LLM_DEFAULTS (code) → DB override cache (if exists) → the output
+    cap the catalogue vouches for the configured model
+    (``infrastructure/llm/output_cap.py``) → Effective config. Every reader of
+    ``max_tokens`` therefore works with the capped budget the request carries
+    (a provider branch may still lower it with a ceiling of its own).
 
     Args:
         settings: Settings instance (kept for backward compatibility, not used for LLM config)
@@ -82,11 +88,15 @@ def get_llm_config_for_agent(settings: Settings, agent_type: str) -> LLMAgentCon
     # admin decision, and the catalogue is evidence, not authority over a human
     # (ADR-244). The hard filter applies to policy candidates alone.
     from src.infrastructure.llm.capability_gate import report_configured_model
+    from src.infrastructure.llm.output_cap import capped_config
 
     if effective.model:
         report_configured_model(canonical_type, effective.model)
 
-    return effective
+    # A stored budget outlives the model it was chosen for (production
+    # 2026-10-18: 200 000 kept on a model capped at 128 000, every call
+    # refused). The catalogue's vouched cap bounds what is sent.
+    return capped_config(effective, llm_type=canonical_type)
 
 
 def merge_config(defaults: LLMAgentConfig, overrides: dict[str, Any]) -> LLMAgentConfig:

@@ -288,6 +288,9 @@ class FakeVoiceCommentService:
         self.closed = False
         self.streamer: FakeSentenceStreamer | None = None
         self.parallel_stream_done = asyncio.Event()
+        # What the coordinator said the comment speaks of (ADR-345): None until
+        # a Voice-LLM comment was asked for.
+        self.speaks_of_records: bool | None = None
         FakeVoiceCommentService.instances.append(self)
 
     async def start_progressive_chat_stream(self, user_language, chunk_queue, max_sentences=None):
@@ -309,13 +312,25 @@ class FakeVoiceCommentService:
         current_datetime,
         user_query,
         user_timezone=None,
+        *,
+        speaks_of_records: bool,
     ):
+        # Keyword-only and required, like the real service: a caller that
+        # forgets to say what the comment speaks of fails here too.
+        self.speaks_of_records = speaks_of_records
         yield _audio(0)
         yield _audio(1, last=True)
         self.parallel_stream_done.set()
 
     async def close(self) -> None:
         self.closed = True
+
+
+def _every_setting_left_to_the_database(
+    specs: list[object], _values: dict[object, object]
+) -> list[object]:
+    """The settings cache's batch read with nothing cached: every key goes on to the database."""
+    return list(specs)
 
 
 class FakeHITLStore:
@@ -504,6 +519,13 @@ class Harness:
                 # open real connections behind the harness's fake transaction.
                 ("src.domains.agents.effects.decision_recorder._write", AsyncMock()),
                 ("src.domains.agents.api.service.performed_effects", AsyncMock(return_value=[])),
+                # The settings store, through BOTH of its doors — one setting
+                # (``read_setting``) and the capability switches read together
+                # (``read_settings``): nothing cached, nothing stored, nothing
+                # written back. Every key reads its default, so the capability
+                # filter runs for real; with the batch door left to the bare
+                # Mock Redis it died on a TypeError every turn and the defaults
+                # came from the error path.
                 (
                     "src.domains.system_settings.registry._read_from_cache",
                     AsyncMock(return_value=None),
@@ -512,12 +534,28 @@ class Harness:
                     "src.domains.system_settings.registry._read_from_database",
                     AsyncMock(return_value=None),
                 ),
+                ("src.domains.system_settings.registry._write_to_cache", AsyncMock()),
+                (
+                    "src.domains.system_settings.registry._read_many_from_cache",
+                    AsyncMock(side_effect=_every_setting_left_to_the_database),
+                ),
+                (
+                    "src.domains.system_settings.registry._read_many_from_database",
+                    AsyncMock(return_value={}),
+                ),
+                ("src.domains.system_settings.registry._write_many_to_cache", AsyncMock()),
                 (
                     "src.infrastructure.mcp.user_context.setup_user_mcp_tools",
                     AsyncMock(return_value=None),
                 ),
                 ("src.infrastructure.mcp.user_context.cleanup_user_mcp_tools", Mock()),
-                ("src.domains.agents.registry.get_global_registry", Mock(return_value=Mock())),
+                # A registry with no manifest of its own: the capability filter
+                # (fed by the settings stubs above) walks it for real instead of
+                # failing on a bare Mock.
+                (
+                    "src.domains.agents.registry.get_global_registry",
+                    Mock(return_value=Mock(list_tool_manifests=Mock(return_value=[]))),
+                ),
                 ("src.core.context.build_request_tool_manifests", Mock(return_value={})),
                 ("src.infrastructure.cache.redis.get_redis_cache", AsyncMock(return_value=Mock())),
                 (
@@ -900,6 +938,9 @@ async def test_char_voice_path_2b_sync_fallback_sequence():
     # (see PATH 2A test) so its OpenAI/ElevenLabs httpx client never leaks.
     assert len(FakeVoiceCommentService.instances) == 1
     assert FakeVoiceCommentService.instances[0].closed is True
+    # The comment was handed the retained records' summary, so it may carry
+    # cues (ADR-345): the coordinator says so.
+    assert FakeVoiceCommentService.instances[0].speaks_of_records is True
 
 
 # ---------------------------------------------------------------------------
@@ -950,14 +991,24 @@ async def test_char_voice_path_1_chat_progressive_drain_sequence():
 # ---------------------------------------------------------------------------
 
 
+#: How long the scenario waits for the parallel voice task. The fake answers in a
+#: few event-loop ticks; a fake that drifted from the real call contract makes the
+#: task die before it signals, and an unbounded wait then hung the CI step.
+_PARALLEL_VOICE_TIMEOUT_SECONDS = 5.0
+
+
 async def _wait_parallel_voice(svc: FakeStreamingService) -> None:
     """Deterministically let the parallel voice task finish before the next chunk.
 
     Waits for the fake voice generator to be exhausted, then drives the event
     loop a few ticks so ``_stream_voice_chunks_to_queue``'s ``finally`` block
-    (the ``None`` sentinel put) completes as well.
+    (the ``None`` sentinel put) completes as well. The wait is bounded: a task
+    that never signals FAILS the scenario instead of hanging it.
     """
-    await FakeVoiceCommentService.instances[-1].parallel_stream_done.wait()
+    await asyncio.wait_for(
+        FakeVoiceCommentService.instances[-1].parallel_stream_done.wait(),
+        timeout=_PARALLEL_VOICE_TIMEOUT_SECONDS,
+    )
     for _ in range(10):
         await asyncio.sleep(0)
 
@@ -1008,6 +1059,8 @@ async def test_char_voice_parallel_progressive_mid_stream_sequence():
     assert FakeVoiceCommentService.instances[0].closed is True
     # No chat-mode streamer was ever started (intention != conversation).
     assert FakeVoiceCommentService.instances[0].streamer is None
+    # The parallel comment speaks of the records the answer retained (ADR-345).
+    assert FakeVoiceCommentService.instances[0].speaks_of_records is True
 
 
 # ---------------------------------------------------------------------------

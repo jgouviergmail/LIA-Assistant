@@ -19,15 +19,14 @@ Simple factual questions are always handled directly — experts are only mobili
 **You stay in control:** before launching an expert, LIA asks for your confirmation. If you decline, the assistant automatically switches to a standard plan without sub-agents.
 
 ## What does a sub-agent actually do?
-A sub-agent runs a focused, time-bounded loop:
 
-• It receives a **persona** (e.g., "senior analyst with 10+ years in AI markets") and a **task statement** written by the principal assistant for your specific question.
-• It has access to a **narrow set of read-only research tools** (web search and web-page fetching by default) — not to your personal data tools (emails, calendar, contacts, files). The principal assistant already inlines the data the sub-agent needs.
-• It **calibrates its output** to the nature of your request: a "detailed market analysis" yields a structured multi-section report with cited sources ; a "summary" yields a tight condensation ; a "comparison" yields parallel sections per item.
-• It **cites its sources** (URLs) for every numerical claim and distinguishes facts from inferences.
-• It **never invents data** — if a piece of information is missing and cannot be researched, the sub-agent says so plainly.
+It works on one task, briefly and within bounds:
+• LIA gives it a **role** — a specialist of the field — and a **task** written for your question, with the information from your request it needs already included
+• it researches with a narrow set of **read-only** tools — by default web search and page reading, not your e-mails, calendar or contacts. Your administrator chooses the list, a tool that would change anything is never allowed, and a sub-agent cannot start another one
+• it separates what it observed from what it deduces, dates its figures, links its sources, and says plainly when a piece of information is missing rather than inventing it
+• if it runs out of steps, its last pass writes up what it found instead of searching further
 
-The principal assistant then **restitutes the sub-agent's analysis verbatim** to you, preserving its sections, sources and expert voice — without rewriting it in the assistant's own conversational tone.
+LIA then hands you that analysis **as written**, keeping its sections and sources — sometimes even in the language the analysis was written in.
 
 ## Can I disable sub-agents?
 Sub-agent activation is **managed at the application level** by your administrator (via a global configuration flag); it is not a per-user setting in your account.

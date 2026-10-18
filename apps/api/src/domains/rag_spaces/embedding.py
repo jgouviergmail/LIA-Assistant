@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import os
 import threading
 import time
 
@@ -22,7 +21,10 @@ from src.core.constants import (
     RAG_QUERY_EMBEDDING_CACHE_MAX_SIZE,
     RAG_QUERY_EMBEDDING_CACHE_TTL_SECONDS,
 )
-from src.infrastructure.llm.gemini_embeddings import GeminiRetrievalEmbeddings
+from src.infrastructure.llm.gemini_embeddings import (
+    GeminiRetrievalEmbeddings,
+    resolve_gemini_embedding_key,
+)
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -69,13 +71,9 @@ def get_rag_embeddings() -> GeminiRetrievalEmbeddings:
         model = settings.rag_spaces_embedding_model
         dimensions = settings.rag_spaces_embedding_dimensions
 
-        google_api_key = os.environ.get("GOOGLE_GEMINI_API_KEY", "") or os.environ.get(
-            "GOOGLE_API_KEY", ""
-        )
-
         _rag_embeddings = GeminiRetrievalEmbeddings(
             model=model,
-            google_api_key=google_api_key,
+            key_resolver=resolve_gemini_embedding_key,
             output_dimensionality=dimensions,
         )
 
@@ -117,12 +115,9 @@ def get_rag_embeddings_for_model(model: str) -> GeminiRetrievalEmbeddings:
         if cached is not None:
             return cached
 
-        google_api_key = os.environ.get("GOOGLE_GEMINI_API_KEY", "") or os.environ.get(
-            "GOOGLE_API_KEY", ""
-        )
         client = GeminiRetrievalEmbeddings(
             model=model,
-            google_api_key=google_api_key,
+            key_resolver=resolve_gemini_embedding_key,
             output_dimensionality=settings.rag_spaces_embedding_dimensions,
         )
         _embeddings_by_model[model] = client

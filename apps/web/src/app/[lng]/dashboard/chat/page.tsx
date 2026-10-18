@@ -40,6 +40,7 @@ import { stopAvatarCommentsForChatFailure } from '@/lib/avatars/runtime';
 import { useDebugPanelEnabled } from '@/hooks/useDebugPanelEnabled';
 import { useAppConfig, type AppConfig } from '@/hooks/useAppConfig';
 import { BookmarkStateProvider } from '@/lib/bookmark-state-context';
+import { bookmarkKeepingAvailable, bookmarksReadable } from '@/lib/bookmarks/availability';
 import { PeersAvailabilityProvider } from '@/lib/peers/availability-context';
 import { EmailShareAvailabilityProvider } from '@/lib/email-share/availability-context';
 import { emailShareAvailable } from '@/lib/email-share/share';
@@ -114,15 +115,6 @@ function composerLocks(flags: {
     apiUsable: apiAvailable && !isUsageBlocked,
     reasonKey: liveOpen ? 'live.composer_locked' : null,
   };
-}
-
-/**
- * Whether the bubbles may offer the bookmark toggle (module-level — CC
- * discipline): default OFF, an instance that does not publish the flag keeps
- * no answers (ADR-282).
- */
-function bookmarksEnabled(config: AppConfig | null): boolean {
-  return config?.features?.bookmarks_enabled ?? false;
 }
 
 /**
@@ -1027,7 +1019,10 @@ export default function ChatPage() {
                   onExecute={sendMessageFromPresent}
                   onPrefill={handleFollowupPick}
                 />
-                <BookmarkStateProvider enabled={bookmarksEnabled(appConfig)}>
+                <BookmarkStateProvider
+                  enabled={bookmarksReadable(appConfig)}
+                  canKeep={bookmarkKeepingAvailable(appConfig)}
+                >
                   <PeersAvailabilityProvider available={peersAvailable(appConfig)}>
                     <EmailShareAvailabilityProvider available={emailShareAvailable(appConfig)}>
                       <ChatMessageList

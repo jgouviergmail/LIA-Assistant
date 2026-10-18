@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from scripts.install.model import Exposure, InstallMode, PublicAnswers
-from scripts.install.report import render_report
+from scripts.install.report import RECONFIGURED_HEADING, render_report
 
 SECRETS = ("pw-CANARY-77", "sk-CANARY-99", "FERNET-CANARY==")
 
@@ -55,6 +55,19 @@ def test_prebuilt_report_states_the_firebase_limitation() -> None:
     assert "https://lia.example.org" in report
     assert "push" in report.lower() and "unavailable" in report.lower()
     assert "local build" in report.lower()
+
+
+def test_an_unknown_degraded_list_points_at_the_admin_ui_rather_than_claiming_one() -> None:
+    report = render_report(
+        _public(InstallMode.LOCAL, Exposure.LAN),
+        release_summary="local build",
+        backup_dir=Path("/srv/backups"),
+        optional_unkeyed=None,
+        heading=RECONFIGURED_HEADING,
+    )
+    assert report.startswith(RECONFIGURED_HEADING)
+    assert "LLM Configuration" in report
+    assert "(degraded)" not in report
 
 
 def test_report_never_carries_a_secret() -> None:

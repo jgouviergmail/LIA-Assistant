@@ -79,3 +79,49 @@ The 2026-07 audit found the consequences:
 - The SSE latency threshold (60s p95 TTFT) is set above the measured
   production baseline to detect *degradation*; it must be tightened after the
   latency-optimization work lands.
+
+## Amendment 2026-10-18 — the digest reads what fired; a p95 needs observations
+
+Measured on production for the report covering 2026-10-17. The alerting chain
+worked end to end (31 rules healthy, no notification failure, 18 emails and 18
+webhook deliveries that day), but the two consumers around it did not say so:
+
+1. **The daily digest read no alert.** Its Docker section described the host
+   at 06:25 — container states, `RestartCount`, one `docker stats` sample — so
+   a demonstrator API that restarted about 2 050 times under a critical
+   `ContainerRestartLoop` for six and a half hours read « Aucun redemarrage.
+   Tout est stable. » (the container had been recreated since), and the
+   « maximum 61 % » memory figure was one container at 06:25:30. Its tunnel
+   section counted log LINES with patterns written for QUIC (two lines per
+   failed request, client cancellations as errors, « requests » matching the
+   failure lines, a registration pattern with its words in the wrong order).
+   The digest now opens on a « Supervision LIA » section read from the systems
+   that recorded the window — the alerts Prometheus fired, the chain's own
+   health, the alerts active now, the incidents still open, container restarts
+   and recreations, memory peaks, probe failures —, each source named when it
+   cannot be read (`infrastructure/logwatch/scripts/services/lia-supervision`).
+   The tunnel section counts each failed request once, by side, and reads
+   traffic and HTTP codes from cloudflared's own counters. It reads the tunnel's
+   journal itself (`journalctl --output=short-iso` over the report window,
+   `LogFile = none`): fed through a logfile group, it received what logwatch's
+   `*ApplyStdDate` makes of an ISO line — a syslog date without a year — so one
+   outage of three minutes printed 27 periods, and on a day the journal stayed
+   empty the whole section, « Service : failed » included, was absent. A section
+   whose source recorded none of the window says « aucune mesure », and the
+   share it recorded when it recorded part of it: no sample is never « no
+   restart », « every probe answered » or « no alert fired ». The unit tests
+   that import these extensionless scripts write no bytecode, the bundle prunes
+   any, and `deploy.sh` installs the scripts' regular files only — a
+   `__pycache__` left beside them made `cp` exit 1 and stopped the deployment at
+   step 4/7. The consequence above (« visible in the Prometheus UI and the
+   logwatch digest ») is true only from this amendment on.
+2. **`SSELatencyP95High` measured nobody's wait.** Every out-of-turn run
+   streamed through the chat code and fed the TTFT histogram; three morning
+   routines did so with one or two observations per ten minutes, each above
+   90 s, and the alert fired every morning from 2026-09-19 on. Only a turn a
+   person waits for is observed now (`streaming/latency_sli.py`, declared per
+   run by the out-of-turn funnel), and the rule evaluates only over
+   `ALERT_CORE_SSE_TTFT_MIN_OBSERVATIONS` turns: below `1 / (1 - 0.95)`
+   observations a histogram's p95 IS its slowest observation. Production's
+   chat traffic peaks far below that, so on that instance the alert stays
+   silent by construction — the price of a quantile that means what it says.

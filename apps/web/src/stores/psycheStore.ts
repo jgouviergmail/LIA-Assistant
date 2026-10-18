@@ -6,7 +6,8 @@
  * 2. SSE done events: psyche_state in metadata → updateFromSSE()
  *
  * Consumed by:
- * - ChatMessageList → fallback psyche state for AssistantAvatar
+ * - ChatMessage → `messageAvatarPsyche`: a message's mood, its own or the live one
+ * - CompanionPresence → `liveAvatarPsyche`: the companion's live mood
  * - PsycheStateSummary (settings page)
  *
  * No persistence needed — state comes from server on each page load.
@@ -122,3 +123,55 @@ export const usePsycheStore = create<PsycheStoreState>(set => ({
   setEnabled: (enabled: boolean) => set({ enabled }),
   reset: () => set(INITIAL_STATE),
 }));
+
+/** What an avatar reads from the store: the live mood and the two switches. */
+type AvatarPsycheSource = Pick<
+  PsycheStoreState,
+  | 'enabled'
+  | 'displayAvatar'
+  | 'moodLabel'
+  | 'moodColor'
+  | 'moodPleasure'
+  | 'moodArousal'
+  | 'moodDominance'
+  | 'activeEmotion'
+  | 'emotionIntensity'
+  | 'relationshipStage'
+>;
+
+/** The live mood an avatar may show: none while the psyche is off or the avatar hidden. */
+export function liveAvatarPsyche(state: AvatarPsycheSource): PsycheStateSummary | null {
+  if (!state.enabled || !state.displayAvatar) return null;
+  return {
+    mood_label: state.moodLabel,
+    mood_color: state.moodColor,
+    mood_pleasure: state.moodPleasure,
+    mood_arousal: state.moodArousal,
+    mood_dominance: state.moodDominance,
+    active_emotion: state.activeEmotion,
+    emotion_intensity: state.emotionIntensity,
+    relationship_stage: state.relationshipStage,
+  };
+}
+
+/** The mood a message's avatar shows, and whether it is the live one. */
+export interface MessageAvatarPsyche {
+  psycheState: PsycheStateSummary | null;
+  live: boolean;
+}
+
+/**
+ * The mood a message's avatar shows: the snapshot its answer was stored with,
+ * else the live mood. « Show emotional avatar » governs both — it used to gate
+ * the live mood alone, so every finished answer kept showing its mood with the
+ * switch off.
+ */
+export function messageAvatarPsyche(
+  state: AvatarPsycheSource,
+  snapshot: PsycheStateSummary | undefined
+): MessageAvatarPsyche {
+  if (!state.displayAvatar) return { psycheState: null, live: false };
+  if (snapshot) return { psycheState: snapshot, live: false };
+  const live = liveAvatarPsyche(state);
+  return { psycheState: live, live: live !== null };
+}

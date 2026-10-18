@@ -161,9 +161,13 @@ ALLOWED_BEFORE_MARKER: dict[str, frozenset[str]] = {
     # ``editorial_policy`` is one versioned file read from a constant name,
     # cached per process: identical for every request of a deployment. The
     # writer, analyst and verifier share these rules in their cached prefix.
+    # ``reaction_rule`` (ADR-324 decision 45) depends on the session's voice and a
+    # setting alone — one value per session; the PROGRAMME's own allowance is a
+    # CONTEXT line below the marker, so every programme keeps the shared prefix.
     "radio_writer_prompt": frozenset(
         {
             "editorial_policy",
+            "reaction_rule",
             "station_name",
             "language_name",
             "personality",

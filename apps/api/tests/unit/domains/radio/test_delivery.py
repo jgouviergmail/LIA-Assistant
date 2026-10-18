@@ -2,18 +2,27 @@
 
 from __future__ import annotations
 
+import ast
+from pathlib import Path
+
 import pytest
 
 from src.core.prompt_store import read_prompt_file
+from src.domains.radio import delivery as delivery_module
 from src.domains.radio.delivery import (
     DELIVERY_LINES,
+    REACTION_CUES,
     RenderedDelivery,
     StylePhrases,
+    assert_reaction_cues_complete,
     delivery_kwargs,
     load_style_phrases,
+    performed_reactions,
 )
 from src.domains.radio.formats import RadioRole
-from src.domains.radio.script import Energy, Pace, RadioDelivery, Tone
+from src.domains.radio.script import Energy, Pace, RadioDelivery, Reaction, Tone
+from src.domains.voice.expressive_cues import EVENT_CUES, Cue, cue_dialect
+from src.domains.voice.families import TtsControl
 from tests.support.voice_clock import retirement_day, speak_on
 
 pytestmark = pytest.mark.unit
@@ -228,3 +237,168 @@ class TestOpeningCue:
         )
 
         assert (out.cue, out.unrendered) == ("", ())
+
+
+class TestConcernedTone:
+    """A concerned line is played as concern, the engine's own word for it (ADR-345)."""
+
+    @pytest.mark.parametrize(
+        ("provider", "model", "cue"),
+        [
+            ("fishaudio", "s2.1-pro", "[worried]"),
+            ("elevenlabs", "eleven_v4", "[concerned]"),
+            ("fishaudio", "drama-3", "[concerned]"),
+        ],
+    )
+    def test_a_concerned_tone_opens_with_concern(self, provider: str, model: str, cue: str) -> None:
+        delivery = RadioDelivery(tone=Tone.CONCERNED)
+
+        out = delivery_kwargs(provider, RadioRole.ANCHOR, delivery, model=model, phrases=PHRASES)
+
+        assert out.cue == cue
+        assert "tone" not in out.unrendered
+
+
+class TestReactions:
+    """A vocal reaction the writer asked for opens its line, in the engine's own words."""
+
+    def test_a_reaction_follows_the_delivery_cue(self) -> None:
+        delivery = RadioDelivery(tone=Tone.WARM, reaction=Reaction.CHUCKLES)
+
+        out = delivery_kwargs(
+            "fishaudio", RadioRole.SPEAKER_A, delivery, model="s2.1-pro", phrases=PHRASES
+        )
+
+        assert out.cue == "[warm] [chuckling]"
+        assert out.unrendered == ()
+
+    def test_a_reaction_alone_opens_the_line(self) -> None:
+        delivery = RadioDelivery(reaction=Reaction.SIGHS)
+
+        out = delivery_kwargs(
+            "elevenlabs", RadioRole.SPEAKER_B, delivery, model="eleven_v4", phrases=PHRASES
+        )
+
+        assert out.cue == "[sighs]"
+
+    def test_gemini_hears_the_reaction_inline_beside_its_direction(self) -> None:
+        delivery = RadioDelivery(tone=Tone.WARM, reaction=Reaction.LAUGHS)
+
+        out = delivery_kwargs(
+            "gemini",
+            RadioRole.SPEAKER_A,
+            delivery,
+            model="gemini-3.8-flash-tts",
+            phrases=PHRASES,
+        )
+
+        assert out.cue == "<laugh>"
+        assert "style" in out.kwargs
+        assert out.unrendered == ()
+
+    @pytest.mark.parametrize(
+        ("provider", "model"),
+        [("edge", "edge-tts"), ("openai", "tts-1"), ("elevenlabs", "eleven_multilingual_v2")],
+    )
+    def test_an_engine_without_sounds_reports_the_reaction(self, provider: str, model: str) -> None:
+        delivery = RadioDelivery(reaction=Reaction.CHUCKLES)
+
+        out = delivery_kwargs(provider, RadioRole.SPEAKER_A, delivery, model=model, phrases=PHRASES)
+
+        assert out.cue == ""
+        assert out.unrendered == ("reaction",)
+
+    def test_no_reaction_asks_nothing(self) -> None:
+        out = delivery_kwargs(
+            "fishaudio", RadioRole.SPEAKER_A, NEUTRAL, model="s2.1-pro", phrases=PHRASES
+        )
+
+        assert (out.cue, out.unrendered) == ("", ())
+
+    @pytest.mark.parametrize(
+        ("provider", "model", "performed"),
+        [
+            ("fishaudio", "s2.1-pro", (Reaction.LAUGHS, Reaction.CHUCKLES, Reaction.SIGHS)),
+            ("elevenlabs", "eleven_v4", (Reaction.LAUGHS, Reaction.CHUCKLES, Reaction.SIGHS)),
+            (
+                "gemini",
+                "gemini-3.8-flash-tts",
+                (Reaction.LAUGHS, Reaction.CHUCKLES, Reaction.SIGHS),
+            ),
+            ("elevenlabs", "eleven_flash_v2_5", ()),
+            ("gemini", "gemini-3.1-flash-tts-preview", ()),
+            ("edge", "edge-tts", ()),
+        ],
+    )
+    def test_the_reactions_an_engine_performs(
+        self, provider: str, model: str, performed: tuple[Reaction, ...]
+    ) -> None:
+        assert performed_reactions(cue_dialect(provider, model)) == performed
+
+    def test_every_reaction_but_none_is_a_sound_of_the_cue_vocabulary(self) -> None:
+        assert {reaction for reaction in Reaction if reaction is not Reaction.NONE} == set(
+            REACTION_CUES
+        )
+        assert set(REACTION_CUES.values()) <= EVENT_CUES
+
+    def test_a_reaction_word_off_the_vocabulary_is_none_never_a_lost_script(self) -> None:
+        repaired = RadioDelivery.model_validate({"reaction": "applause"})
+        assert repaired.reaction is Reaction.NONE
+
+
+def test_a_style_direction_never_claims_the_reaction_it_does_not_word(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The direction words energy, pace and tone; a reaction is a sound — an engine
+    directed in words that performs no cue reports the reaction unrendered."""
+    monkeypatch.setattr(
+        delivery_module,
+        "controls_for",
+        lambda provider, model: frozenset({TtsControl.STYLE_PROMPT}),
+    )
+    delivery = RadioDelivery(tone=Tone.WARM, reaction=Reaction.LAUGHS)
+
+    out = delivery_kwargs(
+        "worded-engine", RadioRole.SPEAKER_A, delivery, model="any", phrases=PHRASES
+    )
+
+    assert "style" in out.kwargs
+    assert out.cue == ""
+    assert out.unrendered == ("reaction",)
+
+
+class TestReactionCuesCompleteness:
+    """ADR-085: ``REACTION_CUES`` is read with ``.get``, so a new reaction without a
+    cue would be offered to no writer and voiced by no engine, in silence — the
+    module refuses to import instead, as the radio's other registries do."""
+
+    def test_the_shipped_table_is_complete(self) -> None:
+        assert_reaction_cues_complete()
+
+    def test_a_reaction_without_a_cue_refuses_the_boot(self) -> None:
+        table = dict(REACTION_CUES)
+        del table[Reaction.CHUCKLES]
+        with pytest.raises(RuntimeError, match=r"without a cue=\['chuckles'\]"):
+            assert_reaction_cues_complete(table)
+
+    def test_none_is_no_reaction_to_voice(self) -> None:
+        table = {**REACTION_CUES, Reaction.NONE: Cue.SIGHS}
+        with pytest.raises(RuntimeError, match=r"no reaction to voice=\['none'\]"):
+            assert_reaction_cues_complete(table)
+
+    def test_a_reaction_voiced_by_a_delivery_cue_refuses_the_boot(self) -> None:
+        table = {**REACTION_CUES, Reaction.SIGHS: Cue.WARM}
+        with pytest.raises(RuntimeError, match=r"no sound=\['warm'\]"):
+            assert_reaction_cues_complete(table)
+
+    def test_the_import_carries_the_check(self) -> None:
+        """Called at module level, like every radio registry check: the boot runs it."""
+        source = Path(delivery_module.__file__).read_text(encoding="utf-8")
+        calls = [
+            node.value.func.id
+            for node in ast.parse(source).body
+            if isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Name)
+        ]
+        assert "assert_reaction_cues_complete" in calls

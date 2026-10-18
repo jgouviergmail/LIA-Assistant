@@ -629,6 +629,7 @@ class LLMConfigService:
             One entry per model with a profile, image models excluded.
         """
         from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
+        from src.infrastructure.llm.output_cap import vouched_output_cap
 
         caps: list[ModelCapabilities] = []
         for model_id in model_names:
@@ -641,6 +642,8 @@ class LLMConfigService:
                     model_id=model_id,
                     kind=profile.kind,
                     max_output_tokens=profile.max_output_tokens,
+                    # The cap the request is held to, from the same rule.
+                    vouched_max_output_tokens=vouched_output_cap(provider, profile),
                     supports_tools=profile.supports_tool_calling,
                     supports_structured_output=profile.supports_structured_output,
                     supports_vision=profile.supports_vision,
@@ -760,6 +763,7 @@ class LLMConfigService:
         :class:`ModelCapabilitiesCache` filtered to ``provider=ollama``.
         """
         from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
+        from src.infrastructure.llm.output_cap import vouched_output_cap
         from src.infrastructure.llm.providers.ollama_discovery import (
             build_discovered_profile,
             refresh_ollama_capabilities,
@@ -786,6 +790,7 @@ class LLMConfigService:
                         model_id=info.name,
                         kind=profile.kind,
                         max_output_tokens=profile.max_output_tokens,
+                        vouched_max_output_tokens=vouched_output_cap("ollama", profile),
                         supports_tools=profile.supports_tool_calling,
                         supports_structured_output=profile.supports_structured_output,
                         supports_vision=profile.supports_vision,
@@ -828,6 +833,7 @@ class LLMConfigService:
                     model_id=model_id,
                     kind=cached.kind,
                     max_output_tokens=cached.max_output_tokens,
+                    vouched_max_output_tokens=vouched_output_cap("ollama", cached),
                     supports_tools=cached.supports_tool_calling,
                     supports_structured_output=cached.supports_structured_output,
                     supports_vision=cached.supports_vision,

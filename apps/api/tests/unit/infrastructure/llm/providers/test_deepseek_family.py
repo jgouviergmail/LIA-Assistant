@@ -167,6 +167,18 @@ def test_the_family_output_cap_falls_back_when_the_catalogue_is_silent() -> None
     assert kwargs["max_tokens"] == 64_000
 
 
+def test_the_column_default_is_no_output_cap_for_the_family() -> None:
+    """A row added through the catalogue form keeps the 4 096 column default.
+
+    Read as the model's cap, it cut every request on a model that emits 384 K
+    to 4 096 tokens; it says nothing, so the family's fallback applies.
+    """
+    profile = ModelProfile(model_id="deepseek-flash", max_output_tokens=4_096)
+    with patch.object(ModelCapabilitiesCache, "get", return_value=profile):
+        kwargs = _deepseek_constructor_kwargs("deepseek-flash", max_tokens=200_000)
+    assert kwargs["max_tokens"] == 64_000
+
+
 # ---------------------------------------------------------------------------
 # The structured-output detour reads the same declaration
 # ---------------------------------------------------------------------------

@@ -190,6 +190,8 @@ def _stream_request(
         original_run_id=resume,
         live_session_id=session.key,
         spoken_text=request.spoken_text,
+        # The person is on the line: their wait is a chat latency.
+        person_waiting=True,
     )
 
 

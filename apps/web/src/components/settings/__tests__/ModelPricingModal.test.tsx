@@ -14,6 +14,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 import { ModelPricingModal } from '../AdminLLMPricingSection';
+import deLocale from '../../../../locales/de/translation.json';
+import enLocale from '../../../../locales/en/translation.json';
+import esLocale from '../../../../locales/es/translation.json';
+import frLocale from '../../../../locales/fr/translation.json';
+import itLocale from '../../../../locales/it/translation.json';
+import zhLocale from '../../../../locales/zh/translation.json';
 import type { LLMModelPricing } from '../AdminLLMPricingSection';
 
 // Radix Switch measures itself via ResizeObserver, absent from jsdom.
@@ -36,6 +42,15 @@ vi.mock('@/lib/api-client', () => ({
   default: { get: apiGet },
   apiEndpointUrl: (endpoint: string) => `/api/v1${endpoint}`,
 }));
+
+const LOCALES = {
+  de: deLocale,
+  en: enLocale,
+  es: esLocale,
+  fr: frLocale,
+  it: itLocale,
+  zh: zhLocale,
+};
 
 const FAMILY = {
   reasoning_family: 'openai_effort',
@@ -116,7 +131,9 @@ describe('add mode', () => {
 
   it('re-aligns pricing_unit when the kind changes to an audio kind', async () => {
     const { onSubmit } = await renderModal(null);
-    fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'tts' } });
+    fireEvent.change(screen.getByLabelText('settings.admin.llm.modal.reasoning.kind'), {
+      target: { value: 'tts' },
+    });
     await changeModelName('x');
     fireEvent.change(screen.getByLabelText(/input_price_label/), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText(/output_price_label/), { target: { value: '1' } });
@@ -165,7 +182,7 @@ describe('reasoning gating + custom shape', () => {
 
   it('offers the family ladder as checkboxes, not a free-text list', async () => {
     await renderModal(null);
-    fireEvent.click(screen.getByLabelText('Is reasoning model'));
+    fireEvent.click(screen.getByLabelText('settings.admin.llm.modal.is_reasoning_model_label'));
     // Every box is a depth this model's family really offers. The old free-text
     // field asked the operator to DECLARE a ladder the code already derives,
     // and let them type a level that does not exist (`off`, dropped in silence
@@ -184,7 +201,7 @@ describe('reasoning gating + custom shape', () => {
     await changeModelName('m');
     fireEvent.change(screen.getByLabelText(/input_price_label/), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText(/output_price_label/), { target: { value: '1' } });
-    fireEvent.click(screen.getByLabelText('Is reasoning model'));
+    fireEvent.click(screen.getByLabelText('settings.admin.llm.modal.is_reasoning_model_label'));
     await waitFor(() => expect(screen.getByLabelText('high')).toBeTruthy());
     submit();
     // "No narrowing" and "narrowed to everything" mean the same thing to the
@@ -202,11 +219,22 @@ describe('reasoning gating + custom shape', () => {
       source: 'unknown',
     });
     await renderModal(null);
-    fireEvent.click(screen.getByLabelText('Is reasoning model'));
+    fireEvent.click(screen.getByLabelText('settings.admin.llm.modal.is_reasoning_model_label'));
     // The state that confused every reader of the old field: the column is not
     // even read here, and an empty checkbox list would look like a loading bug.
-    await waitFor(() => expect(screen.getByText(/No reasoning family matches/)).toBeTruthy());
-    expect(screen.getByText(/code change/)).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.getByText('settings.admin.llm.modal.reasoning.no_family_title')).toBeTruthy()
+    );
+  });
+
+  it('says, in every language, which two files a new reasoning API needs', () => {
+    // The explanation is a <Trans> body: a translation that dropped a <code>
+    // tag would render the file name as plain prose, in silence.
+    for (const [lng, locale] of Object.entries(LOCALES)) {
+      const body = locale.settings.admin.llm.modal.reasoning.no_family_body;
+      expect(body, lng).toContain('<code>reasoning/profiles.py</code>');
+      expect(body, lng).toContain('<code>translate.py</code>');
+    }
   });
 
   it('emits only the depths left ticked', async () => {
@@ -214,7 +242,7 @@ describe('reasoning gating + custom shape', () => {
     await changeModelName('m');
     fireEvent.change(screen.getByLabelText(/input_price_label/), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText(/output_price_label/), { target: { value: '1' } });
-    fireEvent.click(screen.getByLabelText('Is reasoning model'));
+    fireEvent.click(screen.getByLabelText('settings.admin.llm.modal.is_reasoning_model_label'));
     await waitFor(() => expect(screen.getByLabelText('none')).toBeTruthy());
     // Unticking is the only thing the stored column can express.
     fireEvent.click(screen.getByLabelText('none'));
@@ -247,7 +275,7 @@ describe('edit mode with a reasoning model', () => {
     // ladder. Nothing is fetched about templates any more: the form writes the
     // reasoning identity directly.
     await waitFor(() => expect(screen.getByLabelText('high')).toBeTruthy());
-    expect(screen.getByLabelText('Is reasoning model')).toBeTruthy();
+    expect(screen.getByLabelText('settings.admin.llm.modal.is_reasoning_model_label')).toBeTruthy();
     expect((screen.getByLabelText('low') as HTMLInputElement).checked).toBe(true);
     expect((screen.getByLabelText('medium') as HTMLInputElement).checked).toBe(false);
   });
@@ -283,7 +311,9 @@ describe('time-slot tariffs (ADR-223)', () => {
     expect(screen.getByLabelText('settings.admin.llm.modal.time_slots_toggle_label')).toBeTruthy();
     // Switching kind to tts re-aligns pricing_unit to per_audio_hour and the
     // whole block disappears — audio always bills flat.
-    fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'tts' } });
+    fireEvent.change(screen.getByLabelText('settings.admin.llm.modal.reasoning.kind'), {
+      target: { value: 'tts' },
+    });
     expect(screen.queryByLabelText('settings.admin.llm.modal.time_slots_toggle_label')).toBeNull();
   });
 
@@ -490,7 +520,9 @@ describe('the audio pair (ADR-300)', () => {
 
   it('hides the pair on an audio unit — the unit already bills the audio', async () => {
     await renderModal(null);
-    fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'tts' } });
+    fireEvent.change(screen.getByLabelText('settings.admin.llm.modal.reasoning.kind'), {
+      target: { value: 'tts' },
+    });
     expect(screen.queryByLabelText(/audio_input_label/)).toBeNull();
   });
 

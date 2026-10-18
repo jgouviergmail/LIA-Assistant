@@ -15,11 +15,18 @@ Doctrine:
   to the declared default. The default is therefore always the SAFE value.
 - **A key may opt out of caching** (``redis_key=None``): a once-per-install
   marker has no business occupying a cache slot or paying an invalidation.
+- **An absence is cached too**, as a marker that reads the CURRENT default: a
+  key never written — every capability no administrator toggled — otherwise
+  reached the database on every read, and the capability filter reads all of
+  them on every turn. A reader older than the marker decodes it as a stored
+  value, so the capability keys moved to a namespace it never reads
+  (``REDIS_KEY_CAPABILITY_PREFIX``); the other cached keys decode the marker
+  to their own safe default.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any, Generic, TypeVar
@@ -235,6 +242,19 @@ def assert_registry_completeness() -> None:
 # ============================================================================
 
 
+#: Cached in place of a value when no row exists. It reads as the CURRENT
+#: default, so a deployment that changes a default is never masked by a cached
+#: copy of the old one; no serializer can produce it.
+_ABSENT_MARKER = "\x00absent"
+
+
+@dataclass(frozen=True)
+class _Cached(Generic[T]):
+    """A cache hit — ``None`` meaning a miss, a ``None`` value can be a hit."""
+
+    value: T
+
+
 async def _read_from_database(spec: SettingSpec[T]) -> T | None:
     """Return the decoded stored value, or ``None`` when there is no row."""
     from src.infrastructure.database import get_db_context
@@ -265,20 +285,145 @@ async def read_setting(key: SystemSettingKey) -> Any:
         if redis_key is not None:
             cached = await _read_from_cache(spec, redis_key)
             if cached is not None:
-                return cached
+                return cached.value
         value = await _read_from_database(spec)
-        if value is None:
-            return spec.default
         if redis_key is not None:
             await _write_to_cache(spec, redis_key, value)
-        return value
+        return spec.default if value is None else value
     except Exception as exc:  # noqa: BLE001 — bounded: a toggle never 500s
         logger.error("system_setting_read_failed", setting=key.value, error=str(exc))
         return spec.default
 
 
-async def _read_from_cache(spec: SettingSpec[T], redis_key: str) -> T | None:
-    """Return the cached value, or ``None`` on a miss or a Redis outage.
+async def read_settings(keys: Collection[SystemSettingKey]) -> dict[SystemSettingKey, Any]:
+    """Read several settings in two round trips at most.
+
+    One cache ``MGET``, then one ``SELECT … IN`` for whatever the cache did
+    not hold, absences cached as such. Same contract as :func:`read_setting`:
+    never raises, every key resolves — to its default when anything fails.
+
+    Args:
+        keys: The settings to read.
+
+    Returns:
+        Each key's typed value.
+    """
+    specs = [get_setting_spec(key) for key in dict.fromkeys(keys)]
+    values: dict[SystemSettingKey, Any] = {spec.key: spec.default for spec in specs}
+    try:
+        pending = await _read_many_from_cache(specs, values)
+        if pending:
+            stored = await _read_many_from_database(pending)
+            for spec in pending:
+                value = stored.get(spec.key)
+                values[spec.key] = spec.default if value is None else value
+            await _write_many_to_cache(_cache_entries(pending), stored)
+    except Exception as exc:  # noqa: BLE001 — bounded: a toggle never 500s
+        logger.error(
+            "system_settings_read_failed", setting_count=len(specs), error=type(exc).__name__
+        )
+    return values
+
+
+async def _read_many_from_cache(
+    specs: list[SettingSpec[Any]], values: dict[SystemSettingKey, Any]
+) -> list[SettingSpec[Any]]:
+    """Fill ``values`` with the cache hits; return the specs left to read.
+
+    A Redis outage leaves every cached key to the database; an undecodable
+    cached value is read again from the database rather than trusted.
+    """
+    from src.infrastructure.cache.redis import get_redis_cache
+
+    entries = _cache_entries(specs)
+    cached_specs = [spec for spec, _redis_key in entries]
+    pending = [spec for spec in specs if spec.redis_key is None]
+    if not entries:
+        return pending
+    try:
+        redis = await get_redis_cache()
+        raws = await redis.mget([redis_key for _spec, redis_key in entries])
+    except (RedisError, OSError) as exc:
+        logger.warning("system_settings_cache_read_failed", error=str(exc))
+        return pending + cached_specs
+    for spec, cached in zip(cached_specs, raws, strict=True):
+        hit = _decode_cached(spec, cached)
+        if hit is None:
+            pending.append(spec)
+        else:
+            values[spec.key] = hit.value
+    return pending
+
+
+async def _read_many_from_database(specs: list[SettingSpec[Any]]) -> dict[SystemSettingKey, Any]:
+    """The decoded stored values of ``specs`` — one query, a key per existing row.
+
+    A row that does not decode is left out: it reads as its default, like a
+    single read of it would.
+    """
+    from src.infrastructure.database import get_db_context
+
+    by_key = {spec.key: spec for spec in specs}
+    async with get_db_context() as db:
+        result = await db.execute(
+            select(SystemSetting.key, SystemSetting.value).where(
+                SystemSetting.key.in_(list(by_key))
+            )
+        )
+        rows = result.all()
+    stored: dict[SystemSettingKey, Any] = {}
+    for key, raw in rows:
+        try:
+            stored[key] = by_key[key].decode(raw)
+        except Exception as exc:  # noqa: BLE001 — garbage reads as the default
+            logger.warning("system_setting_decode_failed", setting=key.value, error=str(exc))
+    return stored
+
+
+async def _write_many_to_cache(
+    entries: list[tuple[SettingSpec[Any], str]], stored: dict[SystemSettingKey, Any]
+) -> None:
+    """Cache each value read — an absence as its marker; a failure only costs the next read."""
+    from src.infrastructure.cache.redis import get_redis_cache
+
+    if not entries:
+        return
+    try:
+        redis = await get_redis_cache()
+        async with redis.pipeline(transaction=False) as pipe:
+            for spec, redis_key in entries:
+                payload = _cache_payload(spec, stored.get(spec.key))
+                pipe.set(redis_key, payload, ex=spec.cache_ttl_seconds)
+            await pipe.execute()
+    except (RedisError, OSError) as exc:
+        logger.warning("system_settings_cache_write_failed", error=str(exc))
+
+
+def _cache_entries(specs: list[SettingSpec[Any]]) -> list[tuple[SettingSpec[Any], str]]:
+    """The cached specs of ``specs``, each with its Redis key."""
+    return [(spec, spec.redis_key) for spec in specs if spec.redis_key is not None]
+
+
+def _decode_cached(spec: SettingSpec[T], cached: object) -> _Cached[T] | None:
+    """A cache hit, or ``None`` for a miss (or a cached value that no longer decodes)."""
+    if cached is None:
+        return None
+    raw = cached.decode() if isinstance(cached, bytes) else str(cached)
+    if raw == _ABSENT_MARKER:
+        return _Cached(spec.default)
+    try:
+        return _Cached(spec.decode(raw))
+    except Exception:  # noqa: BLE001 — the database answers instead
+        return None
+
+
+def _cache_payload(spec: SettingSpec[T], value: T | None) -> str:
+    """What the cache holds for ``value``: its serialization, or the absence marker."""
+    return _ABSENT_MARKER if value is None else spec.serialize(value)
+
+
+async def _read_from_cache(spec: SettingSpec[T], redis_key: str) -> _Cached[T] | None:
+    """Return the cache hit, or ``None`` on a miss or a Redis outage.
 
     ``redis_key`` is passed rather than read off the spec so the "this key is
     cached" precondition lives in the signature instead of a cast.
@@ -291,19 +436,16 @@ async def _read_from_cache(spec: SettingSpec[T], redis_key: str) -> T | None:
     except (RedisError, OSError) as exc:
         logger.warning("system_setting_cache_read_failed", setting=spec.key.value, error=str(exc))
         return None
-    if cached is None:
-        return None
-    raw = cached.decode() if isinstance(cached, bytes) else str(cached)
-    return spec.decode(raw)
+    return _decode_cached(spec, cached)
 
 
-async def _write_to_cache(spec: SettingSpec[T], redis_key: str, value: T) -> None:
-    """Populate the cache; a failure only costs the next lookup."""
+async def _write_to_cache(spec: SettingSpec[T], redis_key: str, value: T | None) -> None:
+    """Populate the cache — an absence as its marker; a failure only costs the next lookup."""
     from src.infrastructure.cache.redis import get_redis_cache
 
     try:
         redis = await get_redis_cache()
-        await redis.set(redis_key, spec.serialize(value), ex=spec.cache_ttl_seconds)
+        await redis.set(redis_key, _cache_payload(spec, value), ex=spec.cache_ttl_seconds)
     except (RedisError, OSError) as exc:
         logger.warning("system_setting_cache_write_failed", setting=spec.key.value, error=str(exc))
 

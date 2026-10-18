@@ -133,3 +133,17 @@ aucun chiffre que personne n'a mesuré (ADR-185) :
   OpenAI qu'utilisait l'ingestion sous-estimaient d'environ 7× chaque document indexé
   par Gemini — c'est aussi le coût d'indexation de TOUS les documents des espaces, qui
   suit la même règle.
+
+## Amendement 2026-10-18 — la bulle suit l'état effectif de la capacité
+
+La bulle offrait le signet selon le plafond de déploiement
+(`features.bookmarks_enabled`) : capacité coupée par l'administrateur, le signet
+restait sur chaque réponse et chaque clic était refusé. Deux portes désormais,
+parce que l'interrupteur retire l'acte, jamais l'archive : le fournisseur d'état
+lit l'état dès que le déploiement monte les routes (`bookmarksReadable`, le
+plafond), si bien qu'une réponse déjà gardée garde sa marque et peut être
+relâchée, et seul l'état effectif publié dans `capabilities`
+(`bookmarkKeepingAvailable`, repli sur le plafond pour une API qui ne le publie
+pas, par la règle commune `lib/capability-state.ts`) laisse une bulle proposer
+de garder une nouvelle réponse. L'onglet des signets suit toujours le plafond :
+ce qui a été gardé reste lisible, téléchargeable et supprimable capacité coupée.

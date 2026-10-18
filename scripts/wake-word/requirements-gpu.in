@@ -16,3 +16,4 @@ onnxscript==0.7.2
 # manifest, never in a lockfile alone).
 aiohttp>=3.14.4  # via datasets, fsspec: the eight advisories published with 3.14.4 (GHSA-9xw5-w5jj-pvcg among them)
 opentelemetry-api>=1.45.1  # GHSA-xcq7-p3pf-p88h (unbounded tracestate parsing), pulled by fastapi
+filelock>=4.2.1  # GHSA-v4x8-3wr5-3wq8 (high) and thirteen more advisories fixed in 4.2.1, pulled by torch, datasets, huggingface-hub and modelscope

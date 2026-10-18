@@ -1309,6 +1309,53 @@ aired`), and only those are remembered — an analysis that aired counts as its 
     settings, and a listener's stored choice is never rewritten. The deterministic editor
     (decision 4) runs whatever the level: what no fact supports never airs.
 
+45. **A vocal reaction where a programme converses** (2026-10-17, owner request: the
+    expression tags of every voice engine used « automatically and where they fit » on the
+    radio too). Until then the writer never chose a tag: each line opened on at most one
+    cue derived from its tone (ADR-345), so no laugh, chuckle or sigh ever aired, even
+    between enthusiasts. A line's delivery now carries a `reaction` (`none | laughs |
+    chuckles | sighs`, an unknown word read as `none` like every delivery field), spelled
+    for the engine after the line's tone cue (`[warm] [chuckling]` on Fish S2, `<chuckle>`
+    beside Gemini 3.8's style). Three rules, each where the code can hold it:
+    - **The writer is offered only what the voice performs, and the bound the editor
+      keeps**: the rule above the dynamic-context marker lists the session voice's
+      reactions (`delivery.performed_reactions`) and `RADIO_REACTIONS_MAX` (2; `0` airs
+      none) — the same for a whole session, so every programme keeps the shared prefix
+      (ADR-309) — and the programme's own allowance is a CONTEXT line, « vocal reactions:
+      allowed | none ». A voice that performs none is told « always none ».
+    - **The editor repairs, it never drops**: a reaction stands only on a view or a
+      transition (`REACTION_KINDS`) of a programme that converses or speaks to the
+      listener (`FormatSpec.reactions_allowed`: the opening, the sign-off, the editorial,
+      a debate, a discussion — never the news read out), the first `RADIO_REACTIONS_MAX`
+      in air order; any other is silenced and its line airs. The announce line copied
+      from a story line (decision 29) never keeps one: it is a fact line.
+    - **What no engine renders is counted**: `radio_delivery_unrendered_total{dimension}`
+      (energy, pace, tone, reaction; panel 21 of dashboard 31). The report existed in
+      the segment and nothing read it, while the delivery module said it was counted.
+    `concerned` is played as concern (`[concerned]`, Fish S2 `[worried]`) instead of the
+    `[empathetic]` it borrowed. Measured on dev (2026-10-17, the prompt as shipped, the
+    `radio_writer` slot's own configuration with four model families in turn, the
+    proof account, invented facts, 0.09 $): of 48 scripts, 11 discussions of 12, 5
+    debates and 3 editorials opened a view on a chuckle, a laugh or a sigh — in a
+    discussion at the story's turns (a chuckle at the giant pumpkin's winner, a sigh
+    at the runner-up capsized ten metres from the line) —, no bulletin ever asked for
+    one, every script was accepted, and the editor silenced the 4 reactions written on
+    a fact line (27 of 31 aired; 18 of the 31 were chuckles). The families differ: two
+    reacted in discussions alone, two in all three conversing formats measured, and one
+    of those also opened sincere
+    opinions on a civic subject with a chuckle (4 lines of 31) — whether a moment is
+    funny stays the writer's judgement, since no fact carries a tone (`Sensitivity`
+    says who may voice a fact, not how it sounds). A first measurement on one family,
+    made before the rule's last wording, is superseded by this one; its audio half
+    stands: one discussion produced end to end on the free Fish voice, then voiced
+    again from the same script without its reaction — the two mixes said the same
+    words (83.1 s against 82.9 s); the reaction added no word, and the transcriber tagged
+    no sound in either. Measured since on single lines (ADR-345, amendment 2026-10-17):
+    that free Fish model plays a chuckle clearly only about once in four (a short beat
+    otherwise) and a sigh as a short breath, while ElevenLabs v4 and Gemini 3.8 play the
+    chuckle every time — on the free voice, the reaction the writer picks most is mostly
+    a beat.
+
 ## Consequences
 
 - A listener starts the radio — under the name they gave it — from the header, the logo

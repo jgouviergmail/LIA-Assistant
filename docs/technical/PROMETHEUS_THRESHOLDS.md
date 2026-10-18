@@ -53,9 +53,19 @@ The `ALERT_CORE_*` block at the top of each `thresholds/*.env` file feeds
 - **They are live in production** — treat every change like a production change.
 - Descriptions in the template reference the **same variables** as expressions,
   so displayed thresholds can never drift from firing thresholds.
-- `ALERT_CORE_SSE_TTFT_P95_SECONDS` is deliberately set **above the measured
-  production baseline** (TTFT p95 16–57s) to catch degradation, not to enforce
-  an aspirational SLA. Tighten it after the latency-optimization work lands.
+- `ALERT_CORE_SSE_TTFT_P95_SECONDS` is set **above the measured production
+  baseline** (TTFT p95 16–57s), not to an aspirational SLA — but the rule
+  (`SSELatencyP95High`) is evaluated only when its window holds at least
+  `ALERT_CORE_SSE_TTFT_MIN_OBSERVATIONS` turns a person waited for: below
+  `1 / (1 - 0.95)` observations a p95 is the slowest single turn (ADR-119,
+  amendment 2026-10-18). **Production's chat traffic stays far below that
+  floor, so on production this alert never fires and catches no degradation at
+  all**; read the TTFT panels of
+  `infrastructure/observability/grafana/dashboards/01-app-overview.json` and
+  `infrastructure/observability/grafana/dashboards/26-product-value.json` there
+  instead. Tightening the threshold changes
+  nothing on such an instance; lowering the floor brings back a « p95 » that is
+  one slow turn.
 
 ## ⚠️ Legacy thresholds are corrupted (ADR-119)
 

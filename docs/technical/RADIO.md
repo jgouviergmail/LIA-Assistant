@@ -410,15 +410,27 @@ segment's lines (one cooldown, honoured inside the concurrency gate), so the
 lines voiced in parallel stop knocking together. A delivery
 control is sent only to a model measured to take it (`voice/families.controls_for`:
 the Gemini 2.5 and 3.1 previews refuse any style annotation). An engine that
-performs cues in the text (ElevenLabs v3/v4, Fish Audio — ADR-345) is also handed
-ONE cue opening the line, the tone's when it performs it, else the energy's, and
-a line's own brackets (a headline's « [Update] ») are read as words, never
-performed ([VOICE.md](VOICE.md#expressive-cues-adr-345)). On an engine that
+performs cues in the text (ElevenLabs v3/v4, Fish Audio, Gemini 3.8's sounds —
+ADR-345) is also handed ONE cue opening the line, the tone's when it performs it
+(`concerned` is played as concern — `[worried]` on Fish S2), else the energy's,
+then the line's vocal REACTION when the writer asked for one (decision 45): a
+`laughs`, `chuckles` or `sighs` opening a view or a transition of a programme
+that converses or speaks to the listener (`FormatSpec.reactions_allowed`: the
+opening, the sign-off, the editorial, a debate, a discussion — never the news
+read out), at most `RADIO_REACTIONS_MAX` per script in air order. The writer is
+offered only the reactions the session's voice performs; the verifier silences
+one out of place — a repair, the line airs. A line's own brackets (a headline's
+« [Update] ») are read as words, never performed
+([VOICE.md](VOICE.md#expressive-cues-adr-345)). What a line asked for and no
+control or cue of the engine rendered is counted per dimension
+(`radio_delivery_unrendered_total{dimension}`, dashboard 31). On an engine that
 voices several speakers in ONE request (`voice/families.voices_dialogue`: Fish
 Audio's S2 models and `drama-3`, never `s1`), a multi-voice segment is voiced by
 TAKES ([takes.py](../../apps/api/src/domains/radio/takes.py)): consecutive lines
 of one part sharing one speaking rate, up to `RADIO_DIALOGUE_MAX_BYTES` of text
-(`0` voices every line alone), so the voices answer each other in one recording
+(`0` voices every line alone) and no more distinct voices than the engine is
+measured to take in one request (`TtsFamily.dialogue_max_voices` — a debate take of
+the anchor and three commentators was refused whole), so the voices answer each other in one recording
 and a failure costs one take, never a debate. Each line is a WINDOW of its take,
 cut where the vendor's own timing says its first word starts — the letters and
 digits of the turns must be exactly those of the timed segments, or nothing is
@@ -691,6 +703,7 @@ the `radio` capability), the session bounds (`RADIO_TIMER_*`, `RADIO_IDLE_TIMEOU
 `RADIO_PAUSE_TIMEOUT_SECONDS`, `RADIO_MAX_ACTIVE_SESSIONS`, `RADIO_FAILURES_MAX`), the
 look-ahead (`RADIO_STAGE_*`, `RADIO_LOOKAHEAD_*`), production (`RADIO_TTS_*`,
 `RADIO_DIALOGUE_MAX_BYTES` — a dialogue take's bound, `0` voicing every line alone —,
+`RADIO_REACTIONS_MAX` — the vocal reactions one script keeps, `0` airing none —,
 `RADIO_MIX_TIMEOUT_SECONDS`, `RADIO_QUOTE_MAX_CHARS`, `RADIO_ANALYSIS_*`,
 `RADIO_VERIFICATION_DEFAULT`), the newsroom (`RADIO_NEWSROOM_*`), the listener's sites
 (`RADIO_CUSTOM_SOURCES_MAX`, `RADIO_SOURCE_PREVIEW_RATE_LIMIT_*`) and the media
@@ -726,7 +739,10 @@ report restarts it elsewhere.
 `infrastructure/observability/metrics_radio.py`, drawn on dashboard **31 - Radio**:
 starts by outcome, sessions ended by reason, loops broken, segments by format and
 outcome with their production time (counted in `Antenna.produce`), the newsroom's
-ticks, readings, stories and texts, orphans swept, site lookups. Core alert
+ticks, readings, stories and texts, orphans swept, site lookups, and the delivery
+the voice could not express, per dimension (a steady count names what the
+configured engine cannot do — Edge has no tone, OpenAI only a speed, ElevenLabs
+no pace — not a fault; a reaction is offered only to a voice that performs it). Core alert
 `RadioNewsroomStalled` (the age of the newsroom's last tick that ran to its end —
 never stamped at boot nor by a failed pass): runbook
 [RadioNewsroomStalled](../runbooks/alerts/RadioNewsroomStalled.md). The logs carry

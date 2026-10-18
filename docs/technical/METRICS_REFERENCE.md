@@ -143,7 +143,7 @@ api:slo:availability:ratio_5m           # SLO availability 5min
 | Lifetime gauges DB-backed | `lifetime_metrics.py` |
 | OAuth (`oauth_*`) | `metrics_oauth.py` |
 | Produit (`product_*` — outcomes E1/E2/E3, gauges DB-backed North Star/funnel/rétention, télémétrie client Web Vitals/recherche, ADR-178) | `metrics_product.py` |
-| Radio (`radio_*` — sessions, segments, production time, newsroom; `radio_dialogue_takes_total{outcome}`: several voices in one request — `voiced`, `unplaced`, `failed`, ADR-345) | `metrics_radio.py` |
+| Radio (`radio_*` — sessions, segments, production time, newsroom; `radio_dialogue_takes_total{outcome}`: several voices in one request — `voiced`, `unplaced`, `failed`, ADR-345; `radio_delivery_unrendered_total{dimension}`: voiced lines whose asked delivery the voice could not express — `energy`, `pace`, `tone`, `reaction`, ADR-324 decision 45) | `metrics_radio.py` |
 | Redis (`redis_*`) | `metrics_redis.py` |
 | Registry/checkpoints (`registry_*`) | `metrics_registry.py` |
 | Sub-agents (`subagent_*` — including `subagent_outcomes_total{agent_name, outcome}`: how each sub-loop ended — `answered`, `closed_on_budget`, `truncated`, `empty`, `error`, ADR-083 amendment 2026-10-13) | `metrics_subagent.py` |
@@ -341,18 +341,18 @@ système est couvert par cAdvisor + node-exporter). Empreinte `PROMETHEUS_MULTIP
 **Labels**: `intention` (router decision)
 **Buckets**: `[0.5, 1.0, 2.0, 3.0, 5.0, 7.0, 10.0, 15.0, 30.0]`
 
+**Observed only for a turn a person waits for** (a chat turn, a live phone
+delegation): a routine, a ticket or the relay of a finished call streams through
+the same code but is not observed — nobody waits for it, and feeding a
+latency SLI with it made `SSELatencyP95High` fire every morning for a month
+(2026-10-18). One door: `apps/api/src/domains/agents/services/streaming/latency_sli.py`.
+
 **Instrumentation:**
 
 ```python
-# apps/api/src/domains/agents/api/service.py
-start_time = time.time()
-async for chunk in self.stream_agent_response(...):
-    yield chunk
+# apps/api/src/domains/agents/services/streaming/service.py
 duration = time.time() - start_time
-
-sse_streaming_duration_seconds.labels(
-    intention=router_output.intention
-).observe(duration)
+observe_stream_duration(intention_label, duration)  # latency_sli: skipped when nobody waits
 ```
 
 **Query PromQL:**
@@ -383,20 +383,17 @@ count(sse_streaming_duration_seconds_bucket{le="+Inf"})
 
 **Target SLO**: P95 < 1.0s (excellent), P95 < 2.0s (acceptable)
 
+**Observed only for a turn a person waits for**, through the same door as
+`sse_streaming_duration_seconds` (`streaming/latency_sli.py`, AST-guarded): a
+routine's first token is nobody's wait.
+
 **Instrumentation:**
 
 ```python
-first_token_sent = False
-start_time = time.time()
-
-async for chunk in stream:
-    if not first_token_sent:
-        ttft = time.time() - start_time
-        sse_time_to_first_token_seconds.labels(
-            intention=intention
-        ).observe(ttft)
-        first_token_sent = True
-    yield chunk
+# apps/api/src/domains/agents/services/streaming/service.py
+if sse_chunk.type == "token" and first_token_time is None:
+    first_token_time = time.time()
+    observe_first_token(intention_label, first_token_time - start_time)
 ```
 
 **Query PromQL:**

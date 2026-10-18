@@ -118,10 +118,11 @@ Journal operations use **background LLM calls**:
 • When an account is deleted, the compiled portrait is scrubbed alongside the entries
 • The assistant writes in your configured language
 
-## Do my logbooks fill up if I chat from Telegram?
-Yes. That was not the case before: a conversation held from an external messenger fed neither your logbooks nor LIA's emotional state, even with those features switched on. Your setting was saved correctly — it simply was not passed along when the message was processed.
+## Does LIA’s journal fill up when I chat from Telegram?
 
-Now whatever you switched on applies identically wherever you write from: long-term memory, logbooks and mood. If you had turned them off, they stay off everywhere — it is your setting that travels, not a default value. With no identified account, nothing is written at all.
+Yes. Your choices belong to your account, not to the place you write from: a conversation held on Telegram feeds **LIA’s journal** exactly like one in the web chat — and so do long-term memory and LIA's emotional state, when they are on.
+
+If you switched one of them off, it stays off on Telegram too. Telegram is simply another way into your one conversation with LIA.
 
 ## Why did LIA write that in my journal?
 Journals reflect LIA's observations and interpretations; they can contain
@@ -137,30 +138,33 @@ stated under the list rather than applied in silence.
 
 ## Does the journal actually learn from my reactions?
 
-Yes, end to end. A directive injected into a reply is re-examined at the next
-turn in light of how you reacted: the model only signals "evidence" or
-"contradiction", and the system owns the counters — a note can never inflate
-its own numbers. A directive cannot reach **high confidence** without real
-evidence: the promise is enforced in code, not just described.
+Yes. When one of LIA's notes shaped an answer, your next message — and your 👍 or 👎 on that answer — are read as a reaction to it.
 
-Consolidation (the periodic review that merges, prunes and refreshes the
-portrait) triggers on **actual work** — a note touched since the last pass —
-never on a minimum note count, so small journals keep their portrait fresh.
+**⚖️ Counted by the system, not by the note:** the model only says whether your reaction confirms or contradicts the note; the counting happens apart, and each reaction counts once. A note can never inflate its own numbers.
+
+**📈 What changes:**
+• a contradiction lowers the note's confidence straight away
+• a directive reaches **validated** confidence only after repeated confirmation in your own replies — a 👍 on a whole answer is recorded, but cannot certify a rule on its own
+• rewrite a note's wording or level and its count starts over: the evidence was for the old version
+
+Each note shows its confirmations and contradictions, and you can correct it, in **Settings › Features › Automation & Tracking › LIA's journal**.
+
+Consolidation — the periodic review that merges, prunes and refreshes the portrait — runs when there is actual work: a note touched since the last pass, whatever the size of the journal.
 
 ## How does LIA decide when a journal note enters a reply?
 
-Through a similarity threshold that is now **learned per user**, because your
-vocabulary is not someone else's. It moves inside strict bounds (0.55–0.70),
-at most one small step per day, every adjustment is counted, and a kill
-switch can freeze it to the static default at any time. If the stored value
-cannot be read, LIA falls back to the default — never to an error.
+Each time you write, LIA compares your message — and, when it plans, your goal — with its notes by **meaning**. Only its working directives and the patterns drawn from them can enter: raw observations stay out, and your portrait reaches answers its own way.
+
+A note enters only when it is **close enough**, and always whole, within the space you allow in **Settings › Features › Automation & Tracking › LIA's journal**.
+
+**🎯 A bar learned for you:** what counts as close enough is learned for your account, because your vocabulary is not someone else's. It moves only within fixed limits, by small steps spaced in time, and every move is counted. Your administrator can freeze it at the default value, and if the learned value cannot be read, the default applies — never an error.
 
 ## Where does my portrait come from?
 
 From everything LIA keeps about you, on top of your journals: your
 **memories**, your **interests**, your **learned habits** (active windows only,
-never a paused one), your recent **relationship debriefs**, your **open
-loops**, your **Workboard** tickets, your **routines**, your **reminders** and
+never a paused one), your recent **relationship debriefs**, your
+**commitments**, your **Workboard** tickets, your **routines**, your **reminders** and
 your **kept answers**. Each source is read whole, under its own switches when
 it has any — yours and your administrator's — and a source that is off or
 unreachable is named as such, never read as empty.
@@ -173,7 +177,7 @@ cites items LIA actually holds, and a sentence that merely restates one of
 them, or carries a figure, an address, a date or a name from the material, is
 left out.
 
-Under the portrait, in **Settings > Journals**, a provenance line says how many
+Under the portrait, in **Settings › Features › Automation & Tracking › LIA’s journal**, a provenance line says how many
 entries were compiled and, for each source, whether it was used, empty, off or
 unavailable; if the material outgrows the compilation window, the sources read
 only in part are named on a line of their own. When a source moves — a memory

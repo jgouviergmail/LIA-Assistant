@@ -214,8 +214,12 @@ def _max_output(
     The two registries otherwise disagree on 25 of the 143 models where both
     state an output cap, with no structural pattern (16 times LiteLLM is
     smaller, 9 times larger). That residue is a stated limitation, not a
-    solved problem: no third source exists, and the field feeds admin display
-    and the reasoning-budget ratio rather than any hard limit.
+    solved problem: no third source exists. The field feeds admin display, the
+    reasoning-budget ratio and, since 2026-10-18, the cap a request is held to
+    where a curated row vouches for it (``infrastructure/llm/output_cap.py``):
+    a figure smaller than the model's real cap shortens a budget the provider
+    would accept. The admin screen flags every slot held to it, and correcting
+    the row lifts it.
     """
     limit = (md or {}).get("limit") or {}
     declared = _positive_int(limit.get("output"))

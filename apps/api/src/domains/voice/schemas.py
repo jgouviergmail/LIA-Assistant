@@ -65,6 +65,15 @@ class VoiceCommentRequest(BaseModel):
         default="",
         description="Original user query/message for context (optional, improves comment relevance)",
     )
+    cue_budget: int = Field(
+        ...,
+        ge=0,
+        description=(
+            "Expressive cues the comment may carry, published by its prompt and enforced by "
+            "its renderer (ADR-345): the configured budget when the comment speaks of records "
+            "the answer retained, 0 when it reads the answer itself"
+        ),
+    )
 
 
 class VoiceAudioChunk(BaseModel):

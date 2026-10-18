@@ -548,10 +548,21 @@ if [ -d "infrastructure/logwatch" ]; then
     sudo mkdir -p /etc/logwatch/conf/services
     sudo cp infrastructure/logwatch/conf/services/*.conf /etc/logwatch/conf/services/
 
-    # Deploy custom scripts
+    # Deploy custom scripts: the REGULAR files of the directory, nothing else.
+    # `cp services/*` also matched the `__pycache__` a test run had left beside
+    # the scripts: cp exits 1 on a directory, and `set -e` stopped the whole
+    # deployment at this step (2026-10-18).
+    # A loop rather than `find -exec`: the deploy tests run this block under
+    # Git Bash too, whose find refuses `-exec` ("environment too large").
+    # --- logwatch-scripts-begin ---
     sudo mkdir -p /etc/logwatch/scripts/services
-    sudo cp infrastructure/logwatch/scripts/services/* /etc/logwatch/scripts/services/
-    sudo chmod +x /etc/logwatch/scripts/services/*
+    for script in infrastructure/logwatch/scripts/services/*; do
+        if [ -f "$script" ]; then
+            sudo cp "$script" /etc/logwatch/scripts/services/
+            sudo chmod +x "/etc/logwatch/scripts/services/${script##*/}"
+        fi
+    done
+    # --- logwatch-scripts-end ---
 
     # Deploy custom cron script (MIME-encoded HTML to avoid line-length SMTP errors)
     if [ -f "infrastructure/logwatch/cron/00logwatch" ]; then
@@ -708,6 +719,24 @@ if (Test-Path $gateLib) {
     Copy-Item $gateLib -Destination $gateDest
     (Get-Content $gateDest -Raw) -replace "`r`n", "`n" | Set-Content $gateDest -NoNewline
     Write-Host "  + deploy_readiness_gate.sh" -ForegroundColor DarkGray
+}
+
+# Bytecode is build output, never a deliverable. A test run imports the
+# extensionless logwatch scripts and left their `__pycache__` beside them; the
+# bundle carried it, and deploy.sh's install of those scripts stopped on the
+# directory at step 4/7 (2026-10-18). Pruned from the whole bundle, after every
+# copy, rather than filtered copy by copy: `Copy-Item -Exclude` with `-Recurse`
+# filters the top level only under Windows PowerShell 5.1.
+$bytecodeDirs = @(Get-ChildItem -Path $OutputDir -Recurse -Force -Directory -Filter "__pycache__")
+foreach ($dir in $bytecodeDirs) {
+    Remove-Item -LiteralPath $dir.FullName -Recurse -Force
+}
+$bytecodeFiles = @(Get-ChildItem -Path $OutputDir -Recurse -Force -File -Include "*.pyc", "*.pyo")
+foreach ($file in $bytecodeFiles) {
+    Remove-Item -LiteralPath $file.FullName -Force
+}
+if ($bytecodeDirs.Count -gt 0 -or $bytecodeFiles.Count -gt 0) {
+    Write-Host "  - bytecode retire du livrable : $($bytecodeDirs.Count) __pycache__, $($bytecodeFiles.Count) .pyc/.pyo isole(s)" -ForegroundColor DarkGray
 }
 
 # Belt-and-braces: every script shipped in the bundle must be LF — CRLF

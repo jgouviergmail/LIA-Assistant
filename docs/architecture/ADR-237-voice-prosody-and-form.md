@@ -60,3 +60,16 @@ prosody stayed flat.
   flag.
 - Two verified-as-satisfied items are recorded here precisely so future
   audits do not re-propose them (the ADR-232 requalification doctrine).
+
+## Amendment 2026-10-18 — the mood bends the voice only where the psyche is on
+
+The prosody read fetched — and created — the psyche state without asking
+whether the person had the psyche on: a person who switched it off still heard
+the direct readout follow a mood frozen when they did, and one who switched it
+off before any state existed was given a state row by their first direct
+readout. (The psyche is on by default, `User.psyche_enabled`; the read is reached
+from the direct readout alone — `_synthesize_sentences`, used by
+`stream_direct_tts` — the spoken comment, `stream_voice_comment`, never bends
+prosody.) `_resolve_prosody_settings` now asks the two gates the psyche's prompt
+block asks (`build_psyche_prompt_block`): the deployment's `PSYCHE_ENABLED` and
+the person's `psyche_enabled`, read before any state is loaded.

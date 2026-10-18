@@ -335,6 +335,9 @@ PromptName = Literal[
     "radio_editorial_policy",
     "radio_translator_prompt",
     "radio_delivery_lines",
+    # The writer's rule on a vocal reaction opening a line (ADR-324 decision 45),
+    # read by radio/prompting.py through parse_prompt_sections.
+    "radio_reaction_lines",
 ]
 
 

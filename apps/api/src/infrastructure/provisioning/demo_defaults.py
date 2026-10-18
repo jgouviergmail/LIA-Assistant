@@ -22,6 +22,7 @@ import structlog
 from sqlalchemy import select
 
 from src.domains.system_settings.models import SystemSetting, SystemSettingKey
+from src.domains.system_settings.registry import invalidate_setting_cache
 
 logger = structlog.get_logger(__name__)
 
@@ -61,3 +62,14 @@ async def apply_demo_setting_defaults(session: Any) -> int:
     if written:
         logger.info("demo_setting_defaults_applied", settings=written)
     return written
+
+
+async def invalidate_demo_setting_caches() -> None:
+    """Drop the cached value of every setting the demo defaults may write.
+
+    Call once the transaction that wrote them has committed: a setting read
+    before its row existed is cached as ABSENT, and would hide the new row
+    until its TTL runs out.
+    """
+    for key in DEMO_SETTING_DEFAULTS:
+        await invalidate_setting_cache(key)

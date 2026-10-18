@@ -2,9 +2,9 @@
 
 > Resoconto di esperienza — un sistema completo, dalla progettazione alla produzione.
 
-**Versione**: 2.3
-**Data**: 2026-10-17
-**Applicazione**: LIA v3.1.1
+**Versione**: 2.4
+**Data**: 2026-10-18
+**Applicazione**: LIA v3.2.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | Indicatore | Valore |
 | --- | --- |
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
-| Righe di codice sorgente (esclusi i test) — 55 domini funzionali | **960.000+** |
+| Righe di codice sorgente (esclusi i test) — 55 domini funzionali | **963.000+** |
 | Test automatizzati inventariati; suite adeguate a commit e rilascio | **63.000+** |
 | Decisioni di architettura documentate (ADR) | **347** |
-| Versioni rilasciate a ritmo regolare | **282** |
+| Versioni rilasciate a ritmo regolare | **283** |
 | Lingue, parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **8,3/10** |
 
@@ -78,7 +78,7 @@ Tre decisioni strutturanti, tra le 347 documentate:
 
 Un sistema che si pilota con gli strumenti:
 
-- **Osservabilità**: trentuno dashboard — salute applicativa, impegni di servizio, costi IA, comportamento degli agenti, infrastruttura. Più di 600 metriche; log strutturati centralizzati; tracciamento distribuito end-to-end — log, metriche e tracce conservano solo fatti, mai le parole né i nomi delle persone. Una quarantina di procedure operative scritte — diagnosi, rimediazione, ripristino. E l'assistente legge da sé questa telemetria: autocontrollo periodico, una memoria di incidenti diagnosticati proprio su quelle procedure, risposte che aggirano un guasto noto. E una diagnosi mostra le prove da cui è nata. E gli strumenti arrivano fino ai processi: ogni worker dell'API pubblica ciò che trattiene in memoria, così un totale di container si legge processo per processo.
+- **Osservabilità**: trentuno dashboard — salute applicativa, impegni di servizio, costi IA, comportamento degli agenti, infrastruttura. Più di 600 metriche; log strutturati centralizzati; tracciamento distribuito end-to-end — log, metriche e tracce conservano solo fatti, mai le parole né i nomi delle persone. Una quarantina di procedure operative scritte — diagnosi, rimediazione, ripristino. E l'assistente legge da sé questa telemetria: autocontrollo periodico, una memoria di incidenti diagnosticati proprio su quelle procedure, risposte che aggirano un guasto noto. E una diagnosi mostra le prove da cui è nata. E gli strumenti arrivano fino ai processi: ogni worker dell'API pubblica ciò che trattiene in memoria, così un totale di container si legge processo per processo. E uno strumento misura ciò che nomina: l'allarme di latenza conta solo i turni che una persona attende, e il rapporto quotidiano dell'host si apre su ciò che la supervisione ha registrato invece che su un'istantanea.
 - **Consegna**: deployment containerizzato, migrazioni di schema automatizzate, immagini pubblicate per due architetture hardware (amd64/arm64).
 - **Catena di fornitura**: ogni componente del server fissato dalla sua impronta e inventariato a ogni versione; una sorveglianza settimanale legge gli avvisi di sicurezza che ogni dipendenza pubblica — compresi quelli che nessuna banca dati pubblica riprende — e un aggiornamento attende un periodo di prudenza, senza mai tornare indietro; ogni versione viene installata su macchine vergini prima di essere pubblicata.
 - **Costi**: infrastruttura frugale per scelta — circa 150 € di hardware, zero licenze, componenti open source dimensionati sul bisogno reale.

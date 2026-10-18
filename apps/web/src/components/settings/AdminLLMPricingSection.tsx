@@ -60,6 +60,7 @@ import {
   type TimeSlotFormRow,
 } from '@/components/settings/admin-llm-pricing-helpers';
 import { useCatalogueInvalidator } from '@/lib/catalogue-invalidation-context';
+import { Trans } from 'react-i18next';
 import { useTranslation } from '@/i18n/client';
 import { useConfirm } from '@/components/ui/use-confirm';
 import type { Language } from '@/i18n/settings';
@@ -109,7 +110,7 @@ function formatAudioPair(model: LLMModelPricing): string {
 }
 
 // Capability toggles directly editable in the form (independent of the
-// reasoning + sampling block, which is driven by the template selector).
+// reasoning + sampling block, which the model's reasoning family drives).
 const CAPABILITY_BOOL_FIELDS = [
   'supports_tools',
   'supports_structured_output',
@@ -952,11 +953,12 @@ function PricingCapabilityFields({ formData, setFormData, t }: PricingSectionPro
   );
 }
 
+/** Each sampling flag, with the API parameter it names (never translated). */
 const SAMPLING_CAP_FIELDS = [
-  ['supports_temperature', 'Accepts temperature'],
-  ['supports_top_p', 'Accepts top_p'],
-  ['supports_frequency_penalty', 'Accepts frequency_penalty'],
-  ['supports_presence_penalty', 'Accepts presence_penalty'],
+  ['supports_temperature', 'temperature'],
+  ['supports_top_p', 'top_p'],
+  ['supports_frequency_penalty', 'frequency_penalty'],
+  ['supports_presence_penalty', 'presence_penalty'],
 ] as const;
 
 /** The depths this model refuses, chosen from the ones its family offers.
@@ -980,7 +982,8 @@ function PricingReasoningLadder({
   setFormData,
   family,
   familyLoading,
-}: Pick<PricingSectionProps, 'formData' | 'setFormData'> & {
+  t,
+}: PricingSectionProps & {
   family: ReasoningFamily | null;
   familyLoading: boolean;
 }) {
@@ -1001,7 +1004,7 @@ function PricingReasoningLadder({
   if (familyLoading) {
     return (
       <p className="rounded-md border border-border bg-background [--lia-field-background:var(--color-card)] px-3 py-3 text-xs text-muted-foreground">
-        Resolving what this model accepts…
+        {t('settings.admin.llm.modal.reasoning.resolving')}
       </p>
     );
   }
@@ -1013,13 +1016,15 @@ function PricingReasoningLadder({
     return (
       <div className="space-y-2 rounded-md border border-amber-500/40 bg-amber-50 dark:bg-amber-950/20 px-3 py-3">
         <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
-          No reasoning family matches {formData.model_name || 'this model'}.
+          {t('settings.admin.llm.modal.reasoning.no_family_title', {
+            model: formData.model_name || t('settings.admin.llm.modal.reasoning.this_model'),
+          })}
         </p>
         <p className="text-xs text-amber-700 dark:text-amber-400">
-          The runtime will send no reasoning parameter for it, and this field would not be read.
-          Teaching LIA a new reasoning API is a code change — one rule in{' '}
-          <code className="font-mono">reasoning/profiles.py</code> and one renderer in{' '}
-          <code className="font-mono">translate.py</code>.
+          <Trans
+            i18nKey="settings.admin.llm.modal.reasoning.no_family_body"
+            components={{ code: <code className="font-mono" /> }}
+          />
         </p>
       </div>
     );
@@ -1027,12 +1032,19 @@ function PricingReasoningLadder({
 
   return (
     <fieldset className="space-y-3 rounded-md border border-border bg-background [--lia-field-background:var(--color-card)] px-3 py-3">
-      <legend className="px-1 text-sm font-medium text-foreground">Accepted depths</legend>
+      <legend className="px-1 text-sm font-medium text-foreground">
+        {t('settings.admin.llm.modal.reasoning.accepted_depths')}
+      </legend>
       <p className="text-xs text-muted-foreground">
-        Resolved from <code className="font-mono">{formData.provider}</code> +{' '}
-        <code className="font-mono">{formData.model_name || '…'}</code> — family{' '}
-        <code className="font-mono">{family.reasoning_family}</code>. Untick a depth this specific
-        model refuses. Ticking everything stores nothing: the family&apos;s ladder applies as is.
+        <Trans
+          i18nKey="settings.admin.llm.modal.reasoning.resolved_from"
+          values={{
+            provider: formData.provider,
+            model: formData.model_name || '…',
+            family: family.reasoning_family,
+          }}
+          components={{ code: <code className="font-mono" /> }}
+        />
       </p>
       <div className="flex flex-wrap gap-x-4 gap-y-2">
         {levels.map(level => (
@@ -1053,33 +1065,33 @@ function PricingReasoningLadder({
       </div>
       {!family.reasoning_can_disable && (
         <p className="text-xs text-muted-foreground">
-          This family cannot switch reasoning off — unticking every depth changes nothing.
+          {t('settings.admin.llm.modal.reasoning.cannot_disable')}
         </p>
       )}
     </fieldset>
   );
 }
 
-/** Section 3 — kind, sampling caps, reasoning shape (template or custom).
- * Intentionally English-only (superuser technical surface) → no ``t``. */
+/** Section 3 — kind, sampling caps, and the reasoning shape the model's family offers. */
 function PricingReasoningFields({
   formData,
   setFormData,
   family,
   familyLoading,
-}: Omit<PricingSectionProps, 't'> & {
+  t,
+}: PricingSectionProps & {
   family: ReasoningFamily | null;
   familyLoading: boolean;
 }) {
   return (
     <fieldset className="border border-border rounded-lg bg-background [--lia-field-background:var(--color-card)] p-4 space-y-3">
       <legend className="px-2 text-sm font-semibold text-foreground">
-        Reasoning &amp; sampling
+        {t('settings.admin.llm.modal.reasoning.title')}
       </legend>
 
       <div>
         <label htmlFor="kind" className="block text-sm font-medium text-foreground mb-3">
-          Kind
+          {t('settings.admin.llm.modal.reasoning.kind')}
         </label>
         <select
           id="kind"
@@ -1106,12 +1118,12 @@ function PricingReasoningFields({
 
       <div className="space-y-2 pt-1">
         <p className="text-xs text-muted-foreground">
-          Which sampling parameters does this model&apos;s API accept?
+          {t('settings.admin.llm.modal.reasoning.sampling_question')}
         </p>
-        {SAMPLING_CAP_FIELDS.map(([field, label]) => (
+        {SAMPLING_CAP_FIELDS.map(([field, param]) => (
           <div key={field} className="flex items-center justify-between gap-3">
             <label htmlFor={field} className="text-sm text-foreground cursor-pointer">
-              {label}
+              {t('settings.admin.llm.modal.reasoning.accepts_param', { param })}
             </label>
             <Switch
               id={field}
@@ -1128,7 +1140,7 @@ function PricingReasoningFields({
             htmlFor="is-reasoning-model"
             className="text-sm font-medium text-foreground cursor-pointer"
           >
-            Is reasoning model
+            {t('settings.admin.llm.modal.is_reasoning_model_label')}
           </label>
           <Switch
             id="is-reasoning-model"
@@ -1144,6 +1156,7 @@ function PricingReasoningFields({
           setFormData={setFormData}
           family={family}
           familyLoading={familyLoading}
+          t={t}
         />
       )}
 
@@ -1152,17 +1165,19 @@ function PricingReasoningFields({
           htmlFor="reasoning-doc-key"
           className="block text-sm font-medium text-foreground mb-3"
         >
-          Reasoning tooltip i18n key (optional)
+          {t('settings.admin.llm.modal.reasoning.tooltip_key_label')}
         </label>
         <Input
           id="reasoning-doc-key"
           type="text"
           value={formData.reasoning_doc_i18n_key}
           onChange={e => setFormData({ ...formData, reasoning_doc_i18n_key: e.target.value })}
-          placeholder="e.g. openai_o_series_effort"
+          placeholder={t('settings.admin.llm.modal.reasoning.tooltip_key_placeholder', {
+            example: 'openai_o_series_effort',
+          })}
         />
         <p className="text-xs text-muted-foreground mt-1">
-          Saved per model regardless of the reasoning template chosen.
+          {t('settings.admin.llm.modal.reasoning.tooltip_key_hint')}
         </p>
       </div>
     </fieldset>
@@ -1686,6 +1701,7 @@ export function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricin
               setFormData={setFormData}
               family={family}
               familyLoading={familyLoading}
+              t={t}
             />
             <PricingFields
               formData={formData}

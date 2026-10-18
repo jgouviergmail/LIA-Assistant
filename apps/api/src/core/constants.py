@@ -280,6 +280,10 @@ WEB_SEARCH_SYNTHESIS_PREVIEW_CHARS_DEFAULT = 800
 # Ollama dynamic model discovery
 OLLAMA_MODEL_CACHE_TTL_SECONDS = 60  # In-memory cache for discovered models
 OLLAMA_DISCOVERY_TIMEOUT_SECONDS = 5  # HTTP timeout for Ollama /api/tags + /api/show calls
+# Least gap before a config reload retries an Ollama address that answered
+# nothing: every admin save reloads the config, and an unreachable server made
+# each of them wait for the discovery timeout (production 2026-10-17).
+OLLAMA_DISCOVERY_RETRY_SECONDS = 600
 # Ollama server URL: ONE variable read by the chat adapter (native API via
 # langchain-ollama, ADR-267) and the discovery (``/api/tags``, ``/api/show``).
 # Both talk to the server ROOT; operators used to type the OpenAI-compatible
@@ -290,6 +294,10 @@ OLLAMA_OPENAI_COMPAT_PATH = "/v1"
 # one so the admin matrix has a bound to show (the slot's max_tokens is what is
 # actually sent, as num_predict).
 OLLAMA_DISCOVERED_MAX_OUTPUT_TOKENS = 8192
+# Providers whose server enforces no output cap: a self-hosted runtime generates
+# until its context is full, so a catalogue figure for one of its models is never
+# a limit to clamp a request to (``infrastructure/llm/output_cap.py``).
+PROVIDERS_WITHOUT_OUTPUT_CAP: frozenset[str] = frozenset({"ollama"})
 # The ceiling on the context window LIA requests from a LOCAL Ollama tag
 # (``num_ctx``): the model's own maximum, read at discovery and capped here.
 # Ollama's VRAM tiers allocate 4k under 24 GiB and 32k up to 48 GiB; a model
@@ -1978,8 +1986,11 @@ REDIS_KEY_DEBUG_PANEL_ENABLED = "system:debug_panel_enabled"
 REDIS_KEY_DEBUG_PANEL_USER_ACCESS_ENABLED = "system:debug_panel_user_access_enabled"
 REDIS_KEY_INSTANCE_DAILY_BUDGET_EUR = "system:instance_daily_budget_eur"
 
-# One cache key per administrable capability (suffixed by its value).
-REDIS_KEY_CAPABILITY_PREFIX = "system:capability:"
+# One cache key per administrable capability (suffixed by its value). « v2 »: an entry
+# may hold the absence marker of `system_settings/registry.py`, which a v3.1 reader
+# would decode as « switched off » — the namespace that reader never opens keeps a
+# rollback safe (the older entries expire with their TTL).
+REDIS_KEY_CAPABILITY_PREFIX = "system:capability:v2:"
 REDIS_KEY_PUBLIC_DEMO_LINK_ENABLED = "system:public_demo_link_enabled"
 
 # The landing relays the demonstrator's OWN capability list (its public
@@ -3367,6 +3378,11 @@ CAPABILITY_PROVENANCE_VERIFIED = "verified"
 # In-memory ONLY, never a DB row: the model's own server answered (Ollama
 # ``/api/show``). Trusted like ``imported`` by the context-window reader.
 CAPABILITY_PROVENANCE_DISCOVERED = "discovered"
+# The ``llm_models.max_output_tokens`` column default. A row keeps it under any
+# provenance (the sync promotes a row on ONE corroborated field, the catalogue
+# editor stamps ``verified`` on any save), so it is a cap only where the
+# vendored registries state that very figure (``infrastructure/llm/output_cap.py``).
+LLM_MODEL_DEFAULT_MAX_OUTPUT_TOKENS: int = 4096
 
 # --- LLM config defaults ---
 # Updated: 2026-04-08 — Aligned with LLM_DEFAULTS in llm_config/constants.py
@@ -6681,6 +6697,22 @@ DIAGNOSTICS_LOKI_MAX_RANGE_HOURS = 24
 
 DIAGNOSTICS_LOKI_DEFAULT_LINES_DEFAULT = 200
 DIAGNOSTICS_NOTIFICATION_COOLDOWN_SECONDS_DEFAULT = 3600
+# An alert incident Alertmanager no longer holds as firing, and that has not
+# been re-delivered for this long, lost its resolution and is closed by the
+# self-check tick. Alertmanager re-delivers a FIRING alert to the webhook every
+# `repeat_interval` of alertmanager/lia-webhook-route.fragment: this default is
+# held to at least twice that by test_incident_reconciliation (measured
+# 2026-10-18: one incident open for 28 days on a resolution that never came).
+DIAGNOSTICS_INCIDENT_SILENCE_CLOSE_SECONDS_DEFAULT = 3600
+# How long a restarted Alertmanager runs before its listing is believed. It
+# keeps its alerts in memory: a fresh instance lists NOTHING until Prometheus
+# re-sends what is firing (`--rules.alert.resend-delay`, one minute by default,
+# at each rule evaluation). Read sooner, an absence is the restart, not a
+# resolution — and a silenced or inhibited alert, which no webhook re-delivers,
+# would have its incident closed with nothing to reopen it. A constant rather
+# than a setting: it is a property of Alertmanager's restart, not an operator's
+# choice (held to at least three resend periods by test_incident_reconciliation).
+ALERTMANAGER_WARMUP_SECONDS = 300
 DIAGNOSTICS_FAILURE_CONTEXT_MAX_ENTRIES_DEFAULT = 10
 DIAGNOSTICS_ADVISOR_CACHE_TTL_SECONDS_DEFAULT = 30
 
@@ -6935,11 +6967,14 @@ REDIS_KEY_LIVE_MINT_PREFIX: str = "live_mint:"
 REDIS_KEY_LIVE_SAMPLE_PREFIX: str = "live_sample:"
 #: Redis: the lookup counter of a DIRECT live session (ADR-300 wave 4), per session.
 REDIS_KEY_LIVE_TOOL_BUDGET_PREFIX: str = "live_tools:"
-#: The provider model a voice sample is synthesised with (the person's key).
-#: Measured 2026-09-19 on the dev key: ``gemini-3.1-flash-tts-preview`` BLOCKS
-#: the sample sentence as PROHIBITED_CONTENT (no candidate at all), the 2.5
-#: preview speaks it — an operator who switches models is told the reason.
-GEMINI_TTS_SAMPLE_MODEL_DEFAULT: str = "gemini-2.5-flash-preview-tts"
+#: The provider model a voice sample is synthesised with (the person's key),
+#: through the one Gemini TTS client (the Interactions API, whose 3.8 answers
+#: were measured on 2026-09-26). Measured 2026-09-19 on the dev key:
+#: ``gemini-3.1-flash-tts-preview`` BLOCKS the sample sentence as
+#: PROHIBITED_CONTENT, the 2.5 preview speaks it — but Google dates both
+#: previews' shutdown 2026-11-17 (``vendor_announcements``), so the default is
+#: a 3.8 model, which the vendor lists with no shutdown announced.
+GEMINI_TTS_SAMPLE_MODEL_DEFAULT: str = "gemini-3.8-flash-tts"
 #: The sample rate of the provider's TTS output (16-bit mono PCM).
 GEMINI_TTS_SAMPLE_RATE: int = 24_000
 #: OpenAI GPT-Live (wave 2 spec A9): the listing prefix, the default model, the
@@ -7166,6 +7201,10 @@ RADIO_TTS_LINE_ATTEMPTS_DEFAULT: int = 3
 #: speakers in one request (ADR-345): about a minute and a half of speech, so a
 #: failure costs one take, never a whole debate. 0 voices every line alone.
 RADIO_DIALOGUE_MAX_BYTES_DEFAULT: int = 1500
+#: The most vocal reactions (a chuckle, a laugh, a sigh) one script keeps, where its
+#: programme allows one (ADR-324 decision 45): two keep a conversation human without
+#: turning it into a laugh track. 0 airs none.
+RADIO_REACTIONS_MAX_DEFAULT: int = 2
 #: The longest a voice line waits after a provider's rate limit before trying again
 #: (the provider's own delay when it names one, bounded by this).
 RADIO_TTS_RATE_LIMIT_WAIT_MAX_SECONDS_DEFAULT: int = 30

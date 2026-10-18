@@ -7,7 +7,9 @@
 - no provider key is ever rendered to .env;
 - LAN renders http origin + non-secure cookies; proxy/caddy render https +
   secure cookies; NEXT_PUBLIC_* stay empty (host-neutral images, B03);
-- .env writes are atomic, private, and back up the previous file.
+- .env writes are atomic, private, and back up the previous file;
+- a reconfiguration rewrites only what an answer decides: a value the
+  operator tuned survives, and the diagnostics webhook secret in force stays.
 """
 
 from __future__ import annotations
@@ -20,13 +22,23 @@ from pathlib import Path
 
 import pytest
 
+from scripts.install import envgen
 from scripts.install.envgen import (
+    ANSWER_DERIVED_KEYS,
     GENERATED_SECRET_KEYS,
+    EnvChange,
     EnvGenError,
     derive_environment,
+    derived_changes,
+    describe_change,
+    docker_socket_gid,
     generate_secrets,
     load_existing_generated_secrets,
+    private_backup,
     render_env,
+    render_reconfigured_env,
+    replace_private,
+    with_docker_gid,
     write_atomic_private,
 )
 from scripts.install.model import Exposure, InstallMode, PublicAnswers
@@ -237,3 +249,166 @@ def test_speaking_avatar_is_an_opt_in_without_an_instance_credential() -> None:
     )
     assert enabled["AVATAR_ENABLED"] == "true"
     assert not any("SIMLI" in key for key in enabled)
+
+
+def _values(text: str) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for line in text.splitlines():
+        if line and not line.startswith("#") and "=" in line:
+            key, _, value = line.partition("=")
+            values[key] = value
+    return values
+
+
+def _answer_variants() -> list[PublicAnswers]:
+    lan = _public()
+    return [
+        _public(Exposure.PROXY),
+        _public(Exposure.CADDY),
+        replace(lan, server_host="10.0.0.9"),
+        replace(lan, default_language="en"),
+        replace(lan, observability=True),
+        replace(lan, self_diagnostics=True),
+        replace(lan, observability=True, self_diagnostics=True),
+        replace(lan, skill_sandbox=True),
+        replace(lan, live_mode=True),
+        replace(lan, personal_radio=True),
+        replace(lan, speaking_avatar=True),
+    ]
+
+
+def test_every_value_an_answer_moves_is_declared_answer_derived() -> None:
+    # Undeclared, a value an answer decides would never follow a
+    # reconfiguration; declared but never moving, a tuned value would be reset.
+    generated = generate_secrets()
+    base = derive_environment(_public(), generated)
+    moved: set[str] = set()
+    for answers in _answer_variants():
+        derived = derive_environment(answers, generated)
+        moved |= {key for key, value in derived.items() if value != base.get(key)}
+    assert moved <= ANSWER_DERIVED_KEYS, sorted(moved - ANSWER_DERIVED_KEYS)
+    assert ANSWER_DERIVED_KEYS <= moved, sorted(ANSWER_DERIVED_KEYS - moved)
+
+
+def test_a_reconfigured_env_moves_only_what_the_answers_decide() -> None:
+    generated = generate_secrets()
+    current = render_env("", derive_environment(_public(), generated))
+    tuned = current.replace("LOG_LEVEL=INFO", "LOG_LEVEL=DEBUG").replace(
+        "FISHAUDIO_MAX_CONCURRENCY=5", "FISHAUDIO_MAX_CONCURRENCY=2"
+    )
+    tuned += "OPERATOR_LINE=kept\n"
+    candidate = replace(_public(), server_host="10.0.0.9", live_mode=True)
+
+    values = _values(render_reconfigured_env(tuned, derive_environment(candidate, generated)))
+    assert values["LOG_LEVEL"] == "DEBUG"
+    assert values["FISHAUDIO_MAX_CONCURRENCY"] == "2"
+    assert values["OPERATOR_LINE"] == "kept"
+    assert values["APP_URL_SERVER"] == "http://10.0.0.9:3000"
+    assert values["LIVE_ENABLED"] == "true"
+    for key in GENERATED_SECRET_KEYS:
+        assert values[key] == generated[key]
+
+
+def test_a_reconfigured_env_writes_the_defaults_a_file_lacks() -> None:
+    # A file written by an older installer gains the values it never had.
+    rendered = render_reconfigured_env(
+        "LOG_LEVEL=DEBUG\n",
+        {"LOG_LEVEL": "INFO", "FISHAUDIO_MAX_CONCURRENCY": "5"},
+    )
+    assert _values(rendered) == {"LOG_LEVEL": "DEBUG", "FISHAUDIO_MAX_CONCURRENCY": "5"}
+
+
+def test_the_diagnostics_webhook_secret_in_force_is_kept_until_turned_off() -> None:
+    wired = replace(_public(), observability=True, self_diagnostics=True)
+    generated = generate_secrets()
+    current = render_env("", derive_environment(wired, generated))
+    in_force = _values(current)["DIAGNOSTICS_WEBHOOK_SECRET"]
+    assert in_force
+
+    moved = render_reconfigured_env(
+        current, derive_environment(replace(wired, server_host="10.0.0.9"), generated)
+    )
+    assert _values(moved)["DIAGNOSTICS_WEBHOOK_SECRET"] == in_force
+
+    off = render_reconfigured_env(
+        current, derive_environment(replace(wired, self_diagnostics=False), generated)
+    )
+    assert _values(off)["DIAGNOSTICS_WEBHOOK_SECRET"] == ""
+    assert _values(off)["ALERTMANAGER_LIA_WEBHOOK_URL"] == ""
+
+
+def test_a_write_that_fails_halfway_leaves_no_partial_copy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The temporary copy was created outside the guard: a write that failed
+    # left a partial `.env.tmp-<pid>` — every secret in it — that nobody removed.
+    target = tmp_path / ".env"
+    target.write_text("FERNET_KEY=in-force\n", encoding="utf-8")
+
+    def _disk_full(descriptor: int) -> None:
+        raise OSError("No space left on device")
+
+    monkeypatch.setattr(envgen.os, "fsync", _disk_full)
+    with pytest.raises(OSError):
+        replace_private(target, b"FERNET_KEY=in-force\nLOG_LEVEL=INFO\n")
+    assert target.read_text(encoding="utf-8") == "FERNET_KEY=in-force\n"
+    assert list(tmp_path.glob("*.tmp-*")) == [], "no partial copy left behind"
+
+
+def test_the_changes_listed_are_the_derived_values_that_move_against_the_file() -> None:
+    current = "LOG_LEVEL=DEBUG\nCORS_ORIGINS=http://a:3000,http://b:3000\nLIVE_ENABLED=false\n"
+    candidate = (
+        "LOG_LEVEL=INFO\nCORS_ORIGINS=http://a:3000\nLIVE_ENABLED=false\nAVATAR_ENABLED=false\n"
+    )
+    assert derived_changes(current, candidate) == (
+        EnvChange("AVATAR_ENABLED", None, "false"),
+        EnvChange("CORS_ORIGINS", "http://a:3000,http://b:3000", "http://a:3000"),
+    ), "LOG_LEVEL is no answer's: it is never listed"
+    assert derived_changes(current, current) == ()
+
+
+def test_a_listed_change_never_shows_a_secret() -> None:
+    assert describe_change(EnvChange("CORS_ORIGINS", "http://a:3000", None)) == (
+        "CORS_ORIGINS: http://a:3000 -> (absent)"
+    )
+    assert describe_change(EnvChange("DIAGNOSTICS_WEBHOOK_SECRET", "", "s3cr3t")) == (
+        "DIAGNOSTICS_WEBHOOK_SECRET: (empty) -> (hidden)"
+    )
+
+
+def test_the_docker_socket_group_is_read_where_there_is_a_socket(tmp_path: Path) -> None:
+    socket = tmp_path / "docker.sock"
+    socket.write_text("", encoding="utf-8")
+    assert docker_socket_gid(socket) == str(os.stat(socket).st_gid)
+    assert docker_socket_gid(tmp_path / "absent.sock") is None
+    assert docker_socket_gid(None) is None
+
+
+@pytest.mark.parametrize(
+    ("env_text", "expected"),
+    [
+        ("LOG_LEVEL=INFO\n", "1001"),
+        ("DOCKER_GID=\nLOG_LEVEL=INFO\n", "1001"),  # an empty value is the fallback's
+        ("DOCKER_GID=4242\n", "4242"),  # the operator's value stays
+    ],
+)
+def test_docker_gid_is_written_only_where_the_file_holds_none(
+    env_text: str, expected: str
+) -> None:
+    rendered = with_docker_gid(env_text, "1001")
+    assert _values(rendered)["DOCKER_GID"] == expected
+    assert with_docker_gid(env_text, None) == env_text
+
+
+def test_two_backups_within_one_second_keep_both_copies(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(envgen.time, "time", lambda: 1_700_000_000.0)
+    target = tmp_path / ".env"
+    target.write_text("A=1\n", encoding="utf-8")
+    first = private_backup(target)
+    target.write_text("A=2\n", encoding="utf-8")
+    second = private_backup(target)
+    assert first != second
+    assert first.read_text(encoding="utf-8") == "A=1\n"
+    assert second.read_text(encoding="utf-8") == "A=2\n"

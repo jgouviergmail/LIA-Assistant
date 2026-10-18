@@ -8,6 +8,7 @@
  * switched-off radio is offered nowhere rather than refused everywhere.
  */
 import type { AppConfig } from '@/hooks/useAppConfig';
+import { capabilityEnabled } from '@/lib/capability-state';
 
 export interface RadioConfig {
   features?: { radio_enabled?: boolean };
@@ -19,6 +20,5 @@ export interface RadioConfig {
  * @returns True when a session could start.
  */
 export function radioAvailable(config: RadioConfig | null | undefined): boolean {
-  const capability = config?.capabilities?.radio;
-  return capability ? capability.enabled : Boolean(config?.features?.radio_enabled);
+  return capabilityEnabled(config?.capabilities, 'radio', config?.features?.radio_enabled);
 }

@@ -424,7 +424,7 @@ def get_llm(
         # ``num_ctx`` requested on every call, because what LIA accounts
         # with is what LIA asks for; every other provider ignores it (its
         # window is a property of the model, not a request).
-        context_window=merged_config.get("context_window"),
+        context_window=agent_config.context_window,
         provider_config=agent_config.provider_config,  # Advanced JSON config
     )
 

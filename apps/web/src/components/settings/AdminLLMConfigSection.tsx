@@ -3,6 +3,7 @@
 import { useEffect, useId, useState } from 'react';
 import { toast } from 'sonner';
 import {
+  AlertTriangle,
   Cpu,
   HelpCircle,
   Key,
@@ -63,9 +64,11 @@ import {
   DEFAULT_ELEVENLABS_VOICE_SETTINGS,
   ELEVENLABS_OUTPUT_FORMATS,
   OPENAI_RESPONSE_FORMATS,
+  budgetThatApplies,
   buildConfigUpdate,
   computeAvailableModels,
   configSaveError,
+  exceededOutputCap,
   findModelCapabilities,
   formAfterModelChange,
   formAfterProviderChange,
@@ -237,7 +240,7 @@ function LLMTypeCard({
    * from GET /llm-config/metadata; missing when the configured model is
    * not (or no longer) registered. */
   modelCapabilities?: ModelCapabilities;
-  t: (key: string) => string;
+  t: (key: string, options?: Record<string, unknown>) => string;
 }) {
   // The resolved ladder + supports_temperature directly (Philosophy A: raw
   // truth). is_reasoning_model alone is ambiguous — a model can reason with no
@@ -246,6 +249,9 @@ function LLMTypeCard({
   const hasEffort =
     modelReasons(modelCapabilities) && reasoningIsActive(config.effective.reasoning_effort);
   const showsTemp = modelCapabilities?.supports_temperature ?? true;
+  // A budget chosen for the previous model survives a model switch: the
+  // request is held to the cap, and the card says the stored figure is stale.
+  const outputCap = exceededOutputCap(config.effective.max_tokens, modelCapabilities);
   const tierClass = config.info.power_tier ? (POWER_TIER_STYLES[config.info.power_tier] ?? '') : '';
   return (
     // Real button semantics (audit F012/F013): the whole card opens the edit
@@ -287,6 +293,16 @@ function LLMTypeCard({
         {hasEffort && showsTemp && <span className="text-muted-foreground">+</span>}
         {showsTemp && <span>T:{config.effective.temperature}</span>}
       </div>
+      {outputCap !== null && (
+        <Badge
+          variant="warning"
+          size="sm"
+          className="mt-1.5"
+          icon={<AlertTriangle className="h-3 w-3" aria-hidden="true" />}
+        >
+          {t('settings.admin.llmConfig.types.maxTokensAboveCap', { cap: outputCap })}
+        </Badge>
+      )}
     </div>
   );
 }
@@ -391,7 +407,8 @@ function RangeParam({
 }
 
 /** Labelled number input (max_tokens / timeout) — parse semantics stay with
- * the caller via onValueChange(raw). */
+ * the caller via onValueChange(raw). A `warning` is drawn under the input and
+ * describes it, so a screen reader hears it with the field. */
 function NumberField({
   labelKey,
   tooltipKey,
@@ -399,6 +416,7 @@ function NumberField({
   value,
   placeholder,
   max,
+  warning,
   onValueChange,
   t,
 }: {
@@ -408,11 +426,13 @@ function NumberField({
   value: number | null | undefined;
   placeholder?: string;
   max?: number;
+  warning?: string;
   onValueChange: (raw: string) => void;
   t: (key: string) => string;
 }) {
   // Accessible name = the visible label (F012), unique per instance.
   const labelId = useId();
+  const warningId = useId();
   return (
     <div className="space-y-1.5">
       <OverridableFieldLabel
@@ -424,6 +444,7 @@ function NumberField({
       />
       <Input
         aria-labelledby={labelId}
+        aria-describedby={warning ? warningId : undefined}
         type="number"
         min="1"
         max={max}
@@ -431,6 +452,12 @@ function NumberField({
         onChange={e => onValueChange(e.target.value)}
         placeholder={placeholder}
       />
+      {warning && (
+        <p id={warningId} className="flex items-start gap-1.5 text-xs text-warning">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-px" aria-hidden="true" />
+          <span>{warning}</span>
+        </p>
+      )}
     </div>
   );
 }
@@ -1150,6 +1177,7 @@ function SamplingFields({
   visibility,
   isModified,
   discoveredWindow,
+  outputCap,
   t,
 }: {
   form: LLMTypeConfigUpdate;
@@ -1158,6 +1186,8 @@ function SamplingFields({
   isModified: (field: keyof LLMTypeConfigUpdate) => boolean;
   /** What the server said about the selected model, when it is an Ollama tag. */
   discoveredWindow?: OllamaModelCapabilities;
+  /** The output cap the budget exceeds (`exceededOutputCap`), or null. */
+  outputCap: number | null;
   t: (key: string, options?: Record<string, unknown>) => string;
 }) {
   return (
@@ -1184,6 +1214,11 @@ function SamplingFields({
         tooltipKey="settings.admin.llmConfig.tooltips.maxTokens"
         modified={isModified('max_tokens')}
         value={form.max_tokens}
+        warning={
+          outputCap !== null
+            ? t('settings.admin.llmConfig.config.maxTokensAboveCap', { cap: outputCap })
+            : undefined
+        }
         onValueChange={raw => setForm({ ...form, max_tokens: parseInt(raw) || null })}
         t={t}
       />
@@ -1434,6 +1469,10 @@ function LLMConfigDialog({
 
   if (!config) return null;
 
+  // Against the budget the save will APPLY and the model being chosen: a value
+  // kept from the previous model is flagged the moment the model changes.
+  const outputCap = exceededOutputCap(budgetThatApplies(form, config), selectedModelCapabilities);
+
   return (
     <Dialog open={open} onOpenChange={o => !o && handleClose()}>
       <DialogContent className="max-w-lg">
@@ -1508,6 +1547,7 @@ function LLMConfigDialog({
               visibility={visibility}
               isModified={isModified}
               discoveredWindow={discoveredWindow}
+              outputCap={outputCap}
               t={t}
             />
           )}

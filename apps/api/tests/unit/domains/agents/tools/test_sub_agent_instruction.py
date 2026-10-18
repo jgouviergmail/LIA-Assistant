@@ -18,6 +18,7 @@ from uuid import uuid4
 import pytest
 
 from src.core.config import settings
+from src.core.context import request_tool_manifests_ctx
 from src.domains.agents.sub_agents.catalogue_manifests import (
     delegate_to_sub_agent_catalogue_manifest,
 )
@@ -86,7 +87,13 @@ class TestTheReachIsClaimedOnlyWhereItHolds:
 
 @pytest.fixture
 def runner() -> Iterator[MagicMock]:
-    """The tool with everything around the cap replaced: the runner is a spy."""
+    """The tool with everything around the cap replaced: the runner is a spy.
+
+    No catalogue is published here, so the delegation reads the capability
+    switches itself (``_offered_by_the_turn``): they are answered « nothing
+    hidden » rather than read from the real settings store (Redis, database).
+    A test that needs a switch off patches the same seam inside its own body.
+    """
     fake_runner = MagicMock()
     fake_runner.run = AsyncMock(
         return_value=ReactSubAgentResult(
@@ -99,6 +106,10 @@ def runner() -> Iterator[MagicMock]:
         patch(
             "src.domains.feature_switches.registry.is_capability_enabled",
             AsyncMock(return_value=True),
+        ),
+        patch(
+            "src.domains.agents.services.planner_capability_filter.tools_hidden_by_capabilities",
+            AsyncMock(return_value=set()),
         ),
         patch(f"{_MODULE}.get_all_tools", return_value={}),
         patch(f"{_MODULE}.ReactSubAgentRunner", return_value=fake_runner),
@@ -130,3 +141,49 @@ class TestTheToolEnforcesItsOwnCap:
 
         assert output.success is True
         assert runner.run.await_args.kwargs["task"] == "Review these three figures: 12, 15, 9."
+
+
+class TestTheExpertHoldsOnlyWhatItsTurnOffers:
+    """Read from the global registry, the default research tools searched the
+    web after an operator switched web search off: the turn had withheld them,
+    its sub-agent had not."""
+
+    _TOOLS = {
+        name: SimpleNamespace(name=name)
+        for name in ("brave_search_tool", "get_wikipedia_summary_tool")
+    }
+
+    async def test_a_tool_the_turn_withholds_never_reaches_the_expert(
+        self, runner: MagicMock
+    ) -> None:
+        resolve = MagicMock(return_value=[])
+        token = request_tool_manifests_ctx.set([SimpleNamespace(name="get_wikipedia_summary_tool")])
+        try:
+            with (
+                patch(f"{_MODULE}.get_all_tools", return_value=self._TOOLS),
+                patch(f"{_MODULE}.resolve_tools_for_subagent", resolve),
+            ):
+                await _delegate("Summarise the article.")
+        finally:
+            request_tool_manifests_ctx.reset(token)
+
+        offered = [tool.name for tool in resolve.call_args.kwargs["all_tools"]]
+        assert offered == ["get_wikipedia_summary_tool"]
+
+    async def test_outside_a_turn_the_capability_switches_still_hold(
+        self, runner: MagicMock
+    ) -> None:
+        resolve = MagicMock(return_value=[])
+        with (
+            patch(f"{_MODULE}.get_all_tools", return_value=self._TOOLS),
+            patch(f"{_MODULE}.resolve_tools_for_subagent", resolve),
+            patch(
+                "src.domains.agents.services.planner_capability_filter."
+                "tools_hidden_by_capabilities",
+                AsyncMock(return_value={"brave_search_tool"}),
+            ),
+        ):
+            await _delegate("Summarise the article.")
+
+        offered = [tool.name for tool in resolve.call_args.kwargs["all_tools"]]
+        assert offered == ["get_wikipedia_summary_tool"]

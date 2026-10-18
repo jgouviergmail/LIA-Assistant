@@ -24,6 +24,7 @@ from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from src.core.constants import LLM_MODEL_DEFAULT_MAX_OUTPUT_TOKENS
 from src.infrastructure.database.models import TimestampMixin, UUIDMixin
 from src.infrastructure.database.session import Base
 
@@ -150,7 +151,9 @@ class LLMModel(Base, UUIDMixin, TimestampMixin):
     )
 
     max_input_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=8192)
-    max_output_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=4096)
+    max_output_tokens: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=LLM_MODEL_DEFAULT_MAX_OUTPUT_TOKENS
+    )
     supports_tools: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     supports_structured_output: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     supports_strict_mode: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

@@ -43,6 +43,7 @@ from src.core.constants import (
     DIAGNOSTICS_EGRESS_PROBE_TIMEOUT_SECONDS_DEFAULT,
     DIAGNOSTICS_FAILURE_CONTEXT_MAX_ENTRIES_DEFAULT,
     DIAGNOSTICS_HTTP_TIMEOUT_SECONDS_DEFAULT,
+    DIAGNOSTICS_INCIDENT_SILENCE_CLOSE_SECONDS_DEFAULT,
     DIAGNOSTICS_LOKI_DEFAULT_LINES_DEFAULT,
     DIAGNOSTICS_LOKI_MAX_LINES,
     DIAGNOSTICS_LOKI_URL_DEFAULT,
@@ -150,6 +151,15 @@ class DiagnosticsSettings(BaseSettings):
         default=DIAGNOSTICS_NOTIFICATION_COOLDOWN_SECONDS_DEFAULT,
         ge=60,
         description="Minimum delay between two admin notifications for one correlation key.",
+    )
+    diagnostics_incident_silence_close_seconds: int = Field(
+        default=DIAGNOSTICS_INCIDENT_SILENCE_CLOSE_SECONDS_DEFAULT,
+        ge=60,
+        description=(
+            "An alert incident Alertmanager no longer holds as firing and not re-delivered "
+            "for this long is closed by the self-check tick (its resolution was lost). Keep it "
+            "at least twice the LIA webhook route's repeat_interval."
+        ),
     )
 
     # ------------------------------------------------------------------

@@ -19,7 +19,7 @@ To clear history and start over:
 
 **⚠️ What is actually deleted:** Every message, **the attachments you uploaded yourself** — and the context LIA had built from this conversation (`POST /conversations/me/reset` also clears the token summaries, the LangGraph checkpoints and the tool contexts). The action is **irreversible**.
 
-**✅ What is NOT deleted:** **the files LIA produced** — images, documents, browser screenshots — stay in Settings › My generated files until their own deadline, or for good if you keep them: a file LIA made for you belongs to you, not to the conversation that happened to produce it. And what LIA learned about you lives outside the conversation and stays — your long-term memory, the rhythm and recurring requests it observed, its mark of which emails it had already read, the thresholds it adjusted for you. Each stored value declares what it is, and a reset only clears what a conversation created (a value whose family is unknown is kept, never guessed). To erase the learning too, use **Forget everything** in the settings, or delete your account.
+**✅ What is NOT deleted:** **the files LIA produced** — images, documents, browser screenshots — stay in Settings › Preferences › My generated files until their own deadline, or for good if you keep them: a file LIA made for you belongs to you, not to the conversation that happened to produce it. And what LIA learned about you lives outside the conversation and stays — your long-term memory, the rhythm and recurring requests it observed, its mark of which emails it had already read, the thresholds it adjusted for you. Each stored value declares what it is, and a reset only clears what a conversation created (a value whose family is unknown is kept, never guessed). To erase the learning too, use **Forget everything** in the settings, or delete your account.
 
 **💡 When to reset?**
 • When you completely change topics
@@ -75,13 +75,13 @@ Yes! LIA maintains an **intelligent context** throughout the conversation:
 
 **💡 Tip:** Use natural references like "*the first one*", "*Mary's one*", "*tomorrow's appointment*".
 
-**🧭 How the focus follows you (v1.16.5):**
+**🧭 How the focus follows you:**
 After you search, create, update, or even just mention an item by ordinal ("*the first meeting*"), LIA updates its internal focus to that item. Subsequent references like "*this meeting*" or "*delete it*" target the correct item — no more confusion with something you created earlier in the conversation.
 
 When LIA asks you to validate a modification (meeting, contact, task), the preview is structured in two clear blocks: **Changes** (only the fields that actually change, shown as old → new) and **Full details after update** (the complete post-update snapshot).
 
 **✅ What you approve is what gets executed:**
-When you review a draft (email, event…) and ask for changes ("*add a polite closing*", "*sign with my name*"), each revised version appears in its **own chat bubble**, and the content you finally confirm is **exactly the last version displayed** — edits are applied once and never silently re-generated at confirmation time. The same guarantee applies to bulk confirmations: the list of items you approve (optionally refined with a filter like "*keep only this week's*") is exactly the list that gets processed. If your modification request is ambiguous, LIA now shows you its clarification question alongside the re-presented draft. And "sign with my name" uses the first name from your profile — no placeholder, no invented name.
+When you review a draft (email, event…) and ask for changes ("*add a polite closing*", "*sign with my name*"), each revised version appears in its **own chat bubble**, and the content you finally confirm is **exactly the last version displayed** — edits are applied once and never silently re-generated at confirmation time. The same guarantee applies to bulk confirmations: the list of items you approve (optionally refined with a filter like "*keep only this week's*") is exactly the list that gets processed. If your modification request is ambiguous, LIA shows you its clarification question alongside the re-presented draft. And "sign with my name" uses the first name from your profile — no placeholder, no invented name.
 
 **🎯 It quotes what it read, not what it remembers:**
 • When a message needs no tool call, LIA re-anchors on the entities it actually retrieved in the previous turns (an appointment time, a contact, a place) instead of paraphrasing its own earlier wording
@@ -178,11 +178,11 @@ Thumbnails are displayed in the conversation. Click a thumbnail to enlarge it. L
 
 **💡 Limits**: maximum 5 attachments per message, 10 MB per image, 20 MB per document.
 
-**From a knowledge space:** when your knowledge spaces are on, the **« + »** becomes a menu: pick **Document of a knowledge space** to attach a copy of a document already indexed — a paused space included (see the next question).
+**From a knowledge space:** when your knowledge spaces are on, the **+** button becomes a menu: pick **Document from a knowledge space** to attach a copy of a document already indexed — a paused space included (see the next question).
 
 ## Can I attach a document from one of my knowledge spaces to a message?
 
-Yes. The **« + »** button of the composer opens a menu when your knowledge spaces are on: **Attach a file** (the classic picker) and **Document of a knowledge space**.
+Yes. The **+** button of the composer opens a menu when your knowledge spaces are on: **Attach a file** (the classic picker) and **Document from a knowledge space**.
 
 **What the picker lists:**
 - every document already indexed in your spaces — **a paused space included**, named and badged, never hidden
@@ -287,10 +287,10 @@ The chat has several useful finishing touches:
 
 ## Can I search through my conversation history?
 
-Yes, since v1.16.9:
+Yes.
 
 **🔍 Search bar in the chat**
-- A search input now appears in the chat header (🔍 icon)
+- A search input appears in the chat header (🔍 icon)
 - Type a word or phrase → matching messages are filtered instantly
 - Search is case-insensitive ("pizza" also finds "Pizza")
 
@@ -304,7 +304,7 @@ Find an address, a name, a decision or a detail mentioned earlier in the convers
 
 ## How do I access older messages in a very long conversation?
 
-Since v1.20.14, you can **scroll up in the chat** to reach the beginning of any conversation, even one that has grown to thousands of messages:
+You can **scroll up in the chat** to reach the beginning of any conversation, even one that has grown to thousands of messages:
 
 **📜 How it works**
 - When you open a conversation, the **50 newest messages** are loaded instantly
@@ -323,7 +323,7 @@ Since v1.20.14, you can **scroll up in the chat** to reach the beginning of any 
 
 ## What happens if I leave the page while LIA is answering?
 
-Nothing is lost. Since v1.22.0, generation continues **in the background** on the server:
+Nothing is lost. Generation continues **in the background** on the server:
 
 **🔄 Continuity by default**
 - Your message and the full answer are saved even if you close the tab, switch apps or lose the connection
@@ -362,9 +362,9 @@ Yes. Under each answer, a small **"⚙ N steps · X s"** line summarizes the bac
 
 It is the same transparency as the cost shown on every message, extended to the *flow of actions*. The display stays discreet and collapsed by default, so it never clutters the conversation.
 
-Since v1.25.12 this trace is **stored with the message**: you will find it after a reload and on your other devices (the live reasoning stream itself stays ephemeral).
+This trace is **stored with the message**: you will find it after a reload and on your other devices (the live reasoning stream itself stays ephemeral).
 
-On a very long turn the panel keeps a bounded number of steps, and it now keeps **the first ones as well as the latest** — the opening actions used to disappear. The count shown is the real total, and the panel says exactly how many intermediate steps are hidden.
+On a very long turn the panel keeps a bounded number of steps, and it keeps **the first ones as well as the latest**. The count shown is the real total, and the panel says exactly how many intermediate steps are hidden.
 
 ## How do I search my entire conversation history?
 Type in the **search field** of the chat header (or tap the 🔍 icon on mobile). The loaded messages filter instantly — accent-insensitive — with the matches **highlighted** in the bubbles and a result counter.
@@ -376,12 +376,10 @@ Two discreet thumbs appear next to the **Copy** button on ordinary responses. Yo
 
 You can change your mind — the latest verdict wins. And LIA **never regenerates** an answer on its own: you stay in charge.
 
-
 ## Can LIA prepare me before talking to someone?
 Yes — ask "prepare my call with Marie" and one pass gathers a **360° view**: her contact card, your recent email exchanges, your upcoming shared meetings, and what LIA remembers about her. If a source is unavailable (no calendar connector, for instance), the overview says so honestly instead of guessing.
 
 It also powers the meeting-prep nudge: when a substantial meeting is close, a proactive notification may end with "want me to prepare this meeting for you?".
-
 
 ## What are the "/" slash commands?
 Type **/** at the start of an empty message to open the command menu: **/resume** (compact the conversation), **/briefing** (open the dashboard), **/agenda**, **/search**, plus everyday shortcuts — unread emails, weather, weekend weather, tasks, reminders, news — and your dialogue-enabled skills. Filtering understands your language (typing "mété" finds the weather). A command only **pre-fills** the input: nothing is ever sent without you pressing Enter.
@@ -394,7 +392,7 @@ When you scroll up to re-read, a streaming answer **never drags you back to the 
 
 ## A message failed. Do I have to retype my question?
 
-No. A failed turn now carries a **Retry** button, and it replays exactly the
+No. A failed turn carries a **Retry** button, and it replays exactly the
 request that failed — not whatever the latest message happens to be when you
 press it. That distinction matters: a proactive notification from LIA can land
 between your question and your click, and replaying the wrong text would send
@@ -402,24 +400,35 @@ something you never asked for.
 
 ## The chat is empty. Where do I start?
 
-A brand-new conversation offers three starting points under the greeting. They
-were chosen because they work on **any** account — no connector, no memory, no
-history required: ask what LIA can do, set a reminder, or have something
-explained. Tapping one **fills the composer**; it never sends on your behalf, so
-you can edit first.
+Under the greeting, LIA offers three ways in. Tapping one **fills the composer** — nothing is sent until you send it yourself, so you can adjust it first.
 
-## Can I use the examples written in the FAQ directly?
+**☀️ From your day:**
+When LIA already knows something about your day — your next event, important e-mails or a commitment it gathered on **Home**, or one of your reminders — the suggestions name it: prepare a meeting, summarise your important e-mails, close a commitment.
 
-Yes. Every bulleted example in the in-app FAQ is a button: one tap drops the
-phrase into the chat composer, ready to adjust before you send it. The FAQ holds
-several hundred of them, in all six languages.
+**✨ Try one of these:**
+Otherwise, or to fill the remaining places, three requests that work on any account, with no connector set up:
+• *What can you do?*
+• *Remind me to call Jean on Friday at 6pm*
+• *Explain quantum computing in simple terms*
+
+Typing **/** in the empty composer opens the command menu, and the examples of the Help page are ready-made requests too.
+
+## Can I use the examples written in the Help page directly?
+
+Yes. In the Help page of the app, every example request written in italics after a bullet is a **button**: a tap or a click opens the chat with that sentence already in the composer, for instance:
+• *Show me my reminders for tomorrow*
+
+Nothing is sent by itself: read it, change a name or a date, then send it. The examples work from the keyboard too, and a screen reader announces each one as an example to try.
+
+Only requests addressed to LIA become buttons — ordinary emphasis in an answer stays plain text. On the public help page, before you sign in, the examples are simply text.
 
 ## On my phone, how do I get from the chat to the settings?
 
-Tap the **LIA logo** at the top left. On narrow screens the navigation bar is
-hidden, so the logo opens a menu with the same four destinations — dashboard,
-chat, settings, help — and announces which page you are currently on. On a
-desktop the logo stays what it has always been: a link back to the dashboard.
+Tap the **LIA** button at the top left: on a phone, a tablet or a narrow window it carries a small menu icon. The navigation bar does not fit there, so this button opens a menu with every destination — **Home**, **Chat**, **Relations**, **Meetings** (when your instance offers them), **Alerts**, **Settings** and **Help**. The page you are on is highlighted.
+
+Below them come the header's actions that have no room on a small screen: **Record a meeting** and **Start the radio**, when available. While a recording runs, the button pulses red.
+
+On a wider screen the navigation bar is visible, and the LIA logo simply takes you back Home.
 
 ## What happens when LIA cannot carry out my request?
 
@@ -435,37 +444,22 @@ not its internal diagnosis.
 
 You can answer, rephrase, or drop it: nothing is sent until you decide.
 
-**When a service fails along the way** — a calendar that is unavailable, a page that refuses access —, LIA says so: which tool, what it answered, and what succeeded anyway. It never invents a « service not configured » to fill the gap: measured before this rule was enforced, one answer in three did exactly that on the turns where a tool had failed, while the connectors were active. A plan that half-succeeded gives you back what worked and names what did not. In ReAct mode LIA first tries another way (a corrected parameter, another source); what it could not obtain is listed at the end of the answer, with what it tried.
+**When a service fails along the way** — a calendar that is unavailable, a page that refuses access —, LIA says so: which tool, what it answered, and what succeeded anyway. It never invents a « service not configured » to fill the gap. A plan that half-succeeded gives you back what worked and names what did not. In ReAct mode LIA first tries another way (a corrected parameter, another source); what it could not obtain is listed at the end of the answer, with what it tried.
 
 ## In rich HTML, what does an answer look like?
 
-Like a composed page, not text with tags. As soon as an answer carries data —
-dates, figures, people, results — LIA lays it out: a **lead sentence** with the
-key fact in bold, then **one section per facet** in the component that fits it
-(figures as tiles, statuses as badges, a procedure as steps, a comparison as
-columns or a table, metadata as a key-value list), and a **closing callout**
-when there is advice, a caveat or a next step. A greeting or a one-sentence
-answer stays one line.
+Like a composed page, not text with tags. As soon as an answer carries data — dates, figures, people, results — LIA lays it out: a **lead sentence** with the key fact in bold, then **one section per facet** in the component that fits it (figures as tiles, statuses as badges, a procedure as steps, a comparison as columns or a table, metadata as a key-value list), and a **closing callout** when there is advice, a caveat or a next step. A greeting or a one-sentence answer stays one line.
 
-The layout follows the answer's own data, never the shape of the conversation's
-earlier answers. It applies to conversational turns without tools too — unless
-your voice is on: a reply read aloud stays plain text, or the voice would read
-tags. Pick the mode under **Settings > Answer display**.
-
-## Can a script LIA writes reach the Internet? What does the three-answer question mean?
-Yes, since v1.46.0 and only in ReAct mode (⚡). When a step needs a service no tool covers, the short Python script LIA writes may reach it — through one dedicated proxy, HTTPS only, to the hosts it declares and nowhere else; a script that declares no host stays fully offline. The services you connected with your own API key are reachable without a question, the key never entering the script. When the script wants a host you never allowed, LIA stops and asks with three answers — **allow with the data** of this turn, **allow without it** (the script then receives nothing of what LIA gathered), or **refuse** — then the rest of your request goes on, and your answer is remembered as a permission you can revoke in **Settings → Skill permissions**. Every network run is written to your register before it starts. See *Computed Answers* for the details.
+The layout follows the answer's own data, never the shape of the conversation's earlier answers. It applies to conversational turns without tools too — unless LIA's voice reads your replies aloud: such a reply stays formatted text, or the voice would read tags; an answer built from tools keeps its layout. Pick **HTML** or **HTML + cards** under **Settings › Preferences › Personalization › Display Mode**.
 
 ## What are the little animated eyes on the chat page?
 
-This is LIA’s visual companion: it follows real thinking, search, speech and response states. Expressions accompany tone without proving an action completed. Choose its design under Personalisation › Avatar style, with previews that animate on hover or focus.
+This is LIA’s visual companion. It stays with you on every page of the app, and in the chat it follows real thinking, search, speech and response states. Expressions accompany tone without proving an action completed. Choose its design under **Settings › Features › Identity & Memory › Avatar style**, with previews that animate on hover or focus.
 
 Move the companion, change its size or hide it; controls appear on hover, focus or touch. On a phone it stays where you put it: nothing moves or folds it but you. Style, size and positions are saved in this browser. The landing uses its own BIP presentation, independently of your application choice. The system’s reduced-motion preference retains a quiet pose.
 
 ## Do new messages appear by themselves?
 Yes. When a message lands in your conversation from elsewhere — another tab or device, Telegram, a voice session, a routine, a reminder — the chat adds it without reloading the page: what is already on screen stays as it is, your selection and open panels included. If you are reading higher up, you are not moved; the round button at the bottom counts what arrived. Nothing changes while an answer is being written: the new messages join once it is done. And if the connection dropped (network, a laptop asleep), the chat catches up when it comes back or when you return to the tab.
-
-## Can I send an answer by e-mail?
-Yes. Under each answer, « Send by e-mail » attaches the answer as the very Markdown file « Download » gives you, with the subject and the words you choose — LIA writes nothing in your place. It leaves from your connected mailbox, or, without one, goes to your own verified address. While you type a recipient, the contacts of your contacts connector (Google, Apple or Microsoft) are suggested by last name or first name — accents and punctuation ignored — or by phone number; picking one puts its address in the field. Without a contacts connector, the field stays a plain address field. The answers you kept (« Bookmarks ») can be sent the same way.
 
 ## What do the cards in answers show?
 

@@ -69,10 +69,13 @@ from src.domains.voice.audio_output import audio_for_mix, mix_audio_format
 from src.domains.voice.billing import SynthesisResult
 from src.domains.voice.exceptions import TTSProviderError
 from src.domains.voice.expressive_cues import CueDialect, cue_dialect, neutralize_literal
-from src.domains.voice.families import voices_dialogue
+from src.domains.voice.families import dialogue_voice_limit, voices_dialogue
 from src.domains.voice.protocol import DialogueAudio, DialogueTTSClient, DialogueTurn, TTSClient
 from src.domains.voice.spoken import TtsLedger, speak, speak_dialogue
-from src.infrastructure.observability.metrics_radio import radio_dialogue_takes_total
+from src.infrastructure.observability.metrics_radio import (
+    radio_delivery_unrendered_total,
+    radio_dialogue_takes_total,
+)
 from src.infrastructure.utils.retry import retry_async
 
 logger = structlog.get_logger(__name__)
@@ -186,6 +189,8 @@ class ProductionLimits:
         dialogue_max_bytes: The most UTF-8 bytes one dialogue take carries on
             an engine that voices several speakers in one request; ``0``
             voices every line alone.
+        reactions_max: The most vocal reactions one script keeps, where its
+            programme allows one (ADR-324 decision 45); ``0`` keeps none.
     """
 
     quote_max_chars: int
@@ -194,6 +199,7 @@ class ProductionLimits:
     tts_attempts: int
     tts_rate_limit_wait_max_s: float
     dialogue_max_bytes: int = 0
+    reactions_max: int = 0
 
 
 class ProductionOutcome(StrEnum):
@@ -409,6 +415,7 @@ def _takes(
             for line, said in zip(lines, speech, strict=True)
         ],
         max_bytes=limits.dialogue_max_bytes,
+        max_voices=dialogue_voice_limit(engine.provider, engine.model),
     )
 
 
@@ -605,6 +612,18 @@ def _first_code(group: BaseExceptionGroup[TTSProviderError]) -> str | None:
     return leaves[0].code if leaves else None
 
 
+def _counted_unrendered(speech: Sequence[_Speech]) -> tuple[str, ...]:
+    """What the voiced lines asked for and the engine could not express, counted.
+
+    Each line counts once per dimension (``radio_delivery_unrendered_total``,
+    ADR-324 decision 45); the segment keeps the dimensions it lost, sorted.
+    """
+    for said in speech:
+        for quality in said.rendered.unrendered:
+            radio_delivery_unrendered_total.labels(dimension=quality).inc()
+    return tuple(sorted({quality for said in speech for quality in said.rendered.unrendered}))
+
+
 def _transcript(
     lines: Sequence[VerifiedLine], offsets: Sequence[float], pack: FactPack
 ) -> tuple[TranscriptLine, ...]:
@@ -639,6 +658,7 @@ async def _checked_script(
         language=request.language,
         quote_max_chars=limits.quote_max_chars,
         station_name=request.station_name,
+        reactions_max=limits.reactions_max,
         roles=request.roles,
     )
     if not verified.accepted:
@@ -745,7 +765,7 @@ async def produce_segment(
     finally:
         await asyncio.to_thread(_remove, [*files.lines, *files.takes])
 
-    unrendered = tuple(sorted({quality for said in speech for quality in said.rendered.unrendered}))
+    unrendered = _counted_unrendered(speech)
     return ProductionResult(
         ProductionOutcome.PRODUCED,
         segment=ProducedSegment(

@@ -10,8 +10,10 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  budgetThatApplies,
   buildConfigUpdate,
   computeAvailableModels,
+  exceededOutputCap,
   findModelCapabilities,
   formAfterModelChange,
   formAfterProviderChange,
@@ -46,6 +48,7 @@ function caps(overrides: Partial<ModelCapabilities> = {}): ModelCapabilities {
     model_id: 'm1',
     kind: 'chat',
     max_output_tokens: 4096,
+    vouched_max_output_tokens: null,
     supports_tools: true,
     supports_structured_output: true,
     supports_vision: true,
@@ -114,6 +117,46 @@ function typeConfig(
     is_overridden: false,
   };
 }
+
+// A stored budget outlives the model it was chosen for: production
+// 2026-10-18, 200 000 kept on a model the catalogue vouches caps at 128 000,
+// every call refused. The screen warns against the figure the request is held
+// to — the VOUCHED cap, never the raw column a row nobody curated defaults.
+describe('exceededOutputCap', () => {
+  it('names the cap a budget above it exceeds', () => {
+    expect(exceededOutputCap(200_000, caps({ vouched_max_output_tokens: 128_000 }))).toBe(128_000);
+  });
+
+  it('says nothing for a budget at or below the cap', () => {
+    const capped = caps({ vouched_max_output_tokens: 128_000 });
+    expect(exceededOutputCap(128_000, capped)).toBeNull();
+    expect(exceededOutputCap(5_000, capped)).toBeNull();
+  });
+
+  it('says nothing where nobody vouched for a cap, whatever the raw column holds', () => {
+    // max_output_tokens 4 096 is the column default of an uncurated row.
+    expect(exceededOutputCap(200_000, caps({ vouched_max_output_tokens: null }))).toBeNull();
+  });
+
+  it('says nothing without a budget or without the model in the catalogue', () => {
+    expect(exceededOutputCap(null, caps({ vouched_max_output_tokens: 128_000 }))).toBeNull();
+    expect(exceededOutputCap(200_000, undefined)).toBeNull();
+  });
+});
+
+describe('budgetThatApplies', () => {
+  it('is the field when it holds a value', () => {
+    expect(budgetThatApplies({ max_tokens: 2_000 }, typeConfig({}, { max_tokens: 9_000 }))).toBe(
+      2_000
+    );
+  });
+
+  it('is the slot default once the field is cleared, as the save will apply it', () => {
+    expect(budgetThatApplies({ max_tokens: null }, typeConfig({}, { max_tokens: 9_000 }))).toBe(
+      9_000
+    );
+  });
+});
 
 describe('parseProviderConfig', () => {
   it('native decisions never serialize inherited generative parameters', () => {

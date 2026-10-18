@@ -13,20 +13,29 @@ system diagnosis to).
 
 Injection stance: evidence and runbook are quoted data in the prompt; the
 output is only ever SHOWN to admins — no automated action derives from it.
+
+Sessions (ADR-304): the pump waits on Prometheus, Loki and the model, so it
+holds no session across those waits. It opens a short one of its own to read
+the administrators' languages and another for each diagnosis it stores — never
+the caller's, which used to stay in a transaction from the pending-incidents
+read to the last model call of the batch.
 """
 
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from contextlib import AbstractAsyncContextManager
 from datetime import UTC, datetime
 from pathlib import Path
 from time import time
 from typing import TYPE_CHECKING, Any, NamedTuple
+from uuid import UUID
 
 import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import REDIS_KEY_DIAGNOSTICS_DIAGNOSIS_COST_PREFIX
@@ -45,6 +54,7 @@ from src.infrastructure.cache.pricing_cache import (
     get_cached_cost_usd_eur,
 )
 from src.infrastructure.cache.redis import get_redis_cache
+from src.infrastructure.database.session import get_db_context
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.structured_output import get_structured_output_with_retry
 from src.infrastructure.llm.token_capture import TokenCaptureHandler
@@ -55,9 +65,11 @@ from src.infrastructure.telemetry.prometheus import PrometheusClient
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
-    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger(__name__)
+
+#: Opens one short session, committed and closed at exit (``get_db_context``).
+SessionFactory = Callable[[], AbstractAsyncContextManager[AsyncSession]]
 
 #: Alertname shape accepted by the runbook loader (path traversal is
 #: structurally impossible: no separators, dots or spaces can match).
@@ -445,6 +457,41 @@ async def admin_languages(repo: object) -> list[str]:
     return unique or [resolve_language()]
 
 
+async def _read_admin_languages(session_factory: SessionFactory) -> list[str]:
+    """The administrators' languages, read in a short session of their own.
+
+    The session is closed before the pump goes on to Prometheus, Loki and the
+    model. A session that cannot even be opened or committed costs the default
+    language, never the diagnosis — the same stance as ``admin_languages``.
+
+    Args:
+        session_factory: Opens the short session.
+
+    Returns:
+        Distinct language codes, never empty.
+    """
+    try:
+        async with session_factory() as db:
+            return await admin_languages(DiagnosticsRepository(db))
+    except Exception as exc:
+        logger.warning("diagnostics_admin_languages_unreadable", error_type=type(exc).__name__)
+        return [resolve_language()]
+
+
+async def _store_diagnosis(
+    session_factory: SessionFactory, incident_id: UUID, record: dict[str, object]
+) -> None:
+    """Persist one diagnosis in a short session, committed before the next incident's waits.
+
+    Args:
+        session_factory: Opens the short session.
+        incident_id: Incident UUID.
+        record: The diagnosis record (whole-column write).
+    """
+    async with session_factory() as db:
+        await DiagnosticsRepository(db).store_diagnosis(incident_id, record)
+
+
 def build_diagnosis_record(
     *,
     diagnosis: str,
@@ -534,19 +581,22 @@ async def _evidence_pack(
 async def diagnose_incidents(
     incidents: list[Incident],
     *,
-    db: AsyncSession,
     system_prompt: str,
+    session_factory: SessionFactory = get_db_context,
     prom_client: PrometheusClient | None = None,
     loki_client: LokiClient | None = None,
 ) -> int:
     """Diagnose a batch of incidents under the daily budget.
 
     Args:
-        incidents: Open incidents with NULL diagnosis (pump input).
-        db: Caller's session (the caller owns the transaction).
+        incidents: Open incidents with NULL diagnosis (pump input), read by a
+            session the caller has already closed.
         system_prompt: The versioned diagnostician prompt with resolved
             placeholders, loaded by the CALLER (the scheduler job) — injected
             so this domain never imports the agents prompt loader (F009).
+        session_factory: Opens the pump's short sessions — one for the
+            administrators' languages, one per stored diagnosis, none open
+            while the pump waits on telemetry or the model (ADR-304).
         prom_client: Prometheus reader for the evidence pack (ADR-266);
             built from settings when omitted.
         loki_client: Loki reader for the evidence pack; built from settings
@@ -560,7 +610,6 @@ async def diagnose_incidents(
         return 0
 
     budget_key = _budget_key()
-    repo = DiagnosticsRepository(db)
     llm = get_llm("diagnostician")
     prom = prom_client or PrometheusClient(
         base_url=settings.diagnostics_prometheus_url,
@@ -583,7 +632,7 @@ async def diagnose_incidents(
             # going to be produced: the admin population does not change between
             # two incidents of the same tick, and a tick whose budget is already
             # spent must not query it to decide nothing.
-            languages = await admin_languages(repo)
+            languages = await _read_admin_languages(session_factory)
         runbook = load_runbook_excerpt(incident.alertname)
         # Collected ONCE per incident, after the budget gate: the pack is the
         # same in every language, and a tick whose budget is spent must not
@@ -663,7 +712,7 @@ async def diagnose_incidents(
         # What the model saw travels with what it said: an administrator can
         # check a diagnosis against its evidence instead of taking it on faith.
         record["context"] = context
-        await repo.store_diagnosis(incident.id, record)
+        await _store_diagnosis(session_factory, incident.id, record)
         diagnosed += 1
         logger.info(
             "diagnostics_diagnosis_stored",

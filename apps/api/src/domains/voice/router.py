@@ -332,7 +332,8 @@ async def websocket_audio(
                                                 "code": "remote_stt_disabled",
                                                 "message": (
                                                     "Remote STT is currently disabled. "
-                                                    "Switch to local in Settings → Voice mode."
+                                                    "Switch to local in Settings → "
+                                                    "Preferences → Voice & Media → Voice mode."
                                                 ),
                                             }
                                         )

@@ -63,7 +63,9 @@ DRAFT = ScriptDraft(
         line(ScriptPart.OUTRO, LineKind.TRANSITION, "That was the news."),
     ],
 )
-VERIFIED = verify_script(DRAFT, PACK, language="en", quote_max_chars=120, station_name="LIA Radio")
+VERIFIED = verify_script(
+    DRAFT, PACK, language="en", quote_max_chars=120, station_name="LIA Radio", reactions_max=2
+)
 
 
 def verdict(number: int, supported: bool) -> LineVerdict:
@@ -162,6 +164,7 @@ class TestModelLineChecker:
             language="en",
             quote_max_chars=120,
             station_name="LIA Radio",
+            reactions_max=2,
         )
         prompt = render_verifier_prompt(TEMPLATE, short.lines, PACK, station_name="Radio 42")
         assert "Story 1 happened" in prompt and "Story 2 happened" not in prompt

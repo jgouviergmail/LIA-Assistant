@@ -7,6 +7,7 @@
  */
 
 import type { AppConfig } from '@/hooks/useAppConfig';
+import { capabilityEnabled } from '@/lib/capability-state';
 
 /** Mirror of the backend `PEERS_IMAGE_SHARE_COMMENT_MAX_CHARS` (pinned by a backend test). */
 export const IMAGE_SHARE_COMMENT_MAX_CHARS = 500;
@@ -36,6 +37,5 @@ export function attachmentIdFromUrl(url: string): string | null {
  * @returns True when a share could reach a connection.
  */
 export function peersAvailable(config: AppConfig | null): boolean {
-  const capability = config?.capabilities?.peers;
-  return capability ? capability.enabled : Boolean(config?.features?.peers_enabled);
+  return capabilityEnabled(config?.capabilities, 'peers', config?.features?.peers_enabled);
 }

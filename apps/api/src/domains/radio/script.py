@@ -46,11 +46,21 @@ class Tone(StrEnum):
     CONCERNED = "concerned"
 
 
+class Reaction(StrEnum):
+    """A sound the voice makes before the line's words."""
+
+    NONE = "none"
+    LAUGHS = "laughs"
+    CHUCKLES = "chuckles"
+    SIGHS = "sighs"
+
+
 #: The words each delivery field accepts.
 _DELIVERY_WORDS: Final[dict[str, frozenset[str]]] = {
     "energy": frozenset(member.value for member in Energy),
     "pace": frozenset(member.value for member in Pace),
     "tone": frozenset(member.value for member in Tone),
+    "reaction": frozenset(member.value for member in Reaction),
 }
 
 
@@ -62,8 +72,11 @@ class RadioDelivery(BaseModel):
     energy: Energy = Field(default=Energy.NEUTRAL, description="Drive of the line.")
     pace: Pace = Field(default=Pace.NORMAL, description="Speed of the line.")
     tone: Tone = Field(default=Tone.NEUTRAL, description="Colour of the line.")
+    reaction: Reaction = Field(
+        default=Reaction.NONE, description="A sound the voice makes before the line's words."
+    )
 
-    @field_validator("energy", "pace", "tone", mode="before")
+    @field_validator("energy", "pace", "tone", "reaction", mode="before")
     @classmethod
     def _unknown_is_the_default(cls, value: object, info: ValidationInfo) -> object:
         # How a line sounds is cosmetic: a word off the vocabulary reads as the

@@ -3,20 +3,44 @@
 Contracts under test: the daily USD cap gates BEFORE any LLM call (0 disables
 the step entirely); a skipped incident keeps ``diagnosis`` NULL so tomorrow's
 pump retries it; the runbook loader refuses path-traversal-shaped alertnames
-and caps the excerpt; spend is recorded through one atomic INCRBYFLOAT.
+and caps the excerpt; spend is recorded through one atomic INCRBYFLOAT; and no
+session of the pump is open while it waits on telemetry or the model (ADR-304).
 """
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.diagnostics import diagnosis as diag_module
 from src.domains.diagnostics.diagnosis import DiagnosisOutput
 from src.infrastructure.llm.usage_metadata import UsageTokens
+
+
+class _SessionLedger:
+    """The pump's short sessions: how many it opened, how many are open now.
+
+    The repository double never touches the session it is handed.
+    """
+
+    def __init__(self) -> None:
+        self.open = 0
+        self.opened = 0
+
+    @asynccontextmanager
+    async def __call__(self) -> AsyncIterator[AsyncSession]:
+        self.open += 1
+        self.opened += 1
+        try:
+            yield MagicMock(spec=AsyncSession)
+        finally:
+            self.open -= 1
 
 
 def _incident(alertname: str | None = "RedisDown") -> MagicMock:
@@ -111,7 +135,9 @@ class TestBudget:
     ) -> None:
         monkeypatch.setattr(diag_module.settings, "diagnostics_diagnosis_daily_cost_cap_usd", 0.0)
         done = await diag_module.diagnose_incidents(
-            [_incident()], db=MagicMock(), system_prompt="You are the diagnostician."
+            [_incident()],
+            session_factory=_SessionLedger(),
+            system_prompt="You are the diagnostician.",
         )
         assert done == 0
         assert wired["llm_calls"] == 0
@@ -120,14 +146,18 @@ class TestBudget:
     async def test_exhausted_budget_skips_without_llm_call(self, wired: dict[str, Any]) -> None:
         wired["spent"] = 5.0  # over the 1.0 cap
         done = await diag_module.diagnose_incidents(
-            [_incident()], db=MagicMock(), system_prompt="You are the diagnostician."
+            [_incident()],
+            session_factory=_SessionLedger(),
+            system_prompt="You are the diagnostician.",
         )
         assert done == 0
         assert wired["llm_calls"] == 0
 
     async def test_nominal_diagnosis_records_spend_and_stores(self, wired: dict[str, Any]) -> None:
         done = await diag_module.diagnose_incidents(
-            [_incident()], db=MagicMock(), system_prompt="You are the diagnostician."
+            [_incident()],
+            session_factory=_SessionLedger(),
+            system_prompt="You are the diagnostician.",
         )
         assert done == 1
         assert wired["llm_calls"] == 1
@@ -146,7 +176,9 @@ class TestBudget:
 
         monkeypatch.setattr(diag_module, "_invoke_diagnostician", broken)
         done = await diag_module.diagnose_incidents(
-            [_incident()], db=MagicMock(), system_prompt="You are the diagnostician."
+            [_incident()],
+            session_factory=_SessionLedger(),
+            system_prompt="You are the diagnostician.",
         )
         assert done == 0
         assert wired["stored"] == []
@@ -168,7 +200,7 @@ class TestBudget:
         assert (
             await diag_module.diagnose_incidents(
                 [_incident()],
-                db=MagicMock(),
+                session_factory=_SessionLedger(),
                 system_prompt="Synthetic diagnosis",
             )
             == 1
@@ -240,7 +272,9 @@ class TestEvidencePack:
         (tmp_path / "RedisDown.md").write_text("Restart the redis container.", encoding="utf-8")
         monkeypatch.setattr(diag_module.settings, "diagnostics_runbooks_dir", str(tmp_path))
         await diag_module.diagnose_incidents(
-            [_incident()], db=MagicMock(), system_prompt="You are the diagnostician."
+            [_incident()],
+            session_factory=_SessionLedger(),
+            system_prompt="You are the diagnostician.",
         )
         human = wired["last_human"]
         assert "Restart the redis container." in human
@@ -277,7 +311,7 @@ class TestTheEvidencePackIsCollectedOncePerIncident:
         )
 
         stored = await diag_module.diagnose_incidents(
-            [_incident()], db=MagicMock(), system_prompt="Write in {language}."
+            [_incident()], session_factory=_SessionLedger(), system_prompt="Write in {language}."
         )
 
         assert stored == 1
@@ -294,7 +328,7 @@ class TestTheEvidencePackIsCollectedOncePerIncident:
         )
 
         stored = await diag_module.diagnose_incidents(
-            [_incident()], db=MagicMock(), system_prompt="{language}"
+            [_incident()], session_factory=_SessionLedger(), system_prompt="{language}"
         )
 
         assert stored == 1
@@ -309,8 +343,71 @@ class TestTheEvidencePackIsCollectedOncePerIncident:
         wired["spent"] = 1.0
 
         await diag_module.diagnose_incidents(
-            [_incident()], db=MagicMock(), system_prompt="{language}"
+            [_incident()], session_factory=_SessionLedger(), system_prompt="{language}"
         )
 
         collector.assert_not_awaited()
         assert wired["llm_calls"] == 0
+
+
+@pytest.mark.unit
+class TestThePumpHoldsNoSessionAcrossAWait:
+    """ADR-304: the pump ran on the tick's session, inside the transaction its
+    pending-incidents read had opened, across Prometheus, Loki and every model
+    call of the batch — and, once the first diagnosis was stored, with that
+    row locked until the last one."""
+
+    async def test_telemetry_and_the_model_run_with_no_session_open(
+        self, wired: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        ledger = _SessionLedger()
+        open_during_waits: list[int] = []
+
+        async def collect(incident: object, **_: object) -> dict[str, object]:
+            open_during_waits.append(ledger.open)
+            return {"recipe": None, "window_minutes": 30, "metrics": [], "logs": {}}
+
+        async def invoke(
+            llm: object, system: str, human: str
+        ) -> tuple[DiagnosisOutput, UsageTokens]:
+            open_during_waits.append(ledger.open)
+            wired["llm_calls"] += 1
+            output = DiagnosisOutput(diagnosis="d", probable_cause="c", recommended_actions=[])
+            return output, UsageTokens(500, 200, 0)
+
+        monkeypatch.setattr(diag_module, "collect_diagnosis_context", collect)
+        monkeypatch.setattr(diag_module, "_invoke_diagnostician", invoke)
+
+        stored = await diag_module.diagnose_incidents(
+            [_incident(), _incident("ServiceDown")],
+            session_factory=ledger,
+            system_prompt="Write in {language}.",
+        )
+
+        assert stored == 2
+        # Two incidents, one admin language: a pack and a model call each.
+        assert open_during_waits == [0, 0, 0, 0]
+        # One short session for the languages, one per stored diagnosis.
+        assert ledger.opened == 3
+        assert ledger.open == 0
+        assert len(wired["stored"]) == 2
+
+    async def test_a_session_that_cannot_be_opened_costs_the_language_not_the_diagnosis(
+        self, wired: dict[str, Any]
+    ) -> None:
+        calls = 0
+
+        @asynccontextmanager
+        async def flaky_first_session() -> AsyncIterator[AsyncSession]:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise ConnectionRefusedError("database restarting")
+            yield MagicMock(spec=AsyncSession)
+
+        stored = await diag_module.diagnose_incidents(
+            [_incident()], session_factory=flaky_first_session, system_prompt="{language}"
+        )
+
+        assert stored == 1
+        assert wired["stored"][0]["language"] == diag_module.resolve_language()

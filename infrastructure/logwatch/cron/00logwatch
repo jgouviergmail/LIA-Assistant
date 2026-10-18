@@ -14,6 +14,12 @@ set -euo pipefail
 # Check if logwatch is installed
 test -x /usr/share/logwatch/scripts/logwatch.pl || exit 0
 
+# Where report services keep what they carry from one report to the next: the
+# tunnel's counters are cumulative, so the report shows the day's difference.
+# Only this daily run sets it - a manual logwatch run reads and writes nothing.
+export LIA_REPORT_STATE_DIR=/var/lib/lia-logwatch
+mkdir -p "$LIA_REPORT_STATE_DIR"
+
 # Read config values from logwatch.conf
 LOGWATCH_CONF="/etc/logwatch/conf/logwatch.conf"
 MAILTO=$(grep -i "^MailTo" "$LOGWATCH_CONF" 2>/dev/null | awk '{print $3}')

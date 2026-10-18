@@ -14,3 +14,6 @@ onnxscript==0.7.2
 requests==2.34.2
 scikit-learn==1.9.1
 tqdm==4.70.1
+# Security floor on a purely transitive package (ADR-331: a fix lives in its manifest,
+# never in a lockfile alone).
+filelock>=4.2.1  # GHSA-v4x8-3wr5-3wq8 (high) and thirteen more advisories fixed in 4.2.1, pulled by torch

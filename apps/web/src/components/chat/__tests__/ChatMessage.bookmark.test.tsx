@@ -34,7 +34,7 @@ async function renderInChat(
   // Finish the provider's initial bookmark read before checking the action row.
   return act(async () =>
     renderWithProviders(
-      <BookmarkStateProvider enabled={enabled}>
+      <BookmarkStateProvider enabled={enabled} canKeep={enabled}>
         <ChatMessage message={message} isUser={false} {...props} />
       </BookmarkStateProvider>
     )

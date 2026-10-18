@@ -220,6 +220,17 @@ describe('Chat portrait identity and emotional history', () => {
     }
   });
 
+  it('hides a past answer’s mood once « Show emotional avatar » is off', async () => {
+    // The switch used to gate the live fallback alone: every finished answer
+    // kept the mood stored with it, whatever the person had chosen.
+    act(() => usePsycheStore.getState().setDisplayAvatar(false));
+    document.cookie = 'lia_gender=male; path=/';
+    useEyesWidgetStore.getState().setStyle('smiley');
+    const { container } = await renderConversation();
+    const past = container.querySelector<HTMLElement>('[data-message-id="past"]')!;
+    await waitFor(() => historyPortrait(past, 'smiley', 'male', 'neutral'));
+  });
+
   it('shows the selected neutral portrait when psyche is disabled and the message has no snapshot', async () => {
     psycheEnabled = false;
     document.cookie = 'lia_gender=male; path=/';

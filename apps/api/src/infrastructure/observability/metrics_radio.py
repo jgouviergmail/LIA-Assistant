@@ -39,6 +39,14 @@ radio_dialogue_takes_total = Counter(
     #          voiced line by line, the take still billed) | failed (voiced line by line)
 )
 
+radio_delivery_unrendered_total = Counter(
+    "radio_delivery_unrendered_total",
+    "Voiced lines whose asked delivery the station's voice could not express, by dimension.",
+    ["dimension"],
+    # dimension: energy | pace | tone | reaction (ADR-324 decision 45) — what the
+    #            writer asked for and no control or cue of the engine rendered
+)
+
 radio_segment_production_seconds = Histogram(
     "radio_segment_production_seconds",
     "Time to produce one aired segment (desk, writer, checks, voices, mix), by format.",

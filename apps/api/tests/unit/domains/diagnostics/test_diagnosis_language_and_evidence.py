@@ -14,14 +14,25 @@ Two defects reported by the owner on 2026-09-01, both visible in one file:
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.infrastructure.llm.usage_metadata import UsageTokens
 
 pytestmark = pytest.mark.unit
+
+
+@asynccontextmanager
+async def _short_session() -> AsyncIterator[AsyncSession]:
+    """One of the pump's own short sessions; the repository double never uses it."""
+    yield MagicMock(spec=AsyncSession)
+
 
 #: The evidence pack (ADR-266) as the pump receives it when a test does not
 #: care about its content — shaped like `collect_diagnosis_context` returns it.
@@ -462,11 +473,9 @@ class TestThePumpGeneratesOneVariantPerAdminLanguage:
         return state
 
     async def _run(self, wired: dict) -> int:
-        from unittest.mock import MagicMock
-
         return await wired["module"].diagnose_incidents(
             [wired["incident"]],
-            db=MagicMock(),
+            session_factory=_short_session,
             system_prompt="Write in {language}, technical prose.",
         )
 
@@ -502,11 +511,9 @@ class TestThePumpGeneratesOneVariantPerAdminLanguage:
             assert len(variant["recommended_actions"]) == cap
 
     async def test_the_admin_population_is_queried_once_per_batch(self, wired: dict) -> None:
-        from unittest.mock import MagicMock
-
         await wired["module"].diagnose_incidents(
             [wired["incident"], wired["incident"], wired["incident"]],
-            db=MagicMock(),
+            session_factory=_short_session,
             system_prompt="Write in {language}.",
         )
         assert wired["language_queries"] == 1
@@ -628,10 +635,10 @@ class TestTheDailyCapGatesEveryCallNotEveryIncident:
         return state
 
     async def test_the_cap_stops_the_languages_of_a_single_incident(self, wired: dict) -> None:
-        from unittest.mock import MagicMock
-
         await wired["module"].diagnose_incidents(
-            [wired["incident"]], db=MagicMock(), system_prompt="Write in {language}."
+            [wired["incident"]],
+            session_factory=_short_session,
+            system_prompt="Write in {language}.",
         )
         # Five languages were on offer; the budget paid for exactly two.
         assert wired["calls"] == 2
@@ -640,10 +647,10 @@ class TestTheDailyCapGatesEveryCallNotEveryIncident:
     async def test_the_languages_that_did_run_are_still_stored(self, wired: dict) -> None:
         """A partial set beats nothing: two admins get their language, and the
         incident is not left NULL to be paid for again tomorrow."""
-        from unittest.mock import MagicMock
-
         await wired["module"].diagnose_incidents(
-            [wired["incident"]], db=MagicMock(), system_prompt="Write in {language}."
+            [wired["incident"]],
+            session_factory=_short_session,
+            system_prompt="Write in {language}.",
         )
         stored = wired["stored"][0]
         assert set(stored["by_language"]) == {"de", "en"}

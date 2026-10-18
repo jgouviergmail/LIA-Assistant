@@ -126,6 +126,63 @@ function RetryTurnScene({ active }: SceneProps) {
   );
 }
 
+type CapPhase = 'typed' | 'flagged' | 'held';
+const CAP_STEPS: readonly TimelineStep<CapPhase>[] = [
+  { at: 0, state: 'typed' },
+  { at: 1100, state: 'flagged' },
+  { at: 2400, state: 'held' },
+];
+
+/** Where the model's output limit sits on the bar (the field's own scale). */
+const CAP_LIMIT_PCT = 70;
+/** The budget the administrator typed, above that limit. */
+const CAP_TYPED_PCT = 92;
+
+/**
+ * The model's limit, in sight: an output budget above what the model accepts
+ * is flagged before anything is saved, and every request is held to the limit
+ * meanwhile instead of being refused.
+ */
+function ModelCapFlagScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(CAP_STEPS, { active });
+  const flagged = phase === 'flagged';
+  const held = phase === 'held';
+  return (
+    <div className={cn(STAGE, 'justify-center gap-3')}>
+      <div className="w-full max-w-[200px] space-y-1">
+        <div className="flex items-center justify-between gap-2 text-px-9 text-muted-foreground">
+          <span className="truncate">{labels.field}</span>
+          <span className="truncate">{labels.limit}</span>
+        </div>
+        <div className="relative h-2 rounded-full bg-muted">
+          <div
+            className={cn(
+              'absolute inset-y-0 left-0 rounded-full transition-all duration-500 motion-reduce:transition-none',
+              flagged ? 'bg-warning' : 'bg-primary'
+            )}
+            style={{ width: `${held ? CAP_LIMIT_PCT : CAP_TYPED_PCT}%` }}
+          />
+          <span
+            className="absolute -bottom-1 -top-1 border-l border-dashed border-foreground/60"
+            style={{ left: `${CAP_LIMIT_PCT}%` }}
+            aria-hidden="true"
+          />
+        </div>
+      </div>
+      <MiniToast
+        icon={held ? CheckCircle2 : AlertTriangle}
+        tone={held ? 'success' : 'warning'}
+        className={cn(
+          'transition-all duration-300',
+          phase === 'typed' ? 'translate-y-1 opacity-0' : 'translate-y-0 opacity-100'
+        )}
+      >
+        {held ? labels.held : labels.above}
+      </MiniToast>
+    </div>
+  );
+}
+
 type QuotaPhase = 'empty' | 'filling' | 'warned';
 const QUOTA_STEPS: readonly TimelineStep<QuotaPhase>[] = [
   { at: 0, state: 'empty' },
@@ -581,6 +638,7 @@ export const RECOVER_SCENES: Readonly<Record<string, SceneComponent>> = {
   honest_freshness: HonestFreshnessScene,
   honest_gaps: HonestGapsScene,
   quota_warning: QuotaWarningScene,
+  model_cap_flag: ModelCapFlagScene,
   image_expiry: ImageExpiryScene,
   attachment_limits: AttachmentLimitsScene,
   fix_commitment: FixCommitmentScene,

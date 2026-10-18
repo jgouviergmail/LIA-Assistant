@@ -8,11 +8,13 @@ Read synchronously by get_llm() factory — no async lookup at runtime.
 Created: 2026-03-08
 """
 
+import time
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.core.security.utils import decrypt_data
 from src.domains.llm_config.models import LLMConfigOverride, ProviderApiKey
 from src.infrastructure.observability.logging import get_logger
@@ -48,6 +50,9 @@ class LLMConfigOverrideCache:
     #: The Ollama address the discovered capabilities were read from, so a
     #: config reload that did not move it does no network I/O (ADR-267).
     _ollama_refreshed_url: str | None = None
+    #: When that address was last asked (monotonic seconds): an address that
+    #: answered nothing is asked again at most once per retry window.
+    _ollama_refreshed_at: float = 0.0
 
     @classmethod
     async def load_from_db(cls, db: AsyncSession) -> None:
@@ -117,12 +122,14 @@ class LLMConfigOverrideCache:
     async def _refresh_ollama_capabilities(cls) -> None:
         """Publish the Ollama server's models to the capabilities cache, if configured.
 
-        Runs only when the ADDRESS changed (or nothing is known yet), never on
-        every config reload: this is network I/O on a path an admin triggers by
-        saving ANY slot, and an unreachable server would make each of those
-        saves wait for the discovery timeout. What a running server holds is
-        refreshed by the admin's own model listing, which discovers on every
-        open (TTL-bounded).
+        Runs when the ADDRESS changed, never on every config reload: this is
+        network I/O on a path an admin triggers by saving ANY slot. An address
+        whose server answered nothing (down at boot) is asked again by a later
+        reload, but at most once per ``ollama_discovery_retry_seconds`` — retried
+        on every reload, it made each save wait for the discovery timeout
+        (production 2026-10-17: 5 s per save, on every worker). What a running
+        server holds is refreshed by the admin's own model listing, which
+        discovers on every open (TTL-bounded).
 
         Never raises: an observability concern must not fail a config reload.
         """
@@ -130,9 +137,14 @@ class LLMConfigOverrideCache:
         from src.infrastructure.llm.providers.ollama_urls import resolve_ollama_url
 
         url = resolve_ollama_url()
-        if url == cls._ollama_refreshed_url and ModelCapabilitiesCache.has_discovered("ollama"):
+        now = time.monotonic()
+        if url == cls._ollama_refreshed_url and (
+            ModelCapabilitiesCache.has_discovered("ollama")
+            or now - cls._ollama_refreshed_at < settings.ollama_discovery_retry_seconds
+        ):
             return
         cls._ollama_refreshed_url = url
+        cls._ollama_refreshed_at = now
         if not url:
             # Ollama was removed: drop what its server had declared, so no tag
             # keeps a profile the runtime would still believe.

@@ -74,6 +74,6 @@ nmap -Pn -p 22,80,443,3000,3001,5432,8000,8080,9000,9090,9100,9121,9187 <prod-ho
 - `observability/` — Prometheus rules, Grafana dashboards/provisioning, Loki/Tempo/promtail configs
 - `cloudflared/` — tunnel notes (live config is on the host at `/etc/cloudflared/config.yml`)
 - `ssl/` — dev HTTPS certificate generators (mounted by `docker-compose.dev.yml`)
-- `logwatch/` — daily log digests on the prod host
+- `logwatch/` — the prod host's daily report: what the supervision recorded over the day (alerts fired, the alerting chain's health, open incidents, container restarts, memory peaks, external probes), the containers' state, the Cloudflare tunnel
 - `pgadmin/` — dev-only DB admin UI
 - `claude-cli/` — in-container DevOps CLI (see `CLAUDE.server.md`)

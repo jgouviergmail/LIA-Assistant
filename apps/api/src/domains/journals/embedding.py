@@ -14,11 +14,13 @@ Created: 2026-04-02
 
 from __future__ import annotations
 
-import os
 import threading
 
 from src.core.config import settings
-from src.infrastructure.llm.gemini_embeddings import GeminiRetrievalEmbeddings
+from src.infrastructure.llm.gemini_embeddings import (
+    GeminiRetrievalEmbeddings,
+    resolve_gemini_embedding_key,
+)
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -50,13 +52,9 @@ def get_journal_embeddings() -> GeminiRetrievalEmbeddings:
         model = settings.journal_embedding_model
         dimensions = settings.journal_embedding_dimensions
 
-        google_api_key = os.environ.get("GOOGLE_GEMINI_API_KEY", "") or os.environ.get(
-            "GOOGLE_API_KEY", ""
-        )
-
         _journal_embeddings = GeminiRetrievalEmbeddings(
             model=model,
-            google_api_key=google_api_key,
+            key_resolver=resolve_gemini_embedding_key,
             output_dimensionality=dimensions,
         )
 

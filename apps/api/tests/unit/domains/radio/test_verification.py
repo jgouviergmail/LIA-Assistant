@@ -14,11 +14,21 @@ from src.domains.radio.constants import (
 )
 from src.domains.radio.facts import FactKind, FactPack, RadioFact, Sensitivity, SourceRef
 from src.domains.radio.formats import FORMAT_SPECS, RadioFormat, RadioRole
-from src.domains.radio.script import LineKind, ScriptDraft, ScriptLine, ScriptPart
+from src.domains.radio.script import (
+    LineKind,
+    RadioDelivery,
+    Reaction,
+    ScriptDraft,
+    ScriptLine,
+    ScriptPart,
+)
 from src.domains.radio.verification import (
+    REACTION_KINDS,
     Refusal,
     VerificationResult,
     Violation,
+    announce_subject,
+    drop_unsupported,
     verify_script,
 )
 
@@ -60,8 +70,16 @@ def line(
     role: RadioRole = RadioRole.ANCHOR,
     part: ScriptPart = ScriptPart.BODY,
     kind: LineKind = LineKind.FACT,
+    reaction: Reaction = Reaction.NONE,
 ) -> ScriptLine:
-    return ScriptLine(role=role, part=part, kind=kind, text=text, refs=refs or [])
+    return ScriptLine(
+        role=role,
+        part=part,
+        kind=kind,
+        text=text,
+        refs=refs or [],
+        delivery=RadioDelivery(reaction=reaction),
+    )
 
 
 def verify(
@@ -69,6 +87,7 @@ def verify(
     pack: FactPack = NEWS_PACK,
     title: str = "News",
     station: str = "LIA Radio",
+    reactions_max: int = 2,
 ) -> VerificationResult:
     return verify_script(
         ScriptDraft(title=title, lines=lines),
@@ -76,6 +95,7 @@ def verify(
         language="fr",
         quote_max_chars=QUOTE_MAX,
         station_name=station,
+        reactions_max=reactions_max,
     )
 
 
@@ -411,6 +431,7 @@ class TestDebate:
             quote_max_chars=QUOTE_MAX,
             station_name="LIA Radio",
             roles=voiced,
+            reactions_max=2,
         )
         assert result.dropped == ((3, Violation.ROLE_NOT_ALLOWED),)
 
@@ -696,3 +717,124 @@ class TestStoryBound:
         assert [kept.refs for kept in result.lines] == [("c1",), ("p1",), ("p2",)]
         assert result.dropped == ()
         assert result.accepted
+
+
+class TestReactions:
+    """ADR-324 decision 45: a vocal reaction opens a view or a transition of a programme
+    that allows one, at most the bound in air order; anywhere else it is silenced — a
+    repair, never a dropped line."""
+
+    PACK = FactPack(
+        format=RadioFormat.DEBATE,
+        facts=(fact("n1", "The city of Z will close its centre to cars from 2027."),),
+    )
+
+    def view(self, role: RadioRole, reaction: Reaction = Reaction.CHUCKLES) -> ScriptLine:
+        return line(
+            "Pour moi, c'est une bonne nouvelle.",
+            ["n1"],
+            role=role,
+            kind=LineKind.OPINION,
+            reaction=reaction,
+        )
+
+    @staticmethod
+    def reactions(result: VerificationResult) -> list[Reaction]:
+        return [kept.delivery.reaction for kept in result.lines]
+
+    def test_the_kinds_a_reaction_may_open_are_views_and_transitions(self) -> None:
+        assert REACTION_KINDS == (LineKind.OPINION, LineKind.TRANSITION)
+
+    def test_a_reaction_airs_on_a_view_of_a_conversation(self) -> None:
+        story = line("La ville de Z fermera son centre aux voitures en 2027.", ["n1"])
+
+        result = verify([story, self.view(RadioRole.SPEAKER_A)], self.PACK)
+
+        assert self.reactions(result) == [Reaction.NONE, Reaction.CHUCKLES]
+        assert result.dropped == ()
+
+    def test_a_reaction_on_a_fact_line_is_silenced_and_the_line_kept(self) -> None:
+        story = line(
+            "La ville de Z fermera son centre aux voitures en 2027.",
+            ["n1"],
+            reaction=Reaction.LAUGHS,
+        )
+
+        result = verify([story, self.view(RadioRole.SPEAKER_A)], self.PACK)
+
+        assert self.reactions(result) == [Reaction.NONE, Reaction.CHUCKLES]
+        assert result.dropped == ()
+
+    def test_a_news_programme_airs_no_reaction(self) -> None:
+        opener = line(
+            "Il est 9 heures, voici le journal.",
+            ["c1"],
+            role=RadioRole.HOST,
+            part=ScriptPart.INTRO,
+            kind=LineKind.TRANSITION,
+            reaction=Reaction.CHUCKLES,
+        )
+        story = line("Company X raised 3.9 billion dollars.", ["n1"], reaction=Reaction.SIGHS)
+
+        result = verify([opener, story])
+
+        assert not FORMAT_SPECS[RadioFormat.BULLETIN].reactions_allowed
+        assert self.reactions(result) == [Reaction.NONE, Reaction.NONE]
+
+    def test_beyond_the_bound_a_reaction_is_silenced_in_air_order(self) -> None:
+        story = line("La ville de Z fermera son centre aux voitures en 2027.", ["n1"])
+        views = [
+            self.view(RadioRole.SPEAKER_A),
+            self.view(RadioRole.SPEAKER_B, Reaction.SIGHS),
+            self.view(RadioRole.SPEAKER_C, Reaction.LAUGHS),
+        ]
+
+        result = verify([story, *views], self.PACK, reactions_max=2)
+
+        assert self.reactions(result) == [
+            Reaction.NONE,
+            Reaction.CHUCKLES,
+            Reaction.SIGHS,
+            Reaction.NONE,
+        ]
+
+    def test_a_zero_bound_silences_every_reaction(self) -> None:
+        story = line("La ville de Z fermera son centre aux voitures en 2027.", ["n1"])
+
+        result = verify([story, self.view(RadioRole.SPEAKER_A)], self.PACK, reactions_max=0)
+
+        assert self.reactions(result) == [Reaction.NONE, Reaction.NONE]
+
+    def test_the_announced_subject_never_carries_the_reaction_it_was_copied_from(self) -> None:
+        """The announce line copies the first story line's delivery; it is a fact line."""
+        draft = ScriptDraft(
+            title="La ville de Z ferme son centre",
+            lines=[self.view(RadioRole.SPEAKER_A, Reaction.LAUGHS)],
+        )
+
+        announced = announce_subject(draft, self.PACK)
+        result = verify_script(
+            announced,
+            self.PACK,
+            language="fr",
+            quote_max_chars=QUOTE_MAX,
+            station_name="LIA Radio",
+            reactions_max=2,
+        )
+
+        assert announced.lines[0].delivery.reaction is Reaction.LAUGHS
+        assert [(kept.kind, kept.delivery.reaction) for kept in result.lines] == [
+            (LineKind.FACT, Reaction.NONE),
+            (LineKind.OPINION, Reaction.LAUGHS),
+        ]
+
+    def test_the_bound_still_holds_once_the_model_verifier_dropped_lines(self) -> None:
+        story = line("La ville de Z fermera son centre aux voitures en 2027.", ["n1"])
+        views = [self.view(RadioRole.SPEAKER_A), self.view(RadioRole.SPEAKER_B, Reaction.SIGHS)]
+        draft = ScriptDraft(title="Débat", lines=[story, *views])
+        verified = verify(draft.lines, self.PACK, reactions_max=1)
+
+        checked = drop_unsupported(draft, self.PACK, verified, frozenset({1}), language="fr")
+
+        assert self.reactions(verified) == [Reaction.NONE, Reaction.CHUCKLES, Reaction.NONE]
+        assert self.reactions(checked) == [Reaction.NONE, Reaction.NONE]

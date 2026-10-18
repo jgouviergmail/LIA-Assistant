@@ -38,7 +38,7 @@ from src.domains.radio.prompting import (
     render_verifier_prompt,
     render_writer_prompt,
 )
-from src.domains.radio.script import ScriptDraft
+from src.domains.radio.script import Reaction, ScriptDraft
 from src.domains.radio.verification import VerifiedLine
 from src.infrastructure.llm.structured_output_errors import (
     StructuredOutputError,
@@ -78,6 +78,8 @@ class ModelScriptWriter:
         quote_max_chars: int,
         taste: ListenerTaste = ListenerTaste(),
         quick_call: StructuredCall | None = None,
+        reactions: Sequence[Reaction] = (),
+        reactions_max: int = 0,
     ) -> None:
         """Bind the writer.
 
@@ -89,6 +91,9 @@ class ModelScriptWriter:
             taste: What the listener likes.
             quick_call: The same slot asked without reasoning, for
                 ``UNREASONED_FORMATS``; None: every format goes through ``call``.
+            reactions: The vocal reactions the session's voice performs
+                (ADR-324 decision 45); none offers none.
+            reactions_max: The most reactions the verifier keeps in one script.
         """
         self._template = template
         self._station = station
@@ -96,6 +101,8 @@ class ModelScriptWriter:
         self._quick_call = quick_call
         self._quote_max_chars = quote_max_chars
         self._taste = taste
+        self._reactions = tuple(reactions)
+        self._reactions_max = reactions_max
 
     async def write(self, request: WritingRequest) -> ScriptDraft | None:
         """Write the script, or ``None`` when no usable answer came back."""
@@ -105,6 +112,8 @@ class ModelScriptWriter:
             self._station,
             quote_max_chars=self._quote_max_chars,
             taste=self._taste,
+            reactions=self._reactions,
+            reactions_max=self._reactions_max,
         )
         call = self._call
         if self._quick_call is not None and request.format in UNREASONED_FORMATS:

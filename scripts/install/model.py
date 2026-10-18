@@ -4,11 +4,11 @@ Stdlib-only (Python >= 3.10): these types are shared by the questionnaire,
 artifact generation, state, and deploy orchestration. Enums use
 ``class Name(str, Enum)`` — never ``enum.StrEnum`` — to keep 3.10 support.
 
-The provider tuple below is the WIZARD's copy of the derived post-seed
-current-core provider set (B10-bis). The wizard cannot import backend code,
-so the backend test ``test_installer_wizard_backend_alignment.py`` pins this
-tuple (and the password-rule mirror) to the live backend derivation — drift
-turns CI red.
+The provider tuples below are the WIZARD's copies of the derived post-seed
+current-core provider set (B10-bis) and of the optional keys the bootstrap
+accepts. The wizard cannot import backend code, so the backend test
+``test_installer_wizard_backend_alignment.py`` pins both tuples (and the
+password-rule mirror) to the live backend declarations — drift turns CI red.
 """
 
 from __future__ import annotations
@@ -27,6 +27,9 @@ APP_LANGUAGES: tuple[str, ...] = ("fr", "en", "es", "de", "it", "zh-CN")
 
 #: Wizard copy of ``required_current_core_provider_ids()`` — see module doc.
 REQUIRED_PROVIDER_IDS: tuple[str, ...] = ("deepseek", "openai")
+
+#: Wizard copy of ``OPTIONAL_INSTALL_PROVIDER_IDS``: keys asked but skippable.
+OPTIONAL_PROVIDER_IDS: tuple[str, ...] = ("gemini",)
 
 
 class InstallMode(str, Enum):
@@ -98,6 +101,8 @@ class Question:
         applies: Optional predicate on already-collected answers; an
             inapplicable question is silently skipped.
         message_args: Static interpolation pairs for the prompt message.
+        optional: An empty answer is accepted and means "skipped"; a
+            non-interactive answers file may leave the key out.
     """
 
     key: str
@@ -109,6 +114,7 @@ class Question:
     validator: Callable[[str], bool] | None = None
     applies: Callable[[Mapping[str, Any]], bool] | None = None
     message_args: tuple[tuple[str, str], ...] = ()
+    optional: bool = False
 
     def applies_to(self, answers: Mapping[str, Any]) -> bool:
         """Whether this question is asked given the answers so far."""

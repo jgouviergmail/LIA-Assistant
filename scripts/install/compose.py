@@ -70,6 +70,14 @@ OBSERVABILITY_SERVICES: tuple[str, ...] = (
     "portainer",
 )
 
+#: The services each optional profile starts. Compose never counts a disabled
+#: profile's containers as orphans, so turning a profile off must stop these by
+#: name; a test holds every profile :func:`build_invocation` emits here.
+PROFILE_SERVICES: dict[str, tuple[str, ...]] = {"observability": OBSERVABILITY_SERVICES}
+
+#: The generated Caddyfile Caddy reads once at start (bind-mounted, no watch).
+CADDYFILE_NAME = "Caddyfile"
+
 
 def locked_services(public: PublicAnswers) -> tuple[str, ...]:
     """Exact service names the prebuilt image lock must pin for these answers.

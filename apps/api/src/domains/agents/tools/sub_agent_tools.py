@@ -12,7 +12,8 @@ Architecture (ADR-083 — Sub-Agent Delegation as Parameterized ReAct Loop):
   instantiates the generic ReactSubAgentRunner with:
     - llm_type = "subagent"
     - prompt   = "subagent_react_prompt" (expertise persona + read-only rules)
-    - tools    = full registry, filtered to a read-only subset
+    - tools    = what the delegating turn's catalogue offers (``_offered_by_the_turn``),
+                 narrowed to the research whitelist and a read-only subset
     - recursion_limit = settings.subagent_default_max_iterations
 - Multiple delegates with no depends_on still run in PARALLEL (wave-based
   executor at the parent level).
@@ -31,15 +32,17 @@ After ADR-083 Phase 2 cleanup, this is the ONLY sub-agent execution path
 in the codebase. The bespoke SubAgentExecutor pipeline, the /sub-agents REST
 API, the sub_agents DB table, and the per-user `sub_agents_enabled` toggle
 were all removed (no UI consumer, no real usage). The whole subsystem is
-gated by the global `SUB_AGENTS_ENABLED` flag.
+gated by the global `SUB_AGENTS_ENABLED` flag and, at call time, by the
+operator's capability switch.
 """
 
 from typing import Annotated, Any
 
 from langchain.tools import ToolRuntime
-from langchain_core.tools import InjectedToolArg, tool
+from langchain_core.tools import BaseTool, InjectedToolArg, tool
 
 from src.core.config import get_settings
+from src.core.context import request_tool_manifests_ctx
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.effects.runtime import resolve_policy
 from src.domains.agents.tools.output import UnifiedToolOutput
@@ -99,6 +102,35 @@ def _oversized_instruction(instruction: str) -> UnifiedToolOutput | None:
         ),
         error_code="INVALID_INPUT",
     )
+
+
+async def _offered_by_the_turn(tools: list[BaseTool]) -> list[BaseTool]:
+    """The tools of ``tools`` the delegating turn itself offers.
+
+    A sub-agent holds nothing its turn does not: the turn's catalogue already
+    withholds a switched-off capability, an unconnected provider and an
+    application operation the account may not run — read from the global
+    registry instead, the default research tools searched the web after an
+    operator switched web search off. Outside a turn (no catalogue published)
+    the capability switches still hold.
+
+    Args:
+        tools: Candidate tool instances.
+
+    Returns:
+        Those the turn offers.
+    """
+    catalogue = request_tool_manifests_ctx.get()
+    if catalogue is not None:
+        offered = {manifest.name for manifest in catalogue}
+        return [candidate for candidate in tools if candidate.name in offered]
+    from src.domains.agents.registry import get_global_registry
+    from src.domains.agents.services.planner_capability_filter import (
+        tools_hidden_by_capabilities,
+    )
+
+    hidden = await tools_hidden_by_capabilities(get_global_registry())
+    return [candidate for candidate in tools if candidate.name not in hidden]
 
 
 @tool
@@ -181,11 +213,10 @@ async def delegate_to_sub_agent_tool(
         # The whitelist (Settings) keeps the sub-agent focused on factual
         # research instead of exploring the full ~80-tool catalogue — which
         # would otherwise burn the ReAct recursion_limit without converging.
-        all_tools_dict = get_all_tools()
         read_only_tools = resolve_tools_for_subagent(
             allowed_tools=get_settings().subagent_research_tools_whitelist_parsed,
             blocked_tools=SUBAGENT_DEFAULT_BLOCKED_TOOLS,
-            all_tools=list(all_tools_dict.values()),
+            all_tools=await _offered_by_the_turn(list(get_all_tools().values())),
             # ADR-263: the read-only guarantee stops being a hand list. The
             # reader is injected because ``sub_agents`` must not import back
             # into ``agents`` (F009 runtime-cycle ratchet).

@@ -27,6 +27,8 @@ lifetimes, deliberately different names.
 
 from __future__ import annotations
 
+from collections.abc import Collection, Iterator
+from contextlib import contextmanager
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -52,13 +54,21 @@ def _settings(**flags: bool) -> MagicMock:
     return fake
 
 
-def _admin(**switches: bool) -> object:
-    """Patch the admin-side read of every capability switch."""
+@contextmanager
+def _admin(**switches: bool) -> Iterator[None]:
+    """Patch the admin-side reads of every capability switch, single and batched."""
 
     async def _read(key: SystemSettingKey) -> bool:
         return switches.get(key.value, True)
 
-    return patch("src.domains.feature_switches.registry.read_setting", _read)
+    async def _read_many(keys: Collection[SystemSettingKey]) -> dict[SystemSettingKey, bool]:
+        return {key: switches.get(key.value, True) for key in keys}
+
+    with (
+        patch("src.domains.feature_switches.registry.read_setting", _read),
+        patch("src.domains.feature_switches.registry.read_settings", _read_many),
+    ):
+        yield
 
 
 # ---------------------------------------------------------------------------
@@ -181,11 +191,44 @@ async def test_disabled_capabilities_is_empty_when_everything_is_on() -> None:
         assert await disabled_capabilities() == frozenset()
 
 
+async def test_an_operator_switch_turned_off_is_reported() -> None:
+    capability = PlatformCapability.WEB_SEARCH
+    switch = CAPABILITY_SPECS[capability].setting_key.value
+    with (
+        patch("src.domains.feature_switches.registry.settings", _settings()),
+        _admin(**{switch: False}),
+    ):
+        assert await disabled_capabilities() == frozenset({capability})
+
+
+async def test_every_switch_is_read_in_one_batch_and_a_forbidden_one_never() -> None:
+    # Every turn builds its catalogue through this: one read per capability,
+    # each its own database session for a switch nobody wrote, held the pool.
+    forbidden = CAPABILITY_SPECS[PlatformCapability.BROWSER]
+    batch = AsyncMock(side_effect=lambda keys: dict.fromkeys(keys, True))
+    with (
+        patch(
+            "src.domains.feature_switches.registry.settings",
+            _settings(**{forbidden.env_flag: False}),
+        ),
+        patch("src.domains.feature_switches.registry.read_settings", batch),
+        patch(
+            "src.domains.feature_switches.registry.read_setting",
+            AsyncMock(side_effect=AssertionError("one read per capability")),
+        ),
+    ):
+        assert await disabled_capabilities() == frozenset({PlatformCapability.BROWSER})
+    batch.assert_awaited_once()
+    (keys,) = batch.await_args.args
+    assert forbidden.setting_key not in keys, "the deployment already forbids it"
+    assert len(keys) == len(CAPABILITY_SPECS) - 1
+
+
 async def test_disabled_capabilities_never_raises() -> None:
     with (
         patch("src.domains.feature_switches.registry.settings", _settings()),
         patch(
-            "src.domains.feature_switches.registry.read_setting",
+            "src.domains.feature_switches.registry.read_settings",
             AsyncMock(side_effect=RuntimeError("store down")),
         ),
     ):

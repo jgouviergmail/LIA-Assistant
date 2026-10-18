@@ -61,7 +61,9 @@ docker logs lia-api-prod 2>&1 | grep 'system_indexer_embed_retry'
 ```
 The quota is per Google Cloud project and is **shared with every other client
 using the same API key**, development environments included. Check whether
-anything else is embedding against `GOOGLE_GEMINI_API_KEY`.
+anything else is embedding against the same key — the Gemini key of LLM
+Configuration, else `GOOGLE_GEMINI_API_KEY`, else `GOOGLE_API_KEY`, in that
+order (`resolve_gemini_embedding_key`).
 
 Two related consumers used to make the boot itself the culprit, both now fixed —
 if either regresses, this alert is how you will find out:

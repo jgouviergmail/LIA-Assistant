@@ -1,128 +1,757 @@
-#!/bin/bash
-##########################################################################
-# Logwatch custom service: Cloudflare Tunnel (cloudflared)
-# Monitors tunnel health, reconnections, errors
-##########################################################################
+#!/usr/bin/python3
+"""Logwatch service: the Cloudflare tunnel (cloudflared) of the production host.
 
-DETAIL=${LOGWATCH_DETAIL_LEVEL:-10}
+The section reads the tunnel's journal for the report window ITSELF
+(``journalctl --output=short-iso``) and the tunnel's own counters from its local
+metrics endpoint; logwatch runs it without input (``LogFile = none``). Fed
+through a logwatch logfile group, it received what ``*ApplyStdDate`` makes of an
+ISO line — ``Oct 17 13:16:30 host ...``, a syslog date without a year —, so
+every failure was keyed per SECOND and one outage of three minutes printed 27
+« periods »; and on a day the tunnel's journal held nothing, logwatch built no
+command at all and the whole section, « Service : failed » included, was absent
+from the report (measured 2026-10-18).
 
-# Read stdin (journalctl output piped by logwatch)
-TMPFILE=$(mktemp)
-cat > "$TMPFILE"
+What each source can say (cloudflared 2026.8, measured on production
+2026-10-18 — the previous version of this script counted LINES with patterns
+written for QUIC, and every figure it printed was wrong):
 
-TOTAL_LINES=$(wc -l < "$TMPFILE")
+- A failed request writes TWO lines: the proxy's (``ERR  error="..."
+  ... originService=...``) and the connection's (``failed to serve incoming
+  request``). A failure is counted once, from the proxy line, which is also the
+  one naming the origin.
+- A client that went away (a tab closed, a stream the browser dropped) reads
+  ``context canceled``; an origin that is down reads ``Unable to reach the
+  origin service``. The first is the ordinary life of a web app, the second an
+  outage.
+- A successful request writes NOTHING at the default log level, so the journal
+  cannot count traffic. The counters can (``cloudflared_tunnel_total_requests``,
+  ``cloudflared_tunnel_response_by_code``).
+- A connection the edge dropped logs ``Serve tunnel error``; a planned stop logs
+  ``Initiating graceful shutdown`` before unregistering every connection.
 
-echo ""
-echo "  === ETAT DU TUNNEL ==="
-echo ""
+A journal that cannot be read is NAMED, never taken for a quiet day.
 
-# Check current service status
-TUNNEL_STATUS=$(systemctl is-active cloudflared 2>/dev/null)
-TUNNEL_UPTIME=$(systemctl show cloudflared --property=ActiveEnterTimestamp 2>/dev/null | cut -d= -f2)
+The counters are cumulative since the process started. When the daily cron
+exports ``LIA_REPORT_STATE_DIR``, the previous reading is kept there and the
+report shows the difference; a manual run shows the totals since the process
+started and writes nothing.
+"""
 
-if [ "$TUNNEL_STATUS" = "active" ]; then
-    echo "  Service          : Actif"
-else
-    echo "  Service          : $TUNNEL_STATUS  *** ATTENTION ***"
-fi
-echo "  Demarrage        : $TUNNEL_UPTIME"
-echo "  Lignes de log    : $TOTAL_LINES"
+from __future__ import annotations
 
-# Connection registrations
-REGISTRATIONS=$(grep -c -i "connection.*registered" "$TMPFILE" 2>/dev/null)
-echo "  Connexions enregistrees : $REGISTRATIONS"
+import http.client
+import json
+import math
+import os
+import re
+import subprocess
+import sys
+import time
+import urllib.request
+from collections import Counter
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
-# Reconnections (indicator of instability)
-RECONNECTIONS=$(grep -c -i -E "reconnect|re-establish|reconnecting" "$TMPFILE" 2>/dev/null)
-if [ "$RECONNECTIONS" -gt 0 ]; then
-    echo "  RECONNEXIONS     : $RECONNECTIONS  *** INSTABILITE ***"
-else
-    echo "  Reconnexions     : 0 (stable)"
-fi
+#: The systemd unit the tunnel runs as (its journal and its state).
+TUNNEL_UNIT = "cloudflared.service"
+#: Ports cloudflared tries, in order, when no ``--metrics`` address is given.
+DEFAULT_METRICS_PORTS = (20241, 20242, 20243, 20244, 20245)
+#: The counter that proves an endpoint is a cloudflared one.
+TOTAL_REQUESTS = "cloudflared_tunnel_total_requests"
+REQUEST_ERRORS = "cloudflared_tunnel_request_errors"
+HA_CONNECTIONS = "cloudflared_tunnel_ha_connections"
+RESPONSE_BY_CODE = "cloudflared_tunnel_response_by_code"
+PROCESS_START = "process_start_time_seconds"
+STATE_FILE_NAME = "cloudflared-metrics.json"
+#: Two origin-down minutes further apart than this are two outages.
+OUTAGE_GAP_MINUTES = 2
+DETAIL_THRESHOLD = 5
+HTTP_TIMEOUT_SECONDS = 5
+#: How long journalctl may take to read one unit over one report window.
+JOURNAL_TIMEOUT_SECONDS = 60
+OTHER_ERRORS_SHOWN = 5
+#: Events (starts, stops, edge drops) and outage periods listed one by one;
+#: the rest is counted, so a flapping day stays a readable section.
+EVENTS_SHOWN = 10
 
-# Disconnections
-DISCONNECTIONS=$(grep -c -i -E "disconnect|connection.*closed|unregistered" "$TMPFILE" 2>/dev/null)
-if [ "$DISCONNECTIONS" -gt 0 ]; then
-    echo "  Deconnexions     : $DISCONNECTIONS"
-fi
+_ERROR_RE = re.compile(r'error="([^"]*)"')
+_ORIGIN_RE = re.compile(r"originService=(\S+)")
+_METRICS_SERVER_RE = re.compile(r"Starting metrics server on (\S+?)/metrics")
+_SAMPLE_RE = re.compile(r"^([a-zA-Z_:][a-zA-Z0-9_:]*(?:\{[^}]*\})?)\s+(\S+)")
+_STATUS_CODE_RE = re.compile(r'status_code="(\d{3})"')
+#: The local date and minute a ``short-iso`` line starts with.
+_SHORT_ISO_MINUTE_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})")
 
-# Separate real errors from SSE stream noise
-STREAM_NOISE=$(grep -c -i -E "stream.*canceled by remote|canceled by remote with error code 0" "$TMPFILE" 2>/dev/null)
-EOF_NOISE=$(grep -c -i "unexpected EOF" "$TMPFILE" 2>/dev/null)
-TOTAL_NOISE=$((STREAM_NOISE + EOF_NOISE))
+CATEGORY_CLIENT = "client"
+CATEGORY_ORIGIN = "origin"
+CATEGORY_OTHER = "other"
 
-# Real errors = connection refused, fatal, failed (excluding stream noise)
-REAL_ERRORS=$(grep -i -E "error|ERR|failed|fatal" "$TMPFILE" 2>/dev/null | grep -v -i -E "stream.*canceled|unexpected EOF|error code 0" | wc -l)
-ORIGIN_DOWN=$(grep -c -i "Unable to reach the origin service" "$TMPFILE" 2>/dev/null)
+Runner = Callable[[list[str]], bytes]
+Fetch = Callable[[str], str]
 
-if [ "$REAL_ERRORS" -gt 0 ]; then
-    echo "  ERREURS REELLES  : $REAL_ERRORS  *** A VERIFIER ***"
-else
-    echo "  Erreurs reelles  : 0"
-fi
 
-if [ "$ORIGIN_DOWN" -gt 0 ]; then
-    echo "  Origine injoignable : $ORIGIN_DOWN (API down ou redemarrage)"
-fi
+@dataclass(frozen=True)
+class Window:
+    """The period the report covers, as epochs, and how to name it."""
 
-if [ "$TOTAL_NOISE" -gt 0 ]; then
-    echo "  Bruit SSE normal : $TOTAL_NOISE (deconnexions stream clients, ignorable)"
-fi
+    start: float
+    end: float
+    label: str
 
-# Retries
-RETRIES=$(grep -c -i "retry" "$TMPFILE" 2>/dev/null)
-if [ "$RETRIES" -gt 0 ]; then
-    echo "  Tentatives retry : $RETRIES"
-fi
 
-# Detail: show real error lines (not noise)
-if [ "$DETAIL" -ge 5 ] && [ "$REAL_ERRORS" -gt 0 ]; then
-    echo ""
-    echo "  === DETAIL DES ERREURS (hors bruit SSE) ==="
-    echo ""
-    grep -i -E "error|ERR|failed|fatal" "$TMPFILE" | grep -v -i -E "stream.*canceled|unexpected EOF|error code 0" | tail -15 | while read -r LINE; do
-        CLEAN=$(echo "$LINE" | sed 's/.*cloudflared\[[0-9]*\]: //' | cut -c1-120)
-        echo "    $CLEAN"
-    done
-fi
+@dataclass
+class JournalSummary:
+    """What the tunnel's journal says about the report window."""
 
-# Origin down details
-if [ "$DETAIL" -ge 5 ] && [ "$ORIGIN_DOWN" -gt 0 ]; then
-    echo ""
-    echo "  === PERIODES ORIGINE INJOIGNABLE ==="
-    echo ""
-    FIRST=$(grep -i "Unable to reach the origin" "$TMPFILE" | head -1 | awk '{print $1, $2, $3}')
-    LAST=$(grep -i "Unable to reach the origin" "$TMPFILE" | tail -1 | awk '{print $1, $2, $3}')
-    echo "    Debut : $FIRST"
-    echo "    Fin   : $LAST"
-    echo "    Cause probable : redemarrage conteneurs Docker ou API temporairement indisponible"
-fi
+    failures: Counter[str] = field(default_factory=Counter)
+    by_origin: Counter[str] = field(default_factory=Counter)
+    origin_down_minutes: Counter[str] = field(default_factory=Counter)
+    other_errors: Counter[str] = field(default_factory=Counter)
+    registrations: int = 0
+    edge_drops: list[str] = field(default_factory=list)
+    graceful_stops: list[str] = field(default_factory=list)
+    starts: list[str] = field(default_factory=list)
+    metrics_address: str | None = None
 
-# Detail: show reconnection timeline
-if [ "$DETAIL" -ge 5 ] && [ "$RECONNECTIONS" -gt 0 ]; then
-    echo ""
-    echo "  === CHRONOLOGIE DES RECONNEXIONS ==="
-    echo ""
-    grep -i -E "reconnect|re-establish|reconnecting" "$TMPFILE" | tail -15 | while read -r LINE; do
-        echo "    $LINE"
-    done
-fi
 
-# Request stats if available
-if [ "$DETAIL" -ge 8 ]; then
-    REQUESTS=$(grep -c -i "request" "$TMPFILE" 2>/dev/null)
-    HTTP_ERRORS=$(grep -c -i -E "status.*[45][0-9][0-9]|502|503|504" "$TMPFILE" 2>/dev/null)
+@dataclass(frozen=True)
+class Reading:
+    """One reading of the tunnel's counters."""
 
-    if [ "$REQUESTS" -gt 0 ] || [ "$HTTP_ERRORS" -gt 0 ]; then
-        echo ""
-        echo "  === TRAFIC ==="
-        echo ""
-        echo "  Requetes traitees   : $REQUESTS"
-        if [ "$HTTP_ERRORS" -gt 0 ]; then
-            echo "  Erreurs HTTP (4xx/5xx) : $HTTP_ERRORS"
-        fi
-    fi
-fi
+    taken_at: float
+    process_start: float
+    counters: dict[str, float]
 
-rm -f "$TMPFILE"
-echo ""
+
+@dataclass(frozen=True)
+class CounterWindow:
+    """The counters over a stated period.
+
+    ``kind`` is ``delta`` (since the previous daily reading), ``since_start``
+    (no previous reading: totals since the process started) or
+    ``since_restart`` (the process restarted since the previous reading).
+    """
+
+    kind: str
+    start: float
+    end: float
+    values: dict[str, float]
+
+
+class JournalUnavailable(Exception):
+    """The tunnel's journal could not be read."""
+
+
+def _stamp(epoch: float) -> str:
+    return time.strftime("%Y-%m-%d %H:%M", time.localtime(epoch))
+
+
+def _local_midnight(day: datetime) -> datetime:
+    """Local midnight of ``day``'s date (a naive datetime read as local time,
+    so a daylight-saving day keeps its true length)."""
+    return datetime.combine(day.date(), datetime.min.time()).astimezone()
+
+
+def report_window(date_range: str, now: datetime) -> Window:
+    """The window matching logwatch's ``--range`` — the one the supervision section reads.
+
+    Args:
+        date_range: ``LOGWATCH_DATE_RANGE`` (``yesterday``, ``today``, other).
+        now: The current time, timezone-aware.
+
+    Returns:
+        Yesterday's local day, today so far, or the last 24 hours.
+    """
+    choice = date_range.strip().lower()
+    today = _local_midnight(now)
+    if choice == "yesterday":
+        start, end, prefix = _local_midnight(today - timedelta(hours=12)), today, ""
+    elif choice == "today":
+        start, end, prefix = today, now, ""
+    else:
+        start, end, prefix = now - timedelta(hours=24), now, "dernieres 24 h : "
+    label = f"{prefix}{_stamp(start.timestamp())} -> {_stamp(end.timestamp())}"
+    return Window(start.timestamp(), end.timestamp(), label)
+
+
+def journal_command(window: Window) -> list[str]:
+    """The journalctl invocation for the tunnel's lines over the window.
+
+    The bounds are whole epochs (``@``): the same instants the section names,
+    whatever journalctl would make of a local date. The end is rounded UP —
+    truncated, a ``today`` run dropped the lines of its own last second
+    (measured against journalctl 255).
+
+    Args:
+        window: The report window.
+
+    Returns:
+        The argument vector.
+    """
+    return [
+        "journalctl",
+        "--no-pager",
+        "--output=short-iso",
+        f"--unit={TUNNEL_UNIT}",
+        f"--since=@{math.floor(window.start)}",
+        f"--until=@{math.ceil(window.end)}",
+    ]
+
+
+def _first_line(text: str) -> str:
+    for line in text.splitlines():
+        if line.strip():
+            return line.strip()
+    return ""
+
+
+def _run_command(command: list[str]) -> bytes:
+    """Run a local command and return its standard output.
+
+    Raises:
+        JournalUnavailable: The command is absent, timed out or failed.
+    """
+    try:
+        done = subprocess.run(
+            command, capture_output=True, timeout=JOURNAL_TIMEOUT_SECONDS, check=False
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise JournalUnavailable(type(exc).__name__) from exc
+    if done.returncode != 0:
+        reason = _first_line(done.stderr.decode("utf-8", "replace"))[:120]
+        raise JournalUnavailable(reason or f"exit {done.returncode}")
+    stdout: bytes = done.stdout
+    return stdout
+
+
+def read_journal(window: Window, run: Runner) -> list[str]:
+    """The tunnel's journal lines over the window.
+
+    Args:
+        window: The report window.
+        run: Command runner returning stdout (injected for tests).
+
+    Returns:
+        The ``short-iso`` lines, undecodable bytes replaced.
+
+    Raises:
+        JournalUnavailable: journalctl could not be run or failed.
+    """
+    return run(journal_command(window)).decode("utf-8", "replace").splitlines()
+
+
+def classify_error(error: str) -> str:
+    """Name the side a request failure belongs to.
+
+    Args:
+        error: The ``error="..."`` text of a proxy failure line.
+
+    Returns:
+        ``origin`` when the origin could not be reached, ``client`` when the
+        request was cancelled (the client went away or the tunnel stopped),
+        ``other`` for everything else.
+    """
+    if "Unable to reach the origin service" in error:
+        return CATEGORY_ORIGIN
+    if error.endswith("context canceled"):
+        return CATEGORY_CLIENT
+    return CATEGORY_OTHER
+
+
+def _local_minute(line: str) -> str:
+    """The local minute of a ``short-iso`` journal line (``YYYY-MM-DD HH:MM``).
+
+    Any other shape reads ``?`` rather than a prefix of itself: keyed by the
+    ``Oct 17 13:16:30`` that ``*ApplyStdDate`` writes, every failure of one
+    outage became a period of its own.
+    """
+    match = _SHORT_ISO_MINUTE_RE.match(line)
+    return f"{match.group(1)} {match.group(2)}" if match else "?"
+
+
+def _normalise_error(error: str) -> str:
+    """An error text with its variable parts folded, for counting."""
+    text = error.removeprefix("Failed to proxy HTTP: ")
+    return re.sub(r"\d+", "N", text)[:90]
+
+
+def _count_failure(summary: JournalSummary, line: str) -> None:
+    """Count one proxy failure line: its side, its origin, its minute."""
+    error_match = _ERROR_RE.search(line)
+    error = error_match.group(1) if error_match else ""
+    category = classify_error(error)
+    summary.failures[category] += 1
+    origin_match = _ORIGIN_RE.search(line)
+    summary.by_origin[origin_match.group(1) if origin_match else "?"] += 1
+    if category == CATEGORY_ORIGIN:
+        summary.origin_down_minutes[_local_minute(line)] += 1
+    elif category == CATEGORY_OTHER:
+        summary.other_errors[_normalise_error(error)] += 1
+
+
+def parse_journal(lines: Iterable[str]) -> JournalSummary:
+    """Summarise the tunnel's journal lines.
+
+    Args:
+        lines: ``journalctl --output=short-iso`` lines of the cloudflared unit.
+
+    Returns:
+        The summary; every failed request is counted exactly once.
+    """
+    summary = JournalSummary()
+    for line in lines:
+        if " ERR " in line and "originService=" in line:
+            _count_failure(summary, line)
+        elif "Registered tunnel connection" in line:
+            summary.registrations += 1
+        elif "Serve tunnel error" in line:
+            summary.edge_drops.append(_local_minute(line))
+        elif "Initiating graceful shutdown" in line:
+            summary.graceful_stops.append(_local_minute(line))
+        elif "Starting tunnel" in line:
+            summary.starts.append(_local_minute(line))
+        else:
+            server = _METRICS_SERVER_RE.search(line)
+            if server:
+                summary.metrics_address = server.group(1)
+    return summary
+
+
+def _minute_index(minute: str) -> int | None:
+    """Minutes since the epoch of a local ``YYYY-MM-DD HH:MM`` stamp."""
+    try:
+        return int(time.mktime(time.strptime(minute, "%Y-%m-%d %H:%M")) // 60)
+    except ValueError:
+        return None
+
+
+def outage_periods(minutes: Counter[str]) -> list[tuple[str, str, int]]:
+    """Group origin-down minutes into periods.
+
+    Args:
+        minutes: Failed requests per local minute.
+
+    Returns:
+        ``(first_minute, last_minute, failed_requests)`` per period, in order.
+    """
+    periods: list[tuple[str, str, int]] = []
+    previous: int | None = None
+    for minute in sorted(minutes):
+        index = _minute_index(minute)
+        if periods and index is not None and previous is not None:
+            if index - previous <= OUTAGE_GAP_MINUTES:
+                first, _, count = periods[-1]
+                periods[-1] = (first, minute, count + minutes[minute])
+                previous = index
+                continue
+        periods.append((minute, minute, minutes[minute]))
+        previous = index
+    return periods
+
+
+def parse_metrics(text: str) -> dict[str, float]:
+    """Parse the Prometheus text exposition into ``{sample_name: value}``.
+
+    Args:
+        text: The body of a ``/metrics`` response.
+
+    Returns:
+        One entry per sample, keyed by its name with its labels verbatim.
+    """
+    samples: dict[str, float] = {}
+    for line in text.splitlines():
+        if not line or line.startswith("#"):
+            continue
+        match = _SAMPLE_RE.match(line)
+        if not match:
+            continue
+        try:
+            samples[match.group(1)] = float(match.group(2))
+        except ValueError:
+            continue
+    return samples
+
+
+def _http_get(url: str) -> str:
+    """GET a local URL and return its body."""
+    with urllib.request.urlopen(url, timeout=HTTP_TIMEOUT_SECONDS) as response:
+        body: bytes = response.read()
+    return body.decode("utf-8", "replace")
+
+
+def metrics_candidates(summary: JournalSummary, environ: dict[str, str]) -> list[str]:
+    """The metrics URLs to try, the most specific first.
+
+    Args:
+        summary: The journal summary (it carries the address announced at start).
+        environ: The process environment.
+
+    Returns:
+        The operator's override alone when one is set (an explicit address is
+        never second-guessed), else the announced address then the default ports.
+    """
+    override = environ.get("LIA_CLOUDFLARED_METRICS_URL", "").strip()
+    if override:
+        return [override]
+    candidates: list[str] = []
+    if summary.metrics_address:
+        candidates.append(f"http://{summary.metrics_address}/metrics")
+    candidates.extend(f"http://127.0.0.1:{port}/metrics" for port in DEFAULT_METRICS_PORTS)
+    return list(dict.fromkeys(candidates))
+
+
+def read_counters(candidates: list[str], fetch: Fetch, now: float) -> Reading | None:
+    """Read the tunnel's counters from the first endpoint that is cloudflared's.
+
+    Args:
+        candidates: URLs to try, in order.
+        fetch: GET function (injected for tests).
+        now: The reading's timestamp.
+
+    Returns:
+        The reading, or None when no endpoint answered as cloudflared.
+    """
+    for url in candidates:
+        try:
+            samples = parse_metrics(fetch(url))
+        except (OSError, ValueError, http.client.HTTPException):
+            # A port another program holds answers anything: a refusal, a
+            # banner that is no HTTP status line (``BadStatusLine``, which is no
+            # ``OSError``), a cut body. Each only means « not this endpoint ».
+            continue
+        if TOTAL_REQUESTS not in samples:
+            continue
+        counters = {
+            name: value
+            for name, value in samples.items()
+            if name in (TOTAL_REQUESTS, REQUEST_ERRORS, HA_CONNECTIONS)
+            or name.startswith(RESPONSE_BY_CODE + "{")
+        }
+        return Reading(
+            taken_at=now, process_start=samples.get(PROCESS_START, 0.0), counters=counters
+        )
+    return None
+
+
+def counters_window(current: Reading, previous: Reading | None) -> CounterWindow:
+    """The counters over the period since the previous reading.
+
+    A previous reading of another process (the tunnel restarted) or a counter
+    that went DOWN cannot be subtracted: the totals since the current process
+    started are reported instead, and said to be.
+
+    Args:
+        current: This run's reading.
+        previous: The previous daily reading, if one was kept.
+
+    Returns:
+        The window and its values (gauges are kept as read).
+    """
+    if previous is None:
+        return CounterWindow(
+            "since_start", current.process_start, current.taken_at, current.counters
+        )
+    restarted = abs(previous.process_start - current.process_start) > 1 or any(
+        name != HA_CONNECTIONS and current.counters.get(name, 0.0) < value
+        for name, value in previous.counters.items()
+    )
+    if restarted:
+        return CounterWindow(
+            "since_restart", current.process_start, current.taken_at, current.counters
+        )
+    values = {
+        name: value if name == HA_CONNECTIONS else value - previous.counters.get(name, 0.0)
+        for name, value in current.counters.items()
+    }
+    return CounterWindow("delta", previous.taken_at, current.taken_at, values)
+
+
+def load_reading(path: Path) -> Reading | None:
+    """Load the previous daily reading; an unreadable file reads as none."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return Reading(
+            taken_at=float(data["taken_at"]),
+            process_start=float(data["process_start"]),
+            counters={str(k): float(v) for k, v in data["counters"].items()},
+        )
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return None
+
+
+def save_reading(path: Path, reading: Reading) -> None:
+    """Write the reading atomically (a half-written file must never be read)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(
+        json.dumps(
+            {
+                "taken_at": reading.taken_at,
+                "process_start": reading.process_start,
+                "counters": reading.counters,
+            }
+        ),
+        encoding="utf-8",
+    )
+    os.replace(temporary, path)
+
+
+def _status_codes(values: dict[str, float]) -> dict[int, int]:
+    codes: dict[int, int] = {}
+    for name, value in values.items():
+        match = _STATUS_CODE_RE.search(name) if name.startswith(RESPONSE_BY_CODE) else None
+        if match:
+            codes[int(match.group(1))] = codes.get(int(match.group(1)), 0) + int(value)
+    return codes
+
+
+def _listed(items: list[str], prefix: str) -> list[str]:
+    """One line per item up to ``EVENTS_SHOWN``, then how many more there were."""
+    lines = [f"    {prefix}{item}" for item in items[:EVENTS_SHOWN]]
+    hidden = len(items) - EVENTS_SHOWN
+    if hidden > 0:
+        lines.append(f"    ... et {hidden} autre(s)")
+    return lines
+
+
+def _journal_unreadable(error: str, what: str) -> str:
+    return f"  *** JOURNAL DU TUNNEL ILLISIBLE ({error}) : {what} de la periode inconnus ***"
+
+
+def render_tunnel(
+    summary: JournalSummary,
+    service: tuple[str, str],
+    detail: int,
+    journal_error: str | None = None,
+) -> list[str]:
+    """The tunnel's state section.
+
+    Args:
+        summary: The journal summary (empty when the journal was unreadable).
+        service: The unit's systemd state and when it became active.
+        detail: Logwatch's detail level.
+        journal_error: Why the journal could not be read, or None.
+
+    Returns:
+        The section lines.
+    """
+    state, since = service
+    lines = ["", "  === ETAT DU TUNNEL ===", ""]
+    if state == "active":
+        lines.append(f"  Service              : Actif (depuis {since})")
+    else:
+        lines.append(f"  Service              : {state}  *** ATTENTION ***")
+    if journal_error is not None:
+        lines.append(_journal_unreadable(journal_error, "demarrages, arrets et coupures"))
+        return lines
+    detailed = detail >= DETAIL_THRESHOLD
+    lines.append(f"  Demarrages           : {len(summary.starts)}")
+    lines.append(f"  Arrets programmes    : {len(summary.graceful_stops)}")
+    if summary.edge_drops:
+        lines.append(f"  COUPURES COTE EDGE   : {len(summary.edge_drops)}  *** A SURVEILLER ***")
+        lines.extend(_listed(summary.edge_drops, "") if detailed else [])
+    else:
+        lines.append("  Coupures cote edge   : 0")
+    lines.append(f"  Connexions (re)enregistrees : {summary.registrations}")
+    if detailed:
+        lines.extend(_listed(summary.starts, "demarrage : "))
+        lines.extend(_listed(summary.graceful_stops, "arret programme : "))
+    return lines
+
+
+def _period_text(period: tuple[str, str, int]) -> str:
+    first, last, count = period
+    span = first if first == last else f"{first} -> {last[11:]}"
+    return f"{span} : {count}"
+
+
+def render_failures(
+    summary: JournalSummary, detail: int, window: Window, journal_error: str | None = None
+) -> list[str]:
+    """The failed-requests section (journal of the report window).
+
+    Args:
+        summary: The journal summary (empty when the journal was unreadable).
+        detail: Logwatch's detail level.
+        window: The report window the journal was read over.
+        journal_error: Why the journal could not be read, or None.
+
+    Returns:
+        The section lines.
+    """
+    lines = ["", "  === REQUETES EN ECHEC (journal de la periode) ===", ""]
+    lines.append(f"  Periode                       : {window.label}")
+    if journal_error is not None:
+        lines.append(_journal_unreadable(journal_error, "echecs"))
+        return lines
+    failures = summary.failures
+    lines.append(f"  Total                         : {sum(failures.values())}")
+    lines.append(
+        f"  Interrompues (client parti)   : {failures[CATEGORY_CLIENT]}"
+        "  (normal : onglet ferme, flux interrompu)"
+    )
+    origin = failures[CATEGORY_ORIGIN]
+    flag = "  *** A VERIFIER ***" if origin else ""
+    lines.append(f"  Origine injoignable           : {origin}{flag}")
+    lines.append(f"  Autres                        : {failures[CATEGORY_OTHER]}")
+    if summary.by_origin:
+        by_origin = ", ".join(
+            f"{name} = {count}" for name, count in summary.by_origin.most_common()
+        )
+        lines.append(f"  Par origine                   : {by_origin}")
+    if detail >= DETAIL_THRESHOLD and summary.origin_down_minutes:
+        lines.extend(["", "  Origine injoignable, par periode :"])
+        periods = outage_periods(summary.origin_down_minutes)
+        lines.extend(_listed([_period_text(period) for period in periods], ""))
+    if detail >= DETAIL_THRESHOLD and summary.other_errors:
+        lines.extend(["", "  Autres erreurs :"])
+        for text, count in summary.other_errors.most_common(OTHER_ERRORS_SHOWN):
+            lines.append(f"    {count} x {text}")
+    return lines
+
+
+def render_counters(window: CounterWindow | None) -> list[str]:
+    """The traffic section, from the tunnel's own counters."""
+    lines = ["", "  === TRAFIC (compteurs du tunnel) ===", ""]
+    if window is None:
+        lines.append("  Compteurs indisponibles : point de metriques du tunnel injoignable")
+        return lines
+    start = _stamp(window.start) if window.start > 0 else "date inconnue"
+    period = {
+        "delta": f"du {start} au {_stamp(window.end)}",
+        "since_start": f"depuis le demarrage du tunnel ({start})",
+        "since_restart": f"depuis le redemarrage du tunnel ({start})",
+    }[window.kind]
+    values = window.values
+    codes = _status_codes(values)
+    server_errors = sum(count for code, count in codes.items() if code >= 500)
+    throttled = codes.get(429, 0)
+    client_errors = sum(count for code, count in codes.items() if 400 <= code < 500) - throttled
+    lines.append(f"  Periode              : {period}")
+    lines.append(f"  Connexions actives   : {int(values.get(HA_CONNECTIONS, 0))}")
+    lines.append(f"  Requetes             : {int(values.get(TOTAL_REQUESTS, 0))}")
+    flag = "  *** A VERIFIER ***" if server_errors else ""
+    lines.append(f"  Reponses 5xx         : {server_errors}{flag}")
+    lines.append(f"  Reponses 429         : {throttled}  (limitation de debit)")
+    lines.append(f"  Autres reponses 4xx  : {client_errors}")
+    lines.append(f"  Erreurs du proxy     : {int(values.get(REQUEST_ERRORS, 0))}")
+    if codes:
+        lines.append(
+            "  Par code             : "
+            + " ".join(f"{code}={count}" for code, count in sorted(codes.items()) if count)
+        )
+    return lines
+
+
+def _service_state() -> tuple[str, str]:
+    """The systemd state of the tunnel unit and when it became active."""
+
+    def _systemctl(*args: str) -> str:
+        try:
+            done = subprocess.run(
+                ["systemctl", *args], capture_output=True, text=True, timeout=10, check=False
+            )
+        except (OSError, subprocess.SubprocessError):
+            return "inconnu"
+        return done.stdout.strip() or "inconnu"
+
+    state = _systemctl("is-active", TUNNEL_UNIT)
+    since = _systemctl("show", TUNNEL_UNIT, "--property=ActiveEnterTimestamp", "--value")
+    return state, since
+
+
+def _detail_level(environ: dict[str, str]) -> int:
+    try:
+        return int(environ.get("LOGWATCH_DETAIL_LEVEL", "10"))
+    except ValueError:
+        return 10
+
+
+def _counters(
+    summary: JournalSummary, environ: dict[str, str], fetch: Fetch, now: float
+) -> tuple[CounterWindow | None, list[str]]:
+    """The counters over the period this report covers, and any note about them.
+
+    Args:
+        summary: The journal summary (the metrics address announced at start).
+        environ: The process environment (override, state directory).
+        fetch: GET function (injected for tests).
+        now: The reading's timestamp.
+
+    Returns:
+        The counter window (None when no endpoint answered) and notes.
+    """
+    reading = read_counters(metrics_candidates(summary, environ), fetch, now)
+    if reading is None:
+        return None, []
+    state_dir = environ.get("LIA_REPORT_STATE_DIR", "").strip()
+    if not state_dir:
+        return counters_window(reading, None), []
+    state_path = Path(state_dir) / STATE_FILE_NAME
+    window = counters_window(reading, load_reading(state_path))
+    try:
+        save_reading(state_path, reading)
+    except OSError as exc:
+        return window, [f"  (lecture des compteurs non conservee : {type(exc).__name__})"]
+    return window, []
+
+
+def build_report(
+    window: Window,
+    environ: dict[str, str],
+    *,
+    run: Runner,
+    fetch: Fetch,
+    service: tuple[str, str],
+    now: float,
+) -> list[str]:
+    """Every section of the tunnel report.
+
+    Args:
+        window: The report window.
+        environ: The process environment.
+        run: Command runner for journalctl (injected for tests).
+        fetch: GET function for the metrics endpoint (injected for tests).
+        service: The unit's systemd state and when it became active.
+        now: The current time (epoch).
+
+    Returns:
+        The report lines.
+    """
+    detail = _detail_level(environ)
+    journal_error: str | None = None
+    try:
+        summary = parse_journal(read_journal(window, run))
+    except JournalUnavailable as exc:
+        summary, journal_error = JournalSummary(), str(exc) or type(exc).__name__
+    counters, notes = _counters(summary, environ, fetch, now)
+    return (
+        render_tunnel(summary, service, detail, journal_error)
+        + render_failures(summary, detail, window, journal_error)
+        + render_counters(counters)
+        + notes
+    )
+
+
+def main() -> int:
+    """Print the tunnel section for logwatch's range."""
+    sys.stdout.reconfigure(errors="replace")
+    now = datetime.now(timezone.utc).astimezone()
+    window = report_window(os.environ.get("LOGWATCH_DATE_RANGE", "yesterday"), now)
+    lines = build_report(
+        window,
+        dict(os.environ),
+        run=_run_command,
+        fetch=_http_get,
+        service=_service_state(),
+        now=now.timestamp(),
+    )
+    print("\n".join(lines))
+    print("")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

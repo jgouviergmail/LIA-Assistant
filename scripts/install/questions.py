@@ -7,6 +7,7 @@ last so an operator can abort before typing anything sensitive.
 
 from __future__ import annotations
 
+import dataclasses
 from collections.abc import Mapping
 from typing import Any
 
@@ -18,10 +19,12 @@ from scripts.install.answers import (
 )
 from scripts.install.model import (
     APP_LANGUAGES,
+    OPTIONAL_PROVIDER_IDS,
     PASSWORD_RULES,
     REQUIRED_PROVIDER_IDS,
     WIZARD_LANGUAGES,
     Exposure,
+    PublicAnswers,
     Question,
     QuestionKind,
 )
@@ -37,6 +40,62 @@ def _needs_domains(answers: Mapping[str, Any]) -> bool:
 
 def _needs_caddy(answers: Mapping[str, Any]) -> bool:
     return answers.get("exposure") is Exposure.CADDY
+
+
+def _yes_no(value: bool) -> str:
+    return "yes" if value else "no"
+
+
+def build_reconfiguration_questions(current: PublicAnswers) -> tuple[Question, ...]:
+    """The questions a reconfiguration asks, each defaulting to the answer in force.
+
+    Every non-secret choice but the administrator's identity: an operator who
+    presses Enter keeps what runs. A follow-up a new exposure needs (domains
+    after LAN, a host after a proxy) has no answer in force and is asked.
+
+    Args:
+        current: The installation's recorded answers.
+
+    Returns:
+        The questions, in the questionnaire's order.
+    """
+    in_force: dict[str, str | None] = {
+        "wizard_language": current.language,
+        "exposure": current.exposure.value,
+        "server_host": current.server_host,
+        "web_domain": current.web_domain,
+        "api_domain": current.api_domain,
+        "caddy_email": current.caddy_email,
+        "default_language": current.default_language,
+        "observability": _yes_no(current.observability),
+        "self_diagnostics": _yes_no(current.self_diagnostics),
+        "skill_sandbox": _yes_no(current.skill_sandbox),
+        "live_mode": _yes_no(current.live_mode),
+        "personal_radio": _yes_no(current.personal_radio),
+        "speaking_avatar": _yes_no(current.speaking_avatar),
+    }
+    return tuple(
+        dataclasses.replace(question, default=in_force[question.key] or question.default)
+        for question in build_questions()
+        if question.key in in_force
+    )
+
+
+def build_env_changes_confirmation() -> Question:
+    """Whether a reconfiguration may change the ``.env`` values it just listed.
+
+    Defaults to ``no``: pressing Enter through a run that changed nothing must
+    never replace a value edited by hand.
+
+    Returns:
+        The yes/no question.
+    """
+    return Question(
+        key="apply_env_changes",
+        kind=QuestionKind.BOOL,
+        message_id="question.apply_env_changes",
+        default="no",
+    )
 
 
 def build_questions() -> tuple[Question, ...]:
@@ -57,6 +116,20 @@ def build_questions() -> tuple[Question, ...]:
             message_args=(("provider", provider),),
         )
         for provider in REQUIRED_PROVIDER_IDS
+    )
+    # Asked, never required: memory recall, document, journal and interest
+    # search run on the Gemini key, so an install that skips it is told in
+    # the final report what it left degraded.
+    optional_provider_questions = tuple(
+        Question(
+            key=f"provider_key_{provider}",
+            kind=QuestionKind.SECRET,
+            message_id=f"question.optional_provider_key.{provider}",
+            secret=True,
+            optional=True,
+            validator=lambda value: bool(value.strip()),
+        )
+        for provider in OPTIONAL_PROVIDER_IDS
     )
     return (
         Question(
@@ -166,4 +239,5 @@ def build_questions() -> tuple[Question, ...]:
             message_args=password_args,
         ),
         *provider_questions,
+        *optional_provider_questions,
     )

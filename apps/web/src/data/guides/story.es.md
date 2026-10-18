@@ -2,9 +2,9 @@
 
 > Informe de experiencia — un sistema completo, del diseño a la producción.
 
-**Versión**: 2.3
-**Fecha**: 2026-10-17
-**Aplicación**: LIA v3.1.1
+**Versión**: 2.4
+**Fecha**: 2026-10-18
+**Aplicación**: LIA v3.2.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | Indicador | Valor |
 | --- | --- |
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
-| Líneas de código fuente (sin tests) — 55 dominios funcionales | **960.000+** |
+| Líneas de código fuente (sin tests) — 55 dominios funcionales | **963.000+** |
 | Pruebas automatizadas inventariadas; suites adecuadas para cada commit y entrega | **63.000+** |
 | Decisiones de arquitectura documentadas (ADR) | **347** |
-| Versiones entregadas a ritmo regular | **282** |
+| Versiones entregadas a ritmo regular | **283** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 
@@ -78,7 +78,7 @@ Tres decisiones estructurantes, entre las 347 documentadas:
 
 Un sistema que se pilota con instrumentos:
 
-- **Observabilidad**: treinta y un paneles — salud aplicativa, compromisos de servicio, costes de IA, comportamiento de los agentes, infraestructura. Más de 600 métricas; logs estructurados centralizados; trazado distribuido de extremo a extremo — logs, métricas y trazas solo guardan hechos, nunca las palabras ni los nombres de las personas. Unos cuarenta procedimientos de explotación escritos — diagnóstico, remediación, restauración. Y el asistente lee él mismo esa telemetría: autocomprobación periódica, una memoria de incidentes diagnosticados sobre esas mismas procedimientos, y respuestas que esquivan una avería conocida. Y un diagnóstico muestra las evidencias de las que nació. Y los instrumentos llegan hasta los procesos: cada worker de la API publica lo que retiene en memoria, de modo que un total de contenedor se lee proceso a proceso.
+- **Observabilidad**: treinta y un paneles — salud aplicativa, compromisos de servicio, costes de IA, comportamiento de los agentes, infraestructura. Más de 600 métricas; logs estructurados centralizados; trazado distribuido de extremo a extremo — logs, métricas y trazas solo guardan hechos, nunca las palabras ni los nombres de las personas. Unos cuarenta procedimientos de explotación escritos — diagnóstico, remediación, restauración. Y el asistente lee él mismo esa telemetría: autocomprobación periódica, una memoria de incidentes diagnosticados sobre esos mismos procedimientos, y respuestas que esquivan una avería conocida. Y un diagnóstico muestra las evidencias de las que nació. Y los instrumentos llegan hasta los procesos: cada worker de la API publica lo que retiene en memoria, de modo que un total de contenedor se lee proceso a proceso. Y un instrumento mide lo que nombra: la alerta de latencia solo cuenta los turnos que una persona espera, y el informe diario del host empieza por lo que registró la supervisión en lugar de por una instantánea.
 - **Entrega**: despliegue contenerizado, migraciones de esquema automatizadas, imágenes publicadas para dos arquitecturas de hardware (amd64/arm64).
 - **Cadena de suministro**: cada pieza del servidor fijada por su huella e inventariada con cada versión; una vigilancia semanal lee los avisos de seguridad que publica cada dependencia — incluidos los que ninguna base pública recoge — y una actualización espera un plazo de prudencia, sin retroceder nunca; cada versión se instala en máquinas vírgenes antes de publicarse.
 - **Costes**: infraestructura frugal por elección — unos 150 € de hardware, cero licencias, bloques open source dimensionados a la necesidad real.

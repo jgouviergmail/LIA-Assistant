@@ -38,11 +38,11 @@
     // with the app locales is enforced by src/__tests__/service-worker.test.ts.
     var M = {
       en: { t: "You are offline", d: "LIA needs a connection. Your data is safe on the server.", r: "Try again" },
-      fr: { t: "Vous êtes hors ligne", d: "LIA a besoin d'une connexion. Vos données sont en sécurité sur le serveur.", r: "Réessayer" },
-      de: { t: "Sie sind offline", d: "LIA benötigt eine Verbindung. Ihre Daten sind sicher auf dem Server.", r: "Erneut versuchen" },
+      fr: { t: "Tu es hors ligne", d: "LIA a besoin d'une connexion. Tes données sont en sécurité sur le serveur.", r: "Réessayer" },
+      de: { t: "Du bist offline", d: "LIA benötigt eine Verbindung. Deine Daten sind sicher auf dem Server.", r: "Erneut versuchen" },
       es: { t: "Estás sin conexión", d: "LIA necesita conexión. Tus datos están seguros en el servidor.", r: "Reintentar" },
       it: { t: "Sei offline", d: "LIA ha bisogno di una connessione. I tuoi dati sono al sicuro sul server.", r: "Riprova" },
-      zh: { t: "您已离线", d: "LIA 需要网络连接。您的数据安全地保存在服务器上。", r: "重试" }
+      zh: { t: "你已离线", d: "LIA 需要网络连接。你的数据安全地保存在服务器上。", r: "重试" }
     };
     var lang = (document.cookie.match(/(?:^|; )i18next=([a-z]{2})/) || [])[1]
       || (navigator.language || "en").slice(0, 2);

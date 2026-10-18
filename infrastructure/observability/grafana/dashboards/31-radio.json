@@ -552,6 +552,47 @@
       }
     },
     {
+      "id": 21,
+      "title": "Delivery the voice could not express (1h)",
+      "description": "Voiced lines whose asked delivery no control or cue of the station's voice rendered (ADR-324 decision 45), by dimension: energy, pace, tone, reaction. A steady count names what the configured engine cannot do, not a fault.",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 30
+      },
+      "targets": [
+        {
+          "expr": "sum by (dimension) (increase(radio_delivery_unrendered_total[1h])) or vector(0)",
+          "legendFormat": "{{dimension}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
       "id": 13,
       "title": "Newsroom",
       "type": "row",

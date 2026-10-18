@@ -14,6 +14,11 @@
  * cap, the operator's switch, a message the server does not know) rolls it
  * back and says why. Outside the provider the context is inert — a bubble
  * rendered in isolation (a test, an archived read-only view) shows no toggle.
+ *
+ * Two gates, because the operator's switch removes the ACT, never the record:
+ * the provider reads the state whenever the deployment mounts the routes
+ * (`enabled`), so a kept answer keeps its mark and can be let go, while only
+ * `canKeep` — the effective state — lets a bubble offer to keep a new one.
  */
 
 import * as React from 'react';
@@ -23,8 +28,10 @@ import { useApiQuery } from '@/hooks/useApiQuery';
 import type { Bookmark, BookmarkKeepRequest, BookmarkState } from '@/types/bookmarks';
 
 export interface BookmarkStateValue {
-  /** Whether the bubble may offer the toggle at all (deployment flag + provider). */
+  /** Whether the state is read at all: the deployment mounts the routes and a provider exists. */
   enabled: boolean;
+  /** Whether a bubble may offer to keep a new answer (the operator's switch included). */
+  canKeep: boolean;
   /** The bookmark id attached to a message, or undefined when it is not kept. */
   bookmarkIdOf: (messageDbId: string) => string | undefined;
   /**
@@ -36,6 +43,7 @@ export interface BookmarkStateValue {
 
 const INERT: BookmarkStateValue = {
   enabled: false,
+  canKeep: false,
   bookmarkIdOf: () => undefined,
   toggle: () => Promise.reject(new Error('bookmarks are not available here')),
 };
@@ -43,15 +51,17 @@ const INERT: BookmarkStateValue = {
 const BookmarkStateContext = React.createContext<BookmarkStateValue>(INERT);
 
 export interface BookmarkStateProviderProps {
-  /** The instance publishes `features.bookmarks_enabled`; false mounts nothing. */
+  /** Whether the deployment mounts the bookmark routes (`bookmarksReadable`); false reads nothing. */
   enabled: boolean;
+  /** Whether keeping a new answer is accepted now (`bookmarkKeepingAvailable`). */
+  canKeep: boolean;
   children: React.ReactNode;
 }
 
 /** A pending optimistic entry: the icon is filled, the row not yet confirmed. */
 const PENDING = 'pending';
 
-export function BookmarkStateProvider({ enabled, children }: BookmarkStateProviderProps) {
+export function BookmarkStateProvider({ enabled, canKeep, children }: BookmarkStateProviderProps) {
   const [attached, setAttached] = React.useState<Record<string, string>>({});
 
   useApiQuery<BookmarkState>('/bookmarks/state', {
@@ -109,8 +119,8 @@ export function BookmarkStateProvider({ enabled, children }: BookmarkStateProvid
   );
 
   const value = React.useMemo<BookmarkStateValue>(
-    () => ({ enabled, bookmarkIdOf, toggle }),
-    [enabled, bookmarkIdOf, toggle]
+    () => ({ enabled, canKeep: enabled && canKeep, bookmarkIdOf, toggle }),
+    [enabled, canKeep, bookmarkIdOf, toggle]
   );
 
   return <BookmarkStateContext.Provider value={value}>{children}</BookmarkStateContext.Provider>;

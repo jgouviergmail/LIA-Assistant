@@ -1,0 +1,786 @@
+#!/usr/bin/python3
+"""Logwatch service: what the supervision saw over the report window.
+
+The daily report used to describe the host as it was at 06:25 — container
+states, ``RestartCount``, one ``docker stats`` sample — and read no alert at
+all. Measured on production 2026-10-18: the day it covered, an API container
+restarted about 2 050 times while a critical alert fired for six and a half
+hours; the report said « Aucun redemarrage. Tout est stable. », because the
+container had been recreated since and the snapshot was clean.
+
+This section reads the window instead, from the systems that recorded it:
+
+- Prometheus: the alerts that fired (``ALERTS``), the container restarts and
+  recreations (cAdvisor's ``container_start_time_seconds``), the memory peaks,
+  the external probes, and the health of the alerting chain itself;
+- Alertmanager: the alerts active now;
+- the LIA database: the incidents still open in the self-diagnostics memory.
+
+Every source is read independently: one that cannot be read is NAMED, never
+taken for silence. The same holds for a source that answers about a window it
+did not record: a section first asks how much of the window its source measured
+(its scrape job's ``up``, or the probe series themselves), says « aucune
+mesure » when the answer is nothing and the share when it is part — no sample
+is never « no restart », « every probe answered » or « no alert fired ».
+Logwatch runs this service without input (``LogFile = none``); the addresses
+come from the containers' published ports.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+import urllib.parse
+import urllib.request
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import datetime, time, timedelta, timezone
+
+PROMETHEUS_CONTAINER = "lia-prometheus-prod"
+PROMETHEUS_PORT = 9090
+ALERTMANAGER_CONTAINER = "lia-alertmanager-prod"
+ALERTMANAGER_PORT = 9093
+POSTGRES_CONTAINER = "lia-postgres-prod"
+#: Range-query resolution, in seconds (the core rules evaluate every 30 s).
+STEP_SECONDS = 60
+#: Two firing samples further apart than this belong to two episodes.
+EPISODE_GAP_SECONDS = 3 * STEP_SECONDS
+HTTP_TIMEOUT_SECONDS = 20
+COMMAND_TIMEOUT_SECONDS = 30
+MEMORY_PEAKS_SHOWN = 5
+EPISODES_SHOWN_PER_ALERT = 6
+#: A container restarted this often in one window is flagged (a reboot restarts
+#: every container once, which is no news).
+RESTARTS_FLAGGED_FROM = 3
+#: The containers the memory alert watches (ContainerMemoryNearLimit).
+MEMORY_SELECTOR = 'name=~"lia.*"'
+#: The scrape jobs whose ``up`` stands for a source (prometheus.yml): Prometheus
+#: itself (it evaluates the alert rules) and cAdvisor (restarts, memory).
+PROMETHEUS_SELF_UP = 'up{job="prometheus"} == 1'
+CADVISOR_UP = 'up{job="cadvisor"} == 1'
+#: A source that measured less of the window than this says how much it saw.
+FULL_COVERAGE = 0.99
+#: Rules in error listed by name; the rest is counted.
+BROKEN_RULES_SHOWN = 10
+SEVERITY_ORDER = {"critical": 0, "warning": 1}
+SEVERITY_LABEL = {"critical": "CRITIQUE", "warning": "WARNING"}
+
+INCIDENTS_SQL = (
+    "SELECT severity, coalesce(alertname, correlation_key), title, "
+    "extract(epoch FROM opened_at), extract(epoch FROM last_seen_at) "
+    "FROM incidents WHERE status = 'open' ORDER BY opened_at;"
+)
+
+Fetch = Callable[[str], object]
+Run = Callable[[list[str], str | None], str]
+
+
+@dataclass(frozen=True)
+class Window:
+    """The period the report covers, as epochs, and how to name it."""
+
+    start: float
+    end: float
+    label: str
+
+    @property
+    def seconds(self) -> int:
+        return max(int(self.end - self.start), STEP_SECONDS)
+
+
+@dataclass(frozen=True)
+class Episode:
+    """One continuous firing period of one alert series."""
+
+    alertname: str
+    severity: str
+    target: str
+    start: float
+    end: float
+    open_at_end: bool
+
+
+class SourceUnavailable(Exception):
+    """A source of the report could not be read."""
+
+
+def _stamp(epoch: float) -> str:
+    return datetime.fromtimestamp(epoch, timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M")
+
+
+def _local_midnight(day: datetime) -> datetime:
+    """Local midnight of ``day``'s date (a naive datetime read as local time,
+    so a daylight-saving day keeps its true length)."""
+    return datetime.combine(day.date(), time.min).astimezone()
+
+
+def report_window(date_range: str, now: datetime) -> Window:
+    """The window matching logwatch's ``--range``.
+
+    Args:
+        date_range: ``LOGWATCH_DATE_RANGE`` (``yesterday``, ``today``, other).
+        now: The current time, timezone-aware.
+
+    Returns:
+        Yesterday's local day, today so far, or the last 24 hours.
+    """
+    choice = date_range.strip().lower()
+    today = _local_midnight(now)
+    if choice == "yesterday":
+        start, end, prefix = _local_midnight(today - timedelta(hours=12)), today, ""
+    elif choice == "today":
+        start, end, prefix = today, now, ""
+    else:
+        start, end, prefix = now - timedelta(hours=24), now, "dernieres 24 h : "
+    label = f"{prefix}{_stamp(start.timestamp())} -> {_stamp(end.timestamp())}"
+    return Window(start.timestamp(), end.timestamp(), label)
+
+
+def _run(command: list[str], stdin: str | None) -> str:
+    """Run a local command; a failure raises SourceUnavailable."""
+    try:
+        done = subprocess.run(
+            command,
+            input=stdin,
+            capture_output=True,
+            text=True,
+            timeout=COMMAND_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise SourceUnavailable(type(exc).__name__) from exc
+    if done.returncode != 0:
+        raise SourceUnavailable(done.stderr.strip()[:120] or f"exit {done.returncode}")
+    return done.stdout
+
+
+def _fetch_json(url: str) -> object:
+    """GET a local JSON endpoint; any failure raises SourceUnavailable."""
+    try:
+        with urllib.request.urlopen(url, timeout=HTTP_TIMEOUT_SECONDS) as response:
+            body: bytes = response.read()
+        return json.loads(body.decode("utf-8"))
+    except (OSError, ValueError) as exc:
+        raise SourceUnavailable(f"{type(exc).__name__}: {str(exc)[:100]}") from exc
+
+
+def published_url(container: str, port: int, run: Run) -> str:
+    """The loopback URL a container's port is published on.
+
+    Args:
+        container: Container name.
+        port: Container port.
+        run: Command runner (injected for tests).
+
+    Returns:
+        ``http://host:port`` read from ``docker port``.
+
+    Raises:
+        SourceUnavailable: The container is not running or the port is not published.
+    """
+    output = _first_line(run(["docker", "port", container, str(port)], None))
+    if not output:
+        raise SourceUnavailable(f"{container}:{port} non publie")
+    return f"http://{output}"
+
+
+def _first_line(text: str) -> str:
+    for line in text.splitlines():
+        if line.strip():
+            return line.strip()
+    return ""
+
+
+class Prometheus:
+    """The few Prometheus HTTP API calls this report needs."""
+
+    def __init__(self, base_url: str, fetch: Fetch) -> None:
+        self._base = base_url.rstrip("/")
+        self._fetch = fetch
+
+    def api(self, path: str, **params: object) -> object:
+        url = f"{self._base}{path}"
+        if params:
+            url += "?" + urllib.parse.urlencode({k: str(v) for k, v in params.items()})
+        payload = self._fetch(url)
+        if not isinstance(payload, dict) or payload.get("status") != "success":
+            raise SourceUnavailable(f"reponse inattendue de {path}")
+        return payload.get("data")
+
+    def instant(self, query: str, at: float) -> list[dict[str, object]]:
+        data = self.api("/api/v1/query", query=query, time=at)
+        return _result(data)
+
+    def series(self, query: str, window: Window) -> list[dict[str, object]]:
+        data = self.api(
+            "/api/v1/query_range",
+            query=query,
+            start=window.start,
+            end=window.end,
+            step=STEP_SECONDS,
+        )
+        return _result(data)
+
+
+def _result(data: object) -> list[dict[str, object]]:
+    if not isinstance(data, dict):
+        return []
+    result = data.get("result")
+    return [r for r in result if isinstance(r, dict)] if isinstance(result, list) else []
+
+
+def _str_mapping(value: object) -> dict[str, str]:
+    return {str(k): str(v) for k, v in value.items()} if isinstance(value, dict) else {}
+
+
+def _labels(sample: dict[str, object]) -> dict[str, str]:
+    return _str_mapping(sample.get("metric"))
+
+
+def _value(sample: dict[str, object]) -> float:
+    value = sample.get("value")
+    try:
+        return float(value[1]) if isinstance(value, list) else 0.0
+    except (TypeError, ValueError, IndexError):
+        return 0.0
+
+
+def _points(sample: dict[str, object]) -> list[tuple[float, float]]:
+    points: list[tuple[float, float]] = []
+    values = sample.get("values")
+    for item in values if isinstance(values, list) else []:
+        try:
+            points.append((float(item[0]), float(item[1])))
+        except (TypeError, ValueError, IndexError):
+            continue
+    return points
+
+
+def _target(labels: dict[str, str]) -> str:
+    return labels.get("name") or labels.get("instance") or labels.get("job") or ""
+
+
+def coverage(prometheus: Prometheus, selector: str, window: Window) -> float:
+    """Share of the window during which a series matching ``selector`` was recorded.
+
+    Counted per minute (the report's resolution) through a subquery: a minute
+    counts when the selector had a sample there. A source that recorded nothing
+    reads 0.0 — the one value a quiet window must never be mistaken for.
+
+    Args:
+        prometheus: The Prometheus API.
+        selector: A series selector, such as ``up{job="cadvisor"} == 1``.
+        window: The report window.
+
+    Returns:
+        A share between 0 and 1.
+    """
+    w = window.seconds
+    samples = prometheus.instant(f"max(count_over_time(({selector})[{w}s:1m]))", window.end)
+    minutes = max((_value(sample) for sample in samples), default=0.0)
+    return min(minutes * 60 / w, 1.0)
+
+
+def _coverage_lines(source: str, share: float) -> list[str]:
+    """What a section says before its content when its source missed part of the window."""
+    if share <= 0:
+        return [f"  *** AUCUNE MESURE : {source} n a rien enregistre sur la periode ***"]
+    if share < FULL_COVERAGE:
+        return [f"  {source} n a mesure que {int(share * 100)} % de la periode  *** A VERIFIER ***"]
+    return []
+
+
+def alert_episodes(series: list[dict[str, object]], window: Window) -> list[Episode]:
+    """Split each firing ``ALERTS`` series into continuous episodes.
+
+    Args:
+        series: ``query_range`` result of ``ALERTS{alertstate="firing"}``.
+        window: The report window.
+
+    Returns:
+        Episodes, the most severe first, then in time order.
+    """
+    episodes: list[Episode] = []
+    for sample in series:
+        labels = _labels(sample)
+        stamps = sorted(t for t, _ in _points(sample))
+        if not stamps:
+            continue
+        first = previous = stamps[0]
+        bounds: list[tuple[float, float]] = []
+        for stamp in stamps[1:]:
+            if stamp - previous > EPISODE_GAP_SECONDS:
+                bounds.append((first, previous))
+                first = stamp
+            previous = stamp
+        bounds.append((first, previous))
+        for start, end in bounds:
+            episodes.append(
+                Episode(
+                    alertname=labels.get("alertname", "?"),
+                    severity=labels.get("severity", "?"),
+                    target=_target(labels),
+                    start=start,
+                    end=end,
+                    open_at_end=window.end - end <= STEP_SECONDS,
+                )
+            )
+    episodes.sort(key=lambda e: (SEVERITY_ORDER.get(e.severity, 9), e.alertname, e.target, e.start))
+    return episodes
+
+
+def _duration(seconds: float) -> str:
+    minutes = max(int(round(seconds / 60)), 1)
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours} h {minutes:02d} min" if hours else f"{minutes} min"
+
+
+def render_episodes(episodes: list[Episode], window: Window, measured: float) -> list[str]:
+    """The fired-alerts section.
+
+    Args:
+        episodes: The firing episodes of the window.
+        window: The report window.
+        measured: The share of the window Prometheus recorded — no sample
+            there means no rule was evaluated, not that none fired.
+
+    Returns:
+        The section lines.
+    """
+    lines = ["", f"  === ALERTES DECLENCHEES ({window.label}) ===", ""]
+    lines += _coverage_lines("Prometheus", measured)
+    if not episodes:
+        if measured > 0:
+            lines.append("  Aucune alerte n a sonne sur la periode.")
+        return lines
+    groups: dict[tuple[str, str], list[Episode]] = {}
+    for episode in episodes:
+        groups.setdefault((episode.alertname, episode.target), []).append(episode)
+    for (alertname, target), group in groups.items():
+        severity = group[0].severity
+        flag = "  *** ATTENTION ***" if severity == "critical" else ""
+        shown_target = f"  {target}" if target else ""
+        lines.append(
+            f"  [{SEVERITY_LABEL.get(severity, severity.upper())}] {alertname}{shown_target}{flag}"
+        )
+        for episode in group[:EPISODES_SHOWN_PER_ALERT]:
+            end = (
+                "fin de periode (encore active)"
+                if episode.open_at_end
+                else _stamp(episode.end)[11:]
+            )
+            duration = _duration(episode.end - episode.start + STEP_SECONDS)
+            lines.append(f"      {_stamp(episode.start)} -> {end} ({duration})")
+        if len(group) > EPISODES_SHOWN_PER_ALERT:
+            hidden = len(group) - EPISODES_SHOWN_PER_ALERT
+            lines.append(f"      ... et {hidden} autre(s) episode(s)")
+    return lines
+
+
+def render_fired_alerts(prometheus: Prometheus, window: Window) -> list[str]:
+    """The alerts that fired, read over the share of the window Prometheus recorded."""
+    episodes = alert_episodes(prometheus.series('ALERTS{alertstate="firing"}', window), window)
+    return render_episodes(episodes, window, coverage(prometheus, PROMETHEUS_SELF_UP, window))
+
+
+def _dicts_under(container: object, key: str) -> list[dict[str, object]]:
+    """The mapping items of the list ``container[key]`` (nothing for any other shape)."""
+    items = container.get(key) if isinstance(container, dict) else None
+    return [item for item in items if isinstance(item, dict)] if isinstance(items, list) else []
+
+
+def _rule_lines(prometheus: Prometheus) -> list[str]:
+    """How many alert rules are loaded, and which fail to evaluate."""
+    data = prometheus.api("/api/v1/rules", type="alert")
+    rules = [
+        rule for group in _dicts_under(data, "groups") for rule in _dicts_under(group, "rules")
+    ]
+    # "unknown" is a rule not evaluated yet (Prometheus just restarted).
+    broken = [str(rule.get("name")) for rule in rules if rule.get("health") == "err"]
+    flag = "  *** ATTENTION ***" if broken or not rules else ""
+    lines = [f"  Regles d alerte chargees : {len(rules)}, en erreur : {len(broken)}{flag}"]
+    lines.extend(f"    en erreur : {name}" for name in broken[:BROKEN_RULES_SHOWN])
+    if len(broken) > BROKEN_RULES_SHOWN:
+        lines.append(f"    ... et {len(broken) - BROKEN_RULES_SHOWN} autre(s)")
+    return lines
+
+
+def _target_lines(prometheus: Prometheus) -> list[str]:
+    """The scrape targets that fail right now."""
+    targets = prometheus.api("/api/v1/targets", state="active")
+    down = sorted(
+        _str_mapping(target.get("labels")).get("job", "?")
+        for target in _dicts_under(targets, "activeTargets")
+        if target.get("health") == "down"
+    )
+    flag = "  *** ATTENTION ***" if down else ""
+    return [f"  Cibles en echec maintenant : {', '.join(down) if down else 'aucune'}{flag}"]
+
+
+def _by_integration(samples: list[dict[str, object]]) -> str:
+    return ", ".join(
+        f"{_labels(sample).get('integration', '?')}={int(round(_value(sample)))}"
+        for sample in samples
+    )
+
+
+def _notification_lines(prometheus: Prometheus, window: Window) -> list[str]:
+    """What Prometheus could not hand to Alertmanager, and what Alertmanager sent."""
+    w = window.seconds
+    errors = sum(
+        _value(sample)
+        for sample in prometheus.instant(
+            f"(sum(increase(prometheus_notifications_errors_total[{w}s])) or vector(0))"
+            f" + (sum(increase(prometheus_notifications_dropped_total[{w}s])) or vector(0))",
+            window.end,
+        )
+    )
+    flag = "  *** ATTENTION ***" if errors >= 1 else ""
+    lines = [
+        f"  Prometheus -> Alertmanager : {int(round(errors))} envoi(s) en erreur ou perdu(s){flag}"
+    ]
+    sent = prometheus.instant(
+        f"sum by (integration) (increase(alertmanager_notifications_total[{w}s])) > 0", window.end
+    )
+    failed = prometheus.instant(
+        f"sum by (integration) (increase(alertmanager_notifications_failed_total[{w}s])) > 0",
+        window.end,
+    )
+    lines.append(f"  Notifications envoyees    : {_by_integration(sent) or 'aucun'}")
+    if failed:
+        lines.append(f"  NOTIFICATIONS EN ECHEC    : {_by_integration(failed)}  *** ATTENTION ***")
+    else:
+        lines.append("  Notifications en echec    : 0")
+    return lines
+
+
+def render_chain(prometheus: Prometheus, window: Window) -> list[str]:
+    """The alerting chain's own health over the window: rules, targets, notifications."""
+    return (
+        ["", "  === CHAINE D ALERTE ===", ""]
+        + _rule_lines(prometheus)
+        + _target_lines(prometheus)
+        + _notification_lines(prometheus, window)
+    )
+
+
+def render_active_alerts(fetch: Fetch, base_url: str) -> list[str]:
+    """The alerts Alertmanager holds as active right now."""
+    lines = ["", "  === ALERTES ACTIVES MAINTENANT (Alertmanager) ===", ""]
+    payload = fetch(f"{base_url.rstrip('/')}/api/v2/alerts?active=true")
+    alerts = payload if isinstance(payload, list) else []
+    if not alerts:
+        lines.append("  Aucune.")
+        return lines
+    for alert in alerts:
+        if not isinstance(alert, dict):
+            continue
+        labels = alert.get("labels") if isinstance(alert.get("labels"), dict) else {}
+        status = alert.get("status") if isinstance(alert.get("status"), dict) else {}
+        state = str(status.get("state", "?")) if isinstance(status, dict) else "?"
+        severity = str(labels.get("severity", "?"))
+        target = _target({str(k): str(v) for k, v in labels.items()})
+        started = _iso_stamp(str(alert.get("startsAt", "")))
+        suffix = f" ({state})" if state != "active" else ""
+        lines.append(
+            f"  [{SEVERITY_LABEL.get(severity, severity.upper())}] {labels.get('alertname', '?')}"
+            f"{'  ' + target if target else ''} depuis {started}{suffix}"
+        )
+    return lines
+
+
+def _iso_stamp(value: str) -> str:
+    """A local ``YYYY-MM-DD HH:MM`` for an ISO-8601 instant (raw when unreadable)."""
+    try:
+        return _stamp(datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp())
+    except ValueError:
+        return value or "?"
+
+
+def parse_incidents(output: str) -> list[tuple[str, str, str, float, float]]:
+    """Parse the open-incidents rows (fields NUL-separated, one row per line)."""
+    rows: list[tuple[str, str, str, float, float]] = []
+    for record in output.split("\n"):
+        fields = record.split("\0")
+        if len(fields) != 5:
+            continue
+        try:
+            rows.append((fields[0], fields[1], fields[2], float(fields[3]), float(fields[4])))
+        except ValueError:
+            continue
+    return rows
+
+
+def render_incidents(run: Run, now: float) -> list[str]:
+    """The incidents still open in LIA's self-diagnostics memory."""
+    lines = ["", "  === INCIDENTS OUVERTS (diagnostic LIA) ===", ""]
+    output = run(
+        [
+            "docker",
+            "exec",
+            "-i",
+            "-e",
+            "PGOPTIONS=-c default_transaction_read_only=on -c statement_timeout=20000",
+            POSTGRES_CONTAINER,
+            "sh",
+            "-c",
+            'psql -X -q -A -t -z -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f -',
+        ],
+        INCIDENTS_SQL,
+    )
+    rows = parse_incidents(output)
+    if not rows:
+        lines.append("  Aucun.")
+        return lines
+    for severity, name, title, opened, last_seen in rows:
+        lines.append(f"  [{severity}] {name} : {title}")
+        lines.append(
+            f"      ouvert le {_stamp(opened)}, vu pour la derniere fois le {_stamp(last_seen)}"
+            f" (il y a {_duration(now - last_seen)})"
+        )
+    return lines
+
+
+def host_boots(series: list[dict[str, object]], window: Window) -> list[float]:
+    """The host boots that fall inside the window.
+
+    Args:
+        series: ``query_range`` result of ``node_boot_time_seconds``.
+        window: The report window.
+
+    Returns:
+        Boot instants (epochs) inside the window, in order.
+    """
+    boots = {round(value) for sample in series for _, value in _points(sample)}
+    return sorted(float(b) for b in boots if window.start <= b <= window.end)
+
+
+def _restart_text(restarts: int, recreations: int) -> str:
+    parts = []
+    if restarts:
+        parts.append(f"au moins {restarts} redemarrage(s)")
+    if recreations:
+        parts.append(f"recree {recreations} fois")
+    return ", ".join(parts)
+
+
+def _counts_by_name(prometheus: Prometheus, query: str, at: float, offset: int) -> dict[str, int]:
+    return {
+        _labels(sample).get("name", "?"): int(round(_value(sample))) + offset
+        for sample in prometheus.instant(query, at)
+    }
+
+
+def _restart_lines(restarts: dict[str, int], recreations: dict[str, int]) -> list[str]:
+    """One line per container that restarted often; the others grouped by what happened."""
+    names = sorted(set(restarts) | set(recreations), key=lambda n: (-restarts.get(n, 0), n))
+    if not names:
+        return ["  Aucun redemarrage ni recreation sur la periode."]
+    lines: list[str] = []
+    grouped: dict[str, list[str]] = {}
+    for name in names:
+        text = _restart_text(restarts.get(name, 0), recreations.get(name, 0))
+        if restarts.get(name, 0) >= RESTARTS_FLAGGED_FROM:
+            lines.append(f"  {name} : {text}  *** ATTENTION ***")
+        else:
+            grouped.setdefault(text, []).append(name)
+    for text, members in grouped.items():
+        lines.append(f"  {text} ({len(members)}) : {', '.join(members)}")
+    lines.append(
+        "  (Prometheus voit au plus un redemarrage par collecte : une boucle rapide est"
+        " sous-comptee. Recree = nouveau conteneur : deploiement ou compose up.)"
+    )
+    return lines
+
+
+def render_restarts(prometheus: Prometheus, window: Window) -> list[str]:
+    """Container restarts and recreations over the window (cAdvisor).
+
+    A restart keeps the container (same id, new start time); a recreation
+    replaces it (a new id: a deployment, a ``compose up``). A container that
+    restarted often is listed alone; the others are grouped by what happened
+    to them, because a host reboot or a deployment touches every container.
+    A window cAdvisor did not record says so: no sample is no restart SEEN,
+    never « no restart ».
+    """
+    lines = ["", "  === REDEMARRAGES DE CONTENEURS ===", ""]
+    boots = host_boots(prometheus.series("node_boot_time_seconds", window), window)
+    if boots:
+        lines.append(f"  Demarrage de l hote : {', '.join(_stamp(boot) for boot in boots)}")
+    measured = coverage(prometheus, CADVISOR_UP, window)
+    lines += _coverage_lines("cAdvisor", measured)
+    if measured <= 0:
+        return lines
+    w = window.seconds
+    restarts = _counts_by_name(
+        prometheus,
+        f'sum by (name) (changes(container_start_time_seconds{{name=~".+"}}[{w}s])) > 0',
+        window.end,
+        0,
+    )
+    recreations = _counts_by_name(
+        prometheus,
+        f'count by (name) (count_over_time(container_start_time_seconds{{name=~".+"}}[{w}s]))'
+        " > 1",
+        window.end,
+        -1,
+    )
+    return lines + _restart_lines(restarts, recreations)
+
+
+def memory_peaks(series: list[dict[str, object]]) -> list[tuple[str, float, float]]:
+    """The highest working-set share of each container, and when.
+
+    Args:
+        series: ``query_range`` result of working set / limit * 100.
+
+    Returns:
+        ``(name, peak_percent, at)`` — one per container, highest first.
+    """
+    peaks: dict[str, tuple[float, float]] = {}
+    for sample in series:
+        name = _labels(sample).get("name", "?")
+        for stamp, value in _points(sample):
+            if name not in peaks or value > peaks[name][0]:
+                peaks[name] = (value, stamp)
+    ranked = sorted(peaks.items(), key=lambda item: -item[1][0])
+    return [(name, value, stamp) for name, (value, stamp) in ranked]
+
+
+def render_memory(prometheus: Prometheus, window: Window) -> list[str]:
+    """The memory peaks of the containers the memory alert watches."""
+    lines = ["", "  === PICS DE MEMOIRE (working set / limite du conteneur) ===", ""]
+    measured = coverage(prometheus, CADVISOR_UP, window)
+    lines += _coverage_lines("cAdvisor", measured)
+    if measured <= 0:
+        return lines
+    series = prometheus.series(
+        f"(container_memory_working_set_bytes{{{MEMORY_SELECTOR}}}"
+        f" / (container_spec_memory_limit_bytes{{{MEMORY_SELECTOR}}} > 0)) * 100",
+        window,
+    )
+    peaks = memory_peaks(series)
+    if not peaks:
+        lines.append("  Aucun conteneur limite en memoire mesure sur la periode.")
+        return lines
+    for name, value, stamp in peaks[:MEMORY_PEAKS_SHOWN]:
+        lines.append(f"  {value:5.1f} %  {name}  ({_stamp(stamp)})")
+    return lines
+
+
+def _minutes_by_job(prometheus: Prometheus, query: str, at: float) -> dict[str, float]:
+    return {
+        _labels(sample).get("job", "?"): _value(sample) for sample in prometheus.instant(query, at)
+    }
+
+
+def _probe_lines(job: str, failed_minutes: float, share: float) -> list[str]:
+    """What one probe job says: its failed minutes, and the share it was measured."""
+    note = (
+        ""
+        if share >= FULL_COVERAGE
+        else f"  (mesuree sur {int(share * 100)} % de la periode)  *** A VERIFIER ***"
+    )
+    if failed_minutes > 0:
+        return [f"  {job} : {int(round(failed_minutes))} min en echec{note}"]
+    return [f"  {job} : aucun echec{note}"] if note else []
+
+
+def render_probes(prometheus: Prometheus, window: Window) -> list[str]:
+    """Minutes during which an external probe failed, over the minutes it was measured.
+
+    A probe is measured where ``probe_success`` has a sample; the least covered
+    target of a job speaks for it. No sample at all is « aucune mesure »: a
+    blackbox exporter that recorded nothing never reads as « every probe
+    answered ».
+    """
+    lines = ["", "  === SONDES EXTERNES (blackbox) ===", ""]
+    w = window.seconds
+    measured = _minutes_by_job(
+        prometheus, f"min by (job) (count_over_time(probe_success[{w}s:1m]))", window.end
+    )
+    if not measured:
+        lines.append("  *** AUCUNE MESURE : aucune sonde n a ete enregistree sur la periode ***")
+        return lines
+    failed = _minutes_by_job(
+        prometheus,
+        f"sum by (job) (count_over_time((probe_success == 0)[{w}s:1m])) > 0",
+        window.end,
+    )
+    for job in sorted(set(measured) | set(failed)):
+        share = min(measured.get(job, 0.0) * 60 / w, 1.0)
+        lines += _probe_lines(job, failed.get(job, 0.0), share)
+    if not failed:
+        lines.append(f"  Toutes les sondes mesurees ont repondu : {', '.join(sorted(measured))}.")
+    return lines
+
+
+def _section(title: str, build: Callable[[], list[str]]) -> list[str]:
+    """Build one section; a source that cannot be read is named, not hidden."""
+    try:
+        return build()
+    except SourceUnavailable as exc:
+        return ["", f"  === {title} ===", "", f"  *** SOURCE ILLISIBLE : {exc} ***"]
+    except Exception as exc:  # a report section must never take the others down
+        return ["", f"  === {title} ===", "", f"  *** SECTION EN ERREUR : {type(exc).__name__} ***"]
+
+
+def build_report(window: Window, now: float, fetch: Fetch, run: Run) -> list[str]:
+    """Every section of the supervision report.
+
+    Args:
+        window: The report window.
+        now: The current time (epoch).
+        fetch: JSON GET function (injected for tests).
+        run: Command runner (injected for tests).
+
+    Returns:
+        The report lines.
+    """
+    lines: list[str] = []
+    try:
+        prometheus: Prometheus | None = Prometheus(
+            published_url(PROMETHEUS_CONTAINER, PROMETHEUS_PORT, run), fetch
+        )
+    except SourceUnavailable as exc:
+        prometheus = None
+        lines += [
+            "",
+            f"  *** PROMETHEUS INJOIGNABLE ({exc}) : alertes, redemarrages, memoire et",
+            "  *** sondes de la periode ne peuvent pas etre lus.",
+        ]
+    if prometheus is not None:
+        p = prometheus
+        lines += _section(
+            f"ALERTES DECLENCHEES ({window.label})", lambda: render_fired_alerts(p, window)
+        )
+        lines += _section("CHAINE D ALERTE", lambda: render_chain(p, window))
+    lines += _section(
+        "ALERTES ACTIVES MAINTENANT (Alertmanager)",
+        lambda: render_active_alerts(
+            fetch, published_url(ALERTMANAGER_CONTAINER, ALERTMANAGER_PORT, run)
+        ),
+    )
+    lines += _section("INCIDENTS OUVERTS (diagnostic LIA)", lambda: render_incidents(run, now))
+    if prometheus is not None:
+        p = prometheus
+        lines += _section("REDEMARRAGES DE CONTENEURS", lambda: render_restarts(p, window))
+        lines += _section("PICS DE MEMOIRE", lambda: render_memory(p, window))
+        lines += _section("SONDES EXTERNES (blackbox)", lambda: render_probes(p, window))
+    return lines
+
+
+def main() -> int:
+    """Print the supervision section for logwatch's range."""
+    sys.stdout.reconfigure(errors="replace")
+    now = datetime.now(timezone.utc).astimezone()
+    window = report_window(os.environ.get("LOGWATCH_DATE_RANGE", "yesterday"), now)
+    print("\n".join(build_report(window, now.timestamp(), _fetch_json, _run)))
+    print("")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

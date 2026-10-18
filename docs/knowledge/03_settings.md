@@ -1,25 +1,24 @@
 # Settings
 
 ## Where do I find my MCP servers and plugins?
-In **Features › Extensions & Data**, beside Skills, Spaces and your data
-export. Both MCP sections live there: **MCP servers** (the ones you connect
-yourself) and **Application MCP** (the ones your administrator configured).
 
-They used to sit under Preferences › Connections, with the connectors. They
-moved because they are a different kind of thing: a connector links a personal
-account so LIA can read it, while an MCP server hands the assistant new tools —
-it extends what LIA can do, exactly like a skill or a plugin. Any link you had
-saved keeps working: the addresses did not change.
+In **Settings › Features › Extensions & Data**, next to Skills and Knowledge spaces:
+• **MCP Servers** — the servers you connect yourself: add, test, edit or pause them
+• **Application MCP** — the servers your administrator set up for everyone; it appears only when there are some. You see the tools each one offers and can switch it off for yourself
+• **Plugins** — packages that bring skills and MCP servers together; a server a plugin installed also shows in MCP Servers, with a **Via plugin** badge
+
+They sit there rather than with your connectors because they are a different kind of thing: a connector links one of your accounts so LIA can read it, while an MCP server or a plugin gives LIA new tools, like a skill. The **Search a setting** field finds them by name too.
 
 ## What does the settings home page tell me before I open anything?
-Each section is a card carrying its name, its description, and — when the
-section holds something — where it currently stands: "Memory — active, 128
-items", "Connectors — to set up".
 
-The whole page reads that in a single request, and it stays silent rather than
-guessing: while the answer is still on its way, when it could not be read, or
-for a section that has nothing to report (a theme, an export), the card says
-nothing at all. A count shown to you is exact, or it is absent.
+On a computer, Settings opens on an overview: every section you can use, grouped by family, each card with its icon, its name and a short description. Click one to open it beside the list.
+
+**📊 Where each section stands:**
+Cards that hold something countable carry one more line, in the same words as the capability map: **Active — 12 items**, **Active** or **To set up**.
+• the whole page reads these lines at once, in a single request
+• while they load, if they could not be read, or for a section with nothing to count (a theme, an export), the card says nothing — a figure shown is exact, or absent
+
+Once LIA has compiled its portrait of you, a **What LIA understands about you** card at the top opens it. On a phone, the list of sections comes first, without these lines.
 
 ## How do I change my timezone?
 The timezone affects date display in your conversations:
@@ -43,14 +42,6 @@ You control your memories from **Settings › Long-term Memory**: read, edit, pi
 
 **🔄 Cleanup:** other unpinned memories are assessed by importance, recency and use. Those at risk of being forgotten are flagged so you can pin what matters. Resetting the conversation does not erase these memories.
 
-## Can I delete a standing instruction I gave LIA?
-
-You control your memories from **Settings › Long-term Memory**: read, edit, pin, export or delete them individually or in bulk.
-
-**📌 Pinning:** a pinned memory is protected from automatic edits and cleanup. New **standing instructions** — how LIA should work for you — are pinned as soon as they are stored. You may edit them, unpin them or delete them yourself. Even when unpinned, an instruction is protected from automatic deletion; an automatic correction must preserve a successor.
-
-**🔄 Cleanup:** other unpinned memories are assessed by importance, recency and use. Those at risk of being forgotten are flagged so you can pin what matters. Resetting the conversation does not erase these memories.
-
 ## How do I configure my geolocation and home address?
 LIA can use your **geographic location** for contextual searches:
 
@@ -67,8 +58,8 @@ LIA can use your **geographic location** for contextual searches:
 **🌐 Browser geolocation:**
 You can also allow real-time geolocation via your browser for even more accurate results.
 
-**✈️ Travel-aware weather alerts (v1.16.7, opt-in):**
-In **Settings > Notifications**, you can enable "Use my current location for weather alerts". When enabled, proactive weather notifications use your current browser position (rather than your home address) if you are more than 50 km from home and the position is less than 24 h old. The notification always names the city concerned. Your position is encrypted, never historized (each update overwrites the previous), and wiped immediately if you disable the option or remove your home address.
+**✈️ Remember my last position (opt-in):**
+In the same **Location** section, **Remember my last position** keeps the position your browser gave with your last chat message. Proactive weather notifications use it instead of your home address when it is recent and far enough from home — a freshness window and a distance the administrator sets — and then name the city; the chat, routines and the briefing use it too when your live position is unavailable. Your position is encrypted, never historized (each update overwrites the previous one), shown under **Currently stored** with a **Clear** button, and deleted as soon as you turn the option off or remove your home address.
 
 **🔒 Privacy:**
 Your saved address is encrypted and used by location-based features you enable. Configured services may receive the coordinates needed for those features.
@@ -114,25 +105,20 @@ When enabled, each LIA message shows:
 **📱 Note:**
 This feature is not available on mobile due to display space constraints.
 
-## How do I change the response display mode?
-LIA offers **4 display modes** for assistant responses:
+## How do I change the way answers are displayed?
 
-**🎨 Available modes:**
-• **Cards** — Structured visual cards for data (contacts, events, emails, weather, etc.) displayed alongside the conversational response
-• **HTML** — Laid-out answers built from real design-system components: headings, colored callouts, badges, collapsible sections, tables, columns, key figures and syntax-highlighted code with a copy button. LIA uses components sparingly — prose leads, components support
-• **HTML + cards** — Richly formatted answers with cards for the selected results
-• **Markdown** — Plain text with standard Markdown formatting. Simplest output
+In **Settings › Preferences › Personalization › Display Mode**, pick one of four modes:
+• **Cards** (the default) — a standard text answer with data cards for the selected results
+• **HTML** — an answer laid out with headings, callouts, lists or key figures
+• **HTML + cards** — a visually structured summary followed by detailed data cards
+• **Markdown** — text with standard Markdown headings, lists and tables
 
-**⚙️ To change:**
-1. Go to **Settings** (⚙️ icon in the menu)
-2. Find the **Display Mode** section under Personalization
-3. Pick a mode in the list: a **Preview** panel draws an illustrative answer in that mode, and the choice applies to LIA's next replies
+A **Preview** beside the list draws an illustrative answer in the chosen mode, without your account data. Your choice applies to LIA's new replies.
 
-**💡 Tips:**
-• Cards mode is best when you frequently query contacts, calendars, or emails
-• HTML mode is ideal if you prefer designed, magazine-like answers
-• Markdown mode is useful for copy-pasting responses into other tools
-• In every mode, copying a message always gives you clean readable text — HTML answers are flattened automatically (and paste as rich text where the target supports it)
+You can also ask in the chat:
+• *Switch my answers to HTML + cards*
+
+**💡 Good to know:** in every mode, copying a message gives you clean readable text — HTML answers are flattened automatically, and paste as rich text where the target supports it.
 
 ## Which languages are supported for voice transcription?
 LIA's voice mode supports **99+ languages** thanks to Whisper:
@@ -313,7 +299,7 @@ Choose the **voice gender** that suits you:
 • **Male**: deep and calm neural voice
 
 **To change:**
-1. Go to the **home screen**
+1. Go to the **Home** page
 2. On the welcome card, click the **small portrait** of the other gender
 3. LIA's avatar changes at once
 4. The voice automatically switches between female and male
@@ -322,10 +308,10 @@ Choose the **voice gender** that suits you:
 The voice is the configured one, whatever the language of the answer: a multilingual voice reads every language, a single-language voice reads the others with its accent. The **« Only voices in my language, and multilingual ones »** switch, on by default, narrows every voice list — LIA's, the radio's and the administrator's slots — without ever hiding a voice already chosen.
 
 **🎚️ Your own voices:**
-In **Settings → Voice mode → LIA's voice**, choose the male and the female voice LIA speaks with in the chat, among the voices of the engine your administrator configured — each list opens on the administrator's voice. Your choice is kept when the administrator changes the model of the same provider. The radio, Live sessions and phone calls keep their own voices. Picking a voice plays a short sample of it right away, which you can stop or play again; listening counts in your usage like any reading.
+In **Settings › Preferences › Voice & Media › Voice Mode › LIA's voice**, choose the male and the female voice LIA speaks with in the chat, among the voices of the engine your administrator configured — each list opens on the administrator's voice. Your choice is kept when the administrator changes the model of the same provider. The radio, Live sessions and phone calls keep their own voices. Picking a voice plays a short sample of it right away, which you can stop or play again; listening counts in your usage like any reading.
 
 **⚙️ Quality:**
-LIA uses high-quality neural voices. Five providers are available, configured by the administrator: Microsoft Edge TTS (free), OpenAI TTS (`tts-1` / `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2` / `eleven_turbo_v2_5` / `eleven_flash_v2_5`), Google Gemini and Fish Audio. Each provider gets its own per-voice tuning (speed, stability, audio format) for a natural and expressive rendering, and on the engines that perform expressive cues LIA's spoken comments can carry a short sigh, a laugh or a whisper.
+LIA uses high-quality neural voices. Five providers are available, configured by the administrator: Microsoft Edge TTS (free), OpenAI TTS (`tts-1` / `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2` / `eleven_turbo_v2_5` / `eleven_flash_v2_5`), Google Gemini and Fish Audio. Each provider gets its own per-voice tuning (speed, stability, audio format) for a natural and expressive rendering, and on the engines that perform expressive cues LIA's spoken comments can carry a short sigh, a laugh or a whisper, kept for news that calls for one — never to say how one of LIA's actions went.
 
 ## How does long-term memory work?
 LIA learns about you through its **intelligent memory**:
@@ -341,16 +327,16 @@ LIA learns about you through its **intelligent memory**:
 **🔄 Automatic extraction:**
 LIA analyzes your conversations and automatically extracts relevant information in the background. When you mention relative dates ("tomorrow", "next Saturday", "next week"), LIA converts them to **absolute dates** before storing — so your memories stay accurate even weeks later.
 
-**✏️ Factual corrections stick (v1.16.6):**
+**✏️ Factual corrections stick:**
 When you correct a fact ("actually, I changed jobs, I'm at Meta now" or "my daughter's name is Elsa, not Emma"), LIA updates the existing memory instead of creating a contradictory duplicate. Your history stays coherent over time.
 
-**📌 Pinned memories fully protected (v1.16.6):**
+**📌 Pinned memories fully protected:**
 Memories you've pinned are never modified or deleted automatically — neither by the extraction pipeline nor by the cleanup jobs. You keep absolute control over what stays frozen.
 
-**🧹 Daily semantic consolidation (v1.16.6):**
+**🧹 Daily semantic consolidation:**
 Every day, LIA merges near-identical memories that accumulate over conversations (e.g., "I love coffee in the morning" and "I drink coffee every morning"). The profile stays crisp without manual cleanup.
 
-**🌱 Memories age gracefully (v1.16.6):**
+**🌱 Memories age gracefully:**
 Medium-importance preferences stop cluttering memory after a few weeks, while important information (family, identity, milestones) is preserved long-term. Memories never activated past a grace period are penalized in the retention score.
 
 **🔍 Dual semantic search:**
@@ -363,7 +349,7 @@ These memories personalize LIA's responses. For example, LIA will say "Hello Mar
 Beyond what it recalls with each message, LIA can search its memory for a subject it meets along the way — the sender of an e-mail it just read, a place named in a document. On the phone too, it recalls what matches your question, not its latest memories. If you switched memory off, nothing is searched, and a failed search is never passed off as "nothing remembered".
 
 **🛡️ Full control:**
-View, edit, pin or delete your memories in **Settings › Features › Long-term Memory**.
+View, edit, pin or delete your memories in **Settings › Features › Identity & Memory › Long-term Memory**.
 
 ## What are usage limits and where can I see them?
 Usage limits are quotas set by your administrator to control resource consumption (tokens, messages, cost). You can see your current usage vs limits on the **Dashboard** via dedicated tiles (Period Limits and Global Limits).
@@ -379,11 +365,11 @@ When limits are configured, color-coded gauge bars show your consumption:
 If you reach a limit, the message input and voice are disabled and a red banner explains the situation. Contact your administrator to have limits adjusted.
 
 **⚙️ Admin management:**
-Administrators manage limits in **Settings > Administration > Administration des limites**. They can set per-user quotas, block/unblock users instantly, and monitor real-time consumption.
+Administrators manage limits in **Settings › Administration › Users & Access › Limits Administration**. They can set per-user quotas, block/unblock users instantly, and monitor real-time consumption.
 
 ## How do I export my consumption data?
 
-You can export your personal LLM and Google API consumption as CSV files from **Settings > Features > Usage export** (v1.9.1).
+You can export your personal LLM and Google API consumption as CSV files from **Settings › Features › Usage export**.
 
 **📥 Three export types:**
 - **LLM Token Usage** — Detailed per-call breakdown (model, tokens, cost)
@@ -398,165 +384,87 @@ You can only export your own data — it is not possible to access other users' 
 
 ## Can LIA run on models hosted on my own machine?
 
-Yes, and they are models like any other. Any of LIA's roles — routing,
-planning, answering, an agent — can be given a model served by your own Ollama
-instance, with no cloud account involved. Point **Settings → Administration →
-LLM Configuration** at your server's address (the root, for example
-`http://localhost:11434`; a trailing `/v1` inherited from older setups is
-accepted and ignored) and pick a model per role.
+Yes. Any of LIA's roles — routing, planning, answering, an agent — can be given a model served by your own **Ollama** server. In **Settings › Administration › LLM Configuration**, the Ollama row of **Provider API Keys** takes your server's address instead of a key (the root, for example `http://localhost:11434`); then pick a model role by role.
 
-**🔎 The list shows what your server actually declares.** Tools, vision,
-thinking and context length are read from the server itself rather than guessed
-from a model's name, so the screen offers only what the chosen model accepts:
-the thinking depth appears only for a model that thinks, and the sliders it
-would ignore are not shown at all.
+**🔎 What your server declares:**
+Tools, vision, thinking and context length are read from the server itself, so the screen offers only what each model accepts. A model the server describes nothing about is not listed, but you can still type its name.
 
-**🧠 Thinking is yours to set.** A model that thinks obeys the depth you choose
-— including not thinking at all when you want a quick answer — and its thinking
-comes back separated from the answer, streamed to the progress panel rather
-than eating into the reply.
+**🧠 Thinking and context:**
+A model that thinks follows the depth you choose, including none, and its thinking stays apart from the answer. The context window is set per role, and it is the one LIA asks your server for.
 
-**📏 The context window is your machine's.** LIA asks your server explicitly for
-a window: the model's own maximum, capped at 32768, or the value of
-the slot's own field if you set one. That same number decides when a long
-conversation gets summarised, so LIA's accounting and your server agree. Without
-it, Ollama picks a size from the available video memory and silently trims the
-beginning of an oversized prompt.
+No provider bills those calls: local calls are recorded in your consumption history with their token counts and a zero amount. The trade-off stays yours, role by role, and moving a role between a local and a remote model is a configuration change, not a redeployment.
 
-**💶 What it costs:** nothing. Local calls are recorded in your consumption
-history with exact token counts and a zero amount, so a local model and a remote
-one can be compared on the same page.
+## How do I set a model's context size and output budget?
 
-## How is a model's context size set?
-Per slot, in **Settings › Administration › LLM Configuration**. The field is
-pre-filled with what your server declares about the model, the model's own
-maximum is shown right below it, and you type in **k**. Emptying the field hands
-the slot back to whatever the model declares for itself.
+In **Settings › Administration › LLM Configuration**, on each slot: the **Context window (k)** field, in thousands of tokens.
 
-Why per slot rather than once for the instance: a frugal router and a generous
-responder can run the same model and deserve different windows. A single
-instance-wide setting made that impossible, and asked a small model for the same
-window as a large one — measured on a real deployment, 128,000 tokens requested
-for a 4-billion-parameter model and a 27-billion one alike.
+**🎯 Why per slot:**
+A frugal router and a generous responder can run on the same model and deserve different windows.
 
-The number matters beyond configuration hygiene: it is the one LIA *asks* the
-server for and the one it *counts* with. When those differ, the automatic
-summarisation fires at the wrong moment and the beginning of a long exchange can
-be cut with nobody seeing it.
+**🖥️ On a model your Ollama server runs:**
+The field shows what the server declares about the model, the model's maximum is written right below, and the number you set is also the window LIA asks the server for. On a model running on your own machine, the panel warns that a window larger than its memory holds pushes it onto the CPU.
+
+**↩️ Clearing the field:**
+The slot goes back to what the model declares for itself.
+
+**Why it matters:**
+This is the number LIA counts with — when to summarise a long exchange, how much a turn may hold. When what LIA counts and what the server allocates differ, automatic summarisation fires at the wrong moment and the start of a long exchange can be cut without anyone seeing it.
+
+**📏 The output budget:**
+The **Max Tokens** field bounds how long an answer may be. LIA holds it to the output cap the catalogue vouches for the model: a budget chosen for a previous model no longer gets calls refused after a model change. When the field exceeds that cap, the slot's card carries a badge and the field shows a warning; the stored figure stays yours to correct.
 
 ## How does an administrator update the LLM model prices in bulk?
 
-From **Settings → Administration → LLM pricing**, the whole catalogue — every
-model, every characteristic, every tariff — downloads as a structured Excel
-workbook (v1.30.11), and the edited file goes back in the same way.
+In **Settings › Administration › LLM Text Pricing**, **Export workbook** downloads the whole catalogue — every model, its characteristics and its tariffs — as an Excel workbook; **Import workbook** — beside it on a computer, in the **More actions** menu (⋯) on a phone — takes the edited file back.
 
-**📗 What the workbook contains:**
-- A **usage notice** sheet, translated into the administrator's language
-- One row per model, with dropdown lists and cell validations on every field
-  that has a fixed vocabulary
-- A **referentials** sheet feeding those lists, and a sheet listing the UTC
-  time windows for providers that bill peak/off-peak hours
-- A `status` column stating what would really happen: no active tariff (billed
-  zero), several active tariffs, or billed under another model's name
+**📗 Inside:** a notice in your language; one row per model with dropdowns fed by a referentials sheet; a **Time slots** sheet for peak/off-peak billing, each window with its UTC days; a read-only **Status** column (no active tariff, several, or billed under another model's name); and **Reasoning model** / **Accepted depths** beside a read-only **Reasoning shape**.
 
-**🔍 Re-importing happens in two steps:**
-1. The file is analysed and the **whole diff is shown field by field** —
-   created, updated, reactivated, retired — while nothing is written yet.
-2. Only then can it be applied, and only against the preview that was read.
+**🔍 Two steps:** the file is analysed and the changes shown model by model — new, modified, deactivated, reactivated — with nothing written; then you apply exactly the plan you reviewed, or preview again if the catalogue changed meanwhile.
 
-**🛡️ What an import can never do:**
-- A row missing from the file **never deletes anything** — a forgotten Excel
-  filter cannot empty the catalogue. A removal is declared explicitly by
-  setting the `is_active` column to false; setting it back to true brings the
-  model back.
-- Anything unreadable or contradictory is reported **with the sheet and the
-  cell to fix**, and the import writes nothing at all — it is all-or-nothing.
-- A tariff is rewritten only if it actually changed, so re-importing an
-  untouched file leaves the price history exactly as it was.
-- If someone else changed a model between the preview and the confirmation,
-  only the affected rows are refused, not the whole file.
+**🛡️ An import never:**
+• deletes a model missing from the file — **Active** set to FALSE retires it, TRUE brings it back
+• writes anything while a problem remains: all or nothing, each problem naming its sheet and cell (a depth the family lacks lists the accepted ones; a model changed since your export asks for a fresh one)
+• rewrites an unchanged tariff, so an untouched file leaves the price history as it was
+• reads a workbook of an earlier format
 
-**🧠 Reasoning is written in the workbook.** Two columns carry it: whether the
-model reasons, and the depths it accepts, comma-separated. A third, read-only,
-restates the family LIA recognised and the ladder it will apply. On re-import, a
-depth that family does not offer is refused **while naming the ones that would
-have been accepted** — a spreadsheet cannot render checkboxes, so the check
-happens at import time.
+Creating a model from the workbook is possible — including one that does no reasoning at all. Changing a model's provider is reported rather than applied, and teaching LIA a brand-new reasoning family is a code change, not a spreadsheet edit. A window with no days applies every day, and a window that crosses midnight belongs to the day it starts on; in the pricing dialog, each window has the same day selector as the routine editor.
 
-Creating a model from the workbook is possible — including one that does no
-reasoning at all, which used to require picking a reasoning template. Changing a
-model's provider is reported rather than applied, and teaching LIA a brand-new
-reasoning family is a code change, not a spreadsheet edit.
-
-**A time window can name its days.** Some providers bill their peak hours on weekdays only — DeepSeek, for instance, bills its weekends at the off-peak rate all day. The windows tab of the workbook carries a days column (codes `mon` to `sun`); a window with no days applies every day. A window that crosses midnight belongs to the day it starts on. A workbook of an earlier format is refused rather than read as « every day », which would bill every weekend at the full rate again. In the LLM pricing dialog, each window has the same day selector as the routine editor, with every-day, weekdays and weekend shortcuts.
-
-**Every price is the one the provider bills.** The reference tariffs are re-read on the providers' pages, and a correction only replaces a value LIA shipped, never one an administrator entered. A write to a model's prompt cache is billed at its own price (1.25 times the input where the provider bills it that way). And an edited price reaches every server process at once: every writer of the pricing tables — a tariff, the workbook import, the exchange rate — publishes the change after it is saved.
+**Every price is the one the provider bills.** The reference tariffs are re-read on the providers' pages, and a correction only replaces a value LIA shipped, never one an administrator entered. A write to a model's prompt cache is billed at its own price, where the provider bills it that way. And an edited price reaches every server process at once: every writer of the pricing tables — a tariff, the workbook import, the exchange rate — publishes the change after it is saved.
 
 ## How do I choose how deeply a model thinks?
 
-In **Settings → Administration → LLM Pricing**, open a model: LIA shows the
-depths that model actually accepts — from "no thinking" up to "maximum" — and
-you **untick** the ones it refuses. Leaving everything ticked means "no
-restriction": its family's full ladder applies.
+In **Settings › Administration › LLM Text Pricing**, open a model: under **Accepted depths**, LIA lists the depths that model's family offers — from no thinking up to maximum — and you **untick** the ones this model refuses. Leaving everything ticked means “no restriction”: its family's full ladder applies.
 
-You therefore never type a level, and you cannot write one that does not exist.
-The list comes from the same source the server validates against: what the
-screen offers is exactly what the model's API accepts.
+You therefore never type a level, and you cannot write one that does not exist. The list comes from the same source the server validates against: what the screen offers is exactly what the model's API accepts.
 
-If no known family matches the model, LIA says so plainly rather than showing an
-empty list: no thinking parameter will be sent for it, and teaching LIA one is a
-code change.
+If no known family matches the model, LIA says so plainly rather than showing an empty list: no thinking parameter will be sent for it, and teaching LIA one is a code change.
 
-The depth actually used for each role (routing, planning, answering…) is set in
-**LLM Configuration**, where the same resolved list is offered.
+The depth actually used for each role (routing, planning, answering…) is set in **LLM Configuration**, where the same resolved list is offered.
 
-One thing to know about models that think by default: their thinking is billed
-inside the answer budget. LIA therefore writes its short notifications — a
-reminder, for instance — without thinking wherever the model can be told to, and
-a reply that comes back empty or cut is replaced by the plain sentence rather
-than sent as is.
+One thing to know about models that think by default: their thinking is billed inside the answer budget. LIA therefore writes its short notifications — a reminder, for instance — without thinking wherever the model can be told to, and a reply that comes back empty or cut is replaced by the plain sentence rather than sent as is.
 
-Some models think even when no level is chosen, at the depth their provider sets, and some cannot switch it off. LIA knows the depth such a model runs at, and warns you in LLM Configuration if the answer budget is too low for that implicit thinking.
+Some models think even when no level is chosen, at the depth their provider sets: LIA knows it, and warns you if the answer budget is too low for that implicit thinking.
 
-## How does the settings priority chain work?
+## Who decides a setting: the administration screens or the server configuration?
 
-LIA uses a three-level priority chain for all configurable values:
+For most configurable values, what an administrator sets in the administration screens takes precedence over the server's configuration file, which itself takes precedence over the built-in default.
 
-**APPLICATION (admin UI / DB) > .ENV (settings) > CONSTANT (fallback only)**
-
-1. **Application-level** — Values set by administrators via the admin UI or stored in the database take highest priority.
-2. **Environment variables** — `.env` file values override constants but are overridden by application-level settings.
-3. **Constants** — Hardcoded defaults in `constants.py` are used as fallbacks only when no higher-priority value is set.
-
-Since v1.9.4, this chain is enforced systematically across the entire codebase. Constants are reserved exclusively for:
-- Default values in Pydantic `Field(default=...)` in config files
-- SQLAlchemy column defaults (`default=`, `server_default=`)
-- Structural values (node names, state keys, Redis prefixes, scheduler IDs)
-
-All runtime code uses `settings.field_name` to access configurable values, ensuring that admin and .env overrides are always respected.
-
-
-## Can I customize the dashboard cards?
-Yes — Settings → "My dashboard". Hide any of the 9 briefing cards or reorder them (↑/↓ buttons, or drag-and-drop). A hidden card is **not even fetched** anymore: fewer API calls, faster dashboard. A starter checklist on the dashboard also shows what your instance can do (connectors, voice, channels…) until you dismiss it.
+Capability switches and spend ceilings work the other way round: the server configuration is a **ceiling**. An administrator can switch a feature off or lower a ceiling from the screens, but never turn on what the configuration forbids — such a feature shows an **Unavailable** badge.
 
 ## What is the "Commitments" section?
-LIA automatically detects **commitments** in your conversations ("I must call the plumber back", "waiting for Marc's reply"). Settings → Features → "Commitments" lists them by direction (you owe / you are waiting), with three one-tap actions: **Done**, **Relaunch in chat** (pre-fills a follow-up message) or **No longer relevant**. Nothing is created manually — the ledger's value is being automatic.
+LIA automatically detects **commitments** in your conversations ("I must call the plumber back", "waiting for Marc's reply"). **Settings › Features › Identity & Memory › Commitments** lists them by direction (you owe / you are waiting), with three one-tap actions: **Done**, **Follow up** (pre-fills a follow-up message) or **No longer relevant**. Nothing is created manually — the ledger's value is being automatic.
 
 The same actions are available from a relationship's card, and a commitment's wording or deadline can be **corrected**. Correcting is not creating: the ledger stays automatic, it simply stops being wrong. The counterparty and the meaning are not editable — changing those would describe a different commitment rather than correct this one.
 
-The section used to be called "Open loops" and used to live under Preferences; the settings search knows both names.
+The settings search also finds it under its other name, "Open loops".
 
-## Can I link straight to a settings section?
+## Can I bookmark or share a link to one settings section?
 
-Yes. Adding `?section=<name>` to the settings URL opens the right section in
-that section and scrolls to it. Thirty sections are addressable this way — every
-user-facing section of both tabs — and the app uses those links itself: the
-getting-started checklist, the home cards and the in-call banner all point at
-their own section rather than at the top of the page.
+Yes. When you open a section, the address in your browser changes to point at it: bookmark it, or send it to someone — the link opens the same section of their own settings. A reload brings you back to the same place.
 
-An unknown or stale value simply leaves the page on its default tab; nothing
-breaks, and the parameter is cleaned from the URL so a reload does not replay
-the jump.
+LIA uses these links itself: the getting-started checklist and the Home cards open the right section directly. A link to a section your account does not show says it is not available here; a link LIA does not recognise lands on the settings overview.
+
+**📌 One tap away, everywhere:** in **Settings › Preferences › Personalization › My favorites**, pin the sections you use most. A floating menu then shows them on every screen of the app — drag it where you like and fold it when you don't need it.
 
 ## How do I find a setting quickly?
 
@@ -593,38 +501,37 @@ than leaving you in front of a page that did not move, LIA tells you the section
 is not showing here.
 
 ## Where can I see everything LIA sent me?
-The **Alerts** destination in the navigation bar gathers five streams in one
-screen:
+The **Alerts** destination in the navigation bar gathers in one screen the
+streams your instance offers:
 
+• **Proposals** LIA made that wait for your decision
 • **Relayed messages** exchanged with your accepted peers
 • **Proactive notifications** LIA sent on its own initiative
 • **Interest notifications** about the subjects you follow
 • **Pending reminders** — what is still to come
 • **Scheduled routines** and their next runs
+• **Workboard tickets** that need you — a run waiting for your answer, or something overdue
 
 Each section arrives folded, **already showing its exact total**, and
 paginates by ten — so you choose what to open rather than opening it to find
-out. No list is fetched until something is unfolded: only the five counts are,
+out. No list is fetched until something is unfolded: only the counts are,
 in a single read, and opening a section costs exactly one more.
 
 The settings panels remain the detailed configuration for each of those
 streams, and every deep link you had saved keeps working. Reminders are the one
-section that can never be a history: a reminder is deleted the instant it
-fires, so what you see there is the future.
+section that can never be a history: a reminder leaves it once it fires,
+and a repeating one comes back at its next occurrence.
 
 ## Where do I see what LIA can do for me?
-**Home → Capabilities** draws a star chart of your account. Each capability is
-a star: **filled** when it is genuinely usable, **outlined** when it is waiting
-to be set up, and its size comes from what it holds. The figure joins only the
-live ones, so its shape is your configuration and nobody else's.
 
-A capability your instance disabled is **absent** rather than greyed out — a
-control the product cannot honour is worse than an absent one. Nothing there is
-a level, a percentage of completion or a comparison with anyone.
+On **Home**, under **My shortcuts**, open **Capabilities**: a star chart of your own account, with a line saying how many capabilities are active out of those available.
+• **Filled** star: active, genuinely usable now
+• **Outlined** star: waiting for you to set it up
+• **Size**: what it holds — memories, routines, documents…
 
-Every star is a real link that takes you to where that capability is set up. On
-a phone, or if you asked your system to minimise motion, the same map arrives
-as a list: same data, same order, same destinations.
+A capability your instance switched off is **absent**, not greyed out. There is no score, level or comparison with anyone: the shape is simply your configuration.
+
+Every star is a link to the place where that capability is set up. On a phone the same map arrives as a list — same data, same order, same links — and if you asked your system for less motion, the chart simply stays still.
 
 ## Do I have to open a section to know whether it holds anything?
 No. Every section of the **Alerts** destination shows its exact count while
@@ -635,35 +542,41 @@ still wait for you to unfold a section.
 A section your instance has disabled is not counted at all — it is absent from
 the page, so counting it would be work for a badge nobody can see.
 
-## Can I give LIA standing rules or instructions?
-Yes. Beyond facts and preferences, LIA's memory has a **procedural** category for standing directives — rules about *how* it should work for you:
+## Can I give LIA standing rules, and remove one later?
 
-**📐 Examples:** "always answer me in French", "never schedule meetings before 10am", "summarize emails in bullet points".
+Yes. Say once how you want LIA to work for you, for example:
+• *Always answer me in French*
+• *Never schedule meetings before 10am*
 
-**🔁 Applied continuously:** procedural memories are injected into every conversation as working rules, not just recalled when relevant. Say the rule once; LIA keeps applying it.
+LIA files such an instruction in its long-term memory under a category of its own, **Rules & directives**, apart from the facts it knows about you.
 
-**🛡️ You stay in charge:** rules are visible, editable and deletable in **Settings > Memory** under their own category — nothing is applied that you cannot see and revoke.
+**📐 How it is applied:** when a rule bears on what you ask, LIA reads it as a working rule, ahead of the facts it remembers. Long-term memory must be switched on.
+
+**🛡️ Protected:** a new rule is pinned as soon as it is stored, so LIA does not rewrite it on its own. Unpinned, a rule can be corrected when you say something new, but it is never simply dropped.
+
+**🗑️ Changing or removing one:** in **Settings › Features › Identity & Memory › Long-term Memory**, filter on **Rules & directives**, then edit, unpin or delete it. **Add** lets you write one yourself.
 
 ## What happens when a fact I told LIA changes?
-The old fact is **superseded, not silently erased**. When you correct something ("I'm at Meta now", "my daughter's name is Elsa, not Emma"), LIA:
 
-**📅 Dates the change** — the previous memory is marked invalidated with a timestamp, and the new one takes over from that date.
+Just tell LIA — *my daughter's name is Elsa, not Emma* — and its memory follows. In the background, LIA reviews what you said: the old memory is **retired, with the date** it stopped being true, and the new one takes its place.
 
-**🚫 Stops using the stale fact** — invalidated memories are excluded from recall, so old information can no longer leak into answers.
+**🚫 No stale fact in answers:** a retired memory is never recalled again, and **Settings › Features › Identity & Memory › Long-term Memory** lists only what LIA holds as true today.
 
-**🧾 Keeps the trail** — the history of what changed and when remains inspectable in **Settings > Memory**, so you can always audit what LIA believes and since when.
+**🧾 A short trail:** the retired version is kept for a period your administrator sets, then erased for good.
 
-## What is the « Skill permissions » section for?
-It shows what a script LIA writes may reach on the network, and lets you take back what you allowed; it only appears once your administrator enabled the sandbox network. **Reachable without asking**: your own connectors (web search, answer engine, weather) — their key travels through the proxy, never into the script — and the hosts your instance allows for everyone. **Your permissions**: one line per host you allowed when LIA asked, with the date it was last used, a switch to change its scope (with or without the data of the turn) and a **Revoke** button — LIA will ask again the next time a script wants that host. The section shows your account's capacity; past it, a new approval holds for its run only. Deleting your account deletes them all.
+**📌 Two exceptions:**
+• a **pinned** memory is never changed automatically — edit it yourself
+• an edit you make in Settings replaces the memory directly: your correction is the authority, not a version to archive
 
 ## Can I change the look of the expressive eyes?
-Yes. **Settings > Personalization > Eyes style** offers several visual styles for the animated eyes shown on the chat page — each card renders a **live preview** of the style (neutral and joyful) so you pick by seeing, not by name.
 
-**🎨 One style, every behavior:** whichever look you choose, the eyes keep the same expressions, reactions and idle life — breath, brows, mouth mimics and sketches; only the shapes change.
+Yes. **Settings › Features › Identity & Memory › Avatar style** offers several styles for the animated companion that follows you throughout the app — each card renders a **live preview** of the style, so you pick by seeing, not by name.
 
-**🎚️ Previews stay calm:** each card keeps the breath and the resting hold but plays no mimic or sketch, so you compare silhouettes rather than moods. The public home page always shows the capsule look; your choice applies to the chat.
+**🎨 One style, every behavior:** whichever look you choose, the companion keeps the same expressions, reactions and idle life; only the shapes change.
 
-**💾 Remembered on this device:** the choice is stored locally in your browser, alongside the widget's position, size and visibility.
+**🎚️ Previews stay calm:** each card keeps the breath and the resting hold and animates on hover or focus, so you compare silhouettes rather than moods. The public home page uses its own presentation, independently of your choice.
+
+**💾 Remembered on this device:** the choice is stored in your browser, alongside the companion's position, size and visibility.
 
 ## Frequent or occasional exchanges: which should I pick?
 In **Settings › Preferences › Personalization › Usage preferences**, you tell LIA how you use it, and it prepares its requests to the AI model accordingly whenever it works in **ReAct mode** — scheduled actions and Workboard tickets included. The choice applies from your next message.
@@ -689,19 +602,13 @@ The recipients are stored with it: a targeted announcement is shown to them only
 **🗂️ Sent broadcasts:**
 The history shows, for each announcement, its audience, the exact number of people reached with a preview of their names, its expiry date and the delay chosen.
 
-## How does the personal radio work?
-
-Start Radio from the header, dashboard or Radio page if your instance offers it. Choose topics, sources, voices and a verification level. It speaks about your day and cited news only while you listen, shows sources and spending, and ends at your timer; there is no replay or scheduled edition.
-
-**The voices:** you choose the voice of LIA, of the host and of each of the three commentators in debates and discussions — automatic by default. A commentator never shares its voice with LIA, the host or another commentator. Your choices are kept when the administrator switches to another model from the same provider. Each voice you choose plays a short sample; a radio that is playing pauses so you can hear it.
-
-**Verification** by a second model is off by default, because every check is billed and can delay listening; “Check the news” or “Check every programme” stay one choice away.
-
-Advertising, sponsorships, deals and purchase pitches are filtered. Genuine invoices, reservations and editorial, scientific or economic reporting remain eligible. A speaking Simli avatar does not accompany Radio.
-
 ## Can an administrator enable JEV decisions?
 
-JEV decisions are configured under Administration › JEV integrations, with a general switch and independent usages. They are optional and off by default, and require valid configuration and prices. The model helps classify a value or choose within a declared scope, while compatibility rules, permissions and execution stay in code. Uncertain, unavailable or disabled judgments fall back to deterministic protections. Diagnostics are opt-in and bounded; parameter_kind is off by default. A paid failed call and its fallback both count. Test-corpus results do not promise the same benefit on all your requests.
+Yes, in **Settings › Administration › JEV integrations**: a general switch, **Enable JEV**, and one switch per usage, each independent — turning the general switch off keeps their individual choices. Everything is off by default, and a usage only works once a TypeSafe API key, an active decision model (in **LLM Configuration**) and its tariff (in **LLM Text Pricing**) are in place.
+
+The model helps classify a value or choose within a declared scope; compatibility rules, permissions and execution stay in code. An uncertain, unavailable or disabled judgement falls back to the existing processing. For example, **Guarded parameter values** — which judges, before a tool call, whether an address, a place or an e-mail value really is one — can refuse a value of another kind only when it is confident, and can never accept a value the existing guard refuses.
+
+A change applies to new operations; work in progress keeps its initial choice. A paid call that fails and its fallback both count. While your debug panel is on, it lists your own account's JEV calls for a short, bounded time. Test-corpus results do not promise the same benefit on all your requests.
 
 ## Can I make the interface text bigger or smaller?
 Yes. In **Settings › Preferences › Personalization**, the **Font size** section
@@ -723,7 +630,3 @@ Yes. Try “Which response mode is active?”, “Switch my answers to HTML + ca
 ## When do I confirm or continue in the browser?
 
 Confirmation applies to the operation and content shown. OAuth sign-in, file selection, a key or device permission continue in your authenticated browser: do not paste these secrets into chat. LIA may prepare the request and wait for that step. Enabling hands-free listening and sensitive permissions retain their protections; a command cannot bypass them.
-
-## How does an animated companion differ from a personality?
-
-The companion is the visual style you choose: BIP and the other native designs are original. Expressions follow activity and the answer’s tone. Personality controls the way LIA converses; it is not an avatar. Native companion volume and rotation use prepared elements and a shared rig; hidden geometry remains an approximation. Animation needs no image-generation call, and reduced or static display remains available.

@@ -189,6 +189,8 @@ async def _stream_voice_chunks_to_queue(
     user_query: str,
     chunk_queue: asyncio.Queue,
     user_timezone: str | None = None,
+    *,
+    speaks_of_records: bool,
 ) -> None:
     """Stream voice audio chunks to a queue for progressive emission.
 
@@ -205,6 +207,8 @@ async def _stream_voice_chunks_to_queue(
         chunk_queue: asyncio.Queue to put chunks into for progressive emission
         user_timezone: User's IANA timezone (defense in depth: lets the
             voice service resolve a correct fallback datetime)
+        speaks_of_records: Whether ``context_summary`` is the records the
+            answer retained — only then may the comment carry cues (ADR-345).
 
     Note:
         Puts None as sentinel value when generation is complete.
@@ -217,6 +221,7 @@ async def _stream_voice_chunks_to_queue(
             current_datetime=current_datetime,
             user_query=user_query,
             user_timezone=user_timezone,
+            speaks_of_records=speaks_of_records,
         ):
             await chunk_queue.put(audio_chunk)
     finally:

@@ -113,6 +113,48 @@ avec les chiffres interpolés pour ce type d'erreur, `msg` backend en
 description pour les autres (`structuredErrorDetail`,
 `components/settings/llm-config/configDialogHelpers.ts`).
 
+### Plafond de sortie du modèle (amendement ADR-244, 2026-10-18)
+
+Le `max_tokens` d'un poste est un chiffre choisi pour un **modèle**, et il survit
+au changement de modèle : le 17/10/2026, trois postes de production basculés sur
+un modèle plafonné à 128 000 tokens de sortie ont gardé les 200 000 choisis pour
+le précédent, et le fournisseur a refusé chaque appel (400). Une seule règle,
+`infrastructure/llm/output_cap.py`, dit désormais quel plafond est connu : le
+`max_output_tokens` d'une ligne du catalogue dont la provenance s'en porte
+garante (`imported` ou `verified`), pour un modèle `chat`, chez un fournisseur
+qui en impose un (`PROVIDERS_WITHOUT_OUTPUT_CAP` exclut Ollama, qui génère
+jusqu'à remplir son contexte). Le défaut de colonne
+(`LLM_MODEL_DEFAULT_MAX_OUTPUT_TOKENS`) demande une preuve à lui : la
+synchronisation promeut une ligne dès qu'UN champ est corroboré et l'éditeur du
+catalogue la passe `verified` à chaque enregistrement, si bien que le défaut
+survit sous les deux ; il ne vaut plafond que si les registres embarqués
+annoncent ce chiffre pour le modèle (`is_unproven_default`). Une ligne `declared`
+ne porte que des défauts de colonne : aucun plafond connu.
+
+- **À l'envoi** : la résolution du poste (`get_llm_config_for_agent`) et la porte
+  du client (`ProviderAdapter.create_llm`) envoient le plus petit entre la valeur
+  configurée et le plafond connu, et le disent une fois par poste, modèle et
+  valeur (`llm_max_tokens_above_model_cap`). Tout lecteur du budget d'un poste
+  (prompt du document, découpage des transcriptions de réunion, réserve des
+  descriptions MCP) voit donc le chiffre plafonné. Derrière, les familles
+  DeepSeek gardent leurs plafonds propres (`deepseek_limits`, défaut sans preuve
+  refusé là aussi) et le chemin OpenAI historique son heuristique de nom : ils ne
+  font que baisser encore.
+- **À l'écran** : `/llm-config/metadata` publie ce même plafond
+  (`vouched_max_output_tokens`, `null` quand personne ne s'en porte garant) ; la
+  carte d'un poste qui le dépasse porte un badge d'avertissement, et le champ
+  `max_tokens` affiche (et annonce, `aria-describedby`) un avertissement contre
+  la valeur que l'enregistrement appliquera — le défaut du poste quand le champ
+  est vidé.
+- **Pas de refus à l'enregistrement** : l'avertissement le montre avant, et
+  l'envoi reste valide dans tous les cas.
+- **Limites** : un chiffre du catalogue plus petit que le vrai plafond du modèle
+  raccourcit un budget que le fournisseur aurait accepté (le badge le montre ;
+  corriger la ligne du catalogue le lève). Un vrai plafond égal au défaut de
+  colonne qu'aucun registre n'annonce reste inconnu. Un poste plafonné par une
+  branche fournisseur, ou configuré sur un identifiant daté tapé à la main, est
+  plafonné sans badge.
+
 ### Résolution Clé API
 
 | Source | Rôle | Priorité |
@@ -216,6 +258,8 @@ Le champ `source` dans la réponse indique la provenance :
 - `"fallback"` — profils par défaut conservateurs (Ollama injoignable). Note v1.19.0+ : la constante `FALLBACK_PROFILES` (~750 lignes) a été supprimée ([ADR-078](../architecture/ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md)) ; les profils servis viennent désormais soit du `ModelCapabilitiesCache` (catalogue DB) si le modèle y est connu, soit de défauts conservateurs Python définis localement dans `model_profiles._get_fallback_profile()`.
 
 Les résultats sont cachés en mémoire pendant 60 secondes (`OLLAMA_MODEL_CACHE_TTL_SECONDS`). Le timeout HTTP est de 5 secondes par requête (`OLLAMA_DISCOVERY_TIMEOUT_SECONDS`). Si `/api/show` échoue pour un modèle spécifique, ses capabilities sont vides (isolation par modèle). Si `/api/tags` échoue, l'endpoint retourne les profils statiques connus (dégradation gracieuse).
+
+Chaque rechargement de la configuration (démarrage, enregistrement d'un poste par l'admin, invalidation inter-workers) relance la découverte quand l'adresse Ollama a changé, jamais à chaque fois : une adresse qui n'a rien répondu n'est redemandée qu'au plus une fois par `OLLAMA_DISCOVERY_RETRY_SECONDS` (`0` = à chaque rechargement). Redemandée à chaque rechargement, elle faisait attendre le timeout de découverte à chaque enregistrement, sur chaque worker (production, 17/10/2026 — [ADR-267](../architecture/ADR-267-Ollama-Native-Provider-And-Discovered-Capabilities.md)). L'endpoint ci-dessus, lui, interroge toujours le serveur.
 
 Le frontend déclenche ce fetch uniquement quand l'admin sélectionne Ollama comme provider dans le dialog de configuration d'un LLM type (pas au chargement de la page).
 

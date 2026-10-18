@@ -628,12 +628,23 @@ async def _resolve_edit_target(
         owned = await SkillRepository(db).get_owned(UUID(user_id), name)
         active = await SkillPreferenceService(db).get_active_skills_for_user(UUID(user_id))
     if owned is not None and owned.provenance in MANAGED_PROVENANCES:
-        source = "a skill library" if owned.provenance == SkillProvenance.LIBRARY else "a plugin"
+        # Where the person manages it: a library skill from the Skills section,
+        # which hosts the library; a plugin's skill with its plugin, from the
+        # Plugins section — the Skills section refuses to remove it.
+        source, managed = (
+            ("a skill library", "is updated from Settings > Features > Extensions & Data > Skills")
+            if owned.provenance == SkillProvenance.LIBRARY
+            else (
+                "a plugin",
+                "is updated and removed with its plugin, from Settings > Features > "
+                "Extensions & Data > Plugins",
+            )
+        )
         return None, UnifiedToolOutput.failure(
             message=(
                 f"'{name}' was installed from {source} and is kept in step with it: it "
-                "cannot be modified here. It is updated from Settings > LIA Skills; to "
-                "change it by hand, create a skill under another name."
+                f"cannot be modified here. It {managed}; to change it by hand, create a "
+                "skill under another name."
             ),
             error_code="SKILL_MANAGED",
         )
@@ -641,7 +652,8 @@ async def _resolve_edit_target(
         return None, UnifiedToolOutput.failure(
             message=(
                 f"Skill '{name}' is currently disabled. Re-enable it in "
-                "Settings > LIA Skills > My Skills before modifying it."
+                "Settings > Features > Extensions & Data > Skills > My skills before "
+                "modifying it."
             ),
             error_code="SKILL_DISABLED",
         )

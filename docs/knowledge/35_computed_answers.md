@@ -1,54 +1,151 @@
 # Computed Answers (Sandboxed Scripts)
 
-## Can LIA actually calculate, or does it estimate like other AIs?
-It can calculate. Since v1.37 (ADR-249), when a question needs real computation — adding up many durations, matching two lists against each other, converting times across timezones, deduplicating entries — LIA writes a few lines of Python and **runs them**, then answers from the result. A language model asked the same question answers plausibly and gives you no way to see that it is wrong; a script gives an answer you could check yourself.
+## Does LIA calculate, or estimate like other AIs?
 
-## Does LIA need a script for everyday calculations?
-No. A percentage, a sum, the days until a date, a duration across a clock change or a currency conversion are handled by **dedicated tools**, in both the pipeline and the ReAct mode (ADR-318): the calculation is parsed and evaluated in exact decimal — never executed as code — and says when a result had to be rounded; a duration is counted between absolute instants, so a night with a clock change lasts 23 or 25 hours; a conversion uses the European Central Bank reference rate and gives its date. Working days are Monday to Friday, public holidays not deducted — the answer says so. The sandboxed script described below is for what no tool covers.
+It calculates. A language model asked for a figure answers plausibly, with nothing to tell you when it is wrong — so LIA is told to hand every figure it must compute to a tool, never to work it out in its head:
+• **arithmetic** in exact decimal — percentages, totals, splits, VAT, interest
+• **dates and times** on real instants — days until a date, working days, ages, time zones, clock changes
+• **currencies** at the European Central Bank reference rate, with its date
 
-## When does LIA use a script instead of just answering?
-The assistant decides, and it is told explicitly not to reach for a script when it can answer directly: a simple lookup, a two-number sum, or a question about text does not need one. Scripts are for arithmetic over many rows, joins by key, timezone-aware durations, sorting or deduplication — cases where a model's fluency is exactly the problem. Most conversations never trigger one.
+These work in both modes, with nothing to set up. When a result had to be rounded, LIA says "about".
 
-## Which mode does this work in?
-Scripts run in the **autonomous (ReAct)** mode only — the calculation, date and currency tools above work in both modes. The deterministic pipeline mode does not offer the script tool at all — it plans its steps in advance, and it already has skills and plugins for structured work. Switch modes from the chat header; the choice is saved per user.
+For what no tool covers — adding up dozens of rows, matching two lists, reading a feed — LIA can, in ReAct mode, write a few lines of Python, run them in a sandbox and answer from the result.
 
-## What can a sandboxed script reach?
-Nothing you would not want it to. Each run starts a **throwaway container** with no database access, no Docker socket, a read-only root filesystem apart from a temporary directory, an unprivileged account and every Linux capability dropped. A script that declares no host has **no network at all**; a script that declares hosts reaches them — and nothing else — through one dedicated proxy (see below). The only data a script sees is what the current turn already collected and passed to it, and the container is discarded when the run ends. It is the same sandbox LIA uses for user-installed skills, which was built and hardened for exactly this threat.
+## Can LIA do exact calculations, count days or convert currencies?
 
-## Can a script LIA writes reach the Internet?
-Yes, since v1.46.0 (ADR-298), in ReAct mode only, and never directly. When a step needs a service no tool covers — checking that an API answers, reading a feed, calling an endpoint you use — the script declares the hosts it needs and goes out through a **dedicated egress proxy**: HTTPS only, to those hosts and nowhere else. Private networks, the server itself and cloud metadata are always refused. A script that declares no host stays fully offline, as before. Your administrator can switch the network off from the capability map (**Sandbox network access**) while keeping the calculator.
+Yes, and it does not do them in its head.
+
+**🧮 Calculations:**
+• *What is 17.5% of €1,234.56?*
+• *Split €1,550 between four people*
+
+LIA computes in exact decimal: 0.1 + 0.2 is 0.3. When a result had to be rounded — a division that does not come out even, a square root —, it says so ("about").
+
+**📅 Dates:**
+• *How many days until 14 July?*
+• *Add 10 working days to today*
+• *What time is it in Tokyo?*
+
+Working days run Monday to Friday, **public holidays not deducted** — it says so. A duration in hours counts the time really elapsed, clock changes included.
+
+**💱 Currencies:**
+• *How much is 250 dollars in euros?*
+
+At the **European Central Bank** reference rate, whose date LIA gives. A bank or a card applies its own rate and fees: it is a reliable order of magnitude, not the amount on your statement.
+
+These calculations work in Pipeline and ReAct mode alike, with nothing to set up.
+
+## When does LIA write a script instead of just answering?
+
+In ReAct mode, when computing beats guessing. A script serves four purposes:
+• **compute** what a model does badly: totals over many rows, joins by key, deduplication, durations across time zones
+• **transform** data: a spreadsheet, a CSV, an XML file, an RSS feed, a calendar file
+• **diagnose** a service a tool failed to reach: does it answer, how fast
+• **fill a gap** no tool covers, by calling a service directly
+
+The last two need network access, which your administrator may or may not have enabled.
+
+LIA is told not to write one for a simple lookup, a sum of two numbers or a question about text: most conversations never use one. For example:
+• *How many hours of meetings did I have this month, week by week?*
+• *Among my last 50 e-mails, which senders wrote to me more than three times?*
+
+## Which mode do I need for calculations and scripts?
+
+**Calculations, dates and currency conversions** work in both Pipeline (🔀) and ReAct (⚡) mode.
+
+**Scripts** run in **ReAct mode** only. The Pipeline mode plans every step in advance and cannot read a script's error to correct it, so the script tool is never offered there — it relies on its tools, skills and plugins instead.
+
+Switch with the 🔀/⚡ toggle in the chat header; your choice is saved.
+
+## What can a script LIA writes reach?
+
+Very little, by design. Each run starts in a **throwaway container**, discarded when it ends:
+• no access to your mailbox, calendar, connectors or LIA's database
+• the only data it receives is what LIA already gathered for the current request, handed to it as input — never re-typed into the code
+• a read-only system apart from a temporary folder, an unprivileged account, no system privileges
+• **no network**, unless it declares the hosts it needs and your instance allows it (next question)
+
+A script answers with text: it does not hand you a file — for a document, LIA uses document generation or a skill.
+
+## Can a script LIA writes reach the Internet? What does the three-answer question mean?
+
+Only if your administrator enabled the sandbox network, and only in **ReAct mode** (⚡). When a step needs a service no tool covers — checking that an API answers, reading a feed — the short Python script LIA writes may reach it.
+
+**🚪 One door, never a direct line**
+• the script goes out through a dedicated proxy, HTTPS only, to the hosts it declares — and nowhere else
+• a script that declares no host stays fully offline
+• private networks, the server itself and cloud metadata are always refused
+• the services you connected with your own API key (web search, answer engine, weather) are reachable without a question — their key never enters the script
+
+**🙋 An unknown host is asked, with three answers**
+• **Allow, with the data** — the script may send what LIA gathered this turn (your mails, events…) to that host
+• **Allow, without the data** — the script runs, but receives none of it
+• **Refuse** — LIA answers with what it already has
+
+The rest of your request then goes on, and your answer is remembered as a permission you can revoke in **Settings › Skill permissions**.
+
+**💡 Good to know**: the question is only asked in a ReAct turn you are watching. Every network run is written to your register before it starts; a routine cannot stop to ask — it refuses and says where to allow the host; some instances refuse unknown hosts outright.
 
 ## Do my API keys ever enter the script?
-No. The services you connected with your own API key (web search, answer engine, weather) are reachable without a question, and the script only ever sees a **temporary token** valid for that single run: the proxy swaps it for your real key on the host of that connector alone. The key never enters the container, and LIA's own account keys, OAuth tokens and your sign-in credentials are never offered to a script at all.
 
-## What does the question with three answers mean?
-When a script wants a host that is neither one of your connectors nor on your instance's list, LIA stops and asks you, in the chat, with three answers:
-- **Allow with the data** — the script may send what LIA gathered this turn (your mails, events…) to that host.
-- **Allow without the data** — the script runs, but receives nothing of what LIA gathered; it can only reach the host.
-- **Refuse** — LIA answers with what it already has.
+No. The services you connected with your own API key (web search, answer engine, weather) are reachable without a question, and the script only ever sees a **temporary token** valid for that single run: the proxy swaps it for your real key on the host of that connector alone. The key never enters the container, and LIA's own account keys, sign-in tokens and your credentials are never offered to a script at all.
 
-The rest of your request then goes on — a question is not the end of the answer — and your answer is remembered as a permission. Past a number of permissions, a new approval holds for its run only.
+## What is the "Skill permissions" section for?
 
-## Where do I see and revoke the hosts I allowed?
-In **Settings → Skill permissions**, which appears once your administrator enabled the network. It lists the hosts a script may reach without asking (your connectors, the hosts your instance allows for everyone) and every permission you gave, each with the date it was last used, a switch to change its scope — with or without the data of the turn — and a **Revoke** button; LIA will ask again the next time a script wants that host. Deleting your account deletes them all.
+It shows what a script LIA writes may reach on the network, and lets you take back what you allowed. It only appears once your administrator enabled the sandbox network, and it covers skill commands as well as scripts.
 
-## What roles does a script serve?
-Four, stated to the assistant: **compute** (arithmetic over many rows, joins, durations across timezones), **diagnose** (check that a service answers, read a status endpoint), **fill a gap** no tool covers (call an API you use), and **transform** data (parse a feed, a calendar file, an XML, a spreadsheet). Twenty-two libraries are declared to the assistant and verified in the built image on every CI run.
+**🌐 Reachable without asking**
+• your own connectors (web search, answer engine, weather) — their key travels through the proxy, never into the script
+• the hosts your instance allows for everyone
 
-## Can I see the code that ran?
-Administrators can, in the **debug panel**, with the script's stated purpose, its full source and its output. Hiding it would buy no security — the model wrote the code, so it is already in the conversation's context — and would cost all of the verifiability. Regular users see the answer, not the plumbing.
+**🙋 Your permissions**
+• one line per host you allowed, with the date it was last used
+• a switch to change its scope — with or without the data of the turn
+• a **Revoke** button: LIA will ask again the next time a script wants that host
 
-## Are the results trusted?
-The output is explicitly marked as **untrusted content** before it reaches the model, exactly like the body of an incoming e-mail: it is model-written code running over third-party data. That marking is what keeps a hostile document from turning a script's output into instructions.
+The section shows your account's capacity; past it, a new approval holds for its run only. Deleting your account deletes them all.
 
-## What are the limits?
-A turn may spend a small number of script runs (5 by default; a question asked about a host costs none of them) so a repair loop cannot spin, each run is bounded in time and memory by the skills sandbox settings, a network run has its own wall-clock budget and a bound on the hosts it may declare, and a per-user rate limit applies (20 runs per 5 minutes by default). The available libraries are published to the assistant up front — the Python standard library plus twenty-two declared libraries for HTTP and parsing, data and tables, dates and calendars, documents, text and formats — along with every bound, so it never wastes an attempt discovering a limit by hitting it.
+## Can I allow a host before LIA asks?
 
-## How do I turn it off on my own server?
-Set `PYTHON_SANDBOX_TOOL_ENABLED=false` in your `.env`. It is on by default. With the flag off the tool does not exist at runtime — the assistant is never offered it and never mentions it. The runs-per-turn and rate-limit bounds are configurable too (`PYTHON_SANDBOX_MAX_RUNS_PER_TURN`, `PYTHON_SANDBOX_RATE_LIMIT_CALLS`, `PYTHON_SANDBOX_RATE_LIMIT_WINDOW`).
+Yes, in **Settings › Skill permissions**, under **Allow a host**. Type the bare host name — no https://, no path, no port and no IP address — and choose whether it may receive the data of the conversation turn.
 
-## How do I control the network on my own server?
-The egress proxy ships with the skill-sandbox Compose overlay, which switches the network on (`PYTHON_SANDBOX_EGRESS_ENABLED=true`) together with the proxy it needs; the base install keeps it off. `PYTHON_SANDBOX_EGRESS_HOSTS` lists the hosts every account may reach without being asked, `PYTHON_SANDBOX_EGRESS_ASK_ENABLED=false` refuses an unknown host instead of asking, and `PYTHON_SANDBOX_MAX_GRANTS_PER_USER`, `PYTHON_SANDBOX_MAX_HOSTS_PER_RUN` and `PYTHON_SANDBOX_NETWORK_TIMEOUT_SECONDS` bound the permissions, the hosts of a run and its duration. The admin panel's capability map switches the whole network off without a restart, and the alert `SandboxEgressProxyDown` watches the proxy's health.
+It matters wherever LIA cannot stop to ask you: a routine, or a skill's command in Pipeline mode, reaches only the hosts already listed on that page. The new permission appears with the others, with its date of last use and a **Revoke** button.
 
-## Does it need Docker?
-Yes. Script execution requires the container sandbox; the older in-process sandbox mode is **refused** for this feature, because it only isolates when the API itself runs as root — an acceptable trade-off for a skill you installed deliberately, not for code a model wrote after reading an e-mail. On an install without the container sandbox available, LIA simply answers without scripts.
+Your account holds a limited number of permissions, shown as **Account capacity**. Some instances do not let you add hosts yourself, or refuse every unlisted host without asking — the section then says so.
+
+## Can I see the code a script ran?
+
+The answer never shows it: you get the result, not the plumbing. The code is in the **debug panel**, under **Sandboxed scripts** — what the script was for, its full source, and the beginning of its output or error.
+
+**👀 Who can open it:**
+• an administrator, when the debug panel is enabled
+• any other user only if the administrator allows users to access the debug panel **and** you turn on **Debug Panel** in your own settings
+
+Hiding the code would protect nothing — the model wrote it — and would make the result impossible to check. A script that reached the network also appears in your **Registers**, as an action LIA performed.
+
+## Does LIA trust what a script returns?
+
+It treats it as data, never as instructions. A script is model-written code running over content that may come from third parties — an e-mail, a web page — so its output is marked as **untrusted** before LIA reads it, exactly like the body of an incoming e-mail. A hostile document cannot turn a script's output into orders.
+
+**When a script fails**, LIA reads the error and may correct its code and run it again, within the turn's small budget of runs. If the sandbox is unavailable on your instance, or the budget is spent, LIA answers with what it already has and says what is missing — it does not make the figure up.
+
+## What are the limits of a script?
+
+Every limit is set by your administrator and stated to LIA in advance, so it never wastes an attempt discovering one:
+• a small number of runs per request — a question about a host costs none
+• a rate limit per person
+• a time and memory budget per run; a network run has its own time budget and a cap on the hosts it may declare
+• the Python standard library plus a fixed, published set of libraries for HTTP and parsing, tables, dates and calendars, documents (PDF, Word) and text formats
+
+Most requests never come near these limits: they exist so a script that keeps failing cannot spin in a loop.
+
+## How does an administrator control scripts on a self-hosted server?
+
+**Without a restart**, in **Settings › Administration › Platform capabilities**:
+• **Ephemeral Python** — off, LIA never runs a script
+• **Sandbox network access** — off, every run stays offline
+
+**In the server configuration** (`.env`):
+• `PYTHON_SANDBOX_TOOL_ENABLED=false` removes the tool entirely; the runs per request and the rate limit are configurable too (`PYTHON_SANDBOX_MAX_RUNS_PER_TURN`, `PYTHON_SANDBOX_RATE_LIMIT_CALLS`, `PYTHON_SANDBOX_RATE_LIMIT_WINDOW`)
+• the network needs the egress proxy shipped with the skill-sandbox Compose overlay, which turns it on (`PYTHON_SANDBOX_EGRESS_ENABLED=true`); a base install keeps it off. `PYTHON_SANDBOX_EGRESS_HOSTS` lists hosts every account may reach without being asked, `PYTHON_SANDBOX_EGRESS_ASK_ENABLED=false` refuses unknown hosts instead of asking, and `PYTHON_SANDBOX_MAX_GRANTS_PER_USER`, `PYTHON_SANDBOX_MAX_HOSTS_PER_RUN` and `PYTHON_SANDBOX_NETWORK_TIMEOUT_SECONDS` bound the permissions, the hosts of a run and its duration
+• scripts need the **container sandbox** (Docker): the in-process mode is refused for code a model wrote, because it only isolates when the API itself runs as root; without the container sandbox, LIA answers without scripts

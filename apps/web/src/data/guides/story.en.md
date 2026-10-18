@@ -2,9 +2,9 @@
 
 > Field report — a complete system, from design to production.
 
-**Version**: 2.3
-**Date**: 2026-10-17
-**Application**: LIA v3.1.1
+**Version**: 2.4
+**Date**: 2026-10-18
+**Application**: LIA v3.2.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
-| Source lines (excluding tests) — 55 functional domains | **960,000+** |
+| Source lines (excluding tests) — 55 functional domains | **963,000+** |
 | Inventoried automated tests; suites selected for commits and releases | **63,000+** |
 | Documented architecture decisions (ADR) | **347** |
-| Versions shipped at a steady pace | **282** |
+| Versions shipped at a steady pace | **283** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -78,7 +78,7 @@ Three structural decisions, among the 347 documented:
 
 A system flown on instruments:
 
-- **Observability**: thirty-one dashboards — application health, service commitments, AI costs, agent behavior, infrastructure. More than 600 metrics; centralized structured logs; end-to-end distributed tracing — logs, metrics and traces keep facts only, never people's words or names. Some forty written operating procedures — diagnosis, remediation, restoration. And the assistant reads that telemetry itself: a periodic self-check, an incident memory diagnosed against those very procedures, and answers that route around a known outage. And a diagnosis shows the evidence it was written from. And the instruments reach the processes themselves: each API worker publishes what it holds in memory, so a container total can be read process by process.
+- **Observability**: thirty-one dashboards — application health, service commitments, AI costs, agent behavior, infrastructure. More than 600 metrics; centralized structured logs; end-to-end distributed tracing — logs, metrics and traces keep facts only, never people's words or names. Some forty written operating procedures — diagnosis, remediation, restoration. And the assistant reads that telemetry itself: a periodic self-check, an incident memory diagnosed against those very procedures, and answers that route around a known outage. And a diagnosis shows the evidence it was written from. And the instruments reach the processes themselves: each API worker publishes what it holds in memory, so a container total can be read process by process. And an instrument measures what it names: the latency alert counts only the turns a person waits for, and the host's daily report opens on what the supervision recorded rather than on a snapshot.
 - **Delivery**: containerized deployment, automated schema migrations, images published for two hardware architectures (amd64/arm64).
 - **Supply chain**: every building block of the server pinned by its digest and inventoried with every version; a weekly watch reads the security advisories each dependency publishes — including those no public database relays — and an update waits out a cooling-off period, never moving backwards; every version is installed on blank machines before it is published.
 - **Costs**: frugal infrastructure by choice — about €150 of hardware, zero licenses, open-source building blocks sized to actual needs.

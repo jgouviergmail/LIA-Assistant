@@ -6,16 +6,22 @@ a cross-worker invalidation. But that path also runs when an admin saves ANY slo
 and the discovery is network I/O: refreshing there unconditionally would make each
 of those saves wait for the timeout whenever the server is unreachable. So the
 refresh is driven by the ADDRESS, and what a running server holds is refreshed by
-the admin's own model listing (which discovers on every open, TTL-bounded).
+the admin's own model listing (which discovers on every open, TTL-bounded). An
+address that answered nothing is retried by a later reload, at most once per
+``ollama_discovery_retry_seconds``.
 """
 
 from __future__ import annotations
 
 from collections.abc import Generator
+from contextlib import AbstractContextManager
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from src.core.config import settings
+from src.domains.llm_config import cache as cache_module
 from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
 from src.infrastructure.llm.model_profiles import ModelProfile
@@ -26,19 +32,30 @@ pytestmark = pytest.mark.unit
 @pytest.fixture(autouse=True)
 def _reset() -> Generator[None]:
     LLMConfigOverrideCache._ollama_refreshed_url = None
+    LLMConfigOverrideCache._ollama_refreshed_at = 0.0
     ModelCapabilitiesCache.reset()
     yield
     LLMConfigOverrideCache._ollama_refreshed_url = None
+    LLMConfigOverrideCache._ollama_refreshed_at = 0.0
     ModelCapabilitiesCache.reset()
 
 
-def _url(value: str | None):  # type: ignore[no-untyped-def]
+def _clock(value: float) -> AbstractContextManager[object]:
+    """Freeze the cache's own clock, and nobody else's."""
+    return patch.object(cache_module, "time", SimpleNamespace(monotonic=lambda: value))
+
+
+def _window(seconds: float) -> AbstractContextManager[object]:
+    return patch.object(settings, "ollama_discovery_retry_seconds", seconds)
+
+
+def _url(value: str | None) -> AbstractContextManager[object]:
     return patch(
         "src.infrastructure.llm.providers.ollama_urls.resolve_ollama_url", return_value=value
     )
 
 
-def _refresh():  # type: ignore[no-untyped-def]
+def _refresh() -> AbstractContextManager[AsyncMock]:
     return patch(
         "src.infrastructure.llm.providers.ollama_discovery.refresh_ollama_capabilities",
         new_callable=AsyncMock,
@@ -82,9 +99,28 @@ async def test_a_changed_address_discovers_again() -> None:
     refresh_2.assert_awaited_once()
 
 
-async def test_an_empty_layer_is_retried_even_at_the_same_address() -> None:
-    """A server that was down at boot must be picked up on the next reload."""
-    with _url("http://h:11434"), _refresh() as refresh:
+async def test_an_unreachable_address_is_not_rediscovered_by_every_reload() -> None:
+    """Production 2026-10-17: every slot an admin saved waited 5 s for a server that was down."""
+    with _url("http://h:11434"), _refresh() as refresh, _window(600.0):
+        with _clock(1000.0):
+            await LLMConfigOverrideCache._refresh_ollama_capabilities()
+        with _clock(1599.0):
+            await LLMConfigOverrideCache._refresh_ollama_capabilities()
+    assert refresh.await_count == 1
+
+
+async def test_an_empty_layer_is_retried_once_the_window_has_passed() -> None:
+    """A server that was down at boot is still picked up by a later reload."""
+    with _url("http://h:11434"), _refresh() as refresh, _window(600.0):
+        with _clock(1000.0):
+            await LLMConfigOverrideCache._refresh_ollama_capabilities()
+        with _clock(1600.0):
+            await LLMConfigOverrideCache._refresh_ollama_capabilities()
+    assert refresh.await_count == 2
+
+
+async def test_a_zero_window_retries_on_every_reload() -> None:
+    with _url("http://h:11434"), _refresh() as refresh, _window(0.0), _clock(1000.0):
         await LLMConfigOverrideCache._refresh_ollama_capabilities()
         await LLMConfigOverrideCache._refresh_ollama_capabilities()
     assert refresh.await_count == 2

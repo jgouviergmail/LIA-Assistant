@@ -119,6 +119,22 @@ def _resolve_prompt_datetime(current_datetime: str | None, user_timezone: str | 
     return now_in_timezone(user_timezone).strftime(_PROMPT_DATETIME_FALLBACK_FORMAT)
 
 
+def _comment_cue_budget(speaks_of_records: bool) -> int:
+    """The expressive cues a spoken comment may carry (ADR-345).
+
+    A cue colours the news the records the answer retained carry: a comment
+    speaking of them gets the configured budget, one reading the answer itself
+    gets none — its prompt then publishes no cue and its renderer performs none.
+
+    Args:
+        speaks_of_records: Whether the comment's context is the retained records.
+
+    Returns:
+        The budget its prompt publishes and its renderer enforces.
+    """
+    return settings.voice_expressive_cues_max if speaks_of_records else 0
+
+
 class VoiceCommentService:
     """
     Service for generating and streaming voice comments.
@@ -135,6 +151,7 @@ class VoiceCommentService:
             context_summary="User asked for emails, found 5 unread messages.",
             personality_instruction="You are enthusiastic and encouraging.",
             user_language="fr",
+            speaks_of_records=True,
         ):
             yield ChatStreamChunk(type="voice_audio_chunk", content=chunk.model_dump())
     """
@@ -195,21 +212,32 @@ class VoiceCommentService:
         """Mood-bent voice_settings for this stream (ADR-237), or ``None``.
 
         ``None`` means "use the client's constructor settings unchanged":
-        flag off, anonymous synthesis, psyche unavailable, or a neutral
-        mood inside the dead-band. Best-effort: a psyche failure must
-        never cost the user their audio.
+        flag off, anonymous synthesis, psyche off for the deployment or for
+        the person, psyche unavailable, or a neutral mood inside the
+        dead-band. The two psyche gates are the prompt block's own
+        (``build_psyche_prompt_block``): a person who switched the psyche off
+        hears no mood, and no state is created for them. Best-effort: a
+        psyche failure must never cost the user their audio.
         """
         if not settings.voice_psyche_prosody_enabled or not self._user_id:
+            return None
+        if not settings.psyche_enabled:
             return None
         with suppress(Exception):
             from uuid import UUID
 
+            from sqlalchemy import select
+
             from src.domains.psyche.service import PsycheService
+            from src.domains.users.models import User
             from src.domains.voice.prosody import modulate_voice_settings
             from src.infrastructure.database.session import get_db_context
 
+            user_id = UUID(self._user_id)
             async with get_db_context() as db:
-                state = await PsycheService(db).get_or_create_state(UUID(self._user_id))
+                if not await db.scalar(select(User.psyche_enabled).where(User.id == user_id)):
+                    return None
+                state = await PsycheService(db).get_or_create_state(user_id)
                 modulated = modulate_voice_settings(
                     tts_config.voice_settings,
                     pleasure=state.mood_pleasure,
@@ -482,10 +510,9 @@ class VoiceCommentService:
             user_query=request.user_query,
             psyche_context=psyche_block,
             # Only the cues the engine that will speak performs, within the budget
-            # the renderer enforces (ADR-345).
-            expressive_cues=expressive_cues_block(
-                await self._cue_dialect(), settings.voice_expressive_cues_max
-            ),
+            # the renderer enforces (ADR-345): none for a comment that reads the
+            # answer itself.
+            expressive_cues=expressive_cues_block(await self._cue_dialect(), request.cue_budget),
         )
         if user_model_block:
             prompt = prompt + "\n\n" + user_model_block
@@ -517,6 +544,8 @@ class VoiceCommentService:
         current_datetime: str | None = None,
         user_query: str = "",
         user_timezone: str | None = None,
+        *,
+        speaks_of_records: bool,
     ) -> AsyncGenerator[VoiceAudioChunk]:
         """
         Stream voice comment as audio chunks using sentence-level pipelining.
@@ -536,6 +565,12 @@ class VoiceCommentService:
             user_timezone: User's IANA timezone, used to resolve the current
                 datetime when ``current_datetime`` is not provided (optional;
                 None falls back to the central default).
+            speaks_of_records: Whether ``context_summary`` is the records the
+                answer retained (``voice_scope.py``). A cue colours the news
+                those records carry; a comment reading the answer itself — its
+                records could not be summarised — carries none, whatever the
+                model writes: its prompt gets no cue block and its renderer no
+                budget (ADR-345). Declared by every caller, never defaulted.
 
         Yields:
             VoiceAudioChunk for each synthesized sentence (in completion order;
@@ -551,6 +586,7 @@ class VoiceCommentService:
             user_language=user_language,
             current_datetime=current_datetime,
             user_query=user_query,
+            cue_budget=_comment_cue_budget(speaks_of_records),
         )
 
         logger.info(
@@ -570,17 +606,21 @@ class VoiceCommentService:
         tts_client = await self._get_tts_client()
         tts_config = await self._get_tts_config()
         voice_name = await self._get_voice_for_language(user_language)
-        # One budget for the whole comment, across its streamed sentences.
-        cues = AuthoredCues(await self._cue_dialect(), settings.voice_expressive_cues_max)
+        # One budget for the whole comment, across its streamed sentences — the
+        # one its prompt published.
+        cues = AuthoredCues(await self._cue_dialect(), request.cue_budget)
 
         async def _synth(sentence: str) -> str:
-            # Each served sentence is recorded as it is billed (ADR-345).
+            # Each served sentence is recorded as it is billed (ADR-345); a
+            # delivery a style engine performs travels as the call's style.
+            authored = cues.render(sentence)
             spoken = await speak(
                 tts_client,
-                cues.render(sentence),
+                authored.text,
                 voice_name,
                 model=tts_config.model,
                 ledger=self._tracker,
+                **authored.controls(),
             )
             return playable_base64(tts_client, spoken.audio)
 

@@ -72,7 +72,7 @@ import type { SpiritVariant } from '@/components/spirit/catalogue';
 import type { EyeStyleId } from '@/components/eyes/eye-styles';
 import { ExecutionTraceDisclosure } from '@/components/chat/ExecutionTraceDisclosure';
 import { PerformedEffects } from '@/components/chat/PerformedEffects';
-import { usePsycheStore } from '@/stores/psycheStore';
+import { messageAvatarPsyche, usePsycheStore } from '@/stores/psycheStore';
 import type { ExecutionTrace } from '@/types/execution-trace';
 import type { PerformedEffect } from '@/types/performed-effects';
 import type { PsycheStateSummary } from '@/types/psyche';
@@ -1123,23 +1123,12 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
 
   // Regular user/assistant messages (including proactive interest notifications)
   // On mobile, assistant messages take full width (no flex container, direct block)
-  // Resolve psyche state: prefer per-message snapshot, fall back to live store.
-  // storeState is read above (before early returns) to satisfy Rules of Hooks.
-  const metadataPsyche = message.metadata?.psyche_state as PsycheStateSummary | undefined;
-  const psycheState: PsycheStateSummary | null =
-    metadataPsyche ??
-    (storeState.enabled && storeState.displayAvatar
-      ? {
-          mood_label: storeState.moodLabel,
-          mood_color: storeState.moodColor,
-          mood_pleasure: storeState.moodPleasure,
-          mood_arousal: storeState.moodArousal,
-          mood_dominance: storeState.moodDominance,
-          active_emotion: storeState.activeEmotion,
-          emotion_intensity: storeState.emotionIntensity,
-          relationship_stage: storeState.relationshipStage,
-        }
-      : null);
+  // The message's own mood snapshot, else the live one — none with the avatar
+  // hidden. storeState is read above (before early returns) for the Rules of Hooks.
+  const { psycheState, live: livePsyche } = messageAvatarPsyche(
+    storeState,
+    message.metadata?.psyche_state as PsycheStateSummary | undefined
+  );
 
   if (!isUser) {
     return (
@@ -1151,7 +1140,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
             variant={props.spiritVariant}
             styleId={props.avatarStyle}
             animationReady={props.identityReady}
-            animate={!metadataPsyche && !!psycheState}
+            animate={livePsyche}
             animateEmoji={isLatestAssistant}
             ring={proactiveRing}
           />

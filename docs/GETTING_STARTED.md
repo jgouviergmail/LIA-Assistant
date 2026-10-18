@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-10-12
-**Compatibility**: LIA v3.1.1
+**Compatibility**: LIA v3.2.0
 
 ## Table of Contents
 
@@ -56,7 +56,7 @@ For ElevenLabs and Fish Audio speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` and `FISH
 | Voice providers | ElevenLabs (STT/TTS), Fish Audio (STT/TTS), Edge TTS (free), OpenAI (STT/TTS), Gemini TTS + local Whisper STT |
 | Configurable LLM slots | 54 (admin UI, hot-reloaded) |
 | UI languages | 6 — fr, en, es, de, it, zh |
-| Prometheus metrics | 620 |
+| Prometheus metrics | 621 |
 | Grafana dashboards | 31 |
 | Built-in FAQ knowledge base | 200+ Q/A (auto-indexed at startup) |
 
@@ -142,7 +142,7 @@ Production reference platform: Raspberry Pi 5 (linux/arm64) — all images are m
 |---------|-------|---------|
 | **At least one LLM provider** | Configured via Admin UI after first login (keys encrypted in DB) | OpenAI / Anthropic / DeepSeek / Gemini / Qwen — see [LLM Configuration](#llm-configuration) |
 
-> The guided installer asks for **DeepSeek and OpenAI** keys because both are required by the current reference core configuration. The manual setup can use another provider once every required slot is repointed in the Admin UI. Google Gemini and premium voice providers remain optional.
+> The guided installer asks for **DeepSeek and OpenAI** keys because both are required by the current reference core configuration, then for an optional **Google Gemini** key — memory recall, searches by meaning and image analysis run on it, and the final report names what stays degraded without it. The manual setup can use another provider once every required slot is repointed in the Admin UI. Premium voice providers remain optional.
 
 #### Optional (Depending on Features)
 
@@ -1566,10 +1566,12 @@ and after release qualification:
   required.
 
 `./install.sh --resume` continues an interrupted install (re-prompting only
-the ephemeral secrets when bootstrap had not completed);
+the secrets it never stores — the administrator password and the provider
+keys, the optional Gemini key included — when bootstrap had not completed);
 `./install.sh --reconfigure` changes routing/capability choices without
-touching data, seeds, or secrets. The manual path below remains fully
-supported.
+touching data, seeds, or secrets, after listing every `.env` value the new
+answers would rewrite and asking you to confirm. The manual path below
+remains fully supported.
 
 ### Configuration
 

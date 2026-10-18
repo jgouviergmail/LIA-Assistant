@@ -133,15 +133,15 @@ LIA uses several anti-duplicate mechanisms:
 
 **1. Interest deduplication:**
 • Semantic similarity via Gemini gemini-embedding-001
-• 90% threshold: two similar topics → consolidation
+• 89% threshold by default: two similar topics → consolidation
 • "*Python*" and "*Python Programming*" = same interest
 
 **2. Content deduplication:**
 • SHA256 hash of content (exact comparison)
-• Semantic similarity (90% threshold)
-• Checked against the last 7 days
+• Semantic similarity (90% threshold by default)
+• Checked against the last 7 days (by default)
 
-**3. Cooldowns:**
+**3. Cooldowns (defaults your administrator can adjust):**
 • **Global**: 1h minimum between 2 notifications
 • **Per topic**: 12h before discussing the same interest again
 • **Per subject**: 36h before revisiting the same theme

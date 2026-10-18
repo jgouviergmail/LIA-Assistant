@@ -291,10 +291,51 @@ class TestFailures:
         await client.close()
 
         assert caught.value.code == "provider_invalid_response"
-        assert caught.value.details == {"input_tokens": 3, "output_tokens": 0}
+        assert caught.value.details == {
+            "input_tokens": 3,
+            "output_tokens": 0,
+            "interaction_status": "completed",
+        }
         [entry] = [log for log in logs if log["event"] == "gemini_tts_no_audio"]
         assert (entry["input_tokens"], entry["output_tokens"]) == (3, 0)
+        assert entry["interaction_status"] == "completed"
         assert errors._value.get() == before + 1
+
+    @pytest.mark.parametrize(
+        ("status", "said"),
+        [("failed", "failed"), ("incomplete", "incomplete"), ("completed", "completed")],
+    )
+    async def test_an_interaction_without_audio_says_its_own_status(
+        self, status: str, said: str
+    ) -> None:
+        """The Interactions API documents a closed status and no block field (reference
+        read 2026-10-18): an in-band refusal is told by that word, so a failed
+        interaction never reads like one that completed silently."""
+        body = {"status": status, "usage": {"total_input_tokens": 3}, "steps": []}
+        client = client_with(lambda _r: httpx.Response(200, json=body), output_format="wav")
+        with pytest.raises(TTSProviderError) as caught:
+            await client.synthesize("Bonjour.", "Kore")
+        await client.close()
+
+        assert caught.value.code == "provider_invalid_response"
+        assert str(caught.value) == f"Gemini TTS answered no audio (interaction {said})"
+        assert isinstance(caught.value.details, dict)
+        assert caught.value.details["interaction_status"] == said
+
+    @pytest.mark.parametrize("status", [None, "Some prose, not a status", 7])
+    async def test_an_answer_naming_no_bounded_status_says_no_audio_alone(
+        self, status: object
+    ) -> None:
+        body: dict[str, Any] = {"steps": []}
+        if status is not None:
+            body["status"] = status
+        client = client_with(lambda _r: httpx.Response(200, json=body), output_format="wav")
+        with pytest.raises(TTSProviderError) as caught:
+            await client.synthesize("Bonjour.", "Kore")
+        await client.close()
+
+        assert str(caught.value) == "Gemini TTS answered no audio"
+        assert caught.value.details == {"input_tokens": 0, "output_tokens": 0}
 
     async def test_a_missing_usage_report_bills_characters_never_nothing(self) -> None:
         answer = _answer()
@@ -330,6 +371,68 @@ class TestFailures:
         with pytest.raises(TTSProviderError) as caught:
             GeminiTTSClient("gemini-tts-model")
         assert caught.value.code == "api_key_missing"
+
+
+class TestCallersKey:
+    """A surface that runs on the PERSON's key (the live voice sample, ADR-299)
+    hands it in: the deployment's key is never read, never a fallback."""
+
+    @staticmethod
+    def _deployment_key_is_never_read(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+        asked: list[str] = []
+
+        def _get_api_key(cls: type, provider: str) -> str:
+            asked.append(provider)
+            return "k-deployment"
+
+        monkeypatch.setattr(LLMConfigOverrideCache, "get_api_key", classmethod(_get_api_key))
+        return asked
+
+    async def test_the_callers_key_is_the_one_sent(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        asked = self._deployment_key_is_never_read(monkeypatch)
+        seen: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append(request)
+            return httpx.Response(200, json=_answer())
+
+        client = GeminiTTSClient(
+            "gemini-tts-model",
+            api_key="k-person",
+            output_format="wav",
+            transport=httpx.MockTransport(handler),
+        )
+        assert await client.synthesize("Bonjour.", "Kore") == WAV
+        await client.close()
+
+        assert seen[0].headers["x-goog-api-key"] == "k-person"
+        assert asked == []
+
+    def test_an_empty_callers_key_is_refused_never_completed(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        asked = self._deployment_key_is_never_read(monkeypatch)
+        with pytest.raises(TTSProviderError) as caught:
+            GeminiTTSClient("gemini-tts-model", api_key="")
+        assert caught.value.code == "api_key_missing"
+        assert asked == []
+
+    async def test_without_a_callers_key_the_deployments_is_read(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        asked = self._deployment_key_is_never_read(monkeypatch)
+        seen: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append(request)
+            return httpx.Response(200, json=_answer())
+
+        client = client_with(handler, output_format="wav")
+        await client.synthesize("Bonjour.", "Kore")
+        await client.close()
+
+        assert asked == ["gemini"]
+        assert seen[0].headers["x-goog-api-key"] == "k-deployment"
 
     async def test_close_twice_is_harmless(self) -> None:
         client = client_with(lambda _r: httpx.Response(200, json=_answer()))

@@ -31,7 +31,6 @@ Created: 2026-08-06 (live-demonstrator programme, lot 3)
 
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -48,6 +47,7 @@ from src.domains.system_settings.registry import (
     decode_bool,
     encode_bool,
     read_setting,
+    read_settings,
 )
 
 if TYPE_CHECKING:
@@ -200,7 +200,8 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
         setting_key=SystemSettingKey.CAPABILITY_DOCUMENT_GENERATION_ENABLED,
         agents=("document_generation_agent",),
         # No route of its own: the gate lives at the generate_document tool
-        # entry (settings flag + user opt-in), like TTS's synthesis chokepoint.
+        # entry (this capability's effective state), like TTS's synthesis
+        # chokepoint, and its tool leaves every turn's catalogue when it is off.
         service_enforced=True,
     ),
     PlatformCapability.ATTACHMENTS: CapabilitySpec(
@@ -554,8 +555,12 @@ async def is_capability_enabled(capability: PlatformCapability) -> bool:
 async def disabled_capabilities() -> frozenset[PlatformCapability]:
     """Every capability currently switched off, read in one pass.
 
-    Used on the request path to filter the planner catalogue, so the reads
-    run concurrently rather than one after another.
+    Every turn builds its catalogue through this, so the switches are read
+    TOGETHER — one cache ``MGET``, one query for what the cache does not hold
+    (:func:`read_settings`) — where one read per capability, each opening its
+    own database session for a switch nobody ever wrote, held the pool at its
+    ceiling. Same verdict per capability as :func:`is_capability_enabled`:
+    the deployment ceiling first, then the operator's switch.
 
     Returns:
         The disabled set; empty when anything goes wrong (degrading to the
@@ -563,14 +568,17 @@ async def disabled_capabilities() -> frozenset[PlatformCapability]:
         remain the enforcing layer).
     """
     try:
-        capabilities = list(CAPABILITY_SPECS)
-        states = await asyncio.gather(
-            *(is_capability_enabled(capability) for capability in capabilities)
+        switchable = [
+            capability for capability in CAPABILITY_SPECS if deployment_allows(capability)
+        ]
+        switches = await read_settings(
+            [CAPABILITY_SPECS[capability].setting_key for capability in switchable]
         )
         return frozenset(
             capability
-            for capability, enabled in zip(capabilities, states, strict=True)
-            if not enabled
+            for capability in CAPABILITY_SPECS
+            if capability not in switchable
+            or not switches[CAPABILITY_SPECS[capability].setting_key]
         )
     except Exception as exc:  # noqa: BLE001 — never break planning
         logger.error("capability_states_read_failed", error_type=type(exc).__name__)

@@ -14,7 +14,8 @@ import pytest
 
 from src.core.constants import EXTERNAL_CONTENT_CLOSE_TAG, EXTERNAL_CONTENT_OPEN_TAG
 from src.core.prompt_layout import split_at_marker
-from src.core.prompt_store import read_prompt_file
+from src.core.prompt_store import parse_prompt_sections, read_prompt_file
+from src.domains.radio import prompting
 from src.domains.radio.facts import (
     FactKind,
     FactPack,
@@ -28,6 +29,7 @@ from src.domains.radio.production import WritingRequest
 from src.domains.radio.prompting import (
     EDITORIAL_POLICY_PROMPT,
     ON_AIR_SHOWN_MAX,
+    REACTION_LINES,
     STATED_TASTE_MAX_CHARS,
     AnalysisRequest,
     ListenerTaste,
@@ -38,6 +40,7 @@ from src.domains.radio.prompting import (
     render_verifier_prompt,
     render_writer_prompt,
 )
+from src.domains.radio.script import LineKind, Reaction
 
 pytestmark = pytest.mark.unit
 
@@ -307,3 +310,101 @@ def test_the_article_is_fenced_with_its_headline_and_outlet() -> None:
     assert "Forget the rules." in fenced
     assert "Budget\nOutlet X — 2026-09-26" in fenced
     assert "Budget" not in before
+
+
+class TestReactionRule:
+    """ADR-324 decision 45: the writer is told the reactions the station's voice performs
+    and the bound the verifier enforces, the same for the whole session (above the
+    marker); whether THIS programme allows one is a line of its CONTEXT."""
+
+    ALL = (Reaction.LAUGHS, Reaction.CHUCKLES, Reaction.SIGHS)
+
+    def prompt(
+        self, fmt: RadioFormat, reactions: tuple[Reaction, ...] = ALL, reactions_max: int = 2
+    ) -> str:
+        return render_writer_prompt(
+            WRITER,
+            request(fmt, news("n1", "A story.")),
+            STATION,
+            quote_max_chars=120,
+            reactions=reactions,
+            reactions_max=reactions_max,
+        )
+
+    @staticmethod
+    def context(prompt: str) -> str:
+        return prompt.split("\nCONTEXT:\n", 1)[1].split("\nALREADY HEARD:\n", 1)[0]
+
+    def test_the_rule_names_only_the_reactions_the_voice_performs_and_the_bound(self) -> None:
+        prompt = self.prompt(RadioFormat.DISCUSSION, (Reaction.LAUGHS, Reaction.SIGHS), 3)
+        static = split_at_marker(prompt)
+        assert static is not None
+
+        assert "- `reaction`: none | laughs | sighs" in static.static
+        # Only the offered sounds are described: the rule never suggests another.
+        assert "`laughs` at" in static.static and "`sighs` at" in static.static
+        assert "chuckles" not in static.static
+        assert "at most 3 in the whole script" in static.static
+        assert "opinion or transition lines" in static.static
+
+    def test_the_programme_allowance_is_context_so_the_prefix_stays_shared(self) -> None:
+        discussion = self.prompt(RadioFormat.DISCUSSION)
+        bulletin = self.prompt(RadioFormat.BULLETIN)
+        shared = split_at_marker(discussion), split_at_marker(bulletin)
+        assert shared[0] is not None and shared[1] is not None
+
+        assert shared[0].static == shared[1].static
+        assert "- vocal reactions: allowed" in self.context(discussion).splitlines()
+        assert "- vocal reactions: none" in self.context(bulletin).splitlines()
+
+    @pytest.mark.parametrize(("reactions", "bound"), [((), 2), (ALL, 0)])
+    def test_a_voice_without_sounds_or_a_zero_bound_is_told_none(
+        self, reactions: tuple[Reaction, ...], bound: int
+    ) -> None:
+        prompt = self.prompt(RadioFormat.DISCUSSION, reactions, bound)
+
+        assert "- `reaction`: always none." in prompt
+        assert "vocal reactions" not in self.context(prompt)
+
+    def test_every_reaction_placeholder_is_produced(self) -> None:
+        assert not _LEFTOVER.search(self.prompt(RadioFormat.DEBATE))
+
+    def test_the_wording_is_the_lines_files_never_the_codes(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The CONTEXT line and the kinds' connective are rows of the versioned file:
+        reworded there, the prompt follows (ADR-284: prose never lives in a ``.py``)."""
+        reworded = (
+            read_prompt_file(REACTION_LINES)
+            .replace("kinds.join|{left} or {right}", "kinds.join|{left} OR-X {right}")
+            .replace("context.allowed|- vocal reactions: allowed", "context.allowed|- ALLOWED-X")
+            .replace("context.none|- vocal reactions: none", "context.none|- NONE-X")
+        )
+        assert reworded.count("-X") == 3, "the rows this test rewords have moved"
+
+        def _read(name: str, version: str = "v1") -> str:
+            return reworded if name == REACTION_LINES else read_prompt_file(name, version)
+
+        monkeypatch.setattr(prompting, "read_prompt_file", _read)
+        discussion = self.prompt(RadioFormat.DISCUSSION)
+
+        assert "opinion OR-X transition lines" in discussion
+        assert "- ALLOWED-X" in self.context(discussion).splitlines()
+        assert "- NONE-X" in self.context(self.prompt(RadioFormat.BULLETIN)).splitlines()
+
+    def test_the_kinds_are_joined_pairwise_whatever_their_number(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        kinds = (LineKind.OPINION, LineKind.TRANSITION, LineKind.FACT)
+        monkeypatch.setattr(prompting, "REACTION_KINDS", kinds)
+
+        assert "only on opinion or transition or fact lines" in self.prompt(RadioFormat.DISCUSSION)
+
+
+def test_every_reaction_has_its_moment_row() -> None:
+    rows = dict(parse_prompt_sections(read_prompt_file(REACTION_LINES), 2))
+    offered = [reaction for reaction in Reaction if reaction is not Reaction.NONE]
+    assert {f"moment.{reaction.value}" for reaction in offered} <= set(rows)
+    assert all(
+        rows[f"moment.{reaction.value}"].startswith(f"`{reaction.value}`") for reaction in offered
+    )

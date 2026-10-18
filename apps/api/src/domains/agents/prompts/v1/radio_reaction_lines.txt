@@ -1,0 +1,22 @@
+# The radio writer's rule on a vocal reaction opening a line (ADR-324 decision 45).
+# `key|template`, technical English: the writer reads it, the listener hears only
+# the sound. Rendered by domains/radio/prompting.py into the writer prompt's
+# {reaction_rule}, ABOVE the dynamic-context marker (the same for a whole session,
+# so every programme of a listener shares one cached prefix — ADR-309):
+# `allowed` when the station's voice performs at least one reaction and
+# RADIO_REACTIONS_MAX is above zero — listing exactly the reactions that voice
+# performs (radio/delivery.py: performed_reactions), each with its `moment.<reaction>`
+# row, the line kinds and the bound the verifier enforces
+# (radio/verification.py: REACTION_KINDS, joined pairwise by `kinds.join`) — and `off`
+# otherwise. Whether THIS programme allows one is its CONTEXT line, `context.allowed` or
+# `context.none` (FormatSpec.reactions_allowed), written only where the rule offers a
+# reaction at all.
+
+allowed|- `reaction`: none | {reactions} — a sound the voice makes BEFORE the line's words. Only when CONTEXT says the programme allows vocal reactions, only on {kinds} lines, at most {reactions_max} in the whole script, and only where the moment truly has one: {moments}. Never on a story of suffering, death, violence or disaster. Most lines have none.
+kinds.join|{left} or {right}
+moment.laughs|`laughs` at something genuinely funny
+moment.chuckles|`chuckles` at something light
+moment.sighs|`sighs` at a letdown or at the end of a long wait
+off|- `reaction`: always none.
+context.allowed|- vocal reactions: allowed
+context.none|- vocal reactions: none

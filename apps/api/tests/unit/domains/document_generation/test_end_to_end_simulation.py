@@ -140,6 +140,9 @@ async def _run_tool(doc_type: str, content: object, tmp_path, monkeypatch) -> tu
     _FakeRepo.created = {}
     with (
         patch.object(tool_module, "settings", _fake_settings()),
+        # The capability switch is read for real at the tool's entry: a unit
+        # test must not reach the settings store behind it.
+        patch.object(tool_module, "is_capability_enabled", AsyncMock(return_value=True)),
         patch(SETTINGS_PATCH_PATH, return_value=_wrapper_settings()),
         patch.object(tool_module, "_load_user", AsyncMock(return_value=_user())),
         patch.object(svc, "AttachmentRepository", _FakeRepo),
@@ -235,6 +238,9 @@ class TestTheWholeChain:
         _FakeRepo.created = {}
         with (
             patch.object(tool_module, "settings", _fake_settings()),
+            # The capability switch is read for real at the tool's entry: a unit
+            # test must not reach the settings store behind it.
+            patch.object(tool_module, "is_capability_enabled", AsyncMock(return_value=True)),
             patch(SETTINGS_PATCH_PATH, return_value=_wrapper_settings()),
             patch.object(tool_module, "_load_user", AsyncMock(return_value=_user(language="zh"))),
             patch.object(svc, "AttachmentRepository", _FakeRepo),
@@ -278,6 +284,9 @@ class TestTheWholeChain:
         _FakeRepo.created = {}
         with (
             patch.object(tool_module, "settings", _fake_settings()),
+            # The capability switch is read for real at the tool's entry: a unit
+            # test must not reach the settings store behind it.
+            patch.object(tool_module, "is_capability_enabled", AsyncMock(return_value=True)),
             patch(SETTINGS_PATCH_PATH, return_value=_wrapper_settings()),
             patch.object(tool_module, "_load_user", AsyncMock(return_value=_user(language="zh"))),
             patch.object(svc, "AttachmentRepository", _FakeRepo),

@@ -8,11 +8,16 @@ direct (§3.5), the register label by operation (§4.6). Refined while writing t
 plan (owner approval of the spec, 2026-10-15): an always-asking operation stays
 on the gate's path, a replayed direct act is served from its record, a ticket
 update that answers asks, manifests keep their literals under an equality test,
-and the wording a flip touches (§3.4, §4.2, §4.4, §4.6). No decision open; not
-implemented.
+and the wording a flip touches (§3.4, §4.2, §4.4, §4.6). Re-verified against
+`main` on 2026-10-17, after v3.1.0 and v3.1.1: the census (§1.3), the door's
+sites and every seam of the effect gate are unchanged; ADR-347 and ADR-348 were
+taken meanwhile, so this programme's ADR is ADR-349 (§6.4); the efficacy pilot
+of ADR-348, shipped since, reads the ADR-336 verdicts and reads the switch too
+(§4.10); a flipped manifest publishes the outputs its result carries (§3.4). No
+decision open; not implemented.
 **Date:** 2026-10-15.
 **Execution:** Inline source inspection and read-only measurement on the Docker dev stack; no provider call, no production access.
-**Amends (once implemented):** [ADR-339](../../architecture/ADR-339-Application-Commands-With-Current-Authority-And-Secure-Continuations.md) (requirement F03 of the [application tools design](2026-10-06-lia-application-tools-design.md)), [ADR-263](../../architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md), [ADR-268](../../architecture/ADR-268-Generic-Recurrence-And-Reminder-Management.md), [ADR-276](../../architecture/ADR-276-Workboard.md), [ADR-336](../../architecture/ADR-336-Requested-Outcomes-Checked-Against-Canonical-Observations.md).
+**Amends (once implemented):** [ADR-339](../../architecture/ADR-339-Application-Commands-With-Current-Authority-And-Secure-Continuations.md) (requirement F03 of the [application tools design](2026-10-06-lia-application-tools-design.md)), [ADR-263](../../architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md), [ADR-268](../../architecture/ADR-268-Generic-Recurrence-And-Reminder-Management.md), [ADR-276](../../architecture/ADR-276-Workboard.md), [ADR-336](../../architecture/ADR-336-Requested-Outcomes-Checked-Against-Canonical-Observations.md), [ADR-348](../../architecture/ADR-348-Efficacy-Learned-From-Evidence-Results-And-Usefulness-Kept-Apart.md).
 
 ## 1. Context and evidence
 
@@ -55,7 +60,7 @@ made four other formerly direct acts ask: switching a routine on or off, and
 creating, editing and commenting a workboard ticket (all `reversible` before).
 
 There was no flag to remove: `hitl_required` is already `False`
-(`registry/catalogue.py:237`). A confirmation is asked because the tool's code
+(`registry/catalogue.py:259`). A confirmation is asked because the tool's code
 returns a draft marked `requires_confirmation: True` (`drafts/service.py:183-196`).
 
 ### 1.3 What the application programme already has
@@ -164,9 +169,11 @@ could not.
 - A `DIRECT` operation also runs where nobody can answer — a routine, a ticket
   LIA works on — exactly like a classic `reversible` tool; an `ASK` operation is
   refused there, as today.
-- Changing an operation's behavior is one declaration on its spec, plus the
-  words the model reads about its tool — the manifest description, the tool's
-  docstring, the progress label — by the ADR's checklist. A test fails a tool
+- Changing an operation's behavior is one declaration on its spec, plus what
+  the model reads about its tool — the manifest description, the outputs it
+  publishes (a direct act returns `application_result`, never a `draft`, so no
+  `reference_examples` path may name one), the tool's docstring, the progress
+  label — by the ADR's checklist. A test fails a tool
   declared `DIRECT` without `ask_when` whose description or docstring still
   promises a confirmation.
 
@@ -438,7 +445,7 @@ cover):
   (0 of 117 reminder analyses; 4 of 27 other acts, where a quoted title came
   through the translation verbatim): the analyzer sees the English pivot and
   quotes it, then the second anchoring compares that quote with the ORIGINAL
-  message (`services/query_analyzer_service.py:1332`). In English, 31 of 72
+  message (`services/query_analyzer_service.py:1336`). In English, 31 of 72
   analyses carry a checked requirement, model-dependent (16/24, 15/24, 0/24 —
   the third model always invents a `min_count`, which the anchoring refuses).
   Field names are mostly invented (`title`, `reminder_text`, `instruction`…).
@@ -457,13 +464,19 @@ at the switch and at its gate states the measured defects and points to the
 dedicated programme, which follows this one. The switch turns off the CHECK,
 not the extraction: the requirements still reach the pipeline planner, which
 reads them as a planning hint (`services/planner/human_message.py:77-79`) and
-judges nothing. One predicate reads the switch at the two places the verdict is
+judges nothing. One predicate reads the switch at the three places the verdict is
 formed: `build_requested_outcomes_block` (the response directive, pipeline and
-ReAct) and `requested_requirements` (`nodes/react_observed_gaps.py`, which also
+ReAct), `requested_requirements` (`nodes/react_observed_gaps.py`, which also
 feeds the ReAct evidence collection, the gaps, the recovery trigger and the
-final report). Off, a turn behaves as one whose analyzer extracted nothing —
-the measured state of every non-English turn today — including on a checkpoint
-written while it was on.
+final report) and `current_coverage` (`services/efficacy_evidence.py`), from
+which the efficacy pilot of ADR-348 — shipped on 2026-10-16, after this
+decision — draws its result axis and the bounded « verify / state a limit »
+adjustment it adds on a gap, `unknown` included. Off, a turn behaves as one
+whose analyzer extracted nothing — the measured state of every non-English
+turn today — including on a checkpoint written while it was on: the efficacy
+result axis reads no coverage in any language, its adjustment falls back on
+the analyzer's own `verification_needed`, and its usefulness axis is untouched
+(ADR-348 amendment).
 
 ## 5. Reminder specifics
 
@@ -499,7 +512,7 @@ written while it was on.
   (`orchestration/plan_predicates.py:116`, `tool_is_mutation`, read by
   `services/hitl/scope_detector.py:384-401`), never by the declaration — and no
   longer shows the grouped card of drafts that followed it
-  (`nodes/hitl_dispatch_node.py:648-653`). Accepted by the owner (« ce n'est pas
+  (`nodes/hitl_dispatch_node.py:647-654`). Accepted by the owner (« ce n'est pas
   critique »); stated in the ADR so it is not rediscovered.
 - **A routine toggle states its target.** Direct again, the native
   `toggle_scheduled_action_tool` inverts the current state on every call, so a
@@ -529,7 +542,7 @@ transcribed against the door's real interface rather than a planned one.
 
 | Lot | Content | Visible effect |
 |---|---|---|
-| A — ADR-336 switch | `REQUESTED_OUTCOMES_CHECK_ENABLED` (default off) in settings and in the files that carry its ADR-310 neighbour `REACT_RECOVERY_PASSES_MAX`: `.env.example`, `.env.prod.example`, the four demonstrator files (two templates, two live) and the live `.env` and `.env.prod` (their `*.encrypted` copies are re-encrypted by `deploy-prod.ps1`, never by hand; the minimal file lists only what boot requires), one predicate read where the verdict is formed (§4.10), the planner hint untouched, the `TODO` with the measured defects, an ADR-336 amendment. Independent of the rest, shipped first. | English turns no longer meet the check's false negatives |
+| A — ADR-336 switch | `REQUESTED_OUTCOMES_CHECK_ENABLED` (default off) in settings and in the files that carry its ADR-310 neighbour `REACT_RECOVERY_PASSES_MAX`: `.env.example`, `.env.prod.example`, the four demonstrator files (two templates, two live) and the live `.env` and `.env.prod` (their `*.encrypted` copies are re-encrypted by `deploy-prod.ps1`, never by hand; the minimal file lists only what boot requires), one predicate read where the verdict is formed (§4.10: the response directive, the ReAct requirements, the efficacy pilot's coverage), the planner hint untouched, the `TODO` with the measured defects, the ADR-336 and ADR-348 amendments. Independent of the rest, shipped first. | English turns no longer meet the check's false negatives |
 | 0 — Contract and door | Declaration with `ask_when` and its checks; the 8 field lists turned into their predicate; manifest policy equality test; resolver read by gate, outcome evidence, capability and labels; the gate handing `DIRECT` operations to their door; door with own preparation, own refusals, `binds_origin`, the replay served from the record, the draft verdict where nobody can answer and the claim → perform → close path shared with the gate; direct execution renamed with its neutral output; the label by operation (§4.6) and the completeness assertion reading application tools and aliases through it; AST guard with its shrink-only list of the tool modules not yet migrated (the 60 operations of §1.3). | §4.9 only |
 | 1 — Reminders and routines | 8 operations (`reminder.create`, `.update`, `.delete`; `routine.create`, `.update`, `.delete`, `.execute`; `routine_state.update`) and 3 aliases (`create_reminder_tool`, `cancel_reminder_tool`, `toggle_scheduled_action_tool`) through the door; then the three reminder operations and `routine_state.update` → `DIRECT`, with their register labels (one new wording, for a modified reminder); §5. | The defect of §1.1 is fixed; modifying and deleting a reminder no longer ask |
 | 2 — Tickets | `workboard_ticket.create` through the door; then create → `DIRECT`, update → `DIRECT` asking when it requests a run, comment → `DIRECT` asking when it answers a pending action; their register labels. | As before 2026-10-11, minus the two unattended approvals |
@@ -550,8 +563,8 @@ transcribed against the door's real interface rather than a planned one.
 - Outcome evidence (ADR-336, switch on): a direct act, through the operation's
   tool or an alias, is not read as pending.
 - The ADR-336 switch: off, no requirement reaches the directive, the ReAct gaps,
-  the recovery trigger or the evidence, including from a checkpoint written
-  while it was on; the planner still receives its hint.
+  the recovery trigger, the evidence or the efficacy pilot's coverage, including
+  from a checkpoint written while it was on; the planner still receives its hint.
 - The registers: an asking application tool still files its consultation row, a
   direct one its action row and no consultation; an application read is
   untouched; an unattended `ASK` call is refused before any preparation.
@@ -578,16 +591,18 @@ returns its card. The real conversational test is left to the owner.
 
 ### 6.4 Documentation
 
-- A new ADR (ADR-347, or the next free number when written) — one confirmation
-  declaration per application operation — amending ADR-339, ADR-263, ADR-268
+- A new ADR — ADR-349: ADR-347 and ADR-348 were taken on 2026-10-15 and
+  2026-10-16, and the number is re-checked when written — one confirmation
+  declaration per application operation, amending ADR-339, ADR-263, ADR-268
   and ADR-276, with the checklist to flip an operation (declaration, reason,
-  `ask_when` when needed, manifest policy literal, manifest description and
-  tool docstring, progress label).
+  `ask_when` when needed, manifest policy literal and published outputs,
+  manifest description and tool docstring, progress label).
 - An ADR-336 amendment: the switch, why it ships off, the measurements of §4.10
   and the defects the dedicated programme must fix (anchoring against the
   original language, field paths never published to the analyzer, nested
   application values, invented counts, case-sensitive equality, the `unknown`
   directive turning into a claimed failure).
+- An ADR-348 amendment: its result axis while the check is off (§4.10).
 - `docs/technical/APPLICATION_COMMANDS.md`.
 - Living maps in the six languages, ADR index, counts.
 - One pointer line in `CLAUDE.md`, then `task docs:sync-agents`.
@@ -595,8 +610,10 @@ returns its card. The real conversational test is left to the owner.
 ### 6.5 Method
 
 Work in the `main` working tree, never committed. Several files the lots touch
-already carry other lots' uncommitted changes: each is checked before editing,
-and nothing else in them is touched.
+already carry other lots' uncommitted changes (on 2026-10-17: the four `.env`
+templates, `core/constants.py`, the six web locales, `CLAUDE.md` and
+`AGENTS.md`; the effect gate's modules have been committed since 2026-10-16):
+each is checked before editing, and nothing else in them is touched.
 
 ## 7. Risks
 
@@ -608,9 +625,10 @@ and nothing else in them is touched.
 | A direct act runs unattended | Declared with a written reason; same semantics as classic `reversible` tools. Reminder creation, the routine toggle and the three ticket acts were direct before 2026-10-11; modifying and deleting a reminder become direct by the owner's decision of 2026-10-15. |
 | A declaration flipped without its manifest | §4.4: asserted equal, the reason read from the declaration; the words the model reads guarded (§3.4). |
 | A replayed direct act prepared again on a state it already changed | §4.2: the record is served before anything is prepared. |
-| Concurrent uncommitted lots in the same files | Checked before each edit (§6.5); stabilizing the in-flight lots of the shared `main` tree before lot 0 is safer, and is the owner's call. |
-| ADR number collision with another planned lot | The number is taken when the ADR is written. |
+| Concurrent uncommitted lots in the same files | Checked before each edit (§6.5). The effect gate's modules have been committed since 2026-10-16; what is still shared is listed in §6.5. |
+| ADR number collision with another planned lot | It happened: ADR-347 and ADR-348 were taken while this spec waited. ADR-349 is re-checked when the ADR is written. |
 | The 51 operations of lots 3 to 6 do not all fit the door unchanged | Every own-path tool module was read for its preparation, binding and refusal shape (§4.1 table); each migration is still preceded by characterization tests. |
 | A register line copies what it must not | Only a field an operation declares reaches its label; every other operation keeps the label that copies nothing (§4.6). |
 | A direct act is reported as not done (§4.10) | The ADR-336 check ships off (lot A) until its own programme repairs it. |
+| The switch silences the efficacy pilot's result axis (ADR-348) | Stated in both ADRs; the same state as every non-English turn today; the usefulness axis is untouched; switching the check back on restores it. |
 | A direct operation's executor keeps an approval-only check | Read for the seven: the routine toggle, the ticket and the reminder removal executors only re-check expiry, ownership and the prepared snapshot (and the card scope for a removal), which a direct call passes milliseconds after preparing; the past-instant checks of reminder creation and modification are the §5 rule. |

@@ -14,13 +14,15 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 import structlog
-from sqlalchemy import Boolean, delete, func, literal_column, select, update
+from sqlalchemy import Boolean, delete, func, literal, literal_column, select, update
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql.dml import ReturningInsert
-from sqlalchemy.sql.elements import Label
+from sqlalchemy.sql.elements import ColumnElement, Label
 
 from src.core.repository import BaseRepository
 from src.domains.diagnostics.models import (
+    INCIDENT_SOURCE_ALERT,
     INCIDENT_STATUS_OPEN,
     INCIDENT_STATUS_RESOLVED,
     HealthSnapshot,
@@ -32,6 +34,22 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger(__name__)
+
+
+def _with_appended_action(entry: dict[str, object]) -> ColumnElement[list[dict[str, object]]]:
+    """The incident's action log with one entry appended, server-side.
+
+    The entry is bound as JSONB: an untyped Python list reaches asyncpg as
+    ``unknown`` and PostgreSQL refuses ``to_jsonb`` of it (« could not determine
+    polymorphic type », found by the integration test the first time this ran).
+
+    Args:
+        entry: Audit entry (action, actor, ts, outcome).
+
+    Returns:
+        The SET expression: never a read-modify-write of the JSONB column.
+    """
+    return Incident.action_log.op("||")(literal([entry], JSONB))
 
 
 def build_open_or_touch_stmt(
@@ -235,6 +253,50 @@ class DiagnosticsRepository(BaseRepository[HealthSnapshot]):
         result = await self.db.execute(stmt)
         return int(result.rowcount or 0)  # type: ignore[attr-defined]
 
+    async def resolve_silent_alert_incidents(
+        self, *, firing_alertnames: set[str], silent_since: datetime, now: datetime
+    ) -> list[str]:
+        """Resolve the alert incidents whose alert stopped firing without saying so.
+
+        The webhook's « resolved » delivery can be lost (the API restarting
+        when Alertmanager sends it); the incident then stayed open forever —
+        measured 2026-10-18, one for 28 days. Only an incident Alertmanager
+        no longer holds as firing AND not re-delivered since ``silent_since``
+        is closed, in one statement, with an audit entry saying why.
+
+        Args:
+            firing_alertnames: Every alertname Alertmanager holds as firing,
+                silenced and inhibited ones included.
+            silent_since: Incidents last seen before this are silent enough.
+            now: The resolution instant.
+
+        Returns:
+            The correlation keys resolved.
+        """
+        entry: dict[str, object] = {
+            "action": "auto_resolved",
+            "actor": "self_check",
+            "ts": now.isoformat(),
+            "outcome": "alert_no_longer_firing",
+        }
+        stmt = (
+            update(Incident)
+            .where(
+                Incident.status == INCIDENT_STATUS_OPEN,
+                Incident.source == INCIDENT_SOURCE_ALERT,
+                Incident.last_seen_at < silent_since,
+                Incident.correlation_key.not_in(sorted(firing_alertnames)),
+            )
+            .values(
+                status=INCIDENT_STATUS_RESOLVED,
+                resolved_at=now,
+                action_log=_with_appended_action(entry),
+            )
+            .returning(Incident.correlation_key)
+        )
+        result = await self.db.execute(stmt)
+        return [str(key) for key in result.scalars().all()]
+
     async def list_incidents(
         self, *, status: str | None = None, page: int = 1, page_size: int = 25
     ) -> tuple[list[Incident], int]:
@@ -342,5 +404,5 @@ class DiagnosticsRepository(BaseRepository[HealthSnapshot]):
         await self.db.execute(
             update(Incident)
             .where(Incident.id == incident_id)
-            .values(action_log=Incident.action_log.op("||")(func.to_jsonb([entry])))
+            .values(action_log=_with_appended_action(entry))
         )

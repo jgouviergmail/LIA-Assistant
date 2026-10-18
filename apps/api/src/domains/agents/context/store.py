@@ -153,12 +153,18 @@ async def get_tool_context_store() -> AsyncPostgresStore:
         await pool.open(wait=True, timeout=settings.database_pool_timeout)
         _store_pool = pool
 
-        # Build index configuration for semantic search
-        # NOTE: Memory/semantic search is always enabled (Gemini embeddings)
+        # Build index configuration for semantic search (Gemini embeddings).
+        # Decided HERE, at boot: setup() below creates the pgvector index, which
+        # cannot appear later. With no Gemini key the store runs without it —
+        # the embeddings resolve their key per call, so a semantic store would
+        # build and then fail every indexed write on the missing key.
         index_config = None
         semantic_search_enabled = False
+        from src.infrastructure.llm.gemini_embeddings import resolve_gemini_embedding_key
 
         try:
+            if not resolve_gemini_embedding_key():
+                raise RuntimeError("gemini_embedding_key_missing")
             embeddings = _get_embeddings_model()
             index_config = {
                 "dims": settings.memory_embedding_dimensions,

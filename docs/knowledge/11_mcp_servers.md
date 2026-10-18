@@ -148,50 +148,23 @@ LIA can **auto-generate** a domain description for your MCP servers:
 • Auto-generation is a good starting point that you can refine afterwards
 • Generation knows whether the server is authenticated with your account: it then describes capabilities over your data, never a "public-only" access
 
-## What is iterative mode and when should I enable it?
-Iterative mode changes how LIA interacts with an MCP server:
+## What is iterative mode, and when should I turn it on?
 
-**🔄 Standard mode (default):**
-• LIA's planner sees all individual tools from the server
-• It generates all parameters at once before calling tools
-• Works well for simple APIs with independent tools
+It is a switch on each server's form, **Iterative mode (ReAct agent)**, off by default.
 
-**🤖 Iterative mode (ReAct agent):**
-• LIA's planner sees a single "task" tool per server
-• A dedicated ReAct AI agent takes over and interacts with the server step by step
-• The agent reads the server's documentation first (`read_me`), then plans and executes tools iteratively with error recovery
+**🔧 Off:** LIA plans with the server's individual tools and fills in their parameters at once — ideal for simple, independent tools such as a search.
 
-**💬 Behaviour by chat mode:**
-• In the **standard** chat mode, the planner delegates to the dedicated ReAct sub-agent described above.
-• In the **autonomous (⚡ ReAct)** chat mode, LIA already reasons step by step, so it uses the server's individual tools **directly** (no nested agent) and picks the right one by description — your iterative servers work the same as in standard mode. Servers with interactive widgets (like Excalidraw) keep their dedicated agent even here. Admins can force the task tool everywhere with `REACT_MCP_EXPAND_ITERATIVE_ENABLED=false`.
+**🔄 On:** LIA hands the request to a dedicated assistant that works with that server step by step: it reads the documentation the server offers, calls a tool, reads the result, chooses the next one and recovers from an error — within a bounded number of steps and time.
 
-**✅ Enable iterative mode when:**
-• The server has a complex API requiring tools to be called in sequence
-• Tools depend on each other (output of one is input for the next)
-• The server provides a `read_me` documentation tool
-• Example: Excalidraw (must read element format before creating diagrams)
+**✅ Turn it on when** the tools must be called in sequence, one tool's output feeds the next, or the server asks to read its documentation first (a drawing server, for instance).
 
-**❌ Keep standard mode when:**
-• Tools are simple and independent (e.g., a search tool)
-• The API has few parameters and no complex workflows
+**💡 Good to know:** it makes several model calls per request, so it costs more and does not guarantee success. In ⚡ ReAct mode LIA already works step by step and uses the server's tools directly — except servers that draw interactive widgets, which keep their dedicated assistant. Your administrator can switch iterative mode off for the whole instance.
 
-**⚠️ Requirements:**
-• The administrator must enable `MCP_REACT_ENABLED=true` globally
-• Iterative mode uses more tokens per request (multiple LLM calls for the ReAct loop)
-• Iterative tools get an extended execution timeout (120s minimum vs. 60s for regular tools) to accommodate multi-step ReAct iterations
+**🤖 Which model:** servers with interactive widgets use a more capable model, the others a faster and cheaper one; the administrator sets both in **LLM Configuration**.
 
-**🤖 Smart AI selection:**
-• MCP servers with interactive widgets (like Excalidraw) automatically use a more powerful AI model
-• Regular MCP servers use a faster, more cost-efficient model
-• The administrator can configure both models in the LLM Config panel
+**🩺 Widgets:** an interactive widget is kept with the conversation and reopens after a reload or on another device. A widget that never starts shows a notice with an explanation, a **Retry** button and the technical detail, so a report from any device names the culprit.
 
-**🩺 Widget durability and diagnostics:**
-• MCP App widgets are persisted with the conversation — they reopen after a reload or on another device
-• A widget that never starts shows an actionable notice (explanation, Retry) with the technical failure detail relayed from inside the frame, so a report from any device names the culprit
-• Requests whose analyzed domain is an MCP surface (e.g. a drawing request when Excalidraw is connected) route directly to that server — the skill detector can no longer divert them
-
-**⚙️ How to enable:**
-Settings → MCP Servers → Edit your server → Toggle "Iterative mode (ReAct agent)"
+**⚙️ For administrators:** iterative mode is available unless `MCP_REACT_ENABLED=false`, and `REACT_MCP_EXPAND_ITERATIVE_ENABLED=false` keeps the dedicated assistant in ReAct mode too.
 
 ## How do I generate Excalidraw diagrams and schemas?
 LIA can create architecture diagrams, workflows, org charts and more using the Excalidraw MCP server:

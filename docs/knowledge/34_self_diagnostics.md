@@ -1,36 +1,76 @@
 # Self-Diagnostics & Platform Health
 
-## Can LIA monitor itself?
-Yes — since v1.34 (ADR-247), LIA reads its own telemetry. A periodic self-check evaluates the platform's golden signals (error rate, latency, LLM failures, disk, memory) plus direct probes of PostgreSQL, Redis, its own loop and — when an administrator configures a target — the platform's outbound connectivity, and stores health snapshots with exact measured values, each with the unit the server declares. This works even while the monitoring stack itself is down: the probes keep running, and the affected checks honestly report "unknown" instead of guessing.
+## Can LIA watch over its own health?
 
-## Where do administrators see the platform's health?
-In **Settings > Platform health** (administrators only): the latest self-check with per-check verdicts and exact values, currently firing alerts, degraded capabilities with their suggested fallbacks, and the incident history with stored diagnoses. When a critical incident opens, administrators are also notified in-app and by push — never by e-mail, since the alerting stack already e-mails.
+Yes, once the operator has turned **self-diagnostics** on — it is off by default, and the guided installer asks.
 
-## What is the incident memory?
-Every outage becomes exactly ONE incident: alerts delivered by the monitoring stack and critical self-check verdicts converge on the same incident when they describe the same problem. An incident records its evidence (exact values, alert annotations), its lifecycle (open → resolved), and optionally an automatic diagnosis.
+**🩺 What it checks, on a regular cycle:**
+• the server's error rate and response time
+• how often the AI models and the embedding service fail
+• disk and memory use
+• the database, the cache and its own check loop
+• services temporarily set aside after repeated failures
+• whether the server can still reach the outside, when the operator names a target
 
-## How are incidents diagnosed?
-A dedicated, budget-capped LLM step reads the incident's evidence and the operations runbook written for that alert, then stores a diagnosis: what is happening, the probable cause, and recommended actions. Those recommendations are proposals for a human administrator — nothing is ever executed from the model's text, and a daily cost cap (configurable, 0 disables the step) bounds the spend; the cap is checked before every call, not once per incident.
+Every verdict keeps its exact measured value. If the monitoring stack is down, the checks that depend on it say **Unknown** instead of guessing, while the direct ones keep running.
 
-The evidence handed over carries the measured value together with the unit, the verdict, the measurement window and the two alert thresholds it was compared against. Before v1.38.3 it carried a number and nothing else, and the diagnoses said so — "insufficient evidence to determine the exact cause" was an accurate answer, because a value with no threshold beside it cannot be judged: 46 is an incident for one check and unremarkable for another.
+Administrators read it all in **Settings › Administration › Platform health**: the latest check, the alerts firing, the degraded capabilities with their suggested fallback, and the incident history.
 
-## What does the diagnostician read before it diagnoses an incident?
-Until ADR-266, only the incident itself: a check, a value, its thresholds — and the diagnoses said so (« insufficient evidence »). It now receives an evidence pack collected at the moment of the diagnosis, according to a recipe declared for that kind of incident and asserted complete at boot: breakdown metrics over the incident's window (which outcome, status or refusal reason moved, and by how much), a bounded excerpt of recent log lines (counted by event, with the head of the failure, personal data removed), the build that is running with its uptime — so a recent deployment is visible — and the operations runbook written for that alert. Each source stands on its own: if the log store cannot be reached, the diagnosis says that section was unavailable instead of pretending nothing happened. What the model read is stored with what it wrote and shown under every diagnosis in **Settings > Platform health** (« What the diagnostician read »), so an administrator can check the text against its evidence.
+## What is an incident, and how is it diagnosed?
 
-## What language is a diagnosis written in?
-The language of each administrator who reads it. A diagnosis is produced by a scheduler tick that has no reader to ask, so it is written at that moment in the languages the instance's administrators actually read — with a single administrator, the normal case for a self-hosted instance, that is exactly one model call in the right language. A reader whose language was not among them still sees the diagnosis rather than a blank panel, and the interface says which language it is in.
+**📒 One problem, one incident:**
+Critical self-check results and, when the instance runs a monitoring stack, its alerts converge on a single incident when they describe the same problem. It keeps its evidence and its lifecycle, from open to resolved. An incident born of an alert closes when the alert resolves; if that news gets lost on the way, LIA sees that the monitoring stack no longer reports the alert and closes the incident after a delay the operator sets (an hour by default) without news, recording it in the incident's history. When a critical one opens, administrators are notified in the app, on their devices and on the external channels they linked — never by e-mail, which the alerting stack already sends.
 
-## What happens when the embedding provider refuses a call?
-Embeddings are what store a conversation in memory, index a message and retrieve a document context, and until v1.38.3 a refusal was silent: the answer arrived normally, merely less well informed. Three mechanisms now cover it, with three distinct roles. Background jobs start at staggered times instead of together, because interval jobs whose periods share a divisor align forever — measured in production, six of them fired inside the same second every hour, which is what produced 11 failures out of 24 calls in an hour with one to three active users. A short-window shaper covers growth in usage; it is never a gate, its wait is bounded, and a caller that waited its share proceeds anyway. And a bounded retry covers what is left, on transient provider errors only. All three are configurable, and setting `EMBEDDING_RATE_LIMIT_MAX_CALLS=0` disables the shaper entirely without costing a Redis round-trip.
+**🔬 The diagnosis:**
+A dedicated model, with its own role in LLM Configuration, reads the evidence and the operations runbook written for that alert, then writes what is happening, the probable cause and recommended actions. Those are proposals for a person: nothing is ever executed from them. A daily budget the operator sets bounds the spend and is checked before every call; at zero, no diagnosis is written.
 
-## Can I ask LIA to diagnose itself in chat?
-Yes, if you are an administrator: ask "diagnose yourself" or request a specific platform metric, recent service logs, or an incident's diagnosis. Four read-only tools answer: current health, a curated metric catalogue (free-form query languages are deliberately not accepted), bounded log excerpts, and the incident list. Non-administrators are refused.
+**🌍 Its language:**
+It is written in the languages the instance's administrators read. If yours is not among them, you still see it, with a note saying which language it is in.
 
-## Does this change anything for regular users?
-Yes, one thing: honesty under failure. When a step fails during a request, LIA now explains precisely what succeeded, what failed and why — from typed error codes, never raw logs — and applies a known workaround when one exists (for example switching web-search provider when one is down) instead of failing on a timeout.
+## What does the platform diagnostician read before it diagnoses an incident?
+
+In **Settings › Administration › Platform health**, each incident's diagnosis is written from the incident itself — the check, its measured value and thresholds — and from an evidence pack gathered at the moment of the diagnosis:
+• **Breakdown metrics** over the incident's window — which outcome, status or refusal reason moved, and by how much
+• **A bounded log excerpt** — recent error lines counted by event, personal data removed
+• **The running build** and how long it has been up, so a recent deployment is visible
+• **The operations runbook** written for that alert
+
+**Each source stands on its own:** one that cannot be reached is named as unavailable in the diagnosis, never read as "nothing happened". If no runbook is installed with the API, the panel says so.
+
+Under every diagnosis, **What the diagnostician read** shows exactly that pack, so you can check the text against its evidence.
+
+## Can I ask LIA to diagnose itself in the chat?
+
+Yes, if you are an administrator and self-diagnostics is on. For example:
+• *Diagnose yourself*
+• *Are there any open incidents?*
+• *Show me the API's recent errors*
+
+LIA answers with four read-only lookups: the current health, a curated list of platform measurements (no free-form query language), bounded excerpts of the service logs, and the incident list. It changes nothing, and the number of lookups over a period is limited.
+
+For anyone else, LIA declines: platform health is an administrator's view.
+
+## Does self-diagnostics change anything for regular users?
+
+One thing, quietly. When a service is known to be down — a web-search provider, a weather provider, the browser — LIA is told before it plans, so it can go around the outage instead of discovering it through a timeout. Where a real alternative exists, such as the other web-search provider, it is suggested; whether you can use it still depends on your connectors and on what the instance offers.
+
+What does not depend on self-diagnostics: when a step fails, LIA always tells you which one, what it answered and what succeeded anyway — on every instance.
 
 ## How do I enable it on my own server?
-Set `DIAGNOSTICS_ENABLED=true` in your `.env`. It is off by default, and with the flag off the subsystem does not exist at runtime. The telemetry sources (Prometheus, Loki, Alertmanager) are optional individually: an empty URL disables a source, and an install without the observability stack keeps working unchanged. To turn alerts into in-app incidents, also set the webhook secret and URL (`DIAGNOSTICS_WEBHOOK_SECRET`, `ALERTMANAGER_LIA_WEBHOOK_URL`) — the alerting container then notifies LIA on every firing and resolved alert.
+
+Answer yes to the self-diagnostics question of the guided installer, or set `DIAGNOSTICS_ENABLED=true` in your `.env`. It is off by default, and with the flag off the subsystem does not exist at runtime.
+
+The telemetry sources (Prometheus, Loki, Alertmanager) are optional individually: an empty URL disables a source, and an install without the observability stack keeps working, with the direct checks only. To turn alerts into incidents, the alerting container needs LIA's webhook (`DIAGNOSTICS_WEBHOOK_SECRET`, `ALERTMANAGER_LIA_WEBHOOK_URL`); when you choose both the monitoring stack and self-diagnostics in the installer, it wires the webhook for you.
+
+## What happens when the embedding provider refuses a call?
+
+Embeddings are what store a conversation in memory, index a message and retrieve a document's context, so a refused call is not left silent. Three mechanisms cover it, each with its own role:
+• background jobs start at staggered times rather than all in the same second, so their calls do not arrive as one burst
+• a short-window shaper smooths what remains; it is never a gate — its wait is bounded, and a caller that waited its share proceeds anyway
+• a bounded retry covers transient provider errors only
+
+All three are configurable, and `EMBEDDING_RATE_LIMIT_MAX_CALLS=0` disables the shaper entirely. The embedding failure rate is one of the self-checks above.
 
 ## Is every metric LIA produces actually visible somewhere?
-Yes, and that is checked automatically rather than assumed. A metric no dashboard, recording rule or alert refers to is a metric nobody can act on — which is not hypothetical: a context source failing silently once dropped the heartbeat's health signals on 46.5 % of ticks for a week, with no metric to notice it. Since v1.38.0 a build-time check compares every metric defined in the code against every dashboard panel, rule and alert expression. The metrics that reach nothing are listed explicitly, and that list can only get shorter: a newly blind metric fails the build, and a metric that becomes visible must leave the list. At the time of writing, 620 metrics are defined and the ones that reach nothing are listed in `apps/api/tests/unit/metric_coverage_baseline.json` — a list that can only get shorter (57 entries when this check shipped in v1.38.0, 49 in v1.44).
+
+Yes, and it is checked automatically when LIA is built rather than assumed: every metric defined in the code must be read by a dashboard panel, a recording rule or an alert. The few that are not yet are listed explicitly, and that list can only get shorter — a newly blind metric fails the build. A metric nobody can see is a metric nobody acts on.

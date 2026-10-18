@@ -4,7 +4,8 @@ A recording runner proves every argv byte: local builds, prebuilt pulls and
 never builds, secrets travel ONLY through stdin, the API is recreated
 without build after bootstrap (the real worker barrier), and every failure
 raises a StepFailed whose text carries a stable code plus the resume
-command and never a secret.
+command and never a secret. The reconfiguration primitives have their own
+suite, ``test_deploy_reconfigure.py``; both use the fakes of ``deploy_fakes.py``.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.install.compose import SKILL_SANDBOX_LOCAL_IMAGE, build_invocation
+from scripts.install.compose import SKILL_SANDBOX_LOCAL_IMAGE
 from scripts.install.deploy import (
     CommandResult,
     StepFailed,
@@ -26,50 +27,11 @@ from scripts.install.deploy import (
     validate_settings,
     wait_ready,
 )
-from scripts.install.model import (
-    Exposure,
-    InstallMode,
-    PublicAnswers,
-    SecretAnswers,
-)
+from scripts.install.model import InstallMode, SecretAnswers
+from scripts.install.tests.deploy_fakes import DIGEST, _invocation, _public, _Runner
 
 PASSWORD = "pw-CANARY-77!aa"
 PROVIDER_KEY = "sk-CANARY-99!bb"
-DIGEST = "e" * 64
-
-
-class _Runner:
-    def __init__(self, results: list[CommandResult] | None = None) -> None:
-        self.calls: list[dict] = []
-        self._results = list(results or [])
-
-    def __call__(self, argv, *, stdin=None, env=None):
-        self.calls.append({"argv": list(argv), "stdin": stdin, "env": env})
-        if self._results:
-            return self._results.pop(0)
-        return CommandResult(returncode=0, stdout="", stderr="")
-
-
-def _public(mode: InstallMode = InstallMode.LOCAL) -> PublicAnswers:
-    return PublicAnswers(
-        language="en",
-        mode=mode,
-        exposure=Exposure.LAN,
-        admin_email="admin@ops.tld",
-        admin_name="Ops",
-        default_language="fr",
-        observability=False,
-        skill_sandbox=False,
-        server_host="192.168.1.50",
-        web_domain=None,
-        api_domain=None,
-        caddy_email=None,
-        manifest_path=None,
-    )
-
-
-def _invocation(mode: InstallMode = InstallMode.LOCAL):
-    return build_invocation(_public(mode), root=Path("."))
 
 
 def test_local_acquire_builds_api_and_web() -> None:
@@ -288,117 +250,26 @@ def test_wait_ready_times_out_with_a_stable_code() -> None:
     assert clock.now >= 30
 
 
-# ---------------------------------------------------------------------------
-# Reconfiguration (non-destructive lifecycle)
-# ---------------------------------------------------------------------------
+def test_the_degraded_report_is_the_result_line_among_log_lines() -> None:
+    from scripts.install.deploy import bootstrap_degraded_report
 
-
-def _install_state(mode: InstallMode = InstallMode.LOCAL):
-    from scripts.install.state import STATE_SCHEMA_VERSION, InstallState
-
-    return InstallState(
-        schema_version=STATE_SCHEMA_VERSION,
-        installer_version="1",
-        mode=mode,
-        public_answers=_public(mode),
-        release_id=None,
-        bundle_tree_sha256=None,
-        source_context_tree_sha256=None,
-        image_digests={},
-        seed_bundle_sha256=DIGEST,
-        completed=(),
-        attempts={},
-        last_error_code=None,
-        generated_sha256={},
-        bootstrap_complete=True,
-        project_name="lia-prod",
+    stdout = "\n".join(
+        [
+            json.dumps({"event": "admin_ready", "level": "info"}),
+            json.dumps({"status": "bootstrapped", "optional_unkeyed": {"voice_tts": "elevenlabs"}}),
+            # A log line printed after the result, carrying a `status` of its own.
+            json.dumps({"event": "cache_published", "status": "ok"}),
+        ]
     )
+    assert bootstrap_degraded_report(stdout) == {"voice_tts": "elevenlabs"}
 
 
-def _candidates(tmp_path: Path) -> dict[Path, Path]:
-    target = tmp_path / "docker-compose.install.yml"
-    target.write_text("services: {}\n# current\n", encoding="utf-8")
-    candidate = tmp_path / "docker-compose.install.yml.candidate"
-    candidate.write_text("services: {}\n# candidate\n", encoding="utf-8")
-    return {target: candidate}
+def test_an_unreadable_bootstrap_output_reports_no_list() -> None:
+    from scripts.install.deploy import bootstrap_degraded_report
 
-
-def test_reconfigure_rejects_identity_changes_before_any_command(
-    tmp_path: Path,
-) -> None:
-    import dataclasses
-
-    from scripts.install.deploy import reconfigure_existing
-
-    runner = _Runner()
-    candidate = dataclasses.replace(_public(), admin_email="other@ops.tld")
-    with pytest.raises(StepFailed) as excinfo:
-        reconfigure_existing(
-            current=_install_state(),
-            candidate_public=candidate,
-            candidate_files=_candidates(tmp_path),
-            invocation=_invocation(),
-            runner=runner,
-        )
-    assert "reconfigure_identity_changed" in str(excinfo.value)
-    assert runner.calls == []
-
-
-def test_reconfigure_validates_replaces_and_recreates_without_build(
-    tmp_path: Path,
-) -> None:
-    import dataclasses
-
-    from scripts.install.deploy import reconfigure_existing
-
-    runner = _Runner()
-    candidates = _candidates(tmp_path)
-    target = next(iter(candidates))
-    candidate_public = dataclasses.replace(_public(), observability=True)
-    reconfigure_existing(
-        current=_install_state(),
-        candidate_public=candidate_public,
-        candidate_files=candidates,
-        invocation=_invocation(),
-        runner=runner,
-    )
-    assert target.read_text(encoding="utf-8").endswith("# candidate\n")
-    joined = [" ".join(call["argv"]) for call in runner.calls]
-    assert any("config --quiet" in call for call in joined), "static validation ran"
-    up_call = runner.calls[-1]["argv"]
-    assert up_call[-4:] == ["up", "-d", "--no-build", "--remove-orphans"]
-    all_joined = " ".join(joined)
-    assert "bootstrap_install" not in all_joined
-    assert "build" not in up_call, "no build COMMAND (only the --no-build flag)"
-    backups = list(tmp_path.glob("*.backup.*"))
-    assert backups, "previous file backed up"
-
-
-def test_reconfigure_failure_restores_the_previous_files(tmp_path: Path) -> None:
-    import dataclasses
-
-    from scripts.install.deploy import reconfigure_existing
-
-    class _FailingUpRunner(_Runner):
-        def __call__(self, argv, *, stdin=None, env=None):
-            result = super().__call__(argv, stdin=stdin, env=env)
-            if argv[-1] == "--remove-orphans":
-                return CommandResult(1, "", "boom")
-            return result
-
-    runner = _FailingUpRunner()
-    candidates = _candidates(tmp_path)
-    target = next(iter(candidates))
-    with pytest.raises(StepFailed) as excinfo:
-        reconfigure_existing(
-            current=_install_state(),
-            candidate_public=dataclasses.replace(_public(), observability=True),
-            candidate_files=candidates,
-            invocation=_invocation(),
-            runner=runner,
-        )
-    assert "reconfigure_failed" in str(excinfo.value)
-    assert target.read_text(encoding="utf-8").endswith("# current\n"), "restored"
+    assert bootstrap_degraded_report("") is None
+    assert bootstrap_degraded_report("Traceback (most recent call last):\n  boom") is None
+    assert bootstrap_degraded_report(json.dumps({"status": "bootstrapped"})) is None
 
 
 def test_step_failed_carries_the_redactable_stderr_tail() -> None:

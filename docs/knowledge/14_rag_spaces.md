@@ -71,14 +71,14 @@ Yes! LIA has a **built-in knowledge base** that lets it answer questions about i
 
 **🧠 How it works:**
 • LIA automatically detects when you ask about the app ("*What can you do?*", "*How do I connect my calendar?*")
-• It searches its FAQ knowledge base (200+ Q&A across 24 sections) using the same hybrid search as user spaces
+• It searches its FAQ knowledge base — the same questions and answers as the Help page — using the same hybrid search as user spaces
 • An **App Identity Prompt** describing all capabilities is injected into the response
 
 **⚡ Zero overhead:**
 This only activates when you ask about the app. Normal queries (emails, calendar, etc.) are not affected at all.
 
 **🔧 Admin features:**
-Administrators can manage system knowledge spaces in **Settings > Administration > System RAG admin**:
+Administrators can manage system knowledge spaces in **Settings › Administration › System RAG admin**:
 • View staleness status (content hash comparison)
 • Trigger a manual rebuild — the button reports which of three things happened: rebuilt, already up to date, or a rebuild already in progress
 • The corpus is checked at every start against both the source files and what is actually stored, so a corpus that has drifted is repaired rather than served

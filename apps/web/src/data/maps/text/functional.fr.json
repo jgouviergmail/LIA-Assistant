@@ -265,7 +265,7 @@
     },
     "f.radio": {
       "name": "Radio personnelle",
-      "role": "Une station à la demande, dans ta langue : ta journée et des actualités sourcées, écrites, vérifiées et dites pendant ton écoute, sur une musique qui se fait discrète sous chaque voix. Le filtre éditorial retire les invitations à acheter en gardant les informations utiles.",
+      "role": "Une station à la demande, dans ta langue : ta journée et des actualités sourcées, écrites, vérifiées et dites pendant ton écoute, sur une musique qui se fait discrète sous chaque voix, et des voix qui réagissent là où l’émission converse. Le filtre éditorial retire les invitations à acheter en gardant les informations utiles.",
       "goal": "Écouter sa journée et le monde sans rien lire, en sachant ce que ça coûte."
     },
     "f.security": {

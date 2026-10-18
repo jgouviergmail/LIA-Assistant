@@ -12,29 +12,40 @@
  *    formatting, and a delete that asks first then asks the server.
  * 3. **At 320 px no card reaches past the screen** — the gallery's oracle: the
  *    section clips, so the document never scrolls while a card overflows.
+ * 4. **The operator's switch removes the keeping, never the record.** With the
+ *    capability off and the deployment allowing it, no bubble offers to keep a
+ *    new answer, a kept one keeps its mark and can still be let go, and the tab
+ *    still shows what was kept — the bubbles used to follow the deployment flag
+ *    alone, and every click was refused.
  */
 import { test, expect, waitForHydration, type MockRoute } from '../fixtures';
 
 const ARCHIVED_ID = '00000000-0000-4000-8000-000000000001';
 const BOOKMARK_ID = 'b1b2c3d4-0000-4000-8000-000000000009';
 
-/** The instance offers bookmarks: the shell's config, with the flag on. */
-const CONFIG: MockRoute = {
-  url: '**/api/v1/config',
-  json: {
-    sse: { heartbeat_interval_seconds: 30 },
-    rate_limits: { enabled: false, per_minute: 60, burst: 10 },
-    i18n: { supported_languages: ['en', 'fr', 'de', 'es', 'it', 'zh'], default_language: 'en' },
-    features: {
-      workboard_enabled: true,
-      tool_approval_enabled: false,
-      attachments_enabled: true,
-      rag_spaces_enabled: true,
-      rag_spaces_embedding_model: 'text-embedding-3-small',
-      bookmarks_enabled: true,
-    },
-    api_version: 'v1',
+/** The shell's config of an instance whose deployment offers bookmarks. */
+const CONFIG_BODY = {
+  sse: { heartbeat_interval_seconds: 30 },
+  rate_limits: { enabled: false, per_minute: 60, burst: 10 },
+  i18n: { supported_languages: ['en', 'fr', 'de', 'es', 'it', 'zh'], default_language: 'en' },
+  features: {
+    workboard_enabled: true,
+    tool_approval_enabled: false,
+    attachments_enabled: true,
+    rag_spaces_enabled: true,
+    rag_spaces_embedding_model: 'text-embedding-3-small',
+    bookmarks_enabled: true,
   },
+  api_version: 'v1',
+};
+
+/** The instance offers bookmarks: the shell's config, with the flag on. */
+const CONFIG: MockRoute = { url: '**/api/v1/config', json: CONFIG_BODY };
+
+/** The same instance with keeping switched off by its administrator. */
+const CONFIG_KEEPING_OFF: MockRoute = {
+  url: '**/api/v1/config',
+  json: { ...CONFIG_BODY, capabilities: { bookmarks: { enabled: false, family: 'knowledge' } } },
 };
 
 function bookmark(overrides: Record<string, unknown> = {}) {
@@ -50,8 +61,12 @@ function bookmark(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** The chat with one archived answer, and the bookmark routes recording every ask. */
-function chatRoutes(asked: string[]): MockRoute[] {
+/**
+ * The chat with one archived answer, and the bookmark routes recording every ask.
+ *
+ * @param kept - The state the API publishes: archived id → bookmark id.
+ */
+function chatRoutes(asked: string[], kept: Record<string, string> = {}): MockRoute[] {
   return [
     CONFIG,
     { url: '**/api/v1/conversations/me/totals', json: {} },
@@ -83,7 +98,7 @@ function chatRoutes(asked: string[]): MockRoute[] {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ message_ids: {} }),
+          body: JSON.stringify({ message_ids: kept }),
         });
       },
     },
@@ -197,7 +212,10 @@ test.describe('message bookmarks', () => {
     await expect(page.getByText('1 / 500 bookmarks')).toBeVisible();
 
     await card.getByRole('button', { name: 'Supprimer ce bookmark' }).click();
-    await page.getByRole('alertdialog').getByRole('button', { name: /Supprimer/ }).click();
+    await page
+      .getByRole('alertdialog')
+      .getByRole('button', { name: /Supprimer/ })
+      .click();
 
     await expect.poll(() => asked).toContain(`DELETE /bookmarks/${BOOKMARK_ID}`);
   });
@@ -213,5 +231,56 @@ test.describe('message bookmarks', () => {
     const box = await page.getByTestId('bookmark-card').boundingBox();
     expect(box).not.toBeNull();
     expect(box!.x + box!.width).toBeLessThanOrEqual(320);
+  });
+
+  test('switched off by the administrator, no bubble offers it and the tab keeps what was kept', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await authenticate({ language: 'fr' });
+    const asked: string[] = [];
+    await mockApi([CONFIG_KEEPING_OFF, ...chatRoutes(asked).filter(route => route !== CONFIG)]);
+
+    // An absence proves nothing before the chat has read its own config: the
+    // state read is what follows it (the deployment mounts the routes).
+    const stateServed = page.waitForResponse('**/api/v1/bookmarks/state');
+    await page.goto('/fr/dashboard/chat');
+    await stateServed;
+    await expect(page.getByText('Salle B réservée à 14 h.')).toBeVisible();
+    await waitForHydration(page);
+    await expect(page.getByTestId('bookmark-toggle')).toHaveCount(0);
+    expect(asked).toEqual(['GET state']);
+
+    await mockApi([CONFIG_KEEPING_OFF, ...tabRoutes([]).filter(route => route !== CONFIG)]);
+    await page.goto('/fr/dashboard/settings?section=generated-assets&tab=bookmarks');
+    await waitForHydration(page, '[data-testid="bookmark-card"]');
+    await expect(page.getByTestId('bookmark-card')).toContainText('Réserve la salle B à 14 h');
+  });
+
+  test('switched off by the administrator, a kept answer keeps its mark and can be let go', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await authenticate({ language: 'fr' });
+    const asked: string[] = [];
+    await mockApi([
+      CONFIG_KEEPING_OFF,
+      ...chatRoutes(asked, { [ARCHIVED_ID]: BOOKMARK_ID }).filter(route => route !== CONFIG),
+    ]);
+
+    await page.goto('/fr/dashboard/chat');
+    await expect(page.getByText('Salle B réservée à 14 h.')).toBeVisible();
+    await waitForHydration(page);
+    const toggle = page.getByTestId('bookmark-toggle');
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+
+    await toggle.click();
+
+    await expect.poll(() => asked).toContain(`DELETE /bookmarks/by-message/${ARCHIVED_ID}`);
+    // Let go with keeping off: nothing left to offer on that answer.
+    await expect(page.getByTestId('bookmark-toggle')).toHaveCount(0);
+    expect(asked.some(entry => entry.startsWith('POST'))).toBe(false);
   });
 });

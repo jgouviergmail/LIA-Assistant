@@ -123,9 +123,9 @@
     },
     "t.config": {
       "name": "Configurazione e interruttori",
-      "role": "Impostazioni composte per dominio, lette dall'ambiente; un interruttore per capacità, letto al momento dell'atto.",
+      "role": "Impostazioni composte per dominio, lette dall'ambiente; un interruttore per capacità, letto al momento dell'atto e applicato una sola volta al catalogo del turno, che leggono entrambe le modalità di esecuzione.",
       "stack": ["Pydantic Settings", "Variabili d'ambiente", "Interruttori di capacità"],
-      "src": "140c6ec37c96"
+      "src": "3a0418ef388e"
     },
     "t.i18n": {
       "name": "Sei lingue",
@@ -319,9 +319,9 @@
     },
     "t.selfdiag": {
       "name": "Autodiagnosi",
-      "role": "LIA legge la propria telemetria, raccoglie le prove di un incidente nel momento in cui si verifica e ne conserva la memoria.",
+      "role": "LIA legge la propria telemetria, raccoglie le prove di un incidente nel momento in cui si verifica e ne conserva la memoria; un incidente la cui risoluzione è andata persa viene riconciliato con Alertmanager e chiuso.",
       "stack": ["Lettura di Prometheus / Loki / Alertmanager", "Prove per ricetta"],
-      "src": "7cf9e87a4874"
+      "src": "90c359712d84"
     },
     "t.radio": {
       "name": "Radio: redazione e antenna",

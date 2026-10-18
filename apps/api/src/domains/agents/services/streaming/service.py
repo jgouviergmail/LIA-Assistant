@@ -40,15 +40,15 @@ from src.domains.agents.display.card_actions import with_card_action_metadata
 from src.domains.agents.services.efficacy_evidence import EfficacyCapture
 from src.domains.agents.services.hitl.action_requests import with_available_actions
 from src.domains.agents.services.hitl.interactions.text_tokens import text_tokens
+from src.domains.agents.services.streaming.latency_sli import (
+    observe_first_token,
+    observe_stream_duration,
+)
 from src.domains.agents.services.streaming.machine_tags import MachineTagFilter
 from src.domains.agents.services.streaming.trace_capture import TraceCapture
 from src.domains.agents.services.streaming.voice_scope import VoiceScope
 from src.infrastructure.llm.message_text import coerce_content_to_text
-from src.infrastructure.observability.metrics_agents import (
-    sse_streaming_duration_seconds,
-    sse_time_to_first_token_seconds,
-    sse_tokens_generated_total,
-)
+from src.infrastructure.observability.metrics_agents import sse_tokens_generated_total
 from src.infrastructure.observability.metrics_langgraph import (
     langgraph_stage_duration_seconds,
     langgraph_streaming_chunks_total,
@@ -468,9 +468,7 @@ class StreamingService:
                         if sse_chunk.type == "token" and first_token_time is None:
                             first_token_time = time.time()
                             ttft = first_token_time - start_time
-                            sse_time_to_first_token_seconds.labels(
-                                intention=intention_label
-                            ).observe(ttft)
+                            observe_first_token(intention_label, ttft)
                             logger.debug(
                                 "first_token_received",
                                 run_id=run_id,
@@ -635,7 +633,7 @@ class StreamingService:
                 with_card_action_metadata({}, state, run_id), run_id, self.user_id
             )
             duration = time.time() - start_time
-            sse_streaming_duration_seconds.labels(intention=intention_label).observe(duration)
+            observe_stream_duration(intention_label, duration)
             sse_tokens_generated_total.labels(intention=intention_label, node_name="response").inc(
                 token_count
             )

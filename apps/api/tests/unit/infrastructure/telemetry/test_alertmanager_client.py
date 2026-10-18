@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import json
+from datetime import UTC, datetime
+
+import httpx
 import pytest
 
 from src.infrastructure.telemetry.alertmanager import AlertmanagerClient
@@ -85,3 +89,104 @@ class TestAlertmanagerClient:
         result = await client.active_alerts()
         assert result.status == "unavailable"
         assert result.error == "disabled"
+
+
+def _transport_recording(seen: list[dict[str, str]]) -> httpx.MockTransport:
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(dict(request.url.params))
+        return httpx.Response(200, content=json.dumps(_ALERTS_PAYLOAD).encode())
+
+    return httpx.MockTransport(handler)
+
+
+@pytest.mark.unit
+class TestWhichAlertsAreAskedFor:
+    """« What is notifying? » and « is this still firing? » are two questions."""
+
+    async def test_by_default_suppressed_alerts_are_left_out(self) -> None:
+        seen: list[dict[str, str]] = []
+        client = AlertmanagerClient(
+            base_url="http://alertmanager:9093",
+            timeout_seconds=2.0,
+            transport=_transport_recording(seen),
+        )
+        await client.active_alerts()
+        assert seen == [{"active": "true", "silenced": "false", "inhibited": "false"}]
+
+    async def test_a_silenced_or_inhibited_alert_is_still_firing(self) -> None:
+        seen: list[dict[str, str]] = []
+        client = AlertmanagerClient(
+            base_url="http://alertmanager:9093",
+            timeout_seconds=2.0,
+            transport=_transport_recording(seen),
+        )
+        result = await client.active_alerts(include_suppressed=True)
+        assert seen == [{"active": "true"}]
+        assert result.status == "ok"
+
+
+#: The v2 status payload, trimmed — the real one also carries the whole
+#: configuration (SMTP credentials included), which the client never reads.
+_STATUS_PAYLOAD = {
+    "cluster": {"name": "01J", "peers": [], "status": "ready"},
+    "config": {"original": "global:\n  smtp_from: alerts@example.org\n"},
+    "uptime": "2026-10-18T06:00:01.123456789Z",
+    "versionInfo": {"version": "0.27.0"},
+}
+
+
+@pytest.mark.unit
+class TestWhenTheRunningAlertmanagerStarted:
+    """Its alerts live in memory: whoever reads an absence must date the listing."""
+
+    async def test_the_uptime_is_the_instant_the_instance_started(self) -> None:
+        paths: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            paths.append(request.url.path)
+            return httpx.Response(200, content=json.dumps(_STATUS_PAYLOAD).encode())
+
+        client = AlertmanagerClient(
+            base_url="http://alertmanager:9093",
+            timeout_seconds=2.0,
+            transport=httpx.MockTransport(handler),
+        )
+
+        result = await client.status()
+
+        assert paths == ["/api/v2/status"]
+        assert result.status == "ok"
+        assert result.started_at == datetime(2026, 10, 18, 6, 0, 1, 123456, tzinfo=UTC)
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"cluster": {}},
+            {"uptime": "not a date"},
+            {"uptime": "2026-10-18T06:00:01"},
+            ["not", "an", "object"],
+        ],
+    )
+    async def test_an_undatable_payload_is_unavailable(self, payload: object) -> None:
+        client = AlertmanagerClient(
+            base_url="http://alertmanager:9093",
+            timeout_seconds=2.0,
+            transport=transport_returning(payload),
+        )
+
+        result = await client.status()
+
+        assert result.status == "unavailable"
+        assert result.error == "unexpected_shape"
+        assert result.started_at is None
+
+    async def test_a_backend_down_or_disabled_is_unavailable(self) -> None:
+        down = AlertmanagerClient(
+            base_url="http://alertmanager:9093",
+            timeout_seconds=2.0,
+            transport=transport_raising(httpx.ConnectError("down")),
+        )
+        disabled = AlertmanagerClient(base_url="", timeout_seconds=2.0)
+
+        assert (await down.status()).status == "unavailable"
+        assert (await disabled.status()).error == "disabled"

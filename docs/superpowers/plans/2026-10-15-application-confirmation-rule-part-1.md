@@ -10,9 +10,11 @@
 
 **Spec:** [docs/superpowers/specs/2026-10-15-application-confirmation-rule-design.md](../specs/2026-10-15-application-confirmation-rule-design.md) — this part implements its lots A, 0, 1 and 2; part 2 (lots 3 to 6 and the closing) is written once lot 0's door has shipped (spec §6.1).
 
+**Re-verified 2026-10-17** against `main` after v3.1.0 and v3.1.1: the operation census (184 operations, 60 on their own path in 26 modules), every lot-0 seam of the effect gate and every lot-1 and lot-2 tool module are unchanged. Four findings are folded in: ADR-347 and ADR-348 were taken by other lots, so this programme's ADR is **ADR-349** — re-checked free when Task 3.1 writes it, and if taken by then every `ADR-349` of this plan moves with it; the efficacy pilot (ADR-348), shipped since, forms a third ADR-336 verdict and reads the switch too (Task A1); the two reminder aliases stop publishing `draft` paths, and the reference-example suite drives the creation alias as a direct act (Tasks 1.2 and 1.5); the ticket update and comment manifests publish both their outputs (Task 2.3).
+
 ## Global Constraints
 
-- **No git action of any kind** (no `git add`, `commit`, `checkout`, `stash`): the owner handles git. Work in the `main` working tree, uncommitted. Several files below already carry other sessions' uncommitted changes: read each file before editing it and change nothing else in it.
+- **No git action of any kind** (no `git add`, `commit`, `checkout`, `stash`): the owner handles git. Work in the `main` working tree, uncommitted. Several files below already carry other sessions' uncommitted changes (on 2026-10-17: the four `.env` templates, `core/constants.py`, the six web locales, `CLAUDE.md` and `AGENTS.md`): read each file before editing it and change nothing else in it.
 - Every step that says "Run" runs on the host from `apps/api` with `.venv/Scripts/pytest` (or the named `task`); runtime proofs run in the `lia-api-dev` container. No paid model call anywhere in this plan; never an Anthropic API call.
 - Python: Black (line length 100), Ruff (E, W, F, I, B, C4, UP), MyPy strict — complete type hints, no new `Any`, no `cast`, no `# type: ignore`. Google-style docstrings, module docstrings, comments in English.
 - No function of cyclomatic complexity ≥ 15; no file above 600 logical SLOC (`scripts/audit/measure_sloc.py`); `apps/api/src/domains/agents/effects/runtime.py` is at 555 today and must stay under 600.
@@ -28,6 +30,7 @@
 3. **An unattended run (a routine) asking a ticket update with `run_now`**: refused with the gate's own verdict, no card and no command written — pinned in Task 0.5 (`test_an_ask_when_card_nobody_can_answer_is_refused_before_anything_is_written`) and on PostgreSQL in Task 2.4 (`test_in_a_routine_a_requested_run_is_refused_and_nothing_is_written`).
 4. **A preference change through the door with a withdrawn capability** (operator switches `APPLICATION_TOOLS` off between two turns, then a replay arrives): refused, never served from the old record — pinned in Task 0.3 (`test_a_replay_never_bypasses_a_withdrawn_capability`).
 5. **The same act reached through an alias and through its own tool**: the same register label, the same result shape — pinned in Task 1.5 (`test_one_act_one_label_whichever_tool`).
+6. **The check switched off, an English ReAct turn whose analyzer kept a requirement**: no verdict reaches the efficacy pilot (ADR-348) — neither its result axis nor the bounded adjustment it adds to the answer — pinned in Task A1 (`test_off_the_efficacy_pilot_reads_no_coverage`); `test_psyche_efficacy_flow.py` turns the check on for the scenarios that exercise it.
 
 ## File map
 
@@ -38,6 +41,7 @@
 | `apps/api/src/domains/agents/analysis/requested_outcomes.py` | `requested_outcomes_check_enabled()`, the switch's one reader, with the TODO | A1 |
 | `apps/api/src/domains/agents/services/outcome_directive.py` | the response directive honours the switch | A1 |
 | `apps/api/src/domains/agents/nodes/react_observed_gaps.py` | the ReAct requirements honour the switch | A1 |
+| `apps/api/src/domains/agents/services/efficacy_evidence.py` | the efficacy pilot's coverage honours the switch | A1 |
 | `apps/api/src/domains/agents/application/operation_spec.py` | `ConfirmationRule`, `AskWhen`, `Confirmation`, spec fields, alias index | 0.1 |
 | `apps/api/src/domains/agents/application/confirmation_policy.py` | the decision function, the field rules, authority for a direct act | 0.2, 0.5 |
 | `apps/api/src/domains/agents/effects/repository.py` | `find_by_key` | 0.3 |
@@ -54,7 +58,7 @@
 | `apps/api/src/domains/agents/tools/application_reminder_tools.py`, `reminder_tools.py`, `application_routine_tools.py`, `automation_tools.py` | lot 1 migrations and aliases | 1.2, 1.3 |
 | `apps/api/src/domains/agents/application/reminder_creation.py`, `reminder_update.py`, `result_projection.py` | grace rule, projections | 1.4 |
 | `apps/api/src/domains/agents/tools/workboard_creation_tool.py` | lot 2 migration | 2.2 |
-| `docs/architecture/ADR-347-…md` (new) and amendments | documentation | A2, 3.2 |
+| `docs/architecture/ADR-349-…md` (new) and the amendments | documentation | A2 (ADR-336, ADR-348), 3.1 |
 
 ---
 
@@ -64,12 +68,14 @@
 
 **Files:**
 - Modify: `apps/api/src/core/constants.py` (after `REACT_RECOVERY_PASSES_MAX_DEFAULT`, line ~6408)
-- Modify: `apps/api/src/core/config/agents.py` (import block line ~289; field after `react_recovery_passes_max`, line ~992)
+- Modify: `apps/api/src/core/config/agents.py` (import block line ~289; field after `react_recovery_passes_max`, line ~984)
 - Modify: `apps/api/src/domains/agents/analysis/requested_outcomes.py`
 - Modify: `apps/api/src/domains/agents/services/outcome_directive.py:7,42-46`
 - Modify: `apps/api/src/domains/agents/nodes/react_observed_gaps.py:7-11,21-23`
+- Modify: `apps/api/src/domains/agents/services/efficacy_evidence.py:8,42-58` (`current_coverage`, the efficacy pilot's reading of the verdicts, ADR-348)
 - Modify: `apps/api/tests/unit/domains/agents/nodes/test_react_checkpointed_execution.py` (one autouse fixture)
 - Modify: `apps/api/tests/unit/domains/agents/nodes/test_react_delegation_policy.py` (import that fixture)
+- Modify: `apps/api/tests/integration/test_psyche_efficacy_flow.py` (`prepare` turns the check on)
 - Test: `apps/api/tests/unit/domains/agents/semantic/test_requested_outcomes_check_switch.py` (new)
 
 **Interfaces:**
@@ -97,6 +103,7 @@ from src.domains.agents.nodes.react_observed_gaps import (
     requested_outcome_block,
     requested_requirements,
 )
+from src.domains.agents.services.efficacy_evidence import current_coverage
 from src.domains.agents.services.outcome_directive import build_requested_outcomes_block
 from src.domains.agents.services.planner.human_message import build_planner_human_message
 
@@ -135,6 +142,7 @@ def test_on_the_verdicts_reach_the_directive_and_the_loop(monkeypatch: pytest.Mo
     assert requested_final_report(state)
     assert proven_final_content(state, "answer") == ""
     assert observed_gaps(state) == ("pending reminders: missing",)
+    assert current_coverage(state)
 
 
 def test_off_a_checkpointed_requirement_is_judged_by_nobody(
@@ -148,6 +156,15 @@ def test_off_a_checkpointed_requirement_is_judged_by_nobody(
     assert requested_final_report(state) == {}
     assert proven_final_content(state, "answer") == "answer"
     assert observed_gaps(state) == ()
+    assert current_coverage(state) == ()
+
+
+def test_off_the_efficacy_pilot_reads_no_coverage(monkeypatch: pytest.MonkeyPatch) -> None:
+    """ADR-348's result axis reads ADR-336's coverage: off, it reads none, in every language."""
+    monkeypatch.setattr(settings, "requested_outcomes_check_enabled", True)
+    assert [item.status for item in current_coverage(_state())] == ["missing"]
+    monkeypatch.setattr(settings, "requested_outcomes_check_enabled", False)
+    assert current_coverage(_state()) == ()
 
 
 def test_off_a_failed_read_still_buys_its_recovery(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -237,9 +254,11 @@ def requested_outcomes_check_enabled() -> bool:
     """Whether the requested-outcome check judges a turn (ADR-336 amendment 2026-10-15).
 
     The ONE reader of the switch, called where a verdict is formed: the response
-    directive (``outcome_directive.build_requested_outcomes_block``) and the ReAct
+    directive (``outcome_directive.build_requested_outcomes_block``), the ReAct
     requirements (``react_observed_gaps.requested_requirements``, which feeds the
-    evidence collection, the gaps, the recovery trigger and the final report).
+    evidence collection, the gaps, the recovery trigger and the final report) and
+    the efficacy pilot's coverage (``efficacy_evidence.current_coverage``: the
+    result axis of ADR-348 and its bounded adjustment).
     Off, a turn behaves as one whose analyzer extracted nothing — the measured
     state of every non-English turn — including on a checkpoint written while it
     was on. The extraction is not switched: the planner still reads the
@@ -290,6 +309,34 @@ def requested_requirements(state: MessagesState) -> tuple[GoalRequirement, ...]:
     requirements = parse_requirements(get_qi_attr(state, "requested_outcomes", default=()))
 ```
 
+`apps/api/src/domains/agents/services/efficacy_evidence.py` — the third place a verdict is formed: the efficacy pilot of ADR-348, shipped after the switch was decided, learns its result axis from these verdicts and adds a « verify / state a limit » adjustment on a gap, `unknown` included (`efficacy_runtime._coverage_gap`). Extend the import (line 8) and guard `current_coverage`:
+
+```python
+from src.domains.agents.analysis.requested_outcomes import (
+    anchored_requirements,
+    parse_requirements,
+    requested_outcomes_check_enabled,
+)
+```
+
+```python
+def current_coverage(state: Mapping[str, object]) -> tuple[GoalCoverage, ...]:
+    """The requested outcomes this turn is judged on, against its evidence (ADR-336).
+
+    Off, the efficacy pilot reads no coverage: its result axis is ``unknown`` and
+    its adjustment reads the analyzer's own ``verification_needed`` (ADR-348).
+
+    Args:
+        state: The terminal graph output, or a checkpoint.
+
+    Returns:
+        One coverage per anchored requirement; empty when the check is off.
+    """
+    if not requested_outcomes_check_enabled():
+        return ()
+    qi = state.get("query_intelligence")
+```
+
 - [ ] **Step 6: Keep the two suites that exercise the check running it**
 
 In `apps/api/tests/unit/domains/agents/nodes/test_react_checkpointed_execution.py`, after the existing fixtures `contracts` and `no_services`, add:
@@ -305,12 +352,19 @@ def requested_outcomes_check_on(monkeypatch: pytest.MonkeyPatch) -> None:
 
 In `apps/api/tests/unit/domains/agents/nodes/test_react_delegation_policy.py`, add `requested_outcomes_check_on,` to the import list from `test_react_checkpointed_execution` and change `_FIXTURES = (contracts, no_services)` to `_FIXTURES = (contracts, no_services, requested_outcomes_check_on)`.
 
+In `apps/api/tests/integration/test_psyche_efficacy_flow.py`, `prepare` turns the check on after its three `psyche_*` lines — its scenarios exercise ADR-348 reading ADR-336's coverage (`partial_state` carries a requirement and its proof):
+
+```python
+    monkeypatch.setattr(settings, "requested_outcomes_check_enabled", True)
+```
+
 - [ ] **Step 7: Run the new test and every suite that reads the verdicts**
 
-Run: `.venv/Scripts/pytest tests/unit/domains/agents/semantic tests/unit/domains/agents/nodes/test_react_checkpointed_execution.py tests/unit/domains/agents/nodes/test_react_delegation_policy.py tests/unit/domains/agents/nodes/test_react_recovery.py tests/unit/domains/agents/services/test_planner_human_message.py -v`
-Expected: all PASS.
+Run: `.venv/Scripts/pytest tests/unit/domains/agents/semantic tests/unit/domains/agents/nodes/test_react_checkpointed_execution.py tests/unit/domains/agents/nodes/test_react_delegation_policy.py tests/unit/domains/agents/nodes/test_react_recovery.py tests/unit/domains/agents/services/test_planner_human_message.py tests/unit/domains/agents/services/test_efficacy_evidence.py -v`
+Expected: all PASS (`test_efficacy_evidence.py` hands coverage to `observations_from_coverage` directly, or an empty requirement list, and needs no switch).
+Run: `task test:backend:integration -- tests/integration/test_psyche_efficacy_flow.py -q` (PostgreSQL up) → PASS.
 
-### Task A2: The switch in every environment file, and the ADR-336 amendment
+### Task A2: The switch in every environment file, and the ADR-336 and ADR-348 amendments
 
 **Files:**
 - Modify: `.env.example`, `.env.prod.example` (after `REACT_RECOVERY_PASSES_MAX=…`)
@@ -318,13 +372,14 @@ Expected: all PASS.
 - Modify (live, git-ignored): `.env`, `.env.prod`, `.env.demo-instance`, `.env.demo-instance.prod` — same line, value `false`
 - Not touched: `.env.min.prod.example` (lists only what boot requires) and the `*.encrypted` copies (re-encrypted by `scripts/deploy/deploy-prod.ps1`)
 - Modify: `docs/architecture/ADR-336-Requested-Outcomes-Checked-Against-Canonical-Observations.md` (new amendment before « Implementation references »)
+- Modify: `docs/architecture/ADR-348-Efficacy-Learned-From-Evidence-Results-And-Usefulness-Kept-Apart.md` (new amendment at the end)
 
 - [ ] **Step 1: Write the line in the two `.env.*.example` files that use inline comments**
 
 After the `REACT_RECOVERY_PASSES_MAX=1 …` line of `.env.example` and of `.env.prod.example`:
 
 ```
-REQUESTED_OUTCOMES_CHECK_ENABLED=false                      # ADR-336 (amended 2026-10-15): whether the requested-outcome check judges a turn (response directive, ReAct gaps and recovery). Off until its own programme repairs the measured false negatives (non-English requests, nested application results, invented field names); the planner still receives the requirements (default: false)
+REQUESTED_OUTCOMES_CHECK_ENABLED=false                      # ADR-336 (amended 2026-10-15): whether the requested-outcome check judges a turn (response directive, ReAct gaps and recovery, the efficacy result axis of ADR-348). Off until its own programme repairs the measured false negatives (non-English requests, nested application results, invented field names); the planner still receives the requirements (default: false)
 ```
 
 - [ ] **Step 2: Write the block in the two demonstrator templates (comment lines above, their style)**
@@ -333,8 +388,9 @@ After the `REACT_RECOVERY_PASSES_MAX=1` line of `.env.demo-instance.example` and
 
 ```
 # ADR-336 (amended 2026-10-15): the requested-outcome check judges a turn's answer
-# against what the request named; off until its own programme repairs the false
-# negatives measured that day. The planner still receives the requirements.
+# against what the request named (the efficacy pilot of ADR-348 learns from it too);
+# off until its own programme repairs the false negatives measured that day. The
+# planner still receives the requirements.
 REQUESTED_OUTCOMES_CHECK_ENABLED=false
 ```
 
@@ -372,11 +428,12 @@ not cover):
 
 **Decision.** An operator switch, `REQUESTED_OUTCOMES_CHECK_ENABLED`, ships
 `false` in every environment file. One predicate reads it where a verdict is
-formed — `build_requested_outcomes_block` (the response directive) and
+formed — `build_requested_outcomes_block` (the response directive),
 `requested_requirements` (the ReAct evidence collection, gaps, recovery trigger
-and final report); off, a turn behaves as one whose analyzer extracted nothing,
-including on a checkpoint written while it was on. The extraction is not
-switched: the planner still reads the requirements as a hint
+and final report) and `current_coverage` (the efficacy pilot, ADR-348: its result
+axis and its bounded adjustment); off, a turn behaves as one whose analyzer
+extracted nothing, including on a checkpoint written while it was on. The
+extraction is not switched: the planner still reads the requirements as a hint
 (`planner/human_message.py`). A failed read keeps its own recovery (ADR-310).
 The dedicated programme that follows must repair, before switching it back on:
 the anchoring against the original language, the field paths never published to
@@ -385,15 +442,33 @@ case-sensitive equality, and the `unknown` directive turning into a claimed
 failure. Pinned by `test_requested_outcomes_check_switch.py`.
 ```
 
-- [ ] **Step 5: Run the documentation and hygiene gates**
+- [ ] **Step 5: Write the ADR-348 amendment**
+
+Append at the end of `ADR-348-Efficacy-Learned-From-Evidence-Results-And-Usefulness-Kept-Apart.md` (`<date>` is the day this step runs, ISO `YYYY-MM-DD`):
+
+```markdown
+## Amendment <date> — the result axis while the ADR-336 check is off
+
+ADR-336 ships its check switched off (`REQUESTED_OUTCOMES_CHECK_ENABLED`, its
+amendment of 2026-10-15) until its own programme repairs the false negatives
+measured that day. The result axis reads that check's coverage and nothing else,
+so `current_coverage` reads the same switch: off, a turn's result is `unknown`
+(`insufficient_evidence`) in every language — already the state of every
+non-English turn, whose requirements do not survive the semantic pivot — and the
+bounded adjustment reads the analyzer's own `verification_needed` instead of a
+coverage gap. The usefulness axis is untouched. Pinned by
+`test_requested_outcomes_check_switch.py`.
+```
+
+- [ ] **Step 6: Run the documentation and hygiene gates**
 
 Run (from repo root): `task lint:hygiene` then `task lint:docs`
 Expected: both exit 0 (`check_env_example_completeness` finds `REQUESTED_OUTCOMES_CHECK_ENABLED` documented).
 Run: `.venv/Scripts/pytest tests/unit/test_demo_instance_env_template.py -v` (from `apps/api`) → PASS.
 
-- [ ] **Step 6: Cold review of lot A**
+- [ ] **Step 7: Cold review of lot A**
 
-Read again, line by line: the seven code and test files of Task A1 and the eight environment files' new lines (compare each live file's line to its template's — never copy a value). Confirm nothing else changed in any of them (`git diff --stat` is a read-only check you may run; it changes nothing).
+Read again, line by line: the ten files of Task A1 (nine modified, one new), the two ADR amendments and the eight environment files' new lines (compare each live file's line to its template's — never copy a value). Confirm nothing else changed in any of them (`git diff --stat` is a read-only check you may run; it changes nothing).
 
 ---
 
@@ -411,7 +486,7 @@ Read again, line by line: the seven code and test files of Task A1 and the eight
 - [ ] **Step 1: Write the failing test**
 
 ```python
-"""One confirmation declaration per application operation (ADR-347)."""
+"""One confirmation declaration per application operation (ADR-349)."""
 
 from __future__ import annotations
 
@@ -538,7 +613,7 @@ then, after `class ApplicationEmptyRead`, add:
 
 ```python
 class ConfirmationRule(StrEnum):
-    """Whether an operation's calls show their confirmation card (ADR-347)."""
+    """Whether an operation's calls show their confirmation card (ADR-349)."""
 
     ASK = "ask"
     DIRECT = "direct"
@@ -637,7 +712,7 @@ Replace `OperationRegistry.register` and document `get_by_tool_name`:
         return self._operations[operation_id]
 
     def get_by_tool_name(self, tool_name: str) -> ApplicationOperationSpec | None:
-        """The operation a tool serves — its own tool or a declared alias (ADR-347)."""
+        """The operation a tool serves — its own tool or a declared alias (ADR-349)."""
         return self._tools.get(tool_name)
 ```
 
@@ -663,7 +738,7 @@ Expected: all PASS (no existing spec declares anything yet).
 Replace `apps/api/tests/unit/domains/agents/application/test_confirmation_policy.py` with:
 
 ```python
-"""Confirmation exceptions are reviewed declarations, never HTTP-method guesses (ADR-347)."""
+"""Confirmation exceptions are reviewed declarations, never HTTP-method guesses (ADR-349)."""
 
 import pytest
 from pydantic import BaseModel
@@ -671,7 +746,7 @@ from pydantic import BaseModel
 pytestmark = pytest.mark.unit
 
 #: Every operation whose calls may run without their card. A flip edits this
-#: list, in the same change as the declaration and the manifest (ADR-347).
+#: list, in the same change as the declaration and the manifest (ADR-349).
 DIRECT_OPERATIONS = frozenset(
     {
         "assistant_preferences.update",
@@ -787,7 +862,7 @@ Expected: FAIL — `ImportError: cannot import name 'implied_manifest_policy'` /
 Replace lines 1-79 (the docstring, `CONFIRMATION_FREE_FIELDS`, `SENSITIVE_ENABLE_FIELDS` and `requires_confirmation`) with:
 
 ```python
-"""One confirmation declaration per application operation, and its one reader (ADR-347).
+"""One confirmation declaration per application operation, and its one reader (ADR-349).
 
 Credentials, external delivery, microphone capture, deletion and autonomous
 execution permissions are deliberately outside the field rules below: a field a
@@ -900,7 +975,7 @@ def requires_confirmation(spec: ApplicationOperationSpec, intent: Mapping[str, o
 
 
 def implied_manifest_policy(spec: ApplicationOperationSpec) -> str:
-    """The policy every static reader of the manifest is told (ADR-347 §4.4)."""
+    """The policy every static reader of the manifest is told (ADR-349 §4.4)."""
     confirmation = spec.confirmation
     if confirmation.may_act_directly and confirmation.ask_when is None:
         return "reversible"
@@ -979,7 +1054,7 @@ Expected: all PASS. Then `.venv/Scripts/pytest tests/unit/domains/agents/effects
 - [ ] **Step 1: Write the failing unit tests**
 
 ```python
-"""The register as an application door uses it (ADR-347): the gate's own primitives."""
+"""The register as an application door uses it (ADR-349): the gate's own primitives."""
 
 from __future__ import annotations
 
@@ -1151,7 +1226,7 @@ In `EffectLedgerRepository`, add after `claim`:
 
 ```python
     async def find_by_key(self, thread_id: str, idempotency_key: str) -> AgentEffect | None:
-        """The row holding ``idempotency_key`` in ``thread_id``, if any (ADR-347).
+        """The row holding ``idempotency_key`` in ``thread_id``, if any (ADR-349).
 
         A refused row is suffixed (``_REFUSED_KEY_SUFFIX``) and is never found
         under the key of the operation it refused.
@@ -1188,7 +1263,7 @@ and in `claim`, replace the `existing = (await self.db.execute(select(...))).sca
 
 ```python
     async def find(self, thread_id: str, idempotency_key: str) -> ClaimTicket | None:
-        """What an earlier attempt of this call recorded, read without claiming (ADR-347).
+        """What an earlier attempt of this call recorded, read without claiming (ADR-349).
 
         Best-effort: None when nothing holds the key or the ledger is down — the
         caller then prepares and CLAIMS, which stays atomic.
@@ -1331,7 +1406,7 @@ def reset_policy_cache() -> None:
 - [ ] **Step 5: Create `effects/application_effects.py`**
 
 ```python
-"""The effect register, as an application door uses it (ADR-347).
+"""The effect register, as an application door uses it (ADR-349).
 
 A DIRECT application operation is decided by its door on the PREPARED intent,
 not by the gate on the raw call, so the door files the act itself — through the
@@ -1443,7 +1518,7 @@ async def perform_claimed(
         tool_name: The called tool.
         arguments: What the call asked, for the row's digest.
         act: The act itself.
-        label: The row's label, built from the prepared content (ADR-347 §4.6).
+        label: The row's label, built from the prepared content (ADR-349 §4.6).
 
     Returns:
         The act's result, or the record a concurrent duplicate already served.
@@ -1464,7 +1539,7 @@ async def perform_claimed(
 `apps/api/tests/integration/domains/agents/effects/test_effect_find_by_key_db.py`:
 
 ```python
-"""The door reads a call's record by its key — and never a refusal's (ADR-347)."""
+"""The door reads a call's record by its key — and never a refusal's (ADR-349)."""
 
 from __future__ import annotations
 
@@ -1550,7 +1625,7 @@ Append to `test_effect_labels.py`:
 
 ```python
 class TestAnApplicationActIsLabelledByItsOperation:
-    """ADR-347 §4.6: one label per act, whichever tool and whether confirmed or direct."""
+    """ADR-349 §4.6: one label per act, whichever tool and whether confirmed or direct."""
 
     @staticmethod
     def _content(operation_id: str, intent: dict[str, object]) -> dict[str, object]:
@@ -1612,7 +1687,7 @@ Expected: FAIL — `AttributeError: module ... has no attribute 'APPLICATION_LAB
 In `labels.py`, add `from collections.abc import Callable, Mapping` (replacing the `Callable` import) and, under `TYPE_CHECKING`, `from src.domains.agents.application.draft_models import ApplicationActionDraftContent`. After `EFFECT_LABEL_BUILDERS`:
 
 ```python
-#: An application operation that names its object in the register (ADR-347 §4.6):
+#: An application operation that names its object in the register (ADR-349 §4.6):
 #: the wording the register already uses for that act, and the path of the field
 #: of the operation's PREPARED content that names the object. Only a declared
 #: field reaches a label: an arbitrary operation's content may hold what a
@@ -1651,7 +1726,7 @@ def operation_label(content: ApplicationActionDraftContent) -> dict[str, Any]:
 
 
 def labelled_by_operation(tool_name: str) -> bool:
-    """Whether a tool's acts are labelled through its operation (ADR-347).
+    """Whether a tool's acts are labelled through its operation (ADR-349).
 
     Args:
         tool_name: A registered tool name, or an alias.
@@ -1712,7 +1787,7 @@ Expected: all PASS.
 - [ ] **Step 1: Write the failing door tests**
 
 ```python
-"""The one door an application action goes through (ADR-347)."""
+"""The one door an application action goes through (ADR-349)."""
 
 from __future__ import annotations
 
@@ -1967,7 +2042,7 @@ Expected: FAIL — `ImportError: cannot import name 'action_door'`.
 - [ ] **Step 3: Create `application/refusals.py`**
 
 ```python
-"""What an application tool answers when it cannot propose or perform (ADR-347).
+"""What an application tool answers when it cannot propose or perform (ADR-349).
 
 Every tool keeps its own sentences and codes — its characterization tests pin
 them — so a door call carries the tool's COMPLETE exception table, tried in
@@ -2114,7 +2189,7 @@ DIRECT_REFUSALS: tuple[Answers, ...] = (
 Create `apps/api/src/domains/agents/application/direct_execution.py` with the body of `reversible_execution.py`, then delete `reversible_execution.py`:
 
 ```python
-"""Execute an application operation at once, through its confirmed executor (ADR-347)."""
+"""Execute an application operation at once, through its confirmed executor (ADR-349)."""
 
 from src.domains.agents.application.authorization import load_actor
 from src.domains.agents.application.availability import require_application_tools
@@ -2181,7 +2256,7 @@ async def execute_direct_action(content: ApplicationActionDraftContent) -> Unifi
 - [ ] **Step 5: Create the door, `application/action_door.py`**
 
 ```python
-"""The one door an application action goes through (ADR-347).
+"""The one door an application action goes through (ADR-349).
 
 An operation declares whether its calls show their confirmation card
 (``ApplicationOperationSpec.confirmation``). An ``ASK`` operation keeps the
@@ -2550,7 +2625,7 @@ Run: `.venv/Scripts/pytest tests/unit/domains/agents/effects/test_application_ef
         from src.domains.agents.effects import application_effects
 
         if application_effects.decided_at_its_door(tool_name):
-            # ADR-347: an application operation that may act without its card is
+            # ADR-349: an application operation that may act without its card is
             # decided, claimed and recorded by its door on the PREPARED intent.
             # The gate serves a replay of an act already recorded, and observes.
             replayed = await application_effects.served_replay(tool_name)
@@ -2588,7 +2663,7 @@ Run: `task test:backend:integration -- tests/integration/test_application_revers
 - [ ] **Step 1: Write the failing consistency tests**
 
 ```python
-"""One declaration, read the same way by every reader (ADR-347 §4.4, §4.5, §4.7, §3.4)."""
+"""One declaration, read the same way by every reader (ADR-349 §4.4, §4.5, §4.7, §3.4)."""
 
 from __future__ import annotations
 
@@ -2731,7 +2806,7 @@ ApplicationExecutorFn = Callable[
 ]
 
 #: The confirmed executor of every operation not served by the preference
-#: dispatch — also what a direct call runs (ADR-347 §4.7).
+#: dispatch — also what a direct call runs (ADR-349 §4.7).
 APPLICATION_EXECUTORS: dict[str, ApplicationExecutorFn] = {
     "knowledge_source.unlink": execute_source_unlink,
     # … every entry of today's literal, in the same order …
@@ -2762,7 +2837,7 @@ Expected: all PASS.
 - [ ] **Step 1: Write the guard (it passes at once; its sample must fail)**
 
 ```python
-"""No application draft and no persisted command outside the door (ADR-347 §4.8).
+"""No application draft and no persisted command outside the door (ADR-349 §4.8).
 
 AST-based: a call to ``save_command`` or a ``create_draft`` naming
 ``DraftType.APPLICATION_ACTION`` anywhere under ``src/`` outside the door is a
@@ -2911,7 +2986,7 @@ The success paths (card, persisted command, confirmed execution) are already pin
 - [ ] **Step 1: Write the characterization (it must pass against TODAY's code)**
 
 ```python
-"""Every refusal of the lot-1 tools, pinned before their migration to the door (ADR-347)."""
+"""Every refusal of the lot-1 tools, pinned before their migration to the door (ADR-349)."""
 
 from __future__ import annotations
 
@@ -3193,6 +3268,7 @@ Expected: all PASS. A failing row means the row is wrong, not the code: read the
 - Modify: `apps/api/tests/unit/domains/agents/effects/test_effect_labels.py` (`cancel_reminder_tool` is now labelled by its operation: `is True`)
 - Modify: `apps/api/tests/unit/domains/agents/application/test_application_door_guard.py` (remove `application_reminder_tools.py` from `NOT_YET_MIGRATED`)
 - Modify: `apps/api/tests/unit/domains/agents/tools/test_reminder_tool_recurrence.py` (`_capture_created` patches the new helper, Step 4)
+- Modify: `apps/api/tests/unit/domains/agents/registry/test_manifest_reference_examples_provider_tools.py` (`_run_create_reminder`: the `save_command` patch target, Step 5)
 
 **Interfaces:**
 - Produces (in `application_reminder_tools`): `reminder_creation(configuration, runtime, *, name, validate, language=None) -> UnifiedToolOutput`, `reminder_removal(selection, runtime, *, name, validate, language=None) -> UnifiedToolOutput`, `REMINDER_UPDATE_REFUSALS`, `REMINDER_REMOVAL_REFUSALS`, `REMINDER_CREATION_REFUSALS`. `reminder_creation_proposal` and `reminder_removal_proposal` are deleted.
@@ -3474,7 +3550,7 @@ In `tests/unit/domains/agents/tools/test_reminder_tool_recurrence.py`, `_capture
 ```python
 @contextmanager
 def _capture_created() -> Iterator[dict[str, Any]]:
-    """Capture the configuration handed to the shared door adapter (ADR-347).
+    """Capture the configuration handed to the shared door adapter (ADR-349).
 
     Real PostgreSQL tests prove what the door writes; these units keep the
     established relative and recurring time-parser oracle.
@@ -3506,6 +3582,7 @@ def _capture_created() -> Iterator[dict[str, Any]]:
 
 Run: `.venv/Scripts/pytest tests/unit/domains/agents/application/test_lot1_refusal_characterization.py tests/unit/domains/agents/application/test_application_door_guard.py tests/unit/domains/agents/application/test_confirmation_consistency.py tests/unit/domains/agents/effects/test_effect_labels.py tests/unit/domains/agents/tools/test_reminder_tool_recurrence.py -v` → all PASS.
 Run: `task test:backend:integration -- tests/integration/test_application_reminder_creation.py tests/integration/test_application_reminder_update_hitl.py tests/integration/test_application_reminder_update_edit.py tests/integration/test_application_reminder_delete_hitl.py -q` → all PASS, unchanged (still cards: the declarations are `ASK`). Where one of them patches `src.domains.agents.tools.application_reminder_tools.save_command`, point it at `src.domains.agents.application.action_door.save_command` — the only accepted edit.
+Run: `.venv/Scripts/pytest tests/unit/domains/agents/registry/test_manifest_reference_examples_provider_tools.py -v` → PASS once `_run_create_reminder` patches `src.domains.agents.application.action_door.save_command` instead of `…tools.application_reminder_tools.save_command` (the migrated module no longer imports it) — the same accepted edit.
 
 ### Task 1.3: Routines through the door
 
@@ -3768,7 +3845,7 @@ Run: `task test:backend:integration -- tests/integration/test_application_routin
 `test_reminder_instants.py`:
 
 ```python
-"""A reminder instant written to the minute is never refused for the seconds it lost (ADR-347)."""
+"""A reminder instant written to the minute is never refused for the seconds it lost (ADR-349)."""
 
 from datetime import UTC, datetime, timedelta
 
@@ -3813,7 +3890,7 @@ Append to `test_reminder_tool_recurrence.py` (its `_runtime` fixture and `_captu
 
 ```python
 class TestRepeatOnceBesideAnInstant:
-    """ADR-347: `repeat='once'` beside `trigger_datetime` is one way of saying when."""
+    """ADR-349: `repeat='once'` beside `trigger_datetime` is one way of saying when."""
 
     @pytest.mark.asyncio
     async def test_it_is_the_same_single_firing(self, _runtime: MagicMock) -> None:
@@ -3861,7 +3938,7 @@ Expected: FAIL — `ImportError: cannot import name 'REMINDER_PAST_INSTANT_GRACE
 `constants.py`, beside the other reminder constants:
 
 ```python
-# ADR-347: a single reminder instant at most this far in the past is still
+# ADR-349: a single reminder instant at most this far in the past is still
 # accepted and fires at the reminder sweep's next pass (every minute). One
 # minute is the precision of the clock a model writes (HH:MM): « in one minute »
 # rounded down lands a few seconds behind. Structural, not tunable.
@@ -3871,7 +3948,7 @@ REMINDER_PAST_INSTANT_GRACE_SECONDS: int = 60
 `apps/api/src/domains/agents/application/reminder_instants.py`:
 
 ```python
-"""When a reminder instant is still acceptable, said once (ADR-347)."""
+"""When a reminder instant is still acceptable, said once (ADR-349)."""
 
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -3945,7 +4022,7 @@ and insert `Refusal((ReminderInstantPassed,), _passed_instant),` as the FIRST en
 In `create_reminder_tool`, directly before `ways = [...]`:
 
 ```python
-        # ADR-347: `repeat='once'` beside `trigger_datetime` is the same single
+        # ADR-349: `repeat='once'` beside `trigger_datetime` is the same single
         # firing said twice. Drop the redundant word before judging the ways — a
         # mechanical repair (ADR-184); any other combination stays a conflict.
         schedule_fields = (
@@ -3997,7 +4074,7 @@ In `result_projection.py`, add the imports `from src.core.i18n import resolve_la
 def _readable_schedule(
     trigger_at: datetime, timezone: str, recurrence: RecurrenceSpec
 ) -> dict[str, JsonValue]:
-    """The armed instant in the person's own clock, and a series in words (ADR-347)."""
+    """The armed instant in the person's own clock, and a series in words (ADR-349)."""
     language = resolve_language()
     values: dict[str, JsonValue] = {
         "trigger_at_local": format_datetime_for_display(
@@ -4032,7 +4109,7 @@ Run: `task test:backend:integration -- tests/integration/test_application_remind
 `apps/api/tests/helpers/application_card_path.py`:
 
 ```python
-"""Exercise a direct operation's card path, kept complete for the day it flips back (ADR-347 §4.7)."""
+"""Exercise a direct operation's card path, kept complete for the day it flips back (ADR-349 §4.7)."""
 
 import pytest
 
@@ -4048,7 +4125,7 @@ def card_path(monkeypatch: pytest.MonkeyPatch) -> None:
 `test_lot1_flip.py`:
 
 ```python
-"""Reminders and the routine switch act at once, labelled by their operation (ADR-347)."""
+"""Reminders and the routine switch act at once, labelled by their operation (ADR-349)."""
 
 import pytest
 
@@ -4190,9 +4267,9 @@ Each of the seven manifests: `mutation_policy="reversible"`, `mutation_policy_re
 - `REMINDER_UPDATE_MANIFEST`: "Change an owned pending reminder's content, single instant or complete recurrence at once. Omitted fields remain unchanged. Never send null or both clocks. A repeating reminder moves through its recurrence, not a one-time trigger. Content-only changes preserve the stored timezone and schedule; a moved instant up to one minute past fires at the next pass. Returns the changed reminder; future notifications retain existing LLM cost and quota accounting."
 - `REMINDER_DELETE_MANIFEST`: "Delete one owned pending reminder at once, including all remaining occurrences of a recurring reminder. A processing reminder is busy; a fired or removed reminder is unavailable. Never re-resolve a natural reference. Returns the deleted reminder's content. A notification already delivered is never recalled."
 - `ROUTINE_STATE_MANIFEST`: "Pause or enable one owned routine at once. Read its id first. Set enabled explicitly; repeated enable requests never toggle it off. Pausing stops future triggers and lets an already running execution finish. Enabling resets the source clock and error state, while preserving a running execution reservation."
-- `create_reminder_catalogue_manifest`: "Creates a reminder for the user at once. The reminder will be sent as a push notification (FCM) and recorded in conversation history at the scheduled time. Use trigger_datetime for fixed times, or relative_trigger for FOR_EACH (e.g., 'day before each event at 19:00')." — its comment becomes `# Compatibility temporal parsing reaches the same door as create_lia_reminder_tool (ADR-347).`
-- `cancel_reminder_catalogue_manifest`: "Deletes a pending reminder and all remaining occurrences at once. Can identify reminder by direct UUID or natural reference ('next', 'the next one')." — its permissions comment becomes `# Direct (ADR-347): the act is recorded by its door; hitl_required stays False.`
-- `toggle_scheduled_action_catalogue_manifest`: "Pauses or resumes an existing automation at once. Requires the automation id from list_scheduled_actions_tool. Pass enabled for the state you want (a repeated call then changes nothing); without it the observed state is inverted. Prefer set_lia_routine_state_tool for an explicit desired state." — plus a parameter `ParameterSchema(name="enabled", type="boolean", required=False, description="Desired state: true resumes, false pauses; omitted inverts the observed state")`, and its permissions comment `# Direct (ADR-347).`
+- `create_reminder_catalogue_manifest`: "Creates a reminder for the user at once. The reminder will be sent as a push notification (FCM) and recorded in conversation history at the scheduled time. Use trigger_datetime for fixed times, or relative_trigger for FOR_EACH (e.g., 'day before each event at 19:00')." — its comment becomes `# Compatibility temporal parsing reaches the same door as create_lia_reminder_tool (ADR-349).` Its `reference_examples` become `[]`: they published `draft.id` and `draft.type`, which a direct result never carries (`test_manifest_reference_examples_truthful.py::test_no_manifest_publishes_a_path_it_does_not_declare` reads every example's root against the declared outputs).
+- `cancel_reminder_catalogue_manifest`: "Deletes a pending reminder and all remaining occurrences at once. Can identify reminder by direct UUID or natural reference ('next', 'the next one')." — its permissions comment becomes `# Direct (ADR-349): the act is recorded by its door; hitl_required stays False.` Its `reference_examples` become `[]`, for the same reason.
+- `toggle_scheduled_action_catalogue_manifest`: "Pauses or resumes an existing automation at once. Requires the automation id from list_scheduled_actions_tool. Pass enabled for the state you want (a repeated call then changes nothing); without it the observed state is inverted. Prefer set_lia_routine_state_tool for an explicit desired state." — plus a parameter `ParameterSchema(name="enabled", type="boolean", required=False, description="Desired state: true resumes, false pauses; omitted inverts the observed state")`, and its permissions comment `# Direct (ADR-349).`
 
 Docstrings (the ReAct schema's description), first paragraph and `Returns:`:
 
@@ -4258,8 +4335,84 @@ Run (repo root): `task lint:i18n` → PASS.
 Run: `.venv/Scripts/pytest tests/unit -q -x -p no:randomly` and `task test:backend:agents`, then the integration files below. For every failure, apply ONLY the matching rule; any other failure is a defect to fix in the code:
 
 - A test that obtains a reminder or routine-state CARD from the tool, then confirms it (`test_application_reminder_creation.py::test_native_creation_requires_exact_hitl_and_commits_once`, `…_reminder_creation_edit_replaces_the_approval…`, `…_first_trigger_elapsing…`, `…_reminder_creation_refuses_changed_authority`, `…_recurrence_crossing…`; `test_application_reminder_update_hitl.py`; `test_application_reminder_update_edit.py`; `test_application_reminder_delete_hitl.py::test_native_deletion_requires_exact_hitl…`; `test_application_routine_state.py::test_real_routine_tool_requires_exact_hitl…`, `…_routine_editor_replaces…`): add the `card_path` fixture (`from tests.helpers.application_card_path import card_path`, then the parameter). These now pin the card path §4.7 keeps complete.
-- A test asserting that an entry « is a proposal » (`test_all_creation_entries_are_proposals_and_obey_the_global_switch`, `test_both_deletion_entries_are_proposals_and_obey_the_switch`, `test_native_reminder_creation_is_proposal_only…`): rename it `…_act_at_once_and_obey_the_switch` and assert the act (row created or deleted, `result.metadata.get("requires_confirmation")` falsy, `application_result.committed`), keeping the switch-off branch (`CAPABILITY_DISABLED`, nothing written) unchanged.
-- `tests/unit/domains/agents/registry/test_mutation_policy.py`: the toggle tool's expected policy is `reversible`.
+- A test asserting that an entry « is a proposal » (`test_all_creation_entries_are_proposals_and_obey_the_global_switch`, `test_both_deletion_entries_are_proposals_and_obey_the_switch`, `test_native_reminder_creation_is_proposal_only…`): rename it `…_act_at_once_and_obey_the_switch` and assert the act (row created or deleted, `result.metadata.get("requires_confirmation")` falsy, `application_result.committed`), keeping the switch-off branch (`CAPABILITY_DISABLED`, nothing written) unchanged. A direct act needs the authority an executor publishes: run the call under an `effect_scope(EffectScope(run_id=…, idempotency_key=…))` beside its `installed_runtime_context`, and patch `src.domains.agents.application.direct_execution.get_db_context` and `…draft_execution.get_db_context` to the test's session, as `test_application_direct_reminders_and_routines.py` does.
+- `tests/unit/domains/agents/registry/test_mutation_policy.py`: the toggle tool's expected policy is `reversible`, and the comment above it says why (`# routine_state.update acts at once (ADR-349); the alias sets the state asked, or inverts it.`).
+- `tests/unit/domains/agents/registry/test_manifest_reference_examples_provider_tools.py`: `create_reminder_tool` now acts, so `_run_create_reminder` drives it as a direct act — the doubles stay at the SQL boundary, the register is not written (a unit test has none), and the write itself returns what a committed write returns, its values built by the REAL projection (add `from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE` to the module's imports):
+
+```python
+async def _run_create_reminder() -> UnifiedToolOutput:
+    """Drive the temporal adapter, the door and the direct execution; replace only the write.
+
+    The alias acts at once (ADR-349), so its published contract is the direct
+    result. The SQL boundaries are replaced as before; the register is not
+    written; the write returns the outcome a committed write returns, its values
+    projected from the prepared content by the production code.
+    """
+    from src.domains.agents.application.draft_models import ApplicationActionDraftContent
+    from src.domains.agents.application.outcomes import (
+        ApplicationExecutionOutcome,
+        ApplicationPhase,
+    )
+    from src.domains.agents.application.result_projection import public_application_values
+    from src.domains.agents.effects.scope import EffectScope, effect_scope
+    from src.domains.users.models import User
+    from src.domains.users.preference_cas import PreferenceWriteReceipt
+    from tests.helpers.runtime_context import installed_runtime_context
+
+    runtime = _tool_runtime()
+    actor = User(
+        id=runtime.context.user_id,
+        email="reminder-proposal@example.test",
+        hashed_password="test",
+        is_active=True,
+        timezone=DEFAULT_USER_DISPLAY_TIMEZONE,
+    )
+
+    async def committed(
+        content: ApplicationActionDraftContent, actor_id: UUID, receipt: PreferenceWriteReceipt
+    ) -> ApplicationExecutionOutcome:
+        return ApplicationExecutionOutcome(
+            success=True,
+            phase=ApplicationPhase.COMMITTED,
+            committed=True,
+            values=public_application_values(content),
+        )
+
+    direct = "src.domains.agents.application.direct_execution"
+    door = "src.domains.agents.effects.application_effects"
+    with (
+        installed_runtime_context(user_id=actor.id, language="fr"),
+        effect_scope(EffectScope(run_id="run-reference", idempotency_key="call:reference")),
+        patch(
+            "src.domains.agents.tools.application_reminder_tools.get_db_context",
+            return_value=_db_context_double(),
+        ),
+        patch(
+            "src.domains.agents.application.reminder_creation.load_actor",
+            AsyncMock(return_value=actor),
+        ),
+        patch(
+            "src.domains.agents.application.reminder_creation.require_application_tools",
+            AsyncMock(),
+        ),
+        patch(f"{direct}.get_db_context", return_value=_db_context_double()),
+        patch(f"{direct}.require_application_tools", AsyncMock()),
+        patch(f"{direct}.load_actor", AsyncMock(return_value=actor)),
+        patch(f"{direct}._execute_outcome", committed),
+        patch(f"{door}.served_replay", AsyncMock(return_value=None)),
+        patch(
+            f"{door}.perform_claimed",
+            AsyncMock(side_effect=lambda name, arguments, act, label: act()),
+        ),
+    ):
+        return await _drive(
+            reminder_tools.create_reminder_tool,
+            content="Rappeler le dentiste",
+            original_message="rappelle-moi d'appeler le dentiste demain à 9h",
+            runtime=runtime,
+            trigger_datetime="2099-08-03T09:00:00+02:00",
+        )
+```
 - `tests/unit/domains/agents/application/test_routine_state_contract.py`, `tests/agents/orchestration/test_for_each_hitl_count.py`, `tests/agents/orchestration/test_semantic_validator.py`, `tests/unit/domains/agents/semantic/test_application_committed_outcome.py`, `test_delegated_outcome_evidence.py`: where an expectation reads the four tools as `draft`/pending, it reads `reversible`/acted; the FOR_EACH confirmation count of `test_for_each_hitl_count.py` is unchanged (it is decided by the tool's category, `tool_is_mutation`).
 
 List every file edited under this step in the lot's review notes.
@@ -4272,7 +4425,7 @@ List every file edited under this step in the lot's review notes.
 - [ ] **Step 1: Write the tests**
 
 ```python
-"""Reminders and the routine switch act at once, recorded once, replays served (ADR-347)."""
+"""Reminders and the routine switch act at once, recorded once, replays served (ADR-349)."""
 
 from __future__ import annotations
 
@@ -4500,7 +4653,7 @@ The success path (card, command, confirmed execution) is pinned by `tests/integr
 - [ ] **Step 1: Write the characterization (it must pass against TODAY's code)**
 
 ```python
-"""Every refusal of the ticket creation tool, pinned before its migration (ADR-347)."""
+"""Every refusal of the ticket creation tool, pinned before its migration (ADR-349)."""
 
 from __future__ import annotations
 
@@ -4597,7 +4750,7 @@ Run: `.venv/Scripts/pytest tests/unit/domains/agents/application/test_ticket_cre
 - [ ] **Step 1: Rewrite the module on the door**
 
 ```python
-"""Compatibility parsing ends in the same exact native creation, through the door (ADR-347)."""
+"""Compatibility parsing ends in the same exact native creation, through the door (ADR-349)."""
 
 from uuid import UUID
 
@@ -4740,7 +4893,7 @@ Run: `task test:backend:integration -- tests/integration/test_application_workbo
 - [ ] **Step 1: Write the failing tests**
 
 ```python
-"""Tickets act at once; a run requested or a pending action answered still asks (ADR-347)."""
+"""Tickets act at once; a run requested or a pending action answered still asks (ADR-349)."""
 
 from __future__ import annotations
 
@@ -4932,9 +5085,9 @@ WORKBOARD_COMMENT_OPERATION = ApplicationOperationSpec(
 
 `create_ticket_catalogue_manifest`: `mutation_policy="reversible"`, `mutation_policy_reason=WORKBOARD_CREATE_OPERATION.confirmation.reason`, outputs `[OutputFieldSchema(path="application_result", type="object", description="The created ticket, or the refusal")]`, and the description's first sentences become « Creates a ticket on the user's workboard at once. Use the full request schema, or legacy fields exclusively. Assigning to LIA permits later paid execution under normal quotas; never claim it already ran. Unknown completion is not automatically retried. » (the rest — « Use when they want to keep track… NOT for … (use automation). » — unchanged).
 
-`update_ticket_catalogue_manifest` (stays `draft`): replace « Preparation produces mandatory native human confirmation, without persisting a change or sending notifications. » with « The change happens at once; a change that sets run_now, or that hands a confirming ticket back to LIA with the owner's answer, asks the person first and changes nothing until they confirm. » — the rest unchanged.
+`update_ticket_catalogue_manifest` (stays `draft`): replace « Preparation produces mandatory native human confirmation, without persisting a change or sending notifications. » with « The change happens at once; a change that sets run_now, or that hands a confirming ticket back to LIA with the owner's answer, asks the person first and changes nothing until they confirm. » — the rest unchanged. A call now answers either way, so its outputs say both: `success` « Whether the change ran, or its confirmation was prepared », a new `OutputFieldSchema(path="application_result", type="object", description="The act's outcome, when the change ran at once")`, and `draft` « A confirmation card, when the change sets run_now or answers a pending action; nothing saved yet ».
 
-`comment_ticket_catalogue_manifest` (stays `draft`): replace « Prepare mandatory human confirmation for an exact literal comment. Preparation posts nothing. » with « Post an exact literal comment at once. On an owner-held confirming ticket the comment is an answer, and it asks the person first: » — the rest (« the source classifies the complete comment: … ») unchanged.
+`comment_ticket_catalogue_manifest` (stays `draft`): replace « Prepare mandatory human confirmation for an exact literal comment. Preparation posts nothing. » with « Post an exact literal comment at once. On an owner-held confirming ticket the comment is an answer, and it asks the person first: » — the rest (« the source classifies the complete comment: … ») unchanged. Its outputs: `success` « Whether the comment was posted, or its confirmation prepared », a new `application_result` (object) « The posted comment, when it was posted at once », and `draft` « A confirmation card, when the comment answers a pending action; nothing posted yet ».
 
 Docstrings, first paragraph and `Returns:` — `create_ticket_tool`: « Create an exact ticket at once. » / « The created ticket, or the refusal. »; `update_ticket_tool`: « Update, move or run a ticket — at once, except a run or an answer, which asks first. » / « The updated ticket, a confirmation card, or the refusal. »; `comment_ticket_tool`: « Post a literal comment at once; a comment that answers a pending action asks first. » / « The posted comment, a confirmation card, or the refusal. »
 
@@ -4954,7 +5107,7 @@ Same rules as Task 1.5 Step 7: a test that obtains a ticket CARD and confirms it
 - [ ] **Step 1: Write the tests**
 
 ```python
-"""Tickets act at once; a requested run asks, and nobody can answer it in a routine (ADR-347)."""
+"""Tickets act at once; a requested run asks, and nobody can answer it in a routine (ADR-349)."""
 
 from __future__ import annotations
 
@@ -5087,26 +5240,26 @@ Run: `task test:backend:integration -- tests/integration/test_application_direct
 
 ## Closing of part 1 — documentation and the full gates
 
-### Task 3.1: ADR-347 and its amendments
+### Task 3.1: ADR-349 and its amendments
 
 `<date>` in this task is the day it runs, ISO `YYYY-MM-DD`, written identically in the ADR, the index entry and the history entry.
 
 **Files:**
-- Create: `docs/architecture/ADR-347-One-Confirmation-Declaration-Per-Application-Operation.md`
+- Create: `docs/architecture/ADR-349-One-Confirmation-Declaration-Per-Application-Operation.md`
 - Modify: `docs/architecture/ADR-339-Application-Commands-With-Current-Authority-And-Secure-Continuations.md`, `ADR-263-Execution-Authority-Chain-And-Effect-Register.md`, `ADR-268-Generic-Recurrence-And-Reminder-Management.md`, `ADR-276-Workboard.md` (one amendment each, before their « Implementation references » or at the end)
-- Modify: `docs/architecture/ADR_INDEX.md` (ADR-347 entry after ADR-346), `docs/technical/APPLICATION_COMMANDS.md` (« Preparation, execution and continuation »)
+- Modify: `docs/architecture/ADR_INDEX.md` (ADR-349 entry after ADR-348), `docs/technical/APPLICATION_COMMANDS.md` (« Preparation, execution and continuation »)
 
-- [ ] **Step 1: Write ADR-347**
+- [ ] **Step 1: Write ADR-349**
 
 ```markdown
-# ADR-347 — One confirmation declaration per application operation
+# ADR-349 — One confirmation declaration per application operation
 
 **Status:** Accepted — lots A, 0, 1 and 2 implemented; the migration of the
 remaining 51 own-path operations follows (part 2 of the plan).
 **Date:** <date>
 **Deciders:** the owner (decisions of 2026-10-15); Claude recorded the design,
 the measurements and the implementation.
-**Amends:** ADR-339, ADR-263, ADR-268, ADR-276, ADR-336.
+**Amends:** ADR-339, ADR-263, ADR-268, ADR-276, ADR-336, ADR-348.
 
 ## Context
 
@@ -5153,11 +5306,19 @@ intent.
    `REMINDER_PAST_INSTANT_GRACE_SECONDS` in the past is accepted and fires at the
    next sweep; an older one is refused with the current local time;
    `repeat='once'` beside an instant is repaired.
+9. **The ADR-336 check ships switched off** (`REQUESTED_OUTCOMES_CHECK_ENABLED`):
+   a direct act would otherwise be judged by verdicts measured false. One
+   predicate reads the switch where a verdict is formed — the response
+   directive, the ReAct requirements and the efficacy pilot's coverage
+   (ADR-348) — and the planner keeps its hint (amendments in ADR-336 and
+   ADR-348).
 
 ## Flipping an operation — the checklist
 
 1. Its declaration on the spec, with the reason (and `ask_when` when needed).
-2. Its manifest's policy literal (and `mutation_policy_reason=SPEC.confirmation.reason`).
+2. Its manifest: the policy literal (and `mutation_policy_reason=SPEC.confirmation.reason`),
+   and the outputs it publishes — `application_result` for a call that acts, `draft` for
+   one that may ask, and no `reference_examples` path its result does not carry.
 3. Its manifest description and its tool docstring.
 4. Its progress label in the six web locales.
 5. Its `APPLICATION_LABELS` entry when its acts should name their object.
@@ -5173,6 +5334,8 @@ intent.
   neutral technical messages, and file a failed consultation — not a failed
   action — when their preparation refuses.
 - The card path of every `DIRECT` operation stays complete and tested.
+- With the ADR-336 check off, the efficacy pilot's result axis reads no
+  coverage (ADR-348 amendment); its usefulness axis is untouched.
 
 ## Validation
 
@@ -5180,7 +5343,7 @@ intent.
 `test_action_door.py`, `test_application_effects.py`,
 `test_confirmation_consistency.py`, `test_application_door_guard.py`,
 `test_lot1_refusal_characterization.py`, `test_ticket_creation_characterization.py`,
-`test_lot1_flip.py`, `test_ticket_flip.py`, and on PostgreSQL
+`test_lot1_flip.py`, `test_ticket_flip.py`, `test_requested_outcomes_check_switch.py`, and on PostgreSQL
 `test_effect_find_by_key_db.py`, `test_application_direct_reminders_and_routines.py`,
 `test_application_direct_tickets.py`.
 
@@ -5196,32 +5359,32 @@ intent.
 
 - [ ] **Step 2: The four amendments (one paragraph each)**
 
-- ADR-339: « **Amendment (ADR-347).** An operation declares whether its calls show their card (`ApplicationOperationSpec.confirmation`); requirement F03's field list became the `ask_when` of the eight personalization operations, and every application action goes through one door (part 1: the reminder, routine and ticket tools; part 2: the rest). »
-- ADR-263: « **Amendment (ADR-347).** A `DIRECT` application operation is claimed and closed by its door, not by the gate, through the gate's own `_run_claimed`; the gate serves its replays before the tool runs. `policy_for_call` is gone. »
-- ADR-268: « **Amendment (ADR-347).** Creating, modifying and deleting a reminder act at once (owner decision, 2026-10-15) — the deletion no longer asks. An instant up to one minute past is accepted. »
-- ADR-276: « **Amendment (ADR-347).** Creating, updating and commenting a ticket act at once again; an update that requests a run or answers a pending action, and a comment that answers one, still ask. »
+- ADR-339: « **Amendment (ADR-349).** An operation declares whether its calls show their card (`ApplicationOperationSpec.confirmation`); requirement F03's field list became the `ask_when` of the eight personalization operations, and every application action goes through one door (part 1: the reminder, routine and ticket tools; part 2: the rest). »
+- ADR-263: « **Amendment (ADR-349).** A `DIRECT` application operation is claimed and closed by its door, not by the gate, through the gate's own `_run_claimed`; the gate serves its replays before the tool runs. `policy_for_call` is gone. »
+- ADR-268: « **Amendment (ADR-349).** Creating, modifying and deleting a reminder act at once (owner decision, 2026-10-15) — the deletion no longer asks. An instant up to one minute past is accepted. »
+- ADR-276: « **Amendment (ADR-349).** Creating, updating and commenting a ticket act at once again; an update that requests a run or answers a pending action, and a comment that answers one, still ask. »
 
 - [ ] **Step 3: Index and technical document**
 
-`ADR_INDEX.md`, after the ADR-346 entry:
+`ADR_INDEX.md`, after the ADR-348 entry:
 
 ```markdown
-### ADR-347: one confirmation declaration per application operation
+### ADR-349: one confirmation declaration per application operation
 
-**File**: `docs/architecture/ADR-347-One-Confirmation-Declaration-Per-Application-Operation.md`
+**File**: `docs/architecture/ADR-349-One-Confirmation-Declaration-Per-Application-Operation.md`
 
-**Status**: Accepted, <date>. Amends ADR-339, ADR-263, ADR-268, ADR-276, ADR-336.
+**Status**: Accepted, <date>. Amends ADR-339, ADR-263, ADR-268, ADR-276, ADR-336, ADR-348.
 
 **Decision**: An application operation declares whether its calls show their confirmation card — `ASK`, or `DIRECT` with a written reason and an optional `ask_when` read on the prepared intent — and one door reads it: an asking operation keeps the effect gate's path, a direct one is prepared, decided and recorded by its door through the gate's own claim → act → close, its replay served from the register before anything is prepared. Reminders (create, change, delete), the routine switch and the three ticket acts act at once again; a ticket run or an answer to a pending action still asks. One label per act, from its operation.
 ```
 
-`APPLICATION_COMMANDS.md`, at the start of « Preparation, execution and continuation », a paragraph: « Each operation declares whether its calls show their card (`confirmation`, ADR-347). An `ASK` operation follows the flow below. A `DIRECT` operation is handed by the effect gate to the door, which prepares, decides on the prepared intent and either builds the card (when `ask_when` fires) or performs the act at once through the same confirmed executor, recorded as a reversible act. »
+`APPLICATION_COMMANDS.md`, at the start of « Preparation, execution and continuation », a paragraph: « Each operation declares whether its calls show their card (`confirmation`, ADR-349). An `ASK` operation follows the flow below. A `DIRECT` operation is handed by the effect gate to the door, which prepares, decides on the prepared intent and either builds the card (when `ask_when` fires) or performs the act at once through the same confirmed executor, recorded as a reversible act. »
 
 - [ ] **Step 4: Living maps, six languages**
 
-`apps/web/src/data/maps/history.json`, after the ADR-346 entry: `{"adr": 347, "date": "<date>", "theme": "orchestration", "functional": ["f.application", "f.hitl", "f.reminders", "f.routines", "f.workboard"], "technical": ["t.application", "t.hitl", "t.registers", "t.toolsys"]}`.
+`apps/web/src/data/maps/history.json`, after the ADR-348 entry: `{"adr": 349, "date": "<date>", "theme": "orchestration", "functional": ["f.application", "f.hitl", "f.reminders", "f.routines", "f.workboard"], "technical": ["t.application", "t.hitl", "t.registers", "t.toolsys"]}`.
 
-`apps/web/src/data/maps/text/history.<lang>.json`, `entries["347"]` (`title`, `summary`; `task docs:maps` stamps `src`):
+`apps/web/src/data/maps/text/history.<lang>.json`, `entries["349"]` (`title`, `summary`; `task docs:maps` stamps `src`):
 
 - fr — « Une seule déclaration de confirmation par opération d'application » / « Une opération de l'application déclare si ses appels montrent leur carte de confirmation : toujours, ou jamais sauf un cas nommé lu sur l'intention préparée. Une seule porte prépare, décide et inscrit l'acte ; créer, modifier et supprimer un rappel, mettre une routine en pause et les actes sur les tickets se font de nouveau sans carte. Un acte rejoué après une interruption est servi depuis le registre, jamais préparé une seconde fois. »
 - en — "One confirmation declaration per application operation" / "An application operation declares whether its calls show their confirmation card: always, or never except a named case read on the prepared intent. One door prepares, decides and records the act; creating, changing and deleting a reminder, pausing a routine and the ticket acts happen at once again. An act replayed after an interruption is served from the register, never prepared twice."
@@ -5234,13 +5397,13 @@ intent.
 
 - [ ] **Step 5: CLAUDE.md pointer, counts, AGENTS mirror**
 
-In `CLAUDE.md`, « Useful Documentation Pointers », after the ADR-346 line:
+In `CLAUDE.md`, « Useful Documentation Pointers », after the ADR-348 line:
 
 ```markdown
-- One confirmation declaration per application operation (ADR-347): an operation declares `ASK` or `DIRECT` (+ `ask_when` on the prepared intent); an asking one keeps the gate's path, a direct one is decided and recorded by its door, replays served from the register: `docs/architecture/ADR-347-One-Confirmation-Declaration-Per-Application-Operation.md`
+- One confirmation declaration per application operation (ADR-349): an operation declares `ASK` or `DIRECT` (+ `ask_when` on the prepared intent); an asking one keeps the gate's path, a direct one is decided and recorded by its door, replays served from the register: `docs/architecture/ADR-349-One-Confirmation-Declaration-Per-Application-Operation.md`
 ```
 
-Then (repo root): `task release:sync-counts` (realigns « 346 ADR files, ADR-347 latest »), `task docs:maps`, `task docs:sync-agents`.
+Then (repo root): `task release:sync-counts` (realigns « 348 ADR files, ADR-349 latest »), `task docs:maps`, `task docs:sync-agents`.
 
 - [ ] **Step 6: Documentation gate**
 
@@ -5251,4 +5414,4 @@ Run: `task lint:docs` → exit 0. If it names files moved but not staged, run `t
 - [ ] **Step 1:** `task ci:fast` → exit 0 (report the test counts, warnings and any skipped gate verbatim).
 - [ ] **Step 2:** `task test:backend:integration -- tests/integration -k "application or effects or workboard or reminder or routine" -q` → exit 0.
 - [ ] **Step 3:** Update the memory note `project_reminder_direct_and_confirmation_rule_2026_10_15.md` and its index line: part 1 implemented, not committed, gates green, what part 2 must migrate (`NOT_YET_MIGRATED`, 23 modules, 51 operations).
-- [ ] **Step 4:** Write part 2 of the plan (`docs/superpowers/plans/<date>-application-confirmation-rule-part-2.md`): one task per module of `NOT_YET_MIGRATED`, each « characterize the refusals (as Task 1.1) → move onto `application_action` with the module's own `Refusals` (as Tasks 1.2/1.3) → remove it from the list » (the session module also declares `binds_origin=True` on `device_session.revoke`, spec §4.1, and keeps its « Authenticated browser required. » check in the tool, before the door), then the closing (empty list, `task ci:fast`, ADR-347 status « fully implemented »). Submit it to the owner before touching code.
+- [ ] **Step 4:** Write part 2 of the plan (`docs/superpowers/plans/<date>-application-confirmation-rule-part-2.md`): one task per module of `NOT_YET_MIGRATED`, each « characterize the refusals (as Task 1.1) → move onto `application_action` with the module's own `Refusals` (as Tasks 1.2/1.3) → remove it from the list » (the session module also declares `binds_origin=True` on `device_session.revoke`, spec §4.1, and keeps its « Authenticated browser required. » check in the tool, before the door), then the closing (empty list, `task ci:fast`, ADR-349 status « fully implemented »). Submit it to the owner before touching code.

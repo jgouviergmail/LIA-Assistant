@@ -672,12 +672,19 @@ every turn. The radio is the caller ([RADIO.md](RADIO.md#audio)).
 ### Expressive cues (ADR-345)
 
 Several engines perform cues written inside the text, each in its own syntax
-and words: ElevenLabs v3/v4 audio tags (`[whispers]`, a pause as `…`), Fish
-Audio S2 models (`[happy]`, `[break]`), Fish Audio `s1` (a fixed set in
+and words (vendor pages re-read 2026-10-17): ElevenLabs v3/v4 audio tags
+(`[whispers]`, a pause as `…` — they refuse SSML), every earlier ElevenLabs
+model the SSML pause alone (`<break time="0.5s" />`), Fish Audio S2 models
+(`[happy]`, `[worried]`, `[break]`), Fish Audio `s1` (a fixed set in
 parentheses, `(happy)`), Fish Audio `drama-3` (`[…]`), Gemini 3.8 point-in-time
-vocal tags (`<laugh>` — its sustained delivery is the `style` control). Every
-other engine reads a bracket aloud. LIA's writers speak ONE vocabulary
-(`Cue`, written `[cue]`); a dictionary per engine
+vocal tags inline (`<laugh>`) and a sustained delivery as the request's `style`
+(`CueDialect.styles`: each sentence of a comment is its own request, so the
+sentence opened by `[warm]` is sent with `style="warm"`, Google's own form for
+« a turn that needs a delivery adjustment »). Gemini's 2.5 and 3.1 previews get
+no dialect on purpose: Google announces their shutdown for 2026-11-17 and its
+markup guide warns that some bracketed words are SPOKEN there. Every other
+engine reads a bracket aloud. LIA's writers speak ONE vocabulary (`Cue`,
+written `[cue]`); a dictionary per engine
 ([expressive_cues.py](../../apps/api/src/domains/voice/expressive_cues.py),
 `cue_dialect(provider, model)`) spells each cue the engine's way, or drops it.
 
@@ -686,11 +693,27 @@ Two kinds of text, two rules:
 - **Written for speech** — the voice comment. Its prompt carries an
   `<expressive_cues>` block ([cue_prompt.py](../../apps/api/src/domains/voice/cue_prompt.py))
   only when the engine that will speak performs a cue: it names exactly those
-  cues, shows one of them in its example, and publishes the budget
-  `VOICE_EXPRESSIVE_CUES_MAX` (`0` switches the cues off) that
-  `AuthoredCues` enforces across the whole streamed comment. A cue beyond the
-  budget, one the engine cannot perform, or any other bracketed text is dropped
-  — never read aloud. An engine without cues gets the prompt unchanged.
+  cues, each with the meaning that says when it fits (`meaning.<cue>` rows),
+  keeps cues for the NEWS — never for the outcome of LIA's own act: a
+  confirmation, a status, a failure or nothing found is said plainly, late at
+  night excepted —, shows one of the cues in its example, and publishes the
+  budget `VOICE_EXPRESSIVE_CUES_MAX` (`0` switches the cues off) that
+  `AuthoredCues` enforces across the whole streamed comment, a style counting
+  like an inline cue. A cue beyond the budget, one the engine cannot perform,
+  or any other bracketed text is dropped — never read aloud. An engine without
+  cues gets the prompt unchanged. Measured 2026-10-17 over four model families
+  (336 comments each way, invented contexts): cues where the context called for
+  none fell from 34 % to 25 % of the runs, comments with a cue outside the
+  context's fitting set from 16 to 1, and the comments that call for a cue carry
+  a fitting one 73 % of the time (53 % before). The families still differ
+  widely, so within a comment whether a cue fits stays the writer's judgement.
+  The code decides where a comment may carry one at all: a comment is written
+  only when the answer retained records (`voice_scope.py`) — an answer that
+  retained none (a failure, nothing found, a conversation) is read aloud as
+  written, with no cue —, and a comment that falls back to reading the answer
+  because its records could not be summarised carries none either:
+  `speaks_of_records`, declared by every caller with no default, gives it no
+  cue block and no budget (`_comment_cue_budget`).
 - **Not written for speech** — an answer read aloud, a document readout, a
   radio line. `neutralize_literal` reads a markdown link or image as its label,
   drops a footnote mark or a task box, reads any other square bracket as its

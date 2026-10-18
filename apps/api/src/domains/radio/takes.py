@@ -4,7 +4,9 @@ An engine that voices several speakers in one request
 (:func:`~src.domains.voice.families.voices_dialogue`) speaks a multi-voice
 segment by TAKES: consecutive lines of one part that share their per-call
 controls (one request carries one speaking rate), up to
-``RADIO_DIALOGUE_MAX_BYTES`` of text — so the voices answer each other as in
+``RADIO_DIALOGUE_MAX_BYTES`` of text and no more distinct voices than the engine
+takes in one request (:func:`~src.domains.voice.families.dialogue_voice_limit`)
+— so the voices answer each other as in
 one recording, a failure costs one take and never a whole debate, and the takes
 are voiced in parallel like lines. A line too long for any take, or with
 nothing to say, is voiced alone; so is every line of a segment one voice reads,
@@ -39,13 +41,18 @@ class TakeLine:
     controls: Mapping[str, object]
 
 
-def plan_takes(lines: Sequence[TakeLine], *, max_bytes: int) -> list[tuple[int, ...]]:
+def plan_takes(
+    lines: Sequence[TakeLine], *, max_bytes: int, max_voices: int | None = None
+) -> list[tuple[int, ...]]:
     """Group a segment's lines into takes, in script order.
 
     Args:
         lines: The segment's lines, in script order.
         max_bytes: The most UTF-8 bytes one take carries; ``0`` voices every
             line alone.
+        max_voices: The most distinct voices one take carries — the engine's
+            measured limit (``families.dialogue_voice_limit``); ``None`` when
+            it declares none.
 
     Returns:
         The takes, each the indices of its lines — every line in exactly one,
@@ -55,14 +62,22 @@ def plan_takes(lines: Sequence[TakeLine], *, max_bytes: int) -> list[tuple[int, 
         return [(index,) for index in range(len(lines))]
     takes: list[list[int]] = []
     size = 0
+    voices: set[str] = set()
     for index, line in enumerate(lines):
         cost = len(line.spoken.encode("utf-8"))
-        if takes and size + cost <= max_bytes and _joins(lines[takes[-1][0]], line):
+        if (
+            takes
+            and size + cost <= max_bytes
+            and _joins(lines[takes[-1][0]], line)
+            and (max_voices is None or len(voices | {line.voice}) <= max_voices)
+        ):
             takes[-1].append(index)
             size += cost
+            voices.add(line.voice)
         else:
             takes.append([index])
             size = cost
+            voices = {line.voice}
     return [tuple(take) for take in takes]
 
 

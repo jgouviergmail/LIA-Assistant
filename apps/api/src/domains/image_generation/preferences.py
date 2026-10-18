@@ -55,7 +55,7 @@ def active_image_options() -> ModelOptions:
         raise ImageModelNotServedError(
             f"The configured image model {model!r} is not served: it needs a provider "
             "client and at least one active pricing row its family accepts "
-            "(Settings > Administration > Image pricing)."
+            "(Settings > Administration > LLM Image Pricing)."
         )
     return options
 

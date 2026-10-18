@@ -15,13 +15,14 @@ import dataclasses
 from scripts.install.i18n import MESSAGES
 from scripts.install.model import (
     APP_LANGUAGES,
+    OPTIONAL_PROVIDER_IDS,
     REQUIRED_PROVIDER_IDS,
     Exposure,
     PublicAnswers,
     Question,
     QuestionKind,
 )
-from scripts.install.questions import build_questions
+from scripts.install.questions import build_env_changes_confirmation, build_questions
 
 
 def _by_key() -> dict[str, Question]:
@@ -31,19 +32,21 @@ def _by_key() -> dict[str, Question]:
     return {q.key: q for q in questions}
 
 
-def test_provider_key_questions_match_the_required_tuple_exactly() -> None:
+def test_provider_key_questions_match_the_required_and_optional_tuples_exactly() -> None:
     questions = _by_key()
     provider_questions = {
         key.removeprefix("provider_key_")
         for key in questions
         if key.startswith("provider_key_")
     }
-    assert provider_questions == set(REQUIRED_PROVIDER_IDS)
+    assert provider_questions == set(REQUIRED_PROVIDER_IDS) | set(OPTIONAL_PROVIDER_IDS)
     assert REQUIRED_PROVIDER_IDS == ("deepseek", "openai")
-    for provider in REQUIRED_PROVIDER_IDS:
+    for provider in (*REQUIRED_PROVIDER_IDS, *OPTIONAL_PROVIDER_IDS):
         question = questions[f"provider_key_{provider}"]
         assert question.secret, f"{provider} key must be a secret question"
         assert question.kind is QuestionKind.SECRET
+        # A required key can never be skipped; an optional one always can.
+        assert question.optional is (provider in OPTIONAL_PROVIDER_IDS)
 
 
 def test_admin_password_is_a_secret_question() -> None:
@@ -82,8 +85,16 @@ def test_default_language_offers_the_six_app_languages() -> None:
 
 
 def test_every_question_message_id_is_translated() -> None:
-    for question in build_questions():
+    for question in (*build_questions(), build_env_changes_confirmation()):
         assert question.message_id in MESSAGES, question.key
+
+
+def test_the_env_changes_confirmation_is_a_public_yes_no_that_enter_declines() -> None:
+    question = build_env_changes_confirmation()
+    assert question.kind is QuestionKind.BOOL
+    assert not question.secret
+    assert question.default == "no"
+    assert question.key not in _by_key(), "never part of an installation's answers"
 
 
 def test_no_question_reads_an_environment_key() -> None:

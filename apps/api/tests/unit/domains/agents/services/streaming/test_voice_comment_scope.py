@@ -77,14 +77,17 @@ class _VoiceComment:
     created = 0
     contexts: list[str] = []
     read_aloud: list[str] = []
+    #: What each comment was told: whether it speaks of the retained records.
+    speaks_of_records: list[bool] = []
 
     def __init__(self, **_: object) -> None:
         _VoiceComment.created += 1
 
     async def stream_voice_comment(
-        self, context_summary: str, **_: object
+        self, context_summary: str, *, speaks_of_records: bool, **_: object
     ) -> AsyncIterator[VoiceAudioChunk]:
         _VoiceComment.contexts.append(context_summary)
+        _VoiceComment.speaks_of_records.append(speaks_of_records)
         yield VoiceAudioChunk(audio_base64="SUQz", phrase_index=0, phrase_text="ok", is_last=True)
 
     async def stream_direct_tts(
@@ -109,6 +112,7 @@ def voice(monkeypatch: pytest.MonkeyPatch) -> type[_VoiceComment]:
     _VoiceComment.created = 0
     _VoiceComment.contexts = []
     _VoiceComment.read_aloud = []
+    _VoiceComment.speaks_of_records = []
     GATES.update(agent_parallel=True, sync_fallback=True, chat_progressive=True)
     monkeypatch.setattr(coordinator_module, "_should_start_voice", listening)
     monkeypatch.setattr(voice_service_module, "VoiceCommentService", _VoiceComment)
@@ -230,6 +234,8 @@ class TestTheVoiceSpeaksOfWhatTheAnswerRetained:
         assert _named(context) == list(RETAINED)
         # The order alone did not carry the answer's choice: it is said.
         assert context.startswith(SELECTION_LINE)
+        # It speaks of the news the records carry, so it may carry cues (ADR-345).
+        assert _VoiceComment.speaks_of_records == [True]
 
     async def test_the_voice_is_set_up_with_the_answer_never_before_it(self) -> None:
         """A step event between the tools and the answer used to start the voice
@@ -271,6 +277,23 @@ class TestTheVoiceSpeaksOfWhatTheAnswerRetained:
         (context,) = _VoiceComment.contexts
         assert context.startswith(SELECTION_LINE)
         assert _named(context) == list(RETAINED)
+        assert _VoiceComment.speaks_of_records == [True]
+
+    async def test_a_fallback_that_cannot_summarise_the_records_reads_the_answer_without_cues(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The fallback comment reads the answer when its records cannot be
+        summarised: it no longer speaks of their news, so it carries no cue."""
+        GATES["agent_parallel"] = False
+
+        def unreadable(records: object, language: str) -> str:
+            raise ValueError("summary failed")
+
+        monkeypatch.setattr(coordinator_module, "voice_context_of", unreadable)
+        await _voiced_turn([DECLARATION, ANSWER])
+
+        assert _VoiceComment.contexts == [ANSWER]
+        assert _VoiceComment.speaks_of_records == [False]
 
     @pytest.mark.parametrize(
         "declaration",

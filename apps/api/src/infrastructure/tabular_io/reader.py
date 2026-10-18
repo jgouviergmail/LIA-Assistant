@@ -25,12 +25,14 @@ import re
 import zipfile
 from collections.abc import Mapping, Sequence
 from decimal import Decimal, InvalidOperation
-from typing import Any
+from typing import Any, get_args
 
 import openpyxl
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
+from src.core.i18n_pricing_sheet import build_sheet_labels
+from src.core.i18n_types import Language
 from src.infrastructure.archives.zip_budget import ZipBudgetExceeded, enforce_zip_budgets
 from src.infrastructure.tabular_io.report import (
     CellIssue,
@@ -39,10 +41,38 @@ from src.infrastructure.tabular_io.report import (
     ParsedWorkbook,
 )
 from src.infrastructure.tabular_io.spec import ColumnSpec, SheetSpec, WorkbookSpec
-from src.infrastructure.tabular_io.writer import DATA_TOP_ROW
+from src.infrastructure.tabular_io.writer import DATA_TOP_ROW, boolean_word
 
-_TRUE_WORDS = frozenset({"VRAI", "TRUE", "OUI", "YES", "1", "X", "JA", "SI", "是"})
-_FALSE_WORDS = frozenset({"FAUX", "FALSE", "NON", "NO", "0", "NEIN", "否"})
+
+def _written_words(value: bool) -> frozenset[str]:
+    """Every word the writer writes for ``value``, upper-cased as a cell is read.
+
+    The writer writes the words of the labels it is handed (``boolean_word``):
+    the workbook's own (``build_sheet_labels``), in the language of whoever
+    exported it — not necessarily of whoever imports it. A cell is therefore read
+    in ANY of the six languages, and without labels. Read against a hand-typed
+    copy of the words instead, an untouched German, Spanish or Italian export
+    came back refused (``NOT_A_BOOLEAN``).
+
+    Args:
+        value: The boolean the words stand for.
+
+    Returns:
+        The words, upper-cased.
+    """
+    label_sets: list[Mapping[str, str]] = [
+        build_sheet_labels(language) for language in get_args(Language)
+    ]
+    label_sets.append({})
+    return frozenset(boolean_word(labels, value).upper() for labels in label_sets)
+
+
+#: Words a person may type by hand; the writer writes none of them.
+_TYPED_TRUE_WORDS = frozenset({"OUI", "YES", "1", "X", "JA", "SI"})
+_TYPED_FALSE_WORDS = frozenset({"NON", "NO", "0", "NEIN"})
+
+_TRUE_WORDS = _written_words(True) | _TYPED_TRUE_WORDS
+_FALSE_WORDS = _written_words(False) | _TYPED_FALSE_WORDS
 
 _NON_BREAKING_SPACES = (" ", " ", " ")
 _HHMM = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")

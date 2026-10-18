@@ -321,3 +321,16 @@ def test_every_format_is_named_in_every_language(locale: str) -> None:
     for spec in FORMAT_SPECS.values():
         name = names.get(spec.label_key.removeprefix("radio.formats."))
         assert isinstance(name, str) and name.strip(), (locale, spec.format)
+
+
+def test_only_the_welcome_the_goodbye_and_the_programmes_that_converse_allow_a_reaction() -> None:
+    """ADR-324 decision 45: never the news read out, nor the listener's own records."""
+    allowed = {fmt for fmt, spec in FORMAT_SPECS.items() if spec.reactions_allowed}
+
+    assert allowed == {
+        RadioFormat.OPENING,
+        RadioFormat.SIGN_OFF,
+        RadioFormat.COLUMN,
+        RadioFormat.DEBATE,
+        RadioFormat.DISCUSSION,
+    }

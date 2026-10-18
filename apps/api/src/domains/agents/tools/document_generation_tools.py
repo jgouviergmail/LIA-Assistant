@@ -1,7 +1,8 @@
 """LangChain tool for AI document generation (ADR-226).
 
-Mirrors ``image_generation_tools.py``: runtime context extraction, global
-flag, user opt-in, validated inputs, dedicated internal LLM (via
+Mirrors ``image_generation_tools.py``: runtime context extraction, the
+capability's effective state (deployment flag AND operator switch — unlike
+images, no per-user opt-in), validated inputs, dedicated internal LLM (via
 ``DocumentGenerationService``), Attachment storage (TTL cleanup),
 pending-store card delivery, honest failure semantics — a failure after the
 paid LLM call returns an explicit error, never a phantom success.
@@ -28,6 +29,7 @@ from src.domains.document_generation.service import (
     DocumentOutputTruncatedError,
     generate_document_for_user,
 )
+from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
 from src.infrastructure.observability.decorators import track_tool_metrics
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
@@ -102,11 +104,12 @@ async def generate_document(
             error_code="AUTH_ERROR",
         )
 
-    # --- 2. Check global feature flag ---
-    if not settings.document_generation_enabled:
+    # --- 2. The capability's EFFECTIVE state (deployment flag AND admin switch) ---
+    # The flag alone let a switched-off capability run in ReAct mode.
+    if not await is_capability_enabled(PlatformCapability.DOCUMENT_GENERATION):
         return UnifiedToolOutput.failure(
             message="Document generation is currently disabled by the administrator.",
-            error_code="TOOL_ERROR",
+            error_code="CONFIGURATION_ERROR",
         )
 
     # --- 3. Validate doc_type (normalize the repairable, reject the rest) ---

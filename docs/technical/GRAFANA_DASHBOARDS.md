@@ -2,7 +2,7 @@
 
 **Document de reference technique - Observabilite Production avec Grafana**
 
-> **Version 4.9** | 2026-10-03 (panel counts re-measured 2026-10-16) | 31 dashboards, 840 panels (rows excluded)
+> **Version 4.9** | 2026-10-03 (panel counts re-measured 2026-10-17) | 31 dashboards, 841 panels (rows excluded)
 
 ---
 
@@ -164,7 +164,7 @@ Dans le fichier de provisioning, un `$` litteral s'ecrit `$$` (sinon `$__tags` e
 | 28 | Effect Ledger & Registers | `28-effect-ledger` | lia, ledger, transparency, ai-act || 27 | Effets reclames / clos / abandonnes, consultations par domaine, lacunes du registre, retard de scellement de la chaine, croissance des registres (ADR-263, ADR-270) |
 | 29 | Workboard | `29-workboard` | lia, workboard, adr-276 | 13 | Ce que LIA fait du tableau (tickets aboutis, rendus, echecs, runs ecartes faute de quota ou conversation occupee, duree et issues des runs), notifications du tableau dans le chat, poids des transcriptions cachees (ADR-276) |
 | 30 | Live | `30-live` | lia, live, voice | 16 | Sessions Live par issue, sessions actives, cles frappees et refusees, duree des sessions, echanges vocaux archives, prolongations, echantillons de voix, echanges d'offre WebRTC, consultations et relais des sessions directes (ADR-299, ADR-300, ADR-301) |
-| 31 | Radio | `31-radio` | lia, radio, voice | 17 | Radio personnelle : departs et refus par code, fins de session par raison, segments par format et par issue, dialogue takes by outcome (ADR-345), duree de production (p50/p95), boucles cassees, redaction (tics par issue, age du dernier tic, flux lus, sujets classes et purges, textes integraux), recherches de sites, audio orphelin balaye (ADR-324) |
+| 31 | Radio | `31-radio` | lia, radio, voice | 18 | Radio personnelle : departs et refus par code, fins de session par raison, segments par format et par issue, dialogue takes by outcome (ADR-345), livraison que la voix n'a pas pu rendre par dimension (decision 45), duree de production (p50/p95), boucles cassees, redaction (tics par issue, age du dernier tic, flux lus, sujets classes et purges, textes integraux), recherches de sites, audio orphelin balaye (ADR-324) |
 
 ---
 
@@ -344,9 +344,9 @@ Le mode Live (ADR-299, ADR-300, ADR-301) : sessions terminees par issue, session
 
 **Datasource** : Prometheus.
 
-### 31 - Radio (17 panels)
+### 31 - Radio (18 panels)
 
-La radio personnelle (ADR-324), en trois lignes. **Sessions** : departs qui ont pris leur place et departs refuses par code (`radio_session_starts_total{outcome}` — `radio_instance_full`, `radio_no_voice`, `radio_voice_unavailable`), fins de session par raison (`radio_sessions_ended_total{reason}` : un worker qui s'arrete ne termine rien), boucles cassees par un defaut (`radio_loop_failures_total`, attendu 0). **Production** : segments par issue et par format (`radio_segments_total{format, outcome}` — `produced`, `nothing_to_say`, les refus du redacteur et du verificateur, `voice_failed`, `mix_failed`, `error`) et duree de production d'un segment diffuse (p50/p95, `radio_segment_production_seconds`) : un p95 tres au-dessus des reglages `RADIO_STAGE_*` veut dire qu'un auditeur attend. Prises de dialogue par issue (`radio_dialogue_takes_total{outcome}` — `voiced`, `unplaced`, `failed`, ADR-345) : une prise que le flux horodate n'a pas su placer, ou qui a echoue, est redite ligne par ligne. **Redaction** : tics par issue (`completed`, `cut`, `failed`, `off`), age du dernier tic mene a son terme (`radio_newsroom_last_run_timestamp_seconds`, que lit l'alerte noyau `RadioNewsroomStalled`), flux lus ou en echec, sujets classes et purges, textes integraux, recherches de sites par issue, repertoires audio orphelins balayes (attendu 0). Tous les compteurs lisent `or vector(0)` : un compteur qui n'a jamais tire n'expose aucune serie.
+La radio personnelle (ADR-324), en trois lignes. **Sessions** : departs qui ont pris leur place et departs refuses par code (`radio_session_starts_total{outcome}` — `radio_instance_full`, `radio_no_voice`, `radio_voice_unavailable`), fins de session par raison (`radio_sessions_ended_total{reason}` : un worker qui s'arrete ne termine rien), boucles cassees par un defaut (`radio_loop_failures_total`, attendu 0). **Production** : segments par issue et par format (`radio_segments_total{format, outcome}` — `produced`, `nothing_to_say`, les refus du redacteur et du verificateur, `voice_failed`, `mix_failed`, `error`) et duree de production d'un segment diffuse (p50/p95, `radio_segment_production_seconds`) : un p95 tres au-dessus des reglages `RADIO_STAGE_*` veut dire qu'un auditeur attend. Prises de dialogue par issue (`radio_dialogue_takes_total{outcome}` — `voiced`, `unplaced`, `failed`, ADR-345) : une prise que le flux horodate n'a pas su placer, ou qui a echoue, est redite ligne par ligne. Livraison que la voix n'a pas pu rendre, par dimension (`radio_delivery_unrendered_total{dimension}` — `energy`, `pace`, `tone`, `reaction`, ADR-324 decision 45) : un compteur regulier nomme ce que le moteur configure ne sait pas faire (Edge n'a pas de ton, OpenAI qu'une vitesse, ElevenLabs pas de rythme), pas une panne ; une reaction n'est proposee qu'a une voix qui la joue. **Redaction** : tics par issue (`completed`, `cut`, `failed`, `off`), age du dernier tic mene a son terme (`radio_newsroom_last_run_timestamp_seconds`, que lit l'alerte noyau `RadioNewsroomStalled`), flux lus ou en echec, sujets classes et purges, textes integraux, recherches de sites par issue, repertoires audio orphelins balayes (attendu 0). Tous les compteurs lisent `or vector(0)` : un compteur qui n'a jamais tire n'expose aucune serie.
 
 **Datasource** : Prometheus.
 

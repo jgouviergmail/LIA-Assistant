@@ -58,6 +58,7 @@ from src.core.constants import (
     RADIO_NEWSROOM_TEXTS_PER_PASS_DEFAULT,
     RADIO_PAUSE_TIMEOUT_SECONDS_DEFAULT,
     RADIO_QUOTE_MAX_CHARS_DEFAULT,
+    RADIO_REACTIONS_MAX_DEFAULT,
     RADIO_RECORD_TTL_SECONDS_DEFAULT,
     RADIO_SAME_EVENT_SIMILARITY_DEFAULT,
     RADIO_SEGMENT_GAP_SECONDS_DEFAULT,
@@ -264,6 +265,15 @@ class RadioSettings(BaseSettings):
         description=(
             "Most UTF-8 bytes of one dialogue take, on an engine that voices several "
             "speakers in one request (ADR-345); 0 voices every line alone."
+        ),
+    )
+    radio_reactions_max: int = Field(
+        default=RADIO_REACTIONS_MAX_DEFAULT,
+        ge=0,
+        le=5,
+        description=(
+            "Most vocal reactions (a chuckle, a laugh, a sigh) one script keeps, where its "
+            "programme allows one and the voice performs it (ADR-324 decision 45); 0 airs none."
         ),
     )
     radio_cost_estimate_min_audio_seconds: int = Field(

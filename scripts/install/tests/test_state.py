@@ -100,6 +100,26 @@ def test_round_trip_preserves_every_field(tmp_path: Path) -> None:
         assert (path.stat().st_mode & 0o777) == 0o600
 
 
+def test_round_trip_preserves_the_degraded_capabilities(tmp_path: Path) -> None:
+    path = tmp_path / ".install-state.json"
+    state = _state(
+        bootstrap_complete=True,
+        degraded_capabilities={"semantic_search": "gemini", "voice_tts": "elevenlabs"},
+    )
+    save_state(path, state)
+    assert load_state(path) == state
+
+
+def test_an_older_state_reports_no_degraded_list(tmp_path: Path) -> None:
+    path = tmp_path / ".install-state.json"
+    save_state(path, _state(degraded_capabilities={"semantic_search": "gemini"}))
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload.pop("degraded_capabilities")
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    loaded = load_state(path)
+    assert loaded is not None and loaded.degraded_capabilities is None
+
+
 def test_missing_state_loads_as_none(tmp_path: Path) -> None:
     assert load_state(tmp_path / "absent.json") is None
 

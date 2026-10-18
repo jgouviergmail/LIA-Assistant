@@ -1,11 +1,13 @@
 """Wizard ↔ backend anti-drift (ADR-215, B10-bis).
 
-``scripts/install/`` is stdlib-only, so it carries COPIES of three backend
+``scripts/install/`` is stdlib-only, so it carries COPIES of four backend
 contracts. This test pins each copy to its live backend source — moving the
 backend value without the wizard (or vice versa) turns CI red:
 
 - the required provider tuple mirrors ``required_current_core_provider_ids()``
   (derived from code defaults + the parsed reference seed);
+- the optional provider tuple mirrors ``OPTIONAL_INSTALL_PROVIDER_IDS`` (a key
+  the wizard asks and the bootstrap refuses would fail the whole install);
 - the wizard password pre-check mirrors the core password policy constants;
 - the wizard's provider base URLs (and env override names) mirror the
   adapter's ``_BASE_URL_DEFAULTS`` so hermetic qualification points both
@@ -40,6 +42,19 @@ def test_required_provider_tuple_matches_the_derived_baseline() -> None:
     )
 
     assert model.REQUIRED_PROVIDER_IDS == required_current_core_provider_ids()
+
+
+def test_optional_provider_tuple_matches_what_the_bootstrap_accepts() -> None:
+    model, _verify, _answers = _wizard_modules()
+    from src.domains.llm_config.install_contract import (
+        OPTIONAL_INSTALL_PROVIDER_IDS,
+        required_current_core_provider_ids,
+    )
+
+    assert model.OPTIONAL_PROVIDER_IDS == OPTIONAL_INSTALL_PROVIDER_IDS
+    # A provider the core starts requiring must stop being skippable: the
+    # wizard would let the operator skip it and the bootstrap refuse it late.
+    assert not set(OPTIONAL_INSTALL_PROVIDER_IDS) & set(required_current_core_provider_ids())
 
 
 def test_password_rules_mirror_the_core_policy_constants() -> None:

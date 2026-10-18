@@ -131,7 +131,7 @@ async def list_voices(
         if not api_key:
             raise_invalid_input(
                 "Configure the ElevenLabs API key under "
-                "Tarification LLM Texte → Provider Keys before listing voices.",
+                "Administration → LLM Configuration → Provider API Keys before listing voices.",
                 error_code="elevenlabs_api_key_missing",
                 provider="elevenlabs",
             )

@@ -35,6 +35,7 @@ from src.infrastructure.llm.embedding_errors import (
     embedding_retry_reason,
     is_transient_embedding_error,
 )
+from src.infrastructure.llm.providers.adapter import configured_api_key, environment_key
 from src.infrastructure.llm.tracked_embeddings import (
     embedding_api_calls_total,
     embedding_api_latency_seconds,
@@ -49,6 +50,30 @@ from src.infrastructure.rate_limiting.slot_waiter import wait_for_slot
 from src.infrastructure.utils.retry import retry_async
 
 logger = get_logger(__name__)
+
+#: The provider whose key an administrator enters in LLM Configuration — read first.
+GEMINI_PROVIDER_ID = "gemini"
+#: The generic Google key (Maps, photos…) a single-key setup reuses — the last resort.
+GENERIC_GOOGLE_KEY_ENV = "GOOGLE_API_KEY"
+
+
+def resolve_gemini_embedding_key() -> str:
+    """The key the embeddings run on NOW — one resolution for every caller.
+
+    Read at every call, never captured, so a key entered or replaced in the
+    administration reaches memory recall, document search, journal search and
+    interest matching without a restart. The order is the one every provider
+    key follows, read by the same function (``providers/adapter.configured_api_key``):
+    the Google Gemini key entered in LLM Configuration — where the guided
+    installer stores the one it asks — then ``GOOGLE_GEMINI_API_KEY``; the
+    embeddings add ``GOOGLE_API_KEY`` for a setup that keeps one Google key for
+    everything. Five copies of this read stopped at the environment, so the key
+    the installer and the administration hold never reached these features.
+
+    Returns:
+        The key, or ``""`` when none is configured.
+    """
+    return configured_api_key(GEMINI_PROVIDER_ID) or environment_key(GENERIC_GOOGLE_KEY_ENV) or ""
 
 
 class _TransientEmbeddingError(Exception):
@@ -237,22 +262,59 @@ class GeminiRetrievalEmbeddings(Embeddings):
         model: str = "models/gemini-embedding-001",
         google_api_key: str | None = None,
         output_dimensionality: int = 1536,
+        *,
+        key_resolver: Callable[[], str] | None = None,
     ) -> None:
         """Initialize Gemini embedding wrapper.
 
         Args:
             model: Gemini model ID (e.g., "models/gemini-embedding-001").
-            google_api_key: Google API key with Generative Language API enabled.
+            google_api_key: A fixed Google API key with the Generative Language
+                API enabled; ignored when ``key_resolver`` is given.
             output_dimensionality: Output dimensions (768, 1536, or 3072).
+            key_resolver: Where the key in force is read at every call
+                (``resolve_gemini_embedding_key``). The client follows it: built
+                at the first call, rebuilt when the key changes — a key entered
+                in the administration needs no restart.
         """
         # Strip "models/" prefix for metrics and pricing DB lookup
         # (pricing table uses "gemini-embedding-001", not "models/gemini-embedding-001")
         self.model_name = model.removeprefix("models/")
         self.output_dimensionality = output_dimensionality
-        self._client = GoogleGenerativeAIEmbeddings(
-            model=model,
-            google_api_key=google_api_key,
-        )
+        self._model = model
+        self._key_resolver = key_resolver
+        self._client_key: str | None = None
+        self._client: GoogleGenerativeAIEmbeddings | None = None
+        if key_resolver is None:
+            self._client = GoogleGenerativeAIEmbeddings(
+                model=model,
+                google_api_key=google_api_key,
+            )
+
+    def _client_for_call(self) -> GoogleGenerativeAIEmbeddings:
+        """The client for the key in force now, resolved BEFORE the tracked call.
+
+        A missing key raises here — the client refuses to exist without one —
+        and no embedding metric moves: an installation without a key is a
+        configuration state, not a provider failure rate the self-check would
+        report as an incident.
+
+        Returns:
+            The client to call.
+        """
+        client = self._client
+        if self._key_resolver is not None:
+            key = self._key_resolver()
+            if client is None or key != self._client_key:
+                # The client a key change replaces is dropped, not closed: a call
+                # in flight may still hold it. The chat models replaced on a key
+                # change are dropped the same way (`clear_llm_instance_cache`);
+                # a key changes when an administrator acts, rarely.
+                client = GoogleGenerativeAIEmbeddings(model=self._model, google_api_key=key)
+                self._client, self._client_key = client, key
+        if client is None:
+            raise RuntimeError("gemini_embedding_client_unavailable")
+        return client
 
     # =========================================================================
     # Sync interface
@@ -273,8 +335,9 @@ class GeminiRetrievalEmbeddings(Embeddings):
             List of embedding vectors.
         """
         texts = _exact_strs(texts)
+        client = self._client_for_call()
         return self._tracked_call(
-            lambda: self._client.embed_documents(
+            lambda: client.embed_documents(
                 texts,
                 task_type="RETRIEVAL_DOCUMENT",
                 output_dimensionality=self.output_dimensionality,
@@ -293,8 +356,9 @@ class GeminiRetrievalEmbeddings(Embeddings):
             Embedding vector.
         """
         text = _exact_str(text)
+        client = self._client_for_call()
         return self._tracked_call(
-            lambda: self._client.embed_query(
+            lambda: client.embed_query(
                 text,
                 task_type="RETRIEVAL_QUERY",
                 output_dimensionality=self.output_dimensionality,
@@ -318,8 +382,9 @@ class GeminiRetrievalEmbeddings(Embeddings):
             List of embedding vectors.
         """
         texts = _exact_strs(texts)
+        client = self._client_for_call()
         return await self._async_tracked_call(
-            lambda: self._client.aembed_documents(
+            lambda: client.aembed_documents(
                 texts,
                 task_type="RETRIEVAL_DOCUMENT",
                 output_dimensionality=self.output_dimensionality,
@@ -339,8 +404,9 @@ class GeminiRetrievalEmbeddings(Embeddings):
             Embedding vector.
         """
         text = _exact_str(text)
+        client = self._client_for_call()
         return await self._async_tracked_call(
-            lambda: self._client.aembed_query(
+            lambda: client.aembed_query(
                 text,
                 task_type="RETRIEVAL_QUERY",
                 output_dimensionality=self.output_dimensionality,

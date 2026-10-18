@@ -16,6 +16,7 @@ from langchain.tools import ToolRuntime
 from src.domains.agents.tools import document_generation_tools as mod
 from src.domains.agents.utils.rate_limiting import _rate_limit_tracker
 from src.domains.document_generation.service import GeneratedDocumentResult
+from src.domains.feature_switches.registry import PlatformCapability
 from tests.helpers.runtime_context import make_tool_runtime
 
 SETTINGS_PATCH_PATH = "src.core.config.get_settings"
@@ -29,6 +30,13 @@ def reset_tracker():
     _rate_limit_tracker.clear()
     yield
     _rate_limit_tracker.clear()
+
+
+@pytest.fixture(autouse=True)
+def capability_on():
+    """The capability is on unless a test switches it off (no settings store read)."""
+    with patch.object(mod, "is_capability_enabled", AsyncMock(return_value=True)) as gate:
+        yield gate
 
 
 def _runtime(user_id: str | None = _USER_ID) -> ToolRuntime | MagicMock:
@@ -45,9 +53,8 @@ def _runtime(user_id: str | None = _USER_ID) -> ToolRuntime | MagicMock:
     return make_tool_runtime(user_id=UUID(user_id), thread_id="conv1", conversation_id="conv1")
 
 
-def _fake_settings(enabled: bool = True) -> MagicMock:
+def _fake_settings() -> MagicMock:
     settings = MagicMock()
-    settings.document_generation_enabled = enabled
     settings.document_generation_rate_limit_calls = 10
     settings.document_generation_rate_limit_window = 60
     return settings
@@ -89,16 +96,24 @@ class TestGenerateDocumentGuards:
         assert result.success is False
         assert result.error_code == "AUTH_ERROR"
 
-    async def test_global_flag_off_fails(self) -> None:
+    async def test_a_switched_off_capability_fails(self, capability_on: AsyncMock) -> None:
+        # The EFFECTIVE state, not the deployment flag: an administrator's
+        # switch used to be ignored here, so the tool ran in ReAct mode.
+        capability_on.return_value = False
         with (
-            patch.object(mod, "settings", _fake_settings(enabled=False)),
+            patch.object(mod, "settings", _fake_settings()),
             patch(SETTINGS_PATCH_PATH, return_value=_wrapper_settings()),
+            patch.object(mod, "generate_document_for_user", AsyncMock()) as generate,
         ):
             result = await mod.generate_document.coroutine(
                 instructions="x", doc_type="csv", runtime=_runtime()
             )
         assert result.success is False
+        # Not available on this instance (ADR-307's code), never a tool failure.
+        assert result.error_code == "CONFIGURATION_ERROR"
         assert "disabled" in result.message
+        capability_on.assert_awaited_once_with(PlatformCapability.DOCUMENT_GENERATION)
+        generate.assert_not_awaited()
 
     async def test_invalid_doc_type_lists_valid_values(self) -> None:
         with (

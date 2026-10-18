@@ -591,7 +591,6 @@ class AgentService(
                 active_connector_types_ctx,
                 admin_mcp_disabled_ctx,
                 bind_skill_context,
-                build_request_tool_manifests,
                 capability_directive_ctx,
                 request_tool_manifests_ctx,
                 reset_skill_context,
@@ -683,23 +682,15 @@ class AgentService(
                     _user_mcp_token = await setup_user_mcp_tools(user_id)
 
                     # === Build per-request filtered tool manifests (centralized) ===
-                    # A tool of a provider the account has not connected is not
-                    # offered: it could only fail (RC2.1).
-                    from src.domains.agents.application.discovery import (
-                        filter_application_manifests,
-                    )
+                    # One catalogue for every execution mode: a switched-off
+                    # capability, an unconnected provider and a refused
+                    # application operation are withheld in one place.
                     from src.domains.agents.registry import get_global_registry
-                    from src.domains.agents.tools.connector_requirements import (
-                        without_unconnected_tools,
-                    )
+                    from src.domains.agents.services.turn_catalogue import build_turn_catalogue
 
                     _manifests_token = request_tool_manifests_ctx.set(
-                        await filter_application_manifests(
-                            without_unconnected_tools(
-                                build_request_tool_manifests(get_global_registry()),
-                                context.active_connector_types,
-                            ),
-                            user_id,
+                        await build_turn_catalogue(
+                            get_global_registry(), user_id, context.active_connector_types
                         )
                     )
 

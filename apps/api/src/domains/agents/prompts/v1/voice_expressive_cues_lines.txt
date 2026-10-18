@@ -4,14 +4,59 @@
 # engine performs at least one cue and the budget is above zero; the cue words
 # are LIA's canonical vocabulary (domains/voice/expressive_cues.py), spelled the
 # engine's way at synthesis, so the writer never learns an engine's syntax.
-# An example shows a cue the engine performs ({cue}, chosen by the renderer).
+# Each performed cue is listed with its `meaning.<cue>` row (measured 2026-10-17:
+# told the names alone, writers of two model families put a cue on most
+# comments, a failure included, and none ever laughed or sighed). A cue colours
+# the news, never the outcome of LIA's own act: told « an emotion for the
+# person », two model families of four cued a failure as bad news and a
+# confirmation as good news. The example is the `example.<cue>` row of the cue the renderer
+# picks; each example shows its own cue, once (a guard holds every row), and is NEWS told to
+# the person — never LIA's report of its own act, which the `rules` row keeps plain.
+# The `rules` row states a clause only when the block lists the cues it speaks of
+# (ADR-284): {night} is `rules.night` when a cue whose meaning names the night is listed,
+# {news} the `rules.news.*` row of the kinds listed — an engine that performs a pause
+# alone is never told to open a sentence with a delivery it cannot perform.
 
 open|<expressive_cues>
 intro|The voice engine performs a few cues written in square brackets. They are the ONLY bracketed text allowed and are not spoken words (they do not count toward the word budget); every other rule above still applies.
-delivery|- How a sentence is said: at most one of {cues}, placed at the very start of that sentence.
-events|- A sound where it happens in a sentence: {cues}.
-rules|- Use at most {max_cues} cues in the whole comment, and only where your personality and the situation call for them; use none when reporting a failure or a sober status (Heuristic 9).
+delivery|- How a sentence is said, at most one per sentence, placed at its very start:
+events|- A sound, placed where it happens in a sentence:
+cue|{cue} — {meaning}
+rules|- A cue colours the NEWS, never the outcome of your own act. What you did or could not do — a confirmation that it is done, a status, a failure to get the result, nothing found — is said plainly, with no cue at all, whatever your personality (Heuristic 9){night}. News that matters to the person — an approval, a cancellation, a risk, a surprise, something funny — may {news}, coloured by `<personality_profile>` and `<user_cognitive_state>`. At most {max_cues} in the whole comment; when in doubt, none.
+rules.night|; only late at night may a cue meant for the night above soften it
+rules.news.delivery|open with the one cue whose meaning above fits it
+rules.news.sound|carry a sound where the moment has one
+rules.news.both|{delivery}, or {sound}
 never|- Never invent a cue, never translate a cue word, never place a cue inside a word.
-example.delivery|Example: {cue} Your appointment is confirmed for tomorrow at ten.
-example.events|Example: That one took a while {cue} but your table is booked.
+example|Example: {example}
 close|</expressive_cues>
+
+meaning.calm|steady and soothing: reassurance after a worry, or an answer late at night.
+meaning.warm|kind and close: news about someone or something dear to the person.
+meaning.cheerful|glad: good news for the person.
+meaning.excited|thrilled: great news the person was waiting for.
+meaning.serious|grave and clear: an important warning, a risk or a pressing deadline.
+meaning.concerned|worried: something that may soon cause the person trouble.
+meaning.curious|intrigued: an odd detail worth a closer look, or a question back.
+meaning.surprised|taken aback: a result far from what anyone expected.
+meaning.empathetic|understanding: bad news for the person, a setback they will feel.
+meaning.whispering|hushed: a playful aside, or a word late at night; never for anything important.
+meaning.laughs|a real laugh: something genuinely funny, and a personality that laughs.
+meaning.chuckles|a light laugh: a gently amusing detail.
+meaning.sighs|a sigh: a small letdown, or relief at the end of a long search.
+meaning.short_pause|a beat: just before the one detail that matters most.
+
+example.calm|[calm] Your flight is still on time, and you have plenty of margin.
+example.warm|[warm] Your sister's flight has just landed, right on time.
+example.cheerful|[cheerful] Good news, your parcel arrives tomorrow morning.
+example.excited|[excited] Your application is approved, you can collect it tomorrow!
+example.serious|[serious] Your tax return is due tomorrow at midnight, and it is not started.
+example.concerned|[concerned] Your train is forty minutes late, which puts your connection at risk.
+example.curious|[curious] Oddly enough, the cheapest fare of the week is on a Tuesday.
+example.surprised|[surprised] That train costs nine euros, against ninety on average.
+example.empathetic|[empathetic] Your flight is cancelled, and the next seat leaves tomorrow at seven.
+example.whispering|[whispering] One last thing before you sleep, your alarm is set for six thirty.
+example.laughs|Twelve rescue cats join that yoga class [laughs] so expect company on your mat.
+example.chuckles|The plumber's company is called Leak Busters [chuckles] which sounds promising.
+example.sighs|Forty-three listings later [sighs] one flat finally matches everything.
+example.short_pause|The answer came in [short pause] you got the job.

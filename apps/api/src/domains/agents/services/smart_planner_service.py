@@ -189,19 +189,15 @@ class SmartPlannerService:
             bool(exclude_tools and TOOL_NAME_DELEGATE_SUB_AGENT in exclude_tools)
         )
 
-        # An administrator can switch capabilities off at runtime (images,
-        # browser, web search…). Their tools ride on the SAME post-filter as
-        # the sub-agent rejection below: the planner is never offered a tool
-        # the routes would refuse anyway, which keeps plans executable and the
-        # prompt small. Read after the ContextVar above on purpose — that flag
-        # tracks the user's rejection, not the operator's switch.
-        from src.domains.agents.registry import get_global_registry
+        # A capability an administrator switched off never reaches the planner:
+        # its tools left the turn's catalogue when the request built it, for
+        # both execution modes (``without_disabled_capability_tools``), and the
+        # delegation section of the prompt follows that catalogue
+        # (``_build_sub_agents_section``). What is left to exclude here is the
+        # user's own rejection (F6).
         from src.domains.agents.services.planner_capability_filter import (
             apply_tool_exclusions,
-            merge_capability_exclusions,
         )
-
-        exclude_tools = await merge_capability_exclusions(get_global_registry(), exclude_tools)
 
         # Initialize with default failure result (will be replaced if strategy matches)
         result: PlanningResult = PlanningResult(
@@ -955,7 +951,8 @@ class SmartPlannerService:
     def _build_sub_agents_section() -> str:
         """Build sub-agents delegation section for planner prompt.
 
-        Returns the section content when SUB_AGENTS_ENABLED, empty string otherwise.
+        Returns the section content when SUB_AGENTS_ENABLED and the turn's
+        catalogue offers ``delegate_to_sub_agent_tool``, empty string otherwise.
         Returns empty string when exclude_sub_agents_from_prompt ContextVar is True
         (F6: user rejected a sub-agent plan, replanning without delegation).
 
@@ -965,8 +962,18 @@ class SmartPlannerService:
         120 s timeout, none of which was true).
         """
         from src.core.config import get_settings
+        from src.core.constants import TOOL_NAME_DELEGATE_SUB_AGENT
+        from src.core.context import request_tool_manifests_ctx
 
         if not getattr(get_settings(), "sub_agents_enabled", False):
+            return ""
+
+        # An operator switch withholds the tool from the turn's catalogue
+        # (``build_turn_catalogue``): the section must not tell the planner to
+        # delegate through a tool its AVAILABLE TOOLS cannot hold. Outside a turn
+        # (no catalogue published) the deployment flag alone decides.
+        offered = request_tool_manifests_ctx.get()
+        if offered is not None and TOOL_NAME_DELEGATE_SUB_AGENT not in {m.name for m in offered}:
             return ""
 
         # F6: Suppress sub-agent section during replan after user rejection.

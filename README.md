@@ -44,7 +44,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 3.1.1</strong> — <strong>LIA's eyes stay where you put them.</strong> On a phone the companion no longer steps aside or folds into a dot on its own, the radio's music sits lower under every voice, and the image library moves to Pillow 13.0.0 to close twenty-one advisories — 17 October 2026.
+  <strong>Version 3.2.0</strong> — <strong>A FAQ for every feature, voices that react.</strong> Ten new FAQ sections bring it to 491 questions in six languages, the radio's voices chuckle, laugh or sigh where a programme converses, the tools a switched-off capability names leave both execution modes, and <code>./install.sh --reconfigure</code> changes a running installation without reinstalling it — 18 October 2026.
 </p>
 
 ---
@@ -377,7 +377,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 - Offline Whisper transcription in the user's own language, or the remote engine the administrator configured (ElevenLabs Scribe, OpenAI or Fish Audio), named before anyone opts in.
 - Spoken answers from a catalogue-driven TTS (Edge, free; OpenAI; ElevenLabs; Gemini; Fish Audio), streamed sentence by sentence. Playback can begin before the complete answer is available; startup latency depends on the model, provider and connection ([VOICE](docs/technical/VOICE.md), [ADR-081](docs/architecture/ADR-081-Voice-TTS-Catalogue-Driven.md), [ADR-082](docs/architecture/ADR-082-Progressive-Sentence-Streaming.md)).
 - Every heard sentence is billed once, by the engine that spoke it; ElevenLabs synthesis and every Fish Audio request share an administrator-set allowance per vendor account across API workers and speech surfaces; the browser plays queued audio in sequence, even when synthesis completes out of order.
-- On the engines that perform them, LIA's spoken comments carry a few expressive cues (a sigh, a laugh, a whisper) in each engine's own syntax, while text it reads aloud never turns a bracket into a cue. Administrators manage the instance's Fish Audio voices: clone one under a consent attestation filed in the audit log, design one from a description, rename or delete ([ADR-345](docs/architecture/ADR-345-Fish-Audio-Served-Whole-One-Door-One-Allowance-Cues-Each-Engine-Reads.md)).
+- On the engines that perform them, LIA's spoken comments carry a few expressive cues (a sigh, a laugh, a whisper) in each engine's own syntax, while text it reads aloud never turns a bracket into a cue. Each cue is chosen from what it means: it colours the news, never how LIA's own act went — a confirmation, a failure or a search that found nothing is said plainly. Administrators manage the instance's Fish Audio voices: clone one under a consent attestation filed in the audit log, design one from a description, rename or delete ([ADR-345](docs/architecture/ADR-345-Fish-Audio-Served-Whole-One-Door-One-Allowance-Cues-Each-Engine-Reads.md)).
 - Each person picks LIA's male and female voice among the voices of the engine that speaks in the chat, kept per provider so a change of model keeps them; every voice picker — LIA's, the radio's, the administrator's slots — can be narrowed to the person's language and the multilingual voices, never hiding a voice already chosen ([ADR-345](docs/architecture/ADR-345-Fish-Audio-Served-Whole-One-Door-One-Allowance-Cues-Each-Engine-Reads.md)).
 
 #### A personal speaking avatar, experimental
@@ -404,7 +404,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 - Models write and voice the segments, while verification decides what may air. The listener chooses subjects, sources, voices and verification, sees sources and live cost, and ends the session with a timer. Production runs only while someone listens.
 - An administrator controls the capability and the guided self-host installer asks before enabling it ([ADR-324](docs/architecture/ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md), [RADIO](docs/technical/RADIO.md)).
 - The radio settings group programme, sources, verification, voices and spending so a listener can see what will be used before starting.
-- Debates and discussions are voiced in one take on the engines that voice several speakers, each commentator with the voice the listener chose — never one shared with LIA, the anchor or another commentator. The second-model verification is off unless the listener chooses it, because every check is billed ([ADR-324](docs/architecture/ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md)).
+- Debates and discussions are voiced in takes on the engines that voice several speakers — never more voices per take than the engine accepts —, each commentator with the voice the listener chose, never one shared with LIA, the anchor or another commentator. Where a programme converses, a chuckle, a laugh or a sigh may open a turn; the news is never read with one. The second-model verification is off unless the listener chooses it, because every check is billed ([ADR-324](docs/architecture/ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md)).
 - Editorial selection excludes advertisements, sponsorships and purchase pitches while retaining genuine news, scientific reporting, invoices, reservations and appointments. Raw PCM and µ-law speech are wrapped with their actual format before mixing.
 
 #### An expressive companion
@@ -592,7 +592,7 @@ The home page opens on the date and LIA's living face, then aggregates your sour
 
 #### Knowledge spaces
 
-- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive folder sync, a Gmail label as a source, and a system space that indexes the product's own FAQ so LIA can explain itself.
+- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive folder sync, a Gmail label as a source, and a system space that indexes the product's own help corpus so LIA can explain itself — drawn from the in-app FAQ, whose 491 questions cover every feature a person can use, in six languages.
 - A document that cannot be indexed says why in your language — a scanned PDF without a text layer names its remedy.
 - Any indexed document, paused space or not, attaches to a chat message as a copy from the composer's « + » ([ADR-295](docs/architecture/ADR-295-Knowledge-Documents-As-Message-Attachments.md), [GUIDE_RAG_SPACES](docs/guides/GUIDE_RAG_SPACES.md), [ADR-055](docs/architecture/ADR-055-RAG-Spaces-Architecture.md), [ADR-058](docs/architecture/ADR-058-System-RAG-Spaces.md)).
 
@@ -667,6 +667,7 @@ Arithmetic, dates and currencies use tools in both execution modes, never a mode
 #### Switches, not redeploys
 
 - Every capability switches off from the admin panel, each declaring where it is enforced.
+- The tools a switched-off capability names leave both execution modes at once: the switches are applied to the turn's catalogue once, and the Pipeline planner, the ReAct loop, a delegated sub-agent and a skill's ready-made plan all read that same catalogue; the Workboard, LIA connections, MCP servers and Skills switches name no tools and close their pages alone ([ADR-280](docs/architecture/ADR-280-Complete-Capability-Control.md)).
 - A switch removes the capability, never the record ([ADR-217](docs/architecture/ADR-217-Capacites-Administrables.md), [ADR-280](docs/architecture/ADR-280-Complete-Capability-Control.md)).
 
 ---
@@ -707,13 +708,13 @@ A 24-section panel embedded in the chat, organised into six groups; an empty sec
 
 ### Observability
 
-- **Prometheus**: 620 custom metrics (agents, LLM, infrastructure), labelled by route template — a name or a search in an address never becomes a series. A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric.
+- **Prometheus**: 621 custom metrics (agents, LLM, infrastructure), labelled by route template — a name or a search in an address never becomes a series. A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric.
 - **Grafana**: 31 dashboards, including product-value and radio cockpits · **Loki**: structured JSON logs that keep facts, never people's words, shipped by Grafana Alloy ([ADR-317](docs/architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md)) · **Tempo**: distributed tracing, spans named by the route template · **Langfuse**: LLM tracing with prompt versions. The whole stack runs on supported versions, pinned by digest.
 - **Linked signals, a pipeline that watches itself**: a log line opens its trace, a trace its logs and metrics, a latency point its exemplar; Loki, Alloy, Tempo and Grafana are scraped on closed keep-lists and `LogsNotDelivered` fires when lines go missing; every dashboard opens on seven days (logs and traces on four hours) behind one shared menu — [ADR-333](docs/architecture/ADR-333-Linked-Signals-And-A-Pipeline-That-Watches-Itself.md).
 - **Probes**: liveness (`GET /health`) split from readiness (`GET /ready`, 503 unless PostgreSQL **and** Redis answer) — [ADR-115](docs/architecture/ADR-115-Liveness-Readiness-Probes.md).
-- **Alerting**: a vital core (service, database and Redis down, disk, OOM, 5xx rate, SSE latency, backup failure, public-endpoint and TLS probes, chain self-monitoring) evaluated by Prometheus, emailed by a dedicated Alertmanager, unit-tested with `promtool`, every alert linking its runbook — [ADR-119](docs/architecture/ADR-119-Alerting-Reactivation-Minimal-Core.md).
+- **Alerting**: a vital core (service, database and Redis down, disk, OOM, 5xx rate, SSE latency, backup failure, public-endpoint and TLS probes, chain self-monitoring) evaluated by Prometheus, emailed by a dedicated Alertmanager, unit-tested with `promtool`, every alert linking its runbook. The latency alert observes only turns a person waits for, and only over enough of them for a p95 to mean something; the operator's daily report opens on the alerts that fired, the incidents still open and the container restarts, each source named when it cannot be read — [ADR-119](docs/architecture/ADR-119-Alerting-Reactivation-Minimal-Core.md).
 - **Per-process memory**: every API worker publishes what it holds (`lia_worker_memory_bytes`, one series per live worker), drawn on the infrastructure dashboard and watched by an alert that names the process; what a process loads is declared, measured on the target host and bounded where it multiplies — the supervisor never imports the application, heavy libraries load where they are used, and the speech engine keeps one resident model per worker ([ADR-283](docs/architecture/ADR-283-Worker-Memory-Anatomy.md)).
-- **Self-diagnostics**: a leader-elected self-check of the golden signals, one incident per outage whichever observer saw it first, and a budget-capped diagnosis written in each administrator's language from evidence collected at diagnosis time — metrics, a sanitised log excerpt, the running build, the alert's runbook — shown under its verdict in Settings › Platform health ([ADR-247](docs/architecture/ADR-247-Self-Diagnostics-And-Answer-Resilience.md), [ADR-266](docs/architecture/ADR-266-Diagnosis-Evidence-At-Diagnosis-Time-And-Exact-Str-Embedding-Inputs.md)).
+- **Self-diagnostics**: a leader-elected self-check of the golden signals, one incident per outage whichever observer saw it first, and a budget-capped diagnosis written in each administrator's language from evidence collected at diagnosis time — metrics, a sanitised log excerpt, the running build, the alert's runbook — shown under its verdict in Settings › Platform health; an alert incident whose resolution never arrived is reconciled from Alertmanager and closed ([ADR-247](docs/architecture/ADR-247-Self-Diagnostics-And-Answer-Resilience.md), [ADR-266](docs/architecture/ADR-266-Diagnosis-Evidence-At-Diagnosis-Time-And-Exact-Str-Embedding-Inputs.md)).
 
 ---
 
@@ -748,10 +749,10 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                                         |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
-| **55** functional domains | **960,000+** source lines (excl. tests) | **63,000+** inventoried automated tests | **347** ADRs                                                            |
-| **282** versions shipped  | **6 languages**, parity enforced in CI  | **620** Prometheus metrics              | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **55** functional domains | **963,000+** source lines (excl. tests) | **63,000+** inventoried automated tests | **347** ADRs                                                            |
+| **283** versions shipped  | **6 languages**, parity enforced in CI  | **621** Prometheus metrics              | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
-Source-line figure: 960,748 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-17). Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
+Source-line figure: 963,005 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-18). Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -821,7 +822,7 @@ cd apps/web && pnpm dev
 
 ### Self-Hosting in Production
 
-A guided installer lives at the repository root ([ADR-215](docs/architecture/ADR-215-Self-Host-Installer.md)). It asks a short questionnaire (LAN exposure, your own reverse proxy, or managed HTTPS with Caddy), generates a private `.env` and Compose overlay, applies the reference seeds atomically, creates the admin and provider keys over stdin, verifies the installation beyond `/ready` and prints a non-secret report. The experimental speaking avatar is an optional choice, disabled by default; each person then connects their own Simli account. A complete source checkout builds the images locally; an official release directory uses prebuilt digests only when its adjacent manifest is qualified. Resume an interrupted run with `./install.sh --resume`, change the routing later with `./install.sh --reconfigure`. The shipped `.env` profiles size the connection pools against the database's memory floor as well as its ceiling, and a guard reads both profiles with the Compose file so the sizing cannot drift ([ADR-283](docs/architecture/ADR-283-Worker-Memory-Anatomy.md)).
+A guided installer lives at the repository root ([ADR-215](docs/architecture/ADR-215-Self-Host-Installer.md)). It asks a short questionnaire (LAN exposure, your own reverse proxy, or managed HTTPS with Caddy), generates a private `.env` and Compose overlay, applies the reference seeds atomically, creates the admin and provider keys over stdin, verifies the installation beyond `/ready` and prints a non-secret report. The experimental speaking avatar is an optional choice, disabled by default; each person then connects their own Simli account. A complete source checkout builds the images locally; an official release directory uses prebuilt digests only when its adjacent manifest is qualified. The Google Gemini key is an optional question — memory recall, searches by meaning and image analysis wait for it — and the final report names every capability left waiting for a key. Resume an interrupted run with `./install.sh --resume`; change a running installation with `./install.sh --reconfigure`, which shows the answers in force (Enter keeps them) and every setting they would rewrite before anything changes, replaces each file atomically after a private backup, recreates the containers without rebuilding and puts the previous files and stack back if the new one does not come back ready. The shipped `.env` profiles size the connection pools against the database's memory floor as well as its ceiling, and a guard reads both profiles with the Compose file so the sizing cannot drift ([ADR-283](docs/architecture/ADR-283-Worker-Memory-Anatomy.md)).
 
 **Full guide: [docs/guides/GUIDE_SELF_HOSTING.md](docs/guides/GUIDE_SELF_HOSTING.md)** — what it installs, every setting, and what to do when a step fails. Production targets include the Raspberry Pi (ARM64) through multi-arch Docker images (`linux/amd64,linux/arm64`).
 
@@ -968,7 +969,7 @@ The UI is responsive by design — desktop, tablet and phone — with touch-frie
 
 ### Supported LLM Providers
 
-The model catalogue lives in the database, curated from vendored public registries and editable from the admin panel; every row states where its capabilities came from ([ADR-244](docs/architecture/ADR-244-LLM-Catalogue-Truth.md)). Reasoning depth has one stored shape for every provider ([ADR-245](docs/architecture/ADR-245-Reasoning-Unification.md)); a model family is declared once, and a caller that needs two sentences asks for no reasoning rather than a small budget — a reasoning model bills its thinking inside `max_tokens` ([ADR-285](docs/architecture/ADR-285-Short-Answer-Without-Reasoning-And-One-Family-Declaration.md)). What a prompt says is what the code enforces, and nothing else: every placeholder has a producer, every published bound is the applied bound, prose never lives in a `.py` ([ADR-284](docs/architecture/ADR-284-Prompt-States-What-The-Code-Enforces.md)). Every prompt follows one layout — stable before volatile, one boundary each provider adapter translates into its own cache mechanism, no cache write nobody reads — and what each model generation accepts is measured on its API and declared once ([ADR-309](docs/architecture/ADR-309-One-Prompt-Layout-For-Every-Cache-Mechanism.md), [ADR-306](docs/architecture/ADR-306-Claude-Request-Surface-And-Billed-Prompt-Cache.md)).
+The model catalogue lives in the database, curated from vendored public registries and editable from the admin panel; every row states where its capabilities came from, and a slot's output budget is held to the cap a vouched row declares, flagged on the configuration screen when it exceeds it ([ADR-244](docs/architecture/ADR-244-LLM-Catalogue-Truth.md)). Reasoning depth has one stored shape for every provider ([ADR-245](docs/architecture/ADR-245-Reasoning-Unification.md)); a model family is declared once, and a caller that needs two sentences asks for no reasoning rather than a small budget — a reasoning model bills its thinking inside `max_tokens` ([ADR-285](docs/architecture/ADR-285-Short-Answer-Without-Reasoning-And-One-Family-Declaration.md)). What a prompt says is what the code enforces, and nothing else: every placeholder has a producer, every published bound is the applied bound, prose never lives in a `.py` ([ADR-284](docs/architecture/ADR-284-Prompt-States-What-The-Code-Enforces.md)). Every prompt follows one layout — stable before volatile, one boundary each provider adapter translates into its own cache mechanism, no cache write nobody reads — and what each model generation accepts is measured on its API and declared once ([ADR-309](docs/architecture/ADR-309-One-Prompt-Layout-For-Every-Cache-Mechanism.md), [ADR-306](docs/architecture/ADR-306-Claude-Request-Surface-And-Billed-Prompt-Cache.md)).
 
 | Provider   | Notes                                                                                                                                                              |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -1005,8 +1006,8 @@ task test:e2e                      # Playwright + axe journeys (hermetic, mocked
 
 | Metric                  | Value                                                                                                                                                |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Backend tests           | 50,011 collected over `tests/`, across 3,275 files (`pytest --collect-only -q --no-cov`, 2026-10-17)                                                 |
-| Frontend tests (vitest) | 13,128 passing across 1,062 files (`task test:frontend:coverage`, 2026-10-17), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
+| Backend tests           | 50,397 collected over `tests/`, across 3,292 files (`pytest --collect-only -q --no-cov`, 2026-10-18)                                                 |
+| Frontend tests (vitest) | 13,177 passing across 1,066 files (`task test:frontend:coverage`, 2026-10-18), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
 | Coverage floor          | 78% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob                                               |
 | Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md)                                                        |
 
@@ -1145,6 +1146,8 @@ Also: the [documentation index](docs/INDEX.md), the [practical guides](docs/guid
 ---
 
 ## License
+
+Copyright (c) 2024-2026 LIA Contributors.
 
 This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)** — see [LICENSE](LICENSE).
 

@@ -2,11 +2,14 @@
 
 Several engines perform cues written inside the text (ADR-345), each in its own
 syntax and with its own words — read from each vendor's documentation on
-2026-10-13/14:
+2026-10-13/14 and re-read on 2026-10-17:
 
 - ElevenLabs v3 and v4 (``eleven_v3*``, ``eleven_v4*``): ``[…]`` audio tags, a
-  short instruction in natural language (``[whispers]``, ``[laughs]``); a pause
-  is punctuation, never a tag;
+  short instruction in natural language (``[whispers]``, ``[laughs]``); they do
+  not support SSML, so a pause is punctuation, never a tag;
+- the earlier ElevenLabs models LIA offers (Multilingual v2, Flash v2/v2.5,
+  Turbo v2/v2.5): no audio tag at all, but the SSML ``<break time="…" />`` the
+  vendor documents for every model except v3 and v4 — the pause alone;
 - Fish Audio's S2 models (``s2-pro``, ``s2.1-pro``, ``s2.1-pro-free``): ``[…]``
   cues in natural language (``[happy]``, ``[laughing]``, ``[break]``);
 - Fish Audio ``s1`` (retiring 2026-12-31): a FIXED set in ``(…)`` — and past
@@ -15,8 +18,14 @@ syntax and with its own words — read from each vendor's documentation on
 - Fish Audio ``drama-3``: ``[…]`` directions before the words, sounds in
   brackets, and paired ``<whisper>…</whisper>`` tags LIA never writes;
 - every Fish Audio model: ``<|speaker:N|>`` switches the voice of a dialogue;
-- Gemini 3.8 TTS: ``<…>`` point-in-time vocal events only — its sustained
-  delivery is the ``style`` control (:data:`~src.domains.voice.families.TtsControl`);
+- Gemini 3.8 TTS: ``<…>`` point-in-time vocal events inline, a sustained
+  delivery as the request's ``style`` (Google: « put delivery styles in
+  ``speech_metadata.style`` ») — so its delivery cues are STYLES, sent with the
+  sentence they open (:attr:`CueDialect.styles`, the
+  :data:`~src.domains.voice.families.TtsControl` ``STYLE_PROMPT`` control);
+- Gemini's 2.5 and 3.1 previews are left without a dialect on purpose: Google
+  announces their shutdown for 2026-11-17, and its Gemini-TTS markup guide warns
+  that some bracketed words (« curious », « scared ») are SPOKEN there;
 - every other engine reads a bracket aloud.
 
 LIA's writers speak ONE canonical vocabulary (:class:`Cue`), spelled ``[cue]``;
@@ -52,6 +61,7 @@ class Cue(StrEnum):
     CHEERFUL = "cheerful"
     EXCITED = "excited"
     SERIOUS = "serious"
+    CONCERNED = "concerned"
     CURIOUS = "curious"
     SURPRISED = "surprised"
     EMPATHETIC = "empathetic"
@@ -71,6 +81,7 @@ DELIVERY_CUES: Final[frozenset[Cue]] = frozenset(
         Cue.CHEERFUL,
         Cue.EXCITED,
         Cue.SERIOUS,
+        Cue.CONCERNED,
         Cue.CURIOUS,
         Cue.SURPRISED,
         Cue.EMPATHETIC,
@@ -83,6 +94,7 @@ EVENT_CUES: Final[frozenset[Cue]] = frozenset(
 )
 
 _BY_WORDS: Final[Mapping[str, Cue]] = MappingProxyType({cue.value: cue for cue in Cue})
+_NO_STYLES: Final[Mapping[Cue, str]] = MappingProxyType({})
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,22 +107,31 @@ class CueDialect:
 
     Attributes:
         name: The dialect, for logs and tests.
-        spellings: Each performed cue, spelled the engine's way.
+        spellings: Each cue the engine performs INSIDE the text, spelled its way.
         also_reads: Openings the engine performs beyond its spellings (Fish
             Audio ``drama-3``'s paired ``<whisper>…</whisper>`` tags).
+        styles: Each delivery cue the engine performs as a per-request
+            direction instead (Gemini 3.8's ``style``), in the words it is sent
+            — never also spelled inline, and only for a model that takes the
+            ``STYLE_PROMPT`` control.
     """
 
     name: str
     spellings: Mapping[Cue, str]
     also_reads: frozenset[str] = frozenset()
+    styles: Mapping[Cue, str] = _NO_STYLES
 
     def performs(self) -> frozenset[Cue]:
-        """The cues this engine performs."""
-        return frozenset(self.spellings)
+        """The cues this engine performs, inline or as a style."""
+        return frozenset(self.spellings) | frozenset(self.styles)
 
     def render(self, cue: Cue) -> str | None:
-        """``cue`` spelled the engine's way, or ``None`` when it cannot perform it."""
+        """``cue`` spelled inline the engine's way, or ``None`` when it is not."""
         return self.spellings.get(cue)
+
+    def style(self, cue: Cue) -> str | None:
+        """``cue`` as the engine's per-request direction, or ``None`` when it is not."""
+        return self.styles.get(cue)
 
     def reads(self, opening: str) -> bool:
         """Whether text opened by ``opening`` is a direction to this engine."""
@@ -131,10 +152,16 @@ NO_CUES: Final[CueDialect] = CueDialect("none", MappingProxyType({}))
 ELEVENLABS_AUDIO_TAGS: Final[CueDialect] = CueDialect(
     "elevenlabs_audio_tags", _bracketed(whispering="[whispers]", short_pause="…")
 )
+#: The ElevenLabs models before v3: the vendor's SSML pause (« up to 3 seconds »;
+#: « too many break tags can cause instability », which the budget bounds).
+ELEVENLABS_SSML_BREAK: Final[CueDialect] = CueDialect(
+    "elevenlabs_ssml_break", MappingProxyType({Cue.SHORT_PAUSE: '<break time="0.5s" />'})
+)
 FISH_S2_CUES: Final[CueDialect] = CueDialect(
     "fish_s2",
     _bracketed(
         cheerful="[happy]",
+        concerned="[worried]",
         laughs="[laughing]",
         chuckles="[chuckling]",
         sighs="[sighing]",
@@ -148,6 +175,7 @@ FISH_S1_CUES: Final[CueDialect] = CueDialect(
             Cue.CALM: "(calm)",
             Cue.CHEERFUL: "(happy)",
             Cue.EXCITED: "(excited)",
+            Cue.CONCERNED: "(worried)",
             Cue.CURIOUS: "(curious)",
             Cue.SURPRISED: "(surprised)",
             Cue.EMPATHETIC: "(empathetic)",
@@ -172,12 +200,20 @@ GEMINI_VOCAL_TAGS: Final[CueDialect] = CueDialect(
             Cue.SHORT_PAUSE: "<short pause>",
         }
     ),
+    # Google's own style strings are plain delivery words (« warm and
+    # enthusiastic », « whispered urgently »); the cue's word is one.
+    styles=MappingProxyType({cue: cue.value for cue in DELIVERY_CUES}),
 )
 
-#: Which engine performs which dialect, by provider and model-name prefix.
+#: Which engine performs which dialect, by provider and model-name prefix — the
+#: first prefix that matches decides, so a model of v3 or v4 never reaches the
+#: v2 generation's SSML rules below.
 _RULES: Final[tuple[tuple[str, str, CueDialect], ...]] = (
     ("elevenlabs", "eleven_v3", ELEVENLABS_AUDIO_TAGS),
     ("elevenlabs", "eleven_v4", ELEVENLABS_AUDIO_TAGS),
+    ("elevenlabs", "eleven_multilingual_v2", ELEVENLABS_SSML_BREAK),
+    ("elevenlabs", "eleven_flash_v2", ELEVENLABS_SSML_BREAK),
+    ("elevenlabs", "eleven_turbo_v2", ELEVENLABS_SSML_BREAK),
     ("fishaudio", "s2", FISH_S2_CUES),
     ("fishaudio", "s1", FISH_S1_CUES),
     ("fishaudio", "drama-3", FISH_DRAMA_CUES),
@@ -263,34 +299,65 @@ def _without_directions(text: str, dialect: CueDialect) -> str:
     return text
 
 
+@dataclass(frozen=True, slots=True)
+class AuthoredSentence:
+    """One sentence written for speech, as its engine receives it.
+
+    Attributes:
+        text: The words, with the cues the engine performs inline spelled its way.
+        style: The delivery the engine performs as the request's direction (a
+            style engine), or ``None`` when the sentence asks for none.
+    """
+
+    text: str
+    style: str | None = None
+
+    def controls(self) -> dict[str, str]:
+        """The per-call controls the sentence asks for, as :func:`speak` passes them on."""
+        return {"style": self.style} if self.style else {}
+
+
 class AuthoredCues:
     """The cues of ONE text written for speech, spelled for its engine, within a budget.
 
     The budget spans every sentence the text is cut into, so a streamed comment
     holds it as a whole. A cue beyond it, one the engine cannot perform, and
-    anything bracketed that is not a cue are dropped — never read aloud.
+    anything bracketed that is not a cue are dropped — never read aloud. On a
+    style engine a sentence takes ONE direction, its first: each sentence is
+    its own request, and a request has one style.
     """
 
     def __init__(self, dialect: CueDialect, budget: int) -> None:
         self._dialect = dialect
         self._left = max(budget, 0)
 
-    def _spell(self, match: re.Match[str]) -> str:
-        cue = _BY_WORDS.get(" ".join(match.group(1).lower().split()))
-        spelled = self._dialect.render(cue) if cue is not None else None
-        if spelled is None or self._left == 0:
-            return " " if match.group(0).startswith(" ") else ""
-        self._left -= 1
-        return f" {spelled}" if match.group(0).startswith(" ") else spelled
-
-    def render(self, sentence: str) -> str:
-        """``sentence`` with its cues spelled for the engine (or dropped)."""
+    def render(self, sentence: str) -> AuthoredSentence:
+        """``sentence`` with its cues spelled for the engine, its style apart (or dropped)."""
         # A writer's angle tag is never left to an engine (angles are not LIA's
         # syntax), nor a parenthesis to one that reads it: only spelled cues act.
         text = _without_directions(
             _ANGLE_TAG.sub(" ", _CONTROL_MARKER.sub(" ", sentence)), self._dialect
         )
-        return _tidy(_AUTHORED_CUE.sub(self._spell, text))
+        styles: list[str] = []
+
+        def spell(match: re.Match[str]) -> str:
+            lead = " " if match.group(0).startswith(" ") else ""
+            cue = _BY_WORDS.get(" ".join(match.group(1).lower().split()))
+            if cue is None or self._left == 0:
+                return lead
+            inline = self._dialect.render(cue)
+            if inline is not None:
+                self._left -= 1
+                return f"{lead}{inline}"
+            style = self._dialect.style(cue)
+            if style is None or styles:
+                return lead
+            self._left -= 1
+            styles.append(style)
+            return lead
+
+        spoken = _tidy(_AUTHORED_CUE.sub(spell, text))
+        return AuthoredSentence(spoken, styles[0] if styles else None)
 
 
 def neutralize_literal(text: str, dialect: CueDialect) -> str:
@@ -322,6 +389,7 @@ __all__ = [
     "EVENT_CUES",
     "NO_CUES",
     "AuthoredCues",
+    "AuthoredSentence",
     "Cue",
     "CueDialect",
     "cue_dialect",

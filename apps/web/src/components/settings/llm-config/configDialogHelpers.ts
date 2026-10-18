@@ -337,6 +337,34 @@ export function findModelCapabilities(
   );
 }
 
+// --- Output cap ----------------------------------------------------------------------
+
+/** The output cap `budget` exceeds, or null when it fits or no cap is known.
+ *
+ * A stored budget outlives the model it was chosen for (production 2026-10-18:
+ * 200 000 kept on a model capped at 128 000, every call refused). The backend
+ * now holds the request to the cap a curated catalogue row vouches for, and
+ * publishes that figure as `vouched_max_output_tokens`; the raw
+ * `max_output_tokens` of a row nobody curated is a column default, and warning
+ * against it would flag a correct budget. */
+export function exceededOutputCap(
+  budget: number | null | undefined,
+  caps: ModelCapabilities | undefined
+): number | null {
+  const cap = caps?.vouched_max_output_tokens ?? null;
+  if (cap === null || budget == null) return null;
+  return budget > cap ? cap : null;
+}
+
+/** The budget a save will apply: the field, or the slot default once the field
+ * is cleared (override semantics — an unset override inherits the default). */
+export function budgetThatApplies(
+  form: Pick<LLMTypeConfigUpdate, 'max_tokens'>,
+  config: LLMTypeConfig
+): number {
+  return form.max_tokens ?? config.defaults.max_tokens;
+}
+
 // --- Sampling params -----------------------------------------------------------------
 
 /** Anthropic extended thinking is incompatible with custom temperature/top_p

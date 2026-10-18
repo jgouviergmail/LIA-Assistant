@@ -18,9 +18,11 @@ Per-user isolation: all cache lookups are user-scoped via
 overrides an admin skill of the same name (per agentskills.io semantics), and
 no other user's skill is ever reachable.
 
-Steps whose tools require OAuth scopes the user lacks are filtered out before
-building the plan, so users without a given connector get a graceful partial
-briefing instead of a validation-fail → replan round-trip.
+The steps the turn cannot run are dropped before building the plan: a tool the
+turn's catalogue withholds (a switched-off capability, an unconnected provider —
+resolved by the canonical resolver the executor falls back on), then a tool
+requiring OAuth scopes the user lacks. Users without a given connector get a graceful partial briefing
+instead of a validation-fail → replan round-trip.
 
 If no match → falls through to the LLM planner.
 """
@@ -103,11 +105,12 @@ class SkillBypassStrategy:
       ``intelligence.detected_skill_name`` (no cache lookup, no user context).
     - ``plan`` performs the user-scoped lookup, checks the skill is deterministic
       and active for the current user, then builds the ExecutionPlan from the
-      template (with OAuth scope-based step filtering).
+      template's steps the turn can run (its catalogue offers the tool, the user
+      granted the tool's OAuth scopes).
 
-    On any mismatch (skill not found, non-deterministic, inactive, or all steps
-    filtered out by scopes), the strategy returns ``PlanningResult(success=False)``
-    and the planner falls through to the next strategy (typically the LLM planner).
+    On any mismatch (skill not found, non-deterministic, inactive, or no step left
+    the turn can run), the strategy returns ``PlanningResult(success=False)`` and
+    the planner falls through to the next strategy (typically the LLM planner).
     """
 
     requires_catalogue = False
@@ -286,23 +289,31 @@ class SkillBypassStrategy:
                 plan=None, success=False, error=f"Skill '{skill_name}' has no steps"
             )
 
-        # Filter steps whose tools require OAuth scopes the user lacks.
-        # This avoids a validation-fail → replan round-trip for users without
-        # a given connector (e.g., no Gmail → skip email step gracefully) —
-        # never a step another provider serves (RC1.1).
+        # Drop the steps the turn cannot run: a tool its catalogue withholds (a
+        # switched-off capability), then a tool requiring OAuth scopes the user
+        # lacks. This avoids a validation-fail → replan round-trip for users
+        # without a given connector (e.g., no Gmail → skip email step
+        # gracefully) — never a step another provider serves (RC1.1).
         available_scopes = set(config.get("configurable", {}).get("oauth_scopes", []))
         filtered_steps_data = _filter_steps_by_scopes(
-            steps_data, available_scopes, active_connector_types_ctx.get()
+            _steps_the_turn_offers(steps_data),
+            available_scopes,
+            active_connector_types_ctx.get(),
         )
 
         if not filtered_steps_data:
             logger.info(
                 "skill_bypass_all_steps_filtered",
                 skill_name=skill_name,
-                reason="No steps remain after scope filtering",
+                reason="No step the turn can run remains",
             )
             return PlanningResult(
-                plan=None, success=False, error="All skill steps filtered by missing scopes"
+                plan=None,
+                success=False,
+                error=(
+                    f"No step of skill '{skill_name}' can run this turn: its catalogue "
+                    "withholds the tool or the user lacks its OAuth scopes"
+                ),
             )
 
         # Convert template → ExecutionPlan steps
@@ -429,14 +440,60 @@ def _filter_steps_by_scopes(
                 missing_scopes=sorted(missing),
             )
 
-    # Sanitize depends_on references to removed steps.
-    # Shallow-copy affected dicts to avoid mutating the cached skill template.
-    if removed_step_ids:
-        for i, step in enumerate(filtered):
-            deps = step.get("depends_on")
-            if deps:
-                sanitized = [d for d in deps if d not in removed_step_ids]
-                if len(sanitized) != len(deps):
-                    filtered[i] = {**step, "depends_on": sanitized}
+    return _without_dependencies_on(filtered, removed_step_ids)
 
-    return filtered
+
+def _steps_the_turn_offers(steps_data: list[dict]) -> list[dict]:
+    """The template steps whose tool the turn's catalogue offers.
+
+    A skill template is written once for every account and instance, so it may
+    name a tool this turn withholds — a capability an administrator switched
+    off, a provider the account never connected. The validator and the
+    executor resolve tools from the global registry, so such a step used to run
+    anyway. Outside a turn (no catalogue published) nothing is dropped.
+
+    A step is tested with the canonical resolver (``resolve_tool_manifest_named``,
+    the executor's own fallback for a name the global registry does not hold),
+    never by exact name: a narrowing filter is never stricter than the decider,
+    and the resolver also admits a hallucinated MCP suffix and a reactive
+    user-MCP tool the turn offers.
+
+    Args:
+        steps_data: Raw step dicts from plan_template.
+
+    Returns:
+        The steps the turn can run (order preserved, depends_on sanitized).
+    """
+    from src.core.context import request_tool_manifests_ctx
+    from src.domains.agents.registry.manifest_resolution import resolve_tool_manifest_named
+
+    if request_tool_manifests_ctx.get() is None or not steps_data:
+        return steps_data
+    kept: list[dict] = []
+    removed_step_ids: set[str] = set()
+    for step in steps_data:
+        tool_name = step.get("tool_name")
+        if tool_name and resolve_tool_manifest_named(tool_name)[0] is None:
+            removed_step_ids.add(step.get("step_id", ""))
+            logger.info("skill_bypass_step_withheld_by_turn", tool_name=tool_name)
+            continue
+        kept.append(step)
+    return _without_dependencies_on(kept, removed_step_ids)
+
+
+def _without_dependencies_on(steps: list[dict], removed_step_ids: set[str]) -> list[dict]:
+    """The steps with every ``depends_on`` reference to a removed step dropped.
+
+    A changed step is shallow-copied: the skill template it comes from is cached.
+    """
+    if not removed_step_ids:
+        return steps
+    sanitized_steps: list[dict] = []
+    for step in steps:
+        deps = step.get("depends_on")
+        if deps:
+            sanitized = [d for d in deps if d not in removed_step_ids]
+            if len(sanitized) != len(deps):
+                step = {**step, "depends_on": sanitized}
+        sanitized_steps.append(step)
+    return sanitized_steps

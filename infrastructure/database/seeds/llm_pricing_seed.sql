@@ -717,12 +717,15 @@ WHERE m.id = p.model_id AND p.is_active AND m.model_name IN (
 );
 
 -- ============================================================================
--- Shutdown dates (2026-09-26) — what Google's deprecations page announces
--- (ai.google.dev/gemini-api/docs/deprecations), NULL where it lists a model
--- with no shutdown announced. The vendor outranks the registries that copied
--- it: LiteLLM had dated the three Gemini 2.5 chat models 2026-10-20, which
--- Google serves until further notice. Absolute values, idempotent; migration
--- 70fd39bf9e8d writes the same, and a guard test holds the two equal.
+-- Shutdown dates (2026-09-26, re-read 2026-10-17) — what Google's deprecations
+-- page announces (ai.google.dev/gemini-api/docs/deprecations), NULL where it
+-- lists a model with no shutdown announced. The vendor outranks the registries
+-- that copied it: LiteLLM had dated the three Gemini 2.5 chat models
+-- 2026-10-20, which Google serves until further notice. Absolute values,
+-- idempotent; migration 70fd39bf9e8d writes the 2026-09-26 dates, migration
+-- 754351d42c74 the six re-dated since (the speech and live previews on
+-- 2026-11-17, gemini-2.5-flash-image moved to 2027-03-15), and a guard test
+-- holds them all equal to this block.
 -- ============================================================================
 UPDATE llm_models m
 SET deprecation_date = CAST(v.shutdown AS date)
@@ -738,22 +741,22 @@ FROM (VALUES
     ('gemini-3.5-flash-lite', NULL),
     ('gemini-3.1-flash-lite', '2027-05-07'),
     ('gemini-3.1-flash-lite-preview', '2026-05-25'),
-    ('gemini-3.1-flash-tts-preview', NULL),
-    ('gemini-3.1-flash-live-preview', NULL),
+    ('gemini-3.1-flash-tts-preview', '2026-11-17'),
+    ('gemini-3.1-flash-live-preview', '2026-11-17'),
     ('gemini-3.1-pro-preview', NULL),
     ('gemini-3-flash-preview', NULL),
     ('gemini-3-pro-preview', '2026-03-09'),
     ('gemini-3-pro-image-preview', '2026-06-25'),
     ('gemini-2.5-pro', NULL),
-    ('gemini-2.5-pro-preview-tts', NULL),
+    ('gemini-2.5-pro-preview-tts', '2026-11-17'),
     ('gemini-2.5-flash', NULL),
-    ('gemini-2.5-flash-preview-tts', NULL),
+    ('gemini-2.5-flash-preview-tts', '2026-11-17'),
     ('gemini-2.5-flash-preview-09-2025', '2026-02-17'),
-    ('gemini-2.5-flash-image', '2026-10-02'),
+    ('gemini-2.5-flash-image', '2027-03-15'),
     ('gemini-2.5-flash-image-preview', '2026-01-15'),
     ('gemini-2.5-flash-lite', NULL),
     ('gemini-2.5-flash-lite-preview-09-2025', '2026-03-31'),
-    ('gemini-2.5-flash-native-audio-preview-12-2025', NULL),
+    ('gemini-2.5-flash-native-audio-preview-12-2025', '2026-11-17'),
     ('gemini-2.0-flash', '2026-06-01'),
     ('gemini-2.0-flash-001', '2026-06-01'),
     ('gemini-2.0-flash-lite', '2026-06-01'),

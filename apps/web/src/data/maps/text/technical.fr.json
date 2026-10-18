@@ -103,7 +103,7 @@
     },
     "t.config": {
       "name": "Configuration et interrupteurs",
-      "role": "Des réglages composés par domaine, lus depuis l'environnement ; un interrupteur par capacité, lu au moment de l'acte.",
+      "role": "Des réglages composés par domaine, lus depuis l'environnement ; un interrupteur par capacité, lu au moment de l'acte et appliqué une seule fois au catalogue du tour, que lisent les deux modes d'exécution.",
       "stack": ["Pydantic Settings", "Variables d'environnement", "Interrupteurs de capacité"]
     },
     "t.i18n": {
@@ -269,7 +269,7 @@
     },
     "t.selfdiag": {
       "name": "Auto-diagnostic",
-      "role": "LIA lit sa propre télémétrie, rassemble les preuves d'un incident au moment où il survient et en garde la mémoire.",
+      "role": "LIA lit sa propre télémétrie, rassemble les preuves d'un incident au moment où il survient et en garde la mémoire ; un incident dont la résolution s'est perdue est rapproché d'Alertmanager et refermé.",
       "stack": ["Lecture Prometheus / Loki / Alertmanager", "Preuves par recette"]
     },
     "t.radio": {

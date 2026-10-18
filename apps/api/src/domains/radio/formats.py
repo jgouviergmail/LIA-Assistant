@@ -235,6 +235,11 @@ class FormatSpec:
             (``False``) may come back to a story heard, from its own angle —
             never the story of the programme just before, never one the same
             programme already took (decision 39).
+        reactions_allowed: Whether a view or a transition of it may open on a
+            vocal reaction — a chuckle, a laugh, a sigh (decision 45): the
+            welcome, the goodbye and the programmes that converse (the
+            editorial, a debate, a discussion) — never the news read out, nor
+            the listener's own records.
     """
 
     format: RadioFormat
@@ -253,6 +258,7 @@ class FormatSpec:
     spoken_as: str
     stories_max: int | None
     renews_subjects: bool
+    reactions_allowed: bool
 
     def target_chars(self, language: str) -> int:
         """The script length that fills ``target_seconds`` in ``language``.
@@ -289,6 +295,7 @@ def _spec(
     analysis: bool = False,
     distinct_voices: int = 1,
     renews: bool = True,
+    reactions: bool = False,
 ) -> FormatSpec:
     return FormatSpec(
         format=fmt,
@@ -307,6 +314,7 @@ def _spec(
         spoken_as=spoken_as,
         stories_max=stories,
         renews_subjects=renews,
+        reactions_allowed=reactions,
     )
 
 
@@ -325,6 +333,7 @@ FORMAT_SPECS: Final[dict[RadioFormat, FormatSpec]] = {
         per_session=1,
         validity=300,
         selectable=False,
+        reactions=True,
     ),
     RadioFormat.JOURNAL: _spec(
         RadioFormat.JOURNAL,
@@ -422,6 +431,7 @@ FORMAT_SPECS: Final[dict[RadioFormat, FormatSpec]] = {
         per_session=None,
         validity=7200,
         renews=False,
+        reactions=True,
     ),
     RadioFormat.DEBATE: _spec(
         RadioFormat.DEBATE,
@@ -438,6 +448,7 @@ FORMAT_SPECS: Final[dict[RadioFormat, FormatSpec]] = {
         analysis=True,
         distinct_voices=3,
         renews=False,
+        reactions=True,
     ),
     RadioFormat.DISCUSSION: _spec(
         RadioFormat.DISCUSSION,
@@ -453,6 +464,7 @@ FORMAT_SPECS: Final[dict[RadioFormat, FormatSpec]] = {
         frequency=Frequency.RARE,
         distinct_voices=2,
         renews=False,
+        reactions=True,
     ),
     RadioFormat.NUMBER: _spec(
         RadioFormat.NUMBER,
@@ -478,6 +490,7 @@ FORMAT_SPECS: Final[dict[RadioFormat, FormatSpec]] = {
         per_session=1,
         validity=600,
         selectable=False,
+        reactions=True,
     ),
     # Planned by the grid alone, once, when the desk is exhausted (ADR-324 decision 38).
     RadioFormat.NOTHING_NEW: _spec(

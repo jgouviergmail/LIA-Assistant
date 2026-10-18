@@ -5,6 +5,349 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-10-18
+
+**A FAQ for every feature.**
+Ten new sections — the home page, Telegram, calculations and scripts, habits,
+generated files and kept answers, the personal radio, LIA's psyche, the
+transparency registers, administration and self-hosting — and the existing ones
+completed: 491 questions in six languages, where there were 375.
+
+**Voices that react, cues that fit.**
+On the radio, a chuckle, a laugh or a sigh may open a turn of a discussion or a
+debate, never the news read out. In a spoken comment a cue colours the news,
+never how LIA's own act went. A four-voice debate is no longer refused whole: it
+is split into takes the engine accepts.
+
+**A switch holds in both execution modes.**
+The tools a switched-off capability names leave the Pipeline planner and the
+ReAct loop alike, a delegated sub-agent and a skill's ready-made plan included —
+the Workboard, LIA connections, MCP servers and Skills switches still close their
+pages alone —; the bookmark, the avatar's mood and the voice's prosody follow
+their own switches.
+
+**An installation you can change, a supervision that tells the truth.**
+`./install.sh --reconfigure` changes a running installation without reinstalling
+it, and the Google Gemini key becomes an optional question. The daily report
+reads the alerts that fired, the latency alert measures only a person's wait, an
+incident whose resolution was lost closes itself, and a slot's output budget is
+held to what its model accepts.
+
+### Added
+
+- 🎙️ **The radio's voices react where a programme converses** ([ADR-324](docs/architecture/ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md) decision 45):
+  a chuckle, a laugh or a sigh may open a view or a transition of a discussion,
+  a debate, the editorial, the opening or the sign-off — never the news read
+  out — at most `RADIO_REACTIONS_MAX` (2) per programme, and only the sounds the
+  station's voice performs. The editor silences one out of place and the line
+  still airs. Measured on four model families (48 scripts): 11 discussions of
+  12 reacted at the story's turns, no bulletin ever did, and the editor
+  silenced the four reactions written on a fact line. ElevenLabs v4 and Gemini
+  3.8 play the chuckle every time; Fish Audio's free model mostly as a short
+  beat.
+- 📊 **What the radio's voice cannot express is counted**:
+  `radio_delivery_unrendered_total{dimension}` (energy, pace, tone, reaction),
+  a new panel on dashboard 31. The segment already recorded it; nothing read it.
+- ❓ **The FAQ covers every feature you can use**: ten new sections — the home
+  page, Telegram, calculations and scripts, habits, generated files and kept
+  answers, the personal radio, LIA's psyche, the transparency registers,
+  administration and self-hosting — and the existing ones completed, in six
+  languages: 491 questions, against 375. The radio, among others, had no
+  section at all.
+- 🔑 **The installer asks for an optional Google Gemini key** ([ADR-215](docs/architecture/ADR-215-Self-Host-Installer.md) amendment 2026-10-18):
+  memory recall, every search by meaning and image analysis run on it. An
+  empty answer skips it, and the final report names every capability left
+  waiting for a key.
+- ✨ **Two small-attentions cards with their animated scenes**: « Voices that
+  react » — a commentator opens a reply with a chuckle, never a line of the
+  news — and « The model's limit, in sight » — a budget above the model's cap
+  flagged before saving, each request held to it. The page holds 100 cards.
+
+### Changed
+
+- 🗣️ **Each expression cue now says when it fits** ([ADR-345](docs/architecture/ADR-345-Fish-Audio-Served-Whole-One-Door-One-Allowance-Cues-Each-Engine-Reads.md) amendment 2026-10-17):
+  the spoken comment's writer reads the meaning of every cue its voice
+  performs, and keeps cues for the news — never for how its own act went (a
+  confirmation, a failure, nothing found). Measured over four model families
+  (336 comments each way): cues where nothing called for one fell from 34 % to
+  25 % of the runs, cues that did not fit from 16 to 1, and the comments that
+  call for a cue carry a fitting one 73 % of the time (53 % before). A comment
+  that falls back to reading the answer, instead of the records it retained,
+  now carries no cue at all, whatever its model writes. The example every
+  cue-performing engine is shown is news (it was a confirmation of LIA's own
+  act), and an engine that only pauses is no longer told about cues it
+  cannot perform.
+- 🎧 **Each engine that performs cues gets the expressions its vendor
+  documents**, re-read on 2026-10-17: ElevenLabs Multilingual v2, Flash and
+  Turbo pause with their SSML `<break>`; Gemini 3.8 hears a sentence's tone as
+  that sentence's `style`; on every engine that plays it, « concerned » is played
+  as concern rather than empathy.
+  Verified on the vendors themselves: across 67 transcribed clips no cue was
+  ever read aloud.
+- 📰 **The daily operations report reads what actually happened** ([ADR-119](docs/architecture/ADR-119-Alerting-Reactivation-Minimal-Core.md) amendment 2026-10-18):
+  it opens on a « Supervision LIA » section read from the systems that recorded
+  the day — the alerts Prometheus fired, the alert chain's own health, the
+  alerts active now, the incidents still open, container restarts and
+  recreations, memory peaks, probe failures —, each source named when it cannot
+  be read, never taken for silence — and a window in which a source recorded
+  nothing reads « no measurement », never « nothing happened ». The tunnel
+  section reads cloudflared's journal itself, counts each failed request once,
+  by side (client gone, origin unreachable, other), groups an outage into its
+  periods and reads traffic and HTTP codes from cloudflared's own counters;
+  the Docker section presents itself as the dated snapshot it is. On production's report for
+  2026-10-17 the old sections read « no restart, all stable » about a
+  demonstrator API caught in a restart loop for six and a half hours, and
+  counted 1,023 tunnel errors from log lines — two per failed request, client
+  cancellations included.
+- ⏱️ **The time-to-first-token alert measures a person's wait** ([ADR-119](docs/architecture/ADR-119-Alerting-Reactivation-Minimal-Core.md) amendment 2026-10-18):
+  routines, tickets and call relays stream through the chat code and fed the
+  latency histograms, so three morning routines fired `SSELatencyP95High`
+  every morning from 2026-09-19 on. Only a turn a person waits for is observed
+  now — one door, `streaming/latency_sli.py`, guarded by an AST test — and the
+  rule evaluates only over at least `ALERT_CORE_SSE_TTFT_MIN_OBSERVATIONS` (20)
+  turns in ten minutes: below that, a histogram's p95 is its slowest single
+  turn.
+- 🗣️ **The offline pages speak like the application**: the web offline page
+  and the mobile shell's connection and offline screens address the reader
+  in the familiar register in French, German and Chinese.
+
+### Fixed
+
+- 📅 **The catalogue states Google's latest shutdown dates** (migration `754351d42c74`):
+  the Gemini 3.1 Flash TTS, 2.5 Flash and Pro TTS, 3.1 Flash Live and 2.5 Flash
+  native-audio (12-2025) previews retire on 2026-11-17, so the administrator is
+  warned to move to the 3.8 models; `gemini-2.5-flash-image` runs until
+  2027-03-15, not the date already past it carried.
+- 🎚️ **A switched-off capability leaves both execution modes** ([ADR-280](docs/architecture/ADR-280-Complete-Capability-Control.md) amendment 2026-10-18):
+  its tools were removed from what the Pipeline planner sees and nothing else,
+  so the ReAct loop still bound them — and the image and document tools, which
+  read only the deployment flag, ran. The filter now applies once, to the
+  turn's catalogue every reader shares — a delegated sub-agent included, whose
+  default research tools searched the web with web search switched off, and a
+  skill's ready-made plan, which the validator and the executor resolved from
+  the global registry —; the image and document tools also refuse at their
+  entry, and the administration panel says « in both execution modes ». The
+  router's domain menu reads the same snapshot, so a domain whose every tool
+  a switch withheld is no longer detected; the planner offers delegation
+  only when the turn does; and a skill's plan judges each step with the
+  turn's own resolver, never a stricter name match. The Workboard, LIA
+  connections, MCP servers and Skills switches still close their pages
+  alone, and the FAQ now says so. Reading the
+  switches on every turn costs one cache read and at most one query: a switch
+  nobody ever wrote is cached as absent instead of reaching the database each
+  time.
+- 🔖 **The bookmark follows the Bookmarks switch** ([ADR-282](docs/architecture/ADR-282-Message-Bookmarks.md) amendment 2026-10-18):
+  switched off, the bubble kept offering a bookmark whose every click was
+  refused. It now offers to keep nothing new, while an answer already kept
+  keeps its mark and can be let go; what was kept stays readable,
+  downloadable and deletable. The web reads every capability's effective
+  state through one rule (`lib/capability-state.ts`).
+- 🙂 **« Show emotional avatar » off returns every answer's face to neutral**:
+  the switch only stopped the live mood, so every finished answer kept showing
+  the mood stored with it.
+- 🎙️ **The mood bends the voice only where the psyche is on** ([ADR-237](docs/architecture/ADR-237-voice-prosody-and-form.md) amendment 2026-10-18):
+  the direct readout followed a mood frozen when the person switched the
+  psyche off, and one who switched it off before any state existed was given
+  one by their first readout (a spoken comment never bends the voice).
+- 🔍 **Searches by meaning read the Gemini key set in LLM Configuration** ([ADR-069](docs/architecture/ADR-069-Gemini-Embedding-Migration.md) amendment 2026-10-18):
+  memory recall, knowledge spaces, journals and interests read
+  `GOOGLE_GEMINI_API_KEY` (else `GOOGLE_API_KEY`) from the environment, once.
+  The administration key is now read first, at every call, so a key added
+  there needs no restart — except for the tool ranking and the tool-context
+  store's index, both built at boot.
+- 🛠️ **`./install.sh --reconfigure` changes a running installation without reinstalling it** ([ADR-215](docs/architecture/ADR-215-Self-Host-Installer.md) amendment 2026-10-18):
+  it fell through to a fresh install — every question asked again, the `.env`
+  re-rendered from the template, the seeds re-armed, the images rebuilt, the
+  typed provider keys replacing the stored ones. It now asks the routing and
+  capability questions showing the answers in force, which Enter keeps;
+  replaces each validated file in one atomic step after a private backup;
+  recreates the containers without rebuilding; makes Caddy reread changed
+  routes and stops the services of an option turned off; rewrites only the
+  `.env` values the answers decide — every value it would change shown first,
+  nothing applied until confirmed —; and, if the new stack does not come back
+  ready or is interrupted (Ctrl-C, SIGTERM, SIGHUP, at any step of the swap),
+  puts the previous files and stack back and checks them ready, logging the
+  cause first and, should the restore itself fail, printing the exact
+  Compose commands. Turning the sandbox on writes `DOCKER_GID` from the Docker
+  socket's group. Moving a LAN install behind Caddy, impossible before, works.
+- 📋 **The installer's final report names what stays degraded**: it was handed
+  a hard-coded empty list. The bootstrap reports the capabilities left waiting
+  for a key — from the keys the database holds, so a `--resume` that skips the
+  optional key no longer reports a stored one missing — and the installer
+  keeps that list for a later `--resume`.
+- 🧭 **Nine messages named settings that moved**: the image-generation,
+  health-data and two skill refusals, the two remote-dictation errors, the
+  administrator's voice listing, the unserved image model and the voice-mode API
+  description now point at the current place.
+- 🌐 **Labels left in English are translated**: the reasoning fields of the
+  administration's model dialog and the « other » slice of the register
+  charts, in six languages.
+- 🀄 **Chinese labels say what they mean**: the radio's brief (简讯) and news
+  flash (插播快讯) no longer share one word; the columnist, the commentators and
+  the automatic stop are named precisely; the workboard has one name
+  (工作看板, where three alternated), « register » one word across the
+  application (登记簿), the psyche keeps one word for the mood (情绪) and one
+  for the emotions (情感), its tooltip included, and LIA's journals are 日记,
+  never a log (日志).
+- 🇩🇪 **German settings paths no longer read « Einstellungen › Einstellungen »**:
+  the Preferences tab is « Präferenzen », and the FAQ paths name it — and the
+  Konnektoren, Besprechungen and Verwaltung labels the German screens show.
+- 📍 **The FAQ names the screens as they are**, in six languages: « LIA's
+  journal » and « System RAG admin » instead of names they never had, and the
+  workboard reached from My shortcuts or its settings section — it has no
+  header entry.
+- 📏 **A slot's output budget is held to what its model accepts** ([ADR-244](docs/architecture/ADR-244-LLM-Catalogue-Truth.md) amendment 2026-10-18):
+  three production slots kept the 200,000-token budget chosen for their
+  previous model when they moved to one whose output is capped at 128,000, and
+  the provider refused every call — document generation failed. One rule
+  (`infrastructure/llm/output_cap.py`) holds a slot's `max_tokens` to the
+  output cap a vouched catalogue row declares — `imported` or `verified`, on a
+  provider that enforces one, the column default only where a vendored registry
+  states that very figure — read by the slot resolution, the client door and
+  the admin metadata; in doubt the request goes as configured. The LLM
+  configuration screen flags a slot whose budget exceeds its model's cap — a
+  badge on its card, a warning under the field while it is edited — and saving
+  is never refused: the stored figure stays the administrator's to correct.
+- 💓 **A stray source label no longer costs a whole heartbeat decision** ([ADR-135](docs/architecture/ADR-135-Heartbeat-Interest-Quality.md) amendment 2026-10-18):
+  one word outside the source vocabulary rejected the entire decision on every
+  structured-output path, and production lost three heartbeat ticks of five
+  for one account once its decision slot ran a model with reasoning on. Case,
+  spaces and hyphens are now repaired and a word naming no source is dropped
+  and counted in a log (`heartbeat_source_labels_dropped`); the published
+  schema is unchanged byte for byte and only canonical labels are stored.
+- 🦙 **An unreachable Ollama address no longer slows every admin save** ([ADR-267](docs/architecture/ADR-267-Ollama-Native-Provider-And-Discovered-Capabilities.md) amendment 2026-10-18):
+  while a configured server stayed off, every configuration reload — each save
+  of any slot, each cross-worker invalidation — waited the five-second
+  discovery timeout (production: 16 timeouts in 17 minutes). An address that
+  answered nothing is asked again at most once per
+  `OLLAMA_DISCOVERY_RETRY_SECONDS` (600; `0` keeps the former behaviour); a
+  changed address is still discovered at once, and the admin's model listing
+  still asks the server.
+- 🎙️ **A radio debate keeps its takes** ([ADR-345](docs/architecture/ADR-345-Fish-Audio-Served-Whole-One-Door-One-Allowance-Cues-Each-Engine-Reads.md) amendment 2026-10-18):
+  the anchor and three commentators were planned as one take of four voices,
+  which Fish Audio refuses whole (« Reference audio too long »), so the
+  segment fell back to line-by-line synthesis. Each engine family declares how
+  many voices a dialogue take holds (`TtsFamily.dialogue_max_voices`: three on
+  Fish, measured 10 of 10 accepted at three and 5 of 5 refused at four) and the
+  planner opens a new take where one more voice would pass it; over 20,000
+  seeded scripts the plan is unchanged wherever no take passed the limit.
+- 🧾 **An incident whose resolution was lost closes itself** ([DIAGNOSTICS_DOMAIN](docs/technical/DIAGNOSTICS_DOMAIN.md)):
+  an alert incident stayed open as long as its « resolved » delivery was
+  missing — one for 28 days. Each self-check tick now closes an alert incident
+  Alertmanager no longer holds as firing and that has had no news for
+  `DIAGNOSTICS_INCIDENT_SILENCE_CLOSE_SECONDS` (an hour by default), with an
+  audit entry; a silenced or inhibited alert counts as active, an unreachable
+  Alertmanager closes nothing — nor one restarted less than five minutes ago,
+  which lists nothing until Prometheus re-sends what is firing —, and
+  Alertmanager is read outside the database transaction. The audit append
+  itself, refused by PostgreSQL, had never run and now does. A malformed
+  telemetry URL is now an unavailable source, no longer an exception that
+  ended the whole tick, and the diagnosis pump waits on Prometheus, Loki and
+  the model with no transaction open (ADR-304).
+- 🚀 **The production deploy no longer stops before building**: the new
+  logwatch tests wrote a `__pycache__` beside the extensionless scripts, the
+  deploy bundle copied it, and `deploy.sh`'s `cp services/*` under `set -e`
+  exited at step 4/7. The loaders write no bytecode, the bundle drops
+  bytecode, and the deploy copies regular files only — each layer pinned by
+  a test.
+- 🧮 **A pricing workbook exported in German, Spanish or Italian imports back**:
+  the reader refused the WAHR/FALSCH, VERDADERO and VERO its own writer
+  wrote. One declaration now serves both, round-trip tested in the six
+  languages.
+- 🦙 **An Ollama slot's own context window reaches the server** ([ADR-278](docs/architecture/ADR-278-Per-Slot-Context-Window.md)):
+  the factory handed the adapter a key its merged configuration never held,
+  so `num_ctx` fell back to the discovered window while the compaction
+  threshold and the ReAct budget read the slot's own figure — what LIA
+  accounted with was not what it requested.
+- 🔁 **A rollback no longer reads every untouched capability as off**: a
+  switch nobody ever wrote is cached as an absence under a key family the
+  previous release never reads (`system:capability:v2:`); read by v3.1.1, the
+  marker decoded as « off » until its five-minute expiry.
+- 🎤 **The Live voice sample outlives the 2.5 TTS shutdown**: it now speaks
+  through the one Gemini TTS client, on the person's own key, and defaults to
+  `gemini-3.8-flash-tts`; the deprecated-model guard also holds the sample,
+  Live, embedding, search and diarisation defaults. A deployment that pins
+  `LIVE_VOICE_SAMPLE_MODEL` keeps its own model.
+- 🧩 **A plugin's skill says where it is managed**: its refusal sent the model
+  to the Skills section; it now names the Plugins section, from which such a
+  skill leaves with its plugin.
+
+### Security
+
+- 🔒 **`re2js` 2.8.8** through a pnpm override (GHSA-gg6h-894w-4m9c, high:
+  quadratic-time lookbehind matching), found by the dependency watch — reached
+  only through `firebase` → `@firebase/firestore`, which LIA never imports.
+- 🔒 **`filelock` 4.2.2** under a security floor in the wake-word toolbox's two
+  manifests (GHSA-v4x8-3wr5-3wq8, high, and thirteen more advisories), pulled
+  by torch and the Hugging Face stack; the toolbox never reaches production.
+  One more Pillow 12.3.0 advisory there (GHSA-5x8w-8jj5-q52h, FlashPix) is
+  accepted on the same condition as the twenty-one before it: gradio still
+  caps Pillow below 13, and the toolbox decodes no image.
+
+### Tests
+
+- 🧪 `test_turn_catalogue_single_authority_guard.py` (AST) keeps one builder of
+  the turn's catalogue: the snapshot every reader shares is set from
+  `build_turn_catalogue` alone, and the unfiltered base is built nowhere else.
+- 🧪 The FAQ section registry guard holds the six locales' sections, the display
+  order and the icons equal — a section translated in six languages but absent
+  from the order rendered nowhere, with no test red.
+- 🧪 The latency door is AST-guarded: nothing but `latency_sli.py` observes the
+  two latency histograms (time to first token, stream duration), and the alert
+  rule's negative case (a routine morning) is pinned in `promtool` tests.
+- 🧪 The incident reconciliation runs on a disposable PostgreSQL (four cases,
+  the audit append included), and its silence window is held to at least twice
+  the webhook's repeat interval.
+- 🧪 **The agents suite no longer hangs**: its voice fake refused the spoken
+  comment's new `speaks_of_records` keyword, so one sequence failed and
+  another waited forever — the CI step would have run until GitHub's six-hour
+  limit. The fake records the value, the harness waits at most five seconds,
+  and it now drives the real batch read of the switches.
+- 🧪 New pins: the pricing workbook's true/false words over six languages,
+  the router's domain menu under switches, the skill plan's canonical
+  resolution, the planner's delegation section, the radio's reaction cues
+  (boot-checked complete), the Live sample through real ffmpeg, logwatch
+  loaders that write no bytecode and the deploy copy that skips directories.
+- 🧪 The output cap is tested at its three readers, the heartbeat labels on
+  every structured-output path, the dialogue takes over 20,000 seeded scripts,
+  the installer's reconfiguration from interruption to restoration, and the
+  bookmark, avatar and prosody gates on and off.
+
+### Documentation
+
+- 📚 **The decisions follow the code**: amendments to ADR-069, ADR-119,
+  ADR-135, ADR-215, ADR-237, ADR-244, ADR-267, ADR-280, ADR-282 and ADR-345
+  (two), ADR-324 decision 45, each mirrored in the ADR index;
+  DIAGNOSTICS_DOMAIN, LLM_CONFIG_ADMIN, RADIO, VOICE, LOCAL_EMBEDDINGS,
+  METRICS_REFERENCE, GRAFANA_DASHBOARDS, the self-hosting and observability
+  guides, GETTING_STARTED and three alert runbooks say what the code now does;
+  `CLAUDE.md` gains three rules (a slot's output cap, the turn's catalogue
+  filtered once, the latency SLI's single door).
+- 🌍 **The public surfaces**: the README; in six languages, the How,
+  philosophy and story guides (the turn's catalogue, the output cap, cues by
+  meaning, the radio's reactions and takes, the latency SLI and the daily
+  report, incident reconciliation, `--reconfigure`); the « How LIA works »
+  cards, rebalanced under their shrink-only length caps; the landing's radio and
+  voice cards; three blog articles (observability, LLM configuration
+  governance, voice mode); the FAQ answers and the help corpus, checked
+  against the code; the settings search lexicon; three bricks of the living
+  maps.
+- 🌐 **The six languages reviewed key by key**: UI labels quoted as the
+  screens show them, the familiar register restored outside the legal pages
+  (French, German, Spanish, Chinese), examples without dialable numbers,
+  configurable values stated as defaults, the help corpus aligned with the
+  English FAQ, and LIA's journals called 日记 in Chinese.
+- 🔢 **Figures that had drifted are corrected or let go**: the How guide and the
+  observability article counted 29 vital alerts where the core holds 31, and the
+  « How LIA works » card 27 capabilities where the registry holds 34 — both
+  figures leave the prose, which a guard cannot hold; the governance article
+  counted 86 LLM configurations instead of 87.
+- 📜 **GitHub recognises the AGPL-3.0 license**: `LICENSE` is now the verbatim
+  text published by gnu.org — the header line placed above it kept GitHub from
+  detecting the license — and the copyright line moves to the README's License
+  section. `SECURITY.md` 1.2 names no release line in its supported versions and
+  lists the code scanning CI actually runs (CodeQL).
+
 ## [3.1.1] - 2026-10-17
 
 **On a phone, LIA's companion stays where you put it.**

@@ -1,17 +1,19 @@
 """The prompt block that tells a spoken-comment writer which cues its engine performs (ADR-345).
 
 A prompt states what the code enforces, and nothing else (ADR-284): the block
-is rendered only when the engine that will speak performs at least one cue and
-the budget is above zero, it lists exactly the cues the engine performs — in
-LIA's canonical words, spelled the engine's way later by
-:class:`~src.domains.voice.expressive_cues.AuthoredCues` — its example shows a
-cue the engine performs, and the budget it publishes is the one the renderer
-enforces, from ONE setting.
+is rendered only when the engine that will speak performs at least one cue —
+inline or as a style — and the budget is above zero; it lists exactly the cues
+the engine performs, in LIA's canonical words (spelled the engine's way later
+by :class:`~src.domains.voice.expressive_cues.AuthoredCues`), each with the
+meaning that says when it fits; its rules speak only of the kinds it lists (a
+delivery to open with, a sound, a cue for the night); its example is one of
+them; and the budget it publishes is the one the renderer enforces, from ONE
+setting.
 """
 
 from __future__ import annotations
 
-from collections.abc import Set
+from collections.abc import Mapping, Set
 from typing import Final
 
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
@@ -20,21 +22,60 @@ from src.domains.voice.expressive_cues import DELIVERY_CUES, EVENT_CUES, Cue, Cu
 #: The versioned lines file the block is read from.
 CUE_PROMPT_LINES: Final[str] = "voice_expressive_cues_lines"
 
-#: The cue each example sentence is written for, shown when the engine performs it.
+#: The cue an example is taken from first, of each kind, when the engine performs it.
 _EXAMPLE_DELIVERY: Final[Cue] = Cue.WARM
 _EXAMPLE_EVENT: Final[Cue] = Cue.SIGHS
+#: The cues whose meaning names the night (``meaning.calm``, ``meaning.whispering``):
+#: the rules' night clause speaks of them, so it is stated only when one is listed.
+_NIGHT_CUES: Final[frozenset[Cue]] = frozenset({Cue.CALM, Cue.WHISPERING})
+#: The block's indentation of a listed cue under its kind (layout, not prose).
+_LISTED_INDENT: Final[str] = "  "
 
 
-def _listed(cues: Set[Cue]) -> str:
-    """The cues in the canonical syntax, in the vocabulary's own order."""
-    return ", ".join(f"[{cue.value}]" for cue in Cue if cue in cues)
+def _key(cue: Cue) -> str:
+    """The suffix of a cue's rows in the lines file (``short pause`` → ``short_pause``)."""
+    return cue.name.lower()
 
 
-def _example_cue(performed: Set[Cue], written_for: Cue) -> Cue:
-    """The cue an example shows: the one it was written for, else the first performed."""
-    if written_for in performed:
-        return written_for
-    return next(cue for cue in Cue if cue in performed)
+def _example_cue(performed: Set[Cue]) -> Cue:
+    """The cue the example shows: warm, else the first delivery performed, else a sound."""
+    for preferred, kind in ((_EXAMPLE_DELIVERY, DELIVERY_CUES), (_EXAMPLE_EVENT, EVENT_CUES)):
+        if preferred in performed:
+            return preferred
+        first = next((cue for cue in Cue if cue in performed and cue in kind), None)
+        if first is not None:
+            return first
+    raise ValueError("an engine that performs no cue has no example")
+
+
+def _kind_lines(lines: Mapping[str, str], header: str, cues: list[Cue]) -> list[str]:
+    """One kind's header and its cues, each with its meaning, in the vocabulary's order."""
+    if not cues:
+        return []
+    listed = (
+        _LISTED_INDENT
+        + lines["cue"].format(cue=f"[{cue.value}]", meaning=lines[f"meaning.{_key(cue)}"])
+        for cue in cues
+    )
+    return [lines[header], *listed]
+
+
+def _rules_line(lines: Mapping[str, str], listed: Set[Cue], budget: int) -> str:
+    """The rules row, each clause stated only when the block lists the cues it speaks of.
+
+    ADR-284: a prompt promises only what the turn can run — an engine that
+    performs a pause alone is never invited to open a sentence with a delivery,
+    nor to soften the night with a cue it does not perform.
+    """
+    delivery, sound = bool(listed & DELIVERY_CUES), bool(listed & EVENT_CUES)
+    if delivery and sound:
+        news = lines["rules.news.both"].format(
+            delivery=lines["rules.news.delivery"], sound=lines["rules.news.sound"]
+        )
+    else:
+        news = lines["rules.news.delivery" if delivery else "rules.news.sound"]
+    night = lines["rules.night"] if listed & _NIGHT_CUES else ""
+    return lines["rules"].format(night=night, news=news, max_cues=budget)
 
 
 def expressive_cues_block(dialect: CueDialect, budget: int) -> str:
@@ -51,24 +92,21 @@ def expressive_cues_block(dialect: CueDialect, budget: int) -> str:
     performed = dialect.performs()
     if budget <= 0 or not performed:
         return ""
-    delivery = performed & DELIVERY_CUES
-    events = performed & EVENT_CUES
     lines = dict(parse_prompt_sections(read_prompt_file(CUE_PROMPT_LINES), 2))
-    parts = [lines["open"], lines["intro"]]
-    if delivery:
-        parts.append(lines["delivery"].format(cues=_listed(delivery)))
-    if events:
-        parts.append(lines["events"].format(cues=_listed(events)))
-    parts.append(lines["rules"].format(max_cues=budget))
-    parts.append(lines["never"])
-    if delivery:
-        cue = _example_cue(delivery, _EXAMPLE_DELIVERY)
-        parts.append(lines["example.delivery"].format(cue=f"[{cue.value}]"))
-    else:
-        cue = _example_cue(events, _EXAMPLE_EVENT)
-        parts.append(lines["example.events"].format(cue=f"[{cue.value}]"))
-    parts.append(lines["close"])
-    return "\n".join(parts)
+    return "\n".join(
+        (
+            lines["open"],
+            lines["intro"],
+            *_kind_lines(
+                lines, "delivery", [cue for cue in Cue if cue in performed & DELIVERY_CUES]
+            ),
+            *_kind_lines(lines, "events", [cue for cue in Cue if cue in performed & EVENT_CUES]),
+            _rules_line(lines, performed, budget),
+            lines["never"],
+            lines["example"].format(example=lines[f"example.{_key(_example_cue(performed))}"]),
+            lines["close"],
+        )
+    )
 
 
 __all__ = ["CUE_PROMPT_LINES", "expressive_cues_block"]

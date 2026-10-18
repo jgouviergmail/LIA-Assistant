@@ -80,6 +80,14 @@ class TestPrometheusClient:
         result = await client.instant_query("up")
         assert result.status == "unavailable"
 
+    async def test_malformed_base_url_is_unavailable_not_raise(self) -> None:
+        # httpx.InvalidURL is no httpx.HTTPError: before the helper caught it,
+        # a mistyped port in the setting raised out of every self-check tick.
+        client = PrometheusClient(base_url="http://prometheus:9O90", timeout_seconds=2.0)
+        result = await client.instant_query("up")
+        assert result.status == "unavailable"
+        assert result.error == "invalid_url"
+
     async def test_empty_base_url_means_disabled_source(self) -> None:
         client = PrometheusClient(base_url="", timeout_seconds=2.0)
         result = await client.instant_query("up")

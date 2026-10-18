@@ -11,6 +11,7 @@
 import type { TFunction } from 'i18next';
 
 import type { AppConfig } from '@/hooks/useAppConfig';
+import { capabilityEnabled } from '@/lib/capability-state';
 
 /**
  * « Settings › Connectors », the place a mailbox is connected — built from the
@@ -82,8 +83,11 @@ export interface EmailShareConfig {
  * @returns True when a send could leave.
  */
 export function emailShareAvailable(config: EmailShareConfig | null): boolean {
-  const capability = config?.capabilities?.email_share;
-  return capability ? capability.enabled : Boolean(config?.features?.email_share_enabled);
+  return capabilityEnabled(
+    config?.capabilities,
+    'email_share',
+    config?.features?.email_share_enabled
+  );
 }
 
 /**

@@ -119,7 +119,7 @@ describe('useApiQuery — request lifetime', () => {
     vi.stubGlobal('fetch', fetch);
     render(
       <StrictMode>
-        <BookmarkStateProvider enabled>
+        <BookmarkStateProvider enabled canKeep>
           <span>chat</span>
         </BookmarkStateProvider>
       </StrictMode>

@@ -12,6 +12,11 @@ Exact fresh-install order (B08/B12):
     Settings -> start (seeds armed) -> /ready -> disarm seeds -> stdin
     bootstrap -> recreate API --no-build -> second /ready -> verifier
     -> record state -> report
+
+``--reconfigure`` (a recorded and bootstrapped install) is its own flow, in
+``reconfigure``; what both flows share — ``Deps``, the file layout, the exit
+codes — lives in ``run_context``. This module owns the command line and the
+mapping of what stops a run to its exit code.
 """
 
 from __future__ import annotations
@@ -23,7 +28,7 @@ import sys
 import time
 import urllib.request
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field, replace
+from dataclasses import replace
 from pathlib import Path
 
 from scripts.install import deploy, rollback
@@ -33,13 +38,14 @@ from scripts.install.answers import (
     collect_secret_answers,
 )
 from scripts.install.compose import (
+    CADDYFILE_NAME,
     IMAGES_COMPOSE,
     build_invocation,
-    locked_services,
     render_caddyfile,
     render_install_override,
 )
 from scripts.install.envgen import (
+    DOCKER_SOCKET,
     GENERATED_SECRET_KEYS,
     EnvGenError,
     derive_environment,
@@ -54,27 +60,38 @@ from scripts.install.host_paths import (
     required_host_paths,
 )
 from scripts.install.log import InstallLog
-from scripts.install.manifest import (
-    SANDBOX_IMAGE_SERVICE,
-    hash_file,
-    load_manifest,
-    render_image_lock,
-)
+from scripts.install.manifest import ManifestError
 from scripts.install.model import (
-    Clock,
     Exposure,
     InstallMode,
     IOAdapter,
     PublicAnswers,
     SecretAnswers,
-    UrlOpener,
 )
 from scripts.install.preflight import (
     PreflightError,
     resolve_install_mode,
 )
 from scripts.install.questions import build_questions
+from scripts.install.reconfigure import reconfigure_installation
 from scripts.install.report import render_report
+from scripts.install.run_context import (
+    ENV_FILE,
+    EXIT_INTERRUPTED,
+    EXIT_OK,
+    EXIT_PREFLIGHT,
+    EXIT_STEP_FAILED,
+    EXIT_USAGE,
+    LOG_FILE,
+    OVERRIDE_FILE,
+    READY_URL,
+    STATE_FILE,
+    Deps,
+    backup_dir,
+    generated_fingerprints,
+    prebuilt_pins,
+    release_summary,
+)
 from scripts.install.seed_bundle import compute_seed_bundle_sha256
 from scripts.install.state import (
     STATE_SCHEMA_VERSION,
@@ -90,29 +107,17 @@ from scripts.install.state import (
 )
 
 INSTALLER_VERSION = "1"
-STATE_FILE = ".install-state.json"
-LOG_FILE = "install.log"
-ENV_FILE = ".env"
-OVERRIDE_FILE = "docker-compose.install.yml"
-READY_URL = "http://127.0.0.1:8000/ready"
 
-EXIT_OK = 0
-EXIT_USAGE = 2
-EXIT_PREFLIGHT = 3
-EXIT_STEP_FAILED = 4
-EXIT_INTERRUPTED = 130
-
-
-@dataclass
-class Deps:
-    """Injected side-effect surface (real in main(), fakes in tests)."""
-
-    root: Path
-    io: IOAdapter
-    runner: deploy.Runner
-    opener: UrlOpener
-    clock: Clock
-    env: Mapping[str, str] = field(default_factory=dict)
+#: What stops a run, each told with its exit code by :func:`_failure_exit`.
+_RUN_FAILURES: tuple[type[BaseException], ...] = (
+    KeyboardInterrupt,
+    InstallInputError,
+    EnvGenError,
+    HostPathError,
+    PreflightError,
+    ManifestError,
+    deploy.StepFailed,
+)
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -138,43 +143,6 @@ def _requested_mode(args: argparse.Namespace) -> InstallMode | None:
     if args.prebuilt:
         return InstallMode.PREBUILT
     return None
-
-
-def _generated_fingerprints(root: Path) -> dict[str, str]:
-    fingerprints: dict[str, str] = {}
-    for name in (ENV_FILE, OVERRIDE_FILE):
-        path = root / name
-        if path.is_file():
-            fingerprints[name] = hash_file(path)
-    return fingerprints
-
-
-def _prebuilt_pins(public: PublicAnswers) -> tuple[str | None, str | None]:
-    """Manifest-derived pins for prebuilt mode: image lock + sandbox image.
-
-    Returns:
-        ``(image_lock_yaml, sandbox_image)`` — both ``None`` outside
-        prebuilt mode. The lock is the ``docker-compose.images.yml`` content
-        `build_invocation` already references (``render_image_lock`` had
-        ZERO call sites until the v1.30.1 qualification: every prebuilt
-        install died on the missing Compose layer). The sandbox image is
-        the manifest's own sandbox reference (ADR-327 lot 2) — the base
-        file's ``lia-skill-sandbox:local`` fallback is a tag a prebuilt host
-        never builds.
-    """
-    if public.mode is not InstallMode.PREBUILT or public.manifest_path is None:
-        return None, None
-    manifest = load_manifest(public.manifest_path, required_qualification="passed")
-    lock = render_image_lock(manifest, locked_services(public))
-    sandbox_image: str | None = None
-    if public.skill_sandbox:
-        # `load_manifest` validated it: every app image has an entry.
-        sandbox_image = next(
-            image.reference
-            for image in manifest.images
-            if image.service == SANDBOX_IMAGE_SERVICE
-        )
-    return lock, sandbox_image
 
 
 def _generate_artifacts(
@@ -215,7 +183,7 @@ def _generate_artifacts(
         caddy_dir = deps.root / "infrastructure" / "caddy"
         caddy_dir.mkdir(parents=True, exist_ok=True)
         write_atomic_private(
-            caddy_dir / "Caddyfile",
+            caddy_dir / CADDYFILE_NAME,
             render_caddyfile(public, template_root=deps.root),
         )
     invocation = build_invocation(public, root=deps.root)
@@ -261,7 +229,7 @@ def _fresh_state(
         completed=(),
         attempts={},
         last_error_code=None,
-        generated_sha256=_generated_fingerprints(root),
+        generated_sha256=generated_fingerprints(root),
         bootstrap_complete=False,
         project_name="lia",
     )
@@ -333,7 +301,9 @@ def _deploy_sequence(
         _disarm_seeds(deps, public, seed_digest, sandbox_image)
         log.write("seeds_disarmed")
         log.write("step_started", step="bootstrap")
-        deploy.run_bootstrap(invocation, public, secrets, deps.runner)
+        degraded = deploy.run_bootstrap(invocation, public, secrets, deps.runner)
+        if degraded is None:
+            log.write("bootstrap_report_unreadable")
         deploy.restart_api_without_build(invocation, deps.runner)
         deploy.wait_ready(READY_URL, deps.opener, deps.clock)
         log.write("step_started", step="verify")
@@ -352,8 +322,9 @@ def _deploy_sequence(
     state = replace(
         state,
         bootstrap_complete=True,
-        generated_sha256=_generated_fingerprints(deps.root),
+        generated_sha256=generated_fingerprints(deps.root),
         last_error_code=None,
+        degraded_capabilities=degraded,
         source_context_tree_sha256=(
             source_tree_sha
             if source_tree_sha is not None
@@ -378,15 +349,8 @@ def run_install(argv: Sequence[str], deps: Deps) -> int:
         args = parser.parse_args(list(argv))
     except SystemExit:
         return EXIT_USAGE
-    if args.reconfigure and (
-        args.resume
-        or args.local_build
-        or args.prebuilt
-        or args.answers
-        or args.non_interactive
-    ):
-        deps.io.print_fn("reconfigure_flags_exclusive")
-        return EXIT_USAGE
+    if args.reconfigure:
+        return _run_reconfigure(args, deps)
 
     state_path = deps.root / STATE_FILE
     log = InstallLog(deps.root / LOG_FILE)
@@ -430,7 +394,7 @@ def run_install(argv: Sequence[str], deps: Deps) -> int:
                 ),
                 image_digests=dict(previous_state.image_digests),
                 seed_bundle_sha256=compute_seed_bundle_sha256(deps.root),
-                generated_sha256=_generated_fingerprints(deps.root),
+                generated_sha256=generated_fingerprints(deps.root),
             )
             decision = decide_resume(previous_state, observed)
             if decision is ResumeDecision.STOP_MISMATCH:
@@ -449,22 +413,29 @@ def run_install(argv: Sequence[str], deps: Deps) -> int:
                 # override during the resumed sequence, and a None here would
                 # silently strip SKILLS_SCRIPT_SANDBOX_IMAGE from it. The
                 # idempotent lock rewrite also self-heals a deleted layer.
-                image_lock, sandbox_image = _prebuilt_pins(public)
+                image_lock, sandbox_image = prebuilt_pins(public)
                 if image_lock is not None:
                     write_atomic_private(deps.root / IMAGES_COMPOSE, image_lock)
                 log.add_secret(secrets.admin_password)
                 for value in secrets.provider_keys.values():
                     log.add_secret(value)
-                new_state = _deploy_sequence(
+                previous_state = _deploy_sequence(
                     deps, log, public, secrets, previous_state, seed_digest, sandbox_image
                 )
-                save_state(state_path, new_state)
+                save_state(state_path, previous_state)
             deps.io.print_fn(
                 render_report(
                     public,
-                    release_summary=_release_summary(public),
-                    backup_dir=deps.root.parent / "lia-data" / "postgres-backups",
-                    optional_unkeyed={},
+                    release_summary=release_summary(public),
+                    backup_dir=backup_dir(deps),
+                    # A resume that re-ran nothing claims no list: the one
+                    # recorded at install goes stale as keys are added in the
+                    # Admin UI, and the report then points there instead.
+                    optional_unkeyed=(
+                        previous_state.degraded_capabilities
+                        if decision is ResumeDecision.REPROMPT_SECRETS
+                        else None
+                    ),
                 )
             )
             return EXIT_OK
@@ -476,7 +447,7 @@ def run_install(argv: Sequence[str], deps: Deps) -> int:
             log.add_secret(value)
 
         generated = _load_or_generate_secrets(deps)
-        image_lock, sandbox_image = _prebuilt_pins(public)
+        image_lock, sandbox_image = prebuilt_pins(public)
         seed_digest = _generate_artifacts(
             deps,
             public,
@@ -505,33 +476,92 @@ def run_install(argv: Sequence[str], deps: Deps) -> int:
         deps.io.print_fn(
             render_report(
                 public,
-                release_summary=_release_summary(public),
-                backup_dir=deps.root.parent / "lia-data" / "postgres-backups",
-                optional_unkeyed={},
+                release_summary=release_summary(public),
+                backup_dir=backup_dir(deps),
+                optional_unkeyed=state.degraded_capabilities,
             )
         )
         return EXIT_OK
 
-    except KeyboardInterrupt:
+    except _RUN_FAILURES as exc:
+        return _failure_exit(
+            exc, deps, log, interrupted="interrupted — resume with ./install.sh --resume"
+        )
+
+
+def _failure_exit(exc: BaseException, deps: Deps, log: InstallLog, *, interrupted: str) -> int:
+    """Log and print what stopped a run, the one mapping of every flow.
+
+    Args:
+        exc: One of :data:`_RUN_FAILURES`.
+        deps: The injected side effects.
+        log: The redacting install log.
+        interrupted: The line an interrupt prints: how to continue.
+
+    Returns:
+        The process exit code.
+    """
+    if isinstance(exc, KeyboardInterrupt):
         log.write("interrupted")
-        deps.io.print_fn("interrupted — resume with ./install.sh --resume")
+        deps.io.print_fn(interrupted)
         return EXIT_INTERRUPTED
-    except (InstallInputError, EnvGenError, HostPathError, PreflightError) as exc:
-        # The chained cause turns a stable code into a diagnosable line:
-        # `prebuilt_requires_passed_manifest` alone hid a missing catalogue
-        # file for a full disposable matrix run (v1.30.1 qualification).
-        log.write("input_error", code=str(exc), cause=str(exc.__cause__ or ""))
-        deps.io.print_fn(str(exc))
-        return EXIT_USAGE if isinstance(exc, InstallInputError) else EXIT_PREFLIGHT
-    except deploy.StepFailed as exc:
+    if isinstance(exc, deploy.StepFailed):
         deps.io.print_fn(str(exc))
         return EXIT_STEP_FAILED
+    if isinstance(exc, ManifestError):
+        # The recorded manifest went missing or stopped validating (a bundle
+        # folder cleaned up after the install): a stable code, the cause logged.
+        log.write("input_error", code="manifest_unreadable", cause=str(exc))
+        deps.io.print_fn(
+            "manifest_unreadable — the release manifest this installation was made "
+            "from is missing or invalid; read install.log"
+        )
+        return EXIT_PREFLIGHT
+    # InstallInputError, EnvGenError, HostPathError, PreflightError. The chained
+    # cause turns a stable code into a diagnosable line:
+    # `prebuilt_requires_passed_manifest` alone hid a missing catalogue file for
+    # a full disposable matrix run (v1.30.1 qualification).
+    log.write("input_error", code=str(exc), cause=str(exc.__cause__ or ""))
+    deps.io.print_fn(str(exc))
+    return EXIT_USAGE if isinstance(exc, InstallInputError) else EXIT_PREFLIGHT
 
 
-def _release_summary(public: PublicAnswers) -> str:
-    if public.mode is InstallMode.PREBUILT and public.manifest_path is not None:
-        return f"prebuilt ({public.manifest_path.name})"
-    return "local build"
+def _flags_beside_reconfigure(args: argparse.Namespace) -> bool:
+    """Whether ``--reconfigure`` came with a flag of another run: it takes none."""
+    return bool(
+        args.resume
+        or args.local_build
+        or args.prebuilt
+        or args.answers
+        or args.non_interactive
+        or args.dry_run
+        or args.check_only
+        or args.manifest is not None
+    )
+
+
+def _run_reconfigure(args: argparse.Namespace, deps: Deps) -> int:
+    """A ``--reconfigure`` run: alone on its command line, failures told like an install's.
+
+    Args:
+        args: The parsed command line.
+        deps: The injected side effects.
+
+    Returns:
+        A process exit code.
+    """
+    if _flags_beside_reconfigure(args):
+        deps.io.print_fn("reconfigure_flags_exclusive")
+        return EXIT_USAGE
+    log = InstallLog(deps.root / LOG_FILE)
+    try:
+        return reconfigure_installation(deps, log)
+    except _RUN_FAILURES as exc:
+        # The questions and the swap answer their own interrupts: one that
+        # reaches here came while the state was being read or recorded.
+        return _failure_exit(
+            exc, deps, log, interrupted="interrupted — run ./install.sh --reconfigure again"
+        )
 
 
 def _load_or_generate_secrets(deps: Deps) -> Mapping[str, str]:
@@ -581,6 +611,7 @@ def _real_deps() -> Deps:
         runner=_runner,
         opener=_opener,
         clock=_RealClock(),
+        docker_socket=DOCKER_SOCKET,
     )
 
 

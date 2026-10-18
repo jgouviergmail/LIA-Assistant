@@ -228,8 +228,8 @@ class ReactToolSelector:
             - wrapped_tools: List of ReactToolWrapper instances.
             - hitl_map: Dict mapping tool_name → hitl_required (for execute_tools HITL logic).
         """
-        # Use per-request manifests (filtered by active connectors + MCP settings)
-        # Same source of truth as pipeline: build_request_tool_manifests()
+        # The turn's catalogue (build_turn_catalogue) — the one the pipeline
+        # planner reads, already without a switched-off capability's tools.
         available_manifests = manifests_for_mode(get_request_tool_manifests(), EXECUTION_MODE_REACT)
 
         priority_agents = self._domain_priority_agents(intelligence)

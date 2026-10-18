@@ -118,38 +118,48 @@ You can create up to **20 scheduled actions**:
 ## Are scheduled actions affected by usage limits?
 Yes. When your usage limits are reached, scheduled actions are blocked from executing — the system checks your quota before each execution. The action remains scheduled and will resume automatically once your limits are reset (next billing period) or adjusted by your administrator.
 
-## What does the notification contain?
-The push notification and the in-app toast carry the **final text of the execution** — the same one archived in your conversation, not an intermediate draft. Rich formatting (HTML layout, data cards, decorative icons) is flattened to plain text before the body is truncated, so a notification never shows markup.
+## What does a routine's notification contain?
 
+When a routine produces an answer, LIA sends a notification to your devices and, if LIA is open, shows it as a short message on screen:
+• the **title**: **Scheduled action**, followed by the name of your routine
+• the **text**: the beginning of the routine's final answer — the very one saved in your conversation, never an intermediate draft
 
-## Can LIA watch for a reply and tell me the minute it arrives?
-Yes. On the Today briefing, a mail card offers *Watch for a reply from …*: one tap creates a condition routine keyed on that **sender** (never on the subject), valid for two weeks, and LIA already checks that you are not watching that person twice.
+Formatting (HTML layout, data cards, icons) is turned into plain text before it is shortened, so a notification never shows markup. The complete answer, with its cards, waits in your conversation.
 
-**Checked all the time:** a watch has no schedule — LIA checks it at a regular interval, day and night (its card says how often). And on a Gmail mailbox, the same wake-up that reacts to your mail brings that check forward as soon as the reply lands; the routine itself still runs where it always did, under your usual limits.
+A condition check that found nothing new runs nothing, so it sends nothing either. Notifications on a device need to be allowed in **Settings › Preferences › Notifications & Communication › Push Notifications**.
 
-**And it ends by itself:** a watch stops after its last day and is then *closed*, not left "active" forever. In Settings → Scheduled actions it reads as completed, and you can delete it or set it up again.
+## Can LIA watch for a reply and tell me as soon as it arrives?
 
-## Can a routine run when something happens rather than on a schedule?
-Yes. When you create or edit a routine, first choose **when it runs**: *on a schedule* (days and times), or *when something happens* — an overdue task, a matching mail, an upcoming event, a new document, a weather change. A routine that waits for something has **no schedule at all**:
+Yes — with a **watch**. On the home page, an e-mail of the **Unread mail** card offers **Watch for a reply from …**: LIA creates a routine that waits for that sender and, when a new message from them arrives, tells you and reminds you what the exchange was about. It lasts two weeks; you can pause it, edit it or move its last day in **Settings › Features › Scheduled Actions**.
 
-**🔎 Checked by LIA:**
-• At a regular interval, day and night — the dialog and the card say how often; the weather is checked less often than your mail, tasks, calendar and documents
-• It runs only when something **new** is there: the same mail, task or event never triggers it twice
-• A daily limit on runs, shown in the dialog; something new past it waits for the next day
-• **A weather change** is read from **Google Weather**, the weather source your instance provides to every account — whatever weather service you set up for yourself: rain, drizzle, snow or a thunderstorm forecast within the next few hours, with a likely enough chance of precipitation. The dialog states the horizon and the threshold, and the run is told the hour, the day, the chance and the source
+**⏱️ How fast:** LIA checks a watch on its own, day and night, at the cadence the editor shows. When your instance receives Gmail push notifications, a matching e-mail brings that check forward to within a couple of minutes.
 
-**📅 Until when:**
-• *Watch until* is optional: the routine stops after that day, or keeps watching until you pause it
+**🛠️ Your own:** in Scheduled Actions, **Add**, then set **Trigger** to **When a condition is met**, choose **An email matches** and give a filter (subject or sender), with an optional **Watch until**. A check that finds nothing new creates no run.
 
-**🩺 On the card:**
-• The last check, and why it failed if the source could not be read (not set up, or no answer)
-• **Check now** instead of Test: a real check, which runs the routine only if something new is there
+Asking in the chat creates a routine at set times, not a watch: use the card or the editor.
 
-A night-time fact is announced at night: there are no quiet hours yet.
+The action sits in the **More actions** menu (⋯) of the mail and is offered only when the mail shows a sender. The watch follows the **sender**, never the subject; if you already watch that person, LIA says so instead of creating a second watch. A watch stops after its last day and is then *closed*, not left "active" forever: it reads as completed, and you can delete it or set it up again.
+
+## Which events can start a routine, and how do I follow its checks?
+
+In the editor, under **When it runs**, choose **When a condition is met**, then what it waits for:
+• **A task is overdue**
+• **An email matches**
+• **An event is coming up**
+• **A document was added**
+• **Weather change**
+
+A routine that waits for something has **no schedule at all**.
+
+**🔎 Checked by LIA:** no schedule — LIA checks on its own, day and night, at the pace the editor shows along with the maximum number of runs a day. The routine runs only when something **new** appears: the same e-mail, task or event never starts it twice; something new past the daily maximum waits for the next day. The weather is checked less often than your mail, tasks, calendar and documents. **Watch until** (optional) ends the watch after that day.
+
+**🩺 On the card:** the last check, or why it failed — the source is not set up, or did not answer. **Check now** runs a real check: the routine runs only if something new is there.
+
+A fact found at night is announced at night: there are no quiet hours for routines.
 
 ## How does a routine watching for a weather change work?
-It always reads **Google Weather**, the weather source your instance provides to
-every account — whatever weather service you set up for yourself.
+
+It always reads **Google Weather**, the weather source your instance provides to every account — whatever weather service you set up for yourself.
 
 **🌦️ What triggers it:**
 • Rain, drizzle, snow or a thunderstorm forecast within the next few hours — **4 hours** by default
@@ -158,13 +168,9 @@ every account — whatever weather service you set up for yourself.
 
 The editor shows your instance's horizon and threshold under the condition.
 
-**🧭 What LIA is told:** the hour, the day, the chance and the source of the
-change, so the run knows exactly what to check.
+**🧭 What LIA is told:** the hour, the day, the chance and the source of the change, so the run knows exactly what to check.
 
-**📅 Once a day per phenomenon:** a second shower the same day does not run the
-routine again. During the run, LIA reads the weather with your own tools: if
-your service differs from Google Weather, the answer can say which source saw
-the change.
+**📅 Once a day per phenomenon:** a second shower the same day does not run the routine again. During the run, LIA reads the weather with your own tools: if your service differs from Google Weather, the answer can say which source saw the change.
 
 ## Can I manage scheduled actions through chat?
 

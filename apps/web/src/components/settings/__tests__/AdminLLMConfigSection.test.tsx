@@ -16,6 +16,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import AdminLLMConfigSection from '../AdminLLMConfigSection';
 import type {
@@ -67,6 +68,7 @@ const CAPS_FULL: ModelCapabilities = {
   model_id: 'gpt-test',
   kind: 'chat',
   max_output_tokens: 4096,
+  vouched_max_output_tokens: null,
   supports_tools: true,
   supports_structured_output: true,
   supports_vision: false,
@@ -240,6 +242,100 @@ describe('type cards', () => {
       'settings.admin.llmConfig.categories.radio',
       'settings.admin.llmConfig.categories.future_family',
     ]);
+  });
+});
+
+// --- max tokens above the model's output cap ------------------------------------
+//
+// Production 2026-10-18: a budget chosen for one model (200 000) survived a
+// switch to a model the catalogue vouches caps at 128 000, and every call was
+// refused. The request is now held to the cap; the screen says so where the
+// value lives — on the card, and under the field while it is edited.
+
+const CAPS_CAPPED: ModelCapabilities = {
+  ...CAPS_FULL,
+  model_id: 'capped-test',
+  vouched_max_output_tokens: 128_000,
+};
+
+function renderWithCappedModel(configs: LLMTypeConfig[]) {
+  setLLMConfigMock(configs, { ...METADATA, openai: [...METADATA.openai, CAPS_CAPPED] });
+  return render(<AdminLLMConfigSection lng="en" />);
+}
+
+describe('max tokens above the model output cap', () => {
+  it('flags the card whose budget its model cannot honour, and only that one', () => {
+    renderWithCappedModel([
+      typeConfig('subagent', 'Sub-agent', {
+        effective: { model: 'capped-test', max_tokens: 200_000 },
+        isOverridden: true,
+      }),
+      typeConfig('router', 'Router', { effective: { model: 'capped-test', max_tokens: 100_000 } }),
+    ]);
+
+    const flags = screen.getAllByText('settings.admin.llmConfig.types.maxTokensAboveCap');
+    expect(flags).toHaveLength(1);
+    expect(flags[0].closest('[role="button"]')?.textContent).toContain('Sub-agent');
+  });
+
+  it('flags nothing where nobody vouched for a cap, however large the budget', () => {
+    // gpt-test publishes max_output_tokens 4096 — an uncurated column default.
+    renderWithCappedModel([typeConfig('router', 'Router', { effective: { max_tokens: 200_000 } })]);
+
+    expect(screen.queryByText('settings.admin.llmConfig.types.maxTokensAboveCap')).toBeNull();
+  });
+
+  it('warns under the field while the edited budget exceeds the cap', async () => {
+    renderWithCappedModel([
+      typeConfig('router', 'Router', { effective: { model: 'capped-test' } }),
+    ]);
+    const dialog = await openDialog('Router');
+    const [maxTokens] = within(dialog).getAllByRole('spinbutton');
+    const warningKey = 'settings.admin.llmConfig.config.maxTokensAboveCap';
+    expect(within(dialog).queryByText(warningKey)).toBeNull();
+
+    fireEvent.change(maxTokens, { target: { value: '200000' } });
+    expect(maxTokens).toHaveAccessibleDescription(warningKey);
+
+    fireEvent.change(maxTokens, { target: { value: '128000' } });
+    expect(within(dialog).queryByText(warningKey)).toBeNull();
+    expect(maxTokens).not.toHaveAccessibleDescription(warningKey);
+  });
+
+  it('warns the moment the model changes to one whose cap the kept budget exceeds', async () => {
+    // The incident's own gesture: the model switched, the budget kept.
+    const user = userEvent.setup();
+    renderWithCappedModel([typeConfig('router', 'Router', { effective: { max_tokens: 200_000 } })]);
+    const dialog = await openDialog('Router');
+    const [maxTokens] = within(dialog).getAllByRole('spinbutton');
+    const warningKey = 'settings.admin.llmConfig.config.maxTokensAboveCap';
+    expect(maxTokens).not.toHaveAccessibleDescription(warningKey);
+
+    const modelSelect = within(dialog)
+      .getAllByRole('combobox')
+      .find(combobox => combobox.textContent?.includes('gpt-test'));
+    expect(modelSelect).toBeTruthy();
+    await user.click(modelSelect as HTMLElement);
+    await user.click(await screen.findByRole('option', { name: 'capped-test' }));
+
+    expect(maxTokens).toHaveAccessibleDescription(warningKey);
+  });
+
+  it('warns about the slot default once the field is cleared, since the save applies it', async () => {
+    renderWithCappedModel([
+      typeConfig('router', 'Router', {
+        effective: { model: 'capped-test' },
+        defaults: { model: 'capped-test', max_tokens: 200_000 },
+      }),
+    ]);
+    const dialog = await openDialog('Router');
+    const [maxTokens] = within(dialog).getAllByRole('spinbutton');
+
+    fireEvent.change(maxTokens, { target: { value: '' } });
+
+    expect(maxTokens).toHaveAccessibleDescription(
+      'settings.admin.llmConfig.config.maxTokensAboveCap'
+    );
   });
 });
 

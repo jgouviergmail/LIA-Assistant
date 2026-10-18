@@ -49,7 +49,7 @@ for (const { width, lost } of [{ width: 1280, lost: false }, { width: 320, lost:
     const confirm = card.getByRole('button', { name: 'Importer ce document' });
     await confirm.focus(); await page.keyboard.press('Enter');
     if (lost) {
-      await expect(card.getByText('Le résultat n’est pas encore confirmé. Vérifiez-le sans soumettre à nouveau l’action.')).toBeVisible();
+      await expect(card.getByText('Le résultat n’est pas encore confirmé. Vérifie-le sans soumettre à nouveau l’action.')).toBeVisible();
       await expect(confirm).toHaveAttribute('aria-disabled', 'true');
       await confirm.focus();
       await page.keyboard.press('Enter');

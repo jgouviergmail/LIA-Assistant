@@ -11,18 +11,22 @@ A skill is a **SKILL.md** file that extends the assistant's capabilities with ex
 - **Generator**: Python script emits an image artifact (QR code, chart) via the SkillScriptOutput JSON contract
 
 ## How do I import a skill?
-In **Settings > Features > Skills**, click **Import** and select a .md or .zip file. Compatible skills are available on **skillsmp.com** or GitHub — and the public library's **Search** button, in the same section, searches the public **skills.sh** library directly. Limits: 100 KB for SKILL.md, 50 KB per resource file, 20 skills max per user.
+In **Settings › Features › Extensions & Data › Skills**, click **Import** and select a .md or .zip file. Compatible skills are available on **skillsmp.com** or GitHub — and the public library's **Search** button, in the same section, searches the public **skills.sh** library directly. File sizes and the number of skills per account are bounded by your instance.
 
 ## How do I create my own skill?
 **The easiest way: just ask LIA!** Say something like "*create a skill for [your need]*" and the built-in **Skill Generator** will guide you step by step: need analysis, archetype selection (any of the 5 archetypes), generation, automatic validation — then a **proposal card** in the chat: you read its name, description and files, and one click on **Install** puts it in **My Skills**, ready to use. Nothing is installed without your click; a ticket or a messaging channel sends you back to the chat, where the card can be shown.
 
 You can also manually create a SKILL.md file with a minimal YAML header (name + description) followed by Markdown instructions. See the **built-in guide** (📖 Guide button in My Skills) for advanced options including full agent & tool catalogue with parameters.
 
-## What is in the built-in guide?
-The **Guide** button in My Skills opens a comprehensive 3-tab reference:
-- **Fundamentals**: what is a skill, the 3 archetypes, activation model (L1 catalogue → L2 instructions → L3 resources), best practices
-- **Create a skill**: SKILL.md format, frontmatter fields, examples for Prompt Expert and Advisory skills, folder structure (references/, scripts/, assets/), how to use resources
-- **Advanced**: plan templates with auto-trigger, complete agent & tool catalogue with parameters and types, Python scripts, internal skill tools
+## What is in the built-in skills guide?
+
+The **Guide** button of the Skills section — in its ⋯ menu on a phone — opens the **Skills Guide**, in three tabs:
+• **Fundamentals** — what a skill is, the three base types (Prompt Expert, Advisory, Plan Template; the Visualizer and Generator archetypes are covered under **Advanced**), how activation works — names and descriptions first, instructions once the skill is used, files only on demand — and best practices
+• **Create a skill** — the SKILL.md format and its header fields, worked examples, the folder structure and how to use its resources
+• **Advanced** — plan templates and their automatic trigger, the complete catalogue of agents and tools with their parameters, Python scripts, interactive frames and images, and the conventions that keep a skill in step with your theme and language
+
+Prefer not to write it yourself? Describe your need in the chat:
+• *Create a skill that shows a QR code*
 
 ## What is the difference between admin skills and my skills?
 **Admin skills (built-in)**: shipped with the application, available to all users. You can enable/disable them individually.
@@ -52,23 +56,31 @@ The **Skill Generator** is a built-in system skill that lets you **create your o
 3. **Generation**: creates the SKILL.md (plus scripts/references if needed) compliant with the agentskills.io standard
 4. **Validation & proposal**: automatic format verification, then a **proposal card** in the chat — you review the skill and its files, and one click on **Install** makes it active in **My Skills** (toggle, download, or delete it there like any imported skill)
 
-## What can skills include beyond instructions?
-A skill package (.zip) can contain:
-- **references/**: reference documents (.md, .txt) the assistant reads on demand
-- **scripts/**: Python scripts (.py) executed in an isolated sandbox (JSON stdin/stdout), and any other script its instructions run as a command (shell, Node, Python with arguments)
-- **assets/**: static files (templates, images, configurations)
-- **translations.json**: multilingual descriptions (6 languages)
+## What can a skill include besides its instructions?
 
-These resources are loaded on demand (L3 tier) to optimize token usage.
+A skill imported as a **.zip** keeps its **SKILL.md** and can bring folders of its own:
+• **references/** — text documents LIA reads only when needed: detailed guides, templates, reference data
+• **scripts/** — Python scripts run in an isolated sandbox, and the commands its instructions ask to run (shell, Node, Python)
+• **assets/** — static files: templates, images, configuration; an **assets/preview.png** becomes the thumbnail of its card
+• **translations.json** — its description in the six languages
 
-A skill can also bundle **assets/preview.png**, the thumbnail its detail panel shows. The skills that ship with LIA all have one: a sketch of what the skill produces — a month grid, a QR code, weather cards — rather than a generic icon. A skill without that file simply shows a placeholder.
+These files are loaded on demand, so a large skill costs nothing until it is used. File sizes and the number of skills per account are bounded by your instance, and the **Guide** describes each folder.
 
-## How isolated is a skill script, exactly?
-Each run gets its **own throwaway container**, destroyed as soon as the script ends: no Docker socket, no network access, a read-only filesystem apart from a small temporary space, an unprivileged identity and no capabilities. It cannot read your files, your credentials or anything else on the machine — it receives its JSON input on stdin and writes its result to stdout, and that is the whole of its world.
+The skills that ship with LIA all have a preview: a sketch of what the skill produces — a month grid, a QR code, weather cards — rather than a generic icon. A skill without that file simply shows a placeholder.
 
-If that container cannot be created, the script **does not run at all** — there is no weaker fallback mode. A script that overruns its time budget is force-removed rather than left behind. In short: you install a skill for what it produces, not for the trust you would otherwise have to place in whoever wrote it.
+## How isolated is a skill script?
 
-Every run starts from a **sandbox image of its own**: Python, Node and the command-line tools skills call, and neither the tool that could reach the rest of the machine nor any of LIA's own code.
+When the script sandbox is enabled (the default sandbox mode), each run gets its **own throwaway container**, removed as soon as the script ends:
+• no network — unless the script names hosts that you or your administrator allowed, reached through a dedicated proxy
+• a read-only system, apart from a small temporary space
+• an unprivileged identity with no special rights, and bounded memory, processes and time
+• nothing of LIA's inside — neither its code nor your credentials: the script receives the input it is given (plus, for a command, the files you attached) and returns its result
+
+A generic installation runs without the sandbox. If that container cannot be started, the script **does not run**: LIA never falls back silently to a weaker mode. A script that overruns its time is removed rather than left behind. Every run starts from a sandbox image of its own: Python, Node and the command-line tools skills call, and nothing that could reach the rest of the machine.
+
+In short, you install a skill for what it produces, without having to trust whoever wrote it with your data.
+
+**⚙️ For administrators:** the container is the default sandbox mode. An operator can deliberately select the older in-process mode (`SKILLS_SCRIPT_SANDBOX`), which only isolates when the API itself runs as root; the scripts LIA writes on its own always refuse that mode.
 
 ## Can a skill run programs and hand me files?
 Yes. Many skills written for other assistants say to **run a command**: a Python, shell or Node script, a PDF or spreadsheet tool. LIA runs it in a **copy of the skill's folder**, in the same throwaway container — no access to your mailbox, calendar or connectors, nothing of LIA's own. The files you attached to your message travel in with it, and every file it writes in its `out/` folder comes back as a **generated file**: shown under the answer and kept in your gallery for the usual time.
@@ -148,33 +160,34 @@ and runtime conventions") for copy-paste examples.
 See `docs/technical/SKILLS_INTEGRATION.md` § Rich Outputs for the full
 registry flow (SKILL_APP registry item → sentinel HTML → SkillAppWidget).
 
-
 ## What does the skills gallery show?
-Settings → Skills now displays your skills as **cards**. Opening one shows its localized description, a **preview image** when the skill bundles one, its declared **output channels** (text, interactive frame, image) and the actions (enable/disable, download, delete). A skill you imported yourself carries a **provenance warning**: its instructions run with access to your connected data, so only keep skills whose source you trust. A skill **written elsewhere** — installed from an address, the library or a plugin — wears a badge (« Library », « From an address », « Plugin ») and its detail says what it may do here (see below).
+**Settings › Features › Extensions & Data › Skills** displays your skills as **cards**. Opening one shows its localized description, a **preview image** when the skill bundles one, its declared **output channels** (text, interactive frame, image) and the actions (enable/disable, download, delete). A skill you imported yourself carries a **provenance warning**: its instructions run with access to your connected data, so only keep skills whose source you trust. A skill **written elsewhere** — installed from an address, the library or a plugin — wears a badge (« Library », « From an address », « Plugin ») and its detail says what it may do here (see below).
 
 ## Can I install a skill directly from a URL?
-Yes — "From URL" in Settings → Skills. Paste an **https** address serving a SKILL.md file or a .zip package. The server validates everything: https only, no private/internal addresses, no redirects, size cap, and the **same strict import pipeline** as a file upload (name conflicts, quota, content validation). Failed attempts are rate-limited per user. A skill installed from an address is treated as **written elsewhere** (see below).
+Yes — the **URL** button of the Skills section (in its **More actions** menu (⋯) on a phone) opens **Install a skill from a URL**. Paste an **https** address serving a SKILL.md file or a .zip package. The server validates everything: https only, no private/internal addresses, no redirects, size cap, and the **same strict import pipeline** as a file upload (name conflicts, quota, content validation). Failed attempts are rate-limited per user. A skill installed from an address is treated as **written elsewhere** (see below).
 
 ## Can I find skills in a public library?
-Yes — the library's **Search** button, in Settings → Skills, searches **skills.sh**, the public skill library, or reads any GitHub address you paste (`owner/repo`, or a github.com link to a repository or to one skill's folder). You read a skill **before** installing it: where it comes from, the exact commit, every file with its size, and what the published audits say. A skill an audit rates at or above the instance's refusal level (high risk by default) is refused. A skill the portal lists on a website rather than on GitHub is shown but cannot be installed.
+Yes — the library's **Search** button, in the Skills section, searches **skills.sh**, the public skill library, or reads any GitHub address you paste (`owner/repo`, or a github.com link to a repository or to one skill's folder). You read a skill **before** installing it: where it comes from, the exact commit, every file with its size, and what the published audits say. A skill an audit rates at or above the instance's refusal level (high risk by default) is refused. A skill the portal lists on a website rather than on GitHub is shown but cannot be installed.
 
 What is installed is exactly what you read: the install sends back the commit the preview showed, and every file is checked against GitHub's own fingerprint. The **Installed** tab says which skills have an update (their folder changed at the source), and « Review the update » lists the files it adds, changes and removes before anything is replaced. A library skill never takes the name of a built-in skill, and is removed like any of your skills.
 
 ## What may a skill written elsewhere do?
-A skill installed from an address, the library or a plugin was written by someone else, so LIA reads it as data, never as orders:
-- its entry in LIA's catalogue is marked, and its description is only a label;
-- it never runs a built-in plan and never loads itself into every conversation;
-- its instructions run **apart**, with its own files and the ones you attach — never your mailbox, calendar or other connectors — and its scripts and commands run in the isolated sandbox;
-- its answers show **no images and no web content**, and nothing it writes can be hidden from you;
-- it draws **no interactive frame**, and its images are embedded ones only (never loaded from a website);
-- a library or plugin skill follows its source: update it, rather than asking LIA to rewrite it.
+
+A skill installed **from an address**, from the **library** or by a **plugin** was written by someone else, so LIA reads it as data, never as orders. Its card carries a badge — **From an address**, **Library** or **Plugin** — and its detail says what it may do here:
+• its description is only a label in LIA's catalogue; it never runs a built-in plan and never loads itself into every conversation
+• its instructions run **apart**, with its own files and the ones you attach — never your mailbox, calendar or other connectors
+• its scripts and commands run in the isolated sandbox, reach the network only through the proxy to allowed hosts, and never receive your connector keys
+• its answers show no image loaded from the web and no raw page code, and it draws no interactive frame
+• it follows its source: update it rather than ask LIA to rewrite it
+
+A skill you import from your own file is different: it runs with access to your connected data, so keep only those you trust.
 
 ## Can I have an existing skill modified?
 Yes, by talking to LIA: "*adjust my X skill*", "*add a section to it*", "*fix the wording*". LIA re-reads the complete skill — its manifest, its scripts, its reference documents — applies your request, then **regenerates the whole thing** rather than patching one spot: that is what keeps the description, the scripts and the resources consistent with each other.
 
 Nothing is written directly: LIA proposes the new version on a card showing **exactly what will be replaced, added and removed**. Only your click on **Install** applies it, and if your skill changed in the meantime, the card says so instead of overwriting it. **There is no version history** — once replaced, the previous version cannot be recovered, so read the summary. The gallery thumbnail, however, is preserved automatically: chat can only carry text, so the server copies bundled images back from the version being replaced.
 
-Three cases are refused: **system** skills (maintained by the administrator, no fork offered), skills **installed from the library or brought by a plugin** (they follow their source — update them instead), and your own ones that are **disabled** — re-enable it first in Settings → Skills.
+Three cases are refused: **system** skills (maintained by the administrator, no fork offered), skills **installed from the library or brought by a plugin** (they follow their source — update them instead), and your own ones that are **disabled** — re-enable it first in the Skills section.
 
 A regenerated package is also checked for internal consistency: a skill declaring an interactive output with no script, or advertising a resource it does not ship, is rejected rather than stored broken.
 

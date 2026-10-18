@@ -8,6 +8,7 @@ with stable value-free codes.
 
 from __future__ import annotations
 
+import dataclasses
 import ipaddress
 import os
 import re
@@ -111,12 +112,15 @@ def load_answers_file(path: Path) -> Mapping[str, str]:
 
 
 def _parse(question: Question, raw: str) -> Any:
-    """Convert a valid raw string to its typed value (None = invalid)."""
+    """Convert a valid raw string to its typed value (None = invalid).
+
+    An optional question answered with nothing is skipped: ``""``.
+    """
     value = raw.strip()
     if not value and question.default is not None:
         value = question.default
     if not value:
-        return None
+        return "" if question.optional else None
     if question.kind is QuestionKind.CHOICE:
         return value if value in question.choices else None
     if question.kind is QuestionKind.BOOL:
@@ -132,7 +136,10 @@ def _parse(question: Question, raw: str) -> Any:
 
 
 def _prompt(question: Question, language: str) -> str:
+    """The prompt, showing what Enter keeps — for a reconfiguration, the answer in force."""
     text = msg(question.message_id, language, **dict(question.message_args))
+    if question.default and not question.secret:
+        return f"[{question.key}] {text} [{question.default}]: "
     return f"[{question.key}] {text}: "
 
 
@@ -144,6 +151,23 @@ def _ask_interactive(question: Question, io: IOAdapter, language: str) -> Any:
             return parsed
         io.print_fn(msg("error.invalid_value", language, key=question.key))
     raise InstallInputError(f"too_many_invalid_attempts:{question.key}")
+
+
+def ask_yes_no(question: Question, *, io: IOAdapter, language: str) -> bool:
+    """Ask one yes/no question interactively; an empty answer takes its default.
+
+    Args:
+        question: A ``BOOL`` question.
+        io: Injected terminal I/O.
+        language: The wizard language of the prompt.
+
+    Returns:
+        The answer.
+
+    Raises:
+        InstallInputError: ``too_many_invalid_attempts:<key>``.
+    """
+    return bool(_ask_interactive(question, io, language))
 
 
 def collect_secret_answers(
@@ -169,6 +193,8 @@ def collect_secret_answers(
             continue
         if file_values is not None:
             raw = file_values.get(question.key)
+            if raw is None and question.optional:
+                raw = ""
             if raw is None:
                 raise InstallInputError(f"missing_answer:{question.key}")
             parsed = _parse(question, raw)
@@ -179,11 +205,67 @@ def collect_secret_answers(
         collected[question.key] = parsed
     return SecretAnswers(
         admin_password=str(collected["admin_password"]),
-        provider_keys={
-            key.removeprefix("provider_key_"): str(value)
-            for key, value in collected.items()
-            if key.startswith("provider_key_")
-        },
+        provider_keys=_provider_keys(collected),
+    )
+
+
+def _provider_keys(collected: Mapping[str, Any]) -> dict[str, str]:
+    """The provider keys answered, an optional one left empty being no key."""
+    return {
+        key.removeprefix("provider_key_"): str(value)
+        for key, value in collected.items()
+        if key.startswith("provider_key_") and value
+    }
+
+
+def collect_reconfiguration(
+    questions: Sequence[Question],
+    *,
+    io: IOAdapter,
+    current: PublicAnswers,
+) -> PublicAnswers:
+    """Ask the reconfiguration questions; the answers in force fill the rest.
+
+    Interactive only (``--reconfigure`` refuses an answers file). Identity,
+    mode and manifest are carried over untouched — the deploy step refuses
+    any change to them.
+
+    Args:
+        questions: ``build_reconfiguration_questions(current)``.
+        io: Injected terminal I/O.
+        current: The installation's recorded answers.
+
+    Returns:
+        The candidate answers.
+    """
+    collected: dict[str, Any] = {}
+    for question in questions:
+        if not question.applies_to(collected):
+            continue
+        language = str(collected.get("wizard_language", current.language))
+        parsed = _ask_interactive(question, io, language)
+        if question.key == "exposure":
+            parsed = Exposure(str(parsed))
+        collected[question.key] = parsed
+
+    def _text(key: str) -> str | None:
+        return str(collected[key]) if key in collected else None
+
+    return dataclasses.replace(
+        current,
+        language=str(collected["wizard_language"]),
+        exposure=collected["exposure"],
+        default_language=str(collected["default_language"]),
+        observability=bool(collected["observability"]),
+        self_diagnostics=bool(collected["self_diagnostics"]),
+        skill_sandbox=bool(collected["skill_sandbox"]),
+        live_mode=bool(collected["live_mode"]),
+        personal_radio=bool(collected["personal_radio"]),
+        speaking_avatar=bool(collected["speaking_avatar"]),
+        server_host=_text("server_host"),
+        web_domain=_text("web_domain"),
+        api_domain=_text("api_domain"),
+        caddy_email=_text("caddy_email"),
     )
 
 
@@ -227,6 +309,8 @@ def collect_answers(
             raw = file_values.get(question.key)
             if raw is None and question.default is not None:
                 raw = question.default
+            if raw is None and question.optional:
+                raw = ""
             if raw is None:
                 raise InstallInputError(f"missing_answer:{question.key}")
             parsed = _parse(question, raw)
@@ -239,11 +323,7 @@ def collect_answers(
             parsed = Exposure(str(parsed))
         collected[question.key] = parsed
 
-    provider_keys = {
-        key.removeprefix("provider_key_"): str(value)
-        for key, value in collected.items()
-        if key.startswith("provider_key_")
-    }
+    provider_keys = _provider_keys(collected)
     public = PublicAnswers(
         language=str(collected["wizard_language"]),
         mode=mode,

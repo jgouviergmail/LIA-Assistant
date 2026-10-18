@@ -223,3 +223,50 @@ Les deux passent donc dans la seconde famille (`service_enforced=True`,
 Chaque lecture se fait par `is_capability_enabled` à l'appel, jamais par le
 drapeau brut (décision 3). Le garde de câblage des routes lit la
 déclaration et refuse un routeur gardé pour une capacité déclarée à l'acte.
+
+## Amendement 2026-10-18 — un interrupteur retire ses outils du tour, dans les deux modes
+
+Les outils d'une capacité coupée étaient retirés par le planificateur du mode
+Pipeline seul (`merge_capability_exclusions`, sur son propre catalogue). La
+boucle ReAct lisait le catalogue de la requête, qui ne le savait pas, liait les
+outils d'une capacité que l'administrateur avait coupée — et `generate_image`
+comme `generate_document`, qui ne lisaient que le drapeau de déploiement,
+s'exécutaient. Le filtre est désormais appliqué une fois, là où la requête
+construit son catalogue (`services/turn_catalogue.build_turn_catalogue`) : le
+planificateur, la boucle ReAct, le classement du routeur et l'initiative lisent
+tous cet instantané, un sous-agent délégué ne tient aucun outil qu'il n'offre
+pas (il les prenait dans le registre global : ses outils de recherche par
+défaut interrogeaient le web alors que la recherche web était coupée), un plan
+tout fait de skill perd l'étape d'un outil que le tour retient (le validateur et
+l'exécuteur résolvent les outils dans le registre global), et la fusion côté
+planificateur a disparu. Les deux outils
+lisent l'état effectif (`is_capability_enabled`) à leur entrée, comme le bac à
+sable, la délégation et la recherche dans le journal. Les descriptions du
+panneau disent « dans les deux modes d'exécution » plutôt que « du
+planificateur ». Le menu des domaines du routeur suit le même instantané
+(`analysis/domain_availability.py`) : un domaine dont un interrupteur peut retenir
+les agents disparaît du menu quand le tour n'offre plus aucun de leurs outils —
+le routeur le détectait encore et envoyait le planificateur vers un domaine sans
+outil ; un domaine de connecteur reste au menu, sa réponse « aucun fournisseur
+connecté » étant la vraie. Le planificateur ne rend la section de délégation
+que si le tour offre `delegate_to_sub_agent_tool`, et le plan tout prêt d'une
+skill juge chaque étape avec le résolveur canonique du tour
+(`resolve_tool_manifest_named`), jamais par une égalité de noms plus stricte que
+lui. Les interrupteurs du tableau de travail, des connexions, des
+serveurs MCP et des skills ne nomment toujours aucun outil : ils ferment leurs
+routes, comme leurs descriptions le disent, et la FAQ nomme désormais cette
+exception au lieu de promettre que tout outil d'une capacité coupée disparaît.
+Lus désormais à chaque tour, les interrupteurs le sont ensemble — une lecture
+du cache, au plus une requête (`read_settings`) — et un interrupteur que
+personne n'a jamais écrit est mis en cache comme absent : lu un par un, chacun
+ouvrait sa session sur la base à chaque tour.
+
+Côté web, la bulle n'offre plus de garder une nouvelle réponse quand `bookmarks`
+est coupée (`bookmarkKeepingAvailable`, qui lit l'état publié dans
+`capabilities`) : elle suivait le plafond de déploiement, et chaque clic était
+refusé. Une réponse déjà gardée garde sa marque et peut être relâchée
+(`bookmarksReadable`, le plafond), comme l'onglet des signets, puisque ces routes
+restent ouvertes (décision 3 : l'interrupteur retire la capacité, jamais
+l'archive). Les quatre lectures de l'état effectif d'une capacité côté web
+(signets, radio, envoi par e-mail, connexions) passent par une seule règle,
+`lib/capability-state.ts`.

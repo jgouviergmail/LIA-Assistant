@@ -1,7 +1,7 @@
 # Workboard
 
 ## What is the workboard for?
-For everything that takes more than one moment. A task list has no lifecycle and nobody carrying it; a reminder rings once and leaves nothing behind; a routine repeats forever without ever finishing. A **ticket** has a title, a description, a priority, a start date and a due date, sub-tickets, comments and a history — and it moves across seven columns, from a plain idea to done. Open it from **Workboard** in the header.
+For everything that takes more than one moment. A task list has no lifecycle and nobody carrying it; a reminder rings once and leaves nothing behind; a routine repeats forever without ever finishing. A **ticket** has a title, a description, a priority, a start date and a due date, sub-tickets, comments and a history — and it moves across seven columns, from a plain idea to done. Open it from **Workboard** in **My shortcuts** on the Home page, or from **Settings › Features › Workboard › Open the workboard**.
 
 ## What do the columns mean?
 **Idea**: noted, not committed to — LIA never runs one. **To do**: ready to be picked up. **In progress**: being worked on, by you or by LIA. **Waiting**: stopped, waiting on a decision from you. **To confirm**: LIA has built something it cannot do alone and is asking — this column only appears while it holds a ticket. **Validating**: LIA has delivered, it is up to you to accept. **Done**: finished, including something you decided not to do — the reason stays in the ticket's history.

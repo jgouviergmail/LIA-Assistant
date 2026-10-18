@@ -58,6 +58,7 @@ from src.core.i18n import language_scope, normalize_language
 from src.core.user_display import resolve_user_display_name
 from src.domains.agents.api.run_origin import RunOrigin, out_of_turn_origin_ctx
 from src.domains.agents.services.hitl.protocols import HitlInteractionType
+from src.domains.agents.services.streaming.latency_sli import awaited_by_a_person
 
 logger = structlog.get_logger(__name__)
 
@@ -209,6 +210,10 @@ class StreamRequest:
             so the closing card counts them (ADR-299 A5); None otherwise.
         spoken_text: What the person actually said when the prompt is a
             voice model's rendering of it; archived beside the request.
+        person_waiting: True when someone waits for this run's answer — a live
+            phone delegation, the person on the line. A routine, a ticket and
+            the relay of a finished call wait for nobody, so their turns feed
+            no chat latency (``streaming/latency_sli``).
     """
 
     user_id: UUID
@@ -231,6 +236,7 @@ class StreamRequest:
     original_run_id: str | None = None
     live_session_id: str | None = None
     spoken_text: str | None = None
+    person_waiting: bool = False
 
 
 @dataclass(frozen=True)
@@ -411,7 +417,7 @@ async def stream_instruction(request: StreamRequest) -> RunResult:
     try:
         # Whatever the run writes without an explicit language is written in
         # the person's own (ADR-323): a routine or a ticket has no request.
-        with language_scope(request.language):
+        with language_scope(request.language), awaited_by_a_person(request.person_waiting):
             return await _attempt_until_settled(request)
     finally:
         if token is not None:

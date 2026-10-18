@@ -20,6 +20,10 @@ Shapes MEASURED on 2026-09-26 against the live API (not read from a page):
 The WAV is returned as is (``output_format="wav"``, what an audio mixer wants
 lossless) or transcoded to MP3 (the default): an MP3 stream can be joined byte
 to byte, a WAV stream cannot, and the readout paths join sentences.
+
+The key is the deployment's (``LLMConfigOverrideCache``), unless the caller
+hands its own: the live voice sample runs on the PERSON's key (ADR-299), and a
+person's key never falls back to the deployment's.
 """
 
 from __future__ import annotations
@@ -106,6 +110,18 @@ def _usage(payload: dict[str, Any]) -> tuple[int, int] | None:
     return (tokens_in, tokens_out) if tokens_out > 0 else None
 
 
+def _interaction_status(payload: object) -> str | None:
+    """The interaction's own status word, when the answer states a bounded one.
+
+    The Interactions API reference documents a closed ``status`` vocabulary
+    (``completed``, ``failed``, ``incomplete``…) and no block field — read
+    2026-10-18. A refusal answered in-band is therefore told by that word, so
+    an interaction that failed never reads like one that completed silently.
+    """
+    status = payload.get("status") if isinstance(payload, dict) else None
+    return status if isinstance(status, str) and _VENDOR_CODE.fullmatch(status) else None
+
+
 def _vendor_status(response: httpx.Response) -> str:
     """The vendor's symbolic error status, never its prose.
 
@@ -138,13 +154,32 @@ class GeminiTTSClient:
         self,
         model: str,
         *,
+        api_key: str | None = None,
         output_format: GeminiOutputFormat = "mp3",
         mp3_bitrate_kbps: int = 64,
         timeout_seconds: float = 60.0,
         base_url: str = GEMINI_API_BASE_URL,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
-        api_key = LLMConfigOverrideCache.get_api_key("gemini")
+        """Bind the client to one model and one key.
+
+        Args:
+            model: The Gemini TTS model every synthesis names.
+            api_key: The key to call with — a person's own, for a surface that
+                runs on it (the live voice sample). ``None`` reads the
+                deployment's key; an empty key is refused, never completed by
+                the deployment's.
+            output_format: The container a synthesis returns.
+            mp3_bitrate_kbps: The MP3 bitrate when transcoding.
+            timeout_seconds: The bound of one request (and of its transcode).
+            base_url: The Gemini API root.
+            transport: An httpx transport (tests).
+
+        Raises:
+            TTSProviderError: ``api_key_missing`` when there is no key to call with.
+        """
+        if api_key is None:
+            api_key = LLMConfigOverrideCache.get_api_key("gemini")
         if not api_key:
             raise TTSProviderError(
                 code="api_key_missing",
@@ -244,20 +279,31 @@ class GeminiTTSClient:
         silence — punctuation, emoji, a bare URL, « stay silent », a digit,
         invisible characters — all came back spoken; an empty one is refused
         with a 400 and no usage). Should it happen, the tokens the vendor
-        reported are logged: a spend nobody records must at least be seen.
+        reported are logged: a spend nobody records must at least be seen. The
+        interaction's own status travels with them, so a refusal answered
+        in-band (``failed``) stays apart from a silent completion.
         """
         self._count_failure("empty_response", voice)
         tokens_in, tokens_out = _reported_tokens(payload) if isinstance(payload, dict) else (0, 0)
+        status = _interaction_status(payload)
         logger.warning(
             "gemini_tts_no_audio",
             model=self.model,
             input_tokens=tokens_in,
             output_tokens=tokens_out,
+            interaction_status=status,
         )
+        details: dict[str, object] = {"input_tokens": tokens_in, "output_tokens": tokens_out}
+        if status is not None:
+            details["interaction_status"] = status
         raise TTSProviderError(
             code="provider_invalid_response",
-            message="Gemini TTS answered no audio",
-            details={"input_tokens": tokens_in, "output_tokens": tokens_out},
+            message=(
+                f"Gemini TTS answered no audio (interaction {status})"
+                if status is not None
+                else "Gemini TTS answered no audio"
+            ),
+            details=details,
         )
 
     async def synthesize_with_usage(

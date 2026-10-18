@@ -9,16 +9,21 @@ Verifies that:
 5. User isolation: lookups go through ``SkillsCache.get_by_name_for_user``.
 """
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from uuid import UUID
 
 import pytest
 
+from src.core.context import request_tool_manifests_ctx
 from src.domains.agents.services.planner.planning_result import PlanningResult
 from src.domains.agents.services.planner.strategies.skill_bypass import (
     SkillBypassStrategy,
     _filter_steps_by_scopes,
+    _steps_the_turn_offers,
 )
 from tests.helpers.runtime_context import installed_runtime_context
 
@@ -714,3 +719,69 @@ class TestATemplateRunsOnlyTheStepsATemplateCanCarry:
 
         assert result.success is True
         assert [step.step_type.value for step in result.plan.steps] == ["TOOL"]
+
+
+# ============================================================================
+# A step the turn withholds
+# ============================================================================
+
+
+@contextmanager
+def _turn_offering(*names: str) -> Iterator[None]:
+    """Publish a turn catalogue offering exactly ``names``, as the request does."""
+    token = request_tool_manifests_ctx.set([SimpleNamespace(name=name) for name in names])
+    try:
+        yield
+    finally:
+        request_tool_manifests_ctx.reset(token)
+
+
+class TestAStepTheTurnWithholds:
+    """A skill template may name a tool this turn withholds — a capability an
+    administrator switched off. The validator and the executor resolve tools
+    from the global registry, so such a step used to run anyway."""
+
+    @pytest.mark.unit
+    def test_is_dropped_and_its_dependants_released(self):
+        steps = [
+            {"step_id": "s1", "tool_name": "get_event_tool", "depends_on": []},
+            {"step_id": "s2", "tool_name": "get_weather_tool", "depends_on": ["s1"]},
+            {"step_id": "s3", "tool_name": "get_email_tool", "depends_on": ["s1", "s2"]},
+        ]
+        with _turn_offering("get_event_tool", "get_email_tool"):
+            kept = _steps_the_turn_offers(steps)
+
+        assert [step["step_id"] for step in kept] == ["s1", "s3"]
+        assert kept[1]["depends_on"] == ["s1"]
+        assert steps[2]["depends_on"] == ["s1", "s2"], "the cached template is never mutated"
+
+    @pytest.mark.unit
+    def test_a_step_without_a_tool_is_kept(self):
+        steps = [{"step_id": "s1", "step_type": "CONDITIONAL"}]
+        with _turn_offering():
+            assert _steps_the_turn_offers(steps) == steps
+
+    @pytest.mark.unit
+    def test_outside_a_turn_nothing_is_dropped(self):
+        steps = [{"step_id": "s1", "tool_name": "get_weather_tool"}]
+        assert _steps_the_turn_offers(steps) is steps
+
+    @pytest.mark.unit
+    async def test_a_plan_never_holds_a_tool_its_turn_withholds(self):
+        strategy = SkillBypassStrategy()
+        intel = _make_intelligence(detected_skill_name="briefing-quotidien")
+        config = _make_config(oauth_scopes=["calendar.read", "tasks.read", "gmail.read"])
+        offered = [
+            SimpleNamespace(name=f"get_{agent}_tool")
+            for agent in ("event", "task", "email", "reminder")
+        ]
+        token = request_tool_manifests_ctx.set(offered)
+        try:
+            result = await strategy.plan(intelligence=intel, config=config)
+        finally:
+            request_tool_manifests_ctx.reset(token)
+
+        assert result.success is True
+        assert result.plan is not None
+        assert "weather_agent" not in [step.agent_name for step in result.plan.steps]
+        assert len(result.plan.steps) == 4

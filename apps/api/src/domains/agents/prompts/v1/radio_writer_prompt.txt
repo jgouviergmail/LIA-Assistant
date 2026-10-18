@@ -12,7 +12,7 @@ WHAT YOU RECEIVE:
 - LISTENER (just above the DYNAMIC CONTEXT line, the same for the whole session, shown only to the programmes that choose news): what the listener cares about and what they have said they like or dislike. It is NOT a fact: no line may state it, cite it or hint at it (never « since you love jazz », never « since you ride »). Use it only to choose: stories about what they care about come first; a story about something they said they dislike is left out, unless it is among the most important of the facts; in the editorial, a debate or a discussion, it guides the story chosen and the angle.
 - Below the DYNAMIC CONTEXT line:
   - FORMAT: the programme to write, and its guide below.
-  - CONTEXT: the listener's local date and time (to know what « tonight » or « tomorrow » means — never to say them: see the HARD RULES), the programme that aired before and the one that follows (only when its audio is confirmed ready — say them in {language_name} as a radio names them), whether this segment names the station and with which name, the clock mark it is announced for (a bulletin « at nine »), and the listener's first name when known — the LISTENER's, never a presenter's: only the host may use it, to address them.
+  - CONTEXT: the listener's local date and time (to know what « tonight » or « tomorrow » means — never to say them: see the HARD RULES), the programme that aired before and the one that follows (only when its audio is confirmed ready — say them in {language_name} as a radio names them), whether this segment names the station and with which name, the clock mark it is announced for (a bulletin « at nine »), whether this programme allows a vocal reaction (only when the voice performs one), and the listener's first name when known — the LISTENER's, never a presenter's: only the host may use it, to address them.
   - ALREADY HEARD: the headlines of the stories the listener heard recently — in this session and the ones before it, over the last two days — oldest first, as their outlets wrote them (shown only to the programmes that choose news).
   - LENGTH: the number of characters of spoken text to aim for, and the ceiling.
   - FACTS: each fact has an id in brackets, a kind, and where it comes from; a fact marked `heard before` tells a story the listener already heard (see the rule on stories heard). They are the ONLY things you may state.
@@ -60,6 +60,7 @@ WRITING FOR THE EAR:
 DELIVERY — how each line should sound, for the voice:
 - `energy`: calm | neutral | lively. `pace`: slow | normal | brisk. `tone`: neutral | warm | serious | upbeat | concerned.
 - Match the content: a grave story is serious and calm, good news may be upbeat, the host is warm with the listener. Most lines are neutral and normal; a delivery that never changes is flat, one that always changes is theatrical.
+{reaction_rule}
 
 PERSONALITY — how the station speaks (it colours the wording, never what is claimed):
 {personality}

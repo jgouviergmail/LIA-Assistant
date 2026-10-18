@@ -1,5 +1,24 @@
 # AgentsTTFTViolation - Runbook
 
+> **The core alert that links here is `SSELatencyP95High`** (ADR-119,
+> `infrastructure/observability/prometheus/alerts-core.yml.template`). The
+> definition below is the legacy `AgentsTTFTViolation` rule, which Prometheus no
+> longer loads; the diagnosis steps apply to both. What `SSELatencyP95High`
+> reads, and does not:
+>
+> - **Only turns a person waits for** feed `sse_time_to_first_token_seconds`:
+>   a chat turn, a live phone delegation. A routine, a ticket and the relay of a
+>   finished call are not observed (`apps/api/src/domains/agents/services/streaming/latency_sli.py`).
+>   Before 2026-10-18 they were, and three morning routines made the alert fire
+>   every day for a month.
+> - **It evaluates only over a minimum number of turns**
+>   (`ALERT_CORE_SSE_TTFT_MIN_OBSERVATIONS` in `thresholds/<env>.env`): below
+>   `1 / (1 - 0.95)` observations the quantile's rank `0.95 × N` exceeds `N − 1`,
+>   so the « p95 » of a histogram IS its slowest observation — one slow answer,
+>   not a degradation. On a low-traffic instance the alert therefore stays
+>   silent by construction; a slow answer there is visible on the TTFT panels,
+>   not as a page.
+
 **Severity**: Warning
 **Component**: Agents (LangGraph)
 **Impact**: Poor user experience, perceived slowness, user abandonment

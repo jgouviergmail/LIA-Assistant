@@ -47,7 +47,7 @@ from src.domains.radio.budget import radio_spend_blocked
 from src.domains.radio.constants import FLASH_NOTES_MAX
 from src.domains.radio.consultations import collecting, consulted, recorder_for
 from src.domains.radio.day_source import ListenerDay
-from src.domains.radio.delivery import DELIVERY_LINES, load_style_phrases
+from src.domains.radio.delivery import DELIVERY_LINES, load_style_phrases, performed_reactions
 from src.domains.radio.editorial import NEWS_MAX_AGE_S, NewsCandidate
 from src.domains.radio.flash import FlashNote
 from src.domains.radio.formats import FORMAT_SPECS, RadioFormat
@@ -474,6 +474,8 @@ def _crew(
             ),
             quote_max_chars=limits.quote_max_chars,
             taste=ListenerTaste(setup.interests, setup.stated_tastes),
+            reactions=performed_reactions(engine.dialect),
+            reactions_max=limits.reactions_max,
         ),
         analyst=ModelAnalyst(
             template=templates.analyst, station=station, call=call(RADIO_ANALYST_SLOT)

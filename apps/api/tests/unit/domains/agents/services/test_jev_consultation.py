@@ -165,15 +165,12 @@ async def test_service_integrates_after_exclusions_and_never_on_replan(replan) -
     )
     service.strategies = [fallback]
     expected = PlanningResult(plan=None, success=True)
-    with (
-        patch(
-            "src.domains.agents.services.planner_capability_filter.merge_capability_exclusions",
-            AsyncMock(return_value={"forbidden_tool"}),
-        ),
-        patch.object(module, "try_consultation_plan", AsyncMock(return_value=expected)) as native,
-    ):
+    with patch.object(module, "try_consultation_plan", AsyncMock(return_value=expected)) as native:
         result = await service.plan(
-            intelligence(), {}, validation_feedback="Fix the original plan" if replan else None
+            intelligence(),
+            {},
+            validation_feedback="Fix the original plan" if replan else None,
+            exclude_tools={"forbidden_tool"},
         )
     if replan:
         native.assert_not_awaited()

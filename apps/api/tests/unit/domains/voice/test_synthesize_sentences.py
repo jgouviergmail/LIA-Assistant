@@ -91,7 +91,9 @@ async def _progressive(service: VoiceCommentService, text: str) -> list[VoiceAud
     return chunks
 
 
-async def _comment(service: VoiceCommentService, text: str) -> list[VoiceAudioChunk]:
+async def _comment(
+    service: VoiceCommentService, text: str, *, speaks_of_records: bool = True
+) -> list[VoiceAudioChunk]:
     async def astream(prompt: str, config: object = None) -> AsyncIterator[SimpleNamespace]:
         yield SimpleNamespace(content=text)
 
@@ -99,7 +101,12 @@ async def _comment(service: VoiceCommentService, text: str) -> list[VoiceAudioCh
     service._build_voice_llm_invocation = AsyncMock(  # type: ignore[method-assign]
         return_value=(llm, "prompt", None)
     )
-    return [chunk async for chunk in service.stream_voice_comment("context", "", "fr")]
+    return [
+        chunk
+        async for chunk in service.stream_voice_comment(
+            "context", "", "fr", speaks_of_records=speaks_of_records
+        )
+    ]
 
 
 async def test_a_sentence_with_nothing_to_say_is_not_sent() -> None:
@@ -253,6 +260,49 @@ async def test_a_comment_written_for_speech_is_spelled_for_its_engine(
     await _comment(service, "[warm] Bonjour. [sighs] Encore une. Et [laughs] voilà. ")
 
     assert sorted(_spoken(synthesize)) == sorted(expected)
+
+
+async def test_a_style_engine_hears_each_sentences_delivery_as_its_style(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Gemini 3.8: a delivery is the request's ``style``, a sound stays inline,
+    and a sentence that asked for nothing is sent no style at all."""
+    monkeypatch.setattr(voice_service.settings, "voice_expressive_cues_max", 2)
+    synthesize = AsyncMock(return_value=b"audio")
+    service = _service(_client(synthesize, provider="gemini"), model="gemini-3.8-flash-tts")
+
+    await _comment(service, "[warm] Bonjour. [sighs] Encore une. Et [laughs] voilà. ")
+
+    styles = {call.args[0]: call.kwargs.get("style") for call in synthesize.await_args_list}
+    assert styles == {"Bonjour.": "warm", "<sigh> Encore une.": None, "Et voilà.": None}
+    assert all(
+        "style" not in call.kwargs
+        for call in synthesize.await_args_list
+        if call.args[0] != "Bonjour."
+    )
+
+
+@pytest.mark.parametrize(
+    ("provider", "model"),
+    [("elevenlabs", "eleven_v4"), ("gemini", "gemini-3.8-flash-tts"), ("fishaudio", "s2.1-pro")],
+)
+async def test_a_comment_reading_the_answer_itself_performs_no_cue(
+    monkeypatch: pytest.MonkeyPatch, provider: str, model: str
+) -> None:
+    """A cue colours the news the retained records carry: a comment reading the
+    answer itself performs none of what its model wrote, inline or as a style."""
+    monkeypatch.setattr(voice_service.settings, "voice_expressive_cues_max", 2)
+    synthesize = AsyncMock(return_value=b"audio")
+    service = _service(_client(synthesize, provider=provider), model=model)
+
+    await _comment(
+        service,
+        "[warm] Bonjour. [sighs] Encore une. Et [laughs] voilà. ",
+        speaks_of_records=False,
+    )
+
+    assert sorted(_spoken(synthesize)) == sorted(["Bonjour.", "Encore une.", "Et voilà."])
+    assert all("style" not in call.kwargs for call in synthesize.await_args_list)
 
 
 @pytest.mark.parametrize("path", ["direct", "progressive"])

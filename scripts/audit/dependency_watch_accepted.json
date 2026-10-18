@@ -305,5 +305,13 @@
     "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
     "owner": "maintainer",
     "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:pillow@12.3.0",
+    "ref": "GHSA-5x8w-8jj5-q52h",
+    "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there (FlashPix included) and it never reaches production, where Pillow 13.0.0 already carries the fix.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
   }
 ]

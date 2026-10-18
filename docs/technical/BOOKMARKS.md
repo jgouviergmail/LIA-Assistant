@@ -96,14 +96,19 @@ Metric: `bookmark_index_total{outcome}` (dashboard 18).
 |---|---|
 | Wire shapes (pinned to the schemas by a backend test) | `src/types/bookmarks.ts` |
 | One state for the whole chat, optimistic toggle | `src/lib/bookmark-state-context.tsx` (`BookmarkStateProvider`, mounted around `ChatMessageList`; inert outside) |
-| The bubble toggle, beside « copy » | `src/components/chat/BookmarkButton.tsx` (drawn on every archived answer with text — proactive notifications included — never on an active stream) |
+| The bubble toggle, beside « copy » | `src/components/chat/BookmarkButton.tsx` (drawn on an archived answer with text — proactive notifications included — never on an active stream; with the operator's switch off, only on an answer already kept, so it can be let go) |
 | The tab | `src/components/settings/generated-assets/BookmarkList.tsx` + `BookmarkCard.tsx`, fourth tab of `GeneratedAssetsSettings` (reads `?tab=bookmarks` once, on arrival); the card shows the projection's state (text, never colour alone) and its cost through `LLMUsageBadge` once indexed |
 | The `.md` export | `src/lib/bookmarks/markdown.ts` — the chat's path (`downloadMarkdown`, `messageToPlainText`), request quoted above the answer |
 | The map node | `bookmarks`, counted, routed through `CAPABILITY_SECTION_TAB` (the section belongs to `generated_files`) |
 
-The instance publishes `features.bookmarks_enabled` in `/config`; the operator's
-runtime switch answers 403 on the act, which the bubble shows as the server's
-own sentence.
+Two gates, because the switch removes the act, never the record. The provider
+reads the state whenever the deployment mounts the routes
+(`features.bookmarks_enabled` in `/config`, `bookmarksReadable`), so a kept answer
+keeps its filled mark and can still be let go; only the effective state of the
+capability (`capabilities.bookmarks`, `bookmarkKeepingAvailable`) lets a bubble
+offer to keep a new one. The server enforces the same line: `KEEP_GUARD` sits on
+the `POST` alone, and a keep that races a switch flipped meanwhile still answers
+403, which the bubble shows as the server's own sentence.
 
 ## Tests
 

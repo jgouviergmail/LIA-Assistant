@@ -1,71 +1,89 @@
 # My generated files
 
 ## Where do I find everything LIA has made for me?
-In **Settings › My generated files**. Three galleries, one per family: the
-**images**, the **documents** (reports, decks, workbooks) and the
-**screenshots** taken while browsing. One is mounted at a time — three
-galleries opened together would fetch three pages nobody is looking at.
 
-You can search on the name, narrow to a creation or an expiry window, sort four
-ways, open, download, keep, and delete a selection. The count shown is the exact total
-behind the filter, not the number of cards on screen.
+In **Settings › Preferences › My generated files**. One gallery per family: **Images**, **Documents** (reports, decks, workbooks) and the **Screenshots** taken while browsing — plus **Bookmarks**, the answers you chose to keep, when your instance offers them.
 
-## Why did this page have to exist?
-Because the files LIA produced were written to the same table as the ones you
-upload, and were **indistinguishable from them**. Nothing listed them: the only
-route to yesterday's report was finding the conversation that wrote it, and if
-you had cleared that conversation, the report went with it.
+**🔎 What you can do:**
+Search by name, narrow to a creation or expiry window, sort, open, download, keep, and delete a selection. Where available, you can also share an image with a connection or send a file by e-mail. The count shown is the exact total, not the number of visible cards.
 
-## How long does a generated file stay?
-As long as the deployment's retention allows — an administrator sets it, and the
-default is short — **unless you keep it**. The deadline is **visible**: every
-card shows when its file expires, and the tone warms in the final hours.
+**⏳ The deadline is on the card — unless you keep the file:**
+A generated file has a retention period. The card shows when it ends, and the tone warms in the final hours. Keeping a file takes it past its deadline, within a limit per account shown above the gallery; releasing it gives it a new deadline, never an immediate deletion.
 
-Nothing is kept without you: a file you did not keep expires as before, and its
-deadline is stated before it falls.
+**🗣️ Or just ask:**
+• *Find the report you made me this morning*
+LIA looks in these galleries and shows the files again in the chat, with the exact number found.
 
-## Can I keep a file for good?
-Yes. The pin on a card — or **Keep** on a selection — removes the file's
-deadline, and the automatic cleanup never deletes it. Your account may keep a
-limited number of files and megabytes; both limits are shown above the gallery
-before anything is refused, and a selection that would pass either one is
-refused whole rather than kept by half.
+## Can I keep a generated file without downloading it?
 
-**Stop keeping** gives the file a fresh deadline — the full retention, counted
-from that moment — never an immediate deletion. A kept file still goes when you
-delete it, or with your account.
+Yes. Open **My generated files** and choose **Keep** on your own generated image, document or screenshot. The gallery shows the limits for your account. Stop keeping it whenever you wish: the file receives a new normal deadline, not an immediate deletion.
 
-## What does the chat say about a file I kept or deleted?
-The chat's cards follow the file, not the moment it was produced: a kept image
-says it is kept, and a file that was deleted or expired says it is no longer
-available — instead of a date that stopped being true — and offers nothing that
-would open an error.
+## How long does a generated file stay, and how much can I keep?
 
-## Does clearing a conversation delete what LIA produced in it?
-No, not any more. Clearing a conversation removes the messages and **the
-attachments you uploaded yourself**; the images, reports and screenshots LIA
-produced stay in the gallery until their own deadline, or for good if you kept
-them — including the ones from
-other conversations, which used to be swept away by a reset that had nothing to
-do with them.
+A generated file has a deadline: the retention period your administrator sets. Every card in **Settings › Preferences › My generated files** shows it — **Expires on …** — and turns to a warning in the final hours. Once it has passed, the next cleanup removes the file, unless you kept it.
 
-## What does "deleted" mean when I remove files here?
-It means gone, and the screen says both halves. A file that had already expired
-between the listing and the click, one that is not yours, and the same file
-selected twice are **skipped** rather than counted — "three deleted" when two
-went is exactly the kind of claim this assistant does not make.
+**📌 Keeping for good:**
+• A kept file reads **Kept: never deleted automatically**, and no cleanup ever removes it
+• Your account may keep a limited number of files and a limited total size; both are shown above the gallery (**Kept files: … of …**) before anything is refused
+• A selection that would pass either limit is refused whole, never kept by half
+• **Stop keeping** gives the file a fresh, full deadline from that moment — never an immediate deletion
 
-## Can an administrator turn this off?
-Uploading and consulting are two different capabilities that happen to share a
-table. Switching **file uploads** off stops you sending new files; it does not
-close the gallery, and it does not stop you downloading or deleting what is
-already there.
+A kept file still goes when you delete it, or with your account. If the pin is missing, keeping is turned off on this instance.
 
-## Can I ask LIA to find a file again?
-Yes: "*find the report you made me this morning*". LIA looks in these galleries — by words of the title, family and period — and shows the files again in the chat, as its own cards, with the exact number found, saying which ones you kept. A file whose deadline has passed is gone, and LIA says so.
+## What does the chat show once a file is kept, about to expire or gone?
 
-## Can I share an image with someone?
-An image LIA generated for you can be shared with a connection from its card, here or in the chat: they receive a copy in their own gallery and in their chat, with your comment quoted as written (see Peer Connections).
+The image and document cards in a conversation follow the file as it is **now**, not as it was when LIA made it — reopen last week's conversation and each card tells the truth:
+• **Kept**: "Kept: never deleted automatically", and no deadline
+• **Still there**: its deadline; in the final hours, a reminder to keep it in My generated files or download it
+• **Gone** — expired and cleaned up, or deleted by you: only the file's name remains, with "This image is no longer available" (or "This document is no longer available"). No preview, download or share button is offered, since each would only lead to an error.
 
-## Can I send a generated file by e-mail?
-Yes. Every image, document and capture in « My generated files », and every file card in the chat, has a « Send by e-mail » button: choose the recipients, keep or change the subject, add a few words if you want, and send — the file goes as an attachment. With a mailbox connected (Settings › Connectors), it leaves from your own mailbox, to whoever you choose. While you type a recipient, the contacts of your contacts connector (Google, Apple or Microsoft) are suggested by last name or first name — accents and punctuation ignored — or by phone number; picking one puts its address in the field. Without a contacts connector, the field stays a plain address field. Without a connected mailbox, LIA sends it to your own account address, once that address is verified. Each mailbox has its own size limit, shown in the dialog (for example about 3 MB through Outlook); a file past its deadline can no longer be sent, a kept file can.
+What you keep or delete in the gallery is reflected the next time the conversation loads.
+
+## When does a file LIA made actually disappear?
+
+In three cases only:
+• its deadline passes and you did not keep it
+• you delete it — one card or a selection in **Settings › Preferences › My generated files**, after a confirmation, or by asking LIA
+• your account is deleted
+
+**🧹 Clearing a conversation does not touch them:** a reset removes the messages and the attachments **you** uploaded; the images, documents and screenshots LIA produced stay in the gallery until their own deadline, or for good if you kept them.
+
+**🗑️ "Deleted" means gone:** the file leaves your account at once — there is no bin. The message that follows counts only what was really deleted; a file that had already expired or been removed meanwhile is reported as already gone, never counted. A copy you shared with a connection stays theirs.
+
+## Can I ask LIA to find, keep or delete my files?
+
+Yes.
+
+**🔎 Find:**
+• *Find the report you made me this morning*
+• *Show me the images you created last week*
+
+LIA searches your gallery by words of the title, by kind (image, document, screenshot) and by period, then shows the files again in the chat as their own cards, newest first, with the exact number found and which ones you kept. Only files that can still be opened are shown. This works in both modes.
+
+**📌 Manage:**
+• *Keep the quarterly report you made me*
+
+LIA can also stop keeping a file, delete a selection, prepare a download or send a file by e-mail — always after you confirm exactly what it shows you, and only where your administrator allows it to manage the application (**LIA settings and management**). The same goes for your kept answers.
+
+## How do I send a generated file or an answer by e-mail?
+
+Use **Send by e-mail** on the file or answer, add a subject and an optional note. A connected mailbox can send to chosen recipients; without one, LIA can send only to your verified account address. The form shows the available route and maximum file size. With a contacts connector, the recipient field suggests your contacts as you type a name or a phone number, and inserts their address.
+
+A file past its deadline can no longer be sent; a kept file can.
+
+## Can I share a generated image with a connection?
+
+Yes, from the image's card — in the chat or in **Settings › Preferences › My generated files** — with **Share with a connection**. Your connection receives a copy in their own gallery and in their chat, with your comment quoted exactly as written. Documents and screenshots are not shared this way.
+
+The rules — accepted connections only, a daily limit, a copy that stays theirs when you delete yours — are described in the help on connections between users.
+
+## Can an administrator turn any of this off?
+
+Partly — and a switch never deletes what you already have. In **Settings › Administration › Platform capabilities**:
+• **Image generation**, **Document generation**, **Interactive browsing**: no new file of that kind; the gallery keeps the existing ones
+• **File uploads**: you can no longer attach files; the gallery, its downloads and deletions stay open
+• **Bookmarks**: the bookmark leaves the answers, so a new one can no longer be kept; what you kept stays readable, downloadable and deletable
+• **Sending by e-mail**: the Send by e-mail button disappears
+• **LIA settings and management**: LIA can no longer keep, delete or send your files through the chat
+
+The gallery itself has no switch. Keeping files past their deadline is set in the server's configuration: turned off, the pin is not offered, and files already kept can still be released. If the configuration leaves bookmarks out altogether, neither the bookmark nor its tab appears.

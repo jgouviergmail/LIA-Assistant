@@ -131,6 +131,16 @@ FERNET_KEY=fake-fernet
         New-Item -ItemType Directory (Join-Path $proj "infrastructure/logwatch/cron") -Force | Out-Null
         Set-Content (Join-Path $proj "infrastructure/logwatch/cron/00logwatch") -NoNewline `
             "#!/bin/bash`r`nset -euo pipefail`r`necho `"État — LOGWATCH_SENTINEL 🐳`"`r`n"
+        # A logwatch service script with the bytecode a test run leaves beside
+        # it (the unit tests import these extensionless scripts): the bundle
+        # carried the `__pycache__`, and deploy.sh's `cp services/*` stopped on
+        # it at step 4/7 (2026-10-18). A developer's tree has one; so does this.
+        $logwatchServices = Join-Path $proj "infrastructure/logwatch/scripts/services"
+        New-Item -ItemType Directory (Join-Path $logwatchServices "__pycache__") -Force | Out-Null
+        [IO.File]::WriteAllText((Join-Path $logwatchServices "cloudflared"), "#!/usr/bin/python3`nprint('LOGWATCH_SERVICE_SENTINEL')`n")
+        [IO.File]::WriteAllText((Join-Path $logwatchServices "__pycache__/cloudflaredcpython-314.pyc"), "BYTECODE")
+        New-Item -ItemType Directory (Join-Path $proj "apps/api/src/__pycache__") -Force | Out-Null
+        [IO.File]::WriteAllText((Join-Path $proj "apps/api/src/__pycache__/main.cpython-314.pyc"), "BYTECODE")
         # Per-alert runbooks: docker-compose.prod.yml mounts ./docs/runbooks
         # read-only into the API for the self-diagnostics LLM step. Until
         # 2026-09-05 the bundle never carried them, so the mount was an empty
@@ -771,6 +781,50 @@ Describe "deploy-prod.ps1 bundle + transfer sequence (hermetic, deploy step fail
         $cron | Should -Exist
         Test-HasCrlf $cron | Should -BeFalse
         [IO.File]::ReadAllBytes($cron) | Should -Be $expected
+    }
+
+    It "ships no bytecode: the __pycache__ a test run leaves beside the logwatch scripts stays home" {
+        # The bundle carried it, and deploy.sh's install of the logwatch scripts
+        # stopped on the directory at step 4/7 (2026-10-18).
+        (Join-Path $prod "infrastructure/logwatch/scripts/services/cloudflared") | Should -Exist
+        @(Get-ChildItem -Path $prod -Recurse -Force -Directory -Filter "__pycache__").Count | Should -Be 0
+        @(Get-ChildItem -Path $prod -Recurse -Force -File -Include "*.pyc", "*.pyo").Count | Should -Be 0
+    }
+
+    It "installs the logwatch service scripts as regular files only, whatever sits beside them" {
+        # `sudo cp infrastructure/logwatch/scripts/services/* ...` met the
+        # `__pycache__` a test run had left there: cp exits 1 on a directory and
+        # `set -e` stopped deploy.sh at step 4/7 (2026-10-18). The block runs as
+        # shipped, against a lab standing for the host, whose tree carries a
+        # bytecode directory on purpose: the install must hold even where the
+        # bundle's pruning did not happen.
+        $deploySh = Get-Content (Join-Path $prod "deploy.sh") -Raw
+        $begin = $deploySh.IndexOf('# --- logwatch-scripts-begin ---')
+        $end = $deploySh.IndexOf('# --- logwatch-scripts-end ---')
+        $begin | Should -BeGreaterThan 0
+        $end | Should -BeGreaterThan $begin
+        $block = $deploySh.Substring($begin, $end - $begin)
+
+        $lab = Join-Path $TestDrive "logwatch-lab"
+        $services = Join-Path $lab "infrastructure/logwatch/scripts/services"
+        New-Item -ItemType Directory (Join-Path $services "__pycache__") -Force | Out-Null
+        [IO.File]::WriteAllText((Join-Path $services "cloudflared"), "#!/usr/bin/python3`n")
+        [IO.File]::WriteAllText((Join-Path $services "lia-supervision"), "#!/usr/bin/python3`n")
+        [IO.File]::WriteAllText((Join-Path $services "__pycache__/cloudflaredcpython-314.pyc"), "BYTECODE")
+        $labBash = ConvertTo-BashPath $lab
+        # The lab is the host: `sudo` runs its command as is, /etc/logwatch is the lab's.
+        $runSh = "set -e`nsudo() { `"`$@`"; }`n" +
+            $block.Replace("/etc/logwatch/", "$labBash/etc/logwatch/") +
+            "`necho LOGWATCH_SCRIPTS_INSTALLED`n"
+        [IO.File]::WriteAllText((Join-Path $lab "run.sh"), $runSh)
+
+        $out = & $script:BashExe -c "cd '$labBash' && bash ./run.sh" 2>&1 | Out-String
+        $LASTEXITCODE | Should -Be 0 -Because $out
+        $out | Should -Match "LOGWATCH_SCRIPTS_INSTALLED"
+        $installed = Join-Path $lab "etc/logwatch/scripts/services"
+        (Join-Path $installed "cloudflared") | Should -Exist
+        (Join-Path $installed "lia-supervision") | Should -Exist
+        (Join-Path $installed "__pycache__") | Should -Not -Exist
     }
 
     It "stages the Firebase credential the compose file mounts into the API" {

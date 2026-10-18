@@ -35,9 +35,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from functools import reduce
 from typing import Final
 
-from src.core.prompt_store import read_prompt_file
+from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.agents.utils.content_wrapper import wrap_external_content
 from src.domains.radio.checking import checked_positions
 from src.domains.radio.constants import (
@@ -49,7 +50,8 @@ from src.domains.radio.constants import (
 from src.domains.radio.facts import CLOCK_FACT_ID, FactPack, RadioFact, local_time_text
 from src.domains.radio.formats import FORMAT_SPECS, Material, RadioFormat, RadioRole
 from src.domains.radio.production import WritingRequest
-from src.domains.radio.verification import VerifiedLine
+from src.domains.radio.script import Reaction
+from src.domains.radio.verification import REACTION_KINDS, VerifiedLine
 from src.domains.shared.portrait_sources import clamp_item
 
 #: The versioned prompt files (their stems, as the loader names them).
@@ -57,6 +59,8 @@ WRITER_PROMPT: Final[str] = "radio_writer_prompt"
 ANALYST_PROMPT: Final[str] = "radio_analyst_prompt"
 VERIFIER_PROMPT: Final[str] = "radio_verifier_prompt"
 EDITORIAL_POLICY_PROMPT: Final[str] = "radio_editorial_policy"
+#: The writer's rule on a vocal reaction (decision 45), a ``key|template`` lines file.
+REACTION_LINES: Final[str] = "radio_reaction_lines"
 
 #: How many of the listener's stated tastes the writer is told at most (the newest first).
 STATED_TASTES_SHOWN_MAX: Final[int] = 6
@@ -135,7 +139,33 @@ def render_fact(fact: RadioFact) -> str:
     return f"[{fact.id}] ({fact.kind.value}, {fact.sensitivity.value}{heard}{source}) {fact.text}"
 
 
-def _context(request: WritingRequest) -> str:
+def _reaction_rows() -> dict[str, str]:
+    """The ``radio_reaction_lines`` rows: the rule, its pieces and its CONTEXT lines."""
+    return dict(parse_prompt_sections(read_prompt_file(REACTION_LINES), 2))
+
+
+def _reaction_rule(reactions: Sequence[Reaction], reactions_max: int) -> str:
+    """The writer's rule on a vocal reaction: what the voice performs, within the bound.
+
+    The same for every programme of a session — it depends on the voice and the
+    setting alone — so it sits in the cached prefix; the programme's own
+    allowance is a CONTEXT line (:func:`_context`).
+    """
+    rows = _reaction_rows()
+    if not reactions or reactions_max <= 0:
+        return rows["off"]
+    return rows["allowed"].format(
+        reactions=" | ".join(reaction.value for reaction in reactions),
+        kinds=reduce(
+            lambda left, right: rows["kinds.join"].format(left=left, right=right),
+            (kind.value for kind in REACTION_KINDS),
+        ),
+        reactions_max=reactions_max,
+        moments=", ".join(rows[f"moment.{reaction.value}"] for reaction in reactions),
+    )
+
+
+def _context(request: WritingRequest, *, reactions_offered: bool) -> str:
     spec = FORMAT_SPECS[request.format]
     lines = [f"- local date and time: {local_time_text(request.local_now)}"]
     if any(fact.id == CLOCK_FACT_ID for fact in request.pack.facts):
@@ -153,6 +183,10 @@ def _context(request: WritingRequest) -> str:
     lines.append(f"- clock mark: {mark}")
     if request.edition is not None:
         lines.append(f"- journal edition: {request.edition.value}")
+    if reactions_offered:
+        lines.append(
+            _reaction_rows()["context.allowed" if spec.reactions_allowed else "context.none"]
+        )
     if request.listener_name and RadioRole.HOST in spec.roles:
         lines.append(f"- listener's first name: {request.listener_name}")
     return "\n".join(lines)
@@ -196,6 +230,8 @@ def render_writer_prompt(
     *,
     quote_max_chars: int,
     taste: ListenerTaste = ListenerTaste(),
+    reactions: Sequence[Reaction] = (),
+    reactions_max: int = 0,
 ) -> str:
     """The writer's prompt for one segment.
 
@@ -205,11 +241,14 @@ def render_writer_prompt(
         station: What the listener's session shares.
         quote_max_chars: The longest quotation the verifier lets through.
         taste: What the listener cares about and has said they like.
+        reactions: The vocal reactions the station's voice performs.
+        reactions_max: The most reactions the verifier keeps in one script.
 
     Returns:
         The rendered prompt, static part above the marker.
     """
     spec = FORMAT_SPECS[request.format]
+    reactions_offered = bool(reactions) and reactions_max > 0
     return template.format(
         editorial_policy=read_prompt_file(EDITORIAL_POLICY_PROMPT),
         station_name=station.station_name,
@@ -226,7 +265,8 @@ def render_writer_prompt(
         headlines_stories_max=FORMAT_SPECS[RadioFormat.HEADLINES].stories_max,
         bulletin_stories_max=FORMAT_SPECS[RadioFormat.BULLETIN].stories_max,
         roles=", ".join(role.value for role in request.roles or spec.roles),
-        context=_context(request),
+        reaction_rule=_reaction_rule(reactions, reactions_max),
+        context=_context(request, reactions_offered=reactions_offered),
         on_air=_on_air(request),
         target_chars=spec.target_chars(request.language),
         max_chars=spec.max_chars(request.language),

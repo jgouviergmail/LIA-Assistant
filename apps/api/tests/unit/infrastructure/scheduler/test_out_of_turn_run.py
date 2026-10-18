@@ -32,6 +32,7 @@ import pytest
 from src.core.config import settings
 from src.core.i18n import resolve_language
 from src.domains.agents.api.run_origin import RunOrigin, current_origin
+from src.domains.agents.services.streaming.latency_sli import a_person_is_waiting
 from src.infrastructure.scheduler.out_of_turn_run import (
     RunOutcome,
     StreamRequest,
@@ -607,6 +608,43 @@ class TestTheOriginTravelsWithTheTurn:
         with patch("src.domains.agents.api.service.AgentService", return_value=service):
             await stream_instruction(_request())
         assert seen == [None]
+
+
+class TestWhetherAPersonWaitsIsDeclaredForTheWholeRun:
+    """A routine, a ticket or a relay feeds no chat latency (2026-10-18:
+    morning routines made ``SSELatencyP95High`` fire every day for a month)."""
+
+    @staticmethod
+    def _service_recording(seen: list[bool]) -> MagicMock:
+        def stream(**_kwargs: Any) -> Any:
+            async def generator() -> Any:
+                seen.append(a_person_is_waiting())
+                yield _chunk("token", "ok")
+
+            return generator()
+
+        service = MagicMock()
+        service.stream_chat_response = MagicMock(side_effect=stream)
+        return service
+
+    async def test_a_run_nobody_waits_for_is_declared_unattended(self) -> None:
+        seen: list[bool] = []
+        with patch(
+            "src.domains.agents.api.service.AgentService",
+            return_value=self._service_recording(seen),
+        ):
+            await stream_instruction(_request())
+        assert seen == [False]
+        assert a_person_is_waiting() is True, "the declaration must not outlive the run"
+
+    async def test_a_person_on_the_line_is_waiting(self) -> None:
+        seen: list[bool] = []
+        with patch(
+            "src.domains.agents.api.service.AgentService",
+            return_value=self._service_recording(seen),
+        ):
+            await stream_instruction(_request(person_waiting=True))
+        assert seen == [True]
 
 
 class TestTheStreamsOwnRefusalIsRead:

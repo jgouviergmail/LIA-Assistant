@@ -69,7 +69,8 @@ class ElevenLabsTTSClient:
                 code="api_key_missing",
                 message=(
                     "ElevenLabs API key is not configured — TTS cannot synthesise. "
-                    "Add the key under Tarification LLM Texte → Provider Keys."
+                    "Add the key under Settings → Administration → LLM Configuration → "
+                    "Provider API Keys."
                 ),
             )
         self._api_key = api_key

@@ -19,7 +19,7 @@ import { Card } from '@/components/ui/card';
 import { ChangelogItems } from '@/components/changelog/ChangelogItems';
 import { CHANGELOG_VERSION_KEYS, changelogDateKey, changelogTitleKey } from '@/lib/changelog';
 import { Button } from '@/components/ui/button';
-import { FAQ_SECTION_ICONS } from './faq-sections';
+import { FAQ_SECTION_ICONS, FAQ_SECTIONS } from './faq-sections';
 import {
   AudioLines,
   Zap,
@@ -102,36 +102,7 @@ interface FAQQuestion {
   answer: string;
 }
 
-const sections = [
-  'getting_started',
-  'chat',
-  'settings',
-  'connectors',
-  'telephony',
-  'peers',
-  'relations',
-  'tool_examples_services',
-  'tool_examples_external',
-  'rappels',
-  'interests',
-  'heartbeat',
-  'scheduled_actions',
-  'workboard',
-  'mcp_servers',
-  'skills',
-  'plugins',
-  'sub_agents',
-  'rag_spaces',
-  'voice_mode',
-  'meetings',
-  'image_generation',
-  'document_generation',
-  'journals',
-  'health_metrics',
-  'usage_limits',
-  'privacy',
-  'other',
-];
+const sections = FAQ_SECTIONS;
 
 /**
  * Versions rendered by the changelog accordion, newest first.

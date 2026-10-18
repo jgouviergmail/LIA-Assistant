@@ -104,6 +104,26 @@ def _label(labels: Mapping[str, str], key: str, fallback: str) -> str:
     return labels.get(key) or fallback
 
 
+def boolean_word(labels: Mapping[str, str], value: bool) -> str:
+    """The word a boolean cell holds for ``value`` under ``labels``.
+
+    One answer for every boolean the writer puts in a file — the data cells and
+    the yes/no referential behind their dropdown — and the reader reads back
+    exactly these words, whatever the language the file was written in
+    (``reader._TRUE_WORDS`` / ``reader._FALSE_WORDS``).
+
+    Args:
+        labels: Translated strings by i18n key.
+        value: The boolean to write.
+
+    Returns:
+        The translated yes/no word, or the English one when ``labels`` has none.
+    """
+    if value:
+        return _label(labels, "boolean.true", "TRUE")
+    return _label(labels, "boolean.false", "FALSE")
+
+
 def _write_notice(
     workbook: openpyxl.Workbook, notice: Sequence[str], labels: Mapping[str, str]
 ) -> None:
@@ -131,9 +151,7 @@ def _cell_value(column: ColumnSpec, raw: Any, labels: Mapping[str, str]) -> Any:
         joined = ", ".join(str(item) for item in raw)
         return neutralize_formula(joined) if joined else None
     if column.kind == "boolean":
-        return _label(
-            labels, "boolean.true" if raw else "boolean.false", "TRUE" if raw else "FALSE"
-        )
+        return boolean_word(labels, bool(raw))
     if column.kind == "decimal":
         return float(raw if isinstance(raw, Decimal) else Decimal(str(raw)))
     if column.kind == "integer":
@@ -218,10 +236,7 @@ def _write_referentials(
 ) -> None:
     sheet = workbook.create_sheet(_label(labels, "sheet.referentials", "Referentials"))
     lists: dict[str, Sequence[str]] = dict(spec.referentials)
-    lists[BOOLEAN_REFERENTIAL] = (
-        _label(labels, "boolean.true", "TRUE"),
-        _label(labels, "boolean.false", "FALSE"),
-    )
+    lists[BOOLEAN_REFERENTIAL] = (boolean_word(labels, True), boolean_word(labels, False))
 
     for index, (name, values) in enumerate(lists.items(), start=1):
         letter = get_column_letter(index)

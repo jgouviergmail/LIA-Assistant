@@ -5,6 +5,9 @@
  * What it must hold:
  * - nothing is drawn outside a provider, or when the instance does not offer
  *   bookmarks — a control that leads nowhere is worse than none;
+ * - with the operator's switch off, nothing offers to keep a NEW answer, but a
+ *   kept one keeps its mark and can be let go: the switch removes the act,
+ *   never the record (ADR-282);
  * - the state is read ONCE per chat, and a bubble draws it filled or empty;
  * - a click is optimistic and confirmed by the server; a refusal rolls the icon
  *   back and shows the server's own sentence (the cap, the switch);
@@ -42,9 +45,9 @@ import { BookmarkButton } from '../BookmarkButton';
 const MESSAGE = 'a1b2c3d4-0000-4000-8000-000000000001';
 const KEPT = 'b1b2c3d4-0000-4000-8000-000000000009';
 
-function mount(enabled = true) {
+function mount(enabled = true, canKeep = true) {
   return renderWithProviders(
-    <BookmarkStateProvider enabled={enabled}>
+    <BookmarkStateProvider enabled={enabled} canKeep={canKeep}>
       <BookmarkButton messageDbId={MESSAGE} />
     </BookmarkStateProvider>
   );
@@ -69,6 +72,28 @@ describe('when it is drawn', () => {
 
     expect(screen.queryByTestId('bookmark-toggle')).not.toBeInTheDocument();
     expect(api.get).not.toHaveBeenCalled();
+  });
+
+  it('with keeping switched off, an answer not kept offers nothing', async () => {
+    mount(true, false);
+
+    // The state IS read: a kept answer must still show its mark.
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId('bookmark-toggle')).not.toBeInTheDocument();
+  });
+
+  it('with keeping switched off, a kept answer keeps its mark and can be let go', async () => {
+    api.get.mockResolvedValue({ message_ids: { [MESSAGE]: KEPT } });
+    const { user } = mount(true, false);
+    const button = await screen.findByTestId('bookmark-toggle');
+    await waitFor(() => expect(button).toHaveAttribute('aria-pressed', 'true'));
+
+    await user.click(button);
+
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith(`/bookmarks/by-message/${MESSAGE}`));
+    // Let go, the answer is no longer kept and keeping is off: nothing to offer.
+    await waitFor(() => expect(screen.queryByTestId('bookmark-toggle')).not.toBeInTheDocument());
+    expect(api.post).not.toHaveBeenCalled();
   });
 
   it('reads the state ONCE for the chat and draws a kept answer filled', async () => {

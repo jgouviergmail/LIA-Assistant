@@ -96,6 +96,8 @@ export interface GeneratedAssetsSettingsProps {
 export function GeneratedAssetsSettings({ lng }: GeneratedAssetsSettingsProps) {
   const { t } = useTranslation(lng);
   const { config } = useAppConfig();
+  // The deployment ceiling, not the operator's switch: switching keeping off
+  // leaves what was kept readable, deletable and exportable here (ADR-280).
   const bookmarksEnabled = config?.features?.bookmarks_enabled ?? false;
   // `?tab=` is read ONCE, on arrival: the capability map sends a reader
   // straight to their bookmarks. The rest of the time the tab is local state.

@@ -1,13 +1,16 @@
-"""Hide the tools of switched-off capabilities from the planner.
+"""Hide the tools of switched-off capabilities from the turn's catalogue.
 
 Two layers protect a disabled capability: the routes REFUSE it (the enforcing
-one), and the planner is never offered its tools (this one). The second layer
-is not redundant — it keeps the assistant honest (no plan that will fail at
-execution), keeps the prompt small (every catalogue entry is tokens on every
-planning call), and keeps the switch legible in traces.
+one), and the turn is never offered its tools (this one). The second layer is
+not redundant — it keeps the assistant honest (no plan, no tool call that will
+fail at execution), keeps the prompt small (every catalogue entry is tokens on
+every model call), and keeps the switch legible in traces.
 
-The exclusion rides on ``exclude_tools``, the post-filter that already exists
-for sub-agent rejection (F6). One mechanism rather than two.
+The exclusion is applied ONCE, where the request builds its catalogue
+(``AgentService``): every reader of the turn's tools — the pipeline planner,
+the ReAct loop, the router's ranking, the initiative — reads that snapshot.
+It used to ride on the planner's own post-filter alone, so the ReAct loop
+bound the tools of a capability an operator had switched off and ran them.
 
 Direction of dependency: this module lives in ``domains/agents`` because it
 walks the agent catalogue; it only READS the capability domain
@@ -24,13 +27,14 @@ import structlog
 
 if TYPE_CHECKING:
     from src.domains.agents.registry import AgentRegistry
+    from src.domains.agents.registry.catalogue import ToolManifest
     from src.domains.agents.services.smart_catalogue_service import FilteredCatalogue
 
 logger = structlog.get_logger(__name__)
 
 
 async def tools_hidden_by_capabilities(registry: AgentRegistry) -> set[str]:
-    """Tool names the planner must not see, given the disabled capabilities.
+    """Tool names no turn may be offered, given the disabled capabilities.
 
     Never raises: an unreachable settings store resolves to "nothing hidden".
     Degrading to the whole product beats amputating it on a transient failure,
@@ -66,40 +70,36 @@ async def tools_hidden_by_capabilities(registry: AgentRegistry) -> set[str]:
             # catalogue entry; switching them off must not blank anything here.
             return set()
         logger.info(
-            "planner_capability_tools_hidden",
+            "capability_tools_hidden",
             capabilities=sorted(capability.value for capability in disabled),
             tool_count=len(hidden),
         )
         return hidden
-    except Exception as exc:  # noqa: BLE001 — a switch never breaks planning
-        logger.error("planner_capability_filter_failed", error_type=type(exc).__name__)
+    except Exception as exc:  # noqa: BLE001 — a switch never breaks a turn
+        logger.error("capability_tool_filter_failed", error_type=type(exc).__name__)
         return set()
 
 
-async def merge_capability_exclusions(
-    registry: AgentRegistry, exclude_tools: set[str] | None
-) -> set[str] | None:
-    """Merge capability exclusions into the caller's own exclusion set.
-
-    A user rejection (F6) and an operator switch are independent reasons to
-    drop a tool: both survive the merge.
+async def without_disabled_capability_tools(
+    manifests: list[ToolManifest], registry: AgentRegistry
+) -> list[ToolManifest]:
+    """The turn's catalogue without the tools of a switched-off capability.
 
     Args:
-        registry: Agent registry.
-        exclude_tools: Exclusions the caller already computed, if any.
+        manifests: The catalogue the request is building.
+        registry: Agent registry, walked only when something IS disabled.
 
     Returns:
-        The union, or ``None`` when there is nothing to exclude at all — the
-        caller's fast path checks truthiness, and an empty set would walk the
-        whole tool list for nothing.
+        The same list when nothing is hidden, else the manifests that remain.
     """
     hidden = await tools_hidden_by_capabilities(registry)
-    merged = set(exclude_tools or set()) | hidden
-    return merged or None
+    if not hidden:
+        return manifests
+    return [manifest for manifest in manifests if manifest.name not in hidden]
 
 
 def apply_tool_exclusions(catalogue: FilteredCatalogue, excluded: set[str] | None) -> None:
-    """Apply user and operator exclusions before any native or generative planner."""
+    """Apply the user's own exclusions before any native or generative planner."""
     if not excluded:
         return
     original_count = catalogue.tool_count

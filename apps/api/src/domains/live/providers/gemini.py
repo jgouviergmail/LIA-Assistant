@@ -15,6 +15,10 @@ singleton rule). Two facts measured on 2026-09-18 shape this module:
 The activation probe therefore validates the KEY and the MODEL (a session
 opened and closed at once, no audio, no token consumed) and nothing about the
 voice.
+
+The voice sample is spoken by the one Gemini TTS client
+(``domains/voice/gemini_tts_client.py``, the Interactions API), on the
+person's key too, and handed back as the protocol's 16-bit mono PCM.
 """
 
 from __future__ import annotations
@@ -43,10 +47,12 @@ from src.domains.live.schemas import (
     LiveVoice,
     LiveVoicesResponse,
 )
+from src.domains.voice.gemini_tts_client import GeminiTTSClient
 from src.infrastructure.llm.providers.gemini_live_listing import (
     gemini_client_of,
     list_live_model_names,
 )
+from src.infrastructure.media.ffmpeg import transcode
 
 #: The reasoning-profile provider id (a rule key of ``core/reasoning_profiles``).
 _REASONING_PROVIDER: Final = "gemini_live"
@@ -199,7 +205,7 @@ class GeminiLiveProvider:
 
     @property
     def sample_rate(self) -> int:
-        """The provider's TTS output rate (16-bit mono PCM)."""
+        """The rate of what ``sample_voice`` returns (16-bit mono PCM)."""
         return GEMINI_TTS_SAMPLE_RATE
 
     async def sample_voice(self, api_key: str, voice: str, text: str) -> bytes:
@@ -207,38 +213,40 @@ class GeminiLiveProvider:
 
         The live models offer no listing of their voices and refuse no name;
         the TTS model speaks the SAME published voices, so a person hears
-        what they choose before a session ever opens.
-        """
-        from google.genai import types
+        what they choose before a session ever opens. The one Gemini TTS
+        client speaks it, handed the person's key (never the deployment's),
+        and never through the billing door (``voice/spoken.speak``): nothing
+        of the person's own key is counted (ADR-299). Its refusals keep their
+        own codes — an HTTP refusal names the vendor's status, an answer
+        without audio the interaction's.
 
-        client = gemini_client_of(api_key)
-        response = await client.aio.models.generate_content(
-            model=settings.live_voice_sample_model,
-            contents=text,
-            config=types.GenerateContentConfig(
-                response_modalities=["AUDIO"],
-                speech_config=types.SpeechConfig(
-                    voice_config=types.VoiceConfig(
-                        prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
-                    )
-                ),
-                # No tool here for the SDK to run: said, it neither logs that
-                # AFC is on nor warns against using it (gemini_chat.py).
-                automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
-            ),
+        Returns:
+            The sentence as 16-bit mono PCM at :attr:`sample_rate` — the
+            protocol's shape, whatever container the model answered in (a WAV
+            from the 3.8 models, raw samples from the 2.5 previews, measured
+            2026-09-26): decoded and resampled here, the one place that knows.
+
+        Raises:
+            TTSProviderError: The synthesis was refused or carried no audio.
+            FfmpegError: The answer could not be decoded.
+        """
+        bound = settings.live_probe_timeout_seconds
+        client = GeminiTTSClient(
+            settings.live_voice_sample_model,
+            api_key=api_key,
+            output_format="wav",
+            timeout_seconds=bound,
         )
-        for candidate in response.candidates or []:
-            for part in (candidate.content.parts if candidate.content else None) or []:
-                data = part.inline_data.data if part.inline_data else None
-                if data:
-                    return bytes(data)
-        # A blocked prompt comes back with NO candidate: say why, never « no audio »
-        # (measured 2026-09-19: the 3.1 TTS preview blocks the sample sentence).
-        feedback = getattr(response, "prompt_feedback", None)
-        reason = getattr(feedback, "block_reason", None) if feedback else None
-        if reason:
-            raise ValueError(f"blocked: {getattr(reason, 'name', reason)}")
-        raise ValueError("the provider returned no audio")
+        try:
+            wav = await client.synthesize(text, voice)
+        finally:
+            await client.close()
+        return await transcode(
+            wav,
+            output_format="s16le",
+            args=["-ac", "1", "-ar", str(GEMINI_TTS_SAMPLE_RATE)],
+            timeout_s=bound,
+        )
 
     def thinking_levels_of(self, model: str) -> tuple[str, ...]:
         """The ladder the reasoning profile declares for the model (ADR-245)."""

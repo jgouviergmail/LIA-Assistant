@@ -807,6 +807,7 @@ function model(model_id: string, reasoning: boolean): ModelCapabilities {
     model_id,
     kind: 'chat',
     max_output_tokens: reasoning ? 64000 : 32768,
+    vouched_max_output_tokens: reasoning ? 64000 : 32768,
     supports_tools: true,
     supports_structured_output: true,
     supports_vision: true,

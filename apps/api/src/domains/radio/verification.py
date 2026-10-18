@@ -4,7 +4,8 @@ Nothing a script says reaches a voice unchecked. Each line is repaired where the
 fix is mechanical (whitespace, a title too long, too many refs, parts out of
 order, the date or time said without citing the clock fact that states it, a
 station format — the opening, the sign-off — written all over its music, the
-stories past the format's bound) and
+stories past the format's bound, a vocal reaction where the programme allows
+none or past its bound) and
 DROPPED where it is not — an unknown source, a number found in none of the cited
 facts, a quote longer than the fair-use bound, a guest voicing the person's
 records, an opinion in any voice but a commentator's. The whole segment is
@@ -23,7 +24,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Collection, Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from typing import Final
 
@@ -44,11 +45,18 @@ from src.domains.radio.facts import (
     RadioFact,
     Sensitivity,
 )
-from src.domains.radio.formats import FORMAT_SPECS, OPINION_ROLES, Material, RadioRole
+from src.domains.radio.formats import (
+    FORMAT_SPECS,
+    OPINION_ROLES,
+    FormatSpec,
+    Material,
+    RadioRole,
+)
 from src.domains.radio.numbers import readings_of, stated_numbers
 from src.domains.radio.script import (
     LineKind,
     RadioDelivery,
+    Reaction,
     ScriptDraft,
     ScriptLine,
     ScriptPart,
@@ -138,6 +146,9 @@ _PART_ORDER: Final[dict[ScriptPart, int]] = {
 _NEEDS_FACT: Final[frozenset[LineKind]] = frozenset({LineKind.FACT, LineKind.OPINION})
 #: Drops that repair the script's shape rather than reject what a line said.
 _REPAIRS: Final[frozenset[Violation]] = frozenset({Violation.STORY_BEYOND_FORMAT})
+#: The lines a vocal reaction may open (decision 45): a view or a transition, in the
+#: order the writer is told them — never a line that tells the news or the analysis.
+REACTION_KINDS: Final[tuple[LineKind, ...]] = (LineKind.OPINION, LineKind.TRANSITION)
 
 
 def announce_subject(draft: ScriptDraft, pack: FactPack) -> ScriptDraft:
@@ -400,6 +411,7 @@ def verify_script(
     language: str,
     quote_max_chars: int,
     station_name: str,
+    reactions_max: int,
     roles: Collection[RadioRole] = (),
 ) -> VerificationResult:
     """Check a script against its facts; repair, drop or refuse.
@@ -411,6 +423,8 @@ def verify_script(
         quote_max_chars: The longest quotation that may air.
         station_name: The station's name, which any line may say (a mention of
             it states none of its numbers).
+        reactions_max: The most vocal reactions the script keeps, in air order,
+            where its programme allows one (``RADIO_REACTIONS_MAX``).
         roles: The roles that speak (a commentator without a voice of its own
             is not among them); empty for the format's own. The host always may.
 
@@ -444,6 +458,7 @@ def verify_script(
     dropped.extend(over_music)
     ordered, beyond = _within_story_bound(ordered, facts, FORMAT_SPECS[pack.format].stories_max)
     dropped.extend(beyond)
+    ordered = _within_reaction_bound(ordered, spec, reactions_max)
     title = _WS_RE.sub(" ", draft.title).strip()[:SCRIPT_TITLE_MAX_CHARS].strip()
     lines = [line for _, line in ordered]
     refusal = _refusal(draft, lines, dropped, pack, language)
@@ -526,6 +541,28 @@ def _order_and_cap_transitions(
         pair for part in sorted(by_part, key=_PART_ORDER.__getitem__) for pair in by_part[part]
     ]
     return ordered, extra
+
+
+def _within_reaction_bound(
+    ordered: list[tuple[int, VerifiedLine]], spec: FormatSpec, reactions_max: int
+) -> list[tuple[int, VerifiedLine]]:
+    """Each reaction where its programme and its line allow one, the first ``reactions_max``.
+
+    A repair, never a drop: a reaction out of place is silenced and its line airs
+    — the words stand on their own, the sound was only a manner of saying them.
+    """
+    left = reactions_max if spec.reactions_allowed else 0
+    kept: list[tuple[int, VerifiedLine]] = []
+    for index, line in ordered:
+        if line.delivery.reaction is Reaction.NONE:
+            kept.append((index, line))
+        elif left > 0 and line.kind in REACTION_KINDS:
+            left -= 1
+            kept.append((index, line))
+        else:
+            silenced = line.delivery.model_copy(update={"reaction": Reaction.NONE})
+            kept.append((index, replace(line, delivery=silenced)))
+    return kept
 
 
 def _within_story_bound(

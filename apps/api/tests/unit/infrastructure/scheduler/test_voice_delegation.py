@@ -161,6 +161,8 @@ async def test_the_answer_is_a_spoken_turn_of_the_person_stamped_with_the_sessio
     assert stream.spoken_text == "rappelle moi la banque demain"
     assert stream.live_session_id == session.key
     assert stream.spoken_by_person is True
+    # The person is on the line: their wait is a chat latency (latency_sli).
+    assert stream.person_waiting is True
     assert stream.execution_mode == "react"
     assert stream.memory_enabled is True and stream.psyche_enabled is True
     # An ordinary chat turn: no out-of-turn origin, the graph mints the run id.

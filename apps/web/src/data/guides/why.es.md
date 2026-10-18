@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versión**: 6.3
-**Fecha**: 2026-10-17
-**Aplicación**: LIA v3.1.1
+**Versión**: 6.4
+**Fecha**: 2026-10-18
+**Aplicación**: LIA v3.2.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -45,7 +45,7 @@ El auto-alojamiento tiene mala fama. LIA no pretende eliminar cada paso técnico
 
 Una vez terminada esa fase, **todo lo del día a día se gestiona desde una interfaz web intuitiva**. Sin terminal ni archivos de configuración.
 
-Esa primera fase también está guiada: `./install.sh`, en la raíz del repositorio, te plantea un cuestionario breve en tu idioma — cómo quieres acceder a la instancia, qué claves de proveedor tienes —, después construye las imágenes desde el código que has clonado, aplica los datos de referencia en una sola transacción, crea tu cuenta de administrador sin escribir jamás un secreto en la línea de comandos, y por último verifica que la instalación funciona de verdad en lugar de limitarse a responder. Si un paso falla, la reanudación retoma exactamente donde se detuvo.
+Esa primera fase también está guiada: `./install.sh`, en la raíz del repositorio, te plantea un cuestionario breve en tu idioma — cómo quieres acceder a la instancia, qué claves de proveedor tienes —, después construye las imágenes desde el código que has clonado, aplica los datos de referencia en una sola transacción, crea tu cuenta de administrador sin escribir jamás un secreto en la línea de comandos, y por último verifica que la instalación funciona de verdad en lugar de limitarse a responder. Si un paso falla, la reanudación retoma exactamente donde se detuvo. Cambiar después una instalación en marcha —ponerla detrás de Caddy, desactivar una opción— no obliga a empezar de cero: `./install.sh --reconfigure` vuelve a plantear las preguntas de acceso y de opciones —nunca una clave ni una contraseña— mostrando tus respuestas actuales y restituye la instalación anterior si la nueva no arranca. La clave de Google Gemini es opcional, y el informe final nombra lo que la espera.
 
 ### 2.2. Lo que cada usuario puede configurar
 
@@ -88,11 +88,11 @@ El administrador accede a una tercera pestaña dedicada a la gestión de la inst
 - **Mensajes broadcast**: enviar mensajes importantes a todos los usuarios o a una selección, con fecha de expiración opcional
 - **Exportación de consumo global**: exportar el consumo de todos los usuarios en CSV
 - **Presupuesto diario de la instancia**: acotar en euros lo que la instancia ENTERA puede gastar en un día — y no solo lo que consume cada cuenta. El panel muestra el gasto del día, el techo realmente aplicado y lo que queda. Agotado el presupuesto, los usuarios saben que el despliegue está en pausa y reciben la hora exacta de reinicio, no un mensaje engañoso sobre su cuota personal
-- **Capacidades de la plataforma**: activa o desactiva cada capacidad al instante, sin volver a desplegar — todas las funciones que una persona vive de verdad, del dictado y las imágenes al tablero de tickets, los diarios, la memoria a largo plazo y las notificaciones espontáneas — agrupadas en seis familias para que un muro de interruptores siga siendo legible. Un interruptor retira la CAPACIDAD, nunca el archivo: apagar la memoria detiene el aprendizaje de nuevos hechos mientras todo lo ya aprendido sigue siendo legible y borrable. Una capacidad desactivada desaparece también del catálogo ofrecido al planificador, así que LIA deja de proponer lo que las rutas rechazarían; cada fila muestra lo que permite el despliegue, lo que has elegido tú, lo que se aplica realmente y dónde muerde el interruptor
+- **Capacidades de la plataforma**: activa o desactiva cada capacidad al instante, sin volver a desplegar — todas las funciones que una persona vive de verdad, del dictado y las imágenes al tablero de tickets, los diarios, la memoria a largo plazo y las notificaciones espontáneas — agrupadas en seis familias para que un muro de interruptores siga siendo legible. Un interruptor retira la CAPACIDAD, nunca el archivo: apagar la memoria detiene el aprendizaje de nuevos hechos mientras todo lo ya aprendido sigue siendo legible y borrable. Las herramientas de una capacidad desactivada salen también de los dos modos de ejecución —del planificador y del bucle ReAct, de un subagente delegado y del plan predefinido de una skill—, salvo cuatro interruptores (Workboard, conexiones LIA, servidores MCP, Skills), que solo cierran sus páginas y sus ajustes; así LIA deja de proponer lo que las rutas rechazarían; cada fila muestra lo que permite el despliegue, lo que has elegido tú, lo que se aplica realmente y dónde muerde el interruptor
 
 **IA y conectores:**
 
-- **Configuración LLM**: configurar las claves API de los proveedores (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, Ollama), asignar un modelo a cada rol del pipeline, gestionar los niveles de razonamiento — claves almacenadas cifradas. La interfaz solo expone los parámetros que el modelo elegido acepta realmente: una profundidad de razonamiento que su API rechaza no puede proponerse, y menos aún guardarse
+- **Configuración LLM**: configurar las claves API de los proveedores (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, Ollama), asignar un modelo a cada rol del pipeline, gestionar los niveles de razonamiento — claves almacenadas cifradas. La interfaz solo expone los parámetros que el modelo elegido acepta realmente: una profundidad de razonamiento que su API rechaza no puede proponerse, y menos aún guardarse; un presupuesto de salida por encima de lo que acepta el modelo se señala, y cada petición se ajusta a ese límite
 - **Activación/desactivación de conectores**: activar o desactivar integraciones a nivel global (Google OAuth, Apple, Microsoft 365, Hue, tiempo, Wikipedia, Perplexity, Brave Search). La desactivación revoca las conexiones activas y notifica a los usuarios
 - **Precios**: gestionar los precios por modelo LLM (coste por millón de tokens), por API de Google Maps y por generación de imagen — con historial de precios y con soporte para los proveedores cuyas tarifas varían según la hora, para que las estadísticas de uso coincidan con la factura real. Toda la tabla se exporta como libro de Excel y se reimporta tras editarla sin conexión: LIA te muestra cada cambio campo por campo antes de escribir nada, y una fila ausente del archivo nunca borra nada
 
@@ -164,7 +164,7 @@ LIA ofrece un modo vocal completo:
 
 - **Push-to-Talk**: mantén pulsado el botón de micrófono para hablar, optimizado para móvil
 - **«Dis LIA», oído en tu navegador**: la detección manos libres se ejecuta **íntegramente en tu dispositivo** — no se transmite ningún audio hasta que se oye la frase — y «LIA, stop» corta la voz de LIA cuando lee una respuesta. Esta palabra de activación existe por ahora en francés, en beta: su reconocimiento sigue mejorando; en los demás idiomas, basta con un toque
-- **Síntesis de voz**: cinco proveedores configurables por el administrador — Edge TTS (gratuito), OpenAI TTS (`tts-1` / `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`), Gemini o Fish Audio (`s2.1-pro`, `s2-pro`, `drama-3`); en los motores que las interpretan, los comentarios hablados de LIA llevan algunas marcas expresivas (un suspiro, una risa, un susurro); cada persona elige la voz masculina y la voz femenina de LIA entre las del motor, y puede limitar cada lista de voces a su idioma
+- **Síntesis de voz**: cinco proveedores configurables por el administrador — Edge TTS (gratuito), OpenAI TTS (`tts-1` / `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`), Gemini o Fish Audio (`s2.1-pro`, `s2-pro`, `drama-3`); en los motores que las interpretan, los comentarios hablados de LIA llevan algunas marcas expresivas (un suspiro, una risa, un susurro), reservadas a lo que pide la noticia, nunca para decir cómo salió una acción; cada persona elige la voz masculina y la voz femenina de LIA entre las del motor, y puede limitar cada lista de voces a su idioma
 - **Mensajes de voz en Telegram**: envía mensajes de audio, LIA los transcribe y responde
 - **Modo Live**: una conversación en tiempo real, de viva voz, sobre un modelo live que conectas con **tu propia clave** — Gemini Live, GPT-Live o un agente de ElevenLabs. La voz lleva la conversación y confía cada petición a LIA, que la ejecuta como un turno de chat ordinario mientras hablas; una sesión directa deja que la voz lea tus datos por sí misma sin actuar sobre nada. Lo que el proveedor factura se te muestra, nunca se registra. Un silencio ya no cierra una sesión: la pone en espera — conexión cerrada, nada facturado — hasta que un toque la despierta con el contexto de LIA; terminarla siempre te corresponde a ti.
 
@@ -256,7 +256,7 @@ El acta te llega por tres caminos — una tarjeta en el chat, un PDF, tu bandeja
 
 ### Un medio personal y un trabajo que sigue siendo tuyo
 
-Una asistente útil acompaña tu atención: una conversación se actualiza desde otros dispositivos sin mover la página, y una radio solo empieza cuando quieres escuchar. La emisora mezcla tu día con noticias con fuentes y muestra fuentes y gasto en vez de pedir confianza ciega. Lo que LIA crea puedes conservarlo, enviarlo desde tu buzón o dejar que venza. Una rutina sigue la hora o condición que eliges, nunca una mezcla oculta de ambas.
+Una asistente útil acompaña tu atención: una conversación se actualiza desde otros dispositivos sin mover la página, y una radio solo empieza cuando quieres escuchar. La emisora mezcla tu día con noticias con fuentes y muestra fuentes y gasto en vez de pedir confianza ciega; donde un programa conversa, sus voces reaccionan con una risita o un suspiro, nunca durante las noticias. Lo que LIA crea puedes conservarlo, enviarlo desde tu buzón o dejar que venza. Una rutina sigue la hora o condición que eliges, nunca una mezcla oculta de ambas.
 
 ## 4. Un servidor para tus seres queridos
 
@@ -395,7 +395,7 @@ La misma exigencia gobierna lo que LIA retiene de tus indicaciones: cada regla d
 
 ### 6.8. Una superficie que describe el producto está obligada a él
 
-La transparencia tiene un modo de fallo que nadie advierte: una pantalla que deja de decir la verdad en silencio. Nada se rompe, ninguna prueba se pone en rojo, y la página que existía para estar al día se convierte en la menos actualizada de la aplicación. Por eso el mapa de capacidades — la página que responde _¿qué sabe hacer mi asistente por mí?_ — ya no se mantiene a mano: cada capacidad que la plataforma puede activar o cortar debe tener allí su lugar declarado, y una capacidad entregada sin esa decisión impide que la aplicación arranque. La misma convicción, un punto más allá: lo que una pantalla afirma sobre tus datos debe ser **exacto o inexistente**. Un recuento es el número que devuelve la base de datos, nunca una longitud que estaba a mano; y mientras la respuesta está en camino, o cuando ha fallado, la tarjeta no dice nada en lugar de adivinar. «Nada configurado» es una afirmación sobre tu cuenta — de esas de las que conviene estar seguro antes de pronunciarlas.
+La transparencia tiene un modo de fallo que nadie advierte: una pantalla que deja de decir la verdad en silencio. Nada se rompe, ninguna prueba se pone en rojo, y la página que existía para estar al día se convierte en la menos actualizada de la aplicación. Por eso el mapa de capacidades — la página que responde _¿qué sabe hacer mi asistente por mí?_ — ya no se mantiene a mano: cada capacidad que la plataforma puede activar o cortar debe tener allí su lugar declarado, y una capacidad entregada sin esa decisión impide que la aplicación arranque. La misma convicción, un punto más allá: lo que una pantalla afirma sobre tus datos debe ser **exacto o inexistente**. Un recuento es el número que devuelve la base de datos, nunca una longitud que estaba a mano; y mientras la respuesta está en camino, o cuando ha fallado, la tarjeta no dice nada en lugar de adivinar. «Nada configurado» es una afirmación sobre tu cuenta — de esas de las que conviene estar seguro antes de pronunciarlas. La FAQ cumple la misma exigencia: cada función que una persona puede usar tiene allí su sección —491 preguntas, en seis idiomas—, y una sección traducida que el orden de visualización olvidara hace fallar las pruebas en lugar de quedar invisible.
 
 La transparencia también se aplica a las reglas internas del asistente. Una restricción que el sistema impone debe publicarse a quien la sufre: cuando el aprendizaje de hábitos no detecta nada, los Ajustes muestran el umbral realmente exigido — más estricto el fin de semana, cuando hay menos días observados — en lugar de un silencio sin explicación. Y cuando un ajuste se regula solo, como el umbral que decide que una nota del diario entra en una respuesta, lo hace dentro de límites estrictos, un pequeño paso al día, con interruptor de apagado y cada ajuste contabilizado: un sistema que aprende solo es aceptable si sigue siendo observable y desconectable.
 
@@ -508,7 +508,7 @@ Cada solicitud se traza de extremo a extremo, cada llamada LLM se mide, cada err
 
 Esa exigencia baja hasta la máquina. Un servidor son varios procesos, y «el contenedor consume cinco gigabytes» no dice cuál retiene qué: cada proceso de LIA publica por tanto él mismo lo que retiene en memoria, un panel lo dibuja proceso por proceso, una alerta nombra al que se desborda — y lo que un proceso carga se midió en la máquina de destino antes de tocarlo, nunca se supuso.
 
-Estas señales se responden: una línea de registro abre la traza de su petición, una traza sus registros y sus métricas, un punto de latencia el ejemplo que lo produjo. Y la cadena que las transporta se vigila a sí misma: si se pierden registros por el camino, una alerta lo dice.
+Estas señales se responden: una línea de registro abre la traza de su petición, una traza sus registros y sus métricas, un punto de latencia el ejemplo que lo produjo. Y la cadena que las transporta se vigila a sí misma: si se pierden registros por el camino, una alerta lo dice. Y una alerta mide lo que nombra: la de latencia solo observa los turnos que una persona espera, y un incidente cuyo aviso de resolución se perdió se cierra solo.
 
 ### 8.3. Un pipeline anti-alucinación
 

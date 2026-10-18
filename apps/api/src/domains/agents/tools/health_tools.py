@@ -72,7 +72,7 @@ async def _check_user_toggle_or_error(db: AsyncSession, user_id: UUID) -> Unifie
 
     Mirrors the gating pattern used across the health tool pack so the
     assistant never reads health data for users who did not enable the
-    Settings → Health data → Assistant toggle.
+    Settings → Features → Health data → Assistant toggle.
 
     Args:
         db: Async DB session.
@@ -91,7 +91,7 @@ async def _check_user_toggle_or_error(db: AsyncSession, user_id: UUID) -> Unifie
         return UnifiedToolOutput.failure(
             message=(
                 "Health Metrics assistant access is disabled. "
-                "Enable it in Settings → Health Metrics → Assistant."
+                "Enable it in Settings → Features → Health data → Assistant."
             ),
             error_code="PERMISSION_DENIED",
             metadata={"toggle": HEALTH_METRICS_USER_TOGGLE_ATTR},

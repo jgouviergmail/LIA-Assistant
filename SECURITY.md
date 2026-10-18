@@ -2,9 +2,9 @@
 
 > Security policy and vulnerability reporting procedures for LIA
 
-**Version**: 1.1
-**Date**: 2026-07-16
-**Last Updated**: 2026-07-16
+**Version**: 1.2
+**Date**: 2026-10-18
+**Last Updated**: 2026-10-18
 **Next review**: 2027-01-31
 
 ---
@@ -23,13 +23,13 @@
 
 ## Supported Versions
 
-LIA follows semantic versioning on a single `1.x` line. Security fixes land on
-the latest release; there is no long-term-support branch for older minors.
+LIA follows semantic versioning on a single release line. Security fixes land
+on the latest release; there is no long-term-support branch for older releases.
 
 | Version | Supported | Notes |
 |---------|-----------|-------|
-| Latest `1.x` release | :white_check_mark: | Actively maintained — apply security fixes here |
-| Older `1.x` releases | :warning: | Best effort — please upgrade to the latest release |
+| Latest release | :white_check_mark: | Actively maintained — apply security fixes here |
+| Older releases | :warning: | Best effort — please upgrade to the latest release |
 | `< 1.0` | :x: | Pre-release, unsupported |
 
 **Recommendation**: always run the latest release for the best security posture.
@@ -142,7 +142,7 @@ is descriptive, not a guarantee of completeness — see
 | Measure | Implementation |
 |---------|----------------|
 | **Dependency scanning** | `pip-audit`, `pnpm audit`, Trivy |
-| **Code scanning** | CodeQL, Bandit, Ruff security rules, Semgrep |
+| **Code scanning** | CodeQL |
 | **Secret scanning** | Gitleaks |
 | **Pinned actions** | GitHub Actions pinned by commit SHA |
 | **SBOM** | Generated in CI |
@@ -224,6 +224,7 @@ vulnerability to be credited (with your consent) in the advisory.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| **1.2** | 2026-10-18 | Supported versions name no release line, so they hold for every release; code scanning lists what CI runs (CodeQL): Bandit, Ruff security rules and Semgrep were listed but never wired |
 | **1.1** | 2026-07-16 | Corrected supported versions to the `1.x` line; moved reporting to GitHub Security Advisories; added RFC 9116 `security.txt`; removed unverified control claims; reframed the OWASP matrix as a non-certifying standards mapping |
 | **1.0** | 2026-02-03 | Initial security policy |
 

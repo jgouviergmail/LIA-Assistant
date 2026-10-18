@@ -13,6 +13,7 @@ import os
 from collections.abc import Sequence
 from pathlib import Path
 
+from scripts.install.compose import CADDYFILE_NAME
 from scripts.install.model import ComposeInvocation, HostPathRequirement
 
 
@@ -45,7 +46,7 @@ def required_host_paths(
     if invocation.env.get("LIA_INSTALL_CADDY"):
         requirements.append(
             HostPathRequirement(
-                root / "infrastructure" / "caddy" / "Caddyfile", "file", None
+                root / "infrastructure" / "caddy" / CADDYFILE_NAME, "file", None
             )
         )
     return tuple(requirements)

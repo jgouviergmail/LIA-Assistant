@@ -85,12 +85,19 @@ The uniqueness key is `(user_id, kind, date_start, date_end)`. Re-sending the sa
 
 ## Charts
 
-The aggregator emits one bucket per slot in the requested window — even slots with no sample (`has_data=False`). The frontend uses `recharts` with `connectNulls={false}` so missing data shows as a gap rather than an interpolated line.
+• **Heart rate**: a line of the average in each slot of the period, with a dashed line at the period average. The minimum and maximum appear in the **Statistics** panel, not on the chart.
+• **Steps**: a bar with the total of each slot, with a dashed line at the average steps per day over the period.
+• **Statistics panel**: shows the actual aggregation window (for example "Apr 21 18:00 → Apr 22 18:00"), so you can see which range is being summarised.
+• Tooltips follow the light or dark theme.
 
-- **Heart rate**: line chart with average / min / max per bucket. Dashed line at period average.
-- **Steps**: bar chart, simple SUM per bucket. Dashed line at average steps per day over the requested window.
-- **Statistics panel**: displays the actual aggregation window (e.g. "Apr 21 18:00 → Apr 22 18:00") so you can see which time range is being summarized. This defuses the "HR stats don't move when I change period" confusion — they're invariant when all your samples already fit inside the smallest window.
-- **Tooltip contrast**: tooltips respect the active theme (light/dark) via shadcn CSS variables.
+## Why do my health charts show gaps, and why don't the statistics change with the period?
+
+The charts draw **one slot per unit** of the period you pick: hourly over the last day, daily over the last week, weekly over about three months, monthly over the last year, yearly over five years. A slot with no measurement stays **empty** — a gap, never a line invented between two points.
+• **Heart rate**: a line of the average in each slot
+• **Steps**: a bar with the total of each slot
+• a dashed line marks the average over the period
+
+The **Statistics** — average, minimum and maximum heart rate, average steps per day, total steps — summarise the range written under them as the **Aggregation window**. If all your measurements fit in the shortest range, the figures stay the same whatever the period: nothing is wrong, there is simply no older data. With nothing to show, the chart says **No data for this period**.
 
 ## How to set up the iPhone Shortcut
 

@@ -20,7 +20,7 @@ up{job="alertmanager"} == 0
 
 **Labels**: `severity: critical`, `component: observability`, `tier: core`
 
-**Detection caveat (assumed limitation, ADR-119)**: this alert cannot email you — Alertmanager is the mailer. It is visible in the Prometheus UI (`/alerts`), in Grafana, and indirectly in the logwatch daily digest (Alertmanager notify errors in Prometheus logs). An external dead-man's-switch (e.g. healthchecks.io watchdog) is the documented future hardening.
+**Detection caveat (assumed limitation, ADR-119)**: this alert cannot email you — Alertmanager is the mailer. It is visible in the Prometheus UI (`/alerts`), in Grafana, and in the next daily report: its « Supervision LIA » section lists the alerts Prometheus fired over the day — Prometheus evaluates this rule whether or not Alertmanager is up — and the alerting chain's own health (`infrastructure/logwatch/scripts/services/lia-supervision`). An external dead-man's-switch (e.g. healthchecks.io watchdog) is the documented future hardening.
 
 ---
 

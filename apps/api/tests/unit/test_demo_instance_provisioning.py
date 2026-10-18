@@ -15,6 +15,7 @@ against a database that already holds real accounts.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -34,6 +35,16 @@ def _db(*, existing_marker: str | None = None, account_count: int = 0) -> MagicM
     db.commit = AsyncMock()
     db.add = MagicMock()
     return db
+
+
+@pytest.fixture(autouse=True)
+def demo_caches() -> Iterator[AsyncMock]:
+    """The demo defaults' cache drop, recorded instead of reaching Redis."""
+    with patch(
+        "src.infrastructure.provisioning.demo_instance.invalidate_demo_setting_caches",
+        new_callable=AsyncMock,
+    ) as invalidate:
+        yield invalidate
 
 
 def _context(db: MagicMock) -> MagicMock:
@@ -153,3 +164,28 @@ async def test_the_report_states_what_it_did() -> None:
     assert "marker" in report.summary().lower()
     refused = ProvisionReport(refused_reason="database_not_empty")
     assert "database_not_empty" in refused.summary()
+
+
+@pytest.mark.parametrize("existing_marker", [None, "true"])
+async def test_the_defaults_caches_are_dropped_after_their_commit(
+    demo_caches: AsyncMock, existing_marker: str | None
+) -> None:
+    # A setting read before its row existed is cached as ABSENT and would hide
+    # the demonstrator's default until its TTL: the drop follows the commit, on
+    # a first provisioning and on a re-provisioning alike.
+    from src.infrastructure.provisioning.demo_instance import provision_demo_instance
+
+    db = _db(existing_marker=existing_marker)
+    order: list[str] = []
+    db.commit = AsyncMock(side_effect=lambda: order.append("commit"))
+    demo_caches.side_effect = lambda: order.append("invalidate")
+    with (
+        patch("src.infrastructure.provisioning.demo_instance.get_db_context", _context(db)),
+        patch(
+            "src.infrastructure.provisioning.demo_instance.invalidate_setting_cache",
+            new_callable=AsyncMock,
+        ),
+    ):
+        await provision_demo_instance(force=False)
+
+    assert order == ["commit", "invalidate"]

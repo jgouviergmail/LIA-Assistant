@@ -10,9 +10,13 @@ What must hold:
 - the admin path has no default password, no --password argv, and calls
   validate_password_strict BEFORE any database work;
 - the stdin payload is validated with stable non-secret codes (missing or
-  unexpected provider keys, malformed JSON);
+  unexpected provider keys, malformed JSON); the optional Gemini key is
+  accepted when given and skipped when left empty;
+- every seeded slot outside the core whose provider needs a key is declared
+  optional, so the final report names everything an install leaves degraded;
 - bootstrap performs admin + every required key upsert INSIDE one
-  transaction and never mutates the seeded LLM overrides;
+  transaction and never mutates the seeded LLM overrides; what it reports
+  degraded is read from the keys the database holds, in that transaction;
 - no canary secret ever reaches stdout or exception text.
 """
 
@@ -29,13 +33,18 @@ from scripts.data.bootstrap_install import (
     bootstrap,
     parse_payload,
 )
+from src.domains.llm_config.constants import LLM_DEFAULTS
 from src.domains.llm_config.install_contract import (
     CURRENT_CORE_LLM_TYPES,
     CURRENT_CORE_PROVIDER_IDS,
+    KEYLESS_SEEDED_PROVIDERS,
+    OPTIONAL_INSTALL_PROVIDER_IDS,
+    OPTIONAL_PLATFORM_CAPABILITIES,
     OPTIONAL_SEEDED_CAPABILITIES,
     effective_core_provider,
     required_current_core_provider_ids,
     seeded_provider_overrides,
+    unkeyed_capabilities,
 )
 
 pytestmark = pytest.mark.unit
@@ -93,12 +102,36 @@ def test_anti_drift_catches_an_out_of_set_slot() -> None:
         ), "a third-party core slot must change the derived set (CI red)"
 
 
-def test_optional_capabilities_are_the_audited_trio() -> None:
-    assert OPTIONAL_SEEDED_CAPABILITIES == {
-        "vision_analysis": "gemini",
-        "voice_tts": "elevenlabs",
-        "mcp_app_react_agent": "anthropic",
+def test_every_keyed_slot_outside_the_core_is_declared_optional() -> None:
+    """The declaration is held equal to the post-seed derivation, both ways.
+
+    It was an audited snapshot, and the snapshot drifted: ``voice_transcription``
+    moved to ElevenLabs and no installer report ever named it.
+    """
+    seeded = seeded_provider_overrides()
+    derived = {
+        llm_type: provider
+        for llm_type in LLM_DEFAULTS
+        if (provider := seeded.get(llm_type) or LLM_DEFAULTS[llm_type].provider)
+        not in CURRENT_CORE_PROVIDER_IDS
+        and provider not in KEYLESS_SEEDED_PROVIDERS
     }
+    assert OPTIONAL_SEEDED_CAPABILITIES == derived
+
+
+def test_what_needs_a_key_no_slot_names_can_be_given_one_at_install() -> None:
+    assert set(OPTIONAL_PLATFORM_CAPABILITIES.values()) <= set(OPTIONAL_INSTALL_PROVIDER_IDS)
+
+
+def test_a_given_key_takes_its_capabilities_off_the_degraded_list() -> None:
+    core = frozenset(CURRENT_CORE_PROVIDER_IDS)
+    without = unkeyed_capabilities(core)
+    with_gemini = unkeyed_capabilities(core | {"gemini"})
+
+    assert without["semantic_search"] == "gemini"
+    assert without["vision_analysis"] == "gemini"
+    assert "semantic_search" not in with_gemini and "vision_analysis" not in with_gemini
+    assert with_gemini["voice_tts"] == "elevenlabs"
 
 
 # ---------------------------------------------------------------------------
@@ -173,6 +206,24 @@ def test_valid_payload_parses() -> None:
     assert payload.provider_keys == VALID_PAYLOAD["provider_keys"]
 
 
+def test_the_optional_gemini_key_is_accepted_when_given() -> None:
+    document = {
+        **VALID_PAYLOAD,
+        "provider_keys": {**VALID_PAYLOAD["provider_keys"], "gemini": "gk"},
+    }
+    payload = parse_payload(json.dumps(document))
+    assert payload.provider_keys == {**VALID_PAYLOAD["provider_keys"], "gemini": "gk"}
+
+
+def test_an_optional_key_left_empty_is_no_key() -> None:
+    document = {
+        **VALID_PAYLOAD,
+        "provider_keys": {**VALID_PAYLOAD["provider_keys"], "gemini": ""},
+    }
+    payload = parse_payload(json.dumps(document))
+    assert payload.provider_keys == VALID_PAYLOAD["provider_keys"]
+
+
 @pytest.mark.parametrize(
     ("raw", "code"),
     [
@@ -208,11 +259,11 @@ def test_valid_payload_parses() -> None:
                     "admin": VALID_PAYLOAD["admin"],
                     "provider_keys": {
                         **VALID_PAYLOAD["provider_keys"],
-                        "gemini": "z",
+                        "anthropic": "z",
                     },
                 }
             ),
-            "unexpected_provider_keys:gemini",
+            "unexpected_provider_keys:anthropic",
         ),
     ],
 )
@@ -228,12 +279,32 @@ def test_payload_errors_are_stable_and_value_free(raw: str, code: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _fake_db() -> MagicMock:
+def _fake_db(
+    stored: tuple[str, ...] = ("deepseek", "openai"), events: list[str] | None = None
+) -> MagicMock:
+    """A session whose transaction and stored-keys read are recorded in ``events``.
+
+    ``stored``: the providers ``provider_api_keys`` answers with.
+    """
+    record = events if events is not None else []
     db = MagicMock()
     begin_ctx = MagicMock()
-    begin_ctx.__aenter__ = AsyncMock(return_value=None)
-    begin_ctx.__aexit__ = AsyncMock(return_value=False)
+
+    async def _begin(*_args: object) -> None:
+        record.append("begin")
+
+    async def _commit(*_args: object) -> bool:
+        record.append("commit")
+        return False
+
+    async def _scalars(*_args: object, **_kwargs: object) -> MagicMock:
+        record.append("read_stored_keys")
+        return MagicMock(all=MagicMock(return_value=list(stored)))
+
+    begin_ctx.__aenter__ = AsyncMock(side_effect=_begin)
+    begin_ctx.__aexit__ = AsyncMock(side_effect=_commit)
     db.begin = MagicMock(return_value=begin_ctx)
+    db.scalars = AsyncMock(side_effect=_scalars)
     return db
 
 
@@ -241,9 +312,9 @@ async def test_bootstrap_runs_everything_inside_one_transaction(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     payload = parse_payload(json.dumps(VALID_PAYLOAD))
-    db = _fake_db()
-    admin_id = uuid4()
     calls: list[str] = []
+    db = _fake_db(events=calls)
+    admin_id = uuid4()
 
     async def _ensure(*_args, **_kwargs):
         calls.append("admin")
@@ -266,11 +337,14 @@ async def test_bootstrap_runs_everything_inside_one_transaction(
     ):
         result = await bootstrap(payload, db)
 
-    assert calls[0] == "admin"
-    assert sorted(calls[1:]) == ["key:deepseek", "key:openai"]
+    assert calls[:2] == ["begin", "admin"]
+    assert sorted(calls[2:4]) == ["key:deepseek", "key:openai"]
+    # The stored keys are read after the writes, before the commit.
+    assert calls[4:] == ["read_stored_keys", "commit"]
     db.begin.assert_called_once()  # ONE transaction wraps admin + all keys
     assert result.status == "bootstrapped"
-    assert result.optional_unkeyed == OPTIONAL_SEEDED_CAPABILITIES
+    assert result.optional_unkeyed == unkeyed_capabilities(frozenset({"openai", "deepseek"}))
+    assert result.optional_unkeyed["semantic_search"] == "gemini"
     # The result never carries a secret.
     assert CANARY not in json.dumps(
         {
@@ -279,6 +353,41 @@ async def test_bootstrap_runs_everything_inside_one_transaction(
             "optional": result.optional_unkeyed,
         }
     )
+
+
+async def test_the_degraded_list_counts_the_keys_the_database_already_holds() -> None:
+    """A resume that skips the optional key again keeps the row an earlier run stored.
+
+    The list was computed from this run's payload: the resumed install was told
+    semantic search and vision were degraded while the Gemini row sat in the table.
+    """
+    payload = parse_payload(json.dumps(VALID_PAYLOAD))
+    assert "gemini" not in payload.provider_keys
+    db = _fake_db(stored=("deepseek", "gemini", "openai"))
+    with (
+        patch(
+            "scripts.data.create_admin.ensure_admin",
+            new=AsyncMock(return_value=uuid4()),
+        ),
+        patch(
+            "src.domains.llm_config.service.upsert_provider_key_uncommitted",
+            new=AsyncMock(),
+        ),
+        patch(
+            "src.domains.llm_config.cache.LLMConfigOverrideCache.invalidate_and_reload",
+            new=AsyncMock(),
+        ),
+    ):
+        result = await bootstrap(payload, db)
+
+    assert result.optional_unkeyed == unkeyed_capabilities(
+        frozenset({"deepseek", "gemini", "openai"})
+    )
+    assert "semantic_search" not in result.optional_unkeyed
+    assert "vision_analysis" not in result.optional_unkeyed
+    assert result.optional_unkeyed["voice_tts"] == "elevenlabs"
+    # The keys this run wrote are still the ones it reports writing.
+    assert result.providers == ("deepseek", "openai")
 
 
 async def test_failure_on_second_provider_propagates_from_the_transaction() -> None:

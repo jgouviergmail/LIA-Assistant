@@ -302,3 +302,85 @@ questions, and the seven divergences over 103 matched rows are not errors.
 - Plan and its 16 measured amendments: `docs/superpowers/plans/2026-08-23-llm-catalogue-truth.md`
 - Upstream licence and provenance: `apps/api/src/infrastructure/llm/catalogue/NOTICE.md`
 - ADR-223 (time-slot pricing), ADR-228 (Excel catalogue round-trip), ADR-085 (boot-time registry completeness), ADR-155 (shrink-only allowlists)
+
+## Amendment 2026-10-18 — a slot's budget is held to the output cap the catalogue vouches for
+
+A slot's `max_tokens` is a figure an administrator chose for a MODEL, and it
+outlives the model. On 2026-10-17 three production slots (`document_generation`,
+`meeting_synthesis`, `subagent`) were switched to a model whose `verified` row
+caps its output at 128 000 tokens, and kept the 200 000 chosen for their previous
+model, whose cap is 384 000. The provider refused every call
+(« max_tokens: 200000 > 128000 »): two document requests on 2026-10-18, each
+retried three times, six `invalid_request` rows in `token_usage_logs`; the two
+other slots had simply not run yet. The catalogue held the cap the whole time.
+Only two branches of the provider adapter capped anything, each its own way (a
+name heuristic on the legacy OpenAI path, the catalogue for one DeepSeek
+family), and every other client sent the raw value.
+
+**Decision.** One rule says whose output cap is known
+(`infrastructure/llm/output_cap.py`): the `max_output_tokens` of a row whose
+provenance vouches for it — `imported` or `verified`, the provenances that
+column is corrected under (`sync_diff.CORRECTABLE_FIELDS`) — on a `chat` model,
+served by a provider that enforces one. A `declared` row carries column
+defaults, the discovered Ollama layer publishes a constant
+(`OLLAMA_DISCOVERED_MAX_OUTPUT_TOKENS`), and a self-hosted runtime generates
+until its context is full (`PROVIDERS_WITHOUT_OUTPUT_CAP`): none of them is a
+cap. The column default (`LLM_MODEL_DEFAULT_MAX_OUTPUT_TOKENS`, which the ORM
+column now declares itself with) needs evidence of its own, whatever the
+provenance: provenance is row-level while its evidence is field-level, and two
+writers leave the default under a vouching provenance — the sync promotes a
+row as soon as ONE correctable field is corroborated
+(`sync_diff._capability_updates`), and the catalogue editor stamps `verified`
+on any save, resending the untouched default (`LLMModelService.update`). The
+default is therefore a cap only where the vendored registries state that very
+figure for the model (`is_unproven_default`, once per model per process, never
+the network). Measured in production on 2026-10-18: four vouched chat rows hold
+it; replayed against the registries, three carry a registry figure and are
+capped, one carries the untouched default and is not. Doubt adds no cap. Three
+readers ask the rule:
+
+- the slot resolution (`get_llm_config_for_agent`, through `capped_config`), so
+  every reader of a slot's budget — the factory, the document prompt's length
+  budget, a meeting transcript's part size, the MCP description reserve — works
+  with the capped figure. With the raw 200 000 the document prompt promised the
+  model about 110 000 words it could not write;
+- the client door (`ProviderAdapter.create_llm`), for a caller passing a budget
+  of its own. Behind it, the DeepSeek families keep their own ceilings
+  (`deepseek_limits`: the catalogue figure for the thinking family whatever its
+  provenance, an unproven default now refused there too, else 64 000; the
+  documented V3 literals) and the legacy OpenAI Chat Completions path keeps its
+  name heuristic. Both only ever lower further;
+- the admin metadata: `/llm-config/metadata` publishes the rule's figure as
+  `vouched_max_output_tokens` (ADR-184), and the screen flags a slot whose
+  budget exceeds it — a badge on its card, read from the STORED budget the admin
+  listing keeps (pinned by a test), and a warning that describes the
+  `max_tokens` field while it is edited, measured against the value the save
+  will apply (the slot default once the field is cleared) and the model being
+  chosen.
+
+A capped budget is logged once per slot, model and value per process
+(`llm_max_tokens_above_model_cap`), on the `report_configured_model` pattern;
+the stored figure stays the administrator's to correct. The profile is read
+defensively, as the reasoning seam reads it: an entry shaped otherwise means "no
+known cap", never an error on the instantiation path.
+
+**Not done, on purpose.** Saving a budget above the cap is not refused: the
+warning shows it before the save, and the request stays valid either way.
+Measured before shipping: applied to production's effective configuration of
+2026-10-18 (the code defaults merged with the overrides, once the administrator
+had lowered the three slots to 100 000), the rule caps no slot.
+
+**Limits.** A registry figure smaller than the model's real cap now shortens a
+budget the provider would accept — the two registries disagree on 25 of 143
+output caps (`field_mapping._max_output`); the badge names every slot the rule
+caps, and correcting the row lifts it. A real cap equal to the column default
+that no registry states is not known, so it is not applied. A slot capped by a
+provider branch's own ceiling, or configured on a hand-typed dated model id the
+runtime resolves under its base name, is capped without a badge.
+
+**Left open.** The structured-output door still turns any provider exception on
+its auto-tool path into « produced no valid tool call » and retries it, so a
+permanent refusal of another kind is still retried three times under a
+misleading message. And the two provenance writers above also stand behind
+`get_effective_context_window`, which trusts a vouched row's input figure, the
+untouched input default included.

@@ -1,129 +1,136 @@
 # Self-hosting LIA
 
-## Can I run LIA on my own machine?
-Yes. LIA is free software (AGPL-3.0) and is designed to be self-hosted — that
-is the point of the project, not an afterthought. A guided installer lives at
-the root of the repository: `./install.sh`.
+## Can I run LIA on my own server?
 
-Nothing about running it requires a cloud account, a subscription, or sending
-your data to a third party. A Raspberry Pi is enough for a household.
+Yes. LIA is free software (AGPL-3.0) built to be self-hosted, and a guided installer sits at the root of the repository: clone it, then run `./install.sh`.
 
-## What does the installer actually do?
-It asks a short questionnaire in your language, then does the work:
+**🖥️ What the machine needs:**
+• Linux, on a 64-bit x86 or ARM processor — a Raspberry Pi 5 is the reference production machine
+• Docker with a recent Compose v2, and a recent Python 3 to run the installer itself
+• at least 10 GiB of free disk space
 
-1. **Questions** — how you want to reach the instance (local network, your own
-   reverse proxy, or managed HTTPS), and which provider keys you hold.
-2. **Preflight** — it checks the host before touching anything: Docker, disk,
-   ports, and whether the source it was launched from is complete.
-3. **Build** — it builds the API and Web images **from the source you cloned**.
-   This is the default on purpose: an artifact nobody qualified has no place in
-   an installation.
-4. **Reference data** — personalities, model pricing, the LLM catalogue and the
-   default configuration are applied in **one transaction**. A half-seeded
-   installation does not exist: either everything lands, or nothing does.
-5. **Bootstrap** — your administrator account and your provider keys are
-   created from a single document read on standard input, in one transaction.
-6. **Verification** — see the next question.
-7. **Report** — a non-secret summary, naming any capability that will run
-   degraded because its key was not provided.
+The installer checks each of them and says what is missing.
 
-## How do I know the installation actually worked?
-Because `/ready` is checked, and then deliberately not trusted on its own.
+Your conversations, memory, documents and encrypted keys live in your own database; the AI models and the services you connect still receive what each task needs.
 
-A health endpoint proves that the server started. It does not prove that the
-installation is correct. So a separate verifier runs afterwards and checks, with
-no access to your secrets:
+To look before you leap, `./install.sh --check-only` checks the machine without installing anything, and `./install.sh --dry-run` generates the configuration without starting it. The manual installation described in the getting-started guide remains fully supported.
 
-- there is exactly **one** database migration head;
-- the reference-data marker is present and exact;
-- the reference data satisfies its own postconditions (the expected rows exist);
-- an **active** administrator account exists;
-- the stored provider keys can actually be decrypted;
-- provider coverage holds **on the configuration that is effective after the
-  reference data was applied** — the one your first message will really use,
-  not the code defaults that the reference data just overrode.
+## What does the guided installer do?
 
-If any of these fail, the installer says which one, and stops.
+It asks its questions — in English or French — then does the whole job in one pass:
+• generates a private configuration and the folders it needs
+• builds the application, or fetches prebuilt images, and validates the settings before starting anything
+• starts the stack: the database is migrated and the reference data — personalities, model catalogue and prices, default configuration — is loaded in a single transaction, all or nothing
+• creates your administrator account and stores your provider keys encrypted
+• restarts the server so every process uses them, runs a verifier, and prints a report containing no secret
+
+**❓ What it asks:** how LIA will be reached, your administrator e-mail and name, the application's default language, a DeepSeek and an OpenAI key (the shipped configuration uses both; every model can be changed afterwards), an optional Google Gemini key (memory recall, searches by meaning and image analysis run on it; the final report says what stays degraded without it), and whether to enable a few optional features — the monitoring stack, self-diagnostics, the script sandbox, the Live voice mode, the personal radio and the speaking avatar. Each stays off unless you answer yes.
+
+For an unattended install, the same answers can come from a file: `./install.sh --non-interactive --answers answers.env`. To change these choices later — how LIA is reached, the optional features — run `./install.sh --reconfigure`: each question shows the answer in force, which Enter keeps, and your data, keys, administrator and secrets stay as they are. Before anything changes, the settings your new answers would rewrite are listed with their current and new values, and nothing is applied unless you confirm; if the new configuration does not come back — or you interrupt it — the previous one is put back.
+
+## How will people reach my instance?
+
+That is the one choice worth thinking about. The installer offers three:
+• **lan** — home or office network, no domain name: the web interface is published on port 3000 of the machine, in plain HTTP
+• **proxy** — you already run a reverse proxy (nginx, Traefik, Caddy) on the same machine: nothing new is published, and your proxy serves HTTPS
+• **caddy** — you have domain names and want HTTPS handled for you: certificates are obtained and renewed automatically. Point the DNS records of your web and API domains at the machine before installing
+
+In every mode, browsers talk only to the web interface; the API never gets a port of its own.
+
+The mobile apps need an HTTPS address: choose **proxy** or **caddy** if you want them.
+
+## How do I know the installation really worked?
+
+A server that answers is not yet a working installation, so the installer does not stop there. Once the stack is up, a verifier checks, without reading any secret:
+• the database is on exactly the expected migration
+• the reference data was applied in full, under the exact expected version
+• your administrator account exists, is active and has administrator rights
+• the stored provider keys can actually be decrypted
+• every core role of the configuration points to a provider you gave a key for
+
+Only then does the installer print its report: the address to open, your administrator account, how the instance is reached and where the database backups are written. Sign in there; **Settings › Administration › LLM Configuration** then lets you change any model or add an optional provider key.
 
 ## Are my secrets safe during installation?
-Secrets never travel through the command line. They are read on standard
-input and go straight into an encrypted column, in the same transaction that
-creates the administrator. There is no default password: the password you
-choose goes through the same strength validation as any account on the
-running instance.
 
-The resume state — what lets an interrupted install continue — stores only
-non-secret facts plus SHA-256 fingerprints. If a fingerprint no longer
-matches, the installer stops **before** changing anything rather than guessing.
+Yes, by construction.
+• **Your password and provider keys** are typed at a hidden prompt, handed to the server on its standard input and stored encrypted in the database — never written to the configuration file, the installer's state or its log, and never on a command line
+• **The server's own secrets** — the encryption key, the session key, the database and cache passwords — are generated at random into a configuration file only your account can read
+• **The resume state** keeps only non-secret facts and fingerprints
+• **An answers file** for an unattended install is read once, never copied, and refused if other users can read it
 
-## What if a step fails halfway through?
-Run `./install.sh --resume`. It picks up exactly where it stopped and will not
-re-ask for what is already done — except the three ephemeral secrets (your
-administrator password and provider keys), which are never stored anywhere and
-must be typed again if the bootstrap step itself did not complete.
+Your administrator password must meet the instance's password policy; the installer states the rule when it asks.
 
-To change how the instance is reached later — switching from local network to
-a domain name, for example — use `./install.sh --reconfigure`. The identity of
-the installation stays fixed; only the routing changes.
+One thing never to do: change the generated encryption key by hand. Everything encrypted with it would become unreadable.
 
-## Are prebuilt images available instead of building locally?
-Only under a strict condition, and this is deliberate. Prebuilt mode accepts
-**only** image references pinned by digest (`repository@sha256:...`) that come
-from a release manifest explicitly marked as qualified. A mutable tag such as
-`:latest` is never an input the installer will accept.
+## What if a step fails halfway?
 
-Until a release has passed its clean-machine qualification, local build stays
-the default. That is why the local path is the one described first: it always
-works, and it never depends on trusting a label.
+The installer stops at the first failing step, names it, writes the details to its own log with every secret removed, and gives you the command to continue:
+`./install.sh --resume`
 
-## What is NOT covered by the installer?
-Version upgrades, database downgrades, and destructive reinstalls are outside
-its scope for now. It installs a working instance; it does not migrate one.
+On a first installation, a failure only stops the containers it started: your configuration, data, backups and log stay in place. Resuming keeps your answers and the generated configuration, asks again only for the secrets it never stores — your administrator password and your provider keys, the optional one included — then runs the deployment steps again.
+
+Resuming is deliberately cautious: if the files it generated changed in the meantime, it stops before touching anything rather than guessing. If you interrupt an installation yourself, the same command picks it up; an interrupted `--reconfigure` puts the previous configuration back instead — just run it again.
+
+## Prebuilt images or a local build?
+
+The installer follows a rule, never a guess:
+• from a **clone of the repository**, it builds the images from your source — the default, and the path that always works
+• from an **official release** whose manifest is marked as qualified, it uses prebuilt images, each pinned by its digest — never a moving tag such as "latest"
+• from a release whose manifest is missing or not qualified, it builds locally from the release's own verified source
+
+`./install.sh --local-build` forces a local build in any case.
+
+**Limits of the prebuilt images:** browser push notifications are not available (notifications arrive in the app), and changing a public setting that is built into the web interface requires a local build.
+
+## What does the installer not do?
+
+It installs a working instance. A few things stay deliberate, separate acts:
+• **Upgrades**: moving to a newer release is a written procedure (next question)
+• **Wiping and starting over**: it never removes your data volumes; deleting data is always a command you type yourself
+• **Taking over an existing installation**: if it finds a configuration it did not create, it refuses to touch it
+• **Changing provider keys**: done later, signed in, in **Settings › Administration › LLM Configuration**
+• **Google and Microsoft**: their sign-in and connectors are set up after installation, following the getting-started guide
+• **Searches by meaning** (memory recall, knowledge spaces, the journal) run on a Google Gemini key: the installer asks for it but lets you skip it, and they stay unavailable until you add it in **Settings › Administration › LLM Configuration**
+
+The installer itself runs on Linux only.
 
 ## How do I move my installation to a newer release?
-There is no upgrade command, but there is a written procedure — seven steps in
-`docs/guides/GUIDE_SELF_HOSTING.md`, section "Upgrading to a newer release".
 
-The shape of it: back up the database first (migrations run automatically when
-the new container starts, and there is no downgrade path), download and verify
-the new bundle's SHA-256, stop the application, overwrite the files the release
-owns while keeping your own `.env` and overlay, regenerate the image pins from
-the new manifest, then start again and let the migrations run. Rolling back the
-code means restoring the previous pins, which takes seconds; rolling back a
-migration means restoring the dump, which is why the dump comes first.
+There is no upgrade command, on purpose: each step should be one you can see, stop and reverse. The self-hosting guide writes the procedure out ("Upgrading to a newer release"); its shape:
+• **back up first**: a fresh database dump, your configuration and the current image pins — migrations run by themselves when the new version starts, and there is no way back down
+• download the new release and check its SHA-256 checksum
+• stop the application; your data stays
+• copy the release's files over your installation, keeping your own configuration, overlay and installer state
+• pin the images to the new release, start, and let the migrations run
+• check the version and the services' health, then send one message
 
-Never set `APPLY_SEEDS=true` on an upgrade: the seed bundle deletes before it
-inserts and exists for a fresh install only. And `./install.sh --resume` is not
-the upgrade path — it is fail-closed and will refuse once the files change,
-which is the guard working as intended.
+Rolling back the code means restoring the previous pins, in seconds; undoing a migration means restoring the dump — which is why it comes first.
 
-Script skills, which execute code, require an extra opt-in overlay because they
-need access to the Docker socket. A generic installation runs without it.
+Never set `APPLY_SEEDS=true` for an upgrade: the reference data deletes before it inserts. And `./install.sh --resume` is not an upgrade path — it refuses once the release files change, by design. The procedure is written for an installation running a release's prebuilt images.
 
-## Can I run it without any cloud AI provider at all?
+## Can I run LIA without any cloud AI provider?
 
-Yes. Alongside the six remote providers, LIA drives a local **Ollama** server as
-a first-class provider, and every one of its roles can be assigned to a model
-running there. Nothing about that path is a downgrade: LIA talks to Ollama
-through its native API rather than an OpenAI compatibility layer, which is what
-lets it control the thinking of a model that thinks, set the context window it
-also accounts with, ask for structured output, and read the thinking trace apart
-from the answer.
+Partly. Here is exactly where the line is.
 
-The capabilities of each model are read from your server, not guessed, so the
-administration screen offers exactly what your hardware accepts. The trade-off
-stays yours, role by role: a local model costs nothing and lets no data leave
-your infrastructure, a remote one sometimes answers better — and switching one
-role from the first to the second is a configuration change, not a redeployment.
+**✅ On your own hardware:** every model role — routing, planning, answering, agents — can run on a model served by your own Ollama server, set role by role in **Settings › Administration › LLM Configuration**. Dictation is transcribed on the server itself.
 
-## My deployment ended on an error — did it fail?
-Read the closing message rather than the exit code, and since v1.38.0 the message tells you which of six things happened. Only one of them is a failed deployment: the one where the server itself returned a non-zero code, and the driver then points you at the remote log. "Already in progress" means your deployment did not happen at all and nothing changed remotely; "interrupted" means it stopped mid-flight without writing a verdict; "watching budget exhausted" means it is still running and you stopped watching — re-run with a larger `-DeployBudgetSeconds`, or simply wait; "contact lost" means the connection dropped while launching, and the server may have started the work anyway. On all four, do not re-run: the driver would wipe the staging directory under a build still in flight. It prints the three commands that settle the question instead.
+**☁️ Still online:**
+• the guided installer asks for a DeepSeek and an OpenAI key, because the shipped configuration uses them; you can move every role to Ollama afterwards
+• searches by meaning — memory recall, knowledge spaces, the journal — use Google's embedding service
+• spoken answers come from online voice services, the default one free and without a key
+• web search, weather, maps and the connectors you link are online services by nature
 
-Before v1.38.0 the deployment ran inside the SSH session, so closing your laptop or losing Wi-Fi killed it within seconds. It now runs on the server, independently of your terminal.
+A fully offline installation is therefore not possible; one whose conversations are written by models on your own hardware is.
 
-## Does the deployment leave my production secrets on my machine?
-No, not since v1.38.0. Building the bundle decrypts your production environment file in clear on your own machine. That copy — along with the encryption keys and the encrypted archive — is now removed on every exit path, including every error path, not only when the deployment succeeds. The bundle itself is left in place after a failure so you can inspect it. A simulation run (`-DryRun`) never touches anything.
+## Can the mobile apps connect to my own server?
 
-## What happens if Docker refuses the skills sandbox?
+Yes: the official Android and iPhone apps work with any self-hosted LIA. What your server needs:
+• **an HTTPS address**: the apps refuse plain HTTP, so an installation reached in **lan** mode is for browsers only — choose **proxy** or **caddy**
+• **on iPhone**, web and API addresses under the same domain (for example lia.example.org and api.example.org): Apple's browser engine blocks the sign-in cookie across different domains
+• **notifications**: on Android, through a Firebase project you own and configure on the server; on iPhone, Apple lets only the app's publisher push, so your server must be given a wake relay's address — it carries one fixed sentence with no content, and without it the iPhone app receives no push
 
-The operation is reported unavailable rather than executed outside the isolated runner. Check the actual Docker permissions and deployment configuration. On Windows, SOPS secret input and output retain UTF-8; this preserves encoding, not a guarantee that deployment or restore succeeded. Keep a verified backup before migrations and qualify the running version after deployment.
+## What does the script sandbox need, and what if Docker refuses it?
+
+Script skills and the scripts LIA writes run in throwaway containers, which needs the opt-in skill-sandbox overlay — the installer's "script sandbox" question — because the server must be allowed to start containers. A generic installation runs without it.
+
+If Docker refuses to start the sandbox, the operation is reported as unavailable rather than run outside the isolated runner. Check the Docker permissions and the deployment configuration.

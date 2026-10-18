@@ -737,6 +737,20 @@ class TestRecordOccurrenceIfAllowed:
     2026-09-11, sim C5): a refusal is counted as the person's own, never as a
     starved ledger, and the store is never touched."""
 
+    @pytest.fixture(autouse=True)
+    def _habits_on(self):
+        """The habits capability is on: these tests are about the person's gate.
+
+        Unpatched, the capability read reached the real settings store — and,
+        a switch nobody wrote being cached as absent, wrote to the very Redis
+        double these tests count the ledger's writes on.
+        """
+        with patch(
+            "src.domains.habits.capability.habits_capability_enabled",
+            AsyncMock(return_value=True),
+        ):
+            yield
+
     async def test_switch_off_writes_nothing_and_counts_user_disabled(self):
         from src.domains.habits.learning_gate import CLOSED
 

@@ -16,11 +16,15 @@ What must hold:
 - a key declared without a cache is read straight from the database (a
   once-per-install marker must not occupy a cache slot);
 - writing a setting invalidates its cache; a cache-invalidation failure is
-  survivable (the TTL bounds it) and never propagates.
+  survivable (the TTL bounds it) and never propagates;
+- an ABSENT setting is cached too, as a marker reading the current default
+  (every capability nobody toggled used to reach the database on every read);
+- several settings read together cost one cache MGET and one query.
 """
 
 from __future__ import annotations
 
+import dataclasses
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -34,6 +38,7 @@ from src.domains.system_settings.registry import (
     get_setting_spec,
     invalidate_setting_cache,
     read_setting,
+    read_settings,
 )
 
 pytestmark = pytest.mark.unit
@@ -247,3 +252,142 @@ async def test_invalidation_failure_never_propagates() -> None:
     ):
         # The TTL bounds the staleness; failing the admin write would be worse.
         await invalidate_setting_cache(SystemSettingKey.DEBUG_PANEL_ENABLED)
+
+
+# ---------------------------------------------------------------------------
+# A cached absence
+# ---------------------------------------------------------------------------
+
+
+async def test_an_absent_setting_is_cached_as_absent_never_as_its_default() -> None:
+    redis = _redis(None)
+    cache_patch, db_patch = _patched(redis, _db_context(None))
+    with cache_patch, db_patch:
+        assert await read_setting(SystemSettingKey.DEBUG_PANEL_ENABLED) is False
+    payload = redis.set.await_args.args[1]
+    spec = get_setting_spec(SystemSettingKey.DEBUG_PANEL_ENABLED)
+    # A copy of the default would outlive a deployment that changes it.
+    assert payload not in {spec.serialize(True), spec.serialize(False)}
+
+
+async def test_a_cached_absence_reads_the_default_without_the_database() -> None:
+    first = _redis(None)
+    cache_patch, db_patch = _patched(first, _db_context(None))
+    with cache_patch, db_patch:
+        await read_setting(SystemSettingKey.DEBUG_PANEL_ENABLED)
+    marker = first.set.await_args.args[1]
+
+    db_context = _db_context("true")
+    cache_patch, db_patch = _patched(_redis(marker), db_context)
+    with cache_patch, db_patch:
+        assert await read_setting(SystemSettingKey.DEBUG_PANEL_ENABLED) is False
+    db_context.assert_not_called()
+
+
+async def test_an_undecodable_cached_value_is_read_again_from_the_database() -> None:
+    key = SystemSettingKey.DEBUG_PANEL_ENABLED
+
+    def strict(raw: str) -> bool:
+        if raw not in {"true", "false"}:
+            raise ValueError("not a stored boolean")
+        return raw == "true"
+
+    db_context = _db_context("true")
+    cache_patch, db_patch = _patched(_redis("garbled"), db_context)
+    strict_spec = dataclasses.replace(get_setting_spec(key), decode=strict)
+    with cache_patch, db_patch, patch.dict(SETTING_SPECS, {key: strict_spec}):
+        assert await read_setting(key) is True
+    db_context.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Reading several settings together
+# ---------------------------------------------------------------------------
+
+
+def _batch_redis(*cached: object | None, failing: bool = False) -> MagicMock:
+    redis = MagicMock()
+    redis.mget = (
+        AsyncMock(side_effect=RedisError("redis down"))
+        if failing
+        else AsyncMock(return_value=list(cached))
+    )
+    pipe = MagicMock()
+    pipe.execute = AsyncMock()
+    pipeline = MagicMock()
+    pipeline.__aenter__ = AsyncMock(return_value=pipe)
+    pipeline.__aexit__ = AsyncMock(return_value=False)
+    redis.pipeline = MagicMock(return_value=pipeline)
+    redis.pipe = pipe
+    return redis
+
+
+def _rows_context(*rows: tuple[SystemSettingKey, str]) -> MagicMock:
+    result = MagicMock()
+    result.all.return_value = list(rows)
+    db = MagicMock()
+    db.execute = AsyncMock(return_value=result)
+    context = MagicMock()
+    context.__aenter__ = AsyncMock(return_value=db)
+    context.__aexit__ = AsyncMock(return_value=False)
+    return MagicMock(return_value=context)
+
+
+_BATCH = (
+    SystemSettingKey.DEBUG_PANEL_ENABLED,  # cached: a hit
+    SystemSettingKey.DEBUG_PANEL_USER_ACCESS_ENABLED,  # cached: a miss with a row
+    SystemSettingKey.PUBLIC_DEMO_LINK_ENABLED,  # cached: a miss without a row
+    SystemSettingKey.SELF_HOST_SEED_BUNDLE,  # uncached
+)
+
+
+async def test_a_batch_is_one_mget_and_one_query_for_what_the_cache_lacked() -> None:
+    redis = _batch_redis("true", None, None)
+    db_context = _rows_context(
+        (SystemSettingKey.DEBUG_PANEL_USER_ACCESS_ENABLED, "true"),
+        (SystemSettingKey.SELF_HOST_SEED_BUNDLE, "abc123"),
+    )
+    cache_patch, db_patch = _patched(redis, db_context)
+    with cache_patch, db_patch:
+        values = await read_settings(_BATCH)
+
+    assert values == {
+        SystemSettingKey.DEBUG_PANEL_ENABLED: True,
+        SystemSettingKey.DEBUG_PANEL_USER_ACCESS_ENABLED: True,
+        SystemSettingKey.PUBLIC_DEMO_LINK_ENABLED: False,
+        SystemSettingKey.SELF_HOST_SEED_BUNDLE: "abc123",
+    }
+    redis.mget.assert_awaited_once()
+    db_context.assert_called_once()
+    written = {call.args[0]: call.args[1] for call in redis.pipe.set.call_args_list}
+    access = get_setting_spec(SystemSettingKey.DEBUG_PANEL_USER_ACCESS_ENABLED).redis_key
+    demo = get_setting_spec(SystemSettingKey.PUBLIC_DEMO_LINK_ENABLED).redis_key
+    assert set(written) == {access, demo}, "the hit and the uncached key are not written"
+    assert written[access] == "true"
+    # The absence is cached as such, so the next turn reads no database.
+    assert written[demo] not in {"true", "false"}
+
+
+async def test_a_batch_survives_a_redis_outage_through_the_database() -> None:
+    db_context = _rows_context((SystemSettingKey.DEBUG_PANEL_ENABLED, "true"))
+    cache_patch, db_patch = _patched(_batch_redis(failing=True), db_context)
+    with cache_patch, db_patch:
+        values = await read_settings([SystemSettingKey.DEBUG_PANEL_ENABLED])
+    assert values == {SystemSettingKey.DEBUG_PANEL_ENABLED: True}
+
+
+async def test_a_batch_reads_every_default_when_both_backends_are_down() -> None:
+    db_context = MagicMock(side_effect=RuntimeError("db down"))
+    cache_patch, db_patch = _patched(_batch_redis(failing=True), db_context)
+    with cache_patch, db_patch:
+        values = await read_settings(_BATCH)
+    assert values == {key: get_setting_spec(key).default for key in _BATCH}
+
+
+async def test_a_garbage_row_in_a_batch_reads_its_default() -> None:
+    db_context = _rows_context((SystemSettingKey.INSTANCE_DAILY_BUDGET_EUR, "not-a-number"))
+    cache_patch, db_patch = _patched(_batch_redis(None), db_context)
+    with cache_patch, db_patch:
+        values = await read_settings([SystemSettingKey.INSTANCE_DAILY_BUDGET_EUR])
+    # A hand-edited row must not become an unbounded ceiling.
+    assert values == {SystemSettingKey.INSTANCE_DAILY_BUDGET_EUR: None}

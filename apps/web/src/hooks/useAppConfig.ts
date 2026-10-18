@@ -59,7 +59,9 @@ export interface AppConfig {
     // The workboard (ADR-276) — gates its settings section, its hub section and
     // the board page itself. Published by the API since lot 1.
     workboard_enabled?: boolean;
-    // Message bookmarks (ADR-282) — gates the bubble toggle and the « Bookmarks » tab.
+    // Message bookmarks (ADR-282) — the deployment ceiling of the « Bookmarks » tab;
+    // the bubble reads the effective state in `capabilities.bookmarks`
+    // (`bookmarkKeepingAvailable`).
     bookmarks_enabled?: boolean;
     // Sandbox egress (ADR-298) — gates the « Sandbox network » settings section.
     python_sandbox_egress_enabled?: boolean;

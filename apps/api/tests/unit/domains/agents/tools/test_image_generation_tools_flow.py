@@ -24,6 +24,7 @@ from src.domains.agents.tools import image_generation_tools
 from src.domains.agents.tools.image_generation_tools import _Caller
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.utils.rate_limiting import _rate_limit_tracker
+from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.image_generation.families import OPENAI_GPT_IMAGE, QWEN_IMAGE_3
 from src.domains.image_generation.options_cache import ModelOptions, QualityOption, SizeOption
 from src.domains.image_generation.providers.base import (
@@ -456,3 +457,24 @@ class TestTheImageIsStoredInThePersonSFormat:
         assert row["stored_filename"].endswith(f".{extension}")
         assert relative_path.endswith(f".{extension}")
         assert row["original_filename"] == f"generated_{row['stored_filename']}"
+
+
+class TestTheCapabilitySwitch:
+    """The EFFECTIVE state, not the deployment flag: an administrator's switch
+    used to be ignored here, so a ReAct loop generated images with it off."""
+
+    async def test_a_switched_off_capability_is_refused_before_any_read(self) -> None:
+        with (
+            patch.object(
+                image_generation_tools, "is_capability_enabled", AsyncMock(return_value=False)
+            ) as gate,
+            patch("src.infrastructure.database.session.get_db_context") as db,
+        ):
+            outcome = await image_generation_tools._resolve_caller(
+                make_tool_runtime(), "generate_image"
+            )
+        assert isinstance(outcome, UnifiedToolOutput)
+        # Not available on this instance (ADR-307's code), never a tool failure.
+        assert outcome.error_code == "CONFIGURATION_ERROR"
+        gate.assert_awaited_once_with(PlatformCapability.IMAGE_GENERATION)
+        db.assert_not_called()

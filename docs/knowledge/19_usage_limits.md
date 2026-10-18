@@ -48,7 +48,7 @@ When a limit is reached:
 - Contact your administrator to adjust your quotas
 
 ## Can administrators manually block a user?
-Yes. Administrators can **block or unblock** any user instantly via **Settings > Administration > Limits Administration**. A reason can be provided and will be shown to the user. The admin table supports **sorting by Email and Blocked status** for quick management.
+Yes. Administrators can **block or unblock** any user instantly via **Settings › Administration › Users & Access › Limits Administration**. A reason can be provided and will be shown to the user. The admin table supports **sorting by Email and Blocked status** for quick management.
 
 ## What types of limits can be set?
 **3 dimensions × 2 modes = 6 possible limits:**
@@ -90,7 +90,7 @@ LIA uses a **5-layer defense-in-depth** architecture:
 **Fail-open:** If Redis/DB is down, access is allowed (cost control, not security).
 
 ## Can I export my consumption data?
-Yes. Go to **Settings > Features > Usage export** to download your personal data as CSV:
+Yes. Go to **Settings › Features › Usage export** to download your personal data as CSV:
 
 - **LLM Token Usage** — detailed per-call breakdown (model, tokens, cost)
 - **Google API Usage** — detailed per-call breakdown (API, endpoint, cost)
@@ -99,30 +99,14 @@ Yes. Go to **Settings > Features > Usage export** to download your personal data
 Use date presets (current month, last month, last 30 days) or custom ranges. You can only export your own data — other users' data is never accessible.
 
 ## Is there a limit on the whole instance, not just my account?
-Yes, and it answers a different question. Per-user limits bound what **one
-account** consumes; they cannot bound what the **whole deployment** spends,
-because N accounts multiplied by their quota is unbounded.
 
-An administrator can set an **instance daily budget** in euros. It is
-first come, first served: once the deployment reaches its budget for the
-day, LIA stops answering until the ledger rolls over at midnight UTC — and
-it tells you the exact time it starts again.
+Yes, when your administrator sets one. Personal limits bound what each account consumes; they cannot bound what all accounts spend together. The instance's **daily spend ceiling**, in euros, does — and it covers everything the platform pays for: models, speech, images, maps.
 
-Two things follow that are worth knowing:
+**⏳ When it is reached:** first come, first served — paid work stops for everyone until the next day begins, at midnight UTC, and the message says the daily budget is reached, not that you exceeded your own limit. Work running in the background is skipped rather than failed. If the day's spend cannot be read, LIA refuses rather than risk the whole budget — the opposite of personal limits, which let a request through in doubt.
 
-- **The message is different from a personal quota message.** When the
-  deployment is paused, LIA does not tell you that *you* reached *your*
-  limit or that you should contact your administrator — both would be
-  false. It says the instance has reached its daily budget.
-- **This check behaves the opposite way from per-user limits.** Per-user
-  limits fail *open*: if the database hiccups, one message too many gets
-  through. An unknown instance spend fails *closed*, because the worst case
-  on that side is the entire budget rather than one message.
+**🛠️ For administrators:** **Settings › Administration › Users & Access › Limits Administration** holds the **Daily spend ceiling (instance)**, with the enforced ceiling, today's spend and runs. When the deployment sets a lower bound, the smaller one applies.
 
-The administrator panel shows today's spend, the number of runs, the
-ceiling that actually applies, and what remains. Where both a deployment
-setting and an administrator setting exist, the **smaller** one applies:
-an operator can tighten what the deployment allows, never widen it.
+Services paid with your own key stay outside it.
 
 ## Do the ceilings cover everything LIA consumes?
 Everything **the instance pays for**, yes. Language models, speech synthesis and recognition, image generation and maps all run on the deployment's own provider keys, so every one of those calls answers to **both ceilings**: your personal quota and the instance's daily budget.

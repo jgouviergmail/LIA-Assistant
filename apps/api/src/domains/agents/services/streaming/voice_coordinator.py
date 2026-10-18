@@ -296,6 +296,7 @@ class VoiceStreamCoordinator:
                         user_query=self._ctx.user_message,
                         chunk_queue=self._voice_chunk_queue,
                         user_timezone=self._ctx.user_timezone,
+                        speaks_of_records=bool(voice_context),
                     )
                 )
 
@@ -646,12 +647,16 @@ class VoiceStreamCoordinator:
                 else:
                     voice_source = "sync_fallback"
 
-                    # Build voice context from registry or response
+                    # Build voice context from registry or response. Only a comment
+                    # speaking of the retained records may carry cues (ADR-345): one
+                    # that falls back to reading the answer carries none.
+                    speaks_of_records = False
                     if voice_context_registry:
                         try:
                             voice_context = voice_context_of(
                                 voice_context_registry, self._ctx.user_language
                             )
+                            speaks_of_records = bool(voice_context)
                         except Exception as summary_error:
                             logger.warning(
                                 "voice_context_summary_failed",
@@ -696,6 +701,7 @@ class VoiceStreamCoordinator:
                             current_datetime=current_dt,
                             user_query=self._ctx.user_message,
                             user_timezone=self._ctx.user_timezone,
+                            speaks_of_records=speaks_of_records,
                         ):
                             chunk_count += 1
                             # DRY: use helper for audio chunk formatting

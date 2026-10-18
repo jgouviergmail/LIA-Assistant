@@ -94,6 +94,10 @@ class TelemetryHTTPBase:
             reason = f"http_{exc.response.status_code}"
         except httpx.HTTPError as exc:
             reason = f"transport:{type(exc).__name__}"
+        except httpx.InvalidURL:
+            # Not an `httpx.HTTPError`: a mistyped source URL (`:9O90`) used to
+            # escape this helper and end the caller's whole tick.
+            reason = "invalid_url"
         except json.JSONDecodeError, UnicodeDecodeError:
             reason = "malformed_json"
         logger.debug(

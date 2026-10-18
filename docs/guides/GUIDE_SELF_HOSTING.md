@@ -135,12 +135,13 @@ x86 server or workstation works equally well.
   HTTPS (see §4.2).
 
 Optional providers can be added later in the Admin UI, and LIA runs without
-their keys:
+their keys. The installer asks for the Gemini one (skippable), and its final
+report names every capability an install leaves without its key:
 
 | Capability                | Provider   | Without its key                       |
 | ------------------------- | ---------- | ------------------------------------- |
-| Image/vision analysis     | Gemini     | Image understanding is unavailable    |
-| Premium voice output (TTS) | ElevenLabs | ElevenLabs speech is unavailable; Edge TTS remains available |
+| Image/vision analysis, memory recall, search in documents, journals and interests | Gemini | Image understanding and every search by meaning are unavailable |
+| Premium voice output (TTS) and remote dictation | ElevenLabs | ElevenLabs speech and remote dictation are unavailable; Edge TTS and local dictation remain available |
 | Premium voice output, transcription and voice library | Fish Audio | Fish Audio speech, transcription and the voice library are unavailable; Edge TTS remains available |
 | MCP App interactive widgets | Anthropic | Widgets fall back to plain responses |
 | Native bounded decisions | TypeSafe (JEV) | Each JEV use stays off; LIA keeps its existing decision paths |
@@ -189,10 +190,10 @@ locally. That takes longer on first run and is otherwise identical.
 | Code | Meaning                                                       |
 | ---- | ------------------------------------------------------------- |
 | `0`  | Success (or `--dry-run` / `--check-only` completed)           |
-| `2`  | Bad usage or a rejected answer                                 |
+| `2`  | Bad usage, a rejected answer, or `.env` changes you declined during `--reconfigure` |
 | `3`  | A prerequisite or safety check failed — nothing was started    |
 | `4`  | A deployment step failed — the rollback path already ran       |
-| `130`| You interrupted it — resume with `./install.sh --resume`       |
+| `130`| You interrupted it — the line printed says how to continue: `./install.sh --resume` for an install, `--reconfigure` again for a reconfiguration |
 
 ---
 
@@ -224,9 +225,12 @@ anything sensitive. Each prompt is prefixed with its key (for example
 | `admin_password`       | always *(hidden)*     | 10+ chars, 2 uppercase, 2 digits, 2 specials   | —       |
 | `provider_key_deepseek`| always *(hidden)*     | your DeepSeek API key                          | —       |
 | `provider_key_openai`  | always *(hidden)*     | your OpenAI API key                            | —       |
+| `provider_key_gemini`  | always *(hidden, optional)* | your Google Gemini API key — memory recall, searches by meaning and image analysis; an empty answer skips it | — |
 
 Secrets are read through a hidden prompt, never echoed, and never written to
-`.env`, to the installer state, or to the log.
+`.env`, to the installer state, or to the log. The Gemini key, like the two
+others, is stored encrypted in the database and can be added later in
+**Settings → Administration → LLM Configuration**.
 
 ### 4.2 Choosing an exposure
 
@@ -344,6 +348,10 @@ a prebuilt install pulls it by the manifest's digest, a local build builds it
 > ```bash
 > sed -i '/^DOCKER_GID=/d' .env && echo "DOCKER_GID=$(stat -c '%g' /var/run/docker.sock)" >> .env
 > ```
+> When `--reconfigure` turns the sandbox on, it writes `DOCKER_GID` itself, from
+> the group of `/var/run/docker.sock`, if `.env` holds none (a value already there
+> is yours and stays). Run the command above after a fresh install with the
+> sandbox, or whenever the socket's group changes.
 
 **Live voice mode** (`live_mode = yes`) publishes the capability: a person then connects a live model — Gemini Live, GPT-Live or an ElevenLabs agent — with **their own key** in *Settings › Connectors* and talks with LIA in real time from the voice icon. The instance provisions nothing for it and pays only what LIA itself spends inside a session; the audio never transits the API. The models offered are those the seeded LLM pricing table declares (the seed ships them); an ElevenLabs agent is billed by the vendor on the person's key. Every bound lives under `LIVE_*` in `.env.prod.example`.
 
@@ -394,6 +402,8 @@ personal_radio=no
 admin_password=CHANGE_ME_Ab12!!cdEf
 provider_key_deepseek=CHANGE_ME_DEEPSEEK_KEY
 provider_key_openai=CHANGE_ME_OPENAI_KEY
+# Optional — leave it out to skip:
+# provider_key_gemini=CHANGE_ME_GEMINI_KEY
 ```
 
 ```bash
@@ -404,7 +414,8 @@ chmod 600 answers.env
 The file must be mode `0600`; a group- or world-readable file is rejected
 (`answers_file_not_private`). It is read once and never copied. A missing or
 invalid entry fails immediately with `missing_answer:<key>` or
-`invalid_answer:<key>` — nothing is prompted in this mode.
+`invalid_answer:<key>` — nothing is prompted in this mode. An optional key may
+be left out.
 
 ### 4.8 Changing things later
 
@@ -417,13 +428,44 @@ invalid entry fails immediately with `missing_answer:<key>` or
 | Exposure (LAN/proxy/Caddy) | Install mode and release identity                   |
 | Server host, web/API domains | Admin email and display name                      |
 | Caddy ACME email           | Every generated secret (including `FERNET_KEY`)     |
-| Observability on/off       | Database identity and seed data                     |
-| Skill sandbox on/off       | Provider keys (Admin UI only)                       |
+| Installer and default application language | Database identity and seed data |
+| Observability, self-diagnostics, skill sandbox | Provider keys (Admin UI only)     |
+| Live voice mode, personal radio, speaking avatar |                                   |
 
-Reconfiguration validates the candidate files, backs up the current ones,
-swaps them atomically, and recreates the containers **without rebuilding**. It
-never re-seeds and never re-runs bootstrap. If anything fails, the previous
-files are restored.
+It asks the routing and capability questions again, each showing the answer
+in force as its default — press Enter to keep it — and never asks a secret.
+The new files are rendered beside the installation and validated with the new
+`.env`; each current file is then backed up privately and replaced in one
+atomic step, and the containers are recreated **without rebuilding**. Turning
+the script sandbox on also obtains its image (and writes `DOCKER_GID`, see
+§4.6), turning observability off stops its services, and a domain or e-mail
+changed under Caddy makes Caddy reread its routes. The `.env` is updated, not
+regenerated: only the values your answers decide change, so the lines you
+added and the values you tuned yourself survive. It never re-seeds and never
+re-runs bootstrap.
+
+The values your answers decide (§4.4 — the origin URLs and `CORS_ORIGINS`, the
+cookie flag, the language, the capability switches, the diagnostics webhook)
+are rewritten from your answers, and a question's default is the answer
+*recorded* at install. So before anything is replaced, every such value that
+would differ from the `.env` in force is listed as `KEY: before -> after` (a
+secret only as `(hidden)`), and applied only if you answer `yes`. Pressing
+Enter answers `no`: nothing changes and the run stops (exit `2`,
+`reconfigure_declined`). This is what keeps a value you edited by hand — a
+second origin in `CORS_ORIGINS`, say — from being replaced in silence: answer
+`yes` and add it back afterwards, or keep it by answering `no`.
+
+If the stack does not come back ready — or you interrupt it, with Ctrl-C, by
+closing your SSH session (`SIGHUP`) or with a `kill` (`SIGTERM`) — the previous
+files are restored and the previous stack is brought up again and checked
+ready; fix the cause and run it again. An interrupt while the questions are
+asked changes nothing. Should even the restore fail, every replaced file is
+kept beside it as `<name>.backup.<time>` and the installer prints the exact
+Compose commands that bring the previous stack back — its own files, the
+images file of a prebuilt install and the sandbox overlay included: copy each
+backup back over its file, then run them. A reconfiguration only applies to a
+completed installation: an interrupted installation is continued with
+`--resume`.
 
 ---
 
@@ -448,7 +490,8 @@ The installer runs these steps in this order, and stops at the first failure:
 8. **Recreate the API** without rebuilding, then wait for `/ready` again. This
    is the barrier that guarantees every worker loaded the committed keys.
 9. **Run the verifier** (below).
-10. **Write the state file and print the report.**
+10. **Write the state file and print the report** — including the capabilities
+    left degraded by a missing optional key, as the bootstrap reported them.
 
 ### The verifier
 
@@ -702,6 +745,9 @@ stops its own containers without touching volumes, `.env`, backups, or logs.
 | `resume_without_state`            | `--resume` with nothing to resume          | Run `./install.sh` normally                 |
 | `resume_stop_mismatch`            | The tree changed since the interrupted run | Start from a clean copy of the same release |
 | `state_parse_error`, `state_schema_unsupported` | State file unreadable or from another version | Remove `.install-state.json` and reinstall |
+| `reconfigure_without_state`       | `--reconfigure` with no recorded installation | Install first with `./install.sh`        |
+| `reconfigure_before_install_complete` | The installation never finished its bootstrap | Finish it with `./install.sh --resume` |
+| `manifest_unreadable`             | The release manifest this installation was made from is missing or invalid | Put the release's `lia-self-host-manifest.json` back where you installed from |
 | `host_path_type_mismatch:<path>`  | A required directory exists as a file      | Fix that path                               |
 | `generated_secret_missing:<KEY>`, `generated_secret_placeholder:<KEY>` | `.env` lost a generated secret | Restore a `.env.backup.*` |
 
@@ -715,6 +761,7 @@ stops its own containers without touching volumes, `.env`, backups, or logs.
 | `missing_answer:<key>`      | That key is absent from the answers file            |
 | `invalid_answer:<key>`      | That value failed validation (email, host, password) |
 | `reconfigure_flags_exclusive` | `--reconfigure` combined with an install flag     |
+| `reconfigure_declined`      | You answered `no` to the listed `.env` changes; nothing changed |
 
 ### During deployment (exit `4`)
 
@@ -728,10 +775,14 @@ stops its own containers without touching volumes, `.env`, backups, or logs.
 | `bootstrap_failed`      | Admin/keys could not be committed             | `liac logs api`, then `--resume`              |
 | `api_recreate_failed`   | The API could not be recreated after bootstrap | `--resume`                                   |
 | `verify_failed`         | One of the six checks failed                  | Run the verifier manually to see which        |
+| `reconfigure_invalid`   | Compose rejected the reconfigured files       | Nothing was swapped; fix the answer and rerun `--reconfigure` |
+| `reconfigure_failed`, `readiness_timeout`, `reconfigure_io_error` after `--reconfigure` | The reconfigured stack did not come back | The previous files and stack are back, checked ready; read `install.log`, then rerun `--reconfigure` |
+| `reconfigure_restore_failed` | Even the previous configuration did not come back ready | Copy each `<name>.backup.<time>` the run left back over its file, then run the commands the installer printed — the previous Compose selection exactly, the images file and the sandbox overlay included (`liac` alone names neither); `install.log` holds what stopped the new configuration, then the restore |
 
 `--resume` re-prompts **only** the ephemeral secrets (admin password and the
-two provider keys) when bootstrap had not completed, and asks for nothing at
-all once it had. It never repeats work that already succeeded.
+provider keys, the optional Gemini key included) when bootstrap had not
+completed, and asks for nothing at all once it had. It never repeats work that
+already succeeded.
 
 ---
 
