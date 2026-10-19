@@ -1,6 +1,7 @@
 """Original settings and native plugin reads share an owner-safe constant-query projection."""
 
-from uuid import UUID
+from datetime import UTC, datetime, timedelta
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import event
@@ -9,6 +10,7 @@ from src.core.config import settings
 from src.core.exceptions import BaseAPIException
 from src.domains.agents.application.plugin_read import read_plugins
 from src.domains.agents.application.plugin_read_schemas import PluginReadInput
+from src.domains.peers.capability_models import PeerCapabilityComponent, PeerCapabilityTransfer
 from src.domains.plugins.models import UserPlugin
 from src.domains.plugins.projection import list_plugin_projection
 from src.domains.user_mcp.models import UserMCPServer
@@ -24,16 +26,53 @@ async def _plugin(db, owner: UUID, name: str) -> UserPlugin:
     return row
 
 
-@pytest.mark.parametrize("scenario", ["visible", "plugins_off", "tools_off", "revoked"])
+@pytest.mark.parametrize(
+    "scenario,plugin_count",
+    [
+        ("visible", 1),
+        ("visible", 3),
+        ("visible", 12),
+        ("plugins_off", 3),
+        ("tools_off", 3),
+        ("revoked", 3),
+    ],
+)
 async def test_plugin_projection_is_owned_bounded_and_shared(
-    async_session, test_user, monkeypatch, scenario
+    async_session, test_user, monkeypatch, scenario, plugin_count
 ):
     monkeypatch.setattr(settings, "application_tools_enabled", scenario != "tools_off")
     monkeypatch.setattr(settings, "plugins_enabled", scenario != "plugins_off")
     owner = test_user.id
     foreign = await _user(async_session)
-    rows = [await _plugin(async_session, owner, f"plugin-{i}") for i in range(3)]
+    rows = [await _plugin(async_session, owner, f"plugin-{i:02}") for i in range(plugin_count)]
     other = await _plugin(async_session, foreign, "foreign-plugin")
+    shared_at = datetime.now(UTC)
+    sender = await async_session.get(type(test_user), foreign)
+    sender.full_name = "Private sender"
+    receipt = PeerCapabilityTransfer(
+        sender_id=foreign,
+        recipient_id=owner,
+        source_id=other.id,
+        idempotency_key=uuid4(),
+        kind="plugin",
+        name=rows[0].name,
+        digest="1" * 64,
+        status="installed",
+        expires_at=shared_at + timedelta(minutes=5),
+        transferred_at=shared_at,
+    )
+    async_session.add(receipt)
+    await async_session.flush()
+    async_session.add(
+        PeerCapabilityComponent(
+            transfer_id=receipt.id,
+            kind="plugin",
+            key=rows[0].name,
+            resource_id=rows[0].id,
+            fingerprint="1" * 64,
+            installed=True,
+        )
+    )
     own_skill = await _skill(async_session, "my-skill", owner)
     own_skill.plugin_id = rows[0].id
     foreign_skill = await _skill(async_session, "foreign-skill", foreign)
@@ -69,10 +108,13 @@ async def test_plugin_projection_is_owned_bounded_and_shared(
         original = await list_plugin_projection(async_session, owner)
     finally:
         event.remove(connection.sync_connection, "before_cursor_execute", observe)
-    assert len(queries) == 3, "plugin count must not add component queries"
+    # Three component queries plus ONE batched origin lookup, at every list size.
+    assert len(queries) == 4, "plugin count must not add component or origin queries"
+    assert original.plugins[0].shared_origin.sender_display_name == "Private sender"
     result = await read_plugins(async_session, owner, PluginReadInput(limit=1))
-    assert result.total == 3 and result.next_offset == 1
-    assert result.items[0].model_dump() == original.plugins[0].model_dump()
+    assert result.total == plugin_count
+    assert result.next_offset == (1 if plugin_count > 1 else None)
+    assert result.items[0].model_dump() == original.plugins[0].model_dump(exclude={"shared_origin"})
     assert result.items[0].skill_names == ["my-skill"]
     assert result.items[0].server_names == ["my-server"]
     second = await read_plugins(async_session, owner, PluginReadInput(offset=1))
@@ -81,5 +123,14 @@ async def test_plugin_projection_is_owned_bounded_and_shared(
     raw = result.model_dump_json() + second.model_dump_json()
     assert all(
         secret not in raw
-        for secret in ["secret", "manifest", "foreign-skill", "foreign-server", "https://"]
+        for secret in [
+            "secret",
+            "manifest",
+            "foreign-skill",
+            "foreign-server",
+            "https://",
+            "Private sender",
+            str(receipt.id),
+            "shared_origin",
+        ]
     )

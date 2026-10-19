@@ -17,7 +17,7 @@ from src.infrastructure.mcp.personal_metadata_contract import (
 
 def _public_server(original: UserMCPServerResponse, tools_offset: int) -> PersonalMCPReadItem:
     end = tools_offset + len(original.tools)
-    values = original.model_dump(exclude={"url", "last_error", "tools"})
+    values = original.model_dump(exclude={"url", "last_error", "tools", "shared_origin"})
     return PersonalMCPReadItem(
         **values,
         endpoint_host=urlsplit(original.url).hostname,

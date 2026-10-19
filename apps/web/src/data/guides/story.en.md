@@ -19,7 +19,7 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
 | Source lines (excluding tests) — 55 functional domains | **967,000+** |
-| Inventoried automated tests; suites selected for commits and releases | **63,000+** |
+| Inventoried automated tests; suites selected for commits and releases | **64,000+** |
 | Documented architecture decisions (ADR) | **350** |
 | Versions shipped at a steady pace | **284** |
 | Languages, parity checked automatically | **6** |

@@ -19,7 +19,7 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | --- | --- |
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
 | Righe di codice sorgente (esclusi i test) — 55 domini funzionali | **967.000+** |
-| Test automatizzati inventariati; suite adeguate a commit e rilascio | **63.000+** |
+| Test automatizzati inventariati; suite adeguate a commit e rilascio | **64.000+** |
 | Decisioni di architettura documentate (ADR) | **350** |
 | Versioni rilasciate a ritmo regolare | **284** |
 | Lingue, parità verificata automaticamente | **6** |

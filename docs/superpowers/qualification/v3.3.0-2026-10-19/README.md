@@ -18,7 +18,7 @@ leurs slots, sans réintroduire les anciennes familles d'environnement inutilis�
 
 | Contrôle | Résultat local |
 |---|---|
-| Couverture unitaire backend | 44 665 réussis, 31 skips sous Windows, 9 désélectionnés ; 79,26 %, seuil maintenu à 78 % |
+| Couverture unitaire backend | 44 669 réussis, 31 skips sous Windows, 9 désélectionnés ; 79,27 %, seuil maintenu à 78 % |
 | Agents | 1 101 réussis, 36 désélectionnés |
 | Couverture frontend | 13 231 réussis dans 1 075 fichiers ; tous les seuils globaux et ciblés passent |
 | Navigateurs et axe | 649 réussis ; le seul skip concerne le sink HMR DEV, absent de cette construction de production |
@@ -28,7 +28,7 @@ leurs slots, sans réintroduire les anciennes familles d'environnement inutilis�
 | Installation et publication | 24 scénarios Compose valides, 79 tests d'artefacts réussis, 91 contrats backend réussis et 3 skips POSIX ; la garde « défauts → Settings » passe |
 | Déploiement et alertes | Assertions shell sans échec, 172 tests Pester réussis ; promtool valide les règles et leurs scénarios |
 | Média staged | Typage et 44 tests Node réussis ; 8 tests Python hermétiques réussis ; aucune génération payante supplémentaire |
-| Couverture des jobs CI | 50 764 tests backend collectés ; aucun nouveau test sans job ; exclusions intentionnelles sous liste contrôlée |
+| Inventaire final | 50 770 tests backend collectés et 13 231 tests frontend : 64 001 au total, arrondis à 64 000+ sur les surfaces publiques |
 
 `task ci:fast` est exécuté intégralement avec succès, y compris les contrats
 d'installation et la garde « défauts → Settings ». Le premier passage
@@ -36,6 +36,18 @@ d'intégration global a identifié la pollution de fixture décrite ci-dessous ;
 il n'est pas présenté comme vert. Les intégrations impactées sont rejouées sur une
 nouvelle base après correction. La CI complète du commit est le verdict global
 requis avant le tag.
+
+La première CI distante a ensuite révélé 126 échecs d'intégration : 125 venaient
+du champ UI `shared_origin` transmis à la projection MCP fermée ; le dernier
+masquait la même incompatibilité pour les plugins derrière l'ancien décompte
+de requêtes. Les deux échecs sont reproduits localement avant correction, ainsi
+que quatre nouveaux tests unitaires avec provenance absente ou renseignée.
+Après exclusion explicite de ce champ UI, les 15 tests unitaires de contrat et
+165 intégrations MCP/plugins/skills/provenance passent. Les schémas restent
+fermés, les contrôles d'autorisation et les instantanés gardent leur portée.
+La provenance des plugins est lue par une requête groupée supplémentaire,
+vérifiée avec 1, 3 et 12 plugins ; aucun N+1 n'est introduit. Un nouveau verdict
+CI complet reste obligatoire avant le tag.
 
 ## Revue adversariale et contre-vérifications
 
@@ -45,6 +57,7 @@ requis avant le tag.
 | Preuve reproductible | La garde des octets figés échoue après conversion des fins de ligne ; la règle Git conserve les octets d'origine, vérifiés dans l'index et l'archive Linux. Les empreintes et rapports ne sont pas réécrits. |
 | État et métriques | Le modèle de l'analyse est capturé avec son opération, plutôt que relu après un changement à chaud. Les annotations utilisent les contrats existants, sans nouvelle clé LangGraph ni dérivation de permission. |
 | Isolation des tests | Le test d'export d'une skill système commitait une ligne sans propriétaire ; le nettoyage des comptes ne pouvait pas la retirer. Une fixture à clôture garantie supprime uniquement sa propre ligne. Les assertions métier restent identiques. |
+| Sondes de santé CI | `pg_isready` sans identité rapporte un succès tout en générant un faux FATAL pour le rôle root ; la reproduction utilise seulement PostgreSQL jetable. Chaque sonde CI nomme désormais son utilisateur et sa base déclarés, sans créer de rôle supplémentaire. |
 | Navigateur | Chromium tente un RPC natif d'autoremplissage au montage du champ de recherche. Le proxy le refuse toujours ; seule sa reconnaissance dans le relevé des sondes natives change. Le contrôle séparé des requêtes émises par la page reste inchangé. |
 | Secrets et installation | Les données Maps sont un couple optionnel privé, exclu de l'état public, des journaux et du bootstrap LLM. Les 23 fichiers d'environnement examinés conservent leurs autres valeurs ; les deux archives SOPS sont vérifiées après déchiffrement en mémoire. |
 | Scan pré-push | Quatre fixtures fictives de refus de credentials sont signalées dans leur commit et son merge : huit empreintes historiques exactes sont documentées, sans exemption de chemin ni réécriture d'historique. Les lignes actuelles sont marquées individuellement. Le scanner accepte ces fixtures mais refuse un nouveau canari non marqué ; les 29 tests de refus passent. |

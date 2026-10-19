@@ -755,7 +755,7 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                                         |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
-| **55** functional domains | **967,000+** source lines (excl. tests) | **63,000+** inventoried automated tests | **350** ADRs                                                            |
+| **55** functional domains | **967,000+** source lines (excl. tests) | **64,000+** inventoried automated tests | **350** ADRs                                                            |
 | **284** versions shipped  | **6 languages**, parity enforced in CI  | **621** Prometheus metrics              | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 Source-line figure: 967,000+ physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-19). Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.

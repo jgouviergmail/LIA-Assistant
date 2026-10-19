@@ -19,7 +19,7 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
 | Quellcodezeilen (ohne Tests) — 55 Fachdomänen | **967.000+** |
-| Inventarisierte automatisierte Tests; passende Suiten für Commit und Release | **63.000+** |
+| Inventarisierte automatisierte Tests; passende Suiten für Commit und Release | **64.000+** |
 | Dokumentierte Architekturentscheidungen (ADR) | **350** |
 | In regelmäßigem Rhythmus gelieferte Versionen | **284** |
 | Sprachen, Parität automatisch geprüft | **6** |

@@ -26,6 +26,10 @@ matching unfinished plugin children. Notification persistence follows the same
 commit; live delivery happens afterwards. Snapshot retention is fixed rather
 than extended on retry. Erasure anonymizes retained origin metadata.
 
+Sender/time provenance belongs to settings displays. Native MCP and plugin
+inventories explicitly exclude that UI field before validating their own closed
+schemas; extending an HTTP response must not change an assistant contract.
+
 The explicitly requested trust exception amends
 [ADR-327](ADR-327-Skill-Library-And-Third-Party-Skills.md): after activation,
 a peer skill uses the recipient-authored execution policy. Only server-written

@@ -50,6 +50,13 @@ map before place details in every response format.
 
 ### Fixed
 
+- 🔒 **Native MCP and plugin management keep their closed metadata contracts.**
+  Sender/time badges remain visible in settings; their UI provenance is excluded
+  from assistant reads and confirmation snapshots. Existing MCP management
+  operations stay usable, without relaxing validation or forwarding private data.
+- 🩺 **CI PostgreSQL health probes use their declared database identity.**
+  Readiness no longer creates misleading `role "root" does not exist` messages
+  while reporting a healthy throwaway database.
 - 🧮 **JEV accepts feasible cent-rounded probability mass consistently.** The
   common native validator and annotation policy preserve raw weights and
   conservatively cap concentration, rather than rejecting the provider's

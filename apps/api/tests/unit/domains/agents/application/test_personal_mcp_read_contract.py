@@ -1,5 +1,6 @@
 """New UI metadata requires a reviewed native projection; identity stays injected."""
 
+from datetime import UTC, datetime
 from typing import get_args
 from unittest.mock import AsyncMock
 from uuid import uuid4
@@ -8,6 +9,7 @@ import pytest
 from pydantic import ValidationError
 
 from src.core.application_tools import APPLICATION_TOOL_NAMES
+from src.core.capability_origin import CapabilityOrigin
 from src.core.config import settings
 from src.core.exceptions import AuthorizationError
 from src.domains.agents.application.catalogue_registration import APPLICATION_MANIFESTS
@@ -25,7 +27,7 @@ from src.domains.agents.application.personal_mcp_read_spec import (
 from src.domains.agents.tools.application_personal_mcp_tools import (
     get_lia_personal_mcp_servers_tool,
 )
-from src.domains.user_mcp.management_projection import read_personal_mcp_metadata
+from src.domains.user_mcp.management_projection import _public_server, read_personal_mcp_metadata
 from src.domains.user_mcp.models import UserMCPAuthType, UserMCPServerStatus
 from src.domains.user_mcp.schemas import (
     MCPDiscoveredToolResponse,
@@ -38,6 +40,46 @@ from src.infrastructure.mcp.personal_metadata_gateway import (
 from src.infrastructure.startup.integrations import init_user_mcp_pool
 
 pytestmark = pytest.mark.unit
+
+
+@pytest.mark.parametrize("shared", [False, True])
+def test_real_ui_response_projects_without_private_or_sender_data(shared):
+    now = datetime.now(UTC)
+    source = UserMCPServerResponse(
+        id=uuid4(),
+        name="Visible server",
+        url="https://example.com/private-data",
+        auth_type=UserMCPAuthType.NONE,
+        status=UserMCPServerStatus.ACTIVE,
+        is_enabled=True,
+        timeout_seconds=30,
+        hitl_required=None,
+        tool_count=3,
+        tools=[
+            MCPDiscoveredToolResponse(
+                tool_name="visible_tool",
+                description="Visible description",
+                input_schema={"default": "private-data"},
+            )
+        ],
+        last_connected_at=None,
+        last_error="private-data",
+        created_at=now,
+        updated_at=now,
+        shared_origin=(
+            CapabilityOrigin(sender_display_name="private-data", shared_at=now, transfer_id=uuid4())
+            if shared
+            else None
+        ),
+    )
+    before = source.model_dump()
+    result = _public_server(source, tools_offset=1)
+    assert result.id == source.id and result.endpoint_host == "example.com"
+    assert result.tools[0].tool_name == "visible_tool" and result.next_tool_offset == 2
+    assert result.has_connection_error
+    raw = result.model_dump_json()
+    assert all(value not in raw for value in ["private-data", "input_schema", "shared_origin"])
+    assert source.model_dump() == before, "The settings response must retain its own metadata"
 
 
 def test_personal_mcp_fields_have_explicit_public_or_private_policy():

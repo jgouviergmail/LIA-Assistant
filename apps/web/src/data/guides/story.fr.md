@@ -19,7 +19,7 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | --- | --- |
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
 | Lignes de source (hors tests) — 55 domaines fonctionnels | **967 000+** |
-| Tests automatisés inventoriés ; suites adaptées au commit et à la livraison | **63 000+** |
+| Tests automatisés inventoriés ; suites adaptées au commit et à la livraison | **64 000+** |
 | Décisions d'architecture documentées (ADR) | **350** |
 | Versions livrées à rythme régulier | **284** |
 | Langues, parité vérifiée automatiquement | **6** |

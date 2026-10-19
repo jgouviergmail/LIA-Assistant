@@ -1,17 +1,55 @@
 """Public plugin schema growth, execution modes and actor boundaries stay explicit."""
 
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock
+from uuid import uuid4
+
 import pytest
 from pydantic import ValidationError
 
+from src.core.capability_origin import CapabilityOrigin
+from src.domains.agents.application import plugin_read
 from src.domains.agents.application.plugin_read_schemas import (
     PluginReadInput,
     PluginReadItem,
 )
 from src.domains.agents.application.plugin_read_spec import PLUGIN_READ_MANIFEST
 from src.domains.agents.tools.application_plugin_tools import get_lia_plugins_tool
-from src.domains.plugins.schemas import PluginResponse
+from src.domains.plugins.schemas import PluginListResponse, PluginResponse
 
 pytestmark = pytest.mark.unit
+
+
+@pytest.mark.parametrize("shared", [False, True])
+async def test_real_settings_rows_remain_readable_without_exposing_sender_metadata(
+    monkeypatch, shared
+):
+    source = PluginResponse(
+        id=uuid4(),
+        name="Visible plugin",
+        spec_version="1.0.0",
+        shared_origin=(
+            CapabilityOrigin(
+                sender_display_name="private-data",
+                shared_at=datetime.now(UTC),
+                transfer_id=uuid4(),
+            )
+            if shared
+            else None
+        ),
+    )
+    before = source.model_dump()
+    monkeypatch.setattr(plugin_read, "require_plugin_access", AsyncMock())
+    monkeypatch.setattr(
+        plugin_read,
+        "list_plugin_projection",
+        AsyncMock(return_value=PluginListResponse(plugins=[source], total=1)),
+    )
+    result = await plugin_read.read_plugins(AsyncMock(), uuid4(), PluginReadInput())
+    assert result.total == 1 and result.next_offset is None
+    assert result.items[0].id == source.id and result.items[0].name == "Visible plugin"
+    assert all(value not in result.model_dump_json() for value in ["private-data", "shared_origin"])
+    assert source.model_dump() == before
 
 
 @pytest.mark.parametrize(

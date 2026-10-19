@@ -33,6 +33,13 @@ not edit or remove the recipient's copy. Retries preserve recipient edits,
 activation and deletion. Account erasure anonymizes the retained sender origin;
 exports omit another account's identifiers and secret package material.
 
+Sender/time provenance is settings-only metadata. Native MCP and plugin readers
+explicitly omit `shared_origin` before validating their closed assistant
+contracts; the settings response keeps it. Their authorization, confirmation
+snapshots and credential boundaries remain unchanged. The plugin settings list
+uses one batched origin lookup in addition to its component queries, independent
+of the number of plugins; integration tests measure that budget at multiple sizes.
+
 ## Transactions, recovery and retention
 
 Network/archive validation runs outside SQL transactions. Durable leased claims,
