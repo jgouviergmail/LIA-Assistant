@@ -1,10 +1,13 @@
 # JEV — intégration native et bascule administrative
 
 Les usages email/agenda ajoutent des [qualifications consultatives typées](EMAIL_EVENT_CLASSIFICATION.md)
-aux données affichées et au contexte de réponse. Ils restent désactivés : la
-calibration fictive passe, mais les tentatives de validation gelée ont été
-interrompues par des réponses natives invalides. Les rapports comptabilisés sont
-conservés ; ni l'absence de badge ni une forte concentration ne prouvent la sûreté.
+aux données affichées et au contexte de réponse. Ils sont désactivés par défaut ;
+leur état réel dépend des réglages administrateur. Le
+[correctif de validation numérique](../superpowers/qualification/jev-probability-sum-2026-10-19/README.md)
+résout les interruptions `probability_sum` et le rejeu complet aboutit. La
+couverture sémantique reste sous les objectifs de recette pour certaines classes.
+Les rapports comptabilisés sont conservés ; ni l'absence de badge ni une forte
+concentration ne prouvent la sûreté.
 
 Décision d'architecture : [ADR-325 — décisions bornées, bascules à chaud et replis comptabilisés](../architecture/ADR-325-JEV-Bounded-Decisions-With-Hot-Switches-And-Accounted-Fallbacks.md).
 
@@ -170,6 +173,13 @@ Les anciens journaux opérationnels ne permettent pas de reconstruire cette
 raison lorsqu’elle n’a pas été journalisée. Les diagnostics privés existants
 restent bornés et distincts de cet événement. Une réponse native valide ne prouve
 pas son acceptation par l’usage ; seuils, repli et action restent distincts.
+
+La somme des probabilités Choice est approximative dans le contrat HTTP. Le
+transport et les annotations email/agenda partagent une validation compatible
+avec la quantification observée, tout en refusant les masses impossibles. Les
+probabilités brutes restent visibles ; la concentration ne remplit pas une masse
+manquante et abaisse le gagnant en cas d'excès. Voir le
+[diagnostic et la recette](../superpowers/qualification/jev-probability-sum-2026-10-19/README.md).
 
 Chaque réponse Choice conserve sa distribution et sa facturation, y compris
 les maxima ex æquo. La confiance appliquée est le minimum entre celle reçue et

@@ -1,5 +1,9 @@
 # Fictional email/event native qualification — 2026-10-18
 
+Follow-up: [the numerical protocol fix and complete replay](../jev-probability-sum-2026-10-19/README.md)
+resolve `probability_sum`; the semantic coverage gate still fails. The historical
+reports below remain unchanged and retain their original failure outcomes.
+
 Platform-paid DEV calls were explicitly authorized under a cumulative budget.
 Only original fictional evidence was submitted; no real mailbox/calendar read,
 credential/configuration write or activation was performed. The ordinary native

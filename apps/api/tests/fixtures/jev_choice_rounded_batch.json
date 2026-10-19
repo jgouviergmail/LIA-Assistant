@@ -1,0 +1,124 @@
+{
+  "model": "jev-1.13.0",
+  "answers": {
+    "i0_category": {
+      "type": "choice",
+      "choice": "personal",
+      "confidence": 0.91,
+      "probabilities": {
+        "unknown": 0.05,
+        "professional": 0.0,
+        "personal": 0.93,
+        "spam": 0.0,
+        "phishing_scam": 0.01
+      }
+    },
+    "i0_priority": {
+      "type": "choice",
+      "choice": "normal",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.01,
+        "normal": 0.99,
+        "urgent": 0.0,
+        "critical": 0.0
+      }
+    },
+    "i1_category": {
+      "type": "choice",
+      "choice": "unknown",
+      "confidence": 0.59,
+      "probabilities": {
+        "unknown": 0.67,
+        "professional": 0.01,
+        "personal": 0.19,
+        "spam": 0.02,
+        "phishing_scam": 0.11
+      }
+    },
+    "i1_priority": {
+      "type": "choice",
+      "choice": "normal",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.01,
+        "normal": 0.99,
+        "urgent": 0.0,
+        "critical": 0.0
+      }
+    },
+    "i2_category": {
+      "type": "choice",
+      "choice": "professional",
+      "confidence": 0.95,
+      "probabilities": {
+        "unknown": 0.04,
+        "professional": 0.96,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      }
+    },
+    "i2_priority": {
+      "type": "choice",
+      "choice": "normal",
+      "confidence": 0.75,
+      "probabilities": {
+        "unknown": 0.18,
+        "normal": 0.81,
+        "urgent": 0.01,
+        "critical": 0.0
+      }
+    },
+    "i3_category": {
+      "type": "choice",
+      "choice": "phishing_scam",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.01,
+        "professional": 0.0,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.99
+      }
+    },
+    "i3_priority": {
+      "type": "choice",
+      "choice": "unknown",
+      "confidence": 0.77,
+      "probabilities": {
+        "unknown": 0.83,
+        "normal": 0.13,
+        "urgent": 0.04,
+        "critical": 0.0
+      }
+    },
+    "i4_category": {
+      "type": "choice",
+      "choice": "phishing_scam",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "professional": 0.0,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 1.0
+      }
+    },
+    "i4_priority": {
+      "type": "choice",
+      "choice": "unknown",
+      "confidence": 0.67,
+      "probabilities": {
+        "unknown": 0.75,
+        "normal": 0.21,
+        "urgent": 0.04,
+        "critical": 0.0
+      }
+    }
+  },
+  "usage": {
+    "input_tokens": 6244,
+    "output_tokens": 506
+  }
+}

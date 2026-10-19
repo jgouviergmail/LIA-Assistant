@@ -12,7 +12,6 @@ no separate confidence; its answers travel apart from the Choice answers.
 
 import asyncio
 import json
-import math
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -34,6 +33,13 @@ from src.infrastructure.utils.bounded_read import BodyTooLargeError, read_bounde
 MAX_REQUEST_BYTES = 32_000
 MAX_RESPONSE_BYTES = 131_072
 MAX_QUESTIONS = 24
+
+# The HTTP schema promises an approximately unit sum. Observed Choice values are
+# cent-quantized, sometimes with binary float residue; preserve that evidence.
+CHOICE_PROBABILITY_CONTRACT = "cent-rounded-v1"
+_CHOICE_QUANTUM = Decimal("0.01")
+_CHOICE_FLOAT_EPSILON = Decimal("1e-12")
+_CHOICE_PRECISE_SUM_TOLERANCE = Decimal("0.001")
 
 
 # Plain unions: an ``Annotated`` inside a union loses its metadata
@@ -261,34 +267,57 @@ def _validate_questions(questions: Mapping[str, DecisionQuestion]) -> None:
         raise TypeSafeError("invalid_questions")
 
 
+def _choice_probability_mass(probabilities: Mapping[str, float]) -> Decimal | None:
+    values = [Decimal(str(value)) for value in probabilities.values()]
+    total = sum(values, Decimal(0))
+    if total <= 0:
+        return None
+    if abs(total - 1) <= _CHOICE_PRECISE_SUM_TOLERANCE:
+        return total
+    rounded = [value.quantize(_CHOICE_QUANTUM) for value in values]
+    if any(
+        abs(value - cent) > _CHOICE_FLOAT_EPSILON
+        for value, cent in zip(values, rounded, strict=True)
+    ):
+        return None
+    half = _CHOICE_QUANTUM / 2
+    lower = sum(max(Decimal(0), value - half) for value in rounded)
+    upper = sum(min(Decimal(1), value + half) for value in rounded)
+    return total if lower <= 1 <= upper else None
+
+
+def choice_confidence(answer: ChoiceAnswer) -> float | None:
+    """Shared mass validation and conservative confidence; raw weights stay intact."""
+    count = len(answer.probabilities)
+    if count < 2 or answer.choice not in answer.probabilities:
+        return None
+    mass = _choice_probability_mass(answer.probabilities)
+    if mass is None:
+        return None
+    # Never fill missing mass by raising the winning probability. Excess mass
+    # lowers its concentration; tiny serialization residue keeps existing boundaries.
+    normalizer = mass if mass > 1 + _CHOICE_FLOAT_EPSILON else Decimal(1)
+    best = Decimal(str(answer.probabilities[answer.choice])) / normalizer
+    concentration = max(Decimal(0), (count * best - 1) / (count - 1))
+    return min(answer.confidence, float(concentration))
+
+
 def _parse_answer(value: JsonValue, question: ChoiceQuestion) -> ChoiceAnswer:
     try:
         answer = ChoiceAnswer.model_validate(value)
     except ValidationError:
         raise TypeSafeError("invalid_response", reason="answer_schema") from None
     probabilities = answer.probabilities
-    reason: InvalidResponseReason | None = None
     if set(probabilities) != set(question.criteria):
-        reason = "option_set"
-    elif answer.choice not in probabilities:
-        reason = "unknown_choice"
-    elif not math.isclose(sum(probabilities.values()), 1, abs_tol=0.001):
-        reason = "probability_sum"
-    elif probabilities[answer.choice] != max(probabilities.values()):
-        reason = "winning_choice"
-    if reason is not None:
-        raise TypeSafeError("invalid_response", reason=reason)
-    # Choice permits any maximum, including ties. Keep all returned evidence,
-    # but a provider confidence must never exceed the official concentration.
-    # (n*pmax - 1)/(n-1) is the same formula without a repeating 1/n. Decimal
-    # avoids binary arithmetic nudging an exact policy boundary down; neither
-    # the probabilities nor a genuinely lower concentration are rounded up.
-    count = len(probabilities)
-    concentration = max(
-        0.0,
-        float((count * Decimal(str(probabilities[answer.choice])) - 1) / (count - 1)),
-    )
-    return answer.model_copy(update={"confidence": min(answer.confidence, concentration)})
+        raise TypeSafeError("invalid_response", reason="option_set")
+    if answer.choice not in probabilities:
+        raise TypeSafeError("invalid_response", reason="unknown_choice")
+    confidence = choice_confidence(answer)
+    if confidence is None:
+        raise TypeSafeError("invalid_response", reason="probability_sum")
+    if probabilities[answer.choice] != max(probabilities.values()):
+        raise TypeSafeError("invalid_response", reason="winning_choice")
+    return answer.model_copy(update={"confidence": confidence})
 
 
 def _parse_noul(value: JsonValue) -> NoulAnswer:

@@ -1,0 +1,53 @@
+{
+  "runs": [
+    {
+      "run_id": "classification-replay-33785b93-cf83-478b-bbd6-1c68b206f550",
+      "native_usage_rows": 9,
+      "persisted_cost_eur": "0.002389"
+    },
+    {
+      "run_id": "classification-replay-53eeb7ed-6376-43c2-9c71-78332a585e16",
+      "native_usage_rows": 8,
+      "persisted_cost_eur": "0.002024"
+    },
+    {
+      "run_id": "classification-replay-a7fa55fc-4d53-4ecf-8c4c-f00e3c3cbde9",
+      "native_usage_rows": 9,
+      "persisted_cost_eur": "0.002357"
+    },
+    {
+      "run_id": "classification-replay-cc02f253-c6c3-49d1-939d-6fa6a485522c",
+      "native_usage_rows": 10,
+      "persisted_cost_eur": "0.002628"
+    },
+    {
+      "run_id": "classification-replay-d2c7cc68-9e2f-4432-9125-aa292971bcf4",
+      "native_usage_rows": 6,
+      "persisted_cost_eur": "0.001648"
+    },
+    {
+      "run_id": "classification-sum-diagnosis-294d2bb2-0bc7-42ec-b8f6-8ebd044f01a7",
+      "native_usage_rows": 9,
+      "persisted_cost_eur": "0.002389"
+    },
+    {
+      "run_id": "classification-sum-diagnosis-638a596b-3533-4468-8de0-25721ec1b284",
+      "native_usage_rows": 1,
+      "persisted_cost_eur": "0.000233"
+    },
+    {
+      "run_id": "classification-sum-service-e9fd2243-cb98-4bf5-aed9-434e4b7e5d99",
+      "native_usage_rows": 1,
+      "persisted_cost_eur": "0.000233"
+    }
+  ],
+  "native_usage_rows": 53,
+  "summary_rows": 8,
+  "authorized_owner_matches": true,
+  "persisted_total_cost_eur": "0.013901",
+  "flags": {
+    "global": true,
+    "email_classification": true,
+    "event_classification": true
+  }
+}

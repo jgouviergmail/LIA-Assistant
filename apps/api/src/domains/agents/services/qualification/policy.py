@@ -1,6 +1,5 @@
 """Independent conservative acceptance; a model's concentration is not truth."""
 
-import math
 from datetime import datetime, timedelta
 from typing import get_args
 
@@ -22,7 +21,7 @@ from src.core.content_classification import (
 from src.domains.agents.services.qualification.contracts import (
     ClassificationObservation,
 )
-from src.infrastructure.llm.typesafe_client import ChoiceAnswer
+from src.infrastructure.llm.typesafe_client import ChoiceAnswer, choice_confidence
 
 
 def accepted_choice(answer: ChoiceAnswer | None, options: tuple[str, ...]) -> str:
@@ -30,19 +29,19 @@ def accepted_choice(answer: ChoiceAnswer | None, options: tuple[str, ...]) -> st
         return "unknown"
     probabilities = answer.probabilities
     best = probabilities[answer.choice]
-    if not math.isclose(sum(probabilities.values()), 1.0, abs_tol=1e-6):
+    confidence = choice_confidence(answer)
+    if confidence is None:
         return "unknown"
     if sum(value == best for value in probabilities.values()) != 1 or best != max(
         probabilities.values()
     ):
         return "unknown"
-    concentration = (best - 1 / len(options)) / (1 - 1 / len(options))
     threshold = (
         JEV_CLASSIFICATION_ALERT_MIN_CONFIDENCE
         if answer.choice in {"phishing_scam", "critical"}
         else JEV_CLASSIFICATION_MIN_CONFIDENCE
     )
-    return answer.choice if min(answer.confidence, concentration) >= threshold else "unknown"
+    return answer.choice if confidence >= threshold else "unknown"
 
 
 def classify_answers(

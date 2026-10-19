@@ -1,0 +1,1592 @@
+{
+  "run_id": "classification-sum-diagnosis-294d2bb2-0bc7-42ec-b8f6-8ebd044f01a7",
+  "model": "jev-1.13.0",
+  "policy_sha256": "c9a09d176ae05f2557da72c1939a71df95466b3c2d2f86abed8499fd8b3c041d",
+  "client_sha256": "cafa78f83c5c7839ce778771e13ec5e46fc743cd389c20fa6f17afe51a15e37b",
+  "members": [
+    "holdout-065",
+    "holdout-066",
+    "holdout-067",
+    "holdout-068",
+    "holdout-069"
+  ],
+  "outcome": "invalid_response",
+  "charge": {
+    "model": "jev-1.13.0",
+    "input_tokens": 6244,
+    "output_tokens": 506,
+    "cost_usd": 0.00026224800000000003,
+    "cost_eur": 0.00023304668520000003
+  },
+  "prior_cost_eur": "0.00841674005970000077",
+  "total_cost_eur": "0.01103799274200000101",
+  "calls": [
+    {
+      "outcome": "success",
+      "members": [
+        "holdout-000",
+        "holdout-001",
+        "holdout-002",
+        "holdout-003",
+        "holdout-004",
+        "holdout-005"
+      ],
+      "charge": {
+        "model": "jev-1.13.0",
+        "input_tokens": 7332,
+        "output_tokens": 601,
+        "cost_usd": 0.000307944,
+        "cost_eur": 0.0002736544356
+      }
+    },
+    {
+      "outcome": "success",
+      "members": [
+        "holdout-006",
+        "holdout-007",
+        "holdout-008",
+        "holdout-009",
+        "holdout-010",
+        "holdout-011"
+      ],
+      "charge": {
+        "model": "jev-1.13.0",
+        "input_tokens": 7356,
+        "output_tokens": 601,
+        "cost_usd": 0.00030895200000000003,
+        "cost_eur": 0.00027455019480000006
+      }
+    },
+    {
+      "outcome": "success",
+      "members": [
+        "holdout-012",
+        "holdout-013",
+        "holdout-014",
+        "holdout-015",
+        "holdout-016",
+        "holdout-017"
+      ],
+      "charge": {
+        "model": "jev-1.13.0",
+        "input_tokens": 7364,
+        "output_tokens": 601,
+        "cost_usd": 0.000309288,
+        "cost_eur": 0.00027484878120000004
+      }
+    },
+    {
+      "outcome": "success",
+      "members": [
+        "holdout-018",
+        "holdout-019",
+        "holdout-020",
+        "holdout-021",
+        "holdout-022",
+        "holdout-023"
+      ],
+      "charge": {
+        "model": "jev-1.13.0",
+        "input_tokens": 7357,
+        "output_tokens": 597,
+        "cost_usd": 0.000308994,
+        "cost_eur": 0.0002745875181
+      }
+    },
+    {
+      "outcome": "success",
+      "members": [
+        "holdout-024",
+        "holdout-025",
+        "holdout-026",
+        "holdout-027",
+        "holdout-028",
+        "holdout-029"
+      ],
+      "charge": {
+        "model": "jev-1.13.0",
+        "input_tokens": 7351,
+        "output_tokens": 601,
+        "cost_usd": 0.00030874200000000003,
+        "cost_eur": 0.0002743635783
+      }
+    },
+    {
+      "outcome": "success",
+      "members": [
+        "holdout-030",
+        "holdout-031",
+        "holdout-032",
+        "holdout-033",
+        "holdout-034",
+        "holdout-035"
+      ],
+      "charge": {
+        "model": "jev-1.13.0",
+        "input_tokens": 7381,
+        "output_tokens": 601,
+        "cost_usd": 0.00031000200000000003,
+        "cost_eur": 0.00027548327730000005
+      }
+    },
+    {
+      "outcome": "success",
+      "members": [
+        "holdout-036",
+        "holdout-037",
+        "holdout-038",
+        "holdout-039",
+        "holdout-040",
+        "holdout-041"
+      ],
+      "charge": {
+        "model": "jev-1.13.0",
+        "input_tokens": 7386,
+        "output_tokens": 601,
+        "cost_usd": 0.00031021200000000003,
+        "cost_eur": 0.00027566989380000003
+      }
+    },
+    {
+      "outcome": "success",
+      "members": [
+        "holdout-060",
+        "holdout-061",
+        "holdout-062",
+        "holdout-063",
+        "holdout-064"
+      ],
+      "charge": {
+        "model": "jev-1.13.0",
+        "input_tokens": 6216,
+        "output_tokens": 498,
+        "cost_usd": 0.000261072,
+        "cost_eur": 0.0002320016328
+      }
+    },
+    {
+      "outcome": "invalid_response",
+      "members": [
+        "holdout-065",
+        "holdout-066",
+        "holdout-067",
+        "holdout-068",
+        "holdout-069"
+      ],
+      "charge": {
+        "model": "jev-1.13.0",
+        "input_tokens": 6244,
+        "output_tokens": 506,
+        "cost_usd": 0.00026224800000000003,
+        "cost_eur": 0.00023304668520000003
+      }
+    }
+  ],
+  "settings_unchanged": true,
+  "wire_answers": [
+    {
+      "call_index": 0,
+      "question": "i0_category",
+      "choice": "professional",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.01,
+        "professional": 0.99,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 0,
+      "question": "i0_priority",
+      "choice": "normal",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "normal": 1.0,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 0,
+      "question": "i1_category",
+      "choice": "personal",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.01,
+        "professional": 0.0,
+        "personal": 0.99,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 0,
+      "question": "i1_priority",
+      "choice": "normal",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "normal": 1.0,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 0,
+      "question": "i2_category",
+      "choice": "spam",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.0,
+        "professional": 0.0,
+        "personal": 0.0,
+        "spam": 0.99,
+        "phishing_scam": 0.01
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 0,
+      "question": "i2_priority",
+      "choice": "normal",
+      "confidence": 0.56,
+      "probabilities": {
+        "unknown": 0.32,
+        "normal": 0.67,
+        "urgent": 0.01,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 0,
+      "question": "i3_category",
+      "choice": "phishing_scam",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "professional": 0.0,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 1.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 0,
+      "question": "i3_priority",
+      "choice": "unknown",
+      "confidence": 0.92,
+      "probabilities": {
+        "unknown": 0.94,
+        "normal": 0.03,
+        "urgent": 0.03,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 0,
+      "question": "i4_category",
+      "choice": "professional",
+      "confidence": 0.96,
+      "probabilities": {
+        "unknown": 0.03,
+        "professional": 0.97,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 0,
+      "question": "i4_priority",
+      "choice": "urgent",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "normal": 0.0,
+        "urgent": 1.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 0,
+      "question": "i5_category",
+      "choice": "professional",
+      "confidence": 0.24,
+      "probabilities": {
+        "unknown": 0.35,
+        "professional": 0.39,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.26
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 0,
+      "question": "i5_priority",
+      "choice": "critical",
+      "confidence": 0.96,
+      "probabilities": {
+        "unknown": 0.03,
+        "normal": 0.0,
+        "urgent": 0.0,
+        "critical": 0.97
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 1,
+      "question": "i0_category",
+      "choice": "unknown",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 1.0,
+        "professional": 0.0,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 1,
+      "question": "i0_priority",
+      "choice": "unknown",
+      "confidence": 0.65,
+      "probabilities": {
+        "unknown": 0.74,
+        "normal": 0.26,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 1,
+      "question": "i1_category",
+      "choice": "professional",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "professional": 1.0,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 1,
+      "question": "i1_priority",
+      "choice": "normal",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "normal": 1.0,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 1,
+      "question": "i2_category",
+      "choice": "personal",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "professional": 0.0,
+        "personal": 1.0,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 1,
+      "question": "i2_priority",
+      "choice": "normal",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "normal": 1.0,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 1,
+      "question": "i3_category",
+      "choice": "spam",
+      "confidence": 0.97,
+      "probabilities": {
+        "unknown": 0.0,
+        "professional": 0.0,
+        "personal": 0.0,
+        "spam": 0.98,
+        "phishing_scam": 0.02
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 1,
+      "question": "i3_priority",
+      "choice": "normal",
+      "confidence": 0.61,
+      "probabilities": {
+        "unknown": 0.29,
+        "normal": 0.71,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 1,
+      "question": "i4_category",
+      "choice": "phishing_scam",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "professional": 0.0,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 1.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 1,
+      "question": "i4_priority",
+      "choice": "unknown",
+      "confidence": 0.91,
+      "probabilities": {
+        "unknown": 0.93,
+        "normal": 0.02,
+        "urgent": 0.01,
+        "critical": 0.04
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 1,
+      "question": "i5_category",
+      "choice": "professional",
+      "confidence": 0.94,
+      "probabilities": {
+        "unknown": 0.04,
+        "professional": 0.95,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.01
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 1,
+      "question": "i5_priority",
+      "choice": "urgent",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "normal": 0.0,
+        "urgent": 1.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 2,
+      "question": "i0_category",
+      "choice": "professional",
+      "confidence": 0.76,
+      "probabilities": {
+        "unknown": 0.15,
+        "professional": 0.8099999999999999,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.04
+      },
+      "sum_decimal": "0.9999999999999999"
+    },
+    {
+      "call_index": 2,
+      "question": "i0_priority",
+      "choice": "critical",
+      "confidence": 0.96,
+      "probabilities": {
+        "unknown": 0.01,
+        "normal": 0.0,
+        "urgent": 0.02,
+        "critical": 0.97
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 2,
+      "question": "i1_category",
+      "choice": "unknown",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 1.0,
+        "professional": 0.0,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 2,
+      "question": "i1_priority",
+      "choice": "unknown",
+      "confidence": 0.64,
+      "probabilities": {
+        "unknown": 0.73,
+        "normal": 0.27,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 2,
+      "question": "i2_category",
+      "choice": "professional",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.01,
+        "professional": 0.99,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 2,
+      "question": "i2_priority",
+      "choice": "normal",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "normal": 1.0,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 2,
+      "question": "i3_category",
+      "choice": "personal",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "professional": 0.0,
+        "personal": 1.0,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 2,
+      "question": "i3_priority",
+      "choice": "normal",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "normal": 1.0,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 2,
+      "question": "i4_category",
+      "choice": "spam",
+      "confidence": 0.94,
+      "probabilities": {
+        "unknown": 0.02,
+        "professional": 0.0,
+        "personal": 0.0,
+        "spam": 0.95,
+        "phishing_scam": 0.03
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 2,
+      "question": "i4_priority",
+      "choice": "normal",
+      "confidence": 0.59,
+      "probabilities": {
+        "unknown": 0.3,
+        "normal": 0.69,
+        "urgent": 0.01,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 2,
+      "question": "i5_category",
+      "choice": "phishing_scam",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "professional": 0.0,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 1.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 2,
+      "question": "i5_priority",
+      "choice": "unknown",
+      "confidence": 0.93,
+      "probabilities": {
+        "unknown": 0.95,
+        "normal": 0.01,
+        "urgent": 0.03,
+        "critical": 0.01
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 3,
+      "question": "i0_category",
+      "choice": "professional",
+      "confidence": 0.84,
+      "probabilities": {
+        "unknown": 0.09,
+        "professional": 0.87,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.04
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 3,
+      "question": "i0_priority",
+      "choice": "urgent",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.01,
+        "normal": 0.0,
+        "urgent": 0.99,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 3,
+      "question": "i1_category",
+      "choice": "professional",
+      "confidence": 0.8,
+      "probabilities": {
+        "unknown": 0.13,
+        "professional": 0.84,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.03
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 3,
+      "question": "i1_priority",
+      "choice": "critical",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.01,
+        "normal": 0.0,
+        "urgent": 0.0,
+        "critical": 0.99
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 3,
+      "question": "i2_category",
+      "choice": "unknown",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.99,
+        "professional": 0.0,
+        "personal": 0.01,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 3,
+      "question": "i2_priority",
+      "choice": "unknown",
+      "confidence": 0.57,
+      "probabilities": {
+        "unknown": 0.68,
+        "normal": 0.32,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 3,
+      "question": "i3_category",
+      "choice": "professional",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.01,
+        "professional": 0.99,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 3,
+      "question": "i3_priority",
+      "choice": "normal",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "normal": 1.0,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 3,
+      "question": "i4_category",
+      "choice": "personal",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.01,
+        "professional": 0.0,
+        "personal": 0.99,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 3,
+      "question": "i4_priority",
+      "choice": "normal",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "normal": 1.0,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 3,
+      "question": "i5_category",
+      "choice": "spam",
+      "confidence": 0.71,
+      "probabilities": {
+        "unknown": 0.2,
+        "professional": 0.0,
+        "personal": 0.0,
+        "spam": 0.77,
+        "phishing_scam": 0.03
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 3,
+      "question": "i5_priority",
+      "choice": "normal",
+      "confidence": 0.73,
+      "probabilities": {
+        "unknown": 0.19,
+        "normal": 0.8,
+        "urgent": 0.01,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 4,
+      "question": "i0_category",
+      "choice": "phishing_scam",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.01,
+        "professional": 0.0,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.99
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 4,
+      "question": "i0_priority",
+      "choice": "unknown",
+      "confidence": 0.96,
+      "probabilities": {
+        "unknown": 0.97,
+        "normal": 0.01,
+        "urgent": 0.01,
+        "critical": 0.01
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 4,
+      "question": "i1_category",
+      "choice": "professional",
+      "confidence": 0.9,
+      "probabilities": {
+        "unknown": 0.05,
+        "professional": 0.92,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.03
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 4,
+      "question": "i1_priority",
+      "choice": "urgent",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.01,
+        "normal": 0.0,
+        "urgent": 0.99,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 4,
+      "question": "i2_category",
+      "choice": "professional",
+      "confidence": 0.7,
+      "probabilities": {
+        "unknown": 0.15,
+        "professional": 0.76,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.09
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 4,
+      "question": "i2_priority",
+      "choice": "critical",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.01,
+        "normal": 0.0,
+        "urgent": 0.0,
+        "critical": 0.99
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 4,
+      "question": "i3_category",
+      "choice": "unknown",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 1.0,
+        "professional": 0.0,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 4,
+      "question": "i3_priority",
+      "choice": "unknown",
+      "confidence": 0.59,
+      "probabilities": {
+        "unknown": 0.69,
+        "normal": 0.31,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 4,
+      "question": "i4_category",
+      "choice": "professional",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.01,
+        "professional": 0.99,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 4,
+      "question": "i4_priority",
+      "choice": "normal",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "normal": 1.0,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 4,
+      "question": "i5_category",
+      "choice": "personal",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.01,
+        "professional": 0.0,
+        "personal": 0.99,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 4,
+      "question": "i5_priority",
+      "choice": "normal",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "normal": 1.0,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 5,
+      "question": "i0_category",
+      "choice": "spam",
+      "confidence": 0.79,
+      "probabilities": {
+        "unknown": 0.15,
+        "professional": 0.0,
+        "personal": 0.0,
+        "spam": 0.83,
+        "phishing_scam": 0.02
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 5,
+      "question": "i0_priority",
+      "choice": "normal",
+      "confidence": 0.6,
+      "probabilities": {
+        "unknown": 0.3,
+        "normal": 0.7,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 5,
+      "question": "i1_category",
+      "choice": "phishing_scam",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "professional": 0.0,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 1.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 5,
+      "question": "i1_priority",
+      "choice": "unknown",
+      "confidence": 0.93,
+      "probabilities": {
+        "unknown": 0.95,
+        "normal": 0.02,
+        "urgent": 0.02,
+        "critical": 0.01
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 5,
+      "question": "i2_category",
+      "choice": "professional",
+      "confidence": 0.9,
+      "probabilities": {
+        "unknown": 0.06,
+        "professional": 0.92,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.02
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 5,
+      "question": "i2_priority",
+      "choice": "urgent",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "normal": 0.0,
+        "urgent": 1.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 5,
+      "question": "i3_category",
+      "choice": "professional",
+      "confidence": 0.42,
+      "probabilities": {
+        "unknown": 0.25,
+        "professional": 0.54,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.21
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 5,
+      "question": "i3_priority",
+      "choice": "critical",
+      "confidence": 0.97,
+      "probabilities": {
+        "unknown": 0.01,
+        "normal": 0.0,
+        "urgent": 0.01,
+        "critical": 0.98
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 5,
+      "question": "i4_category",
+      "choice": "unknown",
+      "confidence": 0.97,
+      "probabilities": {
+        "unknown": 0.98,
+        "professional": 0.0,
+        "personal": 0.02,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 5,
+      "question": "i4_priority",
+      "choice": "unknown",
+      "confidence": 0.59,
+      "probabilities": {
+        "unknown": 0.69,
+        "normal": 0.31,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 5,
+      "question": "i5_category",
+      "choice": "professional",
+      "confidence": 0.97,
+      "probabilities": {
+        "unknown": 0.02,
+        "professional": 0.98,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 5,
+      "question": "i5_priority",
+      "choice": "normal",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "normal": 1.0,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 6,
+      "question": "i0_category",
+      "choice": "personal",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.01,
+        "professional": 0.0,
+        "personal": 0.99,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 6,
+      "question": "i0_priority",
+      "choice": "normal",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "normal": 1.0,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 6,
+      "question": "i1_category",
+      "choice": "spam",
+      "confidence": 0.87,
+      "probabilities": {
+        "unknown": 0.03,
+        "professional": 0.0,
+        "personal": 0.0,
+        "spam": 0.9,
+        "phishing_scam": 0.07
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 6,
+      "question": "i1_priority",
+      "choice": "unknown",
+      "confidence": 0.35,
+      "probabilities": {
+        "unknown": 0.51,
+        "normal": 0.48,
+        "urgent": 0.01,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 6,
+      "question": "i2_category",
+      "choice": "phishing_scam",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "professional": 0.0,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 1.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 6,
+      "question": "i2_priority",
+      "choice": "unknown",
+      "confidence": 0.95,
+      "probabilities": {
+        "unknown": 0.96,
+        "normal": 0.02,
+        "urgent": 0.02,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 6,
+      "question": "i3_category",
+      "choice": "professional",
+      "confidence": 0.96,
+      "probabilities": {
+        "unknown": 0.03,
+        "professional": 0.97,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 6,
+      "question": "i3_priority",
+      "choice": "urgent",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "normal": 0.0,
+        "urgent": 1.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 6,
+      "question": "i4_category",
+      "choice": "professional",
+      "confidence": 0.59,
+      "probabilities": {
+        "unknown": 0.22,
+        "professional": 0.67,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.11
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 6,
+      "question": "i4_priority",
+      "choice": "critical",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.01,
+        "normal": 0.0,
+        "urgent": 0.0,
+        "critical": 0.99
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 6,
+      "question": "i5_category",
+      "choice": "unknown",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.99,
+        "professional": 0.0,
+        "personal": 0.01,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 6,
+      "question": "i5_priority",
+      "choice": "unknown",
+      "confidence": 0.61,
+      "probabilities": {
+        "unknown": 0.71,
+        "normal": 0.29,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 7,
+      "question": "i0_category",
+      "choice": "personal",
+      "confidence": 0.71,
+      "probabilities": {
+        "unknown": 0.16,
+        "professional": 0.06,
+        "personal": 0.77,
+        "spam": 0.0,
+        "phishing_scam": 0.01
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 7,
+      "question": "i0_priority",
+      "choice": "normal",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "normal": 1.0,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 7,
+      "question": "i1_category",
+      "choice": "professional",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "professional": 1.0,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 7,
+      "question": "i1_priority",
+      "choice": "normal",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "normal": 1.0,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 7,
+      "question": "i2_category",
+      "choice": "professional",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "professional": 1.0,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 7,
+      "question": "i2_priority",
+      "choice": "normal",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "normal": 1.0,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 7,
+      "question": "i3_category",
+      "choice": "personal",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "professional": 0.0,
+        "personal": 1.0,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 7,
+      "question": "i3_priority",
+      "choice": "normal",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "normal": 1.0,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 7,
+      "question": "i4_category",
+      "choice": "professional",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.01,
+        "professional": 0.99,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 7,
+      "question": "i4_priority",
+      "choice": "normal",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "normal": 1.0,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 8,
+      "question": "i0_category",
+      "choice": "personal",
+      "confidence": 0.91,
+      "probabilities": {
+        "unknown": 0.05,
+        "professional": 0.0,
+        "personal": 0.93,
+        "spam": 0.0,
+        "phishing_scam": 0.01
+      },
+      "sum_decimal": "0.99"
+    },
+    {
+      "call_index": 8,
+      "question": "i0_priority",
+      "choice": "normal",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.01,
+        "normal": 0.99,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 8,
+      "question": "i1_category",
+      "choice": "unknown",
+      "confidence": 0.59,
+      "probabilities": {
+        "unknown": 0.67,
+        "professional": 0.01,
+        "personal": 0.19,
+        "spam": 0.02,
+        "phishing_scam": 0.11
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 8,
+      "question": "i1_priority",
+      "choice": "normal",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.01,
+        "normal": 0.99,
+        "urgent": 0.0,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 8,
+      "question": "i2_category",
+      "choice": "professional",
+      "confidence": 0.95,
+      "probabilities": {
+        "unknown": 0.04,
+        "professional": 0.96,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 8,
+      "question": "i2_priority",
+      "choice": "normal",
+      "confidence": 0.75,
+      "probabilities": {
+        "unknown": 0.18,
+        "normal": 0.81,
+        "urgent": 0.01,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 8,
+      "question": "i3_category",
+      "choice": "phishing_scam",
+      "confidence": 0.99,
+      "probabilities": {
+        "unknown": 0.01,
+        "professional": 0.0,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 0.99
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 8,
+      "question": "i3_priority",
+      "choice": "unknown",
+      "confidence": 0.77,
+      "probabilities": {
+        "unknown": 0.83,
+        "normal": 0.13,
+        "urgent": 0.04,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.00"
+    },
+    {
+      "call_index": 8,
+      "question": "i4_category",
+      "choice": "phishing_scam",
+      "confidence": 1.0,
+      "probabilities": {
+        "unknown": 0.0,
+        "professional": 0.0,
+        "personal": 0.0,
+        "spam": 0.0,
+        "phishing_scam": 1.0
+      },
+      "sum_decimal": "1.0"
+    },
+    {
+      "call_index": 8,
+      "question": "i4_priority",
+      "choice": "unknown",
+      "confidence": 0.67,
+      "probabilities": {
+        "unknown": 0.75,
+        "normal": 0.21,
+        "urgent": 0.04,
+        "critical": 0.0
+      },
+      "sum_decimal": "1.00"
+    }
+  ]
+}

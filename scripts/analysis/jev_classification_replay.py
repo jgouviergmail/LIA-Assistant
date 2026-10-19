@@ -202,7 +202,9 @@ async def replay(args: argparse.Namespace) -> None:
         _save_report(report, args.output)
     print(report.model_dump_json(exclude={"calls", "predictions", "quality"}))
     if args.live and not score(corpus, predictions).passed:
-        raise SystemExit("The semantic quality gate did not pass; keep both usages disabled")
+        raise SystemExit(
+            "The semantic quality gate did not pass; feature settings were left unchanged"
+        )
 
 
 def _save_report(report: ReplayReport, path: Path) -> None:

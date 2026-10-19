@@ -1,0 +1,56 @@
+{
+  "run_id": "classification-sum-service-e9fd2243-cb98-4bf5-aed9-434e4b7e5d99",
+  "observations": 5,
+  "classifications": {
+    "holdout-065": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-19T00:37:50.577045Z",
+      "valid_until": "2026-10-19T00:38:20.577045Z",
+      "kind": "email",
+      "category": "unknown",
+      "priority": "normal"
+    },
+    "holdout-066": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-19T00:37:50.577045Z",
+      "valid_until": "2026-10-19T00:38:20.577045Z",
+      "kind": "email",
+      "category": "unknown",
+      "priority": "normal"
+    },
+    "holdout-067": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-19T00:37:50.577045Z",
+      "valid_until": "2026-10-19T00:38:20.577045Z",
+      "kind": "email",
+      "category": "unknown",
+      "priority": "unknown"
+    },
+    "holdout-068": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-19T00:37:50.577045Z",
+      "valid_until": "2026-10-19T00:38:20.577045Z",
+      "kind": "email",
+      "category": "unknown",
+      "priority": "unknown"
+    },
+    "holdout-069": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-19T00:37:50.577045Z",
+      "valid_until": "2026-10-19T00:38:20.577045Z",
+      "kind": "email",
+      "category": "phishing_scam",
+      "priority": "unknown"
+    }
+  },
+  "second_read_matches": true,
+  "native_usage_rows": 1,
+  "persisted_cost_eur": "0.000233",
+  "policy_sha256": "a9af1a94c5de818316798fbfbca7a0e11823c2bda067e922962153aa98c5ef90",
+  "settings_unchanged": true
+}

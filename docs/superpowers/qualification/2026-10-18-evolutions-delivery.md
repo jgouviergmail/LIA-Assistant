@@ -5,6 +5,11 @@ Ce rapport consigne la qualification du code avant son intégration Git locale.
 Aucun push ni déploiement de production n'a été effectué. La demande Word/PDF
 a été annulée par le propriétaire.
 
+Suivi du 19 octobre : la [cause de `probability_sum` est identifiée et corrigée](jev-probability-sum-2026-10-19/README.md).
+Le rejeu natif complet aboutit ; la réserve restante concerne la couverture
+sémantique de certaines classes. Les résultats historiques ci-dessous sont
+conservés et ne deviennent pas rétroactivement une recette réussie.
+
 ## Périmètre et arbitrages
 
 | Évolution | Comportement et choix retenu |

@@ -46,6 +46,7 @@ from src.infrastructure.llm.decision_types import DecisionAttempt
 from src.infrastructure.llm.jev_debug_models import context_preview
 from src.infrastructure.llm.jev_debug_store import record_action
 from src.infrastructure.llm.jev_runtime import choose_many_with_jev
+from src.infrastructure.llm.typesafe_client import CHOICE_PROBABILITY_CONTRACT
 from src.infrastructure.locks.redis_claim import acquire_claim, held_claim
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_jev import (
@@ -77,6 +78,7 @@ def policy_fingerprint() -> str:
         json.dumps(
             {
                 "version": CLASSIFICATION_VERSION,
+                "probability_contract": CHOICE_PROBABILITY_CONTRACT,
                 "threshold": JEV_CLASSIFICATION_MIN_CONFIDENCE,
                 "alert_threshold": JEV_CLASSIFICATION_ALERT_MIN_CONFIDENCE,
                 "ttls": [

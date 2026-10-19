@@ -33,7 +33,8 @@ do not reclassify on replay. Live DTO/cache readers remove expired labels while
 preserving source facts.
 
 Cache identity includes owner, actual account binding, provider/container/item,
-revision/occurrence, evidence, model, prompt/policy and time context. Redis stores
+revision/occurrence, evidence, model, prompt/policy, native probability-contract
+revision and time context. Redis stores
 only closed annotations. Overlapping workers coalesce under bounded claims;
 cache failure, cancellation, native errors, quota/price/key absence and oversized
 evidence preserve the source result without inventing a label. There is no new
@@ -60,8 +61,8 @@ The first paid calibration abstained excessively on priorities. Clarifying the
 priority question, without lowering confidence thresholds, passed calibration.
 The policy was then frozen. Holdout execution and one unchanged protocol replay
 both stopped on native `probability_sum` invalid responses. Charges were retained
-and no malformed batch was published. **The holdout is not qualified; both new
-usages remain off.** No model/key/setting was changed and no real mailbox or
+and no malformed batch was published. **The holdout was not qualified; the
+campaign left both new usages off.** No model/key/setting was changed and no real mailbox or
 calendar was read. The total measured platform spend was about EUR 0.008417,
 within the authorized cumulative budget.
 
@@ -73,3 +74,18 @@ policy hashes are preserved in [the qualification record](../superpowers/qualifi
 Do not enable these usages on the strength of mocked transport tests or the
 calibration result; fresh independent qualification is required after any later
 policy change.
+
+## Numerical protocol correction — 2026-10-19
+
+The [root-cause report](../superpowers/qualification/jev-probability-sum-2026-10-19/README.md)
+reproduces a received cent-rounded distribution summing to `0.99`, which the
+official HTTP contract permits as an approximate sum. Transport and publication
+now share precision-aware validation and conservative concentration. Raw values,
+business thresholds and prompts are unchanged. Cached annotations include the
+numerical contract revision in their policy identity.
+
+The complete frozen replay now finishes without a native protocol failure. Its
+semantic coverage gate still fails for some classes; the report keeps that limit
+explicit. The DEV switches were enabled administratively after the initial
+campaign and remain unchanged by this fix. Enabling a switch does not certify
+semantic quality.
