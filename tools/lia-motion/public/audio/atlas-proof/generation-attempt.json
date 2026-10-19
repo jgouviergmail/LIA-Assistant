@@ -1,0 +1,32 @@
+{
+  "status": "generated",
+  "startedAt": "2026-10-17T00:02:44.695825+00:00",
+  "model": "lyria-3.5",
+  "paidGenerationAttempts": 1,
+  "automaticRetries": 0,
+  "publishedPriceUsdPerSong": 0.08,
+  "actualInvoiceCostUsd": null,
+  "requestSha256": "a44568417b1890ed24674ecf0a3ee5e39afa4d5b2b2dd3d074010a39558ed0e3",
+  "credentialPersisted": false,
+  "elapsedSeconds": 39.429,
+  "finishedAt": "2026-10-17T00:03:24.191121+00:00",
+  "interactionId": null,
+  "usage": {
+    "total_tokens": 5016,
+    "total_input_tokens": 615,
+    "input_tokens_by_modality": [
+      {
+        "modality": "text",
+        "tokens": 615
+      }
+    ],
+    "total_cached_tokens": 0,
+    "total_output_tokens": 4401,
+    "total_tool_use_tokens": 0,
+    "total_thought_tokens": 0
+  },
+  "sourceFile": "atlas-original.mp3",
+  "sourceBytes": 2774058,
+  "sourceSha256": "3684f1c85cc9868860baf43180f256e4b7300fe348a3520145b6a2e460a79201",
+  "reportedMimeType": "audio/mpeg"
+}

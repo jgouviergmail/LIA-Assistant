@@ -14,6 +14,7 @@ pytestmark = pytest.mark.unit
 FIXTURES = Path(__file__).resolve().parents[4] / "fixtures"
 CALIBRATION_SHA = "cc908d49c5d577ed7ac8c67438f6cc0ec763d621c4aff83cd934149fefe391e9"
 HOLDOUT_SHA = "13ba5a9c3101b74acd19b02f8a4a1138b7fec6234adbec32df917c73ed7ba7ba"
+ADVERSARIAL_SHA = "d9bf446014a7645d9a96c5a84caf373753b472cbb1967c6597f8d989e779e858"
 
 
 @pytest.mark.parametrize("split,digest", [("cases", CALIBRATION_SHA), ("holdout", HOLDOUT_SHA)])
@@ -57,6 +58,23 @@ def test_holdout_has_no_duplicate_evidence_from_calibration() -> None:
     assert not fingerprints.intersection(
         json.dumps(case.evidence, sort_keys=True) for case in holdout.items
     )
+
+
+def test_post_freeze_adversarial_cases_are_frozen_multilingual_and_disjoint() -> None:
+    path = FIXTURES / "jev_classification_adversarial.json"
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == ADVERSARIAL_SHA
+    corpus = Corpus.read(path)
+    assert len(corpus.items) == len({case.id for case in corpus.items}) == 36
+    assert {case.language for case in corpus.items} == {"en", "fr", "de", "es", "it", "zh"}
+    originals = {
+        json.dumps(case.evidence, sort_keys=True)
+        for split in ("cases", "holdout")
+        for case in Corpus.read(FIXTURES / f"jev_classification_{split}.json").items
+    }
+    assert not originals.intersection(
+        json.dumps(case.evidence, sort_keys=True) for case in corpus.items
+    )
+    assert not score(corpus, {}).passed
 
 
 def test_quality_scoring_rejects_one_false_phishing_label_even_with_good_global_coverage() -> None:

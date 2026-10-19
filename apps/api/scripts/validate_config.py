@@ -7,7 +7,7 @@ Created: 2025-12-18
 
 Features:
 - Validates .env against .env.example for missing/extra variables
-- Type validation (boolean, int, float, JSON)
+- Type validation (boolean, int, float)
 - Range validation (e.g., circuit_breaker_timeout_seconds: 10-600)
 - Deprecated settings detection
 - Service connectivity checks
@@ -21,7 +21,6 @@ Usage:
 """
 
 import argparse
-import json
 import os
 import re
 import sys
@@ -122,25 +121,9 @@ def is_float(value: str) -> bool:
         return False
 
 
-def is_json(value: str) -> bool:
-    """Check if value is valid JSON."""
-    if not value or value == "{}":
-        return True
-    try:
-        json.loads(value)
-        return True
-    except json.JSONDecodeError:
-        return False
-
-
 def is_url(value: str) -> bool:
     """Check if value looks like a URL."""
     return value.startswith(("http://", "https://", "redis://", "postgresql"))
-
-
-def is_provider(value: str) -> bool:
-    """Check if value is a valid LLM provider."""
-    return value.lower() in ("openai", "anthropic", "deepseek", "perplexity", "ollama", "google")
 
 
 # ============================================================================
@@ -153,27 +136,11 @@ BOOL_VARS = {
     "SESSION_COOKIE_SECURE",
     "SESSION_COOKIE_HTTPONLY",
     "LLM_CACHE_ENABLED",
-    "TOOL_CONTEXT_ENABLED",
-    "TOOL_APPROVAL_ENABLED",
-    "SEMANTIC_VALIDATION_ENABLED",
     "RATE_LIMIT_ENABLED",
-    "CIRCUIT_BREAKER_ENABLED",
-    "GOOGLE_APIS_CIRCUIT_BREAKER_ENABLED",
-    "OPENAI_CIRCUIT_BREAKER_ENABLED",
-    "EXTERNAL_APIS_CIRCUIT_BREAKER_ENABLED",
-    "ENABLE_TOKEN_FALLBACK",
-    "ENABLE_HIERARCHICAL_PLANNER",
     "LANGFUSE_ENABLED",
     "LANGFUSE_DEBUG",
-    "LANGCHAIN_CALLBACKS_BACKGROUND",
     "EVALUATOR_HALLUCINATION_REQUIRE_GROUND_TRUTH",
     "EVALUATOR_PIPELINE_SEND_TO_LANGFUSE",
-    "ENABLE_SUMMARIZATION_MIDDLEWARE",
-    "ENABLE_RETRY_MIDDLEWARE",
-    "ENABLE_FALLBACK_MIDDLEWARE",
-    "ENABLE_TOOL_RETRY_MIDDLEWARE",
-    "ENABLE_CALL_LIMIT_MIDDLEWARE",
-    "ENABLE_CONTEXT_EDITING_MIDDLEWARE",
 }
 
 # Variables that must be integers with optional ranges
@@ -191,11 +158,8 @@ INT_VARS = {
     "MAX_CONTEXT_BATCH_SIZE": (1, 100),
     "MAX_AGENT_RESULTS": (1, 100),
     "DEFAULT_MESSAGE_WINDOW_SIZE": (1, 50),
-    "ROUTER_MESSAGE_WINDOW_SIZE": (1, 50),
-    "PLANNER_MESSAGE_WINDOW_SIZE": (1, 50),
     "RESPONSE_MESSAGE_WINDOW_SIZE": (1, 50),
     "RESPONSE_RECENT_ENTITIES_MAX_ITEMS": (1, 100),
-    "TOOL_CONTEXT_DETAILS_MAX_ITEMS": (1, 50),
     "TOOL_APPROVAL_CLEANUP_DAYS": (1, 30),
     "SSE_HEARTBEAT_INTERVAL": (1, 60),
     "LLM_CACHE_TTL_SECONDS": (10, 3600),
@@ -209,12 +173,6 @@ INT_VARS = {
     # Rate Limits
     "RATE_LIMIT_PER_MINUTE": (1, 1000),
     "RATE_LIMIT_BURST": (1, 100),
-    "RATE_LIMIT_CONTACTS_SEARCH_CALLS": (1, 100),
-    "RATE_LIMIT_CONTACTS_SEARCH_WINDOW": (1, 3600),
-    "RATE_LIMIT_CONTACTS_LIST_CALLS": (1, 100),
-    "RATE_LIMIT_CONTACTS_LIST_WINDOW": (1, 3600),
-    "RATE_LIMIT_CONTACTS_DETAILS_CALLS": (1, 100),
-    "RATE_LIMIT_CONTACTS_DETAILS_WINDOW": (1, 3600),
     # Planner
     "PLANNER_MAX_STEPS": (1, 50),
     "PLANNER_MAX_REPLANS": (1, 20),
@@ -231,7 +189,6 @@ INT_VARS = {
     "TOOL_RETRY_MAX_ATTEMPTS": (1, 10),
     "MODEL_CALL_THREAD_LIMIT": (10, 1000),
     "MODEL_CALL_RUN_LIMIT": (5, 100),
-    "CONTEXT_EDIT_MAX_TOOL_RESULT_TOKENS": (100, 10000),
     "SUMMARIZATION_KEEP_MESSAGES": (3, 50),
     # Jinja
     "JINJA_MAX_RECURSION_DEPTH": (5, 50),
@@ -289,8 +246,6 @@ FLOAT_VARS = {
     "SEMANTIC_VALIDATION_TIMEOUT_SECONDS": (0.5, 30.0),
     "SEMANTIC_VALIDATION_CONFIDENCE_THRESHOLD": (0.0, 1.0),
     "TOOL_CONTEXT_CONFIDENCE_THRESHOLD": (0.0, 1.0),
-    "ROUTER_CONFIDENCE_THRESHOLD": (0.0, 1.0),
-    "DOMAIN_FILTERING_CONFIDENCE_THRESHOLD": (0.0, 1.0),
     "HITL_CLASSIFIER_CONFIDENCE_THRESHOLD": (0.0, 1.0),
     "HITL_AMBIGUOUS_CONFIDENCE_THRESHOLD": (0.0, 1.0),
     "HITL_FUZZY_MATCH_AMBIGUITY_THRESHOLD": (0.0, 0.5),
@@ -300,51 +255,10 @@ FLOAT_VARS = {
     "SUMMARIZATION_TRIGGER_FRACTION": (0.3, 0.95),
     "RETRY_BACKOFF_FACTOR": (1.0, 10.0),
     "TOOL_RETRY_BACKOFF_FACTOR": (1.0, 10.0),
-    # LLM Temperature
-    "ROUTER_LLM_TEMPERATURE": (0.0, 2.0),
-    "PLANNER_LLM_TEMPERATURE": (0.0, 2.0),
-    "RESPONSE_LLM_TEMPERATURE": (0.0, 2.0),
-    "QUERY_AGENT_LLM_TEMPERATURE": (0.0, 2.0),
-    "HITL_CLASSIFIER_LLM_TEMPERATURE": (0.0, 2.0),
-    "HITL_QUESTION_GENERATOR_LLM_TEMPERATURE": (0.0, 2.0),
-    "HITL_PLAN_APPROVAL_QUESTION_LLM_TEMPERATURE": (0.0, 2.0),
-    "SEMANTIC_VALIDATOR_LLM_TEMPERATURE": (0.0, 2.0),
-    # Evaluators
-    "EVALUATOR_LLM_TEMPERATURE": (0.0, 2.0),
     "EVALUATOR_LATENCY_EXCELLENT_THRESHOLD_MS": (0.0, 10000.0),
     "EVALUATOR_LATENCY_GOOD_THRESHOLD_MS": (0.0, 10000.0),
     "EVALUATOR_LATENCY_ACCEPTABLE_THRESHOLD_MS": (0.0, 10000.0),
     "EVALUATOR_LATENCY_SLOW_THRESHOLD_MS": (0.0, 30000.0),
-}
-
-# Variables that must be valid JSON
-JSON_VARS = {
-    "ROUTER_LLM_PROVIDER_CONFIG",
-    "PLANNER_LLM_PROVIDER_CONFIG",
-    "RESPONSE_LLM_PROVIDER_CONFIG",
-    "QUERY_AGENT_LLM_PROVIDER_CONFIG",
-    "HITL_CLASSIFIER_LLM_PROVIDER_CONFIG",
-    "HITL_QUESTION_GENERATOR_LLM_PROVIDER_CONFIG",
-    "HITL_PLAN_APPROVAL_QUESTION_LLM_PROVIDER_CONFIG",
-    "SEMANTIC_VALIDATOR_LLM_PROVIDER_CONFIG",
-    "HIERARCHICAL_STAGE1_LLM_PROVIDER_CONFIG",
-    "HIERARCHICAL_STAGE2_LLM_PROVIDER_CONFIG",
-    "HIERARCHICAL_STAGE3_LLM_PROVIDER_CONFIG",
-}
-
-# Variables that must be valid LLM providers
-PROVIDER_VARS = {
-    "ROUTER_LLM_PROVIDER",
-    "PLANNER_LLM_PROVIDER",
-    "RESPONSE_LLM_PROVIDER",
-    "QUERY_AGENT_LLM_PROVIDER",
-    "HITL_CLASSIFIER_LLM_PROVIDER",
-    "HITL_QUESTION_GENERATOR_LLM_PROVIDER",
-    "HITL_PLAN_APPROVAL_QUESTION_LLM_PROVIDER",
-    "SEMANTIC_VALIDATOR_LLM_PROVIDER",
-    "HIERARCHICAL_STAGE1_LLM_PROVIDER",
-    "HIERARCHICAL_STAGE2_LLM_PROVIDER",
-    "HIERARCHICAL_STAGE3_LLM_PROVIDER",
 }
 
 # Deprecated variables (with migration path)
@@ -493,30 +407,6 @@ def validate_types(env: dict[str, str], result: ValidationResult) -> None:
                         f"Consider value between {min_val} and {max_val}",
                     )
 
-    # JSON validation
-    for var in JSON_VARS:
-        if var in env and env[var]:
-            if not is_json(env[var]):
-                result.add(
-                    Severity.ERROR,
-                    "Type",
-                    var,
-                    f"Expected valid JSON, got '{env[var]}'",
-                    'Use valid JSON format, e.g., {} or {"key": "value"}',
-                )
-
-    # Provider validation
-    for var in PROVIDER_VARS:
-        if var in env and env[var]:
-            if not is_provider(env[var]):
-                result.add(
-                    Severity.ERROR,
-                    "Type",
-                    var,
-                    f"Invalid LLM provider '{env[var]}'",
-                    "Use: openai, anthropic, deepseek, perplexity, ollama, or google",
-                )
-
 
 def validate_required(env: dict[str, str], result: ValidationResult) -> None:
     """Validate required variables are set and not placeholders."""
@@ -596,52 +486,30 @@ def validate_missing_expected(
 def validate_circuit_breaker(env: dict[str, str], result: ValidationResult) -> None:
     """Validate circuit breaker configuration consistency."""
 
-    cb_enabled = env.get("CIRCUIT_BREAKER_ENABLED", "true").lower() == "true"
+    # Check that thresholds make sense
+    failure_threshold = int(env.get("CIRCUIT_BREAKER_FAILURE_THRESHOLD", "5"))
+    success_threshold = int(env.get("CIRCUIT_BREAKER_SUCCESS_THRESHOLD", "3"))
+    timeout = int(env.get("CIRCUIT_BREAKER_TIMEOUT_SECONDS", "60"))
+    half_open_max = int(env.get("CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS", "3"))
 
-    if cb_enabled:
-        # Check that thresholds make sense
-        failure_threshold = int(env.get("CIRCUIT_BREAKER_FAILURE_THRESHOLD", "5"))
-        success_threshold = int(env.get("CIRCUIT_BREAKER_SUCCESS_THRESHOLD", "3"))
-        timeout = int(env.get("CIRCUIT_BREAKER_TIMEOUT_SECONDS", "60"))
-        half_open_max = int(env.get("CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS", "3"))
+    if success_threshold > half_open_max:
+        result.add(
+            Severity.WARNING,
+            "CircuitBreaker",
+            "CIRCUIT_BREAKER_SUCCESS_THRESHOLD",
+            f"Success threshold ({success_threshold}) > half-open max calls ({half_open_max})",
+            "Circuit can never close from half-open state. "
+            "Set SUCCESS_THRESHOLD <= HALF_OPEN_MAX_CALLS",
+        )
 
-        if success_threshold > half_open_max:
-            result.add(
-                Severity.WARNING,
-                "CircuitBreaker",
-                "CIRCUIT_BREAKER_SUCCESS_THRESHOLD",
-                f"Success threshold ({success_threshold}) > half-open max calls ({half_open_max})",
-                "Circuit can never close from half-open state. "
-                "Set SUCCESS_THRESHOLD <= HALF_OPEN_MAX_CALLS",
-            )
-
-        if timeout < 30 and failure_threshold < 3:
-            result.add(
-                Severity.WARNING,
-                "CircuitBreaker",
-                "CIRCUIT_BREAKER_TIMEOUT_SECONDS",
-                "Very aggressive circuit breaker settings (fast open, fast retry)",
-                "This may cause circuit to oscillate. Consider increasing timeout or threshold.",
-            )
-
-
-def validate_llm_config(env: dict[str, str], result: ValidationResult) -> None:
-    """Validate LLM configuration consistency."""
-
-    # Check that temperature is appropriate for deterministic tasks
-    deterministic_agents = ["ROUTER", "PLANNER", "SEMANTIC_VALIDATOR"]
-    for agent in deterministic_agents:
-        temp_var = f"{agent}_LLM_TEMPERATURE"
-        if temp_var in env:
-            temp = float(env[temp_var])
-            if temp > 0.5:
-                result.add(
-                    Severity.WARNING,
-                    "LLM",
-                    temp_var,
-                    f"High temperature ({temp}) for {agent} (typically deterministic)",
-                    f"Consider temperature <= 0.3 for {agent} tasks",
-                )
+    if timeout < 30 and failure_threshold < 3:
+        result.add(
+            Severity.WARNING,
+            "CircuitBreaker",
+            "CIRCUIT_BREAKER_TIMEOUT_SECONDS",
+            "Very aggressive circuit breaker settings (fast open, fast retry)",
+            "This may cause circuit to oscillate. Consider increasing timeout or threshold.",
+        )
 
 
 def validate_security(env: dict[str, str], result: ValidationResult) -> None:
@@ -946,7 +814,6 @@ def main() -> int:
     validate_deprecated(env, result)
     validate_missing_expected(env, expected, result)
     validate_circuit_breaker(env, result)
-    validate_llm_config(env, result)
     validate_security(env, result)
     validate_pydantic_models(result)
 

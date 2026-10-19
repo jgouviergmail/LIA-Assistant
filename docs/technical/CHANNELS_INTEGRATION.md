@@ -84,7 +84,6 @@ apps/web/src/
 | `TELEGRAM_BOT_TOKEN` | — | Token @BotFather |
 | `TELEGRAM_WEBHOOK_SECRET` | — | Secret pour validation webhook |
 | `TELEGRAM_WEBHOOK_URL` | — | URL publique prod (si absent → long polling dev) |
-| `TELEGRAM_BOT_USERNAME` | *(auto)* | Optionnel — auto-découvert via `getMe` au démarrage. Le setting `.env` n'est plus nécessaire. |
 | `TELEGRAM_MESSAGE_MAX_LENGTH` | `4000` | Max avant split (100-4096) |
 | `CHANNEL_OTP_TTL_SECONDS` | `300` | TTL OTP Redis |
 | `CHANNEL_OTP_LENGTH` | `6` | Longueur code OTP |

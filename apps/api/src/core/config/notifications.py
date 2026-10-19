@@ -44,7 +44,7 @@ class NotificationSettings(BaseSettings):
         description="Path to Firebase service account JSON file",
     )
     firebase_project_id: str = Field(
-        default="compagnonnotif",
+        default="",
         description="Firebase project ID",
     )
 

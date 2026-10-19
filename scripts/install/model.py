@@ -103,6 +103,8 @@ class Question:
         message_args: Static interpolation pairs for the prompt message.
         optional: An empty answer is accepted and means "skipped"; a
             non-interactive answers file may leave the key out.
+        env_only: Private input consumed at environment generation, never
+            re-prompted when resuming database bootstrap.
     """
 
     key: str
@@ -115,6 +117,7 @@ class Question:
     applies: Callable[[Mapping[str, Any]], bool] | None = None
     message_args: tuple[tuple[str, str], ...] = ()
     optional: bool = False
+    env_only: bool = False
 
     def applies_to(self, answers: Mapping[str, Any]) -> bool:
         """Whether this question is asked given the answers so far."""
@@ -155,10 +158,11 @@ class PublicAnswers:
 
 @dataclass(frozen=True)
 class SecretAnswers:
-    """Ephemeral secrets: stdin-only downstream, never persisted or logged."""
+    """Private inputs: LLM keys use stdin; Maps settings enter only private .env."""
 
     admin_password: str
     provider_keys: Mapping[str, str]
+    maps_settings: Mapping[str, str] = field(default_factory=dict, repr=False)
 
 
 @dataclass

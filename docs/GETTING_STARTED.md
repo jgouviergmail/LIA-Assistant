@@ -4,8 +4,8 @@
 > Start from the guided installer and the checked-in environment examples. Installer defaults are validated against the application's Settings; runtime model assignments and user preferences can differ between deployments. Review your instance's configuration before starting it.
 
 **Version**: 4.0
-**Last Updated**: 2026-10-12
-**Compatibility**: LIA v3.2.0
+**Last Updated**: 2026-10-19
+**Compatibility**: LIA v3.3.0
 
 ## Table of Contents
 
@@ -42,7 +42,11 @@ The guided self-host installer asks whether to offer the **personal radio**. It 
 
 The **speaking avatar** is also optional: the installer leaves `AVATAR_ENABLED=false` unless the operator chooses to offer it. Each person then connects their own Simli key and explicitly enables the avatar in Settings. The installer emits the finite session, idle, connection, HTTP and validated-presence bounds declared by [the avatar configuration](../apps/api/src/core/config/avatars.py); no instance Simli key or additional Compose service is needed. The API controls the signalling/audio relay; any reverse proxy must forward WebSocket upgrades for `/api/v1/avatars/ws`, as for the existing voice WebSocket. An open session can consume that person's Simli credits during silence, and the window's stop control shows confirmed or pending closure. See [the speaking-avatar guide](technical/SPEAKING_AVATAR.md).
 
+**Interactive place maps are optional.** At initial setup, the installer can collect a browser Maps API key and a production Cloud map ID together. Leave both empty to skip; the Position card still lists the places. These inputs stay in the private `.env`, outside public installer state and LLM bootstrap data. Restrict the browser key by HTTP referrer and API; enable the required Google Maps services in your own project. Do not use `DEMO_MAP_ID` in production. Later changes are made in that private environment file; the installer preserves existing operator values. Loading the interactive map requires a click after its cost is shown. No additional service or migration is needed. See [HTML cards](technical/HTML_CARDS.md).
+
 **JEV decisions are optional after installation.** The installer leaves every JEV use off; there is no additional Compose service or bootstrap step. To use one, configure a TypeSafe (Jev) provider key, a decision model and its price in Administration, then enable that use and the general switch under **JEV integrations**. An uncertain decision uses LIA's existing path; both a paid attempt and its fallback count toward spending limits. See the [integration guide](technical/JEV_INTEGRATION.md).
+
+Fresh installations leave `OPENAI_ORGANIZATION_ID` and `FIREBASE_PROJECT_ID` empty; no operator identity is borrowed from a development instance. Configure them only for your own integration. Existing operator overrides survive reconfiguration.
 
 For ElevenLabs and Fish Audio speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` and `FISHAUDIO_MAX_CONCURRENCY` are rendered at the application default on a fresh guided install. Set each at or below your account's concurrency allowance before using that engine. The limits are shared across API workers and speech surfaces (Fish Audio's also covers its transcription and voice design); Edge TTS remains the free default.
 
@@ -51,14 +55,14 @@ For ElevenLabs and Fish Audio speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` and `FISH
 | | |
 |---|---|
 | Specialized agents | 20+ |
-| Tools | 311 (tool manifests registered at startup, measured 2026-10-16 on Docker dev) |
+| Tools | 311 (tool manifests registered at startup, measured 2026-10-19 on Docker dev) |
 | LLM providers (text) | 7 — OpenAI, Anthropic, DeepSeek, Google Gemini, Qwen, Perplexity, Ollama |
 | Voice providers | ElevenLabs (STT/TTS), Fish Audio (STT/TTS), Edge TTS (free), OpenAI (STT/TTS), Gemini TTS + local Whisper STT |
-| Configurable LLM slots | 54 (admin UI, hot-reloaded) |
+| Configurable model and decision slots | 89, including 23 native JEV usages (admin registry, measured 2026-10-19) |
 | UI languages | 6 — fr, en, es, de, it, zh |
 | Prometheus metrics | 621 |
 | Grafana dashboards | 31 |
-| Built-in FAQ knowledge base | 200+ Q/A (auto-indexed at startup) |
+| Built-in FAQ knowledge base | 496 questions in six languages; the English help corpus is indexed at startup |
 
 ### Technical Architecture
 
@@ -893,7 +897,6 @@ Every subsystem below ships with working defaults; the values shown are the **pr
 | `FISHAUDIO_VOICE_CREATION_ENABLED` | Administrators clone and design voices on the instance's Fish Audio account (ADR-345) | `true` |
 | `LANGFUSE_ENABLED` | Langfuse LLM tracing | **`false`** (dev-only tool) |
 | `PLAN_PATTERN_TRAINING_ENABLED` | Plan pattern learning | `false` |
-| `ENABLE_FALLBACK_MIDDLEWARE` | LLM fallback model chain | `false` |
 | `BROWSER_SCREENSHOT_ENABLED` | Browser session screenshots | `false` |
 
 ¹ Shipped disabled: enabled in production only after the post-release smoke test (MFA needs `WEBAUTHN_RP_ID`/`WEBAUTHN_ORIGIN` matching the public domain).
@@ -1079,7 +1082,6 @@ CHANNELS_ENABLED=true
 TELEGRAM_BOT_TOKEN=123456:ABC-DEF...              # via @BotFather
 TELEGRAM_WEBHOOK_SECRET=...                        # openssl rand -hex 32
 TELEGRAM_WEBHOOK_URL=https://your-api-domain/api/v1/channels/telegram/webhook
-TELEGRAM_BOT_USERNAME=@your_bot
 CHANNEL_OTP_TTL_SECONDS=300                        # account linking OTP
 CHANNEL_RATE_LIMIT_PER_USER_PER_MINUTE=10
 ```
@@ -1241,7 +1243,7 @@ Restore procedure: [runbooks/DATABASE_BACKUP_RESTORE.md](./runbooks/DATABASE_BAC
 
 ## LLM Configuration
 
-LIA declares **84 independently configurable model and decision slots** in
+LIA declares **89 independently configurable model and decision slots** in
 `LLM_TYPES_REGISTRY` (67 static entries and 17 JEV usages). Pipeline nodes,
 domain agents and background tasks select their own provider and model; native
 decision slots expose only the parameters their provider accepts. Configuration

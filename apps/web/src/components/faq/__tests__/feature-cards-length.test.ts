@@ -60,11 +60,12 @@ const MAX_DESCRIPTION: Record<string, number> = {
 
 /** Longest admissible aggregate, in characters: the section as a whole. */
 const MAX_TOTAL: Record<string, number> = {
-  en: 33_000,
-  fr: 36_500,
-  de: 36_500,
-  es: 36_000,
-  it: 36_000,
+  // 2026-10-19: the four revised presentations shorten every translated section.
+  en: 32_800,
+  fr: 36_300,
+  de: 36_200,
+  es: 35_600,
+  it: 35_600,
   zh: 12_000,
 };
 

@@ -164,7 +164,7 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
 **Fichier** : `apps/api/src/infrastructure/observability/decorators.py`
 
 ```python
-@trace_node("router", llm_model=settings.router_llm_model)
+@trace_node("router_v3")
 @track_metrics(
     node_name="router",
     duration_metric=agent_node_duration_seconds,
@@ -2428,7 +2428,7 @@ def trace_node(node_name: str, llm_model: str | None = None) -> Any:
 **Exemple d'utilisation** :
 
 ```python
-@trace_node("router", llm_model=settings.router_llm_model)
+@trace_node("router_v3")
 @track_metrics(
     node_name="router",
     duration_metric=agent_node_duration_seconds,

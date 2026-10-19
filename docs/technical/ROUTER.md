@@ -1521,12 +1521,7 @@ async def test_router_per_turn_state_cleanup():
    # Fix: Ensure get_router_windowed_messages() is called
    ```
 
-4. **Considérer LLM plus rapide**:
-   ```python
-   # apps/api/src/core/config/llm.py
-   router_llm_model: str = "gpt-4.1-nano"  # vs "gpt-4.1-mini"
-   # gpt-4.1-nano: ~50% faster, ~50% cheaper, similar quality for routing
-   ```
+4. **Considérer LLM plus rapide** : le routage passe par le poste `query_analyzer` ; choisir un modèle plus rapide pour ce poste dans Settings > Administration > LLM Configuration, sans redémarrage.
 
 ---
 
@@ -1538,12 +1533,6 @@ async def test_router_per_turn_state_cleanup():
 # apps/api/src/core/config/
 
 class Settings(BaseSettings):
-    # Router LLM
-    router_llm_provider: str = "openai"
-    router_llm_model: str = "gpt-4.1-nano"
-    router_llm_temperature: float = 0.1  # Low for determinism
-    router_llm_max_tokens: int = 500
-
     # Router Logic
     router_confidence_threshold: float = 0.70
     force_planner_routing: bool = False  # Debug override

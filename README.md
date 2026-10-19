@@ -44,7 +44,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 3.2.0</strong> — <strong>A FAQ for every feature, voices that react.</strong> Ten new FAQ sections bring it to 491 questions in six languages, the radio's voices chuckle, laugh or sigh where a programme converses, the tools a switched-off capability names leave both execution modes, and <code>./install.sh --reconfigure</code> changes a running installation without reinstalling it — 18 October 2026.
+  <strong>Version 3.3.0</strong> — <strong>Find, share and locate.</strong> Search complete meeting minutes, share disabled capability copies without credentials, see advisory email and appointment labels, and compare places on a Position card in every display format. Model settings have one authority, and the FAQ covers these workflows in six languages — 19 October 2026.
 </p>
 
 ---
@@ -87,7 +87,7 @@ You can inspect sources, correct remembered information and review prepared draf
 | **A discussion to prepare**   | “Prepare my catch-up with Claire using the project brief, our recent emails and the last meeting notes. Highlight anything that conflicts.”                                                                 |
 | **A promise to follow up**    | Open **Relations** to review recent exchanges, the debrief and open commitments before contacting someone.                                                                                                  |
 | **A message to get right**    | “Draft an email to the supplier asking which delivery date they can commit to. Show me the draft before sending it.”                                                                                        |
-| **A meeting to keep useful**  | Record it, review and correct the minutes, then export a PDF. Successfully indexed minutes can be retrieved in a later conversation.                                                                        |
+| **A meeting to keep useful**  | Record it, review and correct the minutes, search their full content, then export a PDF. Successfully indexed minutes can be retrieved in a later conversation.                                                                        |
 | **A day to listen to**        | Choose personal and news sources in **Radio**, then listen with the programme, transcript and articles beside you.                                                                                          |
 | **People to coordinate with** | “Find a time for dinner with Sam tomorrow evening using the availability shared with me. Show the invitation before sending it.” This uses an accepted connection and its permissions on the same instance. |
 
@@ -456,7 +456,7 @@ for projection and performance limits.
 #### Documents, places and weather
 
 - Google Drive folders, sub-folders included, and a Gmail label as knowledge sources, synced incrementally, with the exact number of files stated before a large sync starts ([ADR-262](docs/architecture/ADR-262-Opt-In-Mail-Label-RAG-Source.md), [ADR-297](docs/architecture/ADR-297-Drive-Folder-Is-A-Tree-And-The-Count-Is-Exact.md)).
-- Google Maps places, routes and geocoding.
+- Google Maps places, routes and geocoding. A Position card precedes place cards in Cards, HTML and Markdown; interactive Maps starts on a priced click, with an address-list fallback ([ADR-352](docs/architecture/ADR-352-Position-Before-Places-In-Every-Display-Mode.md)).
 - Weather with change detection.
 - A last-known-position cascade so every feature knows where you are, with the age of the fix stated ([ADR-219](docs/architecture/ADR-219-Derniere-Position-Connue-Generalisee.md)).
 
@@ -592,17 +592,21 @@ The home page opens on the date and LIA's living face, then aggregates your sour
 
 #### Knowledge spaces
 
-- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive folder sync, a Gmail label as a source, and a system space that indexes the product's own help corpus so LIA can explain itself — drawn from the in-app FAQ, whose 491 questions cover every feature a person can use, in six languages.
+- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive folder sync, a Gmail label as a source, and a system space that indexes the product's own help corpus so LIA can explain itself — drawn from the in-app FAQ, whose 496 questions cover every feature a person can use, in six languages.
 - A document that cannot be indexed says why in your language — a scanned PDF without a text layer names its remedy.
 - Any indexed document, paused space or not, attaches to a chat message as a copy from the composer's « + » ([ADR-295](docs/architecture/ADR-295-Knowledge-Documents-As-Message-Attachments.md), [GUIDE_RAG_SPACES](docs/guides/GUIDE_RAG_SPACES.md), [ADR-055](docs/architecture/ADR-055-RAG-Spaces-Architecture.md), [ADR-058](docs/architecture/ADR-058-System-RAG-Spaces.md)).
 
 #### Meetings and minutes
+
+- Search complete minutes from the meeting list, with server-side filtering and pagination.
 
 - Record from the phone or the computer while the chat stays usable, with a capture that survives reloads and lost microphones.
 - A chain of transcription engines walked at processing time.
 - Minutes filled from one of thirty built-in templates or your own, reformatted in place or derived into a second set from the same transcript ([ADR-258](docs/architecture/ADR-258-Meeting-Recording-And-Structured-Minutes.md), [ADR-259](docs/architecture/ADR-259-Meeting-Template-Library-And-Reformatting.md), [MEETINGS](docs/technical/MEETINGS.md)).
 
 #### People
+
+- Share a skill, MCP server or plugin with an accepted connection as an independently owned, disabled copy. The recipient sees who shared it and when, supplies their own credentials, and manages it with the existing controls ([ADR-350](docs/architecture/ADR-350-Peer-Capability-Copies-Without-Credentials.md)).
 
 - A 360° relationship lens over open loops, calls, messages and memories, with a written debrief per person built lazily when the card opens ([ADR-176](docs/architecture/ADR-176-Personal-CRM-Relations.md), [ADR-193](docs/architecture/ADR-193-Read-Capabilities-And-Merged-Identity.md), [ADR-269](docs/architecture/ADR-269-Relationship-Debrief.md)).
 - Connections between users of the same instance, assistant to assistant — relayed messages delivered by the recipient's own assistant, field-level read-only shares, silent blocking ([ADR-180](docs/architecture/ADR-180-Peer-Connections.md), [ADR-182](docs/architecture/ADR-182-Peer-Routing-Awareness-And-Honest-Failure.md)).
@@ -623,6 +627,8 @@ The home page opens on the date and LIA's living face, then aggregates your sour
 ### Trust it
 
 #### Three registers, sealed on request
+
+- Optional JEV badges qualify displayed emails (professional, personal, spam or phishing/scam; normal, urgent or critical priority) and appointments (professional or personal). Accepted labels also inform the answer. Uncertainty produces no badge; these advisory labels grant no permission and provide no guarantee of safety ([ADR-351](docs/architecture/ADR-351-Advisory-Source-Annotations-Shared-With-The-Answer.md)).
 
 - One row per action (claimed before it happens, closed from an explicit result), one per consultation (which capability read what, when, with what outcome), one per turn.
 - Proactive acts and direct reads are recorded too.
@@ -749,10 +755,10 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                                         |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
-| **55** functional domains | **963,000+** source lines (excl. tests) | **63,000+** inventoried automated tests | **347** ADRs                                                            |
-| **283** versions shipped  | **6 languages**, parity enforced in CI  | **621** Prometheus metrics              | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **55** functional domains | **967,000+** source lines (excl. tests) | **63,000+** inventoried automated tests | **350** ADRs                                                            |
+| **284** versions shipped  | **6 languages**, parity enforced in CI  | **621** Prometheus metrics              | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
-Source-line figure: 963,005 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-18). Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
+Source-line figure: 967,000+ physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-19). Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -1106,7 +1112,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 
 ### Architecture Decision Records
 
-347 ADR files (ADR-001 through ADR-348 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
+350 ADR files (ADR-001 through ADR-352 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
 
 - [ADR-070: ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md) — why two execution modes rather than one
 - [ADR-263: Execution Authority Chain and Effect Register](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) — how every act is claimed, closed and recorded

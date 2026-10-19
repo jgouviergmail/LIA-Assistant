@@ -4316,7 +4316,7 @@ graph TD
 
 **Amendement 2026-10-18** : le `max_tokens` d'un poste est tenu au plafond de sortie qu'une ligne garantie du catalogue déclare (`imported` ou `verified`, sur un fournisseur qui en applique un — `infrastructure/llm/output_cap.py`), lu par la résolution du poste, la porte du client et les métadonnées d'administration, qui signalent un budget au-dessus ; dans le doute, la requête part telle que configurée.
 
-**Amendement 2026-10-18 b** : les réglages d'environnement de quatorze postes (le commentaire vocal et treize agents de domaine : 126 champs, 98 constantes) n'avaient plus aucun lecteur depuis le passage à `LLM_DEFAULTS` + overrides — retirés, avec les plages de `scripts/validate_config.py` et l'ancien validateur des postes LLM, que rien ne lançait et qui n'importait plus. Deux de ces constantes servaient en réalité de défaut à d'autres champs : `openai_organization_id` portait l'identifiant d'organisation réel du mainteneur, envoyé par toute installation sans `OPENAI_ORGANIZATION_ID` (donc toute installation écrite par l'installeur), et `openweathermap_api_key` ; les deux ont désormais un défaut vide.
+**Amendement 2026-10-18 b** : les réglages d'environnement de quatorze postes (le commentaire vocal et treize agents de domaine : 126 champs, 98 constantes) n'avaient plus aucun lecteur depuis le passage à `LLM_DEFAULTS` + overrides — retirés, avec les plages de `scripts/validate_config.py` et l'ancien validateur des postes LLM, que rien ne lançait et qui n'importait plus. Deux de ces constantes servaient en réalité de défaut à d'autres champs : `openai_organization_id` portait l'identifiant d'organisation réel du mainteneur, envoyé par toute installation sans `OPENAI_ORGANIZATION_ID` (donc toute installation écrite par l'installeur), et `openweathermap_api_key` ; les deux ont désormais un défaut vide. Seconde passe le même jour : quatorze autres familles que seuls un test, un validateur ou une docstring nommaient (planner, validateur et pivot sémantiques, postes HITL, mémoire, intérêts, heartbeat, broadcast, agent de requête) et les champs non lus de `response` et `query_analyzer` sont retirés ; `firebase_project_id` (le projet Firebase du mainteneur, publié aux applications Android) et `telegram_bot_username` (son bot, non lu) n'ont plus de défaut de production, et une garde exige qu'un défaut vienne d'une constante de sa propre famille ou soit déclaré avec sa raison.
 
 ---
 
@@ -5242,3 +5242,27 @@ graph TD
 **Status**: Accepted (pilot), 2026-10-16. Amends ADR-068, ADR-104, ADR-120 and ADR-336.
 
 **Decision**: Read against the code, ADR-068's fifth layer measured none of what its name promised: only `emotional_support` ever moved, from the model's own quality self-rating (capped whenever the person's valence was negative), a single exchange crossed the strength / weakness thresholds, and the confidence it injected reached the final answer alone, never the planner or the ReAct loop. An episode — one turn's run across SSE segments and HITL resumptions, at most two domains attributed by the query analyzer that already runs (no extra model call) — now records two axes never averaged: the result the final coverage of the requested outcomes established (ADR-336; a tool's 200 is never a result, a wait, a refusal, a quota, an absent connector or an outage is `excluded`, a partial stays partial), and the owner's 👍/👎 on the canonical final message (silence is no opinion; a two-domain episode's feedback condemns neither domain). Episodes live in `psyche_efficacy_episodes`, unique per owner, generation and run, written under the owner lock in a bounded window, an index existing only past a minimum of observations of its own axis; legacy scores are not converted and no raw text is stored. The router freezes ONE adjustment (`efficacy_policy.choose_policy`: `verify`, `state_limit`, `clarify` or `none`) in the turn's `query_intelligence`; the planner, every ReAct call and the synthesis read it through one versioned directive, and it changes no model, tool, permission, budget or HITL. Collection and influence switch off independently; the settings show « no index yet », « learning » or « observed », never a percentage. A pilot: no gain on real exchanges is claimed, and routines, peer replies and direct Live sessions are not collected.
+
+### ADR-350: Peer capability copies without credentials
+
+**File**: `docs/architecture/ADR-350-Peer-Capability-Copies-Without-Credentials.md`
+
+**Status**: Accepted, 2026-10-19.
+
+**Decision**: An accepted peer receives an independently owned, disabled skill, MCP server or plugin copy with sender/time provenance. Confirmed package bytes are immutable; credentials and authority never transfer. Server-written peer origin grants the explicitly accepted recipient-authored skill policy after activation.
+
+### ADR-351: Advisory source annotations shared with the answer
+
+**File**: `docs/architecture/ADR-351-Advisory-Source-Annotations-Shared-With-The-Answer.md`
+
+**Status**: Accepted, 2026-10-19.
+
+**Decision**: JEV qualifications are typed, source-bound and advisory. The same accepted annotation reaches cards and response context; uncertainty abstains. Shared native probability validation tolerates stated rounding precision without increasing conservative confidence; semantic gates are qualified separately.
+
+### ADR-352: Position before places in every display mode
+
+**File**: `docs/architecture/ADR-352-Position-Before-Places-In-Every-Display-Mode.md`
+
+**Status**: Accepted, 2026-10-19.
+
+**Decision**: A source-derived Position card precedes places across Cards, HTML and Markdown. Interactive Maps loads only after a priced click; missing configuration or provider failures retain the address list. Quota, ownership and billing checks remain server-enforced.

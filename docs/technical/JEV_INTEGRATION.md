@@ -4,8 +4,11 @@ Les usages email/agenda ajoutent des [qualifications consultatives typées](EMAI
 aux données affichées et au contexte de réponse. Ils sont désactivés par défaut ;
 leur état réel dépend des réglages administrateur. Le
 [correctif de validation numérique](../superpowers/qualification/jev-probability-sum-2026-10-19/README.md)
-résout les interruptions `probability_sum` et le rejeu complet aboutit. La
-couverture sémantique reste sous les objectifs de recette pour certaines classes.
+résout les interruptions `probability_sum`. La
+[qualification sémantique suivante](../superpowers/qualification/jev-classification-2026-10-19/README.md)
+clarifie les questions et passe les corpus de calibration, validation et
+nouveaux cas adversariaux, sans diminuer les seuils. Le transport commun des
+usages du registre est vérifié sur les formes simple, lot et mixte Choice/Noul.
 Les rapports comptabilisés sont conservés ; ni l'absence de badge ni une forte
 concentration ne prouvent la sûreté.
 

@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings
 from src.core.constants import (
     AVATAR_CONNECT_TIMEOUT_SECONDS_DEFAULT,
     AVATAR_HTTP_TIMEOUT_SECONDS_DEFAULT,
+    AVATAR_IDLE_SECONDS_DEFAULT,
     AVATAR_MINTS_PER_HOUR_DEFAULT,
     AVATAR_SESSION_LENGTH_SECONDS_DEFAULT,
 )
@@ -21,7 +22,7 @@ class AvatarSettings(BaseSettings):
     avatar_session_length_seconds: int = Field(
         default=AVATAR_SESSION_LENGTH_SECONDS_DEFAULT, ge=30, le=3600
     )
-    avatar_idle_seconds: int = Field(default=AVATAR_SESSION_LENGTH_SECONDS_DEFAULT, ge=30, le=3600)
+    avatar_idle_seconds: int = Field(default=AVATAR_IDLE_SECONDS_DEFAULT, ge=30, le=3600)
     avatar_http_timeout_seconds: float = Field(
         default=AVATAR_HTTP_TIMEOUT_SECONDS_DEFAULT, ge=1, le=30
     )

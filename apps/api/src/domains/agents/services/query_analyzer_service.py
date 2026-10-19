@@ -349,6 +349,7 @@ class QueryAnalysisResult:
     raw_output: dict[str, Any] = field(default_factory=dict)
     requested_outcomes: tuple[GoalRequirement, ...] = ()
     efficacy_analysis: EfficacyAnalysis = field(default_factory=EfficacyAnalysis)
+    model_used: str | None = None  # Captured with this call; never re-read after an await.
 
     @property
     def domains(self) -> list[str]:
@@ -585,6 +586,7 @@ async def analyze_query(
 
         return QueryAnalysisResult(
             intent=result.intent,
+            model_used=agent_config.model,
             primary_domain=result.primary_domain,
             secondary_domains=result.secondary_domains,
             confidence=result.confidence,
@@ -1275,14 +1277,15 @@ class QueryAnalyzerService:
             if analysis_result.semantic_filter_terms:
                 _term_count = len(analysis_result.semantic_filter_terms)
                 _bucket = "1" if _term_count == 1 else "2-3" if _term_count <= 3 else "4+"
+                _model = analysis_result.model_used or "unknown"
                 planner_semantic_filter_terms_emitted.labels(
-                    model=settings.query_analyzer_llm_model,
+                    model=_model,
                     term_count_bucket=_bucket,
                 ).inc()
                 logger.info(
                     "semantic_filter_terms_emitted",
                     term_count=_term_count,
-                    model=settings.query_analyzer_llm_model,
+                    model=_model,
                 )
 
             return QueryIntelligence(

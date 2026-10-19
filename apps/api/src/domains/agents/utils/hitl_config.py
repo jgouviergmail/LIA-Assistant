@@ -13,7 +13,7 @@ Architecture:
     Tool Definition → ToolManifest (permissions.hitl_required) → Registry → Runtime Check
 
     The tool's manifest is the authoritative source for approval requirements.
-    Settings only control global enable/disable via tool_approval_enabled.
+    Tool approval is always on: no setting switches it off.
 
 Best Practice (LangGraph v1.0):
     HITL approval should be declarative (manifest) not imperative (settings).

@@ -51,6 +51,7 @@ from scripts.install.envgen import (
     derive_environment,
     generate_secrets,
     load_existing_generated_secrets,
+    maps_environment,
     render_env,
     write_atomic_private,
 )
@@ -153,10 +154,14 @@ def _generate_artifacts(
     generated: Mapping[str, str],
     sandbox_image: str | None,
     image_lock: str | None,
+    maps_settings: Mapping[str, str] | None = None,
 ) -> str:
     """Render .env / override / image lock / Caddyfile, prepare host paths."""
     seed_digest = compute_seed_bundle_sha256(deps.root)
-    environment = derive_environment(public, generated)
+    environment = {
+        **derive_environment(public, generated),
+        **maps_environment(deps.root / ENV_FILE, maps_settings or {}),
+    }
     # The minimal production template is the BASE of the user's `.env`: every
     # setting it carries survives into the installed instance. Reading it must
     # therefore fail loudly. It used to degrade to `""` when absent, and the
@@ -213,9 +218,7 @@ def _disarm_seeds(
     )
 
 
-def _fresh_state(
-    public: PublicAnswers, seed_digest: str, root: Path
-) -> InstallState:
+def _fresh_state(public: PublicAnswers, seed_digest: str, root: Path) -> InstallState:
     return InstallState(
         schema_version=STATE_SCHEMA_VERSION,
         installer_version=INSTALLER_VERSION,
@@ -277,9 +280,7 @@ def _deploy_sequence(
                 source_tree_sha = deploy.materialize_source_context(deps.root)
             except deploy.SourceContextError as exc:
                 # Same stable-code + redacted-detail contract as every step.
-                raise deploy.StepFailed(
-                    "source_context_invalid", detail=str(exc)
-                ) from exc
+                raise deploy.StepFailed("source_context_invalid", detail=str(exc)) from exc
             if source_tree_sha is not None:
                 log.write("source_context_materialized", tree_sha256=source_tree_sha)
             else:
@@ -326,9 +327,7 @@ def _deploy_sequence(
         last_error_code=None,
         degraded_capabilities=degraded,
         source_context_tree_sha256=(
-            source_tree_sha
-            if source_tree_sha is not None
-            else state.source_context_tree_sha256
+            source_tree_sha if source_tree_sha is not None else state.source_context_tree_sha256
         ),
     )
     for step in (
@@ -361,9 +360,7 @@ def run_install(argv: Sequence[str], deps: Deps) -> int:
             manifest_root = args.manifest.parent
         else:
             manifest_root = deps.root
-        mode, manifest_path = resolve_install_mode(
-            requested=requested, bundle_root=manifest_root
-        )
+        mode, manifest_path = resolve_install_mode(requested=requested, bundle_root=manifest_root)
 
         if args.check_only:
             deps.io.print_fn(f"check_ok mode={mode.value}")
@@ -375,9 +372,7 @@ def run_install(argv: Sequence[str], deps: Deps) -> int:
             deps.io.print_fn(str(exc))
             return EXIT_PREFLIGHT
 
-        if previous_state is None and (deps.root / ENV_FILE).is_file() and not (
-            args.dry_run
-        ):
+        if previous_state is None and (deps.root / ENV_FILE).is_file() and not (args.dry_run):
             # An unmanaged .env without state is someone else's deployment.
             deps.io.print_fn("unsupported_takeover_existing_env")
             return EXIT_PREFLIGHT
@@ -389,9 +384,7 @@ def run_install(argv: Sequence[str], deps: Deps) -> int:
             observed = ResumeInputs(
                 release_id=previous_state.release_id,
                 bundle_tree_sha256=previous_state.bundle_tree_sha256,
-                source_context_tree_sha256=(
-                    previous_state.source_context_tree_sha256
-                ),
+                source_context_tree_sha256=(previous_state.source_context_tree_sha256),
                 image_digests=dict(previous_state.image_digests),
                 seed_bundle_sha256=compute_seed_bundle_sha256(deps.root),
                 generated_sha256=generated_fingerprints(deps.root),
@@ -419,6 +412,8 @@ def run_install(argv: Sequence[str], deps: Deps) -> int:
                 log.add_secret(secrets.admin_password)
                 for value in secrets.provider_keys.values():
                     log.add_secret(value)
+                for value in secrets.maps_settings.values():
+                    log.add_secret(value)
                 previous_state = _deploy_sequence(
                     deps, log, public, secrets, previous_state, seed_digest, sandbox_image
                 )
@@ -445,6 +440,8 @@ def run_install(argv: Sequence[str], deps: Deps) -> int:
         log.add_secret(secrets.admin_password)
         for value in secrets.provider_keys.values():
             log.add_secret(value)
+        for value in secrets.maps_settings.values():
+            log.add_secret(value)
 
         generated = _load_or_generate_secrets(deps)
         image_lock, sandbox_image = prebuilt_pins(public)
@@ -455,11 +452,10 @@ def run_install(argv: Sequence[str], deps: Deps) -> int:
             generated=generated,
             sandbox_image=sandbox_image,
             image_lock=image_lock,
+            maps_settings=secrets.maps_settings,
         )
         state = _fresh_state(public, seed_digest, deps.root)
-        state = with_step_completed(
-            with_step_completed(state, Step.PREFLIGHT), Step.QUESTIONS
-        )
+        state = with_step_completed(with_step_completed(state, Step.PREFLIGHT), Step.QUESTIONS)
         state = with_step_completed(state, Step.GENERATE)
         save_state(state_path, state)
         log.write("artifacts_generated", mode=mode.value)
@@ -468,9 +464,7 @@ def run_install(argv: Sequence[str], deps: Deps) -> int:
             deps.io.print_fn("dry_run_complete")
             return EXIT_OK
 
-        state = _deploy_sequence(
-            deps, log, public, secrets, state, seed_digest, sandbox_image
-        )
+        state = _deploy_sequence(deps, log, public, secrets, state, seed_digest, sandbox_image)
         state = with_step_completed(state, Step.REPORT)
         save_state(state_path, state)
         deps.io.print_fn(
@@ -605,9 +599,7 @@ def _real_deps() -> Deps:
 
     return Deps(
         root=Path.cwd(),
-        io=IOAdapter(
-            input_fn=input, getpass_fn=getpass.getpass, print_fn=print
-        ),
+        io=IOAdapter(input_fn=input, getpass_fn=getpass.getpass, print_fn=print),
         runner=_runner,
         opener=_opener,
         clock=_RealClock(),

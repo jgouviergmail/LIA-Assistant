@@ -2,8 +2,8 @@
 
 > **Référence technique du schéma PostgreSQL et de ses modèles déclarés**
 >
-> **Version**: 1.9
-> **Date**: 2026-10-12
+> **Version**: 1.10
+> **Date**: 2026-10-19
 > **Reviewed**: sources des commandes, révisions d’apprentissage et réservations relues le 2026-10-12. L’inventaire ORM du 2026-07-11 est un snapshot historique ; les modèles enregistrés et les migrations restent l’autorité, pas une preuve de migration d’une instance.
 >
 > Architecture: PostgreSQL 16 avec SQLAlchemy 2.0 ORM
@@ -2736,6 +2736,42 @@ CREATE INDEX ix_user_skill_states_active ON user_skill_states(user_id)
 
 **Migration:** `2026_03_17_0001-create_skills_tables.py` — creates both tables, preserves legacy `disabled_skills` JSONB data, and drops legacy columns from `users`.
 
+### Recipient-owned peer capability copies (ADR-350)
+
+The [transfer models](../../apps/api/src/domains/peers/capability_models.py) add
+two durable tables without making the sender an owner of the received resource:
+
+| Table | Durable contract |
+|---|---|
+| `peer_capability_transfers` | Sender, recipient, connection and original source; idempotency key, immutable digest/sanitized snapshot, exact retained `payload_bytes`, fixed expiry, installation status, lease/fence and notification receipt. `(sender_id, idempotency_key)` is unique. Sender/connection erasure sets their references to null; recipient erasure cascades. |
+| `peer_capability_components` | Transfer-scoped component kind/key, native resource UUID, fingerprint, installation result and bounded error code. `(transfer_id, kind, key)` and `(kind, resource_id)` are unique; deleting the transfer cascades its component records. |
+
+`skills.provenance` accepts `peer`. The server-only `skills.peer_authored`
+defaults false and grants the explicitly accepted recipient-authored execution
+policy to a received skill or plugin child; it never grants `is_system`.
+Received skills have an explicit inactive `user_skill_states` row, rather than
+relying on the ordinary missing-row default. MCP/plugin children are also
+installed disabled through their native models.
+
+`user_mcp_servers.required_header_name` is nullable public authentication
+metadata for offline installation; it carries no token. The original
+`credentials_encrypted` field stays empty until the recipient supplies their
+own credentials. Transfer snapshots omit configured secrets and grants, have a
+bounded retention period, and are not an export of another account's credentials.
+See [the transfer guide](PEER_CAPABILITY_TRANSFERS.md) for retry and erasure rules.
+
+The additive migrations are
+[`a94e30f821b6`](../../apps/api/alembic/versions/2026_10_18_1800-a94e30f821b6_peer_capability_transfers.py)
+then [`b05f41e932c7`](../../apps/api/alembic/versions/2026_10_18_1830-b05f41e932c7_offline_capability_installation.py).
+The existing startup migration chain applies them; no extra seed or service is
+required. A downgrade removes the transfer records, so it is not a preservation
+mechanism for sharing history.
+
+Email/event annotations use the existing typed source and Redis contracts;
+meeting-minutes filtering and Position rendering add no SQL table or LangGraph
+state field. See [classification](EMAIL_EVENT_CLASSIFICATION.md),
+[meetings](MEETINGS.md) and [HTML cards](HTML_CARDS.md).
+
 ---
 
 ### 26. user_usage_limits
@@ -3065,6 +3101,8 @@ class User(BaseModel):
 | 2026-10-16 | b62a8d193f04 | Data only: restore the stock personalities' OCEAN/PAD traits the reference seed had dropped, only where all eight columns are absent |
 | 2026-10-16 | c8d1f4260e77 | ADR-348: add the efficacy fences to `psyche_states` and the `psyche_efficacy_episodes` table |
 | 2026-10-16 | 1ed6c591761a | ADR-345: `users.lia_voices` comment names the per-provider key (no row rewritten) |
+| 2026-10-18 | a94e30f821b6 | ADR-350: durable peer capability transfers/components; explicit `skills.peer_authored` and `peer` provenance |
+| 2026-10-18 | b05f41e932c7 | Offline MCP `required_header_name` and exact retained transfer `payload_bytes` |
 
 ### Alembic Commands
 

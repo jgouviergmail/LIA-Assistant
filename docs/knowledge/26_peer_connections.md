@@ -60,3 +60,7 @@ A copy of the image, filed in their own gallery as if they had generated it, wit
 • Only your own generated images can be shared, with an accepted connection and no block between you
 • It is a copy: deleting your image does not remove theirs
 • A daily limit caps sharing, for you and for each connection; the message tells you when to try again
+
+## How do I send a skill, MCP server or plugin to a connection?
+
+Use **Share** on its settings card, choose an accepted connection, review the package and confirm. The recipient receives an independent copy, **disabled by default**, with the sender and sharing date/time. Credentials and permissions do not transfer. They can edit, configure, activate or delete it through the usual controls. Once enabled, a received skill has the same execution capabilities as one they created, so review it before activation. Later changes at the sender do not update the copy.

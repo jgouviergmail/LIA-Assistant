@@ -1,5 +1,10 @@
 # JEV — cause et correction de `probability_sum`
 
+Suite : la [qualification sémantique et l'audit de tous les usages](../jev-classification-2026-10-19/README.md)
+traitent la réserve de couverture décrite ci-dessous, avec de nouveaux prompts
+email et des mesures conservées. Ce document garde les résultats du diagnostic
+initial ; ils ne sont pas réécrits rétroactivement.
+
 Correction réalisée directement dans `D:\Developpement\LIA`, sur `main`, sans
 worktree supplémentaire. Les changements de configuration et les fichiers déjà
 indexés des autres chantiers sont conservés.

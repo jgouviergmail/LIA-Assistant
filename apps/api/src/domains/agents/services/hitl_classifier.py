@@ -6,7 +6,7 @@ for conversational Human-in-the-Loop interactions.
 
 Multi-Provider Support:
 - Uses factory pattern for provider-agnostic LLM creation
-- Configurable via HITL_CLASSIFIER_LLM_PROVIDER in .env
+- Configured through the ``hitl_classifier`` slot (LLM_DEFAULTS + admin overrides)
 - Supports OpenAI, Anthropic, DeepSeek, Perplexity, Ollama
 
 Usage:
@@ -122,7 +122,7 @@ class HitlResponseClassifier:
 
     Multi-Provider Support:
     - Uses LLM factory for provider-agnostic instantiation
-    - Configurable via HITL_CLASSIFIER_LLM_PROVIDER in .env
+    - Configured through the ``hitl_classifier`` slot (LLM_DEFAULTS + admin overrides)
     - Supports OpenAI, Anthropic, DeepSeek, Perplexity, Ollama
 
     Classification Decisions:
@@ -154,16 +154,16 @@ class HitlResponseClassifier:
         """Initialize classifier with LLM model via factory.
 
         Migration notes (backward compatible):
-        - Parameters are now optional (None = use settings defaults)
-        - If provided, they override global settings via config_override
+        - Parameters are optional (None = the ``hitl_classifier`` slot's value)
+        - If provided, they override the slot via config_override
         - LLM creation delegated to factory (multi-provider support)
 
         Args:
-            model: LLM model name (None = use settings.hitl_classifier_llm_model).
-            temperature: Temperature for classification (None = use settings).
-            top_p: Top-p (nucleus sampling) parameter (None = use settings).
-            frequency_penalty: Frequency penalty parameter (None = use settings).
-            presence_penalty: Presence penalty parameter (None = use settings).
+            model: LLM model name (None = the slot's model).
+            temperature: Temperature for classification (None = the slot's).
+            top_p: Top-p (nucleus sampling) parameter (None = the slot's).
+            frequency_penalty: Frequency penalty parameter (None = the slot's).
+            presence_penalty: Presence penalty parameter (None = the slot's).
         """
         # Build config_override dict (only include non-None parameters)
         config_override: LLMConfig = {}

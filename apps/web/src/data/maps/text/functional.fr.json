@@ -125,7 +125,7 @@
     },
     "f.peers": {
       "name": "Connexions entre pairs",
-      "role": "Relier deux comptes LIA : se transmettre des messages par l'assistante, se partager une image générée, se confier des tickets.",
+      "role": "Relier deux comptes LIA : se transmettre des messages par l'assistante, se partager une image générée, se confier des tickets. Transmettre skills, serveurs MCP et plugins comme copies indépendantes désactivées, avec origine et date, sans identifiants.",
       "goal": "Collaborer sans quitter l'assistante."
     },
     "f.connectors": {
@@ -135,12 +135,12 @@
     },
     "f.mail": {
       "name": "E-mails",
-      "role": "Lire des e-mails nettoyés, les résumer une seule fois, chercher, rédiger, répondre, lire les pièces jointes et tenir les brouillons de ta boîte — l'envoi à autrui passe toujours par une confirmation ; un e-mail à soi-même part directement.",
+      "role": "Lire des e-mails nettoyés, les résumer une seule fois, chercher, rédiger, répondre, lire les pièces jointes et tenir les brouillons de ta boîte — l'envoi à autrui passe toujours par une confirmation ; un e-mail à soi-même part directement. Les catégories et priorités JEV facultatives restent consultatives et atteignent aussi l’assistante ; le doute n’affiche aucun badge.",
       "goal": "Traiter ta boîte en quelques phrases."
     },
     "f.calendar": {
       "name": "Agenda",
-      "role": "Consulter, chercher, créer, déplacer et supprimer des événements, avec invités, rappels et fuseaux horaires.",
+      "role": "Consulter, chercher, créer, déplacer et supprimer des événements, avec invités, rappels et fuseaux horaires. La qualification pro/perso facultative est commune à l’affichage et à l’assistante, avec abstention dans le doute.",
       "goal": "Organiser ton temps en parlant."
     },
     "f.contacts": {
@@ -160,7 +160,7 @@
     },
     "f.places": {
       "name": "Lieux, trajets et météo",
-      "role": "Lieux, itinéraires, météo et qualité de l'air ; ta dernière position connue sert partout, toujours avec son âge.",
+      "role": "Lieux, itinéraires, météo et qualité de l'air ; ta dernière position connue sert partout, toujours avec son âge. Une carte Position rassemble les lieux trouvés avant leurs détails, dans chaque format ; son activation interactive annonce son coût.",
       "goal": "Répondre à « comment y aller » et « quel temps fera-t-il » avec des données fraîches."
     },
     "f.health": {
@@ -180,7 +180,7 @@
     },
     "f.skills": {
       "name": "Compétences et plugins",
-      "role": "Des compétences au standard Agent Skills — écrites par LIA et installées d'un clic, ou choisies dans une bibliothèque publique après lecture — et des plugins au standard Agent Plugins ; une compétence venue d'ailleurs travaille à part, loin de tes connecteurs.",
+      "role": "Des compétences Agent Skills et des plugins Agent Plugins, créés dans LIA, importés ou choisis en bibliothèque. Les imports tiers ordinaires travaillent à part ; une copie reçue d’un pair arrive désactivée puis suit, après activation, la politique d’une compétence créée par le destinataire.",
       "goal": "Donner à LIA des savoir-faire portables."
     },
     "f.rag": {
@@ -200,7 +200,7 @@
     },
     "f.meetings": {
       "name": "Réunions",
-      "role": "Enregistrer une réunion depuis le téléphone ou l'ordinateur et recevoir un compte rendu structuré, dans un modèle choisi automatiquement.",
+      "role": "Enregistrer une réunion depuis le téléphone ou l'ordinateur et recevoir un compte rendu structuré, dans un modèle choisi automatiquement. Recherche dans les titres et les comptes rendus complets pour retrouver une décision.",
       "goal": "Assister à la réunion, pas à la prise de notes."
     },
     "f.heartbeat": {

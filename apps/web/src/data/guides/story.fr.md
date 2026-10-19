@@ -3,8 +3,8 @@
 > Retour d'expérience — un système complet, de la conception à la production.
 
 **Version** : 2.4
-**Date** : 2026-10-18
-**Application** : LIA v3.2.0
+**Date** : 2026-10-19
+**Application** : LIA v3.3.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -18,16 +18,18 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Indicateur | Valeur |
 | --- | --- |
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
-| Lignes de source (hors tests) — 55 domaines fonctionnels | **963 000+** |
+| Lignes de source (hors tests) — 55 domaines fonctionnels | **967 000+** |
 | Tests automatisés inventoriés ; suites adaptées au commit et à la livraison | **63 000+** |
-| Décisions d'architecture documentées (ADR) | **347** |
-| Versions livrées à rythme régulier | **283** |
+| Décisions d'architecture documentées (ADR) | **350** |
+| Versions livrées à rythme régulier | **284** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 
 Conviction d'expérience : le développement assisté par IA est industrialisable dès aujourd'hui. Le facteur limitant n'est pas l'outil — c'est le cadre de direction qu'on lui donne.
 
 Cette discipline s'applique aussi dans le produit. Une petite décision de modèle peut aider à choisir un parcours ou un format, mais LIA borne les choix, mesure le coût et garde l'autorité de vérifier et de confirmer le résultat. Les décisions natives facultatives prolongent cette méthode sans transformer une confiance de modèle en permission.
+
+L’utilité se joue aussi dans la continuité : retrouver une décision dans un compte rendu complet, transmettre un savoir-faire réutilisable à une personne de confiance, ou situer ensemble les lieux proposés. Chaque facilité garde sa frontière visible. Une capacité partagée arrive désactivée sans les identifiants de l’expéditeur ; la qualification d’un e-mail reste un indice, jamais une preuve de sûreté ; ouvrir une carte interactive reste ton choix, avec son coût affiché.
 
 ## 2. La démarche
 
@@ -66,7 +68,7 @@ Le projet est désormais conduit avec plusieurs agents de développement en para
 
 ## 4. Les arbitrages
 
-Trois décisions structurantes, parmi les 347 documentées :
+Trois décisions structurantes, parmi les 350 documentées :
 
 **Souveraineté & réversibilité — aucune dépendance fournisseur irréversible.** Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modèles locaux via Ollama) sont placés derrière une abstraction unique : chaque usage peut changer de fournisseur par configuration, avec comparaison de coût. Même principe côté métier : Google, Apple et Microsoft sont interchangeables par catégorie fonctionnelle. L'auto-hébergement te donne la maîtrise du serveur ; les données du compte sont stockées sur l'instance et les identifiants des connecteurs sont chiffrés. Les services distants que tu choisis reçoivent toujours les données utiles à leur part de la demande.
 

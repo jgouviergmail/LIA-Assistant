@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 6.4
-**Date**: 2026-10-18
-**Application**: LIA v3.2.0
+**Date**: 2026-10-19
+**Application**: LIA v3.3.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -395,7 +395,7 @@ The same requirement governs what LIA retains of your instructions: every lastin
 
 ### 6.8. A surface that describes the product is held to it
 
-Transparency has a failure mode nobody notices: a screen that quietly stops telling the truth. Nothing breaks, no test goes red, and the page that existed to be current becomes the least current in the application. So the capability map — the page answering _what can my assistant do for me?_ — is no longer maintained by hand: every capability the platform can switch on or off must have its declared place on it, and a capability that ships without that decision stops the application from starting. The same conviction, one notch further: what a screen says about your data must be **exact or absent**. A tally is the number the database returns, never a length that happens to be at hand; and while an answer is still on its way, or when it failed, the card says nothing rather than guessing. "Nothing set up yet" is a claim about your account — one worth being sure of before making it. The FAQ obeys the same rule: every feature a person can use has its section there — 491 questions, in six languages —, and a translated section the display order forgot fails the tests instead of staying invisible.
+Transparency has a failure mode nobody notices: a screen that quietly stops telling the truth. Nothing breaks, no test goes red, and the page that existed to be current becomes the least current in the application. So the capability map — the page answering _what can my assistant do for me?_ — is no longer maintained by hand: every capability the platform can switch on or off must have its declared place on it, and a capability that ships without that decision stops the application from starting. The same conviction, one notch further: what a screen says about your data must be **exact or absent**. A tally is the number the database returns, never a length that happens to be at hand; and while an answer is still on its way, or when it failed, the card says nothing rather than guessing. "Nothing set up yet" is a claim about your account — one worth being sure of before making it. The FAQ obeys the same rule: every feature a person can use has its section there — 496 questions, in six languages —, and a translated section the display order forgot fails the tests instead of staying invisible.
 
 Transparency also applies to the assistant's internal rules. A constraint the system enforces must be published to whoever it affects: when habit learning detects nothing, Settings display the threshold actually required — stricter on weekends, where observed days are fewer — instead of an unexplained silence. And when a setting tunes itself, like the threshold deciding that a journal note enters a reply, it does so inside strict bounds, one small step per day, with a kill switch and every adjustment counted: a learning system is only acceptable if it stays observable and stoppable.
 
@@ -578,6 +578,8 @@ A guarantee you cannot check is not one. The project's technical audit is public
 
 ## 10. Radical openness
 
+Sharing a useful method should not mean sharing an account. A confirmed LIA connection can pass you a skill, MCP server or plugin as your own disabled copy, marked with its origin and sharing time. You keep the choice to review, configure and activate it; credentials stay with their owner. A peer skill you enable has the capabilities of one you authored, so that choice carries the same responsibility. Portability and explicit trust belong together.
+
 ### 10.1. Zero lock-in
 
 ChatGPT ties you to OpenAI. Gemini to Google. Copilot to Microsoft.
@@ -588,7 +590,7 @@ If a provider changes its pricing or degrades its service, you switch instantly.
 
 ### 10.2. Extensibility
 
-Each user can connect their own MCP servers, extending LIA's capabilities far beyond built-in tools. The client speaks both generations of the protocol — the new stateless revision and the legacy handshake, chosen automatically per server — so openness never costs compatibility. Skills (agentskills.io standard) allow injecting expert instructions in natural language — with a built-in Skill generator that creates them through a guided dialogue and proposes them on a card one click installs — and a public library, skills.sh, where you read a skill file by file before installing it. A skill written elsewhere works apart and never touches your connectors, and a skill can run its own commands in a throwaway container to hand you files. A Skill can also return an **interactive HTML frame** (map, dashboard, calendar, converter...) or an **image** (QR code, chart) right inside the chat, sandboxed under a strict CSP, with theme and locale automatically kept in sync.
+Each user can connect their own MCP servers, extending LIA's capabilities far beyond built-in tools. The client speaks both generations of the protocol — the new stateless revision and the legacy handshake, chosen automatically per server — so openness never costs compatibility. Skills (agentskills.io standard) allow injecting expert instructions in natural language — with a built-in Skill generator that creates them through a guided dialogue and proposes them on a card one click installs — and a public library, skills.sh, where you read a skill file by file before installing it. An ordinary third-party skill imported from a URL, library or plugin works apart and never touches your connectors, and a skill can run its own commands in a throwaway container to hand you files. A Skill can also return an **interactive HTML frame** (map, dashboard, calendar, converter...) or an **image** (QR code, chart) right inside the chat, sandboxed under a strict CSP, with theme and locale automatically kept in sync.
 
 This openness has a package format: LIA speaks the **Agent Plugins** open standard (agent-plugins.org), the portable plugin format steered by AWS, Microsoft, OpenAI, Cursor and Vercel and adopted by ChatGPT, Codex, Cursor, GitHub Copilot, Kiro and VS Code. A plugin bundling skills and MCP servers installs into LIA in one step — from a zip or an https link — with a full per-component report of what was installed, skipped (and why) or removed, and uninstalls just as cleanly, everything it brought leaving with it. Interoperability is a conviction here, not a feature: what you build or adopt anywhere in the ecosystem is yours to bring.
 

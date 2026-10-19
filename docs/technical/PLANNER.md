@@ -345,15 +345,8 @@ async def planner_node(state: MessagesState, config: RunnableConfig) -> dict[str
         from src.domains.agents.graphs.base_agent_builder import LLMConfig
         from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 
-        # Get planner LLM with custom config
-        llm = get_llm(
-            llm_type="planner",
-            config_override=LLMConfig(
-                model=settings.planner_llm_model,
-                temperature=settings.planner_llm_temperature,
-                max_tokens=settings.planner_llm_max_tokens,
-            ),
-        )
+        # The planner slot's own configuration (LLM_DEFAULTS + admin overrides)
+        llm = get_llm("planner")
 
         # Build config with timeout and callbacks
         llm_config: RunnableConfig = {"timeout": settings.planner_timeout_seconds}
@@ -2930,11 +2923,7 @@ async def test_planner_node_e2e_with_real_llm():
    # Fix: Ensure get_planner_windowed_messages() is called
    ```
 
-3. **Considérer LLM plus rapide** (si qualité acceptable):
-   ```python
-   # apps/api/src/core/config/
-   planner_llm_model: str = "gpt-4.1-mini-mini"  # vs "gpt-4.1-mini"
-   ```
+3. **Considérer LLM plus rapide** (si qualité acceptable) : choisir un modèle plus rapide pour le poste `planner` dans Settings > Administration > LLM Configuration, sans redémarrage.
 
 ---
 
@@ -3089,18 +3078,9 @@ grep "get_place_details_tool\|get_contact_details_tool" docker-logs.txt
 
 ### Configuration Planner
 
-#### Variables .env - Planner LLM
+#### LLM du planner
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PLANNER_LLM_PROVIDER` | openai | Provider LLM |
-| `PLANNER_LLM_MODEL` | gpt-4.1-mini | Modele LLM |
-| `PLANNER_LLM_TEMPERATURE` | 0.2 | Temperature (deterministic plans) |
-| `PLANNER_LLM_TOP_P` | 1.0 | Top-p sampling |
-| `PLANNER_LLM_FREQUENCY_PENALTY` | 0.0 | Penalite frequence |
-| `PLANNER_LLM_PRESENCE_PENALTY` | 0.0 | Penalite presence |
-| `PLANNER_LLM_MAX_TOKENS` | 4000 | Max tokens reponse (ExecutionPlan JSON) |
-| `PLANNER_LLM_REASONING_EFFORT` | low | Effort raisonnement (o-series) |
+Le planner est le poste `planner` : ses valeurs par defaut sont dans `LLM_DEFAULTS` (`apps/api/src/domains/llm_config/constants.py`) et un administrateur les remplace dans Settings > Administration > LLM Configuration. Aucune variable d'environnement ne le configure.
 
 #### Variables .env - Planner Validation
 
@@ -3115,10 +3095,6 @@ grep "get_place_details_tool\|get_contact_details_tool" docker-logs.txt
 # apps/api/src/core/config/ (code reference)
 
 class Settings(BaseSettings):
-    planner_llm_provider: str = "openai"
-    planner_llm_model: str = "gpt-4.1-mini"
-    planner_llm_temperature: float = 0.2
-    planner_llm_max_tokens: int = 4000
     planner_timeout_seconds: int = 30
     planner_max_steps: int = 10
     planner_max_cost_usd: float = 1.0

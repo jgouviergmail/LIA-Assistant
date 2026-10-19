@@ -413,8 +413,19 @@ OpenAI client, so an installation whose environment carries no
 its own key (read from the code, not measured on such an instance). Both fields
 now default to an empty value, like their neighbours.
 
-**Left open.** A default is meant to be read from the constant named for its
-own field; 75 of the 1 218 constant-backed fields still read another name.
-Most are spelling variants (`*_TTL` for `*_TTL_SECONDS`), a few are not (three
-`hitl_*_llm_provider` fields read `HEARTBEAT_*` constants), and no guard holds
-the convention yet. Ten more slot families are read by nobody either.
+**The second pass, the same day.** The census, rerun by reader rather than by
+name, found fourteen more families that only a test, a validator or a
+docstring named — `planner`, `semantic_validator`, `semantic_pivot`, the three
+HITL slots, the memory, interest, heartbeat, broadcast and query-agent slots —
+and two partial ones: `response` and `query_analyzer` keep their timeout alone.
+They left with 97 more constants, their validators and the LLM keys
+`scripts/validate_config.py` still checked; the query analyzer's metric label
+now names the model the slot RAN, not an env value nobody set. The same pass
+compared every literal default with a production environment and found two
+more of the alignment pass's values: `firebase_project_id` defaulted to the
+maintainer's Firebase project — published to every Android shell beside the
+operator's own three values, so the route now requires all four — and the
+unread `telegram_bot_username` held the maintainer's bot. A default is read
+from a constant of its own family, or the pair is declared with its reason
+(`test_settings_default_family_guard.py`, shrink-only); the 57 spelling
+variants inside one family are accepted.

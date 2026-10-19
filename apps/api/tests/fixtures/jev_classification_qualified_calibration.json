@@ -1,0 +1,2135 @@
+{
+  "split": "cases",
+  "live": true,
+  "policy_sha256": "6386fb285f8cbea53740b8f71b5748087ef990ba76e2d5adf7a58e5efc9540bf",
+  "corpus_sha256": "cc908d49c5d577ed7ac8c67438f6cc0ec763d621c4aff83cd934149fefe391e9",
+  "native_calls_planned": 11,
+  "request_bytes": 278292,
+  "estimated_input_tokens": 54680,
+  "budget_eur": "0.04704277785350000101",
+  "prior_cost_eur": "0.01571299733010000145",
+  "total_cost_eur": "0.01823844110130000169",
+  "models": {
+    "email": "jev-1.13.0",
+    "event": "jev-1.13.0"
+  },
+  "calls": [
+    {
+      "kind": "email",
+      "outcome": "success",
+      "latency_ms": 434.5172739995178,
+      "charge": {
+        "model": "jev-1.13.0",
+        "input_tokens": 6583,
+        "output_tokens": 502,
+        "cost_usd": 0.00027648600000000005,
+        "cost_eur": 0.0002456992839000001
+      },
+      "members": [
+        "cases-000",
+        "cases-001",
+        "cases-002",
+        "cases-003",
+        "cases-004"
+      ],
+      "answers": {
+        "i0_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i0_priority": {
+          "type": "choice",
+          "choice": "normal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 1.0,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        },
+        "i1_category": {
+          "type": "choice",
+          "choice": "personal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 1.0,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i1_priority": {
+          "type": "choice",
+          "choice": "normal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 1.0,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        },
+        "i2_category": {
+          "type": "choice",
+          "choice": "spam",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 0.0,
+            "spam": 1.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i2_priority": {
+          "type": "choice",
+          "choice": "normal",
+          "confidence": 0.33,
+          "probabilities": {
+            "unknown": 0.5,
+            "normal": 0.5,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        },
+        "i3_category": {
+          "type": "choice",
+          "choice": "phishing_scam",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 1.0
+          }
+        },
+        "i3_priority": {
+          "type": "choice",
+          "choice": "unknown",
+          "confidence": 0.72,
+          "probabilities": {
+            "unknown": 0.79,
+            "normal": 0.01,
+            "urgent": 0.17,
+            "critical": 0.03
+          }
+        },
+        "i4_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 0.9875,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.99,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 0.01
+          }
+        },
+        "i4_priority": {
+          "type": "choice",
+          "choice": "urgent",
+          "confidence": 0.93,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 0.0,
+            "urgent": 0.95,
+            "critical": 0.05
+          }
+        }
+      }
+    },
+    {
+      "kind": "email",
+      "outcome": "success",
+      "latency_ms": 247.39561000023969,
+      "charge": {
+        "model": "jev-1.13.0",
+        "input_tokens": 6636,
+        "output_tokens": 502,
+        "cost_usd": 0.000278712,
+        "cost_eur": 0.0002476774188
+      },
+      "members": [
+        "cases-005",
+        "cases-006",
+        "cases-007",
+        "cases-008",
+        "cases-009"
+      ],
+      "answers": {
+        "i0_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i0_priority": {
+          "type": "choice",
+          "choice": "critical",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 0.0,
+            "urgent": 0.0,
+            "critical": 1.0
+          }
+        },
+        "i1_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i1_priority": {
+          "type": "choice",
+          "choice": "normal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 1.0,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        },
+        "i2_category": {
+          "type": "choice",
+          "choice": "personal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 1.0,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i2_priority": {
+          "type": "choice",
+          "choice": "normal",
+          "confidence": 0.97,
+          "probabilities": {
+            "unknown": 0.02,
+            "normal": 0.98,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        },
+        "i3_category": {
+          "type": "choice",
+          "choice": "spam",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 0.0,
+            "spam": 1.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i3_priority": {
+          "type": "choice",
+          "choice": "unknown",
+          "confidence": 0.6266666666666667,
+          "probabilities": {
+            "unknown": 0.72,
+            "normal": 0.28,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        },
+        "i4_category": {
+          "type": "choice",
+          "choice": "phishing_scam",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 1.0
+          }
+        },
+        "i4_priority": {
+          "type": "choice",
+          "choice": "unknown",
+          "confidence": 0.52,
+          "probabilities": {
+            "unknown": 0.64,
+            "normal": 0.02,
+            "urgent": 0.33,
+            "critical": 0.01
+          }
+        }
+      }
+    },
+    {
+      "kind": "email",
+      "outcome": "success",
+      "latency_ms": 233.32917201332748,
+      "charge": {
+        "model": "jev-1.13.0",
+        "input_tokens": 6637,
+        "output_tokens": 498,
+        "cost_usd": 0.000278754,
+        "cost_eur": 0.0002477147421
+      },
+      "members": [
+        "cases-010",
+        "cases-011",
+        "cases-012",
+        "cases-013",
+        "cases-014"
+      ],
+      "answers": {
+        "i0_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i0_priority": {
+          "type": "choice",
+          "choice": "urgent",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 0.0,
+            "urgent": 1.0,
+            "critical": 0.0
+          }
+        },
+        "i1_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i1_priority": {
+          "type": "choice",
+          "choice": "critical",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 0.0,
+            "urgent": 0.0,
+            "critical": 1.0
+          }
+        },
+        "i2_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i2_priority": {
+          "type": "choice",
+          "choice": "normal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 1.0,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        },
+        "i3_category": {
+          "type": "choice",
+          "choice": "personal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 1.0,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i3_priority": {
+          "type": "choice",
+          "choice": "normal",
+          "confidence": 0.93,
+          "probabilities": {
+            "unknown": 0.05,
+            "normal": 0.95,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        },
+        "i4_category": {
+          "type": "choice",
+          "choice": "spam",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 0.0,
+            "spam": 1.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i4_priority": {
+          "type": "choice",
+          "choice": "unknown",
+          "confidence": 0.89,
+          "probabilities": {
+            "unknown": 0.92,
+            "normal": 0.08,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        }
+      }
+    },
+    {
+      "kind": "email",
+      "outcome": "success",
+      "latency_ms": 248.48373600980267,
+      "charge": {
+        "model": "jev-1.13.0",
+        "input_tokens": 6654,
+        "output_tokens": 502,
+        "cost_usd": 0.000279468,
+        "cost_eur": 0.0002483492382
+      },
+      "members": [
+        "cases-015",
+        "cases-016",
+        "cases-017",
+        "cases-018",
+        "cases-019"
+      ],
+      "answers": {
+        "i0_category": {
+          "type": "choice",
+          "choice": "phishing_scam",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 1.0
+          }
+        },
+        "i0_priority": {
+          "type": "choice",
+          "choice": "unknown",
+          "confidence": 0.73,
+          "probabilities": {
+            "unknown": 0.8,
+            "normal": 0.01,
+            "urgent": 0.18,
+            "critical": 0.01
+          }
+        },
+        "i1_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i1_priority": {
+          "type": "choice",
+          "choice": "urgent",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 0.0,
+            "urgent": 1.0,
+            "critical": 0.0
+          }
+        },
+        "i2_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i2_priority": {
+          "type": "choice",
+          "choice": "critical",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 0.0,
+            "urgent": 0.0,
+            "critical": 1.0
+          }
+        },
+        "i3_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i3_priority": {
+          "type": "choice",
+          "choice": "normal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 1.0,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        },
+        "i4_category": {
+          "type": "choice",
+          "choice": "personal",
+          "confidence": 0.9875,
+          "probabilities": {
+            "unknown": 0.01,
+            "professional": 0.0,
+            "personal": 0.99,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i4_priority": {
+          "type": "choice",
+          "choice": "normal",
+          "confidence": 0.97,
+          "probabilities": {
+            "unknown": 0.02,
+            "normal": 0.98,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        }
+      }
+    },
+    {
+      "kind": "email",
+      "outcome": "success",
+      "latency_ms": 242.15651099802926,
+      "charge": {
+        "model": "jev-1.13.0",
+        "input_tokens": 6653,
+        "output_tokens": 502,
+        "cost_usd": 0.00027942600000000005,
+        "cost_eur": 0.0002483119149000001
+      },
+      "members": [
+        "cases-020",
+        "cases-021",
+        "cases-022",
+        "cases-023",
+        "cases-024"
+      ],
+      "answers": {
+        "i0_category": {
+          "type": "choice",
+          "choice": "spam",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 0.0,
+            "spam": 1.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i0_priority": {
+          "type": "choice",
+          "choice": "unknown",
+          "confidence": 0.6666666666666666,
+          "probabilities": {
+            "unknown": 0.75,
+            "normal": 0.25,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        },
+        "i1_category": {
+          "type": "choice",
+          "choice": "phishing_scam",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 1.0
+          }
+        },
+        "i1_priority": {
+          "type": "choice",
+          "choice": "unknown",
+          "confidence": 0.57,
+          "probabilities": {
+            "unknown": 0.68,
+            "normal": 0.01,
+            "urgent": 0.3,
+            "critical": 0.01
+          }
+        },
+        "i2_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 0.9875,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.99,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 0.01
+          }
+        },
+        "i2_priority": {
+          "type": "choice",
+          "choice": "urgent",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 0.0,
+            "urgent": 1.0,
+            "critical": 0.0
+          }
+        },
+        "i3_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i3_priority": {
+          "type": "choice",
+          "choice": "critical",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 0.0,
+            "urgent": 0.0,
+            "critical": 1.0
+          }
+        },
+        "i4_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i4_priority": {
+          "type": "choice",
+          "choice": "normal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 1.0,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        }
+      }
+    },
+    {
+      "kind": "email",
+      "outcome": "success",
+      "latency_ms": 271.316605998436,
+      "charge": {
+        "model": "jev-1.13.0",
+        "input_tokens": 6657,
+        "output_tokens": 502,
+        "cost_usd": 0.000279594,
+        "cost_eur": 0.0002484612081
+      },
+      "members": [
+        "cases-025",
+        "cases-026",
+        "cases-027",
+        "cases-028",
+        "cases-029"
+      ],
+      "answers": {
+        "i0_category": {
+          "type": "choice",
+          "choice": "personal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 1.0,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i0_priority": {
+          "type": "choice",
+          "choice": "normal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 1.0,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        },
+        "i1_category": {
+          "type": "choice",
+          "choice": "spam",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 0.0,
+            "spam": 1.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i1_priority": {
+          "type": "choice",
+          "choice": "normal",
+          "confidence": 0.3466666666666667,
+          "probabilities": {
+            "unknown": 0.49,
+            "normal": 0.51,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        },
+        "i2_category": {
+          "type": "choice",
+          "choice": "phishing_scam",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 1.0
+          }
+        },
+        "i2_priority": {
+          "type": "choice",
+          "choice": "unknown",
+          "confidence": 0.4666666666666667,
+          "probabilities": {
+            "unknown": 0.6,
+            "normal": 0.01,
+            "urgent": 0.39,
+            "critical": 0.0
+          }
+        },
+        "i3_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 0.95,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.96,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 0.04
+          }
+        },
+        "i3_priority": {
+          "type": "choice",
+          "choice": "urgent",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 0.0,
+            "urgent": 1.0,
+            "critical": 0.0
+          }
+        },
+        "i4_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i4_priority": {
+          "type": "choice",
+          "choice": "critical",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 0.0,
+            "urgent": 0.0,
+            "critical": 1.0
+          }
+        }
+      }
+    },
+    {
+      "kind": "email",
+      "outcome": "success",
+      "latency_ms": 237.8640560200438,
+      "charge": {
+        "model": "jev-1.13.0",
+        "input_tokens": 6654,
+        "output_tokens": 502,
+        "cost_usd": 0.000279468,
+        "cost_eur": 0.0002483492382
+      },
+      "members": [
+        "cases-030",
+        "cases-031",
+        "cases-032",
+        "cases-033",
+        "cases-034"
+      ],
+      "answers": {
+        "i0_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i0_priority": {
+          "type": "choice",
+          "choice": "normal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 1.0,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        },
+        "i1_category": {
+          "type": "choice",
+          "choice": "personal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 1.0,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i1_priority": {
+          "type": "choice",
+          "choice": "normal",
+          "confidence": 0.9866666666666667,
+          "probabilities": {
+            "unknown": 0.01,
+            "normal": 0.99,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        },
+        "i2_category": {
+          "type": "choice",
+          "choice": "spam",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 0.0,
+            "spam": 1.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i2_priority": {
+          "type": "choice",
+          "choice": "unknown",
+          "confidence": 0.33,
+          "probabilities": {
+            "unknown": 0.5,
+            "normal": 0.5,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        },
+        "i3_category": {
+          "type": "choice",
+          "choice": "phishing_scam",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 1.0
+          }
+        },
+        "i3_priority": {
+          "type": "choice",
+          "choice": "unknown",
+          "confidence": 0.6666666666666666,
+          "probabilities": {
+            "unknown": 0.75,
+            "normal": 0.01,
+            "urgent": 0.21,
+            "critical": 0.03
+          }
+        },
+        "i4_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i4_priority": {
+          "type": "choice",
+          "choice": "urgent",
+          "confidence": 0.9066666666666666,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 0.0,
+            "urgent": 0.93,
+            "critical": 0.07
+          }
+        }
+      }
+    },
+    {
+      "kind": "email",
+      "outcome": "success",
+      "latency_ms": 255.2788619941566,
+      "charge": {
+        "model": "jev-1.13.0",
+        "input_tokens": 6633,
+        "output_tokens": 498,
+        "cost_usd": 0.000278586,
+        "cost_eur": 0.0002475654489
+      },
+      "members": [
+        "cases-035",
+        "cases-054",
+        "cases-055",
+        "cases-056",
+        "cases-057"
+      ],
+      "answers": {
+        "i0_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 0.9875,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.99,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 0.01
+          }
+        },
+        "i0_priority": {
+          "type": "choice",
+          "choice": "critical",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 0.0,
+            "urgent": 0.0,
+            "critical": 1.0
+          }
+        },
+        "i1_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i1_priority": {
+          "type": "choice",
+          "choice": "normal",
+          "confidence": 0.81,
+          "probabilities": {
+            "unknown": 0.14,
+            "normal": 0.86,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        },
+        "i2_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 0.9875,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.99,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 0.01
+          }
+        },
+        "i2_priority": {
+          "type": "choice",
+          "choice": "normal",
+          "confidence": 0.85,
+          "probabilities": {
+            "unknown": 0.11,
+            "normal": 0.89,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        },
+        "i3_category": {
+          "type": "choice",
+          "choice": "personal",
+          "confidence": 0.5875,
+          "probabilities": {
+            "unknown": 0.04,
+            "professional": 0.24,
+            "personal": 0.67,
+            "spam": 0.01,
+            "phishing_scam": 0.04
+          }
+        },
+        "i3_priority": {
+          "type": "choice",
+          "choice": "normal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 1.0,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        },
+        "i4_category": {
+          "type": "choice",
+          "choice": "personal",
+          "confidence": 0.71,
+          "probabilities": {
+            "unknown": 0.03,
+            "professional": 0.19,
+            "personal": 0.77,
+            "spam": 0.0,
+            "phishing_scam": 0.01
+          }
+        },
+        "i4_priority": {
+          "type": "choice",
+          "choice": "normal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 1.0,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        }
+      }
+    },
+    {
+      "kind": "email",
+      "outcome": "success",
+      "latency_ms": 243.9825660258066,
+      "charge": {
+        "model": "jev-1.13.0",
+        "input_tokens": 6656,
+        "output_tokens": 502,
+        "cost_usd": 0.000279552,
+        "cost_eur": 0.00024842388480000003
+      },
+      "members": [
+        "cases-058",
+        "cases-059",
+        "cases-060",
+        "cases-061",
+        "cases-062"
+      ],
+      "answers": {
+        "i0_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i0_priority": {
+          "type": "choice",
+          "choice": "normal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 1.0,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        },
+        "i1_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 0.0
+          }
+        },
+        "i1_priority": {
+          "type": "choice",
+          "choice": "normal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 1.0,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        },
+        "i2_category": {
+          "type": "choice",
+          "choice": "personal",
+          "confidence": 0.96,
+          "probabilities": {
+            "unknown": 0.01,
+            "professional": 0.01,
+            "personal": 0.97,
+            "spam": 0.01,
+            "phishing_scam": 0.0
+          }
+        },
+        "i2_priority": {
+          "type": "choice",
+          "choice": "normal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 1.0,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        },
+        "i3_category": {
+          "type": "choice",
+          "choice": "personal",
+          "confidence": 0.97,
+          "probabilities": {
+            "unknown": 0.01,
+            "professional": 0.0,
+            "personal": 0.98,
+            "spam": 0.01,
+            "phishing_scam": 0.0
+          }
+        },
+        "i3_priority": {
+          "type": "choice",
+          "choice": "normal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "normal": 1.0,
+            "urgent": 0.0,
+            "critical": 0.0
+          }
+        },
+        "i4_category": {
+          "type": "choice",
+          "choice": "phishing_scam",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 1.0
+          }
+        },
+        "i4_priority": {
+          "type": "choice",
+          "choice": "unknown",
+          "confidence": 0.9466666666666667,
+          "probabilities": {
+            "unknown": 0.96,
+            "normal": 0.03,
+            "urgent": 0.01,
+            "critical": 0.0
+          }
+        }
+      }
+    },
+    {
+      "kind": "email",
+      "outcome": "success",
+      "latency_ms": 207.84800400724635,
+      "charge": {
+        "model": "jev-1.13.0",
+        "input_tokens": 1595,
+        "output_tokens": 106,
+        "cost_usd": 0.00006699000000000001,
+        "cost_eur": 0.00005953066350000001
+      },
+      "members": [
+        "cases-063"
+      ],
+      "answers": {
+        "i0_category": {
+          "type": "choice",
+          "choice": "phishing_scam",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 0.0,
+            "spam": 0.0,
+            "phishing_scam": 1.0
+          }
+        },
+        "i0_priority": {
+          "type": "choice",
+          "choice": "unknown",
+          "confidence": 0.9466666666666667,
+          "probabilities": {
+            "unknown": 0.96,
+            "normal": 0.03,
+            "urgent": 0.01,
+            "critical": 0.0
+          }
+        }
+      }
+    },
+    {
+      "kind": "event",
+      "outcome": "success",
+      "latency_ms": 256.51587298489176,
+      "charge": {
+        "model": "jev-1.13.0",
+        "input_tokens": 6306,
+        "output_tokens": 677,
+        "cost_usd": 0.000264852,
+        "cost_eur": 0.0002353607298
+      },
+      "members": [
+        "cases-036",
+        "cases-037",
+        "cases-038",
+        "cases-039",
+        "cases-040",
+        "cases-041",
+        "cases-042",
+        "cases-043",
+        "cases-044",
+        "cases-045",
+        "cases-046",
+        "cases-047",
+        "cases-048",
+        "cases-049",
+        "cases-050",
+        "cases-051",
+        "cases-052",
+        "cases-053"
+      ],
+      "answers": {
+        "i0_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0
+          }
+        },
+        "i1_category": {
+          "type": "choice",
+          "choice": "personal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 1.0
+          }
+        },
+        "i2_category": {
+          "type": "choice",
+          "choice": "unknown",
+          "confidence": 0.98,
+          "probabilities": {
+            "unknown": 0.99,
+            "professional": 0.0,
+            "personal": 0.01
+          }
+        },
+        "i3_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0
+          }
+        },
+        "i4_category": {
+          "type": "choice",
+          "choice": "personal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 1.0
+          }
+        },
+        "i5_category": {
+          "type": "choice",
+          "choice": "unknown",
+          "confidence": 0.97,
+          "probabilities": {
+            "unknown": 0.98,
+            "professional": 0.0,
+            "personal": 0.02
+          }
+        },
+        "i6_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0
+          }
+        },
+        "i7_category": {
+          "type": "choice",
+          "choice": "personal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 1.0
+          }
+        },
+        "i8_category": {
+          "type": "choice",
+          "choice": "unknown",
+          "confidence": 0.95,
+          "probabilities": {
+            "unknown": 0.97,
+            "professional": 0.0,
+            "personal": 0.03
+          }
+        },
+        "i9_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0
+          }
+        },
+        "i10_category": {
+          "type": "choice",
+          "choice": "personal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 1.0
+          }
+        },
+        "i11_category": {
+          "type": "choice",
+          "choice": "unknown",
+          "confidence": 0.98,
+          "probabilities": {
+            "unknown": 0.99,
+            "professional": 0.0,
+            "personal": 0.01
+          }
+        },
+        "i12_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0
+          }
+        },
+        "i13_category": {
+          "type": "choice",
+          "choice": "personal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 1.0
+          }
+        },
+        "i14_category": {
+          "type": "choice",
+          "choice": "unknown",
+          "confidence": 0.95,
+          "probabilities": {
+            "unknown": 0.97,
+            "professional": 0.0,
+            "personal": 0.03
+          }
+        },
+        "i15_category": {
+          "type": "choice",
+          "choice": "professional",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 1.0,
+            "personal": 0.0
+          }
+        },
+        "i16_category": {
+          "type": "choice",
+          "choice": "personal",
+          "confidence": 1.0,
+          "probabilities": {
+            "unknown": 0.0,
+            "professional": 0.0,
+            "personal": 1.0
+          }
+        },
+        "i17_category": {
+          "type": "choice",
+          "choice": "unknown",
+          "confidence": 0.94,
+          "probabilities": {
+            "unknown": 0.96,
+            "professional": 0.0,
+            "personal": 0.04
+          }
+        }
+      }
+    }
+  ],
+  "quality": {
+    "passed": true,
+    "cases": 64,
+    "wrong_accepted": 0,
+    "abstentions": 27,
+    "positive_coverage": 0.8645833333333334,
+    "per_class": {
+      "email.category.professional": {
+        "support": 22,
+        "accepted": 22,
+        "correct": 22,
+        "false_positives": 0
+      },
+      "email.priority.normal": {
+        "support": 26,
+        "accepted": 17,
+        "correct": 17,
+        "false_positives": 0
+      },
+      "email.category.personal": {
+        "support": 10,
+        "accepted": 8,
+        "correct": 8,
+        "false_positives": 0
+      },
+      "email.category.spam": {
+        "support": 6,
+        "accepted": 6,
+        "correct": 6,
+        "false_positives": 0
+      },
+      "email.category.phishing_scam": {
+        "support": 8,
+        "accepted": 8,
+        "correct": 8,
+        "false_positives": 0
+      },
+      "email.priority.unknown": {
+        "support": 8,
+        "accepted": 0,
+        "correct": 0,
+        "false_positives": 0
+      },
+      "email.priority.urgent": {
+        "support": 6,
+        "accepted": 4,
+        "correct": 4,
+        "false_positives": 0
+      },
+      "email.priority.critical": {
+        "support": 6,
+        "accepted": 6,
+        "correct": 6,
+        "false_positives": 0
+      },
+      "event.category.professional": {
+        "support": 6,
+        "accepted": 6,
+        "correct": 6,
+        "false_positives": 0
+      },
+      "event.category.personal": {
+        "support": 6,
+        "accepted": 6,
+        "correct": 6,
+        "false_positives": 0
+      },
+      "event.category.unknown": {
+        "support": 6,
+        "accepted": 0,
+        "correct": 0,
+        "false_positives": 0
+      }
+    },
+    "failures": []
+  },
+  "run_id": "classification-replay-103d2698-24fa-48e1-8f65-ab18aaa93a98",
+  "stop_reason": null,
+  "predictions": {
+    "cases-000": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "normal"
+    },
+    "cases-001": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "personal",
+      "priority": "normal"
+    },
+    "cases-002": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "email",
+      "category": "spam",
+      "priority": "unknown"
+    },
+    "cases-003": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "email",
+      "category": "phishing_scam",
+      "priority": "unknown"
+    },
+    "cases-004": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "unknown"
+    },
+    "cases-005": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "critical"
+    },
+    "cases-006": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "normal"
+    },
+    "cases-007": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "personal",
+      "priority": "normal"
+    },
+    "cases-008": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "email",
+      "category": "spam",
+      "priority": "unknown"
+    },
+    "cases-009": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "email",
+      "category": "phishing_scam",
+      "priority": "unknown"
+    },
+    "cases-010": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "urgent"
+    },
+    "cases-011": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "critical"
+    },
+    "cases-012": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "normal"
+    },
+    "cases-013": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "email",
+      "category": "personal",
+      "priority": "unknown"
+    },
+    "cases-014": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "email",
+      "category": "spam",
+      "priority": "unknown"
+    },
+    "cases-015": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "email",
+      "category": "phishing_scam",
+      "priority": "unknown"
+    },
+    "cases-016": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "urgent"
+    },
+    "cases-017": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "critical"
+    },
+    "cases-018": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "normal"
+    },
+    "cases-019": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "personal",
+      "priority": "normal"
+    },
+    "cases-020": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "email",
+      "category": "spam",
+      "priority": "unknown"
+    },
+    "cases-021": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "email",
+      "category": "phishing_scam",
+      "priority": "unknown"
+    },
+    "cases-022": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "urgent"
+    },
+    "cases-023": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "critical"
+    },
+    "cases-024": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "normal"
+    },
+    "cases-025": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "personal",
+      "priority": "normal"
+    },
+    "cases-026": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "email",
+      "category": "spam",
+      "priority": "unknown"
+    },
+    "cases-027": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "email",
+      "category": "phishing_scam",
+      "priority": "unknown"
+    },
+    "cases-028": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "urgent"
+    },
+    "cases-029": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "critical"
+    },
+    "cases-030": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "normal"
+    },
+    "cases-031": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "personal",
+      "priority": "normal"
+    },
+    "cases-032": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "email",
+      "category": "spam",
+      "priority": "unknown"
+    },
+    "cases-033": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "email",
+      "category": "phishing_scam",
+      "priority": "unknown"
+    },
+    "cases-034": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "unknown"
+    },
+    "cases-035": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "critical"
+    },
+    "cases-054": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "unknown"
+    },
+    "cases-055": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "unknown"
+    },
+    "cases-056": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "email",
+      "category": "unknown",
+      "priority": "normal"
+    },
+    "cases-057": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "email",
+      "category": "unknown",
+      "priority": "normal"
+    },
+    "cases-058": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "normal"
+    },
+    "cases-059": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "normal"
+    },
+    "cases-060": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "personal",
+      "priority": "normal"
+    },
+    "cases-061": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:05:00Z",
+      "kind": "email",
+      "category": "personal",
+      "priority": "normal"
+    },
+    "cases-062": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "email",
+      "category": "phishing_scam",
+      "priority": "unknown"
+    },
+    "cases-063": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "email",
+      "category": "phishing_scam",
+      "priority": "unknown"
+    },
+    "cases-036": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "event",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T13:00:00Z",
+      "kind": "event",
+      "category": "professional"
+    },
+    "cases-037": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "event",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T13:00:00Z",
+      "kind": "event",
+      "category": "personal"
+    },
+    "cases-038": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "event",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "event",
+      "category": "unknown"
+    },
+    "cases-039": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "event",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T13:00:00Z",
+      "kind": "event",
+      "category": "professional"
+    },
+    "cases-040": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "event",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T13:00:00Z",
+      "kind": "event",
+      "category": "personal"
+    },
+    "cases-041": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "event",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "event",
+      "category": "unknown"
+    },
+    "cases-042": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "event",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T13:00:00Z",
+      "kind": "event",
+      "category": "professional"
+    },
+    "cases-043": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "event",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T13:00:00Z",
+      "kind": "event",
+      "category": "personal"
+    },
+    "cases-044": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "event",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "event",
+      "category": "unknown"
+    },
+    "cases-045": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "event",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T13:00:00Z",
+      "kind": "event",
+      "category": "professional"
+    },
+    "cases-046": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "event",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T13:00:00Z",
+      "kind": "event",
+      "category": "personal"
+    },
+    "cases-047": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "event",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "event",
+      "category": "unknown"
+    },
+    "cases-048": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "event",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T13:00:00Z",
+      "kind": "event",
+      "category": "professional"
+    },
+    "cases-049": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "event",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T13:00:00Z",
+      "kind": "event",
+      "category": "personal"
+    },
+    "cases-050": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "event",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "event",
+      "category": "unknown"
+    },
+    "cases-051": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "event",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T13:00:00Z",
+      "kind": "event",
+      "category": "professional"
+    },
+    "cases-052": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "event",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T13:00:00Z",
+      "kind": "event",
+      "category": "personal"
+    },
+    "cases-053": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "event",
+      "evaluated_at": "2026-10-18T12:00:00Z",
+      "valid_until": "2026-10-18T12:00:30Z",
+      "kind": "event",
+      "category": "unknown"
+    }
+  },
+  "settings_unchanged": true
+}

@@ -25,7 +25,7 @@ so theme changes never silently construct another paid map.
 Email/appointment cards display the same accepted native advisory labels used
 by the assistant. Unknown labels stay absent; phishing has stable red ground
 contrast and a finite outside halo respecting reduced motion and archive replay.
-See [the qualification contract and current disabled status](EMAIL_EVENT_CLASSIFICATION.md).
+See [the qualification contract and configuration status](EMAIL_EVENT_CLASSIFICATION.md).
 
 The assistant renders received data as domain cards in the HTML-card and rich-HTML-with-cards display modes. The shared presentation makes the first useful facts easy to scan and keeps complete supplied detail reachable through native disclosures. Existing action approvals, source ownership and provider capabilities remain authoritative.
 
@@ -222,3 +222,5 @@ Automated checks support the delivery; they do not replace the owner's visual ac
 - [Google Calendar list fields](https://developers.google.com/workspace/calendar/api/v3/reference/calendarList)
 - [Google People organizations](https://developers.google.com/people/api/rest/v1/people#Organization)
 - [Hue API](https://developers.meethue.com/)
+
+The Position ordering and activation decision is recorded in [ADR-352](../architecture/ADR-352-Position-Before-Places-In-Every-Display-Mode.md). Initial guided installations may supply the paired browser key and production Cloud map ID privately; later environment edits preserve the same configuration contract.

@@ -58,6 +58,10 @@ infrastructure/logwatch/scripts/** text eol=lf
 *.yml text eol=lf
 *.toml text eol=lf
 
+# Native qualification pins these exact source bytes, captured with CRLF.
+# Preserve the original corpus on every platform; do not rewrite its evidence hash.
+apps/api/tests/fixtures/jev_classification_adversarial.json -text whitespace=cr-at-eol
+
 # Web
 *.html text eol=lf
 *.css text eol=lf
@@ -70,6 +74,7 @@ infrastructure/logwatch/scripts/** text eol=lf
 *.config text eol=lf
 *.ini text eol=lf
 .env* text eol=lf
+*.env text eol=lf
 .gitignore text eol=lf
 .gitattributes text eol=lf
 .editorconfig text eol=lf

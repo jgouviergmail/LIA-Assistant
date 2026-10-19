@@ -958,18 +958,9 @@ Six modeles Pydantic typesafe organisent la configuration :
 
 > Note: `V3ExecutorConfig`, `V3RelevanceConfig`, `V3FeedbackLoopConfig` and `V3PromptConfig` were removed in v1.21.16 together with the dead v3 autonomy engines (ADR-107).
 
-### Variables .env - QueryAnalyzerService LLM
+### LLM du QueryAnalyzerService
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `QUERY_ANALYZER_LLM_PROVIDER` | openai | Provider LLM pour analyse intent/domain |
-| `QUERY_ANALYZER_LLM_MODEL` | gpt-4.1-mini | Modele LLM (fast, cheap) |
-| `QUERY_ANALYZER_LLM_TEMPERATURE` | 0.0 | Temperature (0 = deterministic) |
-| `QUERY_ANALYZER_LLM_TOP_P` | 1.0 | Top-p sampling |
-| `QUERY_ANALYZER_LLM_FREQUENCY_PENALTY` | 0.0 | Penalite frequence |
-| `QUERY_ANALYZER_LLM_PRESENCE_PENALTY` | 0.0 | Penalite presence |
-| `QUERY_ANALYZER_LLM_MAX_TOKENS` | 500 | Max tokens reponse |
-| `QUERY_ANALYZER_LLM_REASONING_EFFORT` | (empty) | Effort raisonnement (o-series, optionnel) |
+L'analyse d'intention et de domaine est le poste `query_analyzer` : ses valeurs par defaut sont dans `LLM_DEFAULTS` (`apps/api/src/domains/llm_config/constants.py`) et un administrateur les remplace dans Settings > Administration > LLM Configuration. Seul son delai reste un reglage d'environnement (`QUERY_ANALYZER_LLM_TIMEOUT_SECONDS`).
 
 ### Variables .env - V3 Routing (QueryAnalyzerService)
 
@@ -1045,14 +1036,10 @@ Detecte cardinality mismatches, implicit assumptions, missing dependencies.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SEMANTIC_VALIDATION_ENABLED` | true | Active validation semantique |
 | `SEMANTIC_VALIDATION_TIMEOUT_SECONDS` | 10.0 | Timeout (fail-open si depasse) |
 | `SEMANTIC_VALIDATION_CONFIDENCE_THRESHOLD` | 0.7 | Seuil confidence clarification |
-| `SEMANTIC_VALIDATOR_LLM_PROVIDER` | openai | Provider LLM |
-| `SEMANTIC_VALIDATOR_LLM_MODEL` | gpt-4.1-mini | Modele LLM |
-| `SEMANTIC_VALIDATOR_LLM_TEMPERATURE` | 0.2 | Temperature |
-| `SEMANTIC_VALIDATOR_LLM_MAX_TOKENS` | 1000 | Max tokens reponse |
-| `SEMANTIC_VALIDATOR_LLM_REASONING_EFFORT` | low | Effort raisonnement (o-series) |
+
+Le modele du validateur est le poste `semantic_validator` (Settings > Administration > LLM Configuration).
 
 ### Exemple .env
 

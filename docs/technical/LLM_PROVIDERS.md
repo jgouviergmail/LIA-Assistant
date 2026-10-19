@@ -1,8 +1,8 @@
 # LLM Providers - Guide de Configuration
 
 **Statut** : Actif
-**Derniere mise a jour** : 2026-05-05 (v1.19.1 — DeepSeek V4 + base URLs paramétrables)
-**Fichiers sources** : `apps/api/src/core/config/llm.py`, `apps/api/src/core/config/agents.py`, `apps/api/src/infrastructure/llm/providers/adapter.py`, `apps/api/src/infrastructure/llm/providers/_deepseek_patched.py`
+**Derniere mise a jour** : 2026-10-18 (un poste se configure par l'Admin UI, jamais par `.env`)
+**Fichiers sources** : `apps/api/src/domains/llm_config/constants.py`, `apps/api/src/infrastructure/llm/providers/adapter.py`, `apps/api/src/infrastructure/llm/providers/_deepseek_patched.py`
 
 ---
 
@@ -11,7 +11,7 @@
 1. [Vue d'ensemble](#vue-densemble)
 2. [Providers supportes](#providers-supportes)
 3. [Modeles par provider](#modeles-par-provider)
-4. [Parametres de configuration .env](#parametres-de-configuration-env)
+4. [Parametres d'un poste](#parametres-dun-poste)
 5. [Parametres par provider : compatibilite](#parametres-par-provider--compatibilite)
 6. [Configuration avancee (PROVIDER_CONFIG)](#configuration-avancee-provider_config)
 7. [LLM Types (composants configurables)](#llm-types-composants-configurables)
@@ -23,33 +23,20 @@
 
 ## Vue d'ensemble
 
-Chaque composant LLM du pipeline (router, planner, response, agents, etc.) est configurable independamment. Il existe deux mécanismes de configuration :
+Chaque composant LLM (planner, response, agents de domaine, services auxiliaires...) est un **poste** de `LLM_TYPES_REGISTRY`, configure independamment par un seul mecanisme :
 
-**1. Admin UI (recommandé — sans redémarrage)** : Settings > Administration > LLM Configuration. Overrides stockés en DB, effectifs immédiatement. Voir [LLM_CONFIG_ADMIN.md](./LLM_CONFIG_ADMIN.md).
+- **Valeurs par defaut** : `LLM_DEFAULTS` (`apps/api/src/domains/llm_config/constants.py`).
+- **Overrides** : Settings > Administration > LLM Configuration, stockes en base (`llm_config_overrides`) et appliques aux operations suivantes sans redemarrage. Voir [LLM_CONFIG_ADMIN.md](./LLM_CONFIG_ADMIN.md).
 
-**2. Variables d'environnement (fallback)** : Chaque type LLM peut être configuré via `.env` selon le pattern ci-dessous. Les valeurs `.env` sont les defaults code si aucun override DB n'existe.
+Aucune variable d'environnement ne configure un poste : les anciens reglages `{TYPE}_LLM_*` ont ete retires (ADR-244, amendement 2026-10-18 b) et `Settings` ignore ceux qu'un `.env` porterait encore.
 
-```
-{LLM_TYPE}_LLM_PROVIDER=<provider>
-{LLM_TYPE}_LLM_MODEL=<model_name>
-{LLM_TYPE}_LLM_TEMPERATURE=<float>
-{LLM_TYPE}_LLM_TOP_P=<float>
-{LLM_TYPE}_LLM_FREQUENCY_PENALTY=<float>
-{LLM_TYPE}_LLM_PRESENCE_PENALTY=<float>
-{LLM_TYPE}_LLM_MAX_TOKENS=<int>
-{LLM_TYPE}_LLM_REASONING_EFFORT=<none|minimal|low|medium|high>
-{LLM_TYPE}_LLM_PROVIDER_CONFIG=<JSON>
-```
-
-> **Note** : Les clés per-agent LLM ne sont pas incluses dans `.env.example` — la configuration via Admin UI est préférable. Les valeurs defaults code sont définies dans `LLM_DEFAULTS` (`domains/llm_config/constants.py`).
-
-**Flux** : `LLM_DEFAULTS` (code) → DB override (Admin UI) → Config effective → `ProviderAdapter.create_llm()` → `BaseChatModel`
+**Flux** : `LLM_DEFAULTS` (code) → override en base (Admin UI) → config effective → `ProviderAdapter.create_llm()` → `BaseChatModel`
 
 ---
 
 ## Providers supportes
 
-| Provider | Valeur `.env` | Cle API requise | SDK LangChain | Notes |
+| Provider | Valeur `provider` | Cle API requise | SDK LangChain | Notes |
 |----------|---------------|-----------------|---------------|-------|
 | **OpenAI** | `openai` | `OPENAI_API_KEY` | `langchain-openai` | Provider principal. Responses API pour cache ameliore |
 | **Anthropic** | `anthropic` | `ANTHROPIC_API_KEY` | `langchain-anthropic` | Prompt caching automatique (beta header) |
@@ -180,16 +167,7 @@ pas.
 
 Les trois premiers forment la **famille thinking** (une seule déclaration, `DEEPSEEK_THINKING_PREFIXES` dans `reasoning/profiles.py`) : même modèle avec ou sans raisonnement, activé **par défaut** et compté **dans** `max_tokens`. Les heures de pointe sont 01:00-04:00 et 06:00-10:00 UTC du lundi au vendredi, le week-end entier en heures creuses (tarif par plages, ADR-223 ; les jours sont portés par les fenêtres depuis l'amendement du 2026-09-23). Mapping complet et contraintes : [LLM_PROVIDER_CONSTRAINTS.md §DeepSeek](./LLM_PROVIDER_CONSTRAINTS.md).
 
-**Distinction thinking / non-thinking** : uniquement par le **nom du modele** dans `.env` :
-```bash
-# Non-thinking (standard)
-RESPONSE_LLM_PROVIDER=deepseek
-RESPONSE_LLM_MODEL=deepseek-chat
-
-# Thinking (raisonnement)
-PLANNER_LLM_PROVIDER=deepseek
-PLANNER_LLM_MODEL=deepseek-reasoner
-```
+**Distinction thinking / non-thinking** : uniquement par le **nom du modele** choisi pour le poste dans l'Admin UI — par exemple `deepseek-chat` pour `response`, `deepseek-reasoner` pour `planner`.
 
 **Contraintes `deepseek-reasoner`** :
 - Pas de support tools -> **interdit** pour les agents domain (contacts, email, calendar, etc.)
@@ -282,21 +260,22 @@ Modeles courants (le nom depend de ce qui est installe localement) :
 
 ---
 
-## Parametres de configuration .env
+## Parametres d'un poste
 
-### Parametres standards (par LLM type)
+Chaque poste porte les memes champs, regles dans l'Admin UI :
 
-| Parametre | Type | Range | Default | Description |
-|-----------|------|-------|---------|-------------|
-| `{TYPE}_LLM_PROVIDER` | string | `openai\|anthropic\|deepseek\|gemini\|ollama\|perplexity` | `openai` | Provider LLM |
-| `{TYPE}_LLM_MODEL` | string | _(voir tableaux ci-dessus)_ | _(varie)_ | Nom exact du modele |
-| `{TYPE}_LLM_TEMPERATURE` | float | 0.0 - 2.0 | _(varie)_ | Creativite (0=deterministe) |
-| `{TYPE}_LLM_TOP_P` | float | 0.0 - 1.0 | 1.0 | Nucleus sampling |
-| `{TYPE}_LLM_FREQUENCY_PENALTY` | float | -2.0 - 2.0 | 0.0 | Penalite de repetition |
-| `{TYPE}_LLM_PRESENCE_PENALTY` | float | -2.0 - 2.0 | 0.0 | Penalite de presence |
-| `{TYPE}_LLM_MAX_TOKENS` | int | > 0 | _(varie)_ | Tokens max en sortie |
-| `{TYPE}_LLM_REASONING_EFFORT` | string | `none\|minimal\|low\|medium\|high` | _(vide)_ | Effort de raisonnement |
-| `{TYPE}_LLM_PROVIDER_CONFIG` | JSON | _(objet JSON)_ | `{}` | Config avancee provider |
+| Parametre | Type | Range | Description |
+|-----------|------|-------|-------------|
+| `provider` | string | `openai\|anthropic\|deepseek\|gemini\|qwen\|ollama\|perplexity` | Provider LLM |
+| `model` | string | _(voir tableaux ci-dessus)_ | Nom exact du modele |
+| `temperature` | float | 0.0 - 2.0 | Creativite (0=deterministe) |
+| `top_p` | float | 0.0 - 1.0 | Nucleus sampling |
+| `frequency_penalty` | float | -2.0 - 2.0 | Penalite de repetition |
+| `presence_penalty` | float | -2.0 - 2.0 | Penalite de presence |
+| `max_tokens` | int | > 0 | Tokens max en sortie, tenus au plafond que le catalogue garantit (ADR-244) |
+| `reasoning_effort` | intention | echelle ADR-245 | Effort de raisonnement, propose selon le profil du modele |
+| `context_window` | int | > 0 | Fenetre demandee et comptee (postes Ollama, ADR-278) |
+| `provider_config` | JSON | _(objet JSON)_ | Config avancee provider |
 
 ---
 
@@ -331,36 +310,24 @@ Le `ProviderAdapter` filtre automatiquement les parametres non supportes pour ev
 | DeepSeek | `deepseek-chat` | 8 192 |
 | DeepSeek | `deepseek-reasoner` | 64 000 |
 
-> Si `MAX_TOKENS` dans le `.env` depasse la limite, la valeur est automatiquement plafonnee avec un warning dans les logs.
+> Si le `max_tokens` d'un poste depasse la limite, la valeur est automatiquement plafonnee avec un warning dans les logs.
 
 ---
 
 ## Configuration avancee (PROVIDER_CONFIG)
 
-Le parametre `{TYPE}_LLM_PROVIDER_CONFIG` permet de passer des options specifiques au provider en JSON. Ces options sont mergees dans les kwargs du constructeur LLM.
-
-### Anthropic : Extended Thinking
-
-```bash
-PLANNER_LLM_PROVIDER=anthropic
-PLANNER_LLM_MODEL=claude-sonnet-4-5
-PLANNER_LLM_PROVIDER_CONFIG={"thinking": {"type": "enabled", "budget_tokens": 10000}}
-```
+Le champ `provider_config` d'un poste passe des options specifiques au provider en JSON ; elles sont fusionnees dans les kwargs du constructeur LLM. Le raisonnement n'y passe pas : c'est le champ `reasoning_effort`, traduit pour chaque famille par le seam unique `kwargs_for` (ADR-245). La fenetre de contexte d'Ollama non plus : c'est le champ `context_window` du poste (ADR-278).
 
 ### Ollama : parametres specifiques
 
-```bash
-RESPONSE_LLM_PROVIDER=ollama
-RESPONSE_LLM_MODEL=llama3.2
-RESPONSE_LLM_PROVIDER_CONFIG={"num_predict": 2048, "num_ctx": 8192}
+```json
+{"num_predict": 2048}
 ```
 
 ### Gemini : safety settings
 
-```bash
-RESPONSE_LLM_PROVIDER=gemini
-RESPONSE_LLM_MODEL=gemini-2.5-flash
-RESPONSE_LLM_PROVIDER_CONFIG={"safety_settings": [{"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"}]}
+```json
+{"safety_settings": [{"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"}]}
 ```
 
 > **Note** : Le `PROVIDER_CONFIG` est un mecanisme pass-through. Les options valides dependent du SDK LangChain de chaque provider. Consultez la documentation LangChain du provider concerne.
@@ -369,59 +336,56 @@ RESPONSE_LLM_PROVIDER_CONFIG={"safety_settings": [{"category": "HARM_CATEGORY_HA
 
 ## LLM Types (composants configurables)
 
-Chaque composant du pipeline a sa propre configuration LLM independante :
+Chaque composant a son propre poste ; la liste complete est `LLM_TYPES_REGISTRY` et l'Admin UI les affiche tous. Les principaux :
 
 ### Pipeline principal
 
-| LLM Type | Role | Besoin tools | Besoin structured output | Temperature recommandee |
+| Poste | Role | Besoin tools | Besoin structured output | Temperature recommandee |
 |----------------------------|------|:---:|:---:|:-:|
-| `ROUTER` | Classification de la requete | Non | Oui | 0.0 |
-| `QUERY_ANALYZER` | Analyse semantique | Non | Oui | 0.0 |
-| `SEMANTIC_VALIDATOR` | Validation du plan | Non | Oui | 0.0 |
-| `PLANNER` | Generation du plan d'execution | Non | Oui | 0.0 |
-| `RESPONSE` | Synthese de la reponse finale | Non | Non | 0.7 |
-| `QUERY_AGENT` | Agent de requete generique | Oui | Non | 0.0 |
-| `EVALUATOR` | Evaluation de la qualite | Non | Oui | 0.0 |
+| `query_analyzer` | Analyse semantique et routage | Non | Oui | 0.0 |
+| `semantic_validator` | Validation du plan | Non | Oui | 0.0 |
+| `planner` | Generation du plan d'execution | Non | Oui | 0.0 |
+| `response` | Synthese de la reponse finale | Non | Non | 0.7 |
+| `query_agent` | Agent de requete generique | Oui | Non | 0.0 |
+| `evaluator` | Evaluation de la qualite | Non | Oui | 0.0 |
 
 ### Agents domaine (tool-using)
 
-| LLM Type | Domaine | Temperature recommandee |
+| Poste | Domaine | Temperature recommandee |
 |----------------------------|---------|:-:|
-| `CONTACTS_AGENT` | Google Contacts | 0.0 |
-| `EMAILS_AGENT` | Gmail | 0.0 |
-| `CALENDAR_AGENT` | Google Calendar | 0.0 |
-| `DRIVE_AGENT` | Google Drive | 0.0 |
-| `TASKS_AGENT` | Google Tasks | 0.0 |
-| `WEATHER_AGENT` | Meteo | 0.0 |
-| `WIKIPEDIA_AGENT` | Wikipedia | 0.0 |
-| `PERPLEXITY_AGENT` | Recherche Perplexity | 0.0 |
-| `BRAVE_AGENT` | Recherche Brave | 0.0 |
-| `WEB_SEARCH_AGENT` | Recherche web | 0.3 |
-| `WEB_FETCH_AGENT` | Extraction web | 0.3 |
-| `PLACES_AGENT` | Google Places | 0.0 |
-| `ROUTES_AGENT` | Google Routes | 0.0 |
+| `contacts_agent` | Contacts | 0.0 |
+| `emails_agent` | E-mails | 0.0 |
+| `calendar_agent` | Agenda | 0.0 |
+| `drive_agent` | Drive | 0.0 |
+| `tasks_agent` | Taches | 0.0 |
+| `weather_agent` | Meteo | 0.0 |
+| `wikipedia_agent` | Wikipedia | 0.0 |
+| `perplexity_agent` | Recherche Perplexity | 0.0 |
+| `brave_agent` | Recherche Brave | 0.0 |
+| `web_search_agent` | Recherche web | 0.3 |
+| `web_fetch_agent` | Extraction web | 0.3 |
+| `places_agent` | Google Places | 0.0 |
+| `routes_agent` | Google Routes | 0.0 |
 
 > **Contrainte** : Les agents domaine utilisent des tools. Ils sont **incompatibles** avec `deepseek-reasoner`, les modeles Perplexity, et potentiellement certains modeles Ollama.
 
 ### Services auxiliaires
 
-| LLM Type | Role | Config dans |
-|----------------------------|------|-------------|
-| `HITL_CLASSIFIER` | Classification HITL | `agents.py` |
-| `HITL_QUESTION_GENERATOR` | Generation questions HITL | `agents.py` |
-| `HITL_PLAN_APPROVAL_QUESTION` | Questions approbation plan | `agents.py` |
-| `SEMANTIC_PIVOT` | Traduction query -> EN | `agents.py` |
-| `CONTEXT_RESOLVER` | Resolution de contexte | `llm.py` |
-| `MEMORY_EXTRACTION` | Extraction de memories | `agents.py` |
-| `MEMORY_REFERENCE_RESOLUTION` | Resolution refs memoire | `agents.py` |
-| `INTEREST_EXTRACTION` | Extraction centres d'interet | `llm.py` |
-| `INTEREST_CONTENT` | Generation contenu interets | `llm.py` |
-| `VOICE` | Commentaires vocaux | `voice.py` |
-| `BROADCAST_TRANSLATOR` | Traduction broadcast | `agents.py` |
-| `MCP_DESCRIPTION` | Description auto serveurs MCP | `mcp.py` |
-| `MCP_EXCALIDRAW` | Generation diagrammes | `mcp.py` |
-| `HEARTBEAT_DECISION` | Decision notification proactive | `agents.py` |
-| `HEARTBEAT_MESSAGE` | Redaction message proactif | `agents.py` |
+| Poste | Role |
+|----------------------------|------|
+| `hitl_classifier` | Classification HITL |
+| `hitl_question_generator` | Generation questions HITL |
+| `hitl_plan_approval_question_generator` | Questions approbation plan |
+| `semantic_pivot` | Traduction query -> EN |
+| `memory_extraction` | Extraction de memories |
+| `memory_reference_resolution` | Resolution refs memoire |
+| `interest_extraction` | Extraction centres d'interet |
+| `interest_content` | Generation contenu interets |
+| `voice_comment` | Commentaires vocaux |
+| `broadcast_translator` | Traduction broadcast |
+| `mcp_description` | Description auto serveurs MCP |
+| `heartbeat_decision` | Decision notification proactive |
+| `heartbeat_message` | Redaction message proactif |
 
 ---
 
@@ -472,108 +436,56 @@ L'eligibilite est determinee par le pattern regex `^(gpt-4\.1|gpt-5|o[1-9])`, ce
 
 ## Exemples de configuration
 
+Chaque exemple se regle poste par poste dans Settings > Administration > LLM Configuration ; les postes non cites gardent leur valeur par defaut.
+
 ### Configuration full OpenAI (optimisee cout)
 
-```bash
-ROUTER_LLM_PROVIDER=openai
-ROUTER_LLM_MODEL=gpt-4.1-nano
-ROUTER_LLM_TEMPERATURE=0.0
-ROUTER_LLM_MAX_TOKENS=300
-
-PLANNER_LLM_PROVIDER=openai
-PLANNER_LLM_MODEL=gpt-4.1-mini
-PLANNER_LLM_TEMPERATURE=0.0
-PLANNER_LLM_MAX_TOKENS=10000
-
-RESPONSE_LLM_PROVIDER=openai
-RESPONSE_LLM_MODEL=gpt-4.1-mini
-RESPONSE_LLM_TEMPERATURE=0.7
-RESPONSE_LLM_MAX_TOKENS=8000
-```
+| Poste | Provider | Modele | Temperature | Max tokens |
+|-------|----------|--------|:-:|:-:|
+| `planner` | openai | `gpt-4.1-mini` | 0.0 | 10 000 |
+| `response` | openai | `gpt-4.1-mini` | 0.7 | 8 000 |
+| agents de domaine | openai | `gpt-4.1-mini` | 0.0 | — |
 
 ### Configuration hybride OpenAI + Anthropic
 
-```bash
-# Planner : Claude pour le raisonnement complexe
-PLANNER_LLM_PROVIDER=anthropic
-PLANNER_LLM_MODEL=claude-sonnet-4-5
-PLANNER_LLM_TEMPERATURE=0.0
-PLANNER_LLM_MAX_TOKENS=10000
-
-# Response : Claude pour la qualite de redaction
-RESPONSE_LLM_PROVIDER=anthropic
-RESPONSE_LLM_MODEL=claude-sonnet-4-5
-RESPONSE_LLM_TEMPERATURE=0.7
-RESPONSE_LLM_MAX_TOKENS=8000
-
-# Router : OpenAI pour le cout
-ROUTER_LLM_PROVIDER=openai
-ROUTER_LLM_MODEL=gpt-4.1-nano
-```
+| Poste | Provider | Modele | Pourquoi |
+|-------|----------|--------|----------|
+| `planner` | anthropic | `claude-sonnet-4-5` | raisonnement complexe |
+| `response` | anthropic | `claude-sonnet-4-5` | qualite de redaction |
+| agents de domaine | openai | `gpt-4.1-mini` | cout |
 
 ### Configuration avec reasoning (GPT-5)
 
-```bash
-PLANNER_LLM_PROVIDER=openai
-PLANNER_LLM_MODEL=gpt-5
-PLANNER_LLM_REASONING_EFFORT=medium
-# temperature, top_p, frequency_penalty, presence_penalty sont ignores automatiquement
-PLANNER_LLM_MAX_TOKENS=10000
-```
+`planner` sur openai / `gpt-5`, `reasoning_effort` a `medium`, `max_tokens` a 10 000 : `temperature`, `top_p`, `frequency_penalty` et `presence_penalty` sont ignores automatiquement.
 
 ### Configuration DeepSeek (budget minimal)
 
-```bash
-ROUTER_LLM_PROVIDER=deepseek
-ROUTER_LLM_MODEL=deepseek-chat
-ROUTER_LLM_TEMPERATURE=0.0
-
-PLANNER_LLM_PROVIDER=deepseek
-PLANNER_LLM_MODEL=deepseek-chat       # Pas deepseek-reasoner (pas de structured output)
-PLANNER_LLM_TEMPERATURE=0.0
-
-RESPONSE_LLM_PROVIDER=deepseek
-RESPONSE_LLM_MODEL=deepseek-chat
-RESPONSE_LLM_TEMPERATURE=0.7
-```
+| Poste | Provider | Modele | Note |
+|-------|----------|--------|------|
+| `planner` | deepseek | `deepseek-chat` | pas `deepseek-reasoner` (pas de structured output) |
+| `response` | deepseek | `deepseek-chat` | |
+| agents de domaine | deepseek | `deepseek-chat` | obligatoirement : `deepseek-reasoner` n'a pas de tools |
 
 ### Configuration Gemini (gratuit pour faible volume)
 
-```bash
-ROUTER_LLM_PROVIDER=gemini
-ROUTER_LLM_MODEL=gemini-3.5-flash-lite
-ROUTER_LLM_TEMPERATURE=0.0
+| Poste | Provider | Modele |
+|-------|----------|--------|
+| `query_analyzer` | gemini | `gemini-3.5-flash-lite` |
+| `response` | gemini | `gemini-2.5-flash` |
 
-RESPONSE_LLM_PROVIDER=gemini
-RESPONSE_LLM_MODEL=gemini-2.5-flash
-RESPONSE_LLM_TEMPERATURE=0.7
+`frequency_penalty` et `presence_penalty` sont ignores.
 
-# Note : frequency_penalty, presence_penalty seront ignores
-```
+### Configuration Anthropic avec raisonnement
 
-### Configuration Anthropic avec Extended Thinking
-
-```bash
-PLANNER_LLM_PROVIDER=anthropic
-PLANNER_LLM_MODEL=claude-sonnet-4-5
-PLANNER_LLM_TEMPERATURE=0.0
-PLANNER_LLM_MAX_TOKENS=10000
-PLANNER_LLM_PROVIDER_CONFIG={"thinking": {"type": "enabled", "budget_tokens": 10000}}
-```
+`planner` sur anthropic / `claude-sonnet-4-5`, `max_tokens` a 10 000 et un `reasoning_effort` que `kwargs_for` traduit en reflexion pour la generation choisie (ADR-245).
 
 ### Configuration locale Ollama
 
 ```bash
 OLLAMA_BASE_URL=http://localhost:11434   # racine du serveur ; un /v1 hérité est toléré et retiré
-# La fenêtre demandée ET comptée n'est plus une variable d'instance : elle se
-# règle par poste dans Administration › Configuration LLM (ADR-278).
-
-RESPONSE_LLM_PROVIDER=ollama
-RESPONSE_LLM_MODEL=llama3.2
-RESPONSE_LLM_TEMPERATURE=0.7
-RESPONSE_LLM_MAX_TOKENS=4096
-RESPONSE_LLM_PROVIDER_CONFIG={"num_predict": 2048}
 ```
+
+Puis, dans l'Admin UI, `response` sur ollama / `llama3.2` (temperature 0.7, `max_tokens` 4 096) ; la fenetre demandee ET comptee est le champ `context_window` du poste (ADR-278).
 
 ---
 

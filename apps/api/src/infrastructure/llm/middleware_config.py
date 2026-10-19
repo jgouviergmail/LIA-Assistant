@@ -106,7 +106,7 @@ def create_agent_middleware_stack(
         agent_name: Agent identifier for logging (e.g., "contacts_agent")
         enable_retry: Override retry middleware setting (default: from settings)
         enable_summarization: Override summarization setting (default: from settings)
-        enable_fallback: Override fallback middleware setting (default: from settings)
+        enable_fallback: Override the fallback middleware (default: on, over FALLBACK_MODELS)
         enable_tool_retry: Override tool retry setting (default: from settings)
         enable_call_limit: Override call limit setting (default: from settings).
             Deliberately also gates the per-tool paid-API ceilings
@@ -461,7 +461,7 @@ def _create_summarization_middleware(agent_model: str | None = None) -> Any | No
 
     Args:
         agent_model: The LLM model used by the agent (for context window calculation).
-                     If None, falls back to response_llm_model from settings.
+                     If None, the window of the ``response`` slot is used.
 
     Returns:
         SummarizationMiddleware instance or None if creation fails

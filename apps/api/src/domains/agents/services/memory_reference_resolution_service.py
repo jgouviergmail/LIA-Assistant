@@ -35,7 +35,7 @@ Key Features:
 
 Configuration:
     - NOTE: Memory reference resolution is always enabled
-    - settings.memory_reference_resolution_llm_model: LLM model to use
+    - the ``memory_reference_resolution`` slot (LLM_DEFAULTS + overrides): model
     - settings.memory_reference_resolution_timeout_ms: Max timeout
 
 References:

@@ -84,8 +84,26 @@ now share precision-aware validation and conservative concentration. Raw values,
 business thresholds and prompts are unchanged. Cached annotations include the
 numerical contract revision in their policy identity.
 
-The complete frozen replay now finishes without a native protocol failure. Its
-semantic coverage gate still fails for some classes; the report keeps that limit
-explicit. The DEV switches were enabled administratively after the initial
-campaign and remain unchanged by this fix. Enabling a switch does not certify
-semantic quality.
+At this numerical-only stage, the complete frozen replay finished without a
+native protocol failure, while its semantic coverage gate still failed for some
+classes. The follow-up below treats that separate limit. The DEV switches were
+enabled administratively after the initial campaign and remain unchanged by
+these corrections. Enabling a switch does not certify semantic quality.
+
+## Semantic qualification — 2026-10-19
+
+The [follow-up qualification](../superpowers/qualification/jev-classification-2026-10-19/README.md)
+separates reported severity from authentication and the message's actual
+solicitation from a security topic or unethical advertised product. Only the two
+email questions change. Business thresholds, fixed corpus labels and scorer are
+unchanged; prompt identity invalidates earlier cached annotations automatically.
+
+The final policy passes calibration, the distinct validation corpus and fresh
+adversarial observations authored after its freeze, in all supported languages.
+The validation publishes the six expected critical labels and six expected spam
+labels with no wrong accepted label observed. The shipped service and real Redis
+cache are replayed on fictional observations with one accounted native call.
+This closes the measured corpus-coverage defect; it is not a population accuracy
+or fraud-detection guarantee. Missing badges still never establish safety.
+
+The shared source/answer contract is recorded in [ADR-351](../architecture/ADR-351-Advisory-Source-Annotations-Shared-With-The-Answer.md).

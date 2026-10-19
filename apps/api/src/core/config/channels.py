@@ -77,15 +77,6 @@ class ChannelsSettings(BaseSettings):
         ),
     )
 
-    telegram_bot_username: str | None = Field(
-        default="@LIA_mybot",
-        description=(
-            "Deprecated — auto-discovered via getMe at startup (see bot.py "
-            "get_bot_username()). This setting is kept for backward compatibility "
-            "but is no longer read by the application."
-        ),
-    )
-
     @model_validator(mode="after")
     def _webhook_mode_requires_a_real_secret(self) -> ChannelsSettings:
         """Refuse to boot in webhook mode without a usable webhook secret (SEC-024).

@@ -151,9 +151,9 @@
     },
     "f.peers": {
       "name": "Peer-Verbindungen",
-      "role": "Zwei LIA-Konten verbinden: sich über die Assistentin Nachrichten übermitteln, ein erzeugtes Bild teilen, sich gegenseitig Tickets anvertrauen.",
+      "role": "Zwei LIA-Konten verbinden: sich über die Assistentin Nachrichten übermitteln, ein erzeugtes Bild teilen, sich gegenseitig Tickets anvertrauen. Skills, MCP-Server und Plugins werden als unabhängige deaktivierte Kopien mit Herkunft und Zeitpunkt geteilt, ohne Zugangsdaten.",
       "goal": "Zusammenarbeiten, ohne die Assistentin zu verlassen.",
-      "src": "0999b15ba37c"
+      "src": "acbb6947019f"
     },
     "f.connectors": {
       "name": "Konnektoren",
@@ -163,15 +163,15 @@
     },
     "f.mail": {
       "name": "E-Mails",
-      "role": "Bereinigte E-Mails lesen, sie ein einziges Mal zusammenfassen, suchen, verfassen, antworten, Anhänge lesen und die Entwürfe deines Postfachs führen — an andere wird immer erst nach einer Bestätigung gesendet; eine E-Mail an dich selbst geht direkt hinaus.",
+      "role": "Bereinigte E-Mails lesen, sie ein einziges Mal zusammenfassen, suchen, verfassen, antworten, Anhänge lesen und die Entwürfe deines Postfachs führen — an andere wird immer erst nach einer Bestätigung gesendet; eine E-Mail an dich selbst geht direkt hinaus. Optionale JEV-Kategorien und Prioritäten bleiben Hinweise und erreichen auch LIA; Unsicherheit bleibt ohne Kennzeichen.",
       "goal": "Dein Postfach in ein paar Sätzen abarbeiten.",
-      "src": "ccd1f55a607d"
+      "src": "b553d3afc253"
     },
     "f.calendar": {
       "name": "Kalender",
-      "role": "Termine ansehen, suchen, erstellen, verschieben und löschen, mit Gästen, Erinnerungen und Zeitzonen.",
+      "role": "Termine ansehen, suchen, erstellen, verschieben und löschen, mit Gästen, Erinnerungen und Zeitzonen. Optionale berufliche/private Bewertungen gelten für Anzeige und LIA gleichermaßen, mit Enthaltung bei Unsicherheit.",
       "goal": "Deine Zeit organisieren, indem du einfach sprichst.",
-      "src": "dac71f968107"
+      "src": "b8fd0be7b2e3"
     },
     "f.contacts": {
       "name": "Kontakte",
@@ -193,9 +193,9 @@
     },
     "f.places": {
       "name": "Orte, Wege und Wetter",
-      "role": "Orte, Routen, Wetter und Luftqualität; dein letzter bekannter Standort wird überall genutzt, immer mit Angabe seines Alters.",
+      "role": "Orte, Routen, Wetter und Luftqualität; dein letzter bekannter Standort wird überall genutzt, immer mit Angabe seines Alters. Position gruppiert gefundene Orte vor ihren Details in jedem Format; die interaktive Aktivierung zeigt ihre Kosten.",
       "goal": "Auf „wie komme ich hin“ und „wie wird das Wetter“ mit frischen Daten antworten.",
-      "src": "2ea1df8563a9"
+      "src": "88b97b5ab603"
     },
     "f.health": {
       "name": "Gesundheit",
@@ -217,9 +217,9 @@
     },
     "f.skills": {
       "name": "Skills und Plugins",
-      "role": "Fähigkeiten im Standard Agent Skills — von LIA geschrieben und mit einem Klick installiert oder nach dem Lesen aus einer öffentlichen Bibliothek gewählt — und Plugins im Standard Agent Plugins; eine Fähigkeit von anderswo arbeitet abgeschirmt, fern von deinen Konnektoren.",
+      "role": "Portable Agent Skills und Agent Plugins, in LIA erstellt, importiert oder aus einer Bibliothek gewählt. Gewöhnliche Drittanbieter-Skills laufen getrennt; eine Peer-Kopie kommt deaktiviert an und folgt nach Aktivierung der Richtlinie eigener Skills des Empfängers.",
       "goal": "LIA übertragbares Know-how geben.",
-      "src": "f14f45e853e1"
+      "src": "541ca8de6b3e"
     },
     "f.rag": {
       "name": "Wissensräume",
@@ -241,9 +241,9 @@
     },
     "f.meetings": {
       "name": "Besprechungen",
-      "role": "Eine Besprechung vom Telefon oder Computer aus aufnehmen und ein strukturiertes Protokoll erhalten, in einer automatisch gewählten Vorlage.",
+      "role": "Eine Besprechung vom Telefon oder Computer aus aufnehmen und ein strukturiertes Protokoll erhalten, in einer automatisch gewählten Vorlage. Suche in Titeln und vollständigen Protokollen, um Entscheidungen wiederzufinden.",
       "goal": "An der Besprechung teilnehmen, nicht am Mitschreiben.",
-      "src": "e76d94f73fa1"
+      "src": "fc9f4f1c8204"
     },
     "f.heartbeat": {
       "name": "Autonomer Heartbeat",

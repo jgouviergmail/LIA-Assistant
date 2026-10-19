@@ -1,0 +1,445 @@
+{
+  "version": 1,
+  "reference_time": "2026-10-19T01:15:00Z",
+  "timezone": "UTC",
+  "source": "Original fictional adversarial cases authored after final candidate freeze; never used for prompt selection. No population accuracy claim.",
+  "quality_gate": {
+    "maximum_wrong_accepted_labels": 0,
+    "minimum_positive_coverage": 0.6,
+    "minimum_phishing_coverage": 0.7
+  },
+  "items": [
+    {
+      "id": "adversarial-en-0",
+      "language": "en",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "All hospital emergency dispatch systems have failed now. No ambulance can be dispatched. On-call incident team, restore dispatch immediately to prevent harm.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "critical"
+    },
+    {
+      "id": "adversarial-en-1",
+      "language": "en",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Tomorrow we will simulate a complete dispatch outage in a training exercise. There is no actual outage and no response is needed today.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "adversarial-en-2",
+      "language": "en",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Unrequested bulk advertising sent to a purchased address list: buy thousands of automated likes. No subscription was requested.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "spam",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "adversarial-en-3",
+      "language": "en",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Security information for employees: a login vulnerability was fixed last week. No password, code, payment or action is requested.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "adversarial-en-4",
+      "language": "en",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "I am your director, using a new private address. Secretly wire money to my replacement account now. Do not phone me or use the usual approval process.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "phishing_scam",
+      "expected_priority": "unknown"
+    },
+    {
+      "id": "adversarial-en-5",
+      "language": "en",
+      "kind": "email",
+      "evidence_scope": "snippet",
+      "evidence": {
+        "snippet": "Something important",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "unknown",
+      "expected_priority": "unknown"
+    },
+    {
+      "id": "adversarial-fr-0",
+      "language": "fr",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Tous les systèmes de répartition des urgences hospitalières sont en panne maintenant. Aucune ambulance ne peut être envoyée. Équipe de garde, rétablissez immédiatement la répartition pour éviter des dommages.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "critical"
+    },
+    {
+      "id": "adversarial-fr-1",
+      "language": "fr",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Demain nous simulerons une panne complète de la répartition pour un exercice de formation. Il n’y a aucune panne réelle et aucune intervention n’est demandée aujourd’hui.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "adversarial-fr-2",
+      "language": "fr",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Publicité de masse non sollicitée sur une liste d’adresses achetée : achetez des milliers de mentions J’aime automatiques. Aucun abonnement n’a été demandé.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "spam",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "adversarial-fr-3",
+      "language": "fr",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Information de sécurité aux salariés : une vulnérabilité de connexion a été corrigée la semaine dernière. Aucun mot de passe, code, paiement ni action n’est demandé.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "adversarial-fr-4",
+      "language": "fr",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Je suis votre directeur depuis une nouvelle adresse privée. Virez secrètement de l’argent sur mon nouveau compte maintenant. Ne me téléphonez pas et évitez la validation habituelle.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "phishing_scam",
+      "expected_priority": "unknown"
+    },
+    {
+      "id": "adversarial-fr-5",
+      "language": "fr",
+      "kind": "email",
+      "evidence_scope": "snippet",
+      "evidence": {
+        "snippet": "Quelque chose d’important",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "unknown",
+      "expected_priority": "unknown"
+    },
+    {
+      "id": "adversarial-de-0",
+      "language": "de",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Alle Notfalleinsatzsysteme des Krankenhauses sind jetzt ausgefallen. Kein Rettungswagen kann entsandt werden. Bereitschaftsteam, stellt die Einsatzleitung sofort wieder her, um Schäden zu verhindern.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "critical"
+    },
+    {
+      "id": "adversarial-de-1",
+      "language": "de",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Morgen simulieren wir einen vollständigen Ausfall der Einsatzleitung als Schulungsübung. Es gibt keinen echten Ausfall und heute ist keine Reaktion nötig.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "adversarial-de-2",
+      "language": "de",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Unerwünschte Massenwerbung an eine gekaufte Adressliste: Kaufen Sie tausende automatische Likes. Es wurde kein Abonnement angefordert.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "spam",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "adversarial-de-3",
+      "language": "de",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Sicherheitsinformation für Mitarbeitende: Eine Anmeldeschwachstelle wurde letzte Woche behoben. Weder Passwort, Code, Zahlung noch Handlung wird verlangt.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "adversarial-de-4",
+      "language": "de",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Ich bin Ihr Direktor mit einer neuen privaten Adresse. Überweisen Sie jetzt heimlich Geld auf mein Ersatzkonto. Rufen Sie mich nicht an und umgehen Sie die übliche Freigabe.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "phishing_scam",
+      "expected_priority": "unknown"
+    },
+    {
+      "id": "adversarial-de-5",
+      "language": "de",
+      "kind": "email",
+      "evidence_scope": "snippet",
+      "evidence": {
+        "snippet": "Etwas Wichtiges",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "unknown",
+      "expected_priority": "unknown"
+    },
+    {
+      "id": "adversarial-es-0",
+      "language": "es",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Todos los sistemas de despacho de urgencias del hospital han fallado ahora. No se puede enviar ninguna ambulancia. Equipo de guardia, restablezcan el despacho inmediatamente para evitar daños.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "critical"
+    },
+    {
+      "id": "adversarial-es-1",
+      "language": "es",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Mañana simularemos un fallo completo del despacho en un ejercicio de formación. No existe ninguna avería real y hoy no se requiere intervención.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "adversarial-es-2",
+      "language": "es",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Publicidad masiva no solicitada enviada a una lista comprada: compre miles de me gusta automáticos. No se solicitó ninguna suscripción.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "spam",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "adversarial-es-3",
+      "language": "es",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Información de seguridad para empleados: una vulnerabilidad de acceso se corrigió la semana pasada. No se pide contraseña, código, pago ni acción.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "adversarial-es-4",
+      "language": "es",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Soy su director desde una nueva dirección privada. Transfiera dinero en secreto a mi cuenta de reemplazo ahora. No me llame y evite la autorización habitual.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "phishing_scam",
+      "expected_priority": "unknown"
+    },
+    {
+      "id": "adversarial-es-5",
+      "language": "es",
+      "kind": "email",
+      "evidence_scope": "snippet",
+      "evidence": {
+        "snippet": "Algo importante",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "unknown",
+      "expected_priority": "unknown"
+    },
+    {
+      "id": "adversarial-it-0",
+      "language": "it",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Tutti i sistemi di assegnazione delle emergenze ospedaliere sono guasti adesso. Non può partire alcuna ambulanza. Squadra reperibile, ripristinate immediatamente il servizio per evitare danni.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "critical"
+    },
+    {
+      "id": "adversarial-it-1",
+      "language": "it",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Domani simuleremo un guasto completo del servizio in un’esercitazione di formazione. Non esiste alcun guasto reale e oggi non è richiesto alcun intervento.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "adversarial-it-2",
+      "language": "it",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Pubblicità di massa non richiesta inviata a una lista acquistata: comprate migliaia di like automatici. Non è stato richiesto alcun abbonamento.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "spam",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "adversarial-it-3",
+      "language": "it",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Informazione di sicurezza per i dipendenti: una vulnerabilità di accesso è stata risolta la settimana scorsa. Non si richiedono password, codici, pagamenti o azioni.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "adversarial-it-4",
+      "language": "it",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "Sono il vostro direttore da un nuovo indirizzo privato. Trasferite segretamente denaro al mio conto sostitutivo adesso. Non chiamatemi e aggirate la normale approvazione.",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "phishing_scam",
+      "expected_priority": "unknown"
+    },
+    {
+      "id": "adversarial-it-5",
+      "language": "it",
+      "kind": "email",
+      "evidence_scope": "snippet",
+      "evidence": {
+        "snippet": "Qualcosa di importante",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "unknown",
+      "expected_priority": "unknown"
+    },
+    {
+      "id": "adversarial-zh-0",
+      "language": "zh",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "医院所有急救调度系统现在都已故障，无法派出任何救护车。值班事故处理团队请立即恢复调度，以免造成伤害。",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "critical"
+    },
+    {
+      "id": "adversarial-zh-1",
+      "language": "zh",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "明天我们将在培训演练中模拟调度系统全部中断。目前没有实际故障，今天不需要采取行动。",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "adversarial-zh-2",
+      "language": "zh",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "这是使用购买的邮箱名单发送的未经请求的群发广告：购买数千个自动点赞。收件人从未订阅。",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "spam",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "adversarial-zh-3",
+      "language": "zh",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "给员工的安全信息：一个登录漏洞已于上周修复。无需提供密码、验证码、付款或采取任何行动。",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "professional",
+      "expected_priority": "normal"
+    },
+    {
+      "id": "adversarial-zh-4",
+      "language": "zh",
+      "kind": "email",
+      "evidence_scope": "body",
+      "evidence": {
+        "body": "我是你们的主管，这是我的新私人邮箱。现在秘密转账到我的替代账户。不要给我打电话，也不要走通常的审批流程。",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "phishing_scam",
+      "expected_priority": "unknown"
+    },
+    {
+      "id": "adversarial-zh-5",
+      "language": "zh",
+      "kind": "email",
+      "evidence_scope": "snippet",
+      "evidence": {
+        "snippet": "重要的事情",
+        "from": "fiction@example.test"
+      },
+      "expected_category": "unknown",
+      "expected_priority": "unknown"
+    }
+  ]
+}

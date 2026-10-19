@@ -158,12 +158,12 @@ class TestLLMConfigIntegration:
         assert config.provider == expected
 
     @pytest.mark.integration
-    def test_model_selection_from_settings(self):
-        """Test that model is correctly selected from settings."""
+    def test_model_selection_follows_the_override_then_the_default(self):
+        """The response slot's model is the override's, else its code default."""
         config = get_llm_config_for_agent(settings, "response")
 
-        # Verify model matches settings
-        assert config.model == settings.response_llm_model
+        override = LLMConfigOverrideCache.get_override("response") or {}
+        assert config.model == (override.get("model") or LLM_DEFAULTS["response"].model)
 
     @pytest.mark.integration
     def test_all_configs_have_valid_parameters(self):

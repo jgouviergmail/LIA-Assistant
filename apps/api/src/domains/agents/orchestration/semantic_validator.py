@@ -12,7 +12,7 @@ Architecture:
     - Uses a distinct LLM from planner (avoids self-validation bias)
     - Structured output via LangChain v1.0 patterns
     - Short-circuits for trivial plans (≤1 step)
-    - Feature flag controlled (SEMANTIC_VALIDATION_ENABLED)
+    - Always on (no feature flag)
     - Timeout protection (optimistic validation with 1s limit)
 
 Design Goals:

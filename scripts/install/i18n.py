@@ -8,6 +8,14 @@ concern; this table only speaks to the installing operator.
 from __future__ import annotations
 
 MESSAGES: dict[str, dict[str, str]] = {
+    "question.maps_browser_key": {
+        "en": "Optional interactive Google Maps: browser key restricted to your sites and Maps APIs (hidden; leave BOTH Maps answers empty to skip; users activate paid maps by click)",
+        "fr": "Google Maps interactif facultatif : clé navigateur restreinte à vos sites et API Maps (masquée ; laissez les DEUX réponses Maps vides pour passer ; les utilisateurs activent les cartes payantes au clic)",
+    },
+    "question.maps_map_id": {
+        "en": "Google Cloud map ID matching that browser key (hidden; required only with the Maps key; no DEMO_MAP_ID in production)",
+        "fr": "Cloud map ID Google correspondant à cette clé navigateur (masqué ; requis seulement avec la clé Maps ; pas de DEMO_MAP_ID en production)",
+    },
     "question.wizard_language": {
         "en": "Installer language (en/fr)",
         "fr": "Langue de l'installateur (en/fr)",

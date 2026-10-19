@@ -151,9 +151,9 @@
     },
     "f.peers": {
       "name": "Connessioni tra pari",
-      "role": "Collegare due account LIA: scambiarsi messaggi tramite l'assistente, condividere un'immagine generata, affidarsi ticket a vicenda.",
+      "role": "Collegare due account LIA: scambiarsi messaggi tramite l'assistente, condividere un'immagine generata, affidarsi ticket a vicenda. Condividi skill, server MCP e plugin come copie indipendenti disattivate, con origine e data, senza credenziali.",
       "goal": "Collaborare senza lasciare l'assistente.",
-      "src": "0999b15ba37c"
+      "src": "acbb6947019f"
     },
     "f.connectors": {
       "name": "Connettori",
@@ -163,15 +163,15 @@
     },
     "f.mail": {
       "name": "E-mail",
-      "role": "Leggere e-mail ripulite, riassumerle una sola volta, cercare, scrivere, rispondere, leggere gli allegati e tenere le bozze della tua casella — l'invio ad altri chiede sempre una conferma; un'e-mail al tuo indirizzo parte direttamente.",
+      "role": "Leggere e-mail ripulite, riassumerle una sola volta, cercare, scrivere, rispondere, leggere gli allegati e tenere le bozze della tua casella — l'invio ad altri chiede sempre una conferma; un'e-mail al tuo indirizzo parte direttamente. Categorie e priorità JEV opzionali restano indicative e raggiungono anche LIA; il dubbio non mostra badge.",
       "goal": "Gestire la tua casella in poche frasi.",
-      "src": "ccd1f55a607d"
+      "src": "b553d3afc253"
     },
     "f.calendar": {
       "name": "Agenda",
-      "role": "Consultare, cercare, creare, spostare ed eliminare eventi, con invitati, promemoria e fusi orari.",
+      "role": "Consultare, cercare, creare, spostare ed eliminare eventi, con invitati, promemoria e fusi orari. La valutazione lavoro/personale opzionale è comune all’interfaccia e a LIA, con astensione nel dubbio.",
       "goal": "Organizzare il tuo tempo parlando.",
-      "src": "dac71f968107"
+      "src": "b8fd0be7b2e3"
     },
     "f.contacts": {
       "name": "Contatti",
@@ -193,9 +193,9 @@
     },
     "f.places": {
       "name": "Luoghi, tragitti e meteo",
-      "role": "Luoghi, itinerari, meteo e qualità dell'aria; la tua ultima posizione nota serve ovunque, sempre con la sua età.",
+      "role": "Luoghi, itinerari, meteo e qualità dell'aria; la tua ultima posizione nota serve ovunque, sempre con la sua età. Posizione riunisce i luoghi trovati prima dei dettagli in ogni formato; l’attivazione interattiva ne mostra il costo.",
       "goal": "Rispondere a «come ci arrivo» e «che tempo farà» con dati aggiornati.",
-      "src": "2ea1df8563a9"
+      "src": "88b97b5ab603"
     },
     "f.health": {
       "name": "Salute",
@@ -217,9 +217,9 @@
     },
     "f.skills": {
       "name": "Competenze e plugin",
-      "role": "Competenze secondo lo standard Agent Skills — scritte da LIA e installate con un clic, o scelte in una libreria pubblica dopo averle lette — e plugin secondo lo standard Agent Plugins; una competenza venuta da fuori lavora a parte, lontano dai tuoi connettori.",
+      "role": "Agent Skills e Agent Plugins portabili, creati in LIA, importati o scelti in una biblioteca. Le normali skill di terzi lavorano separatamente; una copia ricevuta arriva disattivata e, dopo l’attivazione, segue la politica delle skill create dal destinatario.",
       "goal": "Dare a LIA abilità portabili.",
-      "src": "f14f45e853e1"
+      "src": "541ca8de6b3e"
     },
     "f.rag": {
       "name": "Spazi di conoscenza",
@@ -241,9 +241,9 @@
     },
     "f.meetings": {
       "name": "Riunioni",
-      "role": "Registrare una riunione dal telefono o dal computer e ricevere un verbale strutturato, in un modello scelto automaticamente.",
+      "role": "Registrare una riunione dal telefono o dal computer e ricevere un verbale strutturato, in un modello scelto automaticamente. Cerca nei titoli e nei verbali completi per ritrovare una decisione.",
       "goal": "Seguire la riunione, non prendere appunti.",
-      "src": "e76d94f73fa1"
+      "src": "fc9f4f1c8204"
     },
     "f.heartbeat": {
       "name": "Heartbeat autonomo",

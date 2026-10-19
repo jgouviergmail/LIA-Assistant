@@ -60,7 +60,7 @@ Excluded: 35 secrets, 102 infrastructure/identity,
 | `EMAILS_BODY_MAX_LENGTH` | `500` | `20000` |
 | `EMAILS_TOOL_DEFAULT_MAX_RESULTS` | `10` | `20` |
 | `EMAILS_URL_SHORTEN_THRESHOLD` | `50` | `20` |
-| `FIREBASE_PROJECT_ID` | `` | `compagnonnotif` |
+| `FIREBASE_PROJECT_ID` | `` | `<redacted>` |
 | `GOOGLE_REDIRECT_URI` | `` | `https://lia-back.jeyswork.com/api/v1/auth/google/callback` |
 | `HABITS_ENABLED` | `false` | `true` |
 | `HABITS_TICK_SCORING_ENABLED` | `false` | `true` |
@@ -89,10 +89,10 @@ Excluded: 35 secrets, 102 infrastructure/identity,
 | `SUBAGENT_RESEARCH_TOOLS_WHITELIST` | `brave_search_tool,fetch_web_page_tool` | `perplexity_search_tool,brave_search_tool,fetch_web_page_tool` |
 | `SUBAGENT_TOOL_TIMEOUT_SECONDS` | `180.0` | `300.0` |
 | `TASKS_TOOL_DEFAULT_MAX_RESULTS` | `10` | `20` |
-| `TELEGRAM_BOT_USERNAME` | `None` | `@LIA_mybot` |
+| `TELEGRAM_BOT_USERNAME` | `None` | `<redacted>` |
 | `TELEPHONY_AGENT_LLM_MODEL` | `gpt-4o-mini` | `gpt-5.4-mini` |
 | `TELEPHONY_AGENT_TTS_MODEL_ID` | `eleven_flash_v2_5` | `eleven_turbo_v2_5` |
-| `TELEPHONY_AGENT_VOICE_ID` | `` | `nr2EGJNe96rzn9FRlTId` |
+| `TELEPHONY_AGENT_VOICE_ID` | `` | `<redacted>` |
 | `TELEPHONY_DEFAULT_COUNTRY_CODE` | `` | `+33` |
 | `TOKEN_THRESHOLD_CRITICAL` | `40000` | `85000` |
 | `TOKEN_THRESHOLD_MAX` | `50000` | `100000` |

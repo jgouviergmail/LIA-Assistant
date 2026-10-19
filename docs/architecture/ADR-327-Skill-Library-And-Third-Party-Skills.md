@@ -444,3 +444,7 @@ recreated during an open stream (the operator's own restart), not a defect.
 - A skill written in the chat is installed by the person's click, never by the model.
 - A skill's command reaches the hosts it declares, through the proxy, once the operator or the
   person allows them; a third-party skill never reaches the person's connectors.
+
+## Amendment 2026-10-19: recipient-owned peer copies
+
+[ADR-350](ADR-350-Peer-Capability-Copies-Without-Credentials.md) records the explicitly accepted exception: a peer skill installed disabled, including a plugin child, follows the recipient-authored policy after activation. The grant derives only from server-written provenance; ordinary third-party imports retain the policy above.

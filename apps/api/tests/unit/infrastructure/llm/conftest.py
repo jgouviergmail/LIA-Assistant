@@ -52,10 +52,4 @@ def mock_settings_class():
         # pydantic validation when passed to ChatOpenAI(organization=...)
         openai_organization_id = ""
 
-        # Provider-specific config fields (JSON strings)
-        router_llm_provider_config = "{}"
-        response_llm_provider_config = "{}"
-        planner_llm_provider_config = "{}"
-        hitl_classifier_llm_provider_config = "{}"
-
     return MockSettings()

@@ -3,6 +3,28 @@
 > Architecture complète du système multi-agents avec LangGraph, observabilité enterprise et sécurité GDPR
 > **Version**: 7.0 (v6.5 + réalignement complet 2026-07 : Voice catalogue-driven ADR-081/082, Sub-Agents one-shot ADR-083, HITL replay-safe ADR-092/106, hardening sécurité ADR-093–099, Background Runs ADR-117, Alerting ADR-119, couche sémantique ADR-090/120/121, décompositions ADR-122/123/125, découplage auth/users ADR-126 — voir la section « Fonctionnalités v6.4 → v7.0 ») - 2026-07-11
 
+## Contrats transverses des données consultées
+
+La qualification d'une source intervient après son autorisation et sa mise en
+forme. Les mêmes annotations typées admises alimentent les cartes et la réponse
+de l'assistante ; le doute laisse la source lisible sans inventer de badge.
+Les décisions natives JEV restent séparées de l'exécution et de ses permissions,
+avec des caches bornés par propriétaire, preuve et politique, et la comptabilité
+réelle du fournisseur. Voir [la qualification email/agenda](technical/EMAIL_EVENT_CLASSIFICATION.md).
+
+Les [copies de capacités entre pairs](technical/PEER_CAPABILITY_TRANSFERS.md)
+s'appuient sur les installateurs natifs et des reçus durables : propriété du
+destinataire, installation désactivée, bail et clôture sous fencing, aucun
+transfert des identifiants configurés. Les tables et les règles d'effacement
+sont décrites dans [le schéma](technical/DATABASE_SCHEMA.md).
+
+Les présentations restent dérivées des faits : recherche des comptes rendus
+côté serveur avant pagination ([réunions](technical/MEETINGS.md)), cartes HTML
+déterministes et carte Position avant les lieux dans tous les formats, puis
+activation interactive facturée au clic ([cartes HTML](technical/HTML_CARDS.md)).
+Ces flux réutilisent les contrats de sources et de contexte existants sans
+ajouter de clé d'état LangGraph pour une simple annotation ou un widget.
+
 ## 📋 Table des Matières
 
 - [Vue d'Ensemble](#-vue-densemble)
@@ -3075,54 +3097,7 @@ No special import ordering or patching is needed in `main.py` anymore.
 
 #### LLM Configuration Validation
 
-```python
-def validate_llm_configuration() -> None:
-    """
-    Validate all required LLM configurations are present.
-
-    Implements fail-fast strategy: better to fail at startup with clear
-    error message than to fail during runtime with cryptic error.
-
-    Checks:
-    - 6 LLM types: router, response, planner, contacts_agent, hitl_classifier, hitl_question_generator
-    - For each type: provider AND model must be configured
-
-    Raises:
-        ValueError: If any required LLM configuration is missing
-    """
-    required_llm_types = [
-        "router", "response", "planner",
-        "contacts_agent", "hitl_classifier", "hitl_question_generator"
-    ]
-
-    missing_configs = []
-
-    for llm_type in required_llm_types:
-        # Check provider
-        provider_attr = f"{llm_type}_llm_provider"
-        provider = getattr(settings, provider_attr, None)
-        if not provider:
-            missing_configs.append(f"{llm_type.upper()}_LLM_PROVIDER")
-
-        # Check model
-        model_attr = f"{llm_type}_llm_model"
-        model = getattr(settings, model_attr, None)
-        if not model:
-            missing_configs.append(f"{llm_type.upper()}_LLM_MODEL")
-
-    if missing_configs:
-        raise ValueError(
-            f"Missing required LLM configuration variables: {', '.join(missing_configs)}. "
-            f"Please set these in your .env file. See .env.example for reference."
-        )
-
-    logger.info("llm_configuration_validated",
-        router_model=settings.router_llm_model,
-        response_model=settings.response_llm_model,
-        planner_model=settings.planner_llm_model,
-        ...
-    )
-```
+`validate_llm_configuration()` (`apps/api/src/core/bootstrap.py`) fails the boot when `LLM_DEFAULTS` lacks one of the critical slots (`response`, `planner`, `contacts_agent`, `hitl_classifier`, `hitl_question_generator`) and logs their effective models; `validate_llm_defaults_against_matrix()` then checks every default against the model catalogue. A slot's configuration is never read from environment variables (ADR-244).
 
 #### Event Loop Configuration (Windows/psycopg Compatibility)
 

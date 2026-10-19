@@ -149,18 +149,12 @@ result = await selector.select_tools(
 | `SEMANTIC_INTENT_FALLBACK_THRESHOLD` | 0.50 | Sous ce seuil → intent "full" |
 | `SEMANTIC_FALLBACK_THRESHOLD` | 0.4 | Fallback perplexity/wikipedia |
 
-### Variables .env - Semantic Pivot LLM
+### LLM du Semantic Pivot
 
 Le **Semantic Pivot** traduit les queries vers l'anglais avant embedding matching.
 Ceci ameliore significativement le matching car le semantic pivot traduit les queries avant le calcul d'embeddings.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SEMANTIC_PIVOT_LLM_PROVIDER` | openai | Provider LLM |
-| `SEMANTIC_PIVOT_LLM_MODEL` | gpt-4.1-mini | Modele LLM (fast, cheap) |
-| `SEMANTIC_PIVOT_LLM_TEMPERATURE` | 0.2 | Temperature |
-| `SEMANTIC_PIVOT_LLM_MAX_TOKENS` | 200 | Max tokens (translations courtes) |
-| `SEMANTIC_PIVOT_LLM_REASONING_EFFORT` | minimal | Effort raisonnement (o-series) |
+Il est le poste `semantic_pivot` : ses valeurs par defaut sont dans `LLM_DEFAULTS` (`apps/api/src/domains/llm_config/constants.py`) et un administrateur les remplace dans Settings > Administration > LLM Configuration. Aucune variable d'environnement ne le configure.
 
 ### Thresholds (Code)
 

@@ -141,8 +141,7 @@ diff baseline.txt after_changes.txt
 # Test 1 : Config actuelle
 ./scripts/optim/benchmark.sh
 
-# Modifier .env (ex: RESPONSE_LLM_TEMPERATURE=0.5)
-docker compose -f docker-compose.dev.yml restart api
+# Modifier le poste response dans l'Admin UI (ex : temperature 0.5), sans redemarrage
 
 # Test 2 : Nouvelle config
 ./scripts/optim/benchmark.sh
@@ -166,14 +165,14 @@ done
 #### 4. Comparaison Modèles
 
 ```bash
-# Test gpt-4.1-mini
-RESPONSE_LLM_MODEL=gpt-4.1-mini ./scripts/optim/benchmark.sh > mini.txt
+# Poste response sur le modele A (Admin UI), puis :
+./scripts/optim/benchmark.sh > model_a.txt
 
-# Test gpt-4.1-mini
-RESPONSE_LLM_MODEL=gpt-4.1-mini ./scripts/optim/benchmark.sh > gpt4o.txt
+# Poste response sur le modele B, puis :
+./scripts/optim/benchmark.sh > model_b.txt
 
 # Comparer
-diff mini.txt gpt4o.txt
+diff model_a.txt model_b.txt
 ```
 
 **Objectif** : Évaluer trade-off coût/performance.

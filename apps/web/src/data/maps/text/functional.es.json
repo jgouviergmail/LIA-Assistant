@@ -151,9 +151,9 @@
     },
     "f.peers": {
       "name": "Conexiones entre pares",
-      "role": "Vincular dos cuentas de LIA: enviarse mensajes a través de la asistente, compartirse una imagen generada, confiarse tickets.",
+      "role": "Vincular dos cuentas de LIA: enviarse mensajes a través de la asistente, compartirse una imagen generada, confiarse tickets. Comparte skills, servidores MCP y plugins como copias independientes desactivadas, con origen y fecha, sin credenciales.",
       "goal": "Colaborar sin salir de la asistente.",
-      "src": "0999b15ba37c"
+      "src": "acbb6947019f"
     },
     "f.connectors": {
       "name": "Conectores",
@@ -163,15 +163,15 @@
     },
     "f.mail": {
       "name": "Correos electrónicos",
-      "role": "Leer correos depurados, resumirlos una sola vez, buscar, redactar, responder, leer los adjuntos y llevar los borradores de tu buzón — el envío a otra persona pide siempre una confirmación; un correo a tu propia dirección sale directamente.",
+      "role": "Leer correos depurados, resumirlos una sola vez, buscar, redactar, responder, leer los adjuntos y llevar los borradores de tu buzón — el envío a otra persona pide siempre una confirmación; un correo a tu propia dirección sale directamente. Las categorías y prioridades JEV opcionales siguen siendo orientativas y también llegan a LIA; la duda no muestra etiqueta.",
       "goal": "Gestionar tu bandeja en unas pocas frases.",
-      "src": "ccd1f55a607d"
+      "src": "b553d3afc253"
     },
     "f.calendar": {
       "name": "Calendario",
-      "role": "Consultar, buscar, crear, mover y eliminar eventos, con invitados, recordatorios y zonas horarias.",
+      "role": "Consultar, buscar, crear, mover y eliminar eventos, con invitados, recordatorios y zonas horarias. La evaluación profesional/personal opcional es común a la interfaz y a LIA, con abstención ante la duda.",
       "goal": "Organizar tu tiempo hablando.",
-      "src": "dac71f968107"
+      "src": "b8fd0be7b2e3"
     },
     "f.contacts": {
       "name": "Contactos",
@@ -193,9 +193,9 @@
     },
     "f.places": {
       "name": "Lugares, rutas y meteorología",
-      "role": "Lugares, itinerarios, el tiempo y la calidad del aire; tu última posición conocida sirve en todas partes, siempre con su antigüedad.",
+      "role": "Lugares, itinerarios, el tiempo y la calidad del aire; tu última posición conocida sirve en todas partes, siempre con su antigüedad. Posición reúne los lugares encontrados antes de sus detalles en cada formato; su activación interactiva muestra el coste.",
       "goal": "Responder a «cómo llegar» y «qué tiempo hará» con datos recientes.",
-      "src": "2ea1df8563a9"
+      "src": "88b97b5ab603"
     },
     "f.health": {
       "name": "Salud",
@@ -217,9 +217,9 @@
     },
     "f.skills": {
       "name": "Habilidades y plugins",
-      "role": "Competencias del estándar Agent Skills — escritas por LIA e instaladas con un clic, o elegidas en una biblioteca pública tras leerlas — y plugins del estándar Agent Plugins; una competencia de fuera trabaja aparte, lejos de tus conectores.",
+      "role": "Agent Skills y Agent Plugins portátiles, creados en LIA, importados o elegidos en una biblioteca. Las skills externas ordinarias se ejecutan aparte; una copia recibida llega desactivada y, al activarla, sigue la política de las skills creadas por el destinatario.",
       "goal": "Dotar a LIA de conocimientos prácticos portables.",
-      "src": "f14f45e853e1"
+      "src": "541ca8de6b3e"
     },
     "f.rag": {
       "name": "Espacios de conocimiento",
@@ -241,9 +241,9 @@
     },
     "f.meetings": {
       "name": "Reuniones",
-      "role": "Grabar una reunión desde el teléfono o el ordenador y recibir un acta estructurada, con una plantilla elegida automáticamente.",
+      "role": "Grabar una reunión desde el teléfono o el ordenador y recibir un acta estructurada, con una plantilla elegida automáticamente. Busca en títulos y actas completas para recuperar una decisión.",
       "goal": "Asistir a la reunión, no a la toma de notas.",
-      "src": "e76d94f73fa1"
+      "src": "fc9f4f1c8204"
     },
     "f.heartbeat": {
       "name": "Heartbeat autónomo",

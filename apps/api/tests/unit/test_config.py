@@ -42,11 +42,6 @@ class TestSettings:
                 "FERNET_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379",
-                # Required LLM model fields (Phase 6 multi-provider support)
-                "HITL_CLASSIFIER_LLM_MODEL": "gpt-4.1-mini-mini",
-                "HITL_QUESTION_GENERATOR_LLM_MODEL": "gpt-4.1-mini-mini",
-                "HITL_PLAN_APPROVAL_QUESTION_LLM_MODEL": "gpt-4.1-mini-mini",
-                "PLANNER_LLM_MODEL": "gpt-4.1-mini",
             },
             clear=True,  # Clear all existing env vars to test true defaults
         ):

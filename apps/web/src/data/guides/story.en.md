@@ -3,8 +3,8 @@
 > Field report — a complete system, from design to production.
 
 **Version**: 2.4
-**Date**: 2026-10-18
-**Application**: LIA v3.2.0
+**Date**: 2026-10-19
+**Application**: LIA v3.3.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,16 +18,18 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
-| Source lines (excluding tests) — 55 functional domains | **963,000+** |
+| Source lines (excluding tests) — 55 functional domains | **967,000+** |
 | Inventoried automated tests; suites selected for commits and releases | **63,000+** |
-| Documented architecture decisions (ADR) | **347** |
-| Versions shipped at a steady pace | **283** |
+| Documented architecture decisions (ADR) | **350** |
+| Versions shipped at a steady pace | **284** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
 Conviction from experience: AI-assisted development can be industrialized today. The limiting factor is not the tool — it is the management framework you give it.
 
 That discipline applies inside the product too. A small model decision can help select a route or format, but LIA constrains its choices, measures its cost and retains the authority to check and confirm the result. Optional native decisions extend that method without turning a model's confidence into permission.
+
+Useful assistance also depends on continuity: finding a decision inside complete meeting minutes, passing a reusable capability to someone you trust, or seeing suggested places together. Each convenience keeps a boundary visible. A shared capability starts disabled without its sender’s credentials; a model’s email assessment remains a clue, never proof of safety; opening an interactive map remains your choice with its cost shown.
 
 ## 2. The approach
 
@@ -66,7 +68,7 @@ The project is now run with several development agents in parallel — each on i
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 347 documented:
+Three structural decisions, among the 350 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Self-hosting gives you control of the server; account data is stored on the instance and connector credentials are encrypted. The remote services you choose still receive the data needed for their part of a request.
 

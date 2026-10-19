@@ -2577,6 +2577,50 @@
       "theme": "memory",
       "functional": ["f.psyche", "f.personality"],
       "technical": ["t.promptsys", "t.planner", "t.react", "t.postgres"]
+    },
+    {
+      "adr": 350,
+      "date": "2026-10-19",
+      "theme": "connectors",
+      "functional": [
+        "f.peers",
+        "f.skills",
+        "f.mcp"
+      ],
+      "technical": [
+        "t.skills",
+        "t.mcp",
+        "t.postgres"
+      ]
+    },
+    {
+      "adr": 351,
+      "date": "2026-10-19",
+      "theme": "orchestration",
+      "functional": [
+        "f.mail",
+        "f.calendar",
+        "f.llmconfig"
+      ],
+      "technical": [
+        "t.response",
+        "t.catalogue",
+        "t.pricing"
+      ]
+    },
+    {
+      "adr": 352,
+      "date": "2026-10-19",
+      "theme": "connectors",
+      "functional": [
+        "f.places",
+        "f.chat"
+      ],
+      "technical": [
+        "t.response",
+        "t.connclients",
+        "t.pricing"
+      ]
     }
   ]
 }

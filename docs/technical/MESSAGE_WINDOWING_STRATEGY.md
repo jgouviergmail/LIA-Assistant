@@ -657,7 +657,6 @@ search_context = await store.aget(("last_search_results", user_id))
 ```bash
 # Ajuster dans .env (le router n'a pas de variable dediee)
 DEFAULT_MESSAGE_WINDOW_SIZE=3  # Au lieu de 5
-PLANNER_MESSAGE_WINDOW_SIZE=7  # Au lieu de 10
 RESPONSE_MESSAGE_WINDOW_SIZE=15  # Au lieu de 20
 ```
 
@@ -740,9 +739,7 @@ Users can type `/resume` to force compaction at any time, even below threshold. 
 
 ```python
 # Default values (production-tested)
-DEFAULT_MESSAGE_WINDOW_SIZE=5     # Generic fallback
-ROUTER_MESSAGE_WINDOW_SIZE=5      # Fast routing
-PLANNER_MESSAGE_WINDOW_SIZE=10    # Moderate context
+DEFAULT_MESSAGE_WINDOW_SIZE=5     # Generic fallback (router and planner)
 RESPONSE_MESSAGE_WINDOW_SIZE=20   # Rich context
 ```
 

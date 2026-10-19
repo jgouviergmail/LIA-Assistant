@@ -129,12 +129,7 @@ curl -s "http://localhost:9090/api/v1/query?query=(sum(rate(langgraph_graph_exec
 
 ### Priority 3: Enable Degraded Mode
 
-```bash
-# Disable expensive features
-docker-compose exec api sh -c 'echo "TOOL_APPROVAL_ENABLED=false" >> .env'
-docker-compose exec api sh -c 'echo "PARALLEL_EXECUTION_ENABLED=false" >> .env'
-docker-compose restart api
-```
+Switch the expensive capabilities off in Settings > Administration > Capabilities (ADR-280): sub-agents, browser, ephemeral Python, image and document generation. A switch takes effect on the next operation, without a restart. No environment variable switches tool approval or parallel execution off: both are always on.
 
 ---
 

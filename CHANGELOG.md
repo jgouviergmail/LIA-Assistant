@@ -5,9 +5,68 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.3.0] - 2026-10-19
+
+**Find, share and locate.**
+Full-text meeting-minutes search, independent capability copies between accepted
+connections, advisory source labels shared with the assistant, and a Position
+map before place details in every response format.
+
+### Added
+
+- 🔎 **Search meeting minutes before pagination.** Titles and complete current
+  minutes participate in the same owner-scoped search as the result count.
+  Accents and literal wildcard characters, cancelled requests and navigation
+  back to the filtered list retain their tested behavior. No LLM call is added.
+- 🤝 **Share skills, MCP servers and plugins with an accepted peer.** A reviewed,
+  digest-bound package installs as an independently owned disabled copy, with
+  sender/time provenance and native management. No credential, OAuth grant or
+  approval exemption transfers. Durable claims, fencing, receipts and retention
+  bound recovery and prevent retry from overwriting recipient changes. Enabled
+  peer skills follow the explicitly accepted authored-policy exception; ordinary
+  third-party imports retain isolation. See ADR-350 and the transfer guide.
+- 🏷️ **Native advisory email and appointment labels.** Independent off-by-default
+  JEV usages classify authorized visible evidence: email work/personal/spam/
+  phishing-scam and one normal/urgent/critical priority; appointment work/personal.
+  Unknown stays unlabelled, normal priority stays quiet, and the assistant reads
+  the same accepted annotations. Owner/account/evidence/policy/time-bound cache
+  identities and bounded coalescence preserve quotas and actual cost accounting.
+  The red phishing badge has a finite attention halo and static reduced motion.
+- 🗺️ **One Position card before selected native Google Places**, in Cards, HTML
+  cards, HTML and Markdown. The card appears automatically; interactive Maps
+  requires explicit cost-disclosed activation through the shared admission/SDK
+  lifecycle. Missing coordinates/configuration and network failure retain usable
+  source links; antimeridian and overlapping locations are covered. See ADR-352.
+- 🏠 **Optional interactive Maps in the installer.** Hidden browser-key and
+  Cloud-map-ID questions may both be skipped. A complete env-safe pair enters
+  only the private environment, never public state, logs or LLM bootstrap.
+  Reconfiguration preserves operator values; bootstrap resumption does not ask
+  for environment credentials again. Production rejects demonstration IDs.
+- 🎬 **Editable presentation-film sources and provenance.** The staged full-film
+  scenes, deterministic timing tests, original recording receipts and offline
+  score edit join the authoring tools. Preview packaging uses a configurable
+  local origin; font and generated-music terms accompany the sources. No new
+  paid media generation or runtime dependency is introduced.
 
 ### Fixed
+
+- 🧮 **JEV accepts feasible cent-rounded probability mass consistently.** The
+  common native validator and annotation policy preserve raw weights and
+  conservatively cap concentration, rather than rejecting the provider's
+  approximate sum or increasing a winner to fill missing mass. Invalid
+  schemas/options/winners/mass still fail atomically and retain known bills.
+- 🧠 **Semantic coverage is qualified separately from numerical validity.**
+  Generic email questions distinguish reported severity from authentication,
+  actual deceptive requests from security topics, and spam from unethical
+  advertising. Fixed calibration, validation and post-freeze adversarial corpora
+  pass without lowering confidence thresholds or changing expected answers.
+  Critical holdout cases become displayable; no population-accuracy claim is made.
+- 🗺️ **Unavailable Maps no longer reserve a blank stage.** Explicit browser-key
+  and Cloud-map-ID configuration replaces a hidden server-key fallback. Paid
+  maps survive theme changes without reconstruction and cannot publish into a
+  superseding account context.
+- 📊 **Analyzer metrics retain the model captured with their operation**, even
+  when an administrator changes the slot while later context work is running.
 
 - 🔑 **An installation no longer presents someone else's OpenAI organization.**
   `openai_organization_id` defaulted to a constant named for another setting, and
@@ -18,7 +77,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that organization with its own key. The setting now defaults to empty (an
   organization is sent only when the operator sets one); `openweathermap_api_key`
   borrowed the same kind of constant and defaults to empty too.
-
+- 📱 **An Android shell no longer receives someone else's Firebase project.**
+  `firebase_project_id` defaulted to the maintainer's project: an operator who
+  set the app id, the API key and the sender id but no project id published a
+  mixed set to every Android shell. It defaults to empty, and the push
+  configuration is offered only with all four values. The unread
+  `telegram_bot_username` setting, which held the maintainer's bot, is gone
+  (the bot's name is discovered at startup).
 ### Removed
 
 - 🧹 **The env settings of fourteen LLM slots, which nothing read** (ADR-244
@@ -28,13 +93,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ranges in `scripts/validate_config.py` and `scripts/validate_llm_config.py` — a
   validator no command ran and which no longer imported — are gone. Unknown
   variables are ignored, so a `.env` still carrying one keeps booting.
+- 🧹 **Fourteen more LLM env families, and the unread fields of two others**: the
+  planner, the semantic validator and pivot, the three HITL slots, the memory,
+  interest, heartbeat, broadcast and query-agent slots; `response` and
+  `query_analyzer` keep their timeout alone. 97 constants, their validators and
+  the LLM keys `scripts/validate_config.py` checked go with them.
+- 🧾 **`scripts/validate_config.py` checks only keys something reads**: 27 more
+  (`ENABLE_*_MIDDLEWARE`, `*CIRCUIT_BREAKER_ENABLED`, `RATE_LIMIT_CONTACTS_*`,
+  `ROUTER_*`, `TOOL_APPROVAL_ENABLED`, `SEMANTIC_VALIDATION_ENABLED`...) named
+  settings nothing declares. The env examples no longer document
+  `ENABLE_FALLBACK_MIDDLEWARE=false` (the fallback chain is on) nor
+  `LANGCHAIN_CALLBACKS_BACKGROUND` (LangChain 1.x reads nothing), and the
+  degraded-mode runbook switches capabilities off instead of writing variables
+  that change nothing.
+
+### Tests
+
+- 🧪 Native fictional semantic evidence covers calibration, distinct validation
+  and new multilingual adversarial observations, plus the actual service/Redis
+  path. All historical and new attempts are reconciled with the real ledger.
+- 🛡️ The 23 registered JEV usages exercise single, batch and mixed Choice/Noul
+  transport contracts under valid rounded and malformed responses: 138 tests,
+  including quota admission, atomic publication and one retained bill.
+
+- 🛡️ `test_settings_default_family_guard.py`: a setting reads its default from a
+  constant of its own family, or the pair is declared with its reason
+  (shrink-only) — the shape that let a production organization id become a
+  default.
 
 ### Documentation
+
+- 📚 FAQ, release history, public presentations, relevant blog articles,
+  settings search and FAQ-derived knowledge updated in six languages; living
+  functional/technical maps and decision history include ADR-350–352. JEV's
+  qualification record retains failed candidates and the limits of its evidence.
 
 - 🔗 Seventeen broken relative links in four dated plans now resolve; the
   « effective production configuration » table of `GETTING_STARTED.md` names the
   models production runs (no slot runs `gpt-4.1-nano`), and the documents that
-  described the removed settings point at the slot instead.
+  described the removed settings point at the slot instead. `LLM_PROVIDERS.md`
+  is rewritten around the one mechanism (code defaults + admin overrides) — its
+  examples were `.env` blocks for settings that configured nothing — and the
+  2026-08-06 spec no longer quotes production identifiers.
 
 ## [3.2.0] - 2026-10-18
 

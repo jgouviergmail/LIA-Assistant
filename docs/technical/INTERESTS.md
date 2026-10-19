@@ -1131,12 +1131,7 @@ Section du debug panel affichant :
 INTEREST_EXTRACTION_ENABLED=true
 INTEREST_NOTIFICATIONS_ENABLED=false  # Phase future
 
-# LLM Configuration (default: openai/gpt-5.4-mini, reasoning_effort: low)
-INTEREST_EXTRACTION_LLM_PROVIDER=openai
-INTEREST_EXTRACTION_LLM_MODEL=gpt-5.4-mini
-INTEREST_EXTRACTION_LLM_TEMPERATURE=0.5
-INTEREST_EXTRACTION_LLM_MAX_TOKENS=500
-INTEREST_EXTRACTION_LLM_REASONING_EFFORT=low
+# LLM : poste interest_extraction (Admin UI > LLM Configuration), aucune variable
 
 # Weight Evolution
 INTEREST_DECAY_RATE_PER_DAY=0.01

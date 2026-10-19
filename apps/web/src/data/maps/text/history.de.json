@@ -1837,6 +1837,21 @@
       "title": "LIAs Erfahrung wird aus Belegen gelernt, nie aus ihrer eigenen Note",
       "summary": "Die alte Selbstwirksamkeit bewegte sich nur durch LIAs Selbstbewertung, ein einziger Austausch genügte für eine Stärke oder eine Schwäche, und nur die finale Antwort las sie. Sieben Bereiche führen jetzt zwei getrennte Achsen: was ein Durchgang nachweislich erreicht hat, und den Nutzen, den die Person mit 👍/👎 ausgedrückt hat. Ab fünf Beobachtungen kann LIA einen Punkt prüfen, eine Frage stellen oder eine Grenze benennen — ohne Modell, Werkzeug oder Budget zu ändern.",
       "src": "a453c8b066ef"
+    },
+    "350": {
+      "title": "Eine Fähigkeit ohne Zugangsdaten teilen",
+      "summary": "Bestätigte Verbindungen erhalten eigene deaktivierte Kopien von Skills, MCP-Servern oder Plugins mit Herkunftshinweis. Das geprüfte Paket bleibt unveränderlich, Wiederholungen bewahren Empfängeränderungen und Zugangsdaten bleiben privat. Ein aktivierter Peer-Skill folgt ausdrücklich der Richtlinie selbst erstellter Skills.",
+      "src": "bc5963288566"
+    },
+    "351": {
+      "title": "Anzeige und Assistentin erhalten dieselben Hinweise",
+      "summary": "Optionale native Entscheidungen bewerten autorisierte E-Mail- und Terminevidenz einmal. Unsicherheit bleibt ohne Kennzeichen, Kosten und Kontingente gelten weiter, und weder Kategorie noch Konfidenz erlauben eine Aktion. Feste Korpora und neue adversariale Fälle verbinden die ausgelieferte Richtlinie mit gemessenen Belegen.",
+      "src": "23ce577312c8"
+    },
+    "352": {
+      "title": "Orte vor ihren Details verorten",
+      "summary": "Position bündelt ausgewählte Google Places vor ihren einzelnen Karten, auch in HTML und Markdown. Die interaktive Karte startet erst per Klick mit Kostenanzeige; bei Ausfall bleibt die Quellenliste nutzbar.",
+      "src": "b00abdd45dc8"
     }
   }
 }

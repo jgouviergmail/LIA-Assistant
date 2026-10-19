@@ -1,0 +1,21 @@
+@font-face {font-family: FilmInter;src:url('../../public/fonts/Inter-Variable.woff2') format('woff2');font-weight:100 900;font-display:block;}
+.lia-feature-film {font-family:FilmInter,Inter,sans-serif;--font-sans:FilmInter,Inter,sans-serif;--lia-font-sans:FilmInter,Inter,sans-serif;--lia-primary:#347cf6;color:#15263d;background:#f3f6fc;overflow:hidden;-webkit-font-smoothing:antialiased;}
+.lia-feature-film * {box-sizing:border-box;}
+.lia-feature-film h1,.lia-feature-film h2,.lia-feature-film h3,.lia-feature-film p {margin:0;}
+.film-native-window {position:relative;background:#fff;border:1px solid #dce5f1;border-radius:28px;overflow:hidden;box-shadow:0 28px 85px #1d3a6820,0 2px 8px #1d3a6808;color:#15263d;}
+.film-window-title {height:60px;display:flex;align-items:center;gap:12px;padding:0 28px;border-bottom:1px solid #e7edf5;font-size:22px;font-weight:600;}
+.film-window-title svg {color:#347cf6;}
+.film-window-account {margin-left:auto;color:#62738a;font-size:18px;}
+.film-scene-caption {position:absolute;left:112px;top:74px;max-width:1640px;z-index:3;}
+.film-scene-caption h2 {font-size:70px;line-height:1.08;letter-spacing:-3.7px;font-weight:700;}
+.film-scene-caption p {font-size:29px;line-height:1.35;margin-top:15px;color:#62738a;}
+.film-kicker {font-size:24px;line-height:1.2;color:#347cf6;font-weight:600;margin-bottom:14px;}
+.film-brand {display:flex;align-items:center;gap:.28em;color:inherit;letter-spacing:-.045em;line-height:1;}
+.film-brand img {border-radius:.28em;}
+.film-cursor {position:absolute;z-index:50;width:45px;height:55px;pointer-events:none;filter:drop-shadow(0 4px 7px #0d28513b);transform-origin:6px 6px;}
+.film-cursor-ring {position:absolute;width:70px;height:70px;left:-27px;top:-26px;border:3px solid #347cf6;border-radius:50%;background:#347cf617;}
+.film-bip {position:relative;filter:drop-shadow(0 24px 22px #122d5320);}
+.film-bip *,.film-bip *::before,.film-bip *::after {animation:none!important;transition:none!important;}
+.film-button {display:inline-flex;align-items:center;justify-content:center;gap:12px;border:0;border-radius:14px;background:#347cf6;color:#fff;padding:16px 24px;font-family:inherit;font-size:25px;font-weight:600;line-height:1.2;}
+.film-secondary {background:#edf3ff;color:#2861c5;border:1px solid #cadcf9;}
+.film-status {display:inline-flex;align-items:center;gap:9px;border-radius:10px;padding:8px 13px;font-size:21px;font-weight:600;background:#e8f5ee;color:#237f58;}

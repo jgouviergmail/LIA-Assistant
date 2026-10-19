@@ -17,7 +17,7 @@ Created: 2025-11-20
 """
 
 import re
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings
@@ -38,13 +38,6 @@ from src.core.constants import (
     AVAILABILITY_WORK_START_HOUR_DEFAULT,
     BRIEFING_GREETING_PROMPT_VERSION_DEFAULT,
     BRIEFING_SYNTHESIS_PROMPT_VERSION_DEFAULT,
-    BROADCAST_TRANSLATOR_LLM_FREQUENCY_PENALTY_DEFAULT,
-    BROADCAST_TRANSLATOR_LLM_MAX_TOKENS_DEFAULT,
-    BROADCAST_TRANSLATOR_LLM_MODEL_DEFAULT,
-    BROADCAST_TRANSLATOR_LLM_PRESENCE_PENALTY_DEFAULT,
-    BROADCAST_TRANSLATOR_LLM_PROVIDER_CONFIG_DEFAULT,
-    BROADCAST_TRANSLATOR_LLM_TEMPERATURE_DEFAULT,
-    BROADCAST_TRANSLATOR_LLM_TOP_P_DEFAULT,
     BROWSER_TOOL_TIMEOUT_SECONDS,
     COMPACTION_CHUNK_MAX_TOKENS_DEFAULT,
     COMPACTION_ENABLED_DEFAULT,
@@ -88,16 +81,12 @@ from src.core.constants import (
     HEARTBEAT_CONTEXT_EMAILS_MAX_DEFAULT,
     HEARTBEAT_CONTEXT_MEMORY_LIMIT_DEFAULT,
     HEARTBEAT_CONTEXT_TASKS_DAYS_DEFAULT,
-    HEARTBEAT_DECISION_LLM_MODEL_DEFAULT,
-    HEARTBEAT_DECISION_LLM_PROVIDER_DEFAULT,
     HEARTBEAT_DEPARTURE_CACHE_TTL_SECONDS_DEFAULT,
     HEARTBEAT_DEPARTURE_LOOKAHEAD_HOURS_DEFAULT,
     HEARTBEAT_ENRICHMENT_TIMEOUT_SECONDS_DEFAULT,
     HEARTBEAT_GLOBAL_COOLDOWN_HOURS_DEFAULT,
     HEARTBEAT_INACTIVE_SKIP_DAYS_DEFAULT,
     HEARTBEAT_INTEREST_SAMPLE_SIZE_DEFAULT,
-    HEARTBEAT_MESSAGE_LLM_MODEL_DEFAULT,
-    HEARTBEAT_MESSAGE_LLM_PROVIDER_DEFAULT,
     HEARTBEAT_NOTIFICATION_BATCH_SIZE_DEFAULT,
     HEARTBEAT_NOTIFICATION_INTERVAL_MINUTES_DEFAULT,
     HEARTBEAT_OFFERS_WINDOW_DAYS_DEFAULT,
@@ -109,33 +98,12 @@ from src.core.constants import (
     HEARTBEAT_WEATHER_WIND_THRESHOLD_DEFAULT,
     HITL_AMBIGUOUS_CONFIDENCE_THRESHOLD_DEFAULT,
     HITL_CLASSIFIER_CONFIDENCE_THRESHOLD_DEFAULT,
-    HITL_CLASSIFIER_LLM_FREQUENCY_PENALTY_DEFAULT,
-    HITL_CLASSIFIER_LLM_MAX_TOKENS_DEFAULT,
-    HITL_CLASSIFIER_LLM_MODEL_DEFAULT,
-    HITL_CLASSIFIER_LLM_PRESENCE_PENALTY_DEFAULT,
-    HITL_CLASSIFIER_LLM_PROVIDER_CONFIG_DEFAULT,
-    HITL_CLASSIFIER_LLM_TEMPERATURE_DEFAULT,
-    HITL_CLASSIFIER_LLM_TOP_P_DEFAULT,
     HITL_CLASSIFIER_PROMPT_VERSION_DEFAULT,
     HITL_DEMOTION_CONFIDENCE_DEFAULT,
     HITL_FUZZY_MATCH_AMBIGUITY_THRESHOLD_DEFAULT,
     HITL_LOW_CONFIDENCE_THRESHOLD_DEFAULT,
     HITL_MAX_WAIT_SECONDS_DEFAULT,
-    HITL_PLAN_APPROVAL_QUESTION_LLM_FREQUENCY_PENALTY_DEFAULT,
-    HITL_PLAN_APPROVAL_QUESTION_LLM_MAX_TOKENS_DEFAULT,
-    HITL_PLAN_APPROVAL_QUESTION_LLM_MODEL_DEFAULT,
-    HITL_PLAN_APPROVAL_QUESTION_LLM_PRESENCE_PENALTY_DEFAULT,
-    HITL_PLAN_APPROVAL_QUESTION_LLM_PROVIDER_CONFIG_DEFAULT,
-    HITL_PLAN_APPROVAL_QUESTION_LLM_TEMPERATURE_DEFAULT,
-    HITL_PLAN_APPROVAL_QUESTION_LLM_TOP_P_DEFAULT,
     HITL_PLAN_APPROVAL_QUESTION_PROMPT_VERSION_DEFAULT,
-    HITL_QUESTION_GENERATOR_LLM_FREQUENCY_PENALTY_DEFAULT,
-    HITL_QUESTION_GENERATOR_LLM_MAX_TOKENS_DEFAULT,
-    HITL_QUESTION_GENERATOR_LLM_MODEL_DEFAULT,
-    HITL_QUESTION_GENERATOR_LLM_PRESENCE_PENALTY_DEFAULT,
-    HITL_QUESTION_GENERATOR_LLM_PROVIDER_CONFIG_DEFAULT,
-    HITL_QUESTION_GENERATOR_LLM_TEMPERATURE_DEFAULT,
-    HITL_QUESTION_GENERATOR_LLM_TOP_P_DEFAULT,
     HITL_QUESTION_GENERATOR_PROMPT_VERSION_DEFAULT,
     HTTP_TIMEOUT_CONDITIONAL_EVAL,
     INITIATIVE_ENABLED_DEFAULT,
@@ -207,8 +175,6 @@ from src.core.constants import (
     MEMORY_EMBEDDING_DIMENSIONS_DEFAULT,
     MEMORY_EMBEDDING_MODEL_DEFAULT,
     MEMORY_EXTRACTION_FREQUENCY_PENALTY_DEFAULT,
-    MEMORY_EXTRACTION_LLM_MODEL_DEFAULT,
-    MEMORY_EXTRACTION_LLM_TEMPERATURE_DEFAULT,
     MEMORY_EXTRACTION_MAX_TOKENS_DEFAULT,
     MEMORY_EXTRACTION_MESSAGE_MAX_CHARS_DEFAULT,
     MEMORY_EXTRACTION_PRESENCE_PENALTY_DEFAULT,
@@ -220,13 +186,6 @@ from src.core.constants import (
     MEMORY_PURGE_AT_RISK_MARGIN_DEFAULT,
     MEMORY_PURGE_THRESHOLD_DEFAULT,
     MEMORY_RECENCY_DECAY_DAYS_DEFAULT,
-    MEMORY_REFERENCE_RESOLUTION_LLM_FREQUENCY_PENALTY_DEFAULT,
-    MEMORY_REFERENCE_RESOLUTION_LLM_MAX_TOKENS_DEFAULT,
-    MEMORY_REFERENCE_RESOLUTION_LLM_MODEL_DEFAULT,
-    MEMORY_REFERENCE_RESOLUTION_LLM_PRESENCE_PENALTY_DEFAULT,
-    MEMORY_REFERENCE_RESOLUTION_LLM_PROVIDER_CONFIG_DEFAULT,
-    MEMORY_REFERENCE_RESOLUTION_LLM_TEMPERATURE_DEFAULT,
-    MEMORY_REFERENCE_RESOLUTION_LLM_TOP_P_DEFAULT,
     MEMORY_REFERENCE_RESOLUTION_TIMEOUT_MS_DEFAULT,
     MEMORY_RELEVANCE_THRESHOLD_DEFAULT,
     MEMORY_RETENTION_WEIGHT_IMPORTANCE_DEFAULT,
@@ -248,13 +207,6 @@ from src.core.constants import (
     PLAN_PATTERN_SUGGESTION_TIMEOUT_MS_DEFAULT,
     PLANNER_CATALOGUE_MAX_TOOLS_DEFAULT,
     PLANNER_CATALOGUE_PANIC_MAX_TOOLS_DEFAULT,
-    PLANNER_LLM_FREQUENCY_PENALTY_DEFAULT,
-    PLANNER_LLM_MAX_TOKENS_DEFAULT,
-    PLANNER_LLM_MODEL_DEFAULT,
-    PLANNER_LLM_PRESENCE_PENALTY_DEFAULT,
-    PLANNER_LLM_PROVIDER_CONFIG_DEFAULT,
-    PLANNER_LLM_TEMPERATURE_DEFAULT,
-    PLANNER_LLM_TOP_P_DEFAULT,
     PLANNER_MAX_COST_USD_DEFAULT,
     PLANNER_MAX_REPLANS_DEFAULT,
     PLANNER_MAX_STEPS_DEFAULT,
@@ -322,13 +274,6 @@ from src.core.constants import (
     SEMANTIC_INTENT_HIGH_THRESHOLD_DEFAULT,
     SEMANTIC_LINKING_MAX_SUGGESTIONS_DEFAULT,
     SEMANTIC_PIVOT_ENABLED_DEFAULT,
-    SEMANTIC_PIVOT_LLM_FREQUENCY_PENALTY_DEFAULT,
-    SEMANTIC_PIVOT_LLM_MAX_TOKENS_DEFAULT,
-    SEMANTIC_PIVOT_LLM_MODEL_DEFAULT,
-    SEMANTIC_PIVOT_LLM_PRESENCE_PENALTY_DEFAULT,
-    SEMANTIC_PIVOT_LLM_PROVIDER_CONFIG_DEFAULT,
-    SEMANTIC_PIVOT_LLM_TEMPERATURE_DEFAULT,
-    SEMANTIC_PIVOT_LLM_TOP_P_DEFAULT,
     SEMANTIC_TOOL_SELECTOR_MAX_TOOLS_DEFAULT,
     SEMANTIC_VALIDATION_CONFIDENCE_THRESHOLD_DEFAULT,
     SEMANTIC_VALIDATION_FALLBACK_CONFIDENCE_DEFAULT,
@@ -1587,59 +1532,6 @@ class AgentsSettings(BaseSettings):
     # ========================================================================
     # HITL Conversational Classifier Configuration
     # ========================================================================
-    hitl_classifier_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
-    ] = Field(
-        default=HEARTBEAT_DECISION_LLM_PROVIDER_DEFAULT,  # type: ignore[arg-type]
-        description="LLM provider for HITL classifier",
-    )
-    hitl_classifier_llm_provider_config: str = Field(
-        default=HITL_CLASSIFIER_LLM_PROVIDER_CONFIG_DEFAULT,
-        description="Advanced provider-specific config for HITL classifier (JSON string)",
-    )
-    hitl_classifier_llm_model: str = Field(
-        default=HITL_CLASSIFIER_LLM_MODEL_DEFAULT,
-        description="Deprecated: use LLM_DEFAULTS. LLM model for HITL classifier.",
-    )
-    hitl_classifier_llm_temperature: float = Field(
-        default=HITL_CLASSIFIER_LLM_TEMPERATURE_DEFAULT,
-        ge=0.0,
-        le=2.0,
-        description="Temperature for HITL classifier (0.2 for deterministic classification)",
-    )
-    hitl_classifier_llm_top_p: float = Field(
-        default=HITL_CLASSIFIER_LLM_TOP_P_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description="Top-p (nucleus sampling) for HITL classifier",
-    )
-    hitl_classifier_llm_frequency_penalty: float = Field(
-        default=HITL_CLASSIFIER_LLM_FREQUENCY_PENALTY_DEFAULT,
-        ge=-2.0,
-        le=2.0,
-        description="Frequency penalty for HITL classifier",
-    )
-    hitl_classifier_llm_presence_penalty: float = Field(
-        default=HITL_CLASSIFIER_LLM_PRESENCE_PENALTY_DEFAULT,
-        ge=-2.0,
-        le=2.0,
-        description="Presence penalty for HITL classifier",
-    )
-    hitl_classifier_llm_max_tokens: int = Field(
-        default=HITL_CLASSIFIER_LLM_MAX_TOKENS_DEFAULT,
-        ge=1,
-        description="Max tokens for HITL classifier response",
-    )
-    hitl_classifier_llm_reasoning_effort: (
-        Literal["none", "minimal", "low", "medium", "high"] | None
-    ) = Field(
-        default=None,
-        description=(
-            "Reasoning effort for HITL classifier LLM (OpenAI o-series/GPT-5 only). "
-            "Controls reasoning depth: minimal=sub-second (GPT-5), low=1-3s, medium=5-15s, high=30+s. "
-            "Recommended: 'minimal' for HITL classifier (fast classification, deterministic)."
-        ),
-    )
     hitl_classifier_confidence_threshold: float = Field(
         default=HITL_CLASSIFIER_CONFIDENCE_THRESHOLD_DEFAULT,
         ge=0.0,
@@ -1680,128 +1572,6 @@ class AgentsSettings(BaseSettings):
         description=(
             "Confidence value assigned when demoting EDIT → AMBIGUOUS. "
             "Applied when EDIT has empty params or low classifier confidence."
-        ),
-    )
-
-    # ========================================================================
-    # HITL Question Generator Configuration (Conversational Clarifications)
-    # ========================================================================
-    hitl_question_generator_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
-    ] = Field(
-        default=HEARTBEAT_MESSAGE_LLM_PROVIDER_DEFAULT,  # type: ignore[arg-type]
-        description="LLM provider for HITL question generator",
-    )
-    hitl_question_generator_llm_provider_config: str = Field(
-        default=HITL_QUESTION_GENERATOR_LLM_PROVIDER_CONFIG_DEFAULT,
-        description="Advanced provider-specific config for HITL question generator (JSON string)",
-    )
-    hitl_question_generator_llm_model: str = Field(
-        default=HITL_QUESTION_GENERATOR_LLM_MODEL_DEFAULT,
-        description="Deprecated: use LLM_DEFAULTS. LLM model for HITL question generator.",
-    )
-    hitl_question_generator_llm_temperature: float = Field(
-        default=HITL_QUESTION_GENERATOR_LLM_TEMPERATURE_DEFAULT,
-        ge=0.0,
-        le=2.0,
-        description="Temperature for HITL question generator (0.5 for creative questions)",
-    )
-    hitl_question_generator_llm_top_p: float = Field(
-        default=HITL_QUESTION_GENERATOR_LLM_TOP_P_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description="Top-p (nucleus sampling) for HITL question generator",
-    )
-    hitl_question_generator_llm_frequency_penalty: float = Field(
-        default=HITL_QUESTION_GENERATOR_LLM_FREQUENCY_PENALTY_DEFAULT,
-        ge=-2.0,
-        le=2.0,
-        description="Frequency penalty for HITL question generator (reduce repetition)",
-    )
-    hitl_question_generator_llm_presence_penalty: float = Field(
-        default=HITL_QUESTION_GENERATOR_LLM_PRESENCE_PENALTY_DEFAULT,
-        ge=-2.0,
-        le=2.0,
-        description="Presence penalty for HITL question generator (encourage diversity)",
-    )
-    hitl_question_generator_llm_max_tokens: int = Field(
-        default=HITL_QUESTION_GENERATOR_LLM_MAX_TOKENS_DEFAULT,
-        gt=0,
-        description=(
-            "Max tokens for HITL question generator response. "
-            "Keep low (500) to generate SHORT confirmation questions, not essays. "
-            "Tool-level HITL questions should be 1-2 sentences."
-        ),
-    )
-    hitl_question_generator_llm_reasoning_effort: (
-        Literal["none", "minimal", "low", "medium", "high"] | None
-    ) = Field(
-        default=None,
-        description=(
-            "Reasoning effort for HITL question generator LLM (OpenAI o-series/GPT-5 only). "
-            "Controls reasoning depth: minimal=sub-second (GPT-5), low=1-3s, medium=5-15s, high=30+s. "
-            "Recommended: 'minimal' for HITL question generator (fast clarification questions, deterministic)."
-        ),
-    )
-
-    # ========================================================================
-    # HITL Plan Approval Question Generator Configuration (Plan-level Explanations)
-    # ========================================================================
-    hitl_plan_approval_question_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
-    ] = Field(
-        default=HEARTBEAT_DECISION_LLM_PROVIDER_DEFAULT,  # type: ignore[arg-type]
-        description="LLM provider for HITL plan approval question generator",
-    )
-    hitl_plan_approval_question_llm_provider_config: str = Field(
-        default=HITL_PLAN_APPROVAL_QUESTION_LLM_PROVIDER_CONFIG_DEFAULT,
-        description="Advanced provider-specific config for HITL plan approval question generator (JSON string)",
-    )
-    hitl_plan_approval_question_llm_model: str = Field(
-        default=HITL_PLAN_APPROVAL_QUESTION_LLM_MODEL_DEFAULT,
-        description="Deprecated: use LLM_DEFAULTS. LLM model for HITL plan approval question generator.",
-    )
-    hitl_plan_approval_question_llm_temperature: float = Field(
-        default=HITL_PLAN_APPROVAL_QUESTION_LLM_TEMPERATURE_DEFAULT,
-        ge=0.0,
-        le=2.0,
-        description="Temperature for HITL plan approval question generator (0.5 for creative)",
-    )
-    hitl_plan_approval_question_llm_top_p: float = Field(
-        default=HITL_PLAN_APPROVAL_QUESTION_LLM_TOP_P_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description="Top-p (nucleus sampling) for HITL plan approval question generator",
-    )
-    hitl_plan_approval_question_llm_frequency_penalty: float = Field(
-        default=HITL_PLAN_APPROVAL_QUESTION_LLM_FREQUENCY_PENALTY_DEFAULT,
-        ge=-2.0,
-        le=2.0,
-        description="Frequency penalty for HITL plan approval question generator (reduce repetition)",
-    )
-    hitl_plan_approval_question_llm_presence_penalty: float = Field(
-        default=HITL_PLAN_APPROVAL_QUESTION_LLM_PRESENCE_PENALTY_DEFAULT,
-        ge=-2.0,
-        le=2.0,
-        description="Presence penalty for HITL plan approval question generator (encourage diversity)",
-    )
-    hitl_plan_approval_question_llm_max_tokens: int = Field(
-        default=HITL_PLAN_APPROVAL_QUESTION_LLM_MAX_TOKENS_DEFAULT,
-        gt=0,
-        description=(
-            "Max tokens for HITL plan approval question generator response. "
-            "Keep low (500) to generate concise plan summaries, not verbose explanations. "
-            "Plan-level HITL questions should be 2-4 sentences with bullet points."
-        ),
-    )
-    hitl_plan_approval_question_llm_reasoning_effort: (
-        Literal["none", "minimal", "low", "medium", "high"] | None
-    ) = Field(
-        default=None,
-        description=(
-            "Reasoning effort for HITL plan approval question generator LLM (OpenAI o-series/GPT-5 only). "
-            "Controls reasoning depth: minimal=sub-second (GPT-5), low=1-3s, medium=5-15s, high=30+s. "
-            "Recommended: 'minimal' for plan approval questions (clear explanations, deterministic)."
         ),
     )
 
@@ -1868,56 +1638,6 @@ class AgentsSettings(BaseSettings):
     # ========================================================================
     # Planner Configuration (Phase 5 - Multi-Agent Orchestration)
     # ========================================================================
-    planner_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
-    ] = Field(default="openai", description="LLM provider for planner")
-    planner_llm_provider_config: str = Field(
-        default=PLANNER_LLM_PROVIDER_CONFIG_DEFAULT,
-        description="Advanced provider-specific config for planner (JSON string)",
-    )
-    planner_llm_model: str = Field(
-        default=PLANNER_LLM_MODEL_DEFAULT,
-        description="Deprecated: use LLM_DEFAULTS. LLM model for planner node.",
-    )
-    planner_llm_temperature: float = Field(
-        default=PLANNER_LLM_TEMPERATURE_DEFAULT,
-        ge=0.0,
-        le=2.0,
-        description="Temperature for planner (0.0 = deterministic, precise plan generation)",
-    )
-    planner_llm_top_p: float = Field(
-        default=PLANNER_LLM_TOP_P_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description="Top-p sampling for planner LLM",
-    )
-    planner_llm_frequency_penalty: float = Field(
-        default=PLANNER_LLM_FREQUENCY_PENALTY_DEFAULT,
-        ge=-2.0,
-        le=2.0,
-        description="Frequency penalty for planner LLM",
-    )
-    planner_llm_presence_penalty: float = Field(
-        default=PLANNER_LLM_PRESENCE_PENALTY_DEFAULT,
-        ge=-2.0,
-        le=2.0,
-        description="Presence penalty for planner LLM",
-    )
-    planner_llm_max_tokens: int = Field(
-        default=PLANNER_LLM_MAX_TOKENS_DEFAULT,
-        gt=0,
-        description="Max tokens for planner LLM response (ExecutionPlan JSON)",
-    )
-    planner_llm_reasoning_effort: Literal["none", "minimal", "low", "medium", "high"] | None = (
-        Field(
-            default="medium",
-            description=(
-                "Reasoning effort for planner LLM (OpenAI o-series/GPT-5 only). "
-                "Controls reasoning depth: minimal=sub-second (GPT-5), low=1-3s, medium=5-15s, high=30+s. "
-                "Recommended: 'medium' for planner (thorough multi-agent orchestration)."
-            ),
-        )
-    )
     planner_max_steps: int = Field(
         default=PLANNER_MAX_STEPS_DEFAULT,
         gt=0,
@@ -2167,23 +1887,6 @@ class AgentsSettings(BaseSettings):
             "only thing standing between a runaway generation and the user's data."
         ),
     )
-    memory_extraction_llm_model: str = Field(
-        default=MEMORY_EXTRACTION_LLM_MODEL_DEFAULT,
-        description=(
-            "LLM model for background memory extraction. "
-            "Use a fast, cost-effective model (extraction runs frequently). "
-            "Default: gpt-4.1-mini for optimal cost/quality balance."
-        ),
-    )
-    memory_extraction_llm_temperature: float = Field(
-        default=MEMORY_EXTRACTION_LLM_TEMPERATURE_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description=(
-            "Temperature for memory extraction LLM. "
-            "Lower = more consistent extraction, Higher = more creative detection."
-        ),
-    )
     memory_extraction_max_tokens: int = Field(
         default=MEMORY_EXTRACTION_MAX_TOKENS_DEFAULT,
         ge=100,
@@ -2225,12 +1928,6 @@ class AgentsSettings(BaseSettings):
             "Presence penalty for memory extraction LLM. "
             "Default: 0.0 (no penalty, extraction should detect all relevant information)."
         ),
-    )
-    memory_extraction_llm_reasoning_effort: (
-        Literal["none", "minimal", "low", "medium", "high"] | None
-    ) = Field(
-        default=None,
-        description="Reasoning effort for memory extraction LLM (OpenAI o-series/GPT-5 only).",
     )
     memory_embedding_model: str = Field(
         default=MEMORY_EMBEDDING_MODEL_DEFAULT,
@@ -2434,65 +2131,6 @@ class AgentsSettings(BaseSettings):
             "Default: 2000ms. Increase if LLM calls timeout frequently."
         ),
     )
-    memory_reference_resolution_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
-    ] = Field(
-        default="openai",
-        description="LLM provider for memory reference resolution",
-    )
-    memory_reference_resolution_llm_provider_config: str = Field(
-        default=MEMORY_REFERENCE_RESOLUTION_LLM_PROVIDER_CONFIG_DEFAULT,
-        description="Advanced provider-specific config for memory reference resolution (JSON string)",
-    )
-    memory_reference_resolution_llm_model: str = Field(
-        default=MEMORY_REFERENCE_RESOLUTION_LLM_MODEL_DEFAULT,
-        description=(
-            "LLM model for memory reference resolution micro-call. "
-            "Use a fast, cheap model (extraction is simple). "
-            "Default: gpt-4.1-mini. Consider gpt-4.1-nano if available."
-        ),
-    )
-    memory_reference_resolution_llm_temperature: float = Field(
-        default=MEMORY_REFERENCE_RESOLUTION_LLM_TEMPERATURE_DEFAULT,
-        ge=0.0,
-        le=2.0,
-        description="Temperature for memory reference resolution (0.0 = deterministic extraction)",
-    )
-    memory_reference_resolution_llm_top_p: float = Field(
-        default=MEMORY_REFERENCE_RESOLUTION_LLM_TOP_P_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description="Top-p (nucleus sampling) for memory reference resolution",
-    )
-    memory_reference_resolution_llm_frequency_penalty: float = Field(
-        default=MEMORY_REFERENCE_RESOLUTION_LLM_FREQUENCY_PENALTY_DEFAULT,
-        ge=-2.0,
-        le=2.0,
-        description="Frequency penalty for memory reference resolution",
-    )
-    memory_reference_resolution_llm_presence_penalty: float = Field(
-        default=MEMORY_REFERENCE_RESOLUTION_LLM_PRESENCE_PENALTY_DEFAULT,
-        ge=-2.0,
-        le=2.0,
-        description="Presence penalty for memory reference resolution",
-    )
-    memory_reference_resolution_llm_max_tokens: int = Field(
-        default=MEMORY_REFERENCE_RESOLUTION_LLM_MAX_TOKENS_DEFAULT,
-        gt=0,
-        description=(
-            "Max output tokens for memory reference resolution. "
-            "Default: 250 (JSON response with resolved_query + multiple mappings)."
-        ),
-    )
-    memory_reference_resolution_llm_reasoning_effort: (
-        Literal["none", "minimal", "low", "medium", "high"] | None
-    ) = Field(
-        default=None,
-        description=(
-            "Reasoning effort for memory reference resolution (OpenAI o-series only). "
-            "None = disabled. For simple name extraction, reasoning is not needed."
-        ),
-    )
 
     # NOTE: force_planner_routing removed - debug flag no longer needed
     # NOTE: recipient_resolution_enabled removed - always enabled, no toggle needed
@@ -2692,128 +2330,6 @@ class AgentsSettings(BaseSettings):
         ge=0.0,
         le=1.0,
         description="Similarity threshold for duplicate detection",
-    )
-
-    # ========================================================================
-    # Semantic Pivot LLM Configuration (Query Translation for Embeddings)
-    # ========================================================================
-    # Translates user queries to English before embedding matching.
-    # Uses a fast, cheap model (gpt-4.1-mini) for optimal latency.
-    # This dramatically improves embedding-based tool selection since
-    # embeddings work best in English (dominant training language).
-    semantic_pivot_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
-    ] = Field(
-        default="openai",
-        description="LLM provider for semantic pivot translation (query to English)",
-    )
-    semantic_pivot_llm_provider_config: str = Field(
-        default=SEMANTIC_PIVOT_LLM_PROVIDER_CONFIG_DEFAULT,
-        description="Advanced provider-specific config for semantic pivot (JSON string)",
-    )
-    semantic_pivot_llm_model: str = Field(
-        default=SEMANTIC_PIVOT_LLM_MODEL_DEFAULT,
-        description=(
-            "LLM model for semantic pivot translation. "
-            "Use a fast, cheap model (translation is simple). "
-            "Default: gpt-4.1-mini for optimal speed/cost balance."
-        ),
-    )
-    semantic_pivot_llm_temperature: float = Field(
-        default=SEMANTIC_PIVOT_LLM_TEMPERATURE_DEFAULT,
-        ge=0.0,
-        le=2.0,
-        description="Temperature for semantic pivot (0.0 = deterministic translation)",
-    )
-    semantic_pivot_llm_top_p: float = Field(
-        default=SEMANTIC_PIVOT_LLM_TOP_P_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description="Top-p (nucleus sampling) for semantic pivot",
-    )
-    semantic_pivot_llm_frequency_penalty: float = Field(
-        default=SEMANTIC_PIVOT_LLM_FREQUENCY_PENALTY_DEFAULT,
-        ge=-2.0,
-        le=2.0,
-        description="Frequency penalty for semantic pivot",
-    )
-    semantic_pivot_llm_presence_penalty: float = Field(
-        default=SEMANTIC_PIVOT_LLM_PRESENCE_PENALTY_DEFAULT,
-        ge=-2.0,
-        le=2.0,
-        description="Presence penalty for semantic pivot",
-    )
-    semantic_pivot_llm_max_tokens: int = Field(
-        default=SEMANTIC_PIVOT_LLM_MAX_TOKENS_DEFAULT,
-        gt=0,
-        description=(
-            "Max tokens for semantic pivot response (short translated query). "
-            "Default: 100 (translations are brief, e.g., 'Get my last 2 emails')."
-        ),
-    )
-    semantic_pivot_llm_reasoning_effort: (
-        Literal["none", "minimal", "low", "medium", "high"] | None
-    ) = Field(
-        default=None,
-        description=(
-            "Reasoning effort for semantic pivot LLM (OpenAI o-series/GPT-5 only). "
-            "Recommended: None or 'minimal' for fast translation."
-        ),
-    )
-
-    # ========================================================================
-    # Broadcast Translation LLM Configuration
-    # ========================================================================
-    # Translates admin broadcast messages to each user's preferred language.
-    # Uses gpt-4.1-nano for cost-effective translation.
-    broadcast_translator_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
-    ] = Field(
-        default="openai",
-        description="LLM provider for broadcast message translation",
-    )
-    broadcast_translator_llm_provider_config: str = Field(
-        default=BROADCAST_TRANSLATOR_LLM_PROVIDER_CONFIG_DEFAULT,
-        description="Advanced provider-specific config for broadcast translator (JSON string)",
-    )
-    broadcast_translator_llm_model: str = Field(
-        default=BROADCAST_TRANSLATOR_LLM_MODEL_DEFAULT,
-        description="LLM model for broadcast translation. gpt-5-mini for quality + reasoning.",
-    )
-    broadcast_translator_llm_temperature: float = Field(
-        default=BROADCAST_TRANSLATOR_LLM_TEMPERATURE_DEFAULT,
-        ge=0.0,
-        le=2.0,
-        description="Temperature for broadcast translation. Low value for consistent translations.",
-    )
-    broadcast_translator_llm_top_p: float = Field(
-        default=BROADCAST_TRANSLATOR_LLM_TOP_P_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description="Top-p (nucleus sampling) for broadcast translation",
-    )
-    broadcast_translator_llm_frequency_penalty: float = Field(
-        default=BROADCAST_TRANSLATOR_LLM_FREQUENCY_PENALTY_DEFAULT,
-        ge=-2.0,
-        le=2.0,
-        description="Frequency penalty for broadcast translation",
-    )
-    broadcast_translator_llm_presence_penalty: float = Field(
-        default=BROADCAST_TRANSLATOR_LLM_PRESENCE_PENALTY_DEFAULT,
-        ge=-2.0,
-        le=2.0,
-        description="Presence penalty for broadcast translation",
-    )
-    broadcast_translator_llm_max_tokens: int = Field(
-        default=BROADCAST_TRANSLATOR_LLM_MAX_TOKENS_DEFAULT,
-        gt=0,
-        description="Max tokens for broadcast translation response. 500 sufficient for typical messages.",
-    )
-    broadcast_translator_llm_reasoning_effort: (
-        Literal["none", "minimal", "low", "medium", "high"] | None
-    ) = Field(
-        default="minimal",
-        description="Reasoning effort for broadcast translator LLM (OpenAI o-series/GPT-5 only).",
     )
 
     # ========================================================================
@@ -3369,24 +2885,6 @@ class AgentsSettings(BaseSettings):
         ),
     )
 
-    # LLM models
-    heartbeat_decision_llm_provider: str = Field(
-        default=HEARTBEAT_DECISION_LLM_PROVIDER_DEFAULT,
-        description="LLM provider for heartbeat decision phase (structured output).",
-    )
-    heartbeat_decision_llm_model: str = Field(
-        default=HEARTBEAT_DECISION_LLM_MODEL_DEFAULT,
-        description="LLM model for heartbeat decision phase (reasoning-capable).",
-    )
-    heartbeat_message_llm_provider: str = Field(
-        default=HEARTBEAT_MESSAGE_LLM_PROVIDER_DEFAULT,
-        description="LLM provider for heartbeat message generation phase.",
-    )
-    heartbeat_message_llm_model: str = Field(
-        default=HEARTBEAT_MESSAGE_LLM_MODEL_DEFAULT,
-        description="LLM model for heartbeat message generation (personality-aware).",
-    )
-
     # Context aggregation
     heartbeat_context_calendar_hours: int = Field(
         default=HEARTBEAT_CONTEXT_CALENDAR_HOURS_DEFAULT,
@@ -3492,36 +2990,6 @@ class AgentsSettings(BaseSettings):
             "Saves LLM tokens for inactive users."
         ),
     )
-
-    @field_validator(
-        "hitl_classifier_llm_reasoning_effort",
-        "hitl_question_generator_llm_reasoning_effort",
-        "hitl_plan_approval_question_llm_reasoning_effort",
-        "planner_llm_reasoning_effort",
-        "semantic_pivot_llm_reasoning_effort",
-        "memory_extraction_llm_reasoning_effort",
-        "memory_reference_resolution_llm_reasoning_effort",
-        mode="before",
-    )
-    @classmethod
-    def empty_string_to_none(cls, v: Any) -> Any:
-        """
-        Convert empty strings to None for reasoning_effort fields.
-
-        Environment variables with empty values (VAR=) are read as "" (empty string).
-        Since reasoning_effort accepts Literal[...] | None, we convert "" to None.
-
-        This is a common pattern for optional enum/literal fields in pydantic-settings.
-
-        Args:
-            v: Raw value from environment or settings
-
-        Returns:
-            None if empty string, otherwise original value
-        """
-        if v == "" or v is None:
-            return None
-        return v
 
     # ========================================================================
     # Sub-Agents (ADR-083 — Parameterized ReAct Loop)

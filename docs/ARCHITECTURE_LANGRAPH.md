@@ -1133,11 +1133,12 @@ With `BACKGROUND_RUNS_ENABLED=true`, the `ChatStreamChunk` flow above no longer 
 
 ## 9. Configuration Clé
 
+Le modèle d'un nœud n'est pas un réglage : chaque nœud lit son poste LLM (`LLM_DEFAULTS` + overrides, Settings > Administration > LLM Configuration).
+
 ### Router
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `router_llm_model` | gpt-4.1-nano | Modèle classification rapide |
 | `router_confidence_high` | 0.85 | Seuil haute confiance |
 | `router_confidence_medium` | 0.65 | Seuil moyenne confiance |
 | `router_confidence_low` | 0.45 | Seuil basse confiance |
@@ -1147,7 +1148,6 @@ With `BACKGROUND_RUNS_ENABLED=true`, the `ChatStreamChunk` flow above no longer 
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `planner_llm_model` | gpt-4 | Modèle génération plan |
 | `planner_timeout_seconds` | 30 | Timeout génération |
 | `planner_max_retries` | 2 | Retries validation échec |
 | `planner_max_cost_usd` | 5.0 | Budget exécution |

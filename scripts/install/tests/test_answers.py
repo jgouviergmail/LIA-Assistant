@@ -58,6 +58,8 @@ SECRETS = {
     "provider_key_openai": "sk-secret",
     # The optional key, left empty at the prompt: skipped.
     "provider_key_gemini": "",
+    "maps_browser_key": "",
+    "maps_map_id": "",
 }
 
 
@@ -98,9 +100,7 @@ class _ScriptedIO:
                 return self._retries[key].pop(0)
             return self._secrets[key]
 
-        return IOAdapter(
-            input_fn=_input, getpass_fn=_getpass, print_fn=self.printed.append
-        )
+        return IOAdapter(input_fn=_input, getpass_fn=_getpass, print_fn=self.printed.append)
 
 
 def _collect(io: _ScriptedIO, **kwargs: object):
@@ -147,6 +147,8 @@ def test_interactive_lan_flow_routes_secrets_through_getpass_only() -> None:
         "provider_key_deepseek",
         "provider_key_openai",
         "provider_key_gemini",
+        "maps_browser_key",
+        "maps_map_id",
     }
     assert not set(io.secret_served) & set(io.public_served)
 
@@ -162,7 +164,9 @@ def test_a_given_gemini_key_joins_the_provider_keys() -> None:
 
 
 def test_an_answers_file_may_leave_the_optional_key_out(tmp_path: Path) -> None:
-    without_gemini = {k: v for k, v in {**BASE_PUBLIC, **SECRETS}.items() if k != "provider_key_gemini"}
+    without_gemini = {
+        k: v for k, v in {**BASE_PUBLIC, **SECRETS}.items() if k != "provider_key_gemini"
+    }
     answers = _write_answers(tmp_path / "answers.env", without_gemini)
     io = _ScriptedIO({}, {})
     _public, secrets = _collect(io, non_interactive=True, answers_path=answers)
@@ -234,9 +238,7 @@ def test_speaking_avatar_opt_in_is_public_and_has_no_provider_key_question() -> 
         ),
     ],
 )
-def test_domain_exposures_collect_domains_not_host(
-    exposure: str, extra: dict[str, str]
-) -> None:
+def test_domain_exposures_collect_domains_not_host(exposure: str, extra: dict[str, str]) -> None:
     public_answers = {**BASE_PUBLIC, "exposure": exposure, **extra}
     public_answers.pop("server_host")
     io = _ScriptedIO(public_answers, SECRETS)
@@ -307,9 +309,7 @@ def test_older_answers_file_keeps_speaking_avatar_disabled(tmp_path: Path) -> No
     previous_answers = {**BASE_PUBLIC, **SECRETS}
     previous_answers.pop("speaking_avatar")
     path = _write_answers(tmp_path / "answers.env", previous_answers)
-    public, _secrets = _collect(
-        _ScriptedIO({}, {}), non_interactive=True, answers_path=path
-    )
+    public, _secrets = _collect(_ScriptedIO({}, {}), non_interactive=True, answers_path=path)
     assert public.speaking_avatar is False
 
 

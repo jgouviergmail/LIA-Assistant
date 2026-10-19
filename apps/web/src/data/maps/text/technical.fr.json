@@ -133,7 +133,7 @@
     },
     "t.response": {
       "name": "Synthèse de la réponse",
-      "role": "Assemble la réponse depuis les résultats et contextes déclarés, dit les échecs et rend des cartes déterministes depuis les faits reçus. Sélections et filtres temporels exigent des preuves ; les actions revérifient la liaison exacte au message et à la source. Elle déclare aussi le registre qui anime le compagnon.",
+      "role": "Assemble la réponse depuis les résultats et contextes déclarés, dit les échecs et rend des cartes déterministes depuis les faits reçus. Sélections et filtres temporels exigent des preuves ; les actions revérifient la liaison exacte au message et à la source. Elle déclare aussi le registre qui anime le compagnon. Une seule politique accepte les annotations de source pour l’affichage et la synthèse ; Position précède les lieux dans chaque format, avec admission Maps au clic.",
       "stack": ["Contextes déclarés", "Directives d'honnêteté", "Registre émotionnel"]
     },
     "t.hitl": {
@@ -212,7 +212,7 @@
     },
     "t.skills": {
       "name": "Compétences et plugins",
-      "role": "Installer, activer et exécuter des compétences portables — tirées d'une bibliothèque publique à un commit exact, ou proposées par le chat — et leurs commandes dans une copie jetable de leur dossier ; une compétence tierce tourne dans un runner isolé, un plugin apporte compétences et serveurs MCP en un geste.",
+      "role": "Les installateurs natifs gèrent compétences et plugins, imports figés de bibliothèque, scripts jetables et copies de pairs installées désactivées. La provenance écrite par le serveur décide l’exception de confiance explicite ; identifiants et autorisations ne sont jamais transférés.",
       "stack": ["Agent Skills", "Agent Plugins"]
     },
     "t.sandbox": {

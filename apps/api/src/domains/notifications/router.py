@@ -98,6 +98,7 @@ async def get_push_config(
     if (
         settings.firebase_android_app_id
         and settings.firebase_api_key
+        and settings.firebase_project_id
         and settings.firebase_sender_id
     ):
         android = AndroidPushConfig(

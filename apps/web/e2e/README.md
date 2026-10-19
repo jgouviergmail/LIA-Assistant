@@ -32,6 +32,14 @@ are refused. After each test it blocks new traffic and closes existing HTTP
 forwards, before Playwright destroys the context. This
 covers Chromium's detached keepalive sends, which can outlive page interception
 and its offline setting. The guard stays alive until the context has closed.
+
+The meeting timeline separately checks page-origin traffic and records denied
+browser background probes. Its exact probe list includes Chromium's
+[native autofill service](https://chromium.googlesource.com/chromium/src.git/+/b9ff62bb6ff2143fc168dff0e3392e4335de1b8a/components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.cc),
+which a search field can trigger without a page request event. This is a
+recording exception only: CONNECT stays denied, and a page-origin request to
+that host still fails the separate assertion. No proxy permission is added.
+
 The fixture also disables further browser network access and explicitly aborts
 routed API reads and SSE streams that have not received a response. The document
 stays available for failure screenshots, page context and traces.

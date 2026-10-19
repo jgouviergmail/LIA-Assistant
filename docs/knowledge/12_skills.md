@@ -182,6 +182,8 @@ A skill installed **from an address**, from the **library** or by a **plugin** w
 
 A skill you import from your own file is different: it runs with access to your connected data, so keep only those you trust.
 
+A skill received from an accepted LIA connection is an explicit exception: its copy arrives disabled and without credentials; after you enable it, it uses the same execution policy as your own skills. Review its instructions first. The sender badge is informational; uploaded metadata cannot grant this policy.
+
 ## Can I have an existing skill modified?
 Yes, by talking to LIA: "*adjust my X skill*", "*add a section to it*", "*fix the wording*". LIA re-reads the complete skill — its manifest, its scripts, its reference documents — applies your request, then **regenerates the whole thing** rather than patching one spot: that is what keeps the description, the scripts and the resources consistent with each other.
 

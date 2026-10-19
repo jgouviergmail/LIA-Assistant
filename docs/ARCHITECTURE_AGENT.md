@@ -3192,17 +3192,7 @@ Le système valide les plans générés par le Planner avant exécution.
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Configuration Feature Flag:**
-```python
-# .env ou src/core/config/agents.py
-SEMANTIC_VALIDATION_ENABLED=true  # Active la validation sémantique
-
-# Dans le code (routing.py)
-if settings.semantic_validation_enabled:
-    # Route: planner → semantic_validator → (3 routes) → approval_gate
-else:
-    # Route: planner → approval_gate (directement, sans validation sémantique)
-```
+**Activation :** la validation sémantique est toujours active — aucun réglage ne la désactive ; seuls son délai (`SEMANTIC_VALIDATION_TIMEOUT_SECONDS`) et son seuil de confiance (`SEMANTIC_VALIDATION_CONFIDENCE_THRESHOLD`) se règlent.
 
 ### 19.2 Validation Sémantique
 

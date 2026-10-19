@@ -70,10 +70,6 @@ the account's usage limits and the instance's daily budget.
 | `HEARTBEAT_RECENT_WINDOW_DAYS` | `7` | Anti-redundancy window age limit |
 | `HEARTBEAT_INTEREST_ENRICHMENT_ENABLED` | `true` | Fetch real facts for interest-centered heartbeats |
 | `HEARTBEAT_ENRICHMENT_TIMEOUT_SECONDS` | `45` | Enrichment hard timeout (fail-open) |
-| `HEARTBEAT_DECISION_LLM_PROVIDER` | `openai` | LLM provider for decision |
-| `HEARTBEAT_DECISION_LLM_MODEL` | *(seed only)* | Seed for the decision slot; the model actually used is the one `llm_config_overrides` holds for it (ADR-244) |
-| `HEARTBEAT_MESSAGE_LLM_PROVIDER` | `openai` | LLM provider for message |
-| `HEARTBEAT_MESSAGE_LLM_MODEL` | *(seed only)* | Seed for the message slot; same rule |
 | `HEARTBEAT_CONTEXT_CALENDAR_HOURS` | `4` | Hours ahead for calendar |
 | `HEARTBEAT_CONTEXT_MEMORY_LIMIT` | `5` | Max memories to fetch |
 | `HEARTBEAT_CONTEXT_TASKS_DAYS` | `2` | Days ahead for pending tasks (1-7) |
@@ -84,6 +80,8 @@ the account's usage limits and the instance's daily budget.
 | `LAST_KNOWN_LOCATION_TTL_HOURS` | `24` | TTL for persisted browser geoloc before fallback to home |
 | `LAST_KNOWN_LOCATION_MIN_DISTANCE_KM` | `50.0` | Min distance from home to prefer last-known over home |
 | `HEARTBEAT_INACTIVE_SKIP_DAYS` | `7` | Skip if user inactive > N days — inactivity is measured from the later of `last_login` and the last reading presence (app opening or thumb, ADR-214 amendment 2026-09-03), never from a sent notification |
+
+The decision and the message are the `heartbeat_decision` and `heartbeat_message` slots (Settings > Administration > LLM Configuration); no environment variable configures them.
 
 ## User Settings
 

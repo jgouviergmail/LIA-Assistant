@@ -5,8 +5,8 @@
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
 **Versione**: 5.4
-**Data**: 2026-10-18
-**Applicazione**: LIA v3.2.0
+**Data**: 2026-10-19
+**Applicazione**: LIA v3.3.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -73,7 +73,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), credenziali cifrate con Fernet, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 621 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 347 ADRs, oltre 63.000 test automatizzati per backend e frontend, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 350 ADRs, oltre 63.000 test automatizzati per backend e frontend, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -94,7 +94,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Test | Oltre 63.000 test automatizzati con pytest e Vitest (soglie di copertura bloccate, ADR-116) |
 | Fixture pytest | 1.082, di cui 48 condivise tramite conftest |
 | Documenti di documentazione | 716 |
-| ADR (Architecture Decision Record) | 347 |
+| ADR (Architecture Decision Record) | 350 |
 | Metriche Prometheus | 621 definizioni |
 | Dashboard Grafana | 31 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -765,6 +765,8 @@ Rilevamento tramite analisi delle richieste con evoluzione bayesiana dei pesi (d
 
 ## 12. Infrastruttura LLM multi-provider
 
+Le valutazioni di email e appuntamenti sono usi nativi opzionali e indipendenti. Annotazioni chiuse legano evidenza visibile, ambito e validità a una politica comune di accettazione per interfaccia e risposta. Proprietario, account, revisione, modello e identità dei prompt separano la cache; claim limitati riuniscono lavoro sovrapposto. Un validatore comune attento alla precisione conserva le probabilità ricevute e rifiuta risposte malformate. Dubbi, quote o indisponibilità conservano la fonte senza inventare badge. Queste indicazioni non autenticano mittenti, provano frodi né autorizzano azioni.
+
 ### 12.1. Factory Pattern
 
 ```python
@@ -885,6 +887,8 @@ Un rifiuto 429 sulla chiave di una persona — Brave, Perplexity — è una cont
 ---
 
 ## 14. MCP: Model Context Protocol
+
+La condivisione tra connessioni usa gli installatori nativi invece di creare un secondo sistema di esecuzione. Il server fissa un pacchetto ripulito dietro un’impronta verificata, ricontrolla proprietà e relazione accettata alla conferma e installa una copia indipendente disattivata. Credenziali, autorizzazioni OAuth ed esenzioni di conferma non passano mai nel trasferimento. Claim durevoli, fencing e ricevute consentono riprese senza sovrascrivere le modifiche del destinatario. Solo la provenienza scritta dal server concede a una skill condivisa attivata l’eccezione esplicita della politica autore.
 
 ### 14.1. Architettura
 
@@ -1586,7 +1590,7 @@ Due regole d'interfaccia sono diventate contratti dei componenti anziché abitud
 
 ## 24. Architettura delle decisioni (ADR)
 
-347 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+350 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1998,8 +2002,8 @@ Gli studi oMLX, llama.cpp e LM Studio e il mondo isometrico sono lavori di quali
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 347 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. Gli oltre 63.000 test automatizzati, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 350 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. Gli oltre 63.000 test automatizzati, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (700+ documenti), dei 347 ADRs e del changelog (da v1.0 a v3.2.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (700+ documenti), dei 350 ADRs e del changelog (da v1.0 a v3.3.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

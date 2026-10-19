@@ -215,7 +215,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--live", action="store_true")
     parser.add_argument("--user-id", type=UUID)
-    parser.add_argument("--split", choices=("cases", "holdout"), required=True)
+    parser.add_argument("--split", choices=("cases", "holdout", "adversarial"), required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--previous-report", type=Path)
     parser.add_argument("--max-eur", type=Decimal, default=Decimal(".05"))

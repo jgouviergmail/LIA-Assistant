@@ -52,3 +52,5 @@ Real PostgreSQL, filesystem, migration and cancellation scenarios live in
 [the transfer integration tests](../../apps/api/tests/integration/domains/peers).
 [The browser journey](../../apps/web/e2e/smoke/settings-capability-sharing.spec.ts)
 exercises all native kinds through desktop/mobile settings and explicit review.
+
+The ownership and trust decision is recorded in [ADR-350](../architecture/ADR-350-Peer-Capability-Copies-Without-Credentials.md). Known credential fields are excluded structurally and recognizable embedded secrets are refused; arbitrary prose or opaque resources cannot be certified secret-free. Review the content before sharing.

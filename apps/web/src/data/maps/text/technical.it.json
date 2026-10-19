@@ -159,9 +159,9 @@
     },
     "t.response": {
       "name": "Sintesi della risposta",
-      "role": "Compone la risposta da risultati e contesti dichiarati, indica gli errori e rende schede deterministiche dai fatti ricevuti. Selezioni e filtri temporali richiedono prove; le azioni verificano il legame esatto con messaggio e fonte. Dichiara anche il tono che anima il compagno.",
+      "role": "Compone la risposta da risultati e contesti dichiarati, indica gli errori e rende schede deterministiche dai fatti ricevuti. Selezioni e filtri temporali richiedono prove; le azioni verificano il legame esatto con messaggio e fonte. Dichiara anche il tono che anima il compagno. Una politica comune accetta le annotazioni per interfaccia e sintesi; Posizione precede i luoghi in ogni formato, con ammissione Maps al clic.",
       "stack": ["Contesti dichiarati", "Direttive di onestà", "Registro emotivo"],
-      "src": "1a9d36a94c1d"
+      "src": "b85a57a34e3a"
     },
     "t.hitl": {
       "name": "Validazione e bozze",
@@ -252,9 +252,9 @@
     },
     "t.skills": {
       "name": "Competenze e plugin",
-      "role": "Installare, attivare ed eseguire competenze portabili — prese da una libreria pubblica a un commit esatto, o proposte dalla chat — e i loro comandi in una copia usa e getta della loro cartella; una competenza di terze parti gira in un runner isolato, e un plugin porta competenze e server MCP in un solo gesto.",
+      "role": "Gli installatori nativi gestiscono skill e plugin, importazioni fissate di biblioteca, script temporanei e copie condivise installate disattivate. La provenienza scritta dal server decide l’eccezione esplicita di fiducia; credenziali e permessi non vengono mai trasferiti.",
       "stack": ["Agent Skills", "Agent Plugins"],
-      "src": "92d4fcb1a5d5"
+      "src": "0642d5c5c29a"
     },
     "t.sandbox": {
       "name": "Sandbox e proxy di uscita",

@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 6.4
-**Date** : 2026-10-18
-**Application** : LIA v3.2.0
+**Date** : 2026-10-19
+**Application** : LIA v3.3.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -395,7 +395,7 @@ La même exigence gouverne ce que LIA retient de tes consignes : chaque règle d
 
 ### 6.8. Une surface qui décrit le produit y est tenue
 
-La transparence a un mode de défaillance que personne ne remarque : un écran qui cesse discrètement de dire vrai. Rien ne casse, aucun test ne vire au rouge, et la page qui existait pour être à jour devient la moins à jour de l'application. La carte des capacités — celle qui répond _qu'est-ce que mon assistant sait faire pour moi ?_ — ne se maintient donc plus à la main : chaque capacité que la plateforme sait activer ou couper doit y avoir sa place déclarée, et une capacité livrée sans cette décision empêche l'application de démarrer. La même conviction, d'un cran plus loin : ce qu'un écran affirme de tes données doit être **exact ou absent**. Un décompte est le nombre que rend la base, jamais une longueur qui traînait à portée de main ; et tant que la réponse est en route, ou quand elle a échoué, la carte ne dit rien plutôt que de deviner. « Rien de configuré » est une affirmation sur ton compte — de celles dont il vaut mieux être sûr avant de les prononcer. La FAQ obéit à la même exigence : chaque fonction qu'une personne peut utiliser y a sa section — 491 questions, en six langues —, et une section traduite que l'ordre d'affichage oublierait fait échouer les tests au lieu de rester invisible.
+La transparence a un mode de défaillance que personne ne remarque : un écran qui cesse discrètement de dire vrai. Rien ne casse, aucun test ne vire au rouge, et la page qui existait pour être à jour devient la moins à jour de l'application. La carte des capacités — celle qui répond _qu'est-ce que mon assistant sait faire pour moi ?_ — ne se maintient donc plus à la main : chaque capacité que la plateforme sait activer ou couper doit y avoir sa place déclarée, et une capacité livrée sans cette décision empêche l'application de démarrer. La même conviction, d'un cran plus loin : ce qu'un écran affirme de tes données doit être **exact ou absent**. Un décompte est le nombre que rend la base, jamais une longueur qui traînait à portée de main ; et tant que la réponse est en route, ou quand elle a échoué, la carte ne dit rien plutôt que de deviner. « Rien de configuré » est une affirmation sur ton compte — de celles dont il vaut mieux être sûr avant de les prononcer. La FAQ obéit à la même exigence : chaque fonction qu'une personne peut utiliser y a sa section — 496 questions, en six langues —, et une section traduite que l'ordre d'affichage oublierait fait échouer les tests au lieu de rester invisible.
 
 La transparence vaut aussi pour les règles internes de l'assistant. Une contrainte que le système applique doit être publiée à qui la subit : quand l'apprentissage des habitudes ne détecte rien, les Réglages affichent le seuil réellement exigé — plus strict le week-end, où les jours observés sont moins nombreux — au lieu d'un silence inexpliqué. Et quand un réglage s'ajuste tout seul, comme le seuil qui décide qu'une note du journal entre dans une réponse, il le fait dans des bornes strictes, un petit pas par jour, avec un interrupteur d'arrêt et chaque ajustement compté : un système qui apprend n'est acceptable que s'il reste observable et débrayable.
 
@@ -578,6 +578,8 @@ Une garantie qu'on ne peut pas contrôler n'en est pas une. L'audit technique du
 
 ## 10. Ouverture radicale
 
+Partager une méthode utile ne doit pas revenir à partager son compte. Une connexion LIA acceptée peut te transmettre une skill, un serveur MCP ou un plugin comme ta propre copie désactivée, marquée de son origine et de la date du partage. Tu gardes le choix de la relire, de la configurer et de l’activer ; les identifiants restent chez leur propriétaire. Une skill de pair que tu actives possède les capacités d’une skill que tu aurais créée : ce choix engage donc la même responsabilité. Portabilité et confiance explicite vont ensemble.
+
 ### 10.1. Zéro lock-in
 
 ChatGPT te lie à OpenAI. Gemini à Google. Copilot à Microsoft.
@@ -588,7 +590,7 @@ Si un fournisseur change ses tarifs ou dégrade son service, tu bascules instant
 
 ### 10.2. Extensibilité
 
-Chaque utilisateur peut connecter ses propres serveurs MCP, étendant les capacités de LIA bien au-delà des outils intégrés. Le client parle les deux générations du protocole — la nouvelle révision sans état comme l'ancien handshake, choisis automatiquement par serveur — si bien que l'ouverture ne coûte jamais la compatibilité. Les Skills (standard agentskills.io) permettent d'injecter des instructions expertes en langage naturel — avec un générateur de Skills intégré qui les crée en dialogue guidé et te les propose sur une carte, qu'un clic installe — et une bibliothèque publique, skills.sh, où tu lis une skill fichier par fichier avant de l'installer. Une skill écrite ailleurs travaille à part, sans jamais toucher à tes connecteurs, et une skill peut exécuter ses propres commandes dans un conteneur jetable pour te rendre des fichiers. Un Skill peut également retourner une **frame HTML interactive** (carte, dashboard, calendrier, convertisseur...) ou une **image** (QR code, graphique) directement dans le chat, sandboxée sous CSP stricte, avec thème et langue synchronisés automatiquement.
+Chaque utilisateur peut connecter ses propres serveurs MCP, étendant les capacités de LIA bien au-delà des outils intégrés. Le client parle les deux générations du protocole — la nouvelle révision sans état comme l'ancien handshake, choisis automatiquement par serveur — si bien que l'ouverture ne coûte jamais la compatibilité. Les Skills (standard agentskills.io) permettent d'injecter des instructions expertes en langage naturel — avec un générateur de Skills intégré qui les crée en dialogue guidé et te les propose sur une carte, qu'un clic installe — et une bibliothèque publique, skills.sh, où tu lis une skill fichier par fichier avant de l'installer. Une skill tierce ordinaire importée depuis une URL, une bibliothèque ou un plugin travaille à part, sans jamais toucher à tes connecteurs, et une skill peut exécuter ses propres commandes dans un conteneur jetable pour te rendre des fichiers. Un Skill peut également retourner une **frame HTML interactive** (carte, dashboard, calendrier, convertisseur...) ou une **image** (QR code, graphique) directement dans le chat, sandboxée sous CSP stricte, avec thème et langue synchronisés automatiquement.
 
 Cette ouverture a un format de paquet : LIA parle le standard ouvert **Agent Plugins** (agent-plugins.org), le format de plugin portable piloté par AWS, Microsoft, OpenAI, Cursor et Vercel et adopté par ChatGPT, Codex, Cursor, GitHub Copilot, Kiro et VS Code. Un plugin regroupant skills et serveurs MCP s'installe dans LIA en une étape — depuis un zip ou un lien https — avec un rapport complet par composant de ce qui a été installé, ignoré (et pourquoi) ou retiré, et se désinstalle tout aussi proprement, tout ce qu'il avait apporté repartant avec lui. L'interopérabilité est ici une conviction, pas une fonctionnalité : ce que tu construis ou adoptes ailleurs dans l'écosystème t'appartient et te suit.
 

@@ -60,3 +60,7 @@ applies, LIA chooses among the formats you can use. An administrator may
 optionally enable JEV for this bounded choice; if it abstains or is unavailable,
 the usual selector takes over. The selected format and synthesis cost remain
 visible.
+
+## How do I search my meeting minutes?
+
+Use the search field on **Meetings**. It searches meeting titles and the complete minutes, including text beyond the preview; only matching meetings remain. Search runs before pagination, so the count and pages describe the same results. Clear the field to return to the full list. Searching does not call an AI model.

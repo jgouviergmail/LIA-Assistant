@@ -1,9 +1,10 @@
 """Private environment generation (B03/B04/B11).
 
-Secrets are GENERATED (never asked), provider keys are NEVER rendered to
+Core secrets are GENERATED (never asked), LLM provider keys are NEVER rendered to
 ``.env`` (they live encrypted in the database via the stdin bootstrap), and
 reconfiguration reuses the existing generated secrets — silent rotation
 would orphan every Fernet-encrypted row.
+Optional Maps browser credentials are private inputs kept only in this file.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+from scripts.install.maps import MAPS_ENV_KEYS, validate_maps_settings
 from scripts.install.model import Exposure, PublicAnswers
 
 #: Secrets the installer generates on a fresh install and MUST reuse after.
@@ -128,9 +130,16 @@ def _origin(public: PublicAnswers) -> str:
     return f"https://{public.web_domain}"
 
 
-def derive_environment(
-    public: PublicAnswers, generated: Mapping[str, str]
-) -> Mapping[str, str]:
+def maps_environment(path: Path, provided: Mapping[str, str]) -> Mapping[str, str]:
+    """Keep skipped operator settings; only a validated complete pair replaces them."""
+    validated = validate_maps_settings(provided)
+    if validated:
+        return validated
+    existing = _parse_env(path) if path.is_file() else {}
+    return {key: existing.get(key, "") for key in MAPS_ENV_KEYS}
+
+
+def derive_environment(public: PublicAnswers, generated: Mapping[str, str]) -> Mapping[str, str]:
     """Derive the complete non-provider-key environment for one install.
 
     ``NEXT_PUBLIC_*`` values stay EMPTY on purpose (B03): release images are
@@ -143,6 +152,8 @@ def derive_environment(
         "ENVIRONMENT": "production",
         "DEBUG": "false",
         "LOG_LEVEL": "INFO",
+        "OPENAI_ORGANIZATION_ID": "",
+        "FIREBASE_PROJECT_ID": "",
         **{key: generated[key] for key in GENERATED_SECRET_KEYS},
         "POSTGRES_USER": "lia",
         "POSTGRES_DB": "lia",
@@ -182,9 +193,7 @@ def derive_environment(
         # self-hoster lowers it to the allowance of their own account.
         "FISHAUDIO_MAX_CONCURRENCY": "5",
         "DIAGNOSTICS_WEBHOOK_SECRET": (
-            secrets.token_urlsafe(32)
-            if public.self_diagnostics and public.observability
-            else ""
+            secrets.token_urlsafe(32) if public.self_diagnostics and public.observability else ""
         ),
         "ALERTMANAGER_LIA_WEBHOOK_URL": (
             "http://api:8000/api/v1/internal/diagnostics/alert-webhook"

@@ -475,7 +475,7 @@ groups:
         annotations:
           summary: "SLA Tokens/sec violé pour intention {{ $labels.intention }}"
           description: "Débit de génération de tokens est {{ $value | humanize }} tokens/sec (SLA: > 30.0). Expérience utilisateur dégradée."
-          runbook: "1. Vérifier model selection (gpt-4.1-mini > gpt-4.1-mini)\n2. Optimiser RESPONSE_LLM_TEMPERATURE (< 0.47 = plus rapide)\n3. Réduire RESPONSE_LLM_MAX_TOKENS\n4. Vérifier streaming buffer delays"
+          runbook: "1. Vérifier le modèle et la latence du fournisseur du poste response dans Configuration LLM\n2. Ajuster le budget de sortie de ce poste au besoin métier\n3. Vérifier les délais du streaming et les limitations du fournisseur"
 
       # SLA 3: Router Latency > 750ms (blocking users)
       - alert: AgentsRouterLatencyHigh
@@ -491,7 +491,7 @@ groups:
         annotations:
           summary: "Latence router critique"
           description: "Latence router P95 est {{ $value | humanize }}ms (seuil: 500ms). Bloque tous les utilisateurs."
-          runbook: "1. Vérifier ROUTER_LLM_TEMPERATURE (doit être ≤ 0.2)\n2. Vérifier ROUTER_LLM_MAX_TOKENS (500 suffisant)\n3. Vérifier router_fallback_total (échecs fréquents?)\n4. Vérifier OpenAI API status"
+          runbook: "1. Vérifier le poste query_analyzer dans Configuration LLM (température ≤ 0.2, max_tokens raisonnable)\n2. Vérifier la latence du fournisseur de ce poste\n3. Vérifier router_fallback_total (échecs fréquents?)\n4. Vérifier OpenAI API status"
 
       # SLA 4: High SSE Streaming Error Rate (> 7.5%)
       - alert: AgentsStreamingErrorRateHigh

@@ -355,16 +355,6 @@ class Settings(
                 )
         return v
 
-    @field_validator("planner_llm_max_tokens")
-    @classmethod
-    def _validate_planner_max_tokens(cls, v: int) -> int:
-        """Validate planner max tokens is reasonable (> 0 and < 100k)."""
-        if v <= 0:
-            raise ValueError(f"planner_llm_max_tokens must be > 0, got {v}")
-        if v > 100000:
-            raise ValueError(f"planner_llm_max_tokens too high ({v}), max recommended: 100000")
-        return v
-
     @field_validator("database_pool_size", "database_max_overflow")
     @classmethod
     def _validate_pool_size(cls, v: int, info: Any) -> int:

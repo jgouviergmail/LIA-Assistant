@@ -1,0 +1,48 @@
+{
+  "response": {
+    "status": "completed",
+    "usage": {
+      "total_tokens": 5016,
+      "total_input_tokens": 615,
+      "input_tokens_by_modality": [
+        {
+          "modality": "text",
+          "tokens": 615
+        }
+      ],
+      "total_cached_tokens": 0,
+      "total_output_tokens": 4401,
+      "total_tool_use_tokens": 0,
+      "total_thought_tokens": 0
+    },
+    "created": "2026-10-17T00:03:23Z",
+    "updated": "2026-10-17T00:03:23Z",
+    "service_tier": "standard",
+    "steps": [
+      {
+        "content": [
+          {
+            "text": "[[A0]]\n[[B1]]\n[[C2]]\n[[D3]]\n[[B4]]\n[[D5]]\n[[E6]]\n[[D7]]\n[[F8]]",
+            "type": "text"
+          }
+        ],
+        "type": "model_output"
+      },
+      {
+        "content": [
+          {
+            "data": "preserved as atlas-original.mp3; sha256:3684f1c85cc9868860baf43180f256e4b7300fe348a3520145b6a2e460a79201",
+            "mime_type": "audio/mpeg",
+            "type": "audio"
+          }
+        ],
+        "type": "model_output"
+      }
+    ],
+    "object": "interaction",
+    "model": "lyria-3.5"
+  },
+  "headers": {
+    "date": "Sat, 17 Oct 2026 00:03:24 GMT"
+  }
+}

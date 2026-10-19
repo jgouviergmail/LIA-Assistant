@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 5.4
-**Date**: 2026-10-18
-**Application**: LIA v3.2.0
+**Date**: 2026-10-19
+**Application**: LIA v3.3.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -73,7 +73,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), credentials encrypted with Fernet, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 621 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 347 ADRs, 63,000+ automated backend and frontend tests, native observability, 6-level HITL |
+| Production reliability | 350 ADRs, 63,000+ automated backend and frontend tests, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -94,7 +94,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Tests | 63,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 1,082, 48 of them shared through conftest |
 | Documentation documents | 716 |
-| ADRs (Architecture Decision Records) | 347 |
+| ADRs (Architecture Decision Records) | 350 |
 | Prometheus metrics | 621 definitions |
 | Grafana dashboards | 31 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -765,6 +765,8 @@ Detection through query analysis with Bayesian weight evolution (configurable de
 
 ## 12. Multi-provider LLM infrastructure
 
+Email and appointment assessments are independent optional native usages. Closed annotations bind the visible evidence, scope and validity to one acceptance policy shared by display and answer synthesis. Owner/account/revision, model and prompt identity partition the cache; overlapping work coalesces under bounded claims. A common precision-aware validator preserves raw probabilities and refuses malformed answers. Uncertainty, quotas or unavailable services keep the source result without inventing a label. These judgments remain advisory and cannot authenticate a sender, prove fraud or authorize an action.
+
 ### 12.1. Factory Pattern
 
 ```python
@@ -885,6 +887,8 @@ A 429 refusal on a person's key — Brave, Perplexity — is backpressure on tha
 ---
 
 ## 14. MCP: Model Context Protocol
+
+Peer sharing composes the native installers rather than creating a parallel execution system. The server freezes a sanitized package behind a reviewed digest, checks ownership and the accepted relationship again on confirmation, and installs an independently owned disabled copy. Credentials, OAuth grants and approval exemptions never enter the transfer. Durable claims, fencing and receipts make retries resumable while preserving recipient edits. Only server-owned provenance grants the explicit authored-policy exception to an enabled peer skill.
 
 ### 14.1. Architecture
 
@@ -1578,7 +1582,7 @@ Two interface rules became component contracts rather than habits. The first is 
 
 ## 24. Architecture Decision Records (ADR)
 
-347 ADRs in MADR format document the major architectural decisions. Some representative examples:
+350 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1988,8 +1992,8 @@ The oMLX, llama.cpp and LM Studio studies and the isometric world are qualificat
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 347 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 63,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 350 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 63,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 347 ADRs, and the changelog (v1.0 to v3.2.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 350 ADRs, and the changelog (v1.0 to v3.3.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

@@ -485,3 +485,7 @@ Independent reads explicitly eligible for parallel execution can run in checkpoi
 A routine, a ticket or the relay of a voice call can make LIA work **on your conversation** while you are elsewhere. The chat shows it: LIA appears busy, and a message you send meanwhile clearly tells you it **was not sent** — nothing is lost silently.
 
 Wait for that work to finish, then send your message again. The stop button never claims to have cancelled work it could not interrupt.
+
+## Can I see all returned places on one map?
+
+When a new answer contains selected Google Places, a **Position** card appears before the place cards, in Cards, HTML cards, HTML and Markdown modes. Each usable location has a marker. The card appears automatically; a click activates the interactive map after its cost is shown. If the administrator has not configured Maps, or the map cannot load, the place list stays available. Old answers are not rewritten.

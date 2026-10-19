@@ -151,9 +151,9 @@
     },
     "f.peers": {
       "name": "Peer connections",
-      "role": "Link two LIA accounts: pass messages to each other through the assistant, share a generated image, hand tickets to each other.",
+      "role": "Link two LIA accounts: pass messages to each other through the assistant, share a generated image, hand tickets to each other. Share skills, MCP servers and plugins as independent disabled copies, with origin and sharing time, without credentials.",
       "goal": "Collaborate without leaving the assistant.",
-      "src": "0999b15ba37c"
+      "src": "acbb6947019f"
     },
     "f.connectors": {
       "name": "Connectors",
@@ -163,15 +163,15 @@
     },
     "f.mail": {
       "name": "Emails",
-      "role": "Read cleaned-up emails, summarize each one only once, search, write, reply, read attachments and keep your mailbox drafts — sending to someone else always asks for a confirmation; an email to yourself goes straight out.",
+      "role": "Read cleaned-up emails, summarize each one only once, search, write, reply, read attachments and keep your mailbox drafts — sending to someone else always asks for a confirmation; an email to yourself goes straight out. Optional JEV category and priority badges remain advisory and reach the assistant too; uncertainty stays unlabelled.",
       "goal": "Handle your inbox in a few sentences.",
-      "src": "ccd1f55a607d"
+      "src": "b553d3afc253"
     },
     "f.calendar": {
       "name": "Calendar",
-      "role": "View, search, create, move and delete events, with guests, reminders and time zones.",
+      "role": "View, search, create, move and delete events, with guests, reminders and time zones. Optional work/personal assessments are shared by the display and assistant, with abstention on doubt.",
       "goal": "Organize your time by talking.",
-      "src": "dac71f968107"
+      "src": "b8fd0be7b2e3"
     },
     "f.contacts": {
       "name": "Contacts",
@@ -193,9 +193,9 @@
     },
     "f.places": {
       "name": "Places, routes and weather",
-      "role": "Places, routes, weather and air quality; your last known location is used everywhere, always with its age.",
+      "role": "Places, routes, weather and air quality; your last known location is used everywhere, always with its age. Returned places share a Position card before their details, in every display mode; interactive activation shows its cost.",
       "goal": "Answer “how do I get there” and “what will the weather be like” with fresh data.",
-      "src": "2ea1df8563a9"
+      "src": "88b97b5ab603"
     },
     "f.health": {
       "name": "Health",
@@ -217,9 +217,9 @@
     },
     "f.skills": {
       "name": "Skills and plugins",
-      "role": "Skills in the Agent Skills standard — written by LIA and installed in one click, or picked from a public library after reading them — and plugins in the Agent Plugins standard; a skill from elsewhere works apart, away from your connectors.",
+      "role": "Portable Agent Skills and Agent Plugins, authored in LIA, imported or chosen from a library. Ordinary third-party skills run separately; a peer copy arrives disabled and, after activation, follows the recipient-authored policy.",
       "goal": "Give LIA portable know-how.",
-      "src": "f14f45e853e1"
+      "src": "541ca8de6b3e"
     },
     "f.rag": {
       "name": "Knowledge spaces",
@@ -241,9 +241,9 @@
     },
     "f.meetings": {
       "name": "Meetings",
-      "role": "Record a meeting from your phone or computer and get structured minutes, in an automatically chosen template.",
+      "role": "Record a meeting from your phone or computer and get structured minutes, in an automatically chosen template. Search titles and complete minutes to find a decision again.",
       "goal": "Attend the meeting, not the note-taking.",
-      "src": "e76d94f73fa1"
+      "src": "fc9f4f1c8204"
     },
     "f.heartbeat": {
       "name": "Autonomous heartbeat",

@@ -170,10 +170,6 @@ Le scheduler job ne s'enregistre que si `HEARTBEAT_ENABLED=true`. Le router API 
 | `HEARTBEAT_NOTIFICATION_BATCH_SIZE` | `50` | Utilisateurs par batch |
 | `HEARTBEAT_GLOBAL_COOLDOWN_HOURS` | `2` | Min heures entre notifications |
 | `HEARTBEAT_ACTIVITY_COOLDOWN_MINUTES` | `15` | Skip si utilisateur actif recemment |
-| `HEARTBEAT_DECISION_LLM_PROVIDER` | `openai` | Provider LLM pour la decision |
-| `HEARTBEAT_DECISION_LLM_MODEL` | `gpt-4.1-mini` | Modele LLM pour la decision |
-| `HEARTBEAT_MESSAGE_LLM_PROVIDER` | `openai` | Provider LLM pour le message |
-| `HEARTBEAT_MESSAGE_LLM_MODEL` | `gpt-4.1-mini` | Modele LLM pour le message |
 | `HEARTBEAT_CONTEXT_CALENDAR_HOURS` | `6` | Heures devant pour calendrier |
 | `HEARTBEAT_CONTEXT_MEMORY_LIMIT` | `5` | Max memories a fetcher |
 | `HEARTBEAT_CONTEXT_TASKS_DAYS` | `2` | Jours devant pour taches (1-7) |
@@ -183,6 +179,8 @@ Le scheduler job ne s'enregistre que si `HEARTBEAT_ENABLED=true`. Le router API 
 | `HEARTBEAT_WEATHER_WIND_THRESHOLD` | `14.0` | m/s pour alerte vent |
 | `HEARTBEAT_INACTIVE_SKIP_DAYS` | `7` | Skip si utilisateur inactif > N jours |
 | `PROACTIVE_CROSS_TYPE_COOLDOWN_MINUTES` | `30` | Min minutes entre types differents |
+
+La decision et le message sont les postes `heartbeat_decision` et `heartbeat_message` (Settings > Administration > LLM Configuration) ; aucune variable d'environnement ne les configure.
 
 ### Reglages utilisateur (colonnes User)
 

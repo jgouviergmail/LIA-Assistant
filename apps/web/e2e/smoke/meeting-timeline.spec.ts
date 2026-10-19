@@ -31,6 +31,9 @@ const EXPECTED_BLOCKED_BROWSER_TRANSPORTS = new Set([
   'CONNECT www.google.com:443', // Chromium proxy probe (api-isolation.spec.ts).
   'CONNECT fonts.googleapis.com:443', // Native preconnect in app/[lng]/layout.tsx.
   'CONNECT fonts.gstatic.com:443', // Native cross-origin font preconnect.
+  // Chromium's own form classifier, triggered by the minutes search input.
+  // Still DENIED: page-origin requests to this host fail the separate check below.
+  'CONNECT content-autofill.googleapis.com:443',
 ]);
 const copy = JSON.parse(
   readFileSync(path.join(__dirname, '../../locales/fr/translation.json'), 'utf8')

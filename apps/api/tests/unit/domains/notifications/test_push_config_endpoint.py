@@ -57,7 +57,12 @@ class TestAndroid:
 
     @pytest.mark.parametrize(
         "missing",
-        ["firebase_android_app_id", "firebase_api_key", "firebase_sender_id"],
+        [
+            "firebase_android_app_id",
+            "firebase_api_key",
+            "firebase_project_id",
+            "firebase_sender_id",
+        ],
     )
     async def test_one_missing_option_means_no_android_push_at_all(self, missing: str) -> None:
         config = await _config(**{missing: None})

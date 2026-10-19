@@ -765,39 +765,9 @@ async def approval_gate_node(state: MessagesState, config: RunnableConfig) -> di
 | `HITL_PENDING_DATA_TTL_SECONDS` | 3600 | TTL Redis des données d'interrupt en attente |
 | `HITL_DETECTION_CACHE_TTL_SECONDS` | 5 | TTL du cache mémoire de détection pending-HITL (borne la staleness cross-worker — ADR-132) |
 
-### Variables .env - HITL Classifier LLM
+### LLM des services HITL
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `HITL_CLASSIFIER_LLM_PROVIDER` | openai | Provider LLM |
-| `HITL_CLASSIFIER_LLM_MODEL` | gpt-4.1-mini | Modele LLM |
-| `HITL_CLASSIFIER_LLM_TEMPERATURE` | 0.2 | Temperature (basse = deterministic) |
-| `HITL_CLASSIFIER_LLM_MAX_TOKENS` | 300 | Max tokens reponse |
-| `HITL_CLASSIFIER_LLM_REASONING_EFFORT` | minimal | Effort raisonnement (o-series) |
-
-### Variables .env - HITL Question Generator LLM
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `HITL_QUESTION_GENERATOR_LLM_PROVIDER` | openai | Provider LLM |
-| `HITL_QUESTION_GENERATOR_LLM_MODEL` | gpt-4.1-nano | Modele LLM (fast) |
-| `HITL_QUESTION_GENERATOR_LLM_TEMPERATURE` | 0.5 | Temperature (creative questions) |
-| `HITL_QUESTION_GENERATOR_LLM_FREQUENCY_PENALTY` | 0.7 | Penalite frequence (evite repetition) |
-| `HITL_QUESTION_GENERATOR_LLM_PRESENCE_PENALTY` | 0.3 | Penalite presence (diversite) |
-| `HITL_QUESTION_GENERATOR_LLM_MAX_TOKENS` | 500 | Max tokens reponse |
-| `HITL_QUESTION_GENERATOR_LLM_REASONING_EFFORT` | minimal | Effort raisonnement (o-series) |
-
-### Variables .env - HITL Plan Approval Question LLM
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `HITL_PLAN_APPROVAL_QUESTION_LLM_PROVIDER` | openai | Provider LLM |
-| `HITL_PLAN_APPROVAL_QUESTION_LLM_MODEL` | gpt-4.1-mini | Modele LLM |
-| `HITL_PLAN_APPROVAL_QUESTION_LLM_TEMPERATURE` | 0.5 | Temperature |
-| `HITL_PLAN_APPROVAL_QUESTION_LLM_FREQUENCY_PENALTY` | 0.7 | Penalite frequence |
-| `HITL_PLAN_APPROVAL_QUESTION_LLM_PRESENCE_PENALTY` | 0.3 | Penalite presence |
-| `HITL_PLAN_APPROVAL_QUESTION_LLM_MAX_TOKENS` | 500 | Max tokens reponse |
-| `HITL_PLAN_APPROVAL_QUESTION_LLM_REASONING_EFFORT` | minimal | Effort raisonnement (o-series) |
+Le classifieur et les deux generateurs de questions sont les postes `hitl_classifier`, `hitl_question_generator` et `hitl_plan_approval_question_generator` : leurs valeurs par defaut sont dans `LLM_DEFAULTS` (`apps/api/src/domains/llm_config/constants.py`) et un administrateur les remplace dans Settings > Administration > LLM Configuration. Aucune variable d'environnement ne les configure.
 
 ### HITL Config
 
@@ -810,8 +780,7 @@ def requires_approval(tool_name: str) -> bool:
     manifest = get_tool_manifest(tool_name)
     return manifest.permissions.hitl_required if manifest else False
 
-# Global kill switch
-TOOL_APPROVAL_ENABLED = settings.tool_approval_enabled  # Default: True
+# No global kill switch: tool approval is always on.
 ```
 
 ### HITL Store (Redis)

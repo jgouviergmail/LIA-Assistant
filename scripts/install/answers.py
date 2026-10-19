@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from scripts.install.i18n import msg
+from scripts.install.maps import validate_maps_settings
 from scripts.install.model import (
     PASSWORD_RULES,
     Exposure,
@@ -30,12 +31,9 @@ from scripts.install.model import (
 )
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-_DOMAIN_RE = re.compile(
-    r"^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$"
-)
+_DOMAIN_RE = re.compile(r"^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$")
 _HOSTNAME_RE = re.compile(
-    r"^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?"
-    r"(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$"
+    r"^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?" r"(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$"
 )
 _TRUE_VALUES = frozenset({"yes", "y", "true", "1"})
 _FALSE_VALUES = frozenset({"no", "n", "false", "0"})
@@ -189,7 +187,7 @@ def collect_secret_answers(
         file_values = load_answers_file(answers_path)
     collected: dict[str, Any] = {}
     for question in questions:
-        if not question.secret:
+        if not question.secret or question.env_only:
             continue
         if file_values is not None:
             raw = file_values.get(question.key)
@@ -206,6 +204,7 @@ def collect_secret_answers(
     return SecretAnswers(
         admin_password=str(collected["admin_password"]),
         provider_keys=_provider_keys(collected),
+        maps_settings=_maps_settings(collected),
     )
 
 
@@ -216,6 +215,18 @@ def _provider_keys(collected: Mapping[str, Any]) -> dict[str, str]:
         for key, value in collected.items()
         if key.startswith("provider_key_") and value
     }
+
+
+def _maps_settings(collected: Mapping[str, Any]) -> dict[str, str]:
+    try:
+        return validate_maps_settings(
+            {
+                "GOOGLE_MAPS_BROWSER_API_KEY": str(collected.get("maps_browser_key", "")),
+                "GOOGLE_MAPS_MAP_ID": str(collected.get("maps_map_id", "")),
+            }
+        )
+    except ValueError as exc:
+        raise InstallInputError(str(exc)) from None
 
 
 def collect_reconfiguration(
@@ -337,22 +348,15 @@ def collect_answers(
         personal_radio=bool(collected.get("personal_radio", False)),
         speaking_avatar=bool(collected.get("speaking_avatar", False)),
         skill_sandbox=bool(collected["skill_sandbox"]),
-        server_host=(
-            str(collected["server_host"]) if "server_host" in collected else None
-        ),
-        web_domain=(
-            str(collected["web_domain"]) if "web_domain" in collected else None
-        ),
-        api_domain=(
-            str(collected["api_domain"]) if "api_domain" in collected else None
-        ),
-        caddy_email=(
-            str(collected["caddy_email"]) if "caddy_email" in collected else None
-        ),
+        server_host=(str(collected["server_host"]) if "server_host" in collected else None),
+        web_domain=(str(collected["web_domain"]) if "web_domain" in collected else None),
+        api_domain=(str(collected["api_domain"]) if "api_domain" in collected else None),
+        caddy_email=(str(collected["caddy_email"]) if "caddy_email" in collected else None),
         manifest_path=manifest_path,
     )
     secrets = SecretAnswers(
         admin_password=str(collected["admin_password"]),
         provider_keys=provider_keys,
+        maps_settings=_maps_settings(collected),
     )
     return public, secrets

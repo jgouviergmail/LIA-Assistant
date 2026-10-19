@@ -9,6 +9,8 @@
  *   2026-07-25: `grep -c 'register_agent(' agents.py` — the telephony agent
  *   had landed without this counter following it.
  * - tools: tool manifests the running catalogue actually EXPOSES, not the count
+ *   Re-measured 2026-10-19 (v3.3.0) after DEV recreation: 311 registered
+ *   manifests (`catalogue_initialized`, 2026-10-19T02:05:42Z), unchanged.
  *   Re-measured 2026-10-18 (v3.2.0) at Docker dev startup: 311 (`tool_count`
  *   of `catalogue_initialized`, 2026-10-18T13:02:32Z), unchanged.
  *   Re-measured 2026-10-16 (v3.1.0) at Docker dev startup: 311 registered
@@ -99,6 +101,9 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Re-measured 2026-10-19 (v3.3.0): backend 50,764 collected in 3,318 files
+ *   (pytest tests --collect-only -q --no-cov); frontend coverage: 13,231 tests
+ *   in 1,075 files. Combined inventory: 63,995 -> 63000.
  *   Re-measured 2026-10-18 (v3.2.0): backend 50,397 collected in 3,292 files
  *   (pytest --collect-only -q --no-cov); frontend coverage: 13,177 tests in
  *   1,066 files, for a combined inventory of 63,574 -> 63000 (unchanged).
@@ -408,8 +413,8 @@ export const LANDING_STATS = {
   metrics: 621,
   uiLanguages: 6,
   tests: 63000,
-  adrs: 347,
-  releases: 283,
+  adrs: 350,
+  releases: 284,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

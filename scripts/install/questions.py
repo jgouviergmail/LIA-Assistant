@@ -17,6 +17,7 @@ from scripts.install.answers import (
     is_valid_host,
     is_valid_password_shape,
 )
+from scripts.install.maps import valid_map_id, valid_maps_value
 from scripts.install.model import (
     APP_LANGUAGES,
     OPTIONAL_PROVIDER_IDS,
@@ -240,4 +241,22 @@ def build_questions() -> tuple[Question, ...]:
         ),
         *provider_questions,
         *optional_provider_questions,
+        Question(
+            key="maps_browser_key",
+            kind=QuestionKind.SECRET,
+            message_id="question.maps_browser_key",
+            secret=True,
+            env_only=True,
+            optional=True,
+            validator=valid_maps_value,
+        ),
+        Question(
+            key="maps_map_id",
+            kind=QuestionKind.SECRET,
+            message_id="question.maps_map_id",
+            secret=True,
+            env_only=True,
+            optional=True,
+            validator=valid_map_id,
+        ),
     )

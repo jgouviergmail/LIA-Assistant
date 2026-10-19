@@ -1,7 +1,7 @@
 {
-  "version": "3.2.0",
-  "releaseDate": "2026-10-18",
-  "releases": 283,
+  "version": "3.3.0",
+  "releaseDate": "2026-10-19",
+  "releases": 284,
   "milestones": [
     {
       "version": "1.0.0",
@@ -234,6 +234,10 @@
     {
       "version": "3.2.0",
       "date": "2026-10-18"
+    },
+    {
+      "version": "3.3.0",
+      "date": "2026-10-19"
     }
   ],
   "domains": 55,
@@ -585,6 +589,9 @@
     "345": "ADR-345-Fish-Audio-Served-Whole-One-Door-One-Allowance-Cues-Each-Engine-Reads.md",
     "346": "ADR-346-Advisory-Replanner-Retired-A-Pipeline-Failure-Is-Said-Never-Replayed.md",
     "347": "ADR-347-Read-Tool-Data-Reaches-The-Pipeline-Answer-A-Declared-Failure-Is-Never-A-Success.md",
-    "348": "ADR-348-Efficacy-Learned-From-Evidence-Results-And-Usefulness-Kept-Apart.md"
+    "348": "ADR-348-Efficacy-Learned-From-Evidence-Results-And-Usefulness-Kept-Apart.md",
+    "350": "ADR-350-Peer-Capability-Copies-Without-Credentials.md",
+    "351": "ADR-351-Advisory-Source-Annotations-Shared-With-The-Answer.md",
+    "352": "ADR-352-Position-Before-Places-In-Every-Display-Mode.md"
   }
 }

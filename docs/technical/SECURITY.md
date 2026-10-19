@@ -2385,9 +2385,9 @@ session_cookie_domain=".example.com"
 # HTTP Rate Limiting (global)
 RATE_LIMIT_PER_MINUTE=120  # Augmenter de 60 à 120
 
-# Tool Rate Limiting (contacts)
-RATE_LIMIT_CONTACTS_SEARCH_CALLS=30  # Augmenter de 20 à 30
-RATE_LIMIT_CONTACTS_SEARCH_WINDOW=60  # Garder 60 secondes
+# Tool Rate Limiting (outils de lecture, contacts compris)
+RATE_LIMIT_DEFAULT_READ_CALLS=30  # Augmenter la limite
+RATE_LIMIT_DEFAULT_READ_WINDOW=60  # Garder 60 secondes
 ```
 
 ### Problème 3: CORS errors dans le navigateur

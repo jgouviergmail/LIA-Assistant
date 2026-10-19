@@ -1837,6 +1837,21 @@
       "title": "La experiencia de LIA se aprende de pruebas, nunca de su propia nota",
       "summary": "La antigua autoeficacia solo se movía con la autoevaluación de LIA, un solo intercambio bastaba para crear una fortaleza o una debilidad, y solo la respuesta final la leía. Siete dominios guardan ahora dos ejes separados: lo que un turno logró de forma verificable y la utilidad que la persona expresó con 👍/👎. A partir de cinco observaciones, LIA puede verificar un punto, hacer una pregunta o nombrar un límite, sin cambiar ningún modelo, herramienta ni presupuesto.",
       "src": "a453c8b066ef"
+    },
+    "350": {
+      "title": "Compartir una capacidad sin sus credenciales",
+      "summary": "Una conexión aceptada recibe una copia propia desactivada de una skill, servidor MCP o plugin, con su origen. El paquete revisado es inmutable, los reintentos preservan los cambios del destinatario y las credenciales siguen privadas. Una skill compartida activada sigue explícitamente la política de las skills creadas por el destinatario.",
+      "src": "bc5963288566"
+    },
+    "351": {
+      "title": "La interfaz y LIA comparten las mismas evaluaciones orientativas",
+      "summary": "Decisiones nativas opcionales anotan una sola vez las evidencias autorizadas de correos y citas. La duda no muestra etiqueta, siguen aplicándose costes y cuotas, y ni categoría ni confianza autorizan acciones. Corpus fijos y nuevos casos adversariales vinculan la política entregada con pruebas medidas.",
+      "src": "23ce577312c8"
+    },
+    "352": {
+      "title": "Situar los lugares antes de sus detalles",
+      "summary": "Posición agrupa los Google Places seleccionados antes de sus tarjetas, también en HTML y Markdown. El mapa interactivo espera un clic con coste visible; la lista de fuentes sigue accesible si Maps falla.",
+      "src": "b00abdd45dc8"
     }
   }
 }

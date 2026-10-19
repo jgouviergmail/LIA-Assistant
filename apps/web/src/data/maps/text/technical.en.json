@@ -159,9 +159,9 @@
     },
     "t.response": {
       "name": "Response synthesis",
-      "role": "Assembles the answer from declared results and contexts, states failures, and renders deterministic cards from received facts. Selections and temporal filters require evidence; actions verify the exact message and source binding. It also declares the tone that animates the companion.",
+      "role": "Assembles the answer from declared results and contexts, states failures, and renders deterministic cards from received facts. Selections and temporal filters require evidence; actions verify the exact message and source binding. It also declares the tone that animates the companion. Source annotations use one acceptance policy for display and synthesis; Position precedes selected places in every format, with click-gated Maps admission.",
       "stack": ["Declared contexts", "Honesty directives", "Emotional register"],
-      "src": "1a9d36a94c1d"
+      "src": "b85a57a34e3a"
     },
     "t.hitl": {
       "name": "Approval and drafts",
@@ -248,9 +248,9 @@
     },
     "t.skills": {
       "name": "Skills and plugins",
-      "role": "Install, enable and run portable skills — taken from a public library at an exact commit, or proposed by the chat — and their commands in a throwaway copy of their folder; a third-party skill runs in an isolated runner, and a plugin brings skills and MCP servers in one gesture.",
+      "role": "Native installers own skills and plugins, pinned library imports, disposable script execution and peer copies installed disabled. Server-owned provenance decides the explicit recipient-authored exception; credentials and grants never transfer.",
       "stack": ["Agent Skills", "Agent Plugins"],
-      "src": "92d4fcb1a5d5"
+      "src": "0642d5c5c29a"
     },
     "t.sandbox": {
       "name": "Sandbox and egress proxy",

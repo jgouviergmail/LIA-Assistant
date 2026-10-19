@@ -134,3 +134,7 @@ Yes: the official Android and iPhone apps work with any self-hosted LIA. What yo
 Script skills and the scripts LIA writes run in throwaway containers, which needs the opt-in skill-sandbox overlay — the installer's "script sandbox" question — because the server must be allowed to start containers. A generic installation runs without it.
 
 If Docker refuses to start the sandbox, the operation is reported as unavailable rather than run outside the isolated runner. Check the Docker permissions and the deployment configuration.
+
+## How do I make interactive Position maps available?
+
+The operator configures an explicit **Google Maps browser key** and a valid **Cloud map ID**. Restrict the browser key to the intended sites and Maps APIs in Google Cloud. The server key is never exposed as a fallback. The card can appear without interactive configuration, with its place list; paid activation remains a user click with cost disclosure and quota checks. A development demonstration ID is not valid production configuration.

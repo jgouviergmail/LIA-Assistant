@@ -159,9 +159,9 @@
     },
     "t.response": {
       "name": "Antwortsynthese",
-      "role": "Baut die Antwort aus deklarierten Ergebnissen und Kontexten, benennt Fehler und rendert deterministische Karten aus empfangenen Fakten. Auswahl und Zeitfilter verlangen Belege; Aktionen prüfen die genaue Bindung an Nachricht und Quelle. Sie deklariert auch den Ton, der den Begleiter animiert.",
+      "role": "Baut die Antwort aus deklarierten Ergebnissen und Kontexten, benennt Fehler und rendert deterministische Karten aus empfangenen Fakten. Auswahl und Zeitfilter verlangen Belege; Aktionen prüfen die genaue Bindung an Nachricht und Quelle. Sie deklariert auch den Ton, der den Begleiter animiert. Eine gemeinsame Annahmerichtlinie versorgt Anzeige und Synthese mit Quellenbewertungen; Position steht in jedem Format vor den Orten und aktiviert Maps erst per Klick.",
       "stack": ["Deklarierte Kontexte", "Ehrlichkeitsdirektiven", "Emotionales Register"],
-      "src": "1a9d36a94c1d"
+      "src": "b85a57a34e3a"
     },
     "t.hitl": {
       "name": "Freigabe und Entwürfe",
@@ -252,9 +252,9 @@
     },
     "t.skills": {
       "name": "Skills und Plugins",
-      "role": "Portable Fähigkeiten installieren, aktivieren und ausführen — aus einer öffentlichen Bibliothek zu einem genauen Commit oder vom Chat vorgeschlagen — samt ihren Befehlen in einer Wegwerfkopie ihres Ordners; eine fremde Fähigkeit läuft in einem isolierten Runner, ein Plugin bringt Fähigkeiten und MCP-Server in einem Schritt.",
+      "role": "Native Installationswege verwalten Skills und Plugins, festgelegte Bibliotheksimporte, wegwerfbare Skriptausführung und deaktiviert installierte Peer-Kopien. Serverseitige Herkunft entscheidet über die ausdrückliche Vertrauensausnahme; Zugangsdaten und Freigaben werden nie übertragen.",
       "stack": ["Agent Skills", "Agent Plugins"],
-      "src": "92d4fcb1a5d5"
+      "src": "0642d5c5c29a"
     },
     "t.sandbox": {
       "name": "Sandbox und Ausgangs-Proxy",

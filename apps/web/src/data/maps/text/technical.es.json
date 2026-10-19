@@ -159,9 +159,9 @@
     },
     "t.response": {
       "name": "Síntesis de la respuesta",
-      "role": "Compone la respuesta desde resultados y contextos declarados, señala fallos y genera tarjetas deterministas a partir de hechos recibidos. Selecciones y filtros temporales requieren pruebas; las acciones verifican el vínculo exacto al mensaje y la fuente. También declara el tono que anima al compañero.",
+      "role": "Compone la respuesta desde resultados y contextos declarados, señala fallos y genera tarjetas deterministas a partir de hechos recibidos. Selecciones y filtros temporales requieren pruebas; las acciones verifican el vínculo exacto al mensaje y la fuente. También declara el tono que anima al compañero. Una política común acepta las anotaciones para interfaz y síntesis; Posición precede a los lugares en todos los formatos, con admisión Maps al pulsar.",
       "stack": ["Contextos declarados", "Directivas de honestidad", "Registro emocional"],
-      "src": "1a9d36a94c1d"
+      "src": "b85a57a34e3a"
     },
     "t.hitl": {
       "name": "Validación y borradores",
@@ -252,9 +252,9 @@
     },
     "t.skills": {
       "name": "Habilidades y plugins",
-      "role": "Instalar, activar y ejecutar competencias portátiles — tomadas de una biblioteca pública en un commit exacto, o propuestas por el chat — y sus comandos en una copia desechable de su carpeta; una competencia de terceros corre en un runner aislado, y un plugin aporta competencias y servidores MCP en un solo gesto.",
+      "role": "Los instaladores nativos gestionan skills y plugins, importaciones de biblioteca fijadas, scripts desechables y copias de conexiones instaladas desactivadas. La procedencia escrita por el servidor decide la excepción explícita de confianza; nunca se transfieren credenciales ni permisos.",
       "stack": ["Agent Skills", "Agent Plugins"],
-      "src": "92d4fcb1a5d5"
+      "src": "0642d5c5c29a"
     },
     "t.sandbox": {
       "name": "Entorno aislado y proxy de salida",

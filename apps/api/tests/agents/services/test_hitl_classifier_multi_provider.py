@@ -3,7 +3,6 @@ Unit tests for HitlResponseClassifier Multi-Provider Support.
 
 Tests the multi-provider refactoring of HitlResponseClassifier:
 - Factory integration (get_llm)
-- Provider selection from settings
 - Backward compatibility with parameter-based instantiation
 - JSON mode configuration
 - Configuration override pattern
@@ -37,18 +36,6 @@ def mock_settings():
         deepseek_api_key = "sk-test-deepseek-key"
         perplexity_api_key = "pplx-test-key"
         ollama_base_url = "http://localhost:11434/v1"
-
-        # Provider-specific config fields (JSON strings)
-        hitl_classifier_llm_provider_config = "{}"
-
-        # HITL Classifier configuration
-        hitl_classifier_llm_provider = "openai"
-        hitl_classifier_llm_model = "gpt-4.1-mini-mini"
-        hitl_classifier_llm_temperature = 0.1
-        hitl_classifier_llm_top_p = 1.0
-        hitl_classifier_llm_frequency_penalty = 0.0
-        hitl_classifier_llm_presence_penalty = 0.0
-        hitl_classifier_llm_max_tokens = 2000
 
     return MockSettings()
 
@@ -225,60 +212,6 @@ def test_classifier_uses_structured_output(
     assert not hasattr(mock_llm, "model_kwargs") or mock_llm.model_kwargs == {}
 
     # Verify classifier was created with factory LLM
-    assert classifier.llm == mock_llm
-
-
-# ============================================================================
-# Provider Selection Tests
-# ============================================================================
-
-
-@patch("src.domains.agents.services.hitl_classifier.get_llm")
-@patch("src.core.config.get_settings")
-def test_classifier_respects_provider_from_settings(
-    mock_get_settings, mock_get_llm, mock_settings, mock_llm
-):
-    """Test that classifier uses provider from settings."""
-    mock_settings.hitl_classifier_llm_provider = "anthropic"
-    mock_get_settings.return_value = mock_settings
-    mock_get_llm.return_value = mock_llm
-
-    HitlResponseClassifier()
-
-    # Factory should be called (provider is read inside factory, not by classifier)
-    mock_get_llm.assert_called_once()
-
-
-@patch("src.domains.agents.services.hitl_classifier.get_llm")
-@patch("src.core.config.get_settings")
-def test_classifier_works_with_ollama_provider(
-    mock_get_settings, mock_get_llm, mock_settings, mock_llm
-):
-    """Test that classifier works with Ollama provider."""
-    mock_settings.hitl_classifier_llm_provider = "ollama"
-    mock_settings.hitl_classifier_llm_model = "llama3.2"
-    mock_get_settings.return_value = mock_settings
-    mock_get_llm.return_value = mock_llm
-
-    classifier = HitlResponseClassifier()
-
-    # Should work without errors
-    assert classifier.llm == mock_llm
-
-
-@patch("src.domains.agents.services.hitl_classifier.get_llm")
-@patch("src.core.config.get_settings")
-def test_classifier_works_with_deepseek_provider(
-    mock_get_settings, mock_get_llm, mock_settings, mock_llm
-):
-    """Test that classifier works with DeepSeek provider."""
-    mock_settings.hitl_classifier_llm_provider = "deepseek"
-    mock_settings.hitl_classifier_llm_model = "deepseek-chat"
-    mock_get_settings.return_value = mock_settings
-    mock_get_llm.return_value = mock_llm
-
-    classifier = HitlResponseClassifier()
-
     assert classifier.llm == mock_llm
 
 

@@ -3,8 +3,8 @@
 > Informe de experiencia — un sistema completo, del diseño a la producción.
 
 **Versión**: 2.4
-**Fecha**: 2026-10-18
-**Aplicación**: LIA v3.2.0
+**Fecha**: 2026-10-19
+**Aplicación**: LIA v3.3.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,16 +18,18 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | Indicador | Valor |
 | --- | --- |
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
-| Líneas de código fuente (sin tests) — 55 dominios funcionales | **963.000+** |
+| Líneas de código fuente (sin tests) — 55 dominios funcionales | **967.000+** |
 | Pruebas automatizadas inventariadas; suites adecuadas para cada commit y entrega | **63.000+** |
-| Decisiones de arquitectura documentadas (ADR) | **347** |
-| Versiones entregadas a ritmo regular | **283** |
+| Decisiones de arquitectura documentadas (ADR) | **350** |
+| Versiones entregadas a ritmo regular | **284** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 
 Convicción de experiencia: el desarrollo asistido por IA es industrializable hoy. El factor limitante no es la herramienta — es el marco de dirección que se le da.
 
 La misma disciplina rige dentro del producto. Una pequeña decisión de modelo puede ayudar a elegir una ruta o un formato, pero LIA limita las opciones, mide el coste y conserva la autoridad para comprobar y confirmar el resultado. Las decisiones nativas opcionales amplían este método sin convertir la confianza del modelo en permiso.
+
+La utilidad también depende de la continuidad: recuperar una decisión en un acta completa, transmitir una capacidad reutilizable a alguien de confianza o situar juntos los lugares propuestos. Cada comodidad conserva un límite visible. Una capacidad compartida llega desactivada y sin credenciales del remitente; evaluar un correo aporta una pista, nunca una prueba de seguridad; abrir un mapa interactivo sigue siendo tu decisión, con su coste a la vista.
 
 ## 2. El enfoque
 
@@ -66,7 +68,7 @@ El proyecto se conduce ahora con varios agentes de desarrollo en paralelo — ca
 
 ## 4. Los arbitrajes
 
-Tres decisiones estructurantes, entre las 347 documentadas:
+Tres decisiones estructurantes, entre las 350 documentadas:
 
 **Soberanía y reversibilidad — ninguna dependencia irreversible de proveedor.** Los modelos de IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelos locales vía Ollama) están detrás de una abstracción única: cada uso puede cambiar de proveedor por configuración, con comparación de costes. Mismo principio del lado del negocio: Google, Apple y Microsoft son intercambiables por categoría funcional. El autoalojamiento te da control del servidor; los datos de la cuenta se guardan en la instancia y las credenciales de los conectores están cifradas. Los servicios remotos que eliges siguen recibiendo los datos necesarios para su parte de la solicitud.
 

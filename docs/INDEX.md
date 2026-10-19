@@ -3,7 +3,7 @@
 > Carte complète de toute la documentation du projet LIA - Assistant IA multi-agent avec LangGraph
 
 **Version**: 7.12
-**Dernière mise à jour**: 2026-08-02
+**Dernière mise à jour**: 2026-10-19
 **Statut**: Complète (490+ documents)
 
 ---
@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 45 |
-| ADRs | 347 ADR files (ADR-348 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
+| ADRs | 350 ADR files (ADR-352 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
 | Fiches knowledge (RAG système) | 40 |
 
 ---
@@ -53,7 +53,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (347 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (350 ADR files) |
 
 ### Pour les Product Managers
 
@@ -63,6 +63,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [LLM_PRICING_MANAGEMENT.md](./technical/LLM_PRICING_MANAGEMENT.md) | Gestion des coûts LLM |
 | [JEV_INTEGRATION.md](./technical/JEV_INTEGRATION.md) | Décisions natives TypeSafe, bascule à chaud par usage, repli et comptabilité |
 | [EMAIL_EVENT_CLASSIFICATION.md](./technical/EMAIL_EVENT_CLASSIFICATION.md) | Qualifications natives email/agenda, preuves fictives et statut de validation |
+| [Qualification locale v3.3.0](./superpowers/qualification/v3.3.0-2026-10-19/README.md) | Matrice de validation, revue adversariale, installabilité, coûts et limites explicites |
 | [PEER_CAPABILITY_TRANSFERS.md](./technical/PEER_CAPABILITY_TRANSFERS.md) | Copies de skills/MCP/plugins entre peers, désactivation initiale, confiance et rétention |
 | [JEV_SEMANTIC_QUALIFICATION.md](./technical/JEV_SEMANTIC_QUALIFICATION.md) | Qualification mesurée de JEV pour le typage sémantique, et réalignement des questions livrées |
 | [APPLICATION_COMMANDS.md](./technical/APPLICATION_COMMANDS.md) | Account-scoped application commands, current authority, confirmations and secure browser continuations |

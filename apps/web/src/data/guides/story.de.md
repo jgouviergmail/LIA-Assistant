@@ -3,8 +3,8 @@
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
 **Version**: 2.4
-**Datum**: 2026-10-18
-**Anwendung**: LIA v3.2.0
+**Datum**: 2026-10-19
+**Anwendung**: LIA v3.3.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,16 +18,18 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Indikator | Wert |
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
-| Quellcodezeilen (ohne Tests) — 55 Fachdomänen | **963.000+** |
+| Quellcodezeilen (ohne Tests) — 55 Fachdomänen | **967.000+** |
 | Inventarisierte automatisierte Tests; passende Suiten für Commit und Release | **63.000+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **347** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **283** |
+| Dokumentierte Architekturentscheidungen (ADR) | **350** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **284** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
 Überzeugung aus Erfahrung: KI-gestützte Entwicklung ist heute industrialisierbar. Der begrenzende Faktor ist nicht das Werkzeug — es ist der Führungsrahmen, den man ihm gibt.
 
 Dieselbe Disziplin gilt auch im Produkt. Eine kleine Modellentscheidung kann einen Weg oder ein Format wählen helfen, doch LIA begrenzt die Auswahl, misst die Kosten und behält die Prüfung und Bestätigung des Ergebnisses. Optionale native Entscheidungen erweitern diese Methode, ohne Modellvertrauen in eine Berechtigung umzudeuten.
+
+Nützliche Unterstützung braucht auch Kontinuität: eine Entscheidung im vollständigen Protokoll wiederfinden, eine wiederverwendbare Fähigkeit an eine vertraute Person weitergeben oder vorgeschlagene Orte gemeinsam verorten. Jede Erleichterung behält eine sichtbare Grenze. Geteilte Fähigkeiten kommen deaktiviert und ohne Zugangsdaten; eine E-Mail-Bewertung bleibt ein Hinweis, kein Sicherheitsbeweis; eine interaktive Karte öffnest du selbst mit sichtbaren Kosten.
 
 ## 2. Der Ansatz
 
@@ -66,7 +68,7 @@ Das Projekt wird inzwischen mit mehreren Entwicklungsagenten parallel geführt �
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 347 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 350 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Selbsthosting gibt dir die Kontrolle über den Server; Kontodaten liegen auf der Instanz und Konnektor-Zugangsdaten sind verschlüsselt. Die gewählten externen Dienste erhalten weiterhin die Daten, die sie für ihren Teil einer Anfrage benötigen.
 

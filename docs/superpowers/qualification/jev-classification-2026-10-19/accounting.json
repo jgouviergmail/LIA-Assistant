@@ -1,0 +1,83 @@
+{
+  "runs": [
+    {
+      "run_id": "classification-replay-103d2698-24fa-48e1-8f65-ab18aaa93a98",
+      "native_usage_rows": 11,
+      "persisted_cost_eur": "0.002525"
+    },
+    {
+      "run_id": "classification-replay-33785b93-cf83-478b-bbd6-1c68b206f550",
+      "native_usage_rows": 9,
+      "persisted_cost_eur": "0.002389"
+    },
+    {
+      "run_id": "classification-replay-53eeb7ed-6376-43c2-9c71-78332a585e16",
+      "native_usage_rows": 8,
+      "persisted_cost_eur": "0.002024"
+    },
+    {
+      "run_id": "classification-replay-7b71d795-5ea0-42b0-9c4f-d9a9b493259e",
+      "native_usage_rows": 9,
+      "persisted_cost_eur": "0.002209"
+    },
+    {
+      "run_id": "classification-replay-92e9db95-f2b5-4eee-8c80-646862617910",
+      "native_usage_rows": 10,
+      "persisted_cost_eur": "0.002459"
+    },
+    {
+      "run_id": "classification-replay-a7fa55fc-4d53-4ecf-8c4c-f00e3c3cbde9",
+      "native_usage_rows": 9,
+      "persisted_cost_eur": "0.002357"
+    },
+    {
+      "run_id": "classification-replay-cc02f253-c6c3-49d1-939d-6fa6a485522c",
+      "native_usage_rows": 10,
+      "persisted_cost_eur": "0.002628"
+    },
+    {
+      "run_id": "classification-replay-cd460d44-5b5d-4f34-81a7-965281a56ef0",
+      "native_usage_rows": 12,
+      "persisted_cost_eur": "0.002815"
+    },
+    {
+      "run_id": "classification-replay-d2c7cc68-9e2f-4432-9125-aa292971bcf4",
+      "native_usage_rows": 6,
+      "persisted_cost_eur": "0.001648"
+    },
+    {
+      "run_id": "classification-replay-eb05b2d1-d71a-4b44-8819-508bb751eb2a",
+      "native_usage_rows": 8,
+      "persisted_cost_eur": "0.001781"
+    },
+    {
+      "run_id": "classification-semantic-service-5b65a02e-828a-4e37-9a25-4ebbfb0eaa24",
+      "native_usage_rows": 1,
+      "persisted_cost_eur": "0.000247"
+    },
+    {
+      "run_id": "classification-sum-diagnosis-294d2bb2-0bc7-42ec-b8f6-8ebd044f01a7",
+      "native_usage_rows": 9,
+      "persisted_cost_eur": "0.002389"
+    },
+    {
+      "run_id": "classification-sum-diagnosis-638a596b-3533-4468-8de0-25721ec1b284",
+      "native_usage_rows": 1,
+      "persisted_cost_eur": "0.000233"
+    },
+    {
+      "run_id": "classification-sum-service-e9fd2243-cb98-4bf5-aed9-434e4b7e5d99",
+      "native_usage_rows": 1,
+      "persisted_cost_eur": "0.000233"
+    }
+  ],
+  "native_usage_rows": 104,
+  "summary_rows": 14,
+  "authorized_owner_matches": true,
+  "persisted_total_cost_eur": "0.025937",
+  "flags": {
+    "global": true,
+    "email_classification": true,
+    "event_classification": true
+  }
+}

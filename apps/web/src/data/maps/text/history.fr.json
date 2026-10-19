@@ -79,6 +79,18 @@
     }
   },
   "entries": {
+    "350": {
+      "title": "Partager une capacité sans ses identifiants",
+      "summary": "Une connexion acceptée reçoit sa propre copie de skill, serveur MCP ou plugin, désactivée et marquée de son origine. Le paquet relu est immuable, les reprises préservent les modifications du destinataire et les identifiants restent privés. Une skill de pair activée suit explicitement la politique d’une skill créée par le destinataire."
+    },
+    "351": {
+      "title": "L’affichage et l’assistante partagent les mêmes qualifications consultatives",
+      "summary": "Des décisions natives facultatives annotent une seule fois les preuves autorisées des e-mails et rendez-vous. Le doute reste sans badge, coûts et quotas s’appliquent, et ni une catégorie ni une confiance n’autorisent une action. Corpus figés et nouveaux cas adversariaux relient la politique livrée à des preuves mesurées."
+    },
+    "352": {
+      "title": "Situer les lieux avant de lire leurs détails",
+      "summary": "Une carte Position rassemble les Google Places sélectionnés avant leurs cartes individuelles, même en HTML ou Markdown. L’interactivité attend un clic avec coût affiché ; la liste des sources reste utilisable si Maps est indisponible."
+    },
     "1": {
       "title": "LangGraph orchestre les agents",
       "summary": "LIA a besoin d'un moteur capable de mener une conversation en plusieurs étapes, de s'arrêter pour demander un accord puis de reprendre. LangGraph fournit ce graphe d'exécution : l'état de chaque conversation est sauvegardé en base et les réponses arrivent mot à mot."

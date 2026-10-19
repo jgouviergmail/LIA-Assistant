@@ -11,7 +11,7 @@ from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import select, text
+from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from src.core.config import settings
@@ -247,9 +247,9 @@ async def test_existing_recipient_skill_is_never_overwritten(world: World) -> No
         assert existing.description == "Recipient version"
 
 
-async def test_system_skill_export_cannot_shadow_the_recipients_system_skill(
-    world: World,
-) -> None:
+@pytest_asyncio.fixture
+async def system_skill(world: World) -> AsyncIterator[Skill]:
+    """A committed system row has no owner whose erasure could clean it up."""
     async with world.sessions() as db:
         system = Skill(
             name="system-example",
@@ -261,7 +261,17 @@ async def test_system_skill_export_cannot_shadow_the_recipients_system_skill(
         )
         db.add(system)
         await db.flush()
-        request = world.request.model_copy(update={"source_id": system.id})
+    try:
+        yield system
+    finally:
+        async with world.sessions() as db:
+            await db.execute(delete(Skill).where(Skill.id == system.id))
+
+
+async def test_system_skill_export_cannot_shadow_the_recipients_system_skill(
+    world: World, system_skill: Skill
+) -> None:
+    request = world.request.model_copy(update={"source_id": system_skill.id})
     manifest = Path(settings.skills_system_path) / "system-example" / "SKILL.md"
     manifest.parent.mkdir(parents=True)
     manifest.write_text(
@@ -273,7 +283,7 @@ async def test_system_skill_export_cannot_shadow_the_recipients_system_skill(
         await capability_flow.send_capability(world.sender, preview.id, preview.digest)
     async with world.sessions() as db:
         assert not list(await db.scalars(select(Skill.id).where(Skill.owner_id == world.recipient)))
-        existing = await db.get(Skill, system.id)
+        existing = await db.get(Skill, system_skill.id)
         assert existing is not None and existing.admin_enabled
     assert manifest.read_text(encoding="utf-8").endswith("Instructions")
 

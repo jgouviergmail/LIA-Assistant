@@ -1,0 +1,55 @@
+{
+  "fictional": true,
+  "emailHtml": "<div class=\"lia-response-wrapper\" data-card-version=\"2\"><div class=\"lia-card lia-email lia-email--read  \"><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--gray\"><span style=\"font-size:var(--lia-text-sm);font-weight:600;letter-spacing:-0.02em\">C</span></div><div class=\"lia-card-top__info\"><div class=\"lia-card-top__subtitle\" style=\"margin-bottom:var(--lia-space-2xs)\">Hier à 11:42</div><a class=\"lia-card-top__title\" style=\"font-size:var(--lia-text-base);font-weight:400\" href=\"mailto:claire@example.test\">Claire</a><div style=\"font-size:var(--lia-text-xs);color:var(--lia-text-muted)\">claire@example.test</div></div></div><a class=\"lia-email__subject\" href=\"https://mail.google.com/mail/u/0/#all/fictional-atlas-claire-last-mail\" target=\"_blank\" rel=\"noopener noreferrer\">Atlas — tarif actualisé</a><p class=\"lia-email__snippet\">Bonjour, le tarif Atlas a été actualisé à 270 €.\nPeux-tu confirmer que ce montant convient ?</p></div></div>",
+  "documentHtml": "<div class=\"lia-response-wrapper\" data-card-version=\"2\"><div class=\"lia-card lia-file lia-file--pdf \"><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--red\"><span class=\"material-symbols-outlined\">picture_as_pdf</span></div><div class=\"lia-card-top__info\"><a class=\"lia-card-top__title\" href=\"https://example.test/documents/fiche-atlas\" target=\"_blank\" rel=\"noopener noreferrer\">Fiche Atlas</a></div></div><div class=\"lia-chip-row lia-chip-row--sep-bottom\"><span class=\"lia-chip lia-chip--red\"><span class=\"material-symbols-outlined\">picture_as_pdf</span>PDF</span></div><div class=\"lia-file-meta\"><span class=\"material-symbols-outlined\">folder</span>Projet Atlas</div><div class=\"lia-collapsible-wrapper\"><details class=\"lia-collapsible\" open><summary class=\"lia-collapsible__trigger\"><span>Voir plus</span><span class=\"lia-collapsible__icon\"><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">expand_more</span></span></span></summary><div class=\"lia-collapsible__content\"><div class=\"lia-file__extended\"><div class=\"lia-file__detail-item\"><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">edit_note</span></span><div class=\"lia-card-text\">Le tarif prévu pour Atlas est de 240 €.\nCe montant figure dans la fiche projet.</div></div></div></div></details></div></div></div>",
+  "decisionHtml": "<div class=\"lia-card lia-draft\"><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--indigo\"><span style=\"font-size:var(--lia-text-lg)\">↩️</span></div><div class=\"lia-card-top__info\"><div class=\"lia-card-top__title\">Atlas — tarif à confirmer</div></div></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">person</span><span><strong>Destinataire</strong> : Claire &lt;claire@example.test&gt;</span></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">notes</span><span><strong>Objet</strong> : Atlas — tarif à confirmer</span></div><div class=\"lia-sec\"><div class=\"lia-illus-sm lia-illus--indigo\"><span class=\"material-symbols-outlined\">description</span></div><span class=\"lia-sec__label\">Message</span></div><div class=\"lia-desc-block lia-desc-block--no-border\">Claire, quel tarif s’applique à Atlas : 240 € ou 270 € ?</div></div>",
+  "decisionStatusHtml": "<span class=\"lia-chip lia-chip--amber\"><span class=\"material-symbols-outlined\">pending</span>À confirmer</span>",
+  "payloads": {
+    "email": {
+      "id": "fictional-atlas-claire-last-mail",
+      "from": {
+        "name": "Claire",
+        "email": "claire@example.test"
+      },
+      "subject": "Atlas — tarif actualisé",
+      "date": "2026-10-16T09:42:00Z",
+      "snippet": "Bonjour, le tarif Atlas a été actualisé à 270 €.\nPeux-tu confirmer que ce montant convient ?",
+      "labelIds": [],
+      "webLink": "https://example.test/mail/atlas-tarif"
+    },
+    "document": {
+      "id": "fictional-atlas-project-sheet",
+      "name": "Fiche Atlas",
+      "mimeType": "application/pdf",
+      "parentPath": "Projet Atlas",
+      "description": "Le tarif prévu pour Atlas est de 240 €.\nCe montant figure dans la fiche projet.",
+      "webViewLink": "https://example.test/documents/fiche-atlas"
+    },
+    "draft": {
+      "to": "Claire <claire@example.test>",
+      "subject": "Atlas — tarif à confirmer",
+      "body": "Claire, quel tarif s’applique à Atlas : 240 € ou 270 € ?",
+      "message_id": "fictional-atlas-claire-last-mail",
+      "original_subject": "Atlas — tarif actualisé"
+    }
+  },
+  "provenance": {
+    "emailRenderer": "apps/api/src/domains/agents/display/components/email_card.py:EmailCard.render",
+    "documentRenderer": "apps/api/src/domains/agents/display/components/file_item.py:FileItem.render",
+    "decisionRenderer": "apps/api/src/domains/agents/drafts/preview_renderer.py:render_confirmation_card(surface=CardSurface.CHAT)",
+    "decisionSerializer": "apps/api/src/domains/agents/drafts/card_html.py:to_html_card",
+    "statusRenderer": "apps/api/src/domains/agents/display/components/card_chips.py:render_chip",
+    "styles": [
+      "apps/web/src/styles/lia-components.css",
+      "apps/web/src/styles/lia-cards.css"
+    ],
+    "font": "apps/web/e2e/fixtures/fonts/MaterialSymbolsOutlined.woff2",
+    "adaptations": [
+      "French fictional data only; no account reads",
+      "Document native details expanded",
+      "Source headings added outside native markup",
+      "Dates, sender address, and duplicate draft subject cropped by scoped CSS",
+      "Native text scale enlarged for 1080p composition; no app interaction"
+    ]
+  }
+}

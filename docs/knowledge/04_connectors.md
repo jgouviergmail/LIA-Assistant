@@ -470,3 +470,7 @@ selected services. Disconnecting one service does not disconnect the others.
 Existing connections continue to work until you choose the grouped path. The
 instance administrator must register the grouped callback URI with the provider
 before this path is available.
+
+## What do the email and appointment badges mean?
+
+When the administrator enables the corresponding **JEV integrations**, emails can show a work, personal, spam or **Phishing/scam** category, with one priority: normal, urgent or critical. Normal priority stays visually quiet. Appointments can show work or personal. An uncertain assessment shows no badge. The assistant receives the same accepted labels. These are advisory assessments of the visible content, not sender authentication or proof of fraud; no badge does not mean safe. The phishing badge is red, with a brief attention effect disabled under reduced motion.

@@ -1,0 +1,58 @@
+{
+  "run_id": "classification-semantic-service-5b65a02e-828a-4e37-9a25-4ebbfb0eaa24",
+  "policy_sha256": "6386fb285f8cbea53740b8f71b5748087ef990ba76e2d5adf7a58e5efc9540bf",
+  "observations": 5,
+  "second_read_matches": true,
+  "native_usage_rows": 1,
+  "persisted_cost_eur": "0.000247",
+  "prior_ledger_eur": "0.025690",
+  "cumulative_ledger_eur": "0.025937",
+  "settings_unchanged": true,
+  "classifications": {
+    "adversarial-en-0": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-19T01:14:54.903793Z",
+      "valid_until": "2026-10-19T01:19:54.903793Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "critical"
+    },
+    "adversarial-fr-1": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-19T01:14:54.903793Z",
+      "valid_until": "2026-10-19T01:19:54.903793Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "normal"
+    },
+    "adversarial-de-2": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-19T01:14:54.903793Z",
+      "valid_until": "2026-10-19T01:15:24.903793Z",
+      "kind": "email",
+      "category": "spam",
+      "priority": "unknown"
+    },
+    "adversarial-es-3": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-19T01:14:54.903793Z",
+      "valid_until": "2026-10-19T01:19:54.903793Z",
+      "kind": "email",
+      "category": "professional",
+      "priority": "normal"
+    },
+    "adversarial-it-4": {
+      "version": "email-event-v1-phishing",
+      "evidence_scope": "body",
+      "evaluated_at": "2026-10-19T01:14:54.903793Z",
+      "valid_until": "2026-10-19T01:15:24.903793Z",
+      "kind": "email",
+      "category": "phishing_scam",
+      "priority": "unknown"
+    }
+  }
+}

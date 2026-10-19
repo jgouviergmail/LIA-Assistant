@@ -1,6 +1,11 @@
 # LIA motion production
 
-The active editable construction lives in `src/presentation-plan.ts`. It
+The restored 80-second film remains active on DEV and PROD. Its preserved
+authoring sources and reproduction commands are documented in
+[`src/film/README.md`](src/film/README.md). The rejected replacement attempts have
+been removed; no replacement render or publication is planned.
+
+The earlier editable construction lives in `src/presentation-plan.ts`. It
 provides a complete French film, a shorter landing edit and independent feature
 focuses. Native application views are recreated from current source contracts
 and reference captures with fictitious data. BIP acts outside the application

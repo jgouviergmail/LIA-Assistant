@@ -1,0 +1,97 @@
+{
+  "verifiedAt": "2026-10-17T00:20:36.264840+00:00",
+  "sourceRequestAndProofHashesVerified": true,
+  "paidGenerationAttempts": 1,
+  "automaticRetries": 0,
+  "audioProbe": {
+    "atlas-original.mp3": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "codec_name": "mp3",
+          "sample_rate": "44100",
+          "channels": 2,
+          "bits_per_sample": 0
+        }
+      ],
+      "format": {
+        "duration": "115.330542"
+      }
+    },
+    "atlas-original-48k.wav": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "codec_name": "pcm_s24le",
+          "sample_rate": "48000",
+          "channels": 2,
+          "bits_per_sample": 24
+        }
+      ],
+      "format": {
+        "duration": "115.330625"
+      }
+    },
+    "atlas-proof-16s.wav": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "codec_name": "pcm_s24le",
+          "sample_rate": "48000",
+          "channels": 2,
+          "bits_per_sample": 24
+        }
+      ],
+      "format": {
+        "duration": "16.000000"
+      }
+    }
+  },
+  "staticChecks": {
+    "black": "passed, one file per invocation",
+    "ruff": "passed"
+  },
+  "offlineBehavioralTests": {
+    "command": ".\\apps\\api\\.venv\\Scripts\\python.exe tools\\lia-motion\\scripts\\test_generate_atlas_proof_music.py",
+    "passed": 8,
+    "skipped": 0,
+    "warnings": 0,
+    "repeatedSuiteRuns": 20,
+    "repeatedTestPasses": 160
+  },
+  "humanListeningCheckPerformed": false,
+  "actualInvoiceCostUsd": null,
+  "atomicCheckpointValidation": {
+    "failureReproducedBeforeFix": true,
+    "beforeFixDefaultSandbox": {
+      "atomicWrites": 600,
+      "transientWinError5Failures": 1
+    },
+    "beforeFixEscalatedHost": {
+      "atomicWrites": 600,
+      "transientWinError5Failures": 2
+    },
+    "rootCauseQualification": "Intermittent Windows atomic replacement access denial reproduced with writable closed files both inside and outside the sandbox; exact locking process not identified.",
+    "fix": "Bounded retry of local Path.replace only; prior checkpoint is never unlinked. Provider requests are never retried.",
+    "retriedWindowsErrorCodes": [
+      5,
+      32
+    ],
+    "maximumAtomicReplaceAttempts": 6,
+    "maximumTotalLocalWaitSeconds": 0.62,
+    "afterFixDefaultSandbox": {
+      "atomicWrites": 2000,
+      "failures": 0
+    },
+    "deterministicTests": [
+      "transient denial retains old receipt until atomic replacement",
+      "persistent denial preserves dispatched guard and pending receipt, with only one mocked paid effect",
+      "unrelated permission denial propagates without waiting"
+    ]
+  },
+  "providerCallsDuringFixAndTests": 0,
+  "sourceAudioAndPaidAttemptReceiptUnmodified": true
+}

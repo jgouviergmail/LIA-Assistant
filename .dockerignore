@@ -3,6 +3,8 @@
 
 # Build outputs
 exports/
+# Operator-local preview packaging is never part of a production web image.
+apps/web/public/landing-media-dev/
 # Offline motion authoring and its media do not enter application images.
 tools/lia-motion/
 .tmp/

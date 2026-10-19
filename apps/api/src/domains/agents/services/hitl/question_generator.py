@@ -145,35 +145,29 @@ class HitlQuestionGenerator:
     """Generate contextual HITL confirmation questions using LLM.
 
     This class uses the factory pattern to support multiple LLM providers,
-    configured entirely through environment variables.
+    each configured through its LLM slot (``LLM_DEFAULTS`` + the admin overrides, ADR-244).
     """
 
     def __init__(self) -> None:
         """Initialize question generator with LLMs from factory.
 
         Uses two dedicated LLM types:
-        1. 'hitl_question_generator' for tool-level questions (short, fast):
-           - HITL_QUESTION_GENERATOR_LLM_PROVIDER (openai, anthropic, etc.)
-           - HITL_QUESTION_GENERATOR_LLM_MODEL (model name)
-           - HITL_QUESTION_GENERATOR_LLM_TEMPERATURE (default: 0.3)
-           - HITL_QUESTION_GENERATOR_LLM_MAX_TOKENS (default: 200 - intentionally low)
+        1. 'hitl_question_generator' for tool-level questions (short, fast).
+        2. 'hitl_plan_approval_question_generator' for plan-level questions (detailed).
 
-        2. 'hitl_plan_approval_question_generator' for plan-level questions (detailed):
-           - HITL_PLAN_APPROVAL_QUESTION_LLM_PROVIDER (openai, anthropic, etc.)
-           - HITL_PLAN_APPROVAL_QUESTION_LLM_MODEL (model name)
-           - HITL_PLAN_APPROVAL_QUESTION_LLM_TEMPERATURE (default: 0.3)
-           - HITL_PLAN_APPROVAL_QUESTION_LLM_MAX_TOKENS (default: 300 - intentionally low)
+        Provider, model, temperature and budget are each slot's, set in
+        ``LLM_DEFAULTS`` and overridden in the admin LLM configuration.
         """
         # Tool-level question generator (short, simple confirmations)
         # Issue #60 Fix: Removed hardcoded max_tokens override
-        # Now uses HITL_QUESTION_GENERATOR_LLM_MAX_TOKENS from config (default: 200)
+        # Now uses the slot's own max_tokens
         self.tool_question_llm = get_llm(
             llm_type="hitl_question_generator",
         )
 
         # Plan-level approval question generator (detailed explanations)
         # Issue #60 Fix: Removed hardcoded max_tokens override
-        # Now uses HITL_PLAN_APPROVAL_QUESTION_LLM_MAX_TOKENS from config (default: 300)
+        # Now uses the slot's own max_tokens
         self.plan_approval_llm = get_llm(
             llm_type="hitl_plan_approval_question_generator",
         )
