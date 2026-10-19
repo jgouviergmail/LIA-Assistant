@@ -1,5 +1,20 @@
 # gitleaks findings in commits that can no longer change, each one reviewed.
 #
+# v3.3.0 peer-package rejection fixtures, reviewed 2026-10-19: four deliberately
+# embedded dummy values (abcdef0123456789 and literal query strings ending in
+# secret), repeated by the first-parent merge. They exercise credential refusal;
+# no credential or provider call exists. Current lines carry gitleaks:allow.
+# Keep the authored and merge commits intact; each historical exception matches
+# exactly one commit/file/rule/line, never a path or future credential.
+e68b43326187381415d7940066989258bcc7a598:apps/api/tests/unit/domains/peers/test_capability_package.py:generic-api-key:77
+e68b43326187381415d7940066989258bcc7a598:apps/api/tests/unit/domains/peers/test_capability_package.py:generic-api-key:148
+e68b43326187381415d7940066989258bcc7a598:apps/api/tests/unit/domains/peers/test_capability_package.py:generic-api-key:171
+e68b43326187381415d7940066989258bcc7a598:apps/api/tests/unit/domains/peers/test_capability_package.py:generic-api-key:172
+4c1184846f57e6b98ffda6eaff10be808c0b8a1a:apps/api/tests/unit/domains/peers/test_capability_package.py:generic-api-key:77
+4c1184846f57e6b98ffda6eaff10be808c0b8a1a:apps/api/tests/unit/domains/peers/test_capability_package.py:generic-api-key:148
+4c1184846f57e6b98ffda6eaff10be808c0b8a1a:apps/api/tests/unit/domains/peers/test_capability_package.py:generic-api-key:171
+4c1184846f57e6b98ffda6eaff10be808c0b8a1a:apps/api/tests/unit/domains/peers/test_capability_package.py:generic-api-key:172
+#
 # An entry is an EXACT fingerprint (commit:file:rule:line): it cannot hide
 # anything but that one line of that one commit, so a real credential added
 # later still fails the scan. Each entry below holds no private credential.

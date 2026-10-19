@@ -74,7 +74,7 @@ def test_archive_links_and_duplicate_members_are_refused() -> None:
 @pytest.mark.parametrize(
     "secret",
     [
-        b'api_key = "abcdef0123456789"',
+        b'api_key = "abcdef0123456789"',  # gitleaks:allow -- deterministic rejection fixture
         b"Authorization: Bearer abcdef0123456789",
         b"-----BEGIN PRIVATE KEY-----",
     ],
@@ -145,7 +145,12 @@ def test_client_cannot_choose_recipient_credentials_or_execution_policy() -> Non
 
 @pytest.mark.parametrize(
     "query",
-    ["api-key=secret", "APIKEY=secret", "access.token=secret", "client_secret=secret"],
+    [
+        "api-key=secret",
+        "APIKEY=secret",
+        "access.token=secret",
+        "client_secret=secret",
+    ],  # gitleaks:allow -- literal URL fixtures
 )
 def test_credential_query_name_variants_are_not_portable(query: str) -> None:
     from src.domains.peers.capability_contracts import PortableMCPConfig
@@ -168,8 +173,8 @@ def test_authentication_header_name_cannot_inject_another_header() -> None:
 @pytest.mark.parametrize(
     "document",
     [
-        {"api_key": "abcdef0123456789"},
-        {"description": 'api_key = "abcdef0123456789"'},
+        {"api_key": "abcdef0123456789"},  # gitleaks:allow -- deterministic rejection fixture
+        {"description": 'api_key = "abcdef0123456789"'},  # gitleaks:allow -- same nested fixture
         {"nested": [{"client_secret": "short"}]},
     ],
 )
