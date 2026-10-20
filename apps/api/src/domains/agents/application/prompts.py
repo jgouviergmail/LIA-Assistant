@@ -204,6 +204,7 @@ from src.domains.agents.application.shared_mcp_schemas import (
     SharedMCPPreferencePatch,
     SharedMCPPreferenceUpdateRequest,
 )
+from src.domains.agents.application.sms_editor_inputs import SMS_EDITOR_MODELS, sms_editor_request
 from src.domains.agents.prompts import load_prompt
 
 
@@ -400,9 +401,27 @@ def _relation_editor_request(
     raise ValueError("Unsupported relation editor")
 
 
+def _reminder_editor_request(
+    model: type[BaseModel], intent: dict[str, JsonValue]
+) -> tuple[type[BaseModel], dict[str, JsonValue]]:
+    if model is ReminderDeletePatch:
+        reminder = ReminderDeletePatch.model_validate(intent).reminder_to_delete
+        return ReminderDeleteRequest, {"reminder_id": str(reminder.id)}
+    if model is ReminderUpdatePatch:
+        edited = ReminderUpdatePatch.model_validate(intent).reminder_configuration
+        return ReminderUpdateRequest, {
+            "reminder_id": str(edited.expected.id),
+            "changes": edited.changes.model_dump(mode="json", exclude_unset=True),
+        }
+    created = ReminderCreatePatch.model_validate(intent).reminder_to_create
+    return ReminderCreateRequest, created.configuration.model_dump(mode="json")
+
+
 def _safe_editor_request(
     model: type[BaseModel], intent: dict[str, JsonValue]
 ) -> tuple[type[BaseModel], dict[str, JsonValue]]:
+    if model in SMS_EDITOR_MODELS:
+        return sms_editor_request(model, intent)
     if model in (
         RelationGroupingPatch,
         RelationFavoritePatch,
@@ -459,18 +478,8 @@ def _safe_editor_request(
     if model is ExportDownloadPatch:
         archive = ExportDownloadPatch.model_validate(intent).archive_to_download
         return ExportDownloadRequest, {"job_id": str(archive.job_id)}
-    if model is ReminderDeletePatch:
-        removed_reminder = ReminderDeletePatch.model_validate(intent).reminder_to_delete
-        return ReminderDeleteRequest, {"reminder_id": str(removed_reminder.id)}
-    if model is ReminderUpdatePatch:
-        edited_reminder = ReminderUpdatePatch.model_validate(intent).reminder_configuration
-        return ReminderUpdateRequest, {
-            "reminder_id": str(edited_reminder.expected.id),
-            "changes": edited_reminder.changes.model_dump(mode="json", exclude_unset=True),
-        }
-    if model is ReminderCreatePatch:
-        reminder = ReminderCreatePatch.model_validate(intent).reminder_to_create
-        return ReminderCreateRequest, reminder.configuration.model_dump(mode="json")
+    if model in (ReminderDeletePatch, ReminderUpdatePatch, ReminderCreatePatch):
+        return _reminder_editor_request(model, intent)
     if model in (
         RoutineRunPatch,
         RoutineUpdatePatch,

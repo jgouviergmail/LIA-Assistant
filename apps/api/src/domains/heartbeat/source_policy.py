@@ -30,6 +30,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.domains.sms.preferences import SmsPreferences
+
 # ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
@@ -51,6 +53,7 @@ HEARTBEAT_SOURCE_KEYS: frozenset[str] = frozenset(
         "memories",
         "journals",
         "health_signals",
+        "sms",
         "birthdays",
         "open_loops",
         "departure",
@@ -71,6 +74,7 @@ HEARTBEAT_SOURCE_ORDER: tuple[str, ...] = (
     "memories",
     "journals",
     "health_signals",
+    "sms",
     "birthdays",
     "open_loops",
     "departure",
@@ -117,6 +121,7 @@ HEARTBEAT_SOURCE_FEATURE_FLAGS: dict[str, str] = {
     "departure": "heartbeat_departure_enabled",
     "habits": "habits_enabled",
     "health_signals": "health_metrics_enabled",
+    "sms": "sms_enabled",
 }
 
 
@@ -234,6 +239,11 @@ def is_source_enabled(user: Any, source: str) -> bool:
     Returns:
         True unless the user explicitly refused this source.
     """
+    if (
+        source == "sms"
+        and not SmsPreferences.from_stored(getattr(user, "sms_preferences", None)).assistant_enabled
+    ):
+        return False
     return source not in disabled_sources_for(user)
 
 

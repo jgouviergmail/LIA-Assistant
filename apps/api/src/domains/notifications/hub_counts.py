@@ -32,7 +32,12 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from uuid import UUID
 
+from sqlalchemy import func, select
+
 from src.core.config import settings
+from src.core.exceptions import AuthorizationError
+from src.domains.sms.models import SmsMessage
+from src.domains.sms.reads import require_read
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.observability.logging import get_logger
 
@@ -67,6 +72,36 @@ class HubCounts:
     scheduled: int
     offers: int
     workboard: int
+    sms: int | None = None
+
+
+async def _sms(user_id: UUID) -> int:
+    if not settings.sms_enabled:
+        return 0
+    async with get_db_context() as db:
+        try:
+            await require_read(db, user_id, assistant=False)
+        except AuthorizationError as error:
+            if (
+                isinstance(error.detail, dict)
+                and error.detail.get("error_code") == "SERVICE_UNAVAILABLE"
+            ):
+                raise
+            return 0
+        return int(
+            await db.scalar(
+                select(func.count()).select_from(SmsMessage).where(SmsMessage.user_id == user_id)
+            )
+            or 0
+        )
+
+
+async def _safe_sms(user_id: UUID) -> int | None:
+    try:
+        return await _sms(user_id)
+    except Exception as exc:
+        logger.warning("sms_hub_count_unavailable", error_type=type(exc).__name__)
+        return None
 
 
 async def _safe_count(section: str, probe: Coroutine[None, None, int]) -> int:
@@ -183,26 +218,22 @@ async def resolve_hub_counts(user: User) -> HubCounts:
         user: The authenticated user row.
 
     Returns:
-        One exact total per section; 0 for any section whose read failed.
+        Exact totals; SMS remains unknown (None) when its source is unavailable.
     """
     user_id: UUID = user.id
-    (
-        peer_messages,
-        proactive,
-        interests,
-        reminders,
-        scheduled,
-        offers,
-        workboard,
-    ) = await asyncio.gather(
-        _safe_count("peer_messages", _peer_messages(user_id)),
-        _safe_count("proactive", _proactive(user_id)),
-        _safe_count("interests", _interests(user_id)),
-        _safe_count("reminders", _reminders(user_id)),
-        _safe_count("scheduled", _scheduled(user_id)),
-        _safe_count("offers", _offers(user_id)),
-        _safe_count("workboard", _workboard(user_id)),
+    counts, sms = await asyncio.gather(
+        asyncio.gather(
+            _safe_count("peer_messages", _peer_messages(user_id)),
+            _safe_count("proactive", _proactive(user_id)),
+            _safe_count("interests", _interests(user_id)),
+            _safe_count("reminders", _reminders(user_id)),
+            _safe_count("scheduled", _scheduled(user_id)),
+            _safe_count("offers", _offers(user_id)),
+            _safe_count("workboard", _workboard(user_id)),
+        ),
+        _safe_sms(user_id),
     )
+    peer_messages, proactive, interests, reminders, scheduled, offers, workboard = counts
     return HubCounts(
         peer_messages=peer_messages,
         proactive=proactive,
@@ -211,4 +242,5 @@ async def resolve_hub_counts(user: User) -> HubCounts:
         scheduled=scheduled,
         offers=offers,
         workboard=workboard,
+        sms=sms,
     )

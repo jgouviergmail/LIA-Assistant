@@ -295,6 +295,14 @@ class Rig:
                     AsyncMock(return_value=self.redis),
                 )
             )
+            # This harness models the legacy external/cached sources. SMS
+            # has its own live SQL and permission tests, never a provider call.
+            stack.enter_context(
+                patch(
+                    "src.domains.briefing.service.fetch_sms",
+                    AsyncMock(side_effect=ConnectorNotConfiguredError("sms")),
+                )
+            )
             for name in SECTION_NAMES:
                 stack.enter_context(
                     patch(f"src.domains.briefing.service.fetch_{name}", self._fetcher(name))

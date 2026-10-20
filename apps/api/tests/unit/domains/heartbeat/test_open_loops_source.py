@@ -219,7 +219,7 @@ class TestPostNotifyBump:
 
             await task.on_notification_sent(
                 uuid.uuid4(),
-                MagicMock(),
+                MagicMock(context=MagicMock(sms=None)),
                 _result(
                     {
                         "sources_used": ["OPEN_LOOPS", "UPCOMING_CALENDAR_EVENTS"],
@@ -247,7 +247,7 @@ class TestPostNotifyBump:
 
             await task.on_notification_sent(
                 uuid.uuid4(),
-                MagicMock(),
+                MagicMock(context=MagicMock(sms=None)),
                 _result(
                     {
                         "sources_used": ["CURRENT_WEATHER"],

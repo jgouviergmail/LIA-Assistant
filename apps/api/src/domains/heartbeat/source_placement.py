@@ -60,6 +60,7 @@ SOURCE_PLACEMENTS: dict[str, SourcePlacement] = {
     "memories": SourcePlacement("user_memories"),
     "journals": SourcePlacement("journal_entries"),
     "health_signals": SourcePlacement("health_signals"),
+    "sms": SourcePlacement("sms"),
     "birthdays": SourcePlacement("upcoming_birthdays"),
     "open_loops": SourcePlacement("open_loops"),
     "habits": SourcePlacement("habits"),

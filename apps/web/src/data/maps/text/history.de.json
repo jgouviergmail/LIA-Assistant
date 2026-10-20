@@ -1852,6 +1852,11 @@
       "title": "Orte vor ihren Details verorten",
       "summary": "Position bündelt ausgewählte Google Places vor ihren einzelnen Karten, auch in HTML und Markdown. Die interaktive Karte startet erst per Klick mit Kostenanzeige; bei Ausfall bleibt die Quellenliste nutzbar.",
       "src": "b00abdd45dc8"
+    },
+    "357": {
+      "title": "Generischer Telefon-Eingang und persönliches SMS-Archiv",
+      "summary": "Das Telefon sendet strikt validierte Ereignisse mit Deduplizierung pro Quelle. Unabhängige Einwilligungen, Export, Löschung, Register und Benachrichtigungen beachten dieselben Berechtigungen.",
+      "src": "539b8b751150"
     }
   }
 }

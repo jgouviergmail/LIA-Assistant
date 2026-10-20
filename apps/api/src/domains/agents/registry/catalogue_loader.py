@@ -53,6 +53,19 @@ if TYPE_CHECKING:
 # ============================================================================
 
 
+def _register_sms_catalogue(registry: AgentRegistry, *, enabled: bool) -> None:
+    if not enabled:
+        return
+    from src.domains.agents.sms.catalogue_manifests import (
+        SMS_AGENT_MANIFEST,
+        SMS_TOOL_MANIFESTS,
+    )
+
+    registry.register_agent_manifest(SMS_AGENT_MANIFEST)
+    for tool_manifest in SMS_TOOL_MANIFESTS:
+        registry.register_tool_manifest(tool_manifest)
+
+
 def initialize_catalogue(registry: AgentRegistry) -> None:
     """
     Initialize the catalogue with Phase 5 + LOT 9/10 manifests.
@@ -218,6 +231,8 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
 
     # Register Health Metrics agents + tools (v1.17.2, feature-flag gated)
     from src.core.config import settings as _app_settings
+
+    _register_sms_catalogue(registry, enabled=_app_settings.sms_enabled)
 
     if getattr(_app_settings, "health_metrics_enabled", False):
         from src.domains.agents.health.catalogue_manifests import (

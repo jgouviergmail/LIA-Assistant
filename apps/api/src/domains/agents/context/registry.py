@@ -40,6 +40,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
+from src.domains.agents.context.read_contract import ContextReadGuard
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -99,6 +100,7 @@ class ContextTypeDefinition(BaseModel):
         description="Fields searchable for fuzzy matching (e.g., ['name', 'emails'])"
     )
     icon: str | None = Field(default=None, description="Optional emoji/icon for UI")
+    read_guard: ContextReadGuard | None = Field(default=None, exclude=True)
 
     def model_post_init(self, __context: Any) -> None:
         """Auto-set context_type to match domain if not explicitly provided."""

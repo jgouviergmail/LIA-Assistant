@@ -17,6 +17,7 @@ from typing import Any
 
 from src.core.field_names import FIELD_ERROR_CODE
 from src.core.tool_outcome import error_code_of, explicit_success
+from src.domains.agents.sms.proof import sms_message_metadata
 from src.domains.agents.utils.message_filters import TOOL_CALL_NOT_RUN
 
 
@@ -111,7 +112,7 @@ def tool_message_metadata(raw_result: Any) -> dict[str, str]:
         ``{error_code: code}`` for a declared failure naming one, else empty.
     """
     code = error_code_of(raw_result) if tool_message_status(raw_result) == "error" else None
-    return {FIELD_ERROR_CODE: code} if code else {}
+    return {**sms_message_metadata(raw_result), **({FIELD_ERROR_CODE: code} if code else {})}
 
 
 def call_artifact(raw_result: Any) -> str | None:

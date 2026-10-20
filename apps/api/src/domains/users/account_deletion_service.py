@@ -235,6 +235,13 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         # The user row is soft-deleted, so FK CASCADEs never fire — these
         # rows MUST be purged explicitly. Deleting the tokens also cuts
         # off any device still pushing samples (its next write is a 401).
+        by_user("sms_search_terms"),
+        by_user("ingestion_deliveries"),
+        by_user("sms_messages"),
+        by_user("sms_sender_blocks"),
+        by_user("ingestion_receipts"),
+        by_user("ingestion_tokens"),
+        by_user("ingestion_sources"),
         by_user("health_samples"),
         by_user("health_metric_tokens"),
         # Same soft-delete trap: commitments and telephony call records
@@ -898,6 +905,8 @@ class AccountDeletionService:
         # setting that serves nothing once the account is gone (owner decision),
         # exported while it lives, never kept after.
         user.lia_voices = None
+        user.sms_preferences = None
+        user.ingestion_key_encrypted = None
         user.deleted_at = datetime.now(UTC)
         user.deleted_reason = reason
 

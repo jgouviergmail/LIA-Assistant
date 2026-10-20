@@ -81,6 +81,7 @@ from src.core.field_names import (
     FIELD_TOOL_NAME,
     FIELD_TURN_ID,
 )
+from src.domains.agents.context.read_policy import context_read_allowed
 from src.domains.agents.context.registry import ContextTypeRegistry
 from src.domains.agents.context.runtime_context import runtime_user_id_str
 from src.domains.agents.context.schemas import (
@@ -344,6 +345,8 @@ class ToolContextManager:
 
         try:
             context_list = ToolContextList(**item.value)
+            if not await context_read_allowed(str(user_id), domain, context_list.items):
+                return None
             # Debug log removed - hot path, adds overhead without value
             return context_list
 
@@ -352,8 +355,7 @@ class ToolContextManager:
                 "list_parse_error",
                 user_id=str(user_id),
                 domain=domain,
-                error=str(e),
-                exc_info=True,
+                error_type=type(e).__name__,
             )
             return None
 
@@ -454,6 +456,8 @@ class ToolContextManager:
 
         try:
             current = ToolContextCurrentItem(**item.value)
+            if not await context_read_allowed(str(user_id), domain, [current.item]):
+                return None
             # Debug log removed - hot path, adds overhead for every context retrieval
             return current.item
 
@@ -462,8 +466,7 @@ class ToolContextManager:
                 "current_item_parse_error",
                 user_id=str(user_id),
                 domain=domain,
-                error=str(e),
-                exc_info=True,
+                error_type=type(e).__name__,
             )
             return None
 

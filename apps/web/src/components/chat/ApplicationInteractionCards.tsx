@@ -12,6 +12,7 @@ import {
 import { useApplicationCommandResume } from '@/hooks/useApplicationCommandResume';
 import { useAuth } from '@/hooks/useAuth';
 import { ApplicationHealthTokenCard } from '@/components/chat/ApplicationHealthTokenCard';
+import { ApplicationIngestionTokenCard } from '@/components/chat/ApplicationIngestionTokenCard';
 import { ApplicationDocumentUploadCard } from '@/components/chat/ApplicationDocumentUploadCard';
 import { ApplicationSkillFileUploadCard } from '@/components/chat/ApplicationSkillFileUploadCard';
 import { ApplicationPluginFileUploadCard } from '@/components/chat/ApplicationPluginFileUploadCard';
@@ -38,6 +39,7 @@ const privateInteractionCards: Partial<Record<string, ComponentType<InteractionC
   'skill_file.upload': ApplicationSkillFileUploadCard,
   'plugin_file.upload': ApplicationPluginFileUploadCard,
   'health_token.create': ApplicationHealthTokenCard,
+  'sms_token.create': ApplicationIngestionTokenCard,
   'personal_mcp.configuration': ApplicationPersonalMCPConfigurationCard,
   'personal_mcp.oauth_authorize': ApplicationPersonalMCPOAuthCard,
 };

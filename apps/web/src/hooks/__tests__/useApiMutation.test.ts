@@ -166,3 +166,53 @@ describe('useApiMutation — reset & guard', () => {
     spy.mockRestore();
   });
 });
+
+it('returns a one-use secret without retaining a hidden response copy', async () => {
+  mockApi.post.mockResolvedValueOnce({ token: 'pi_ephemeral' });
+  const { result } = renderHook(() =>
+    useApiMutation<undefined, { token: string }>({
+      method: 'POST',
+      componentName: 'Secret',
+      retainResponse: false,
+    })
+  );
+  let received: { token: string } | undefined;
+  await act(async () => {
+    received = await result.current.mutate('/sms/commands/id/confirm');
+  });
+  expect(received?.token).toBe('pi_ephemeral');
+  expect(result.current.data).toBeNull();
+  expect(JSON.stringify(vi.mocked(logger.debug).mock.calls)).not.toContain('pi_ephemeral');
+});
+
+it('forwards a caller-owned abort signal for a read-only POST lifetime', async () => {
+  mockApi.post.mockResolvedValueOnce({ items: [] });
+  const controller = new AbortController();
+  const { result } = renderHook(() =>
+    useApiMutation({ method: 'POST', componentName: 'SmsArchive', retainResponse: false })
+  );
+  await act(async () => {
+    await result.current.mutate('/sms/search', {}, { signal: controller.signal });
+  });
+  expect(mockApi.post).toHaveBeenCalledWith('/sms/search', {}, { signal: controller.signal });
+});
+
+it('treats a caller-cancelled read as cancellation without publishing or logging an error', async () => {
+  const controller = new AbortController();
+  controller.abort();
+  const aborted = new DOMException('Read cancelled', 'AbortError');
+  mockApi.post.mockRejectedValueOnce(aborted);
+  const onError = vi.fn();
+  const { result } = renderHook(() =>
+    useApiMutation({ method: 'POST', componentName: 'SmsArchive', onError })
+  );
+  await act(async () => {
+    await expect(
+      result.current.mutate('/sms/search', {}, { signal: controller.signal })
+    ).rejects.toBe(aborted);
+  });
+  expect(logger.error).not.toHaveBeenCalled();
+  expect(onError).not.toHaveBeenCalled();
+  expect(result.current.error).toBeNull();
+  expect(result.current.loading).toBe(false);
+});

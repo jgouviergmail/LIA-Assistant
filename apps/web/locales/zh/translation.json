@@ -392,6 +392,13 @@
           "held_by_peers": "交给协作伙伴",
           "more_one": "还有 {{count}} 个",
           "more_other": "还有 {{count}} 个"
+        },
+        "sms": {
+          "title": "我的短信",
+          "empty": "暂无归档短信。",
+          "total": "已归档",
+          "received": "此期间",
+          "open": "打开我的短信"
         }
       },
       "updated_hours_ago": "{{hours}} 小时前",
@@ -2824,7 +2831,8 @@
           "jev_hitl_rejection": "仅识别对所有提议操作的明确拒绝。批准、修改、部分拒绝或歧义仍由现有分类器处理。JEV 不能批准任何操作。",
           "jev_parameter_kind": "调用工具前，判断每个地址、地点或电子邮件参数值属于哪一类。只有确定的判断才能拒绝类型不符的值（人名、电话号码、日期）。不确定或失败的判断交由现有防护决定，JEV 也不能接受现有防护拒绝的任何值。",
           "jev_email_classification": "根据已获取的邮件信息给出参考类别和单一关注级别。不确定时不显示徽章，不额外读取邮件、链接或附件。",
-          "jev_event_classification": "根据已获取的日程信息判断工作或私人类别。不确定时不显示徽章，日程本身保持不变。"
+          "jev_event_classification": "根据已获取的日程信息判断工作或私人类别。不确定时不显示徽章，日程本身保持不变。",
+          "sms_agent": "经你授权读取已接收短信的领域助手"
         },
         "voiceTts": {
           "sectionTitle": "语音和提供商设置",
@@ -4743,7 +4751,8 @@
         "sandbox-egress": "沙盒, python, 脚本, 网络, 互联网, 代理, 主机, 授权, 允许, 撤销, 出口, API, 集成, 技能, 命令, npm, git, pip, 沙盒网络",
         "live-mode": "实时, 语音, 对话, Gemini Live, GPT-Live, OpenAI, ElevenLabs, 代理, 直接会话, 委托, 模型, 思考深度, 静默, 时长, 花费上限, 打断, 按住说话, 麦克风, 待机, 进入待机, 唤醒, 睡眠, 实时模式",
         "radio": "电台, 广播, 播客, 新闻, 新闻简报, 头条, 新闻标题, 分析, 评论, 社论, 声音, 音乐, 定时, 来源, 网站, 订阅源, RSS, 核查, 收听, 陪伴, 评论员, 辩论, 讨论, 漫谈, 评论员的声音, 反应, 轻笑, 笑声, 叹息",
-        "admin-jev": "JEV, TypeSafe, 开关, 延迟, 决策, 会议, 纪要模板, 回退 分类 网络钓鱼 诈骗 严重 紧急"
+        "admin-jev": "JEV, TypeSafe, 开关, 延迟, 决策, 会议, 纪要模板, 回退 分类 网络钓鱼 诈骗 严重 紧急",
+        "sms": "短信 消息 手机 iphone 快捷指令 接收 发件人 档案 令牌"
       },
       "results_count_other": "找到 {{count}} 项设置"
     },
@@ -5045,6 +5054,12 @@
     }
   },
   "relations": {
+    "debrief_stale": "短信已更改。请重新生成摘要以更新内容。",
+    "sms_title": "短信",
+    "sms_unavailable": "短信来源不可用。",
+    "sms_open": "打开此短信",
+    "sms_count": "{{count}} 条短信",
+    "section_sms": "短信",
     "title": "人际关系",
     "subtitle": "LIA 掌握的、关于你所往来之人的一切——未了的承诺、通话、转达的消息与记忆，集中于一处。",
     "empty": "暂无关系。随着 LIA 跟进承诺、拨打电话并转达消息，相关的人会出现在这里。",
@@ -5764,6 +5779,11 @@
       "delete_lia_health_samples": "正在准备删除健康测量...",
       "revoke_lia_health_ingestion_token": "正在准备撤销健康令牌...",
       "create_lia_health_ingestion_token": "正在准备创建健康令牌...",
+      "create_lia_sms_ingestion_token": "正在准备创建短信令牌…",
+      "revoke_lia_sms_ingestion_token": "正在准备撤销短信令牌…",
+      "update_lia_sms_preferences": "正在准备短信设置…",
+      "set_lia_sms_sender_block": "正在准备屏蔽短信发件人…",
+      "delete_lia_sms": "正在准备删除短信…",
       "update_lia_relation_settings": "正在准备关系设置...",
       "get_lia_relations": "正在读取关系卡片...",
       "get_lia_relation_context": "正在读取关系的外部来源...",
@@ -5890,7 +5910,10 @@
       "regenerate_lia_meeting_report": "重新生成会议纪要",
       "retry_lia_meeting": "重试会议处理",
       "get_lia_meeting_recorder": "录音器状态",
-      "control_lia_meeting_recording": "控制录音器"
+      "control_lia_meeting_recording": "控制录音器",
+      "list_sms": "正在读取你的短信…",
+      "search_sms": "正在搜索你的短信…",
+      "get_sms": "正在读取短信…"
     },
     "reasoning": {
       "title": "推理"
@@ -9269,7 +9292,7 @@
       "settings": {
         "title": "设置",
         "description": "账户配置和偏好设置",
-        "count": "30",
+        "count": "31",
         "questions": {
           "q1": {
             "question": "如何更改时区？",
@@ -9390,6 +9413,10 @@
           "q30": {
             "question": "我告诉 LIA 的某个事实发生变化时会怎样？",
             "answer": "只要告诉 LIA——<em>我女儿叫 Elsa，不是 Emma</em>——它的记忆就会随之更新。LIA 会在后台审视你说的话：旧的记忆会被<strong>停用并注明日期</strong>，即它不再成立的日期，新的记忆取而代之。<br><br><strong>🚫 回答中不会出现过时的事实：</strong>已停用的记忆不会再被召回，<strong>设置 › 功能 › 身份与记忆 › 长期记忆</strong>只列出 LIA 认为今天仍然成立的内容。<br><br><strong>🧾 简短的痕迹：</strong>已停用的版本会保留一段时间（由管理员设定），然后被永久删除。<br><br><strong>📌 两个例外：</strong><br>• <strong>已固定</strong>的记忆绝不会被自动更改——请自己编辑它<br>• 你在「设置」中所做的编辑会直接替换该记忆：你的更正就是权威，而不是一个需要存档的版本"
+          },
+          "q31": {
+            "question": "如何把短信发送给 LIA 并控制其用途？",
+            "answer": "<p>在<strong>设置 → 我的短信</strong>（会议之后）中，为手机创建并确认令牌。iPhone 快捷指令自动化通过 HTTPS POST 发送发件人、含时区的 ISO 日期、正文和来源 iphone；令牌放在 Authorization 请求头中。重试时保留同一事件 ID 和相同内容。</p><p>个人存档保留至手动删除。<strong>助手</strong>访问默认关闭，与接收和即时接收推送分别控制。主动通知另有“我的短信”来源及时间设置。识别出的访问密钥在存储前排除；该启发式方法无法识别所有私人文本。</p><p>个人导出包含可读短信。删除会使托管导出失效，但无法收回已下载的副本、以前的聊天或单独保留的知识。LIA 只接收快捷指令实际发送的内容；请在手机上核实 iOS 触发条件和权限。</p>"
           }
         }
       },
@@ -12738,6 +12765,7 @@
       "error": "发送反馈时出错"
     },
     "source_health_signals": "健康",
+    "source_sms": "我的短信",
     "source_birthdays": "生日",
     "source_open_loops": "承诺事项",
     "source_workboard": "工作看板",
@@ -15226,9 +15254,9 @@
         "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p><strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）通过 <code>encrypt_data()</code> 保护 OAuth 令牌、连接器和 MCP 凭据及指定存储字段。服务在需要时解密这些值。选择性加密并不覆盖每个个人字段：对话消息以数据库文本保存。实例运营者控制密钥和数据库访问。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>保存在你的实例中的对话历史</li><li>服务连接令牌（加密）</li><li>采用化名标识符的使用指标</li></ul><h2>运营者与配置的服务商</h2><p>运营者可能具有对存储数据的技术访问权限。配置的模型接收问题及有用上下文，如所选记忆或文档摘录；语音、图像和其他连接服务接收相应功能所需的数据。其隐私、数据保留及可能用于训练的政策适用。本地存储与访问控制不能替代服务商协议和设置。</p><h2>删除与级联</h2><p>账户删除流程清理对话、记忆、连接器、文档及关联存储中的个人内容。账务记录保留；删除步骤可为账务联系保留姓名和邮箱，最终擦除删除账户数据行。审计或诊断记录可能按其政策保留身份信息，备份遵循运营者的保留政策。重新激活不会恢复已清理的内容。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择「记住我」可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>经过过滤的运行日志</h2><p>遵循 <strong>OWASP 日志备忘录</strong>，debug 级别以上的一行日志只携带<strong>事实</strong>——数量、长度、标识符、错误代码、URL 的主机名——绝不携带某人写下的文字，或模型关于他们写下的文字：没有搜索内容，没有兴趣，没有文件、标签或空间的名称，也没有浏览过的网页。</p><p>这条规则<strong>按值</strong>核查，而不是按字段名：一项测试会读取代码中的每一个日志调用，拒绝预览或任何由内容派生的值，无论它叫什么名字。错误信息所<strong>引用</strong>的内容——被 PostgreSQL 拒绝的值、校验的输入——会在写入日志之前被移除，数据库错误以其事实描述：代码、约束、表。服务商密钥在每个被记录的地址中都会被遮蔽。指标和追踪遵循同一规则：它们按模式记录所走的路由，绝不记录地址中包含的名字或搜索词。有两个限制照实说明：外部服务以未知格式返回的错误仍可能引用某个值；debug 级别（生产环境中关闭）会保留更多内容。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数，从而防止访问其他用户的数据（IDOR防护）。</p><h2>恢复经过验证的备份</h2><p>生产部署提供夜间备份和恢复检查工具，默认保留 7 天、4 周和 6 个月，由运营者启用并监控。检查会将最新转储恢复到临时数据库，并与源数据库比较结构版本和行数。实际恢复范围仍取决于成功备份和所选策略。</p><h2>一份完整的记录，而不是一份样本</h2><p>三本自动维护的登记簿分别说明 LIA 为你<strong>做</strong>了什么、为回答你而<strong>查阅</strong>了什么，以及她<strong>自行着手</strong>做了什么。它们不承载任何内容：一次查阅只保留能力本身——「你的日历」——绝不保留搜索内容，因为写下来就等于抄录了这本登记簿正是为其问责而存在的那份数据。</p><p>你从<strong>登记簿</strong>页面下载的记录是<strong>完整</strong>的。它此前带有行数上限：那是一种真实的保护，因为整份文档要在 Raspberry Pi 上于内存中拼装——但它被施加在了错误的变量上。稀缺的是内存；被限制的却是真相。服务端游标如今限制的是缓冲区：无论数据量多大，文件都承载你的筛选条件所指定的全部内容，文件头写明确切行数与生成时刻，并在你的浏览器接受时顺带压缩。</p><h2>命令与私密续接</h2><p>密钥、文件选择、账户连接和浏览器授权通过操作专用的安全界面完成，而不是由模型构造参数。命令绑定账户及其授权上下文，写入前会再次检查权限和资源版本。命令内容加密并不代表整个服务对运营者不可见；消息和运行所需数据仍受本页所述限制。</p><p>确认针对展示的操作及其内容。OAuth 登录、文件选择、密钥和设备权限在已登录的浏览器中继续：不要把这些秘密粘贴到聊天中。LIA 可以先准备请求，再等待这一步。启用免提监听和敏感权限保留原有保护，命令不能绕过它们。</p>"
       },
       "observability": {
-        "title": "621个Prometheus指标、31个Grafana仪表板和Langfuse追踪",
-        "excerpt": "LIA提供企业级可观测性：621个指标、专用Grafana仪表板、通过Langfuse的LLM追踪，以及带运维手册的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 621个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能，按路由模板打标签：绝不出现名字或搜索词</li><li><strong>日志</strong> — 通过 structlog 生成结构化 JSON 日志，由 Grafana Alloy 收集并集中在 Loki 中：运行日志会过滤个人内容，debug 模式可能保留更多细节</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪，按路由模板命名，绝不使用具体地址；以及通过Langfuse的LLM追踪</li></ul><h2>43个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。43个模块覆盖的领域包括：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、Live 模式、电台、RAG空间、OAuth、MCP、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日记、电话、会议、workboard、操作登记簿和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>31个Grafana仪表板</h2><p>LIA提供31个编号01至31的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings、effect-ledger、workboard、live 和 radio。每个仪表板提供按用户、时间段和环境可过滤的视图。第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与运维手册</h2><p>监控不止于仪表板：一个由关键告警组成的核心——其中包括 API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的运维手册（runbook，分步解决流程），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。流式延迟告警只观察有人在等待的轮次——例程也走同一套代码，但没有人在等它——并且只在轮次足够多、第 95 百分位数有意义时才会触发；若某个事件的恢复通知丢失，它会在与 Alertmanager 核对后关闭。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成追踪每次LLM调用——消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文——另有七个自有的Prometheus指标，跟踪提示版本、评估分数、A/B 变体、追踪深度以及智能体之间的交接。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。只需说一句「查看日志，看看一切是否正常」，Claude Code CLI——安装在API Docker容器中——就会独立检查日志、验证容器健康状况、分析资源使用情况，并报告其发现。支持持久会话进行多轮调查、按环境配置权限（生产环境只读，开发环境完全访问），以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；告警与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p><p>同样的原则也追上了工具成功率。工具失败的方式是<em>返回</em>一个失败，而不是抛出异常，而计数器只看异常：成功率从结构上就恒为 1.0，读取它的两条告警根本无法触发。如今由唯一的谓词决定什么算成功，供登记簿、指标和 ReAct 循环共同使用——显示的成功率下降了，因为它终于说了真话。</p><h2>互相关联的信号</h2><p>一个指标、一行日志和一条追踪讲述的是同一个请求——前提是你能从一个跳到另一个。在 LIA 中，一行日志可以打开其请求的追踪，一条追踪可以打开它的日志和指标，一个延迟点可以打开产生它的那个具体样例。每一个链接在修复之前都先在生产环境中测量过。承载这些信号的链路本身也受到监控——如果日志在途中丢失，会有告警提醒——所有仪表板都遵循同一个约定：一周的历史，一个共用菜单。</p>"
+        "title": "623个Prometheus指标、31个Grafana仪表板和Langfuse追踪",
+        "excerpt": "LIA提供企业级可观测性：623个指标、专用Grafana仪表板、通过Langfuse的LLM追踪，以及带运维手册的邮件告警。",
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 623个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能，按路由模板打标签：绝不出现名字或搜索词</li><li><strong>日志</strong> — 通过 structlog 生成结构化 JSON 日志，由 Grafana Alloy 收集并集中在 Loki 中：运行日志会过滤个人内容，debug 模式可能保留更多细节</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪，按路由模板命名，绝不使用具体地址；以及通过Langfuse的LLM追踪</li></ul><h2>43个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。43个模块覆盖的领域包括：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、Live 模式、电台、RAG空间、OAuth、MCP、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日记、电话、会议、workboard、操作登记簿和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>31个Grafana仪表板</h2><p>LIA提供31个编号01至31的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings、effect-ledger、workboard、live 和 radio。每个仪表板提供按用户、时间段和环境可过滤的视图。第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与运维手册</h2><p>监控不止于仪表板：一个由关键告警组成的核心——其中包括 API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的运维手册（runbook，分步解决流程），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。流式延迟告警只观察有人在等待的轮次——例程也走同一套代码，但没有人在等它——并且只在轮次足够多、第 95 百分位数有意义时才会触发；若某个事件的恢复通知丢失，它会在与 Alertmanager 核对后关闭。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成追踪每次LLM调用——消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文——另有七个自有的Prometheus指标，跟踪提示版本、评估分数、A/B 变体、追踪深度以及智能体之间的交接。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。只需说一句「查看日志，看看一切是否正常」，Claude Code CLI——安装在API Docker容器中——就会独立检查日志、验证容器健康状况、分析资源使用情况，并报告其发现。支持持久会话进行多轮调查、按环境配置权限（生产环境只读，开发环境完全访问），以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；告警与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p><p>同样的原则也追上了工具成功率。工具失败的方式是<em>返回</em>一个失败，而不是抛出异常，而计数器只看异常：成功率从结构上就恒为 1.0，读取它的两条告警根本无法触发。如今由唯一的谓词决定什么算成功，供登记簿、指标和 ReAct 循环共同使用——显示的成功率下降了，因为它终于说了真话。</p><h2>互相关联的信号</h2><p>一个指标、一行日志和一条追踪讲述的是同一个请求——前提是你能从一个跳到另一个。在 LIA 中，一行日志可以打开其请求的追踪，一条追踪可以打开它的日志和指标，一个延迟点可以打开产生它的那个具体样例。每一个链接在修复之前都先在生产环境中测量过。承载这些信号的链路本身也受到监控——如果日志在途中丢失，会有告警提醒——所有仪表板都遵循同一个约定：一周的历史，一个共用菜单。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：155个提示作为代码管理",
@@ -16050,7 +16078,8 @@
       "meetings": "会议",
       "bookmarks": "书签",
       "live": "实时语音",
-      "radio": "电台"
+      "radio": "电台",
+      "sms": "我的短信"
     },
     "items": {
       "avatar": "说话头像",
@@ -16119,7 +16148,8 @@
       "skill_library": "技能库",
       "skill_library_description": "在技能门户中搜索，从技能的 GitHub 仓库安装并更新它。关闭后技能库不可用；已安装的技能会保留并继续运行。",
       "application_tools": "LIA 设置与管理",
-      "application_tools_description": "允许 LIA 查询应用信息，并在确认后执行所请求的更改。管理功能仍仅限管理员使用。"
+      "application_tools_description": "允许 LIA 查询应用信息，并在确认后执行所请求的更改。管理功能仍仅限管理员使用。",
+      "sms": "我的短信"
     }
   },
   "showroom": {
@@ -17228,7 +17258,8 @@
       "peer_image_share": "与互联用户分享了一张图片",
       "email_share": "已向 {{count}} 位收件人发送电子邮件",
       "skill_proposal_install": "已将技能「{{target}}」加入你的资料库",
-      "peer_capability_share": "与互联用户分享扩展"
+      "peer_capability_share": "与互联用户分享扩展",
+      "sms_notification": "短信通知"
     },
     "export": {
       "group_label": "导出此登记簿",
@@ -17279,6 +17310,7 @@
       "event": "日历",
       "file": "文件",
       "generated_file": "LIA 生成的文件",
+      "sms": "短信",
       "health": "健康数据",
       "hue": "智能照明",
       "image_generation": "图像生成",
@@ -18205,5 +18237,63 @@
     "phishing_scam": "网络钓鱼/诈骗",
     "urgent": "紧急",
     "critical": "严重"
+  },
+  "sms": {
+    "title": "我的短信",
+    "description": "将 iPhone 收到的短信保存在个人档案中。",
+    "archive": "查看我的短信",
+    "api": "数据接收 API",
+    "url": "短信 URL（POST）",
+    "payload": "快捷指令：POST JSON 字段为 sender、date（含时区的 ISO 8601）、body 和 o=\"iphone\"。请求头为 Content-Type: application/json 和 Authorization: Bearer 你的令牌。切勿将令牌粘贴到聊天中。",
+    "ingestion": "接收新短信",
+    "assistant": "助手访问权限",
+    "assistant_hint": "允许 LIA 阅读短信以回答问题、生成摘要和主动通知。默认关闭。",
+    "push": "每条新短信立即推送",
+    "push_hint": "不受主动通知时段限制，全天推送。推送不含短信正文。请同时启用设备通知。",
+    "filter_hint": "可识别的验证码、访问密钥及被屏蔽发件人的短信将在归档前排除。自动检测可能遗漏特殊密钥。其他短信（包括医疗和银行短信）会保留。",
+    "retention": "保留至手动删除。删除会使托管导出失效，但无法撤回下载副本，也不会删除既有聊天和记忆。",
+    "usage": "已归档 {{count}} 条短信",
+    "quota": "已用空间：{{used}} / {{max}}",
+    "receipts": "已处理事件：{{count}} / {{max}}",
+    "last_received": "最近收到的短信",
+    "deliveries": "推送已接受：{{sent}} · 等待：{{pending}} · 失败：{{failed}} · 未知：{{unknown}}",
+    "token_label": "来源名称",
+    "create_token": "创建令牌",
+    "tokens": "接收令牌",
+    "revoke": "撤销",
+    "rotate": "为此来源创建新令牌",
+    "revoked": "已撤销",
+    "no_tokens": "暂无令牌，请先连接 iPhone。",
+    "load_more": "显示更多",
+    "blocked": "已屏蔽的发件人",
+    "block_sender": "准确的发件人名称或号码",
+    "block": "屏蔽之后的短信",
+    "unblock": "取消屏蔽",
+    "management": "档案管理",
+    "erase_all": "删除我的所有短信",
+    "erase_range": "删除所选时段",
+    "from": "起始日期（含）",
+    "to": "结束日期（不含）",
+    "review": "核对更改",
+    "confirm": "确认此更改",
+    "unknown_result": "结果不确定。请先刷新数据再进行新操作。已创建的令牌无法再次显示，若未收到请将其撤销。",
+    "before": "更改前",
+    "after": "更改后",
+    "empty": "所选范围内暂无短信。",
+    "by_day": "按日期",
+    "by_sender": "按发件人",
+    "search": "搜索我的短信",
+    "search_button": "搜索",
+    "clear_search": "清除搜索",
+    "too_broad": "搜索范围过大，请添加词语、发件人或日期范围。",
+    "captured": "时间由“快捷指令”提供；确切接收时间未确认。",
+    "unavailable": "我的短信暂时不可用。",
+    "all_senders": "所有发件人",
+    "selected_count": "确认范围内有 {{count}} 条短信",
+    "on": "已开启",
+    "off": "已关闭",
+    "search_keywords": "短信 消息 手机 iphone 快捷指令 接收 发件人 档案 令牌",
+    "page_groups": "搜索分组仅包含当前页显示的短信。",
+    "new_received": "收到新短信"
   }
 }

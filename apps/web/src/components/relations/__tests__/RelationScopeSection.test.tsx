@@ -15,12 +15,14 @@
  *   lose every box just ticked).
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
+import * as relationHooks from '@/hooks/useRelations';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import type { RelationOverviewScope } from '@/hooks/useRelations';
 
-import { RelationScopeSection } from '../RelationScopeSection';
+import { RelationScopeSection, useScopeDraft } from '../RelationScopeSection';
 
 function scope(over: Partial<RelationOverviewScope> = {}): RelationOverviewScope {
   return {
@@ -50,12 +52,13 @@ async function renderScope(over: Partial<RelationOverviewScope> = {}, props = {}
 }
 
 describe('RelationScopeSection', () => {
-  it('offers every source, direction and role, pre-ticked', async () => {
+  it('offers all sources and preserves the previous explicit selection', async () => {
     await renderScope();
     const boxes = screen.getAllByRole('checkbox');
-    // 7 sources + 2 directions + 2 roles.
-    expect(boxes).toHaveLength(11);
-    expect(boxes.every(box => (box as HTMLInputElement).checked)).toBe(true);
+    // 8 sources + 2 directions + 2 roles.
+    expect(boxes).toHaveLength(12);
+    expect(screen.getByRole('checkbox', { name: 'relations.section_sms' })).not.toBeChecked();
+    expect(boxes.filter(box => (box as HTMLInputElement).checked)).toHaveLength(11);
   });
 
   it('pre-fills from the STORED scope, not from "everything"', async () => {
@@ -148,5 +151,40 @@ describe('RelationScopeSection', () => {
       'aria-expanded',
       'false'
     );
+  });
+});
+
+describe('SMS requires an explicit 360 selection', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('does not submit SMS while the stored scope is still loading, but keeps an explicit draft', async () => {
+    const save = vi.fn().mockResolvedValue(true);
+    vi.spyOn(relationHooks, 'useOverviewScope').mockReturnValue({
+      scope: null,
+      loading: true,
+      saving: false,
+      save,
+    });
+    const { result } = renderHook(() => useScopeDraft());
+    await result.current.commit();
+    expect(save).toHaveBeenLastCalledWith(scope());
+    expect(result.current.scope.sections).not.toContain('sms');
+
+    const explicit = scope({ sections: ['sms'] });
+    act(() => result.current.setDraft(explicit));
+    await result.current.commit();
+    expect(save).toHaveBeenLastCalledWith(explicit);
+  });
+
+  it('preserves a previously explicit SMS selection from the server', () => {
+    const explicit = scope({ sections: ['sms'] });
+    vi.spyOn(relationHooks, 'useOverviewScope').mockReturnValue({
+      scope: explicit,
+      loading: false,
+      saving: false,
+      save: vi.fn(),
+    });
+    const { result } = renderHook(() => useScopeDraft());
+    expect(result.current.scope).toBe(explicit);
   });
 });

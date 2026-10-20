@@ -600,3 +600,64 @@ describe('routeNotification', () => {
     }
   );
 });
+
+describe('SMS reception signals', () => {
+  const owner = '11111111-1111-4111-8111-111111111111';
+  const other = '22222222-2222-4222-8222-222222222222';
+  const signal = {
+    type: 'sms_received',
+    user_id: owner,
+    message_id: '33333333-3333-4333-8333-333333333333',
+    occurrence_id: '44444444-4444-4444-8444-444444444444',
+    url: '/en/dashboard/sms?message=33333333-3333-4333-8333-333333333333',
+  };
+  it('deduplicates SSE plus foreground FCM before callbacks and never adds a chat notification', () => {
+    const onSmsReceived = vi.fn(),
+      onNotification = vi.fn();
+    const { source, result } = connected({
+      ownerId: owner,
+      enableFCM: true,
+      onSmsReceived,
+      onNotification,
+    });
+    const receive = onForegroundMessage.mock.calls.at(-1)?.[0];
+    if (!receive) throw new Error('Missing foreground receiver');
+    act(() => source.emit(signal));
+    act(() => receive({ from: 'fixture', messageId: 'fixture', collapseKey: 'sms', data: signal }));
+    expect(onSmsReceived).toHaveBeenCalledOnce();
+    expect(result.current.notifications).toEqual([]);
+    expect(onNotification).not.toHaveBeenCalled();
+  });
+  it('refuses a different owner and queued events after an account switch', () => {
+    const onSmsReceived = vi.fn();
+    const { rerender } = renderHook(
+      ({ ownerId }) =>
+        useNotifications({ isAuthenticated: true, ownerId, enableFCM: true, onSmsReceived }),
+      { initialProps: { ownerId: owner } }
+    );
+    const old = live();
+    const queued = onForegroundMessage.mock.calls.at(-1)?.[0];
+    rerender({ ownerId: other });
+    act(() => old.emit(signal));
+    act(() =>
+      queued?.({ from: 'fixture', messageId: 'fixture', collapseKey: 'sms', data: signal })
+    );
+    act(() => live().emit(signal));
+    expect(onSmsReceived).not.toHaveBeenCalled();
+    act(() => live().emit({ ...signal, user_id: other }));
+    expect(onSmsReceived).toHaveBeenCalledOnce();
+  });
+  it('invalidates SMS reads after a dropped stream reopens, even without a replayed event', async () => {
+    const { subscribeApplicationResource } = await import('@/lib/application-resources');
+    const read = vi.fn();
+    const unsubscribe = subscribeApplicationResource(owner, 'sms', read);
+    vi.useFakeTimers();
+    const { source } = connected({ ownerId: owner });
+    expect(read).not.toHaveBeenCalled();
+    act(() => source.fail());
+    act(() => vi.advanceTimersByTime(RECONNECT_DELAY_MS));
+    act(() => live().onopen?.());
+    expect(read).toHaveBeenCalledOnce();
+    unsubscribe();
+  });
+});

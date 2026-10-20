@@ -392,6 +392,13 @@
           "held_by_peers": "Bei Peers",
           "more_one": "und {{count}} weiteres",
           "more_other": "und {{count}} weitere"
+        },
+        "sms": {
+          "title": "Meine SMS",
+          "empty": "Keine archivierten SMS.",
+          "total": "Archiviert",
+          "received": "In diesem Zeitraum",
+          "open": "Meine SMS öffnen"
         }
       },
       "updated_hours_ago": "vor {{hours}} Std",
@@ -2816,7 +2823,8 @@
           "jev_hitl_rejection": "Erkennt nur eine ausdrückliche Ablehnung aller vorgeschlagenen Aktionen. Zustimmung, Änderungen, teilweise Ablehnungen und Unklarheiten nutzen den bestehenden Klassifikator. JEV kann keine Aktion genehmigen.",
           "jev_parameter_kind": "Prüft vor einem Werkzeugaufruf, was jeder Adress-, Orts- oder E-Mail-Wert ist. Nur ein sicheres Urteil kann einen Wert anderer Art ablehnen (einen Personennamen, eine Telefonnummer, ein Datum). Ein unsicheres oder fehlgeschlagenes Urteil überlässt die Entscheidung der bestehenden Prüfung, und JEV kann keinen Wert zulassen, den diese Prüfung ablehnt.",
           "jev_email_classification": "Ordnet bereits verfügbare E-Mail-Inhalte einer unverbindlichen Kategorie und einer Aufmerksamkeitsstufe zu. Bei Unsicherheit kein Badge. Keine zusätzlichen Nachrichten, Links oder Anhänge werden abgerufen.",
-          "jev_event_classification": "Ordnet bereits verfügbare Termininhalte als beruflich oder privat ein. Bei Unsicherheit kein Badge; der Termin bleibt unverändert."
+          "jev_event_classification": "Ordnet bereits verfügbare Termininhalte als beruflich oder privat ein. Bei Unsicherheit kein Badge; der Termin bleibt unverändert.",
+          "sms_agent": "Domänenagent zum Lesen empfangener SMS mit deiner Zustimmung"
         },
         "voiceTts": {
           "sectionTitle": "Stimme & Provider-Einstellungen",
@@ -4736,7 +4744,8 @@
         "sandbox-egress": "Sandbox, Python, Skript, Netzwerk, Internet, Proxy, Hosts, Freigaben, erlauben, widerrufen, Ausgang, API, Integration, Skill, Befehl, npm, git, pip, Netzwerk der Sandbox",
         "live-mode": "Live, Echtzeit, Sprache, Stimme, Gemini Live, GPT-Live, OpenAI, ElevenLabs, Agent, direkte Sitzung, Delegation, Modell, Denkstufe, Stille, Dauer, Ausgabengrenze, Unterbrechungen, Push-to-Talk, Gespräch, Mikrofon, Standby, schlafen, aufwecken, eingeschlafen, Live-Modus",
         "radio": "Radio, Sender, Podcast, Nachrichten, Schlagzeilen, Analyse, Kolumne, Stimmen, Musik, Timer, Quellen, Websites, Feeds, RSS, Prüfung, Hören, in Gesellschaft, Kommentatoren, Standpunkte, Debatte, Diskussion, Gesprächsrunde, Stimmen der Kommentatoren, Reaktionen, leises Lachen, Lachen, Seufzer",
-        "admin-jev": "JEV, TypeSafe, Schalter, Latenz, Entscheidung, Besprechung, Berichtsvorlage, Rückfall Klassifizierung Phishing Betrug kritisch dringend"
+        "admin-jev": "JEV, TypeSafe, Schalter, Latenz, Entscheidung, Besprechung, Berichtsvorlage, Rückfall Klassifizierung Phishing Betrug kritisch dringend",
+        "sms": "sms nachricht telefon iphone kurzbefehle import absender archiv token"
       }
     },
     "haptics": {
@@ -5037,6 +5046,12 @@
     }
   },
   "relations": {
+    "debrief_stale": "Die SMS haben sich geändert. Erstellen Sie die Zusammenfassung erneut.",
+    "sms_title": "SMS",
+    "sms_unavailable": "SMS-Quelle nicht verfügbar.",
+    "sms_open": "Diese SMS öffnen",
+    "sms_count": "{{count}} SMS",
+    "section_sms": "SMS",
     "title": "Beziehungen",
     "subtitle": "Alles, was LIA über die Menschen weiß, mit denen du zu tun hast — offene Zusagen, Anrufe, weitergeleitete Nachrichten und Erinnerungen an einem Ort.",
     "empty": "Noch keine Beziehung. Sobald LIA Zusagen verfolgt, Anrufe tätigt und Nachrichten weiterleitet, erscheinen die beteiligten Personen hier.",
@@ -5769,6 +5784,11 @@
       "delete_lia_health_samples": "Löschen der Gesundheitsmessungen wird vorbereitet...",
       "revoke_lia_health_ingestion_token": "Widerruf des Gesundheits-Tokens wird vorbereitet...",
       "create_lia_health_ingestion_token": "Erstellen des Gesundheits-Tokens wird vorbereitet...",
+      "create_lia_sms_ingestion_token": "SMS-Token wird zur Erstellung vorbereitet…",
+      "revoke_lia_sms_ingestion_token": "SMS-Token wird zum Widerruf vorbereitet…",
+      "update_lia_sms_preferences": "SMS-Einstellungen werden vorbereitet…",
+      "set_lia_sms_sender_block": "SMS-Absenderblockierung wird vorbereitet…",
+      "delete_lia_sms": "SMS-Löschung wird vorbereitet…",
       "update_lia_relation_settings": "Beziehungseinstellungen werden vorbereitet...",
       "get_lia_relations": "Beziehungskarten werden gelesen...",
       "get_lia_relation_context": "Externe Beziehungsquellen werden gelesen...",
@@ -5895,7 +5915,10 @@
       "regenerate_lia_meeting_report": "Besprechungsprotokoll neu erstellen",
       "retry_lia_meeting": "Besprechungsverarbeitung erneut starten",
       "get_lia_meeting_recorder": "Rekorderstatus",
-      "control_lia_meeting_recording": "Rekorder steuern"
+      "control_lia_meeting_recording": "Rekorder steuern",
+      "list_sms": "Deine SMS werden gelesen…",
+      "search_sms": "Deine SMS werden durchsucht…",
+      "get_sms": "SMS wird gelesen…"
     },
     "reasoning": {
       "title": "Überlegung"
@@ -9274,7 +9297,7 @@
       "settings": {
         "title": "Einstellungen",
         "description": "Kontokonfiguration und Einstellungen",
-        "count": "30",
+        "count": "31",
         "questions": {
           "q1": {
             "question": "Wie ändere ich meine Zeitzone?",
@@ -9395,6 +9418,10 @@
           "q30": {
             "question": "Was passiert, wenn sich ein Fakt ändert, den ich LIA erzählt habe?",
             "answer": "Sag es LIA einfach — <em>meine Tochter heißt Elsa, nicht Emma</em> —, und ihr Gedächtnis folgt. Im Hintergrund prüft LIA, was du gesagt hast: Die alte Erinnerung wird <strong>mit dem Datum ausgemustert</strong>, an dem sie nicht mehr zutraf, und die neue tritt an ihre Stelle.<br><br><strong>🚫 Keine veralteten Fakten in Antworten:</strong> Eine ausgemusterte Erinnerung wird nie wieder abgerufen, und <strong>Einstellungen › Funktionen › Identität &amp; Gedächtnis › Langzeitgedächtnis</strong> listet nur auf, was LIA heute für wahr hält.<br><br><strong>🧾 Eine kurze Spur:</strong> Die ausgemusterte Fassung wird für einen Zeitraum aufbewahrt, den dein Administrator festlegt, und dann endgültig gelöscht.<br><br><strong>📌 Zwei Ausnahmen:</strong><br>• eine <strong>angeheftete</strong> Erinnerung wird nie automatisch geändert — bearbeite sie selbst<br>• eine Bearbeitung, die du in den Einstellungen vornimmst, ersetzt die Erinnerung direkt: Deine Korrektur ist maßgeblich, keine zu archivierende Fassung"
+          },
+          "q31": {
+            "question": "Wie sende ich SMS an LIA und bestimme ihre Nutzung?",
+            "answer": "<p>Erstelle und bestätige unter <strong>Einstellungen → Meine SMS</strong>, nach Besprechungen, ein Token für dein Telefon. Eine iPhone-Kurzbefehle-Automation sendet Absender, ISO-Datum mit Zeitzone, Text und Herkunft iphone per HTTPS-POST; das Token steht im Authorization-Header. Verwende bei Wiederholungen dieselbe Ereignis-ID und dieselben Daten.</p><p>Das persönliche Archiv bleibt bis zur manuellen Löschung. Der Zugriff des <strong>Assistenten</strong> ist zunächst deaktiviert, unabhängig von Empfang und sofortiger Push-Mitteilung. Proaktive Hinweise haben zusätzlich die Quelle Meine SMS und eigene Zeitfenster. Erkannte Zugangsdaten werden vor der Speicherung ausgeschlossen; die Heuristik erkennt nicht jeden privaten Text.</p><p>Der persönliche Export enthält lesbare SMS. Löschen macht gehostete Exporte ungültig, ruft aber keine heruntergeladenen Kopien, früheren Chats oder getrennt bewahrtes Wissen zurück. LIA erhält nur, was Kurzbefehle sendet; prüfe iOS-Kriterien und Berechtigungen am Telefon.</p>"
           }
         }
       },
@@ -12743,6 +12770,7 @@
       "error": "Fehler beim Senden des Feedbacks"
     },
     "source_health_signals": "Gesundheit",
+    "source_sms": "Meine SMS",
     "source_birthdays": "Geburtstage",
     "source_open_loops": "Verpflichtungen",
     "source_workboard": "Aufgabenboard",
@@ -15231,9 +15259,9 @@
         "body": "<h2>Privacy by Design</h2><p>LIA ist von Anfang an mit Datenschutz als Grundprinzip konzipiert, nicht als nachträgliche Ergänzung.</p><h2>Symmetrische Fernet-Verschlüsselung</h2><p><strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) schützt über <code>encrypt_data()</code> OAuth-Token, Konnektor- und MCP-Zugangsdaten sowie bestimmte gespeicherte Felder. Dienste entschlüsseln diese Werte bei Bedarf. Die gezielte Verschlüsselung umfasst nicht alle persönlichen Felder: Gesprächsnachrichten liegen als Datenbanktext vor. Der Instanzbetreiber kontrolliert Schlüssel und Datenbankzugriff.</p><h2>Minimierung der Datenerhebung</h2><p>LIA erhebt nur die für seinen Betrieb strikt notwendigen Daten:</p><ul><li>Profilinformationen (Name, E-Mail, Präferenzen)</li><li>Konversationsverlauf auf deiner Instanz</li><li>Verbindungs-Token zu Diensten (verschlüsselt)</li><li>Nutzungsmetriken mit pseudonymen Kennungen</li></ul><h2>Betreiber und konfigurierte Anbieter</h2><p>Der Betreiber kann technischen Zugriff auf gespeicherte Daten haben. Das konfigurierte Modell erhält die Frage und nötigen Kontext, etwa ausgewählte Erinnerungen oder Dokumentauszüge; Sprach-, Bild- und andere Dienste erhalten, was ihre Funktionen benötigen. Ihre Datenschutz-, Aufbewahrungs- und möglichen Trainingsrichtlinien gelten. Lokale Speicherung und Zugriffskontrollen ersetzen Anbietervereinbarungen und Einstellungen nicht.</p><h2>Löschung und Kaskadierung</h2><p>Die Kontolöschung entfernt persönliche Inhalte aus Gesprächen, Erinnerungen, Konnektoren, Dokumenten und zugehörigen Speichern. Abrechnungsdaten bleiben; die Löschung kann Namen und E-Mail als Abrechnungskontakt behalten, während die endgültige Auslöschung den Kontodatensatz löscht. Audit- oder Diagnoseaufzeichnungen können nach ihren Richtlinien Angaben zur Identität behalten; Backups folgen der Aufbewahrung des Betreibers. Eine Reaktivierung stellt entfernte Inhalte nicht wieder her.</p><h2>Sichere Sitzungen und Cookies</h2><p>Die Sitzungs-Cookies sind mit den Attributen <code>HttpOnly</code>, <code>Secure</code> (in Produktion) und <code>SameSite=lax</code> konfiguriert. Die Sitzungsdauer beträgt standardmäßig 7 Tage, erweiterbar auf 30 Tage mit der Option \"Angemeldet bleiben\". Einmal-Token werden nach der ersten Verwendung über eine Redis-Sperrliste ungültig gemacht.</p><h2>Schutz externer Inhalte</h2><p>Inhalte, die aus externen Quellen abgerufen werden (E-Mails, Webseiten, Dokumente), werden vor der Injektion in die Prompts als <code>UNTRUSTED</code> mit konfigurierbarem Wrapping markiert. Das Tool web_fetch ist auf 10 Aufrufe pro 60-Sekunden-Fenster pro Benutzer rate-limitiert, um Missbrauch zu verhindern.</p><h2>Gefilterte Betriebslogs</h2><p>Nach dem <strong>OWASP Logging Cheat Sheet</strong> trägt eine Logzeile oberhalb der Debug-Stufe <strong>Fakten</strong> — Zahlen, Längen, Kennungen, Fehlercodes, den Host einer URL — und nie den Text, den eine Person geschrieben hat oder den ein Modell über sie geschrieben hat: keine Suche, kein Interesse, kein Name einer Datei, eines Labels oder eines Raums, keine besuchte Seite.</p><p>Die Regel wird <strong>am Wert</strong> geprüft, nicht am Feldnamen: Ein Test liest jeden Log-Aufruf des Codes und lehnt eine Vorschau oder einen aus Inhalt abgeleiteten Wert ab, wie auch immer er heißt. Was eine Fehlermeldung <strong>zitiert</strong> — ein von PostgreSQL abgelehnter Wert, die Eingabe einer Validierung —, wird entfernt, bevor die Zeile geschrieben wird, und ein Datenbankfehler wird durch seine Fakten beschrieben: Code, Constraint, Tabelle. Anbieterschlüssel werden in jeder protokollierten Adresse maskiert. Metriken und Traces folgen derselben Regel: Sie nennen die genommene Route nach ihrem Muster, nie den Namen oder die Suche, die eine Adresse enthält. Zwei Grenzen werden so genannt, wie sie sind: Der Fehler eines externen Dienstes in einem unbekannten Format kann noch einen Wert zitieren, und die Debug-Stufe — in der Produktion ausgeschaltet — behält mehr.</p><h2>Datenportabilität (v1.9.1)</h2><p>LIA ermöglicht jedem Benutzer den <strong>Export seiner persönlichen Verbrauchsdaten</strong> als CSV über Einstellungen > Funktionen. Drei Exporttypen: LLM-Verbrauch (Tokens und Kosten pro Aufruf), Google-API-Verbrauch und aggregierte Zusammenfassung. Sicherheit: Die <code>user_id</code> wird serverseitig erzwungen — kein Parameter wird offengelegt (IDOR-Schutz).</p><h2>Backups mit bewiesener Wiederherstellung</h2><p>Die Produktionsbereitstellung bietet Werkzeuge für nächtliche Backups und Wiederherstellungsprüfungen, mit einer Standardaufbewahrung von 7 Tagen, 4 Wochen und 6 Monaten. Der Betreiber aktiviert und überwacht sie. Die Prüfung stellt den neuesten Dump in einer Wegwerfdatenbank wieder her und vergleicht Schemaversion und Zeilenzahlen mit der Quelle. Die Wiederherstellung hängt weiter von erfolgreichen Backups und der gewählten Richtlinie ab.</p><h2>Eine vollständige Akte, keine Stichprobe</h2><p>Drei automatisch geführte Register sagen, was LIA für dich <strong>getan</strong> hat, was sie zur Antwort <strong>abgefragt</strong> hat und was sie <strong>von sich aus</strong> unternommen hat. Sie tragen keinen Inhalt: Eine Einsichtnahme behält die Fähigkeit — „dein Kalender“ — und nie den Suchinhalt, denn ihn aufzuschreiben hieße, genau die Daten zu kopieren, für deren Rechenschaft das Register existiert.</p><p>Die Akte, die du auf der Seite <strong>Register</strong> herunterlädst, ist <strong>vollständig</strong>. Früher trug sie eine Zeilenobergrenze: ein realer Schutz, da das ganze Dokument auf einem Raspberry Pi im Speicher zusammengesetzt wurde, aber auf die falsche Größe angewandt. Knapp war der Speicher; begrenzt war die Wahrheit. Ein serverseitiger Cursor begrenzt nun den Puffer: Unabhängig vom Umfang trägt die Datei alles, was deine Filter benennen, die exakte Anzahl steht samt Erzeugungszeitpunkt im Kopf, und der Download wird unterwegs komprimiert, wenn dein Browser das annimmt.</p><h2>Befehle und private Fortsetzungen</h2><p>Schlüssel, Dateiauswahl, Kontoverbindungen und Browserzustimmungen nutzen die sichere Oberfläche der Operation statt erfundener Modellparameter. Ein Befehl ist an Konto und zulässigen Kontext gebunden; Berechtigungen und Ressourcenversion werden vor dem Schreiben erneut geprüft. Verschlüsselte Befehlsinhalte verbergen nicht den gesamten Dienst vor seinem Betreiber: Nachrichten und Betriebsdaten behalten die hier beschriebenen Grenzen.</p><p>Die Bestätigung gilt für die angezeigte Operation und ihren Inhalt. OAuth-Anmeldung, Dateiauswahl, Schlüssel und Geräteberechtigungen werden in deinem authentifizierten Browser fortgesetzt: Füge diese Geheimnisse nicht in den Chat ein. LIA kann die Anfrage vorbereiten und auf diesen Schritt warten. Freihändiges Zuhören und sensible Berechtigungen behalten ihre Schutzmechanismen; ein Befehl umgeht sie nicht.</p>"
       },
       "observability": {
-        "title": "621 Prometheus-Metriken, 31 Grafana-Dashboards und Langfuse-Tracing",
-        "excerpt": "LIA bietet Enterprise-Observability mit 621 Metriken, dedizierten Grafana-Dashboards, LLM-Tracing via Langfuse und E-Mail-Alerting mit Runbooks.",
-        "body": "<h2>Die drei Säulen der Observability</h2><p>LIA implementiert die drei Säulen moderner Observability:</p><ul><li><strong>Metriken</strong> — 621 Prometheus-Metriken für HTTP, Agenten, Token, Kosten, OAuth und Performance, nach Routenvorlage beschriftet: nie ein Name oder eine Suche</li><li><strong>Logs</strong> — Strukturiertes JSON-Logging via structlog, von Grafana Alloy gesammelt und in Loki zentralisiert: Filterung persönlicher Inhalte in Betriebslogs; im Debug-Modus können mehr Details bleiben</li><li><strong>Traces</strong> — Verteiltes Tracing via OpenTelemetry (Tempo), nach der Routenvorlage benannt und nie nach der konkreten Adresse, und LLM-Tracing via Langfuse</li></ul><h2>43 spezialisierte Metrik-Dateien</h2><p>Jede Domäne besitzt ihre eigene deklarative Metrik-Datei. Die 43 Module decken unter anderem ab: HTTP, Agenten (SSE/Router/LLM/HITL/Planer), Datenbank, LangGraph, Langfuse, Voice, Live-Modus, Radio, RAG Spaces, OAuth, MCP, Channels, Fehler, Sub-Agenten, Redis, Attachments, Browser, Compaction, Briefing, Business, Registry, Heartbeat, Gesundheitsmetriken, Journale, Telefonie, Besprechungen, Workboard, Wirkungsregister und Nutzungslimits. Jede Datei definiert domänenspezifische Prometheus-Counter, Histogramme und Gauges.</p><h2>Definition der Prometheus-Metriken</h2><p>Jede Domäne definiert ihre Metriken deklarativ:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>31 Grafana-Dashboards</h2><p>LIA liefert 31 nummerierte Grafana-Dashboards von 01 bis 31: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard, live und radio. Jedes Dashboard bietet filterbare Ansichten nach Benutzer, Zeitraum und Umgebung. Das 26. ist ein Produkt-Cockpit: validierte Ergebnisse (explizites 👍 oder eine unkorrigiert gebliebene Aktion), Aktivierungs-Funnel, Retention und Kosten pro nützlichem Ergebnis — die exakte Zählung lebt in PostgreSQL, und Grafana liest sie über eine auf Aggregat-Views beschränkte Nur-Lese-Rolle.</p><h2>Ziel-KPIs aus dem Quellcode</h2><p>LIA überwacht präzise Indikatoren, die im Quellcode definiert sind: TTFT (Time To First Token) des Streamings, Router-Latenz zwischen 0,1 und 2 Sekunden, Tool-Ausführungsdauer der Agenten zwischen 0,1 und 10 Sekunden, Router-Konfidenz p50 &gt; 0,8, LLM-Kosten pro Anfrage &lt; 0,05€, HTTP-5xx-Fehlerrate &lt; 1%.</p><h2>E-Mail-Alerts mit Runbooks</h2><p>Die Überwachung endet nicht bei Dashboards: Ein Kern vitaler Alerts — darunter API, PostgreSQL oder Redis nicht erreichbar, Festplatte, Container-Speicher, 5xx-Fehlerrate, Streaming-Latenz, fehlgeschlagenes nächtliches Backup, nicht erreichbare öffentliche URL, bald ablaufendes TLS-Zertifikat, ausgefallene Ratenbegrenzung — wird kontinuierlich von Prometheus ausgewertet und per E-Mail über Alertmanager zugestellt. Jeder Alert verweist auf sein Runbook (Schritt-für-Schritt-Anleitung), die Schwellenwerte werden pro Umgebung in .env-Dateien gepflegt, und promtool-Unit-Tests garantieren, dass die in Benachrichtigungen angezeigten Schwellenwerte exakt den auslösenden Ausdrücken entsprechen. Eine Blackbox-Sonde testet sogar die gesamte Kette Ende-zu-Ende, vom Cloudflare-Edge bis zum Frontend — genau wie ein Nutzer. Der Alarm für die Streaming-Latenz beobachtet nur Durchläufe, auf die eine Person wartet — eine Routine läuft durch denselben Code, aber niemand wartet auf sie — und löst nur bei genügend Durchläufen aus, damit ein 95. Perzentil etwas bedeutet; ein Vorfall, dessen Auflösungsmeldung verloren ging, wird mit Alertmanager abgeglichen und geschlossen.</p><h2>Langfuse: Dediziertes LLM-Tracing</h2><p>Die Langfuse-Integration verfolgt jeden LLM-Aufruf — verbrauchte Token (Eingabe/Ausgabe/Cache), Antwortzeit, verwendetes Modell, geschätzte Kosten und Anfrage-Kontext —, und sieben eigene Prometheus-Metriken erfassen Prompt-Versionen, Bewertungs-Scores, A/B-Varianten, Trace-Tiefe und Übergaben zwischen Agenten. Dies ermöglicht die Identifizierung ineffizienter Prompts, den Vergleich von LLM-Modellen untereinander und die langfristige Optimierung des Token-Verbrauchs.</p><h2>DevOps Claude CLI: Diagnose in natürlicher Sprache (v1.13.0)</h2><p>Neueste Entwicklung des Observability-Stacks: Administratoren können Server jetzt direkt aus der LIA-Konversation diagnostizieren. Eine Bitte wie „Prüf die Logs, ob alles funktioniert“ genügt: Claude Code CLI — im API-Docker-Container installiert — inspiziert autonom Logs, prüft die Container-Gesundheit, analysiert die Ressourcennutzung und berichtet über seine Befunde. Persistente Sitzungen für Untersuchungen über mehrere Gesprächszüge, konfigurierbare Berechtigungen pro Umgebung (Produktion nur lesend, Entwicklung mit vollem Zugriff) und Echtzeit-Streaming der Untersuchungsschritte via SSE.</p><h2>Und seit v1.34: der Assistent liest die eigene Telemetrie</h2><p>All das gab es für Menschen; der Assistent selbst las nichts davon. ADR-247 hat diese Schleife geschlossen: Eine periodische Selbstprüfung verdichtet die goldenen Signale plus direkte Sonden zu Zustands-Snapshots mit exakten Werten; Alarme und kritische Verdikte konvergieren zu einem Vorfall pro Ausfall, diagnostiziert von einem budgetgedeckelten, auf den Runbooks gegründeten LLM; Administratoren erhalten ein Plattformzustand-Panel, proaktive Benachrichtigungen und lesende Chat-Werkzeuge. Und ein bekannter Ausfall formt nun die Antworten — beeinträchtigte Fähigkeiten werden bei der Planung umfahren, fehlgeschlagene Schritte aus typisierten Fehlercodes erklärt, nie aus rohen Logs. Seitdem wird die Diagnose nicht mehr aus einer Zahl allein geschrieben: Ein pro Vorfallsart deklariertes Rezept sagt, welche Aufschlüsselungen und welche Logereignisse zu lesen sind, das Paket wird im Moment der Diagnose gesammelt, personenbezogene Daten entfernt, eine unerreichbare Quelle wird als nicht verfügbar benannt statt als Stille gelesen, und was das Modell gelesen hat, wird unter seinem Urteil gezeigt.</p><h2>Ergebnisse zählen, nicht Versuche</h2><p>Ein Zähler musste in v1.38.3 neu gedacht werden. Die Aufrufe zu zählen, die einen Anbieter erreichen, ist die Wahrheit über den Anbieter — und der falsche Nenner, sobald diese Aufrufe wiederholt werden, denn ein aufgefangener Fehler bläht die Fehlerrate auf, obwohl nichts verloren ging. Ein zweiter Zähler erfasst nun eine Zeile je logischem Vorgang, Wiederholungen zusammengefaltet, und beantwortet die einzige Frage, auf die ein Betreiber reagiert: Hat der Aufrufer sein Ergebnis bekommen? Ein dritter sagt, was die Ratenglättung mit jedem Versuch tat, denn „das Budget ist zu klein“ und „Redis ist ausgefallen“ sehen in einem Boolean gleich aus und verlangen entgegengesetzte Maßnahmen.</p><p>Die jüngste Lektion betrifft die Wahl dessen, was man misst. Die autonome Schleife zählte ihre Iterationen und ihre Dauer — und nichts für das, was tatsächlich wächst: den Prompt, der dem Modell bei jedem Schritt geliefert wird. Am Produktionscode gemessen sind das 2,3 k Tokens bei der ersten und 112 k bei der neunzigsten Iteration, weil jedes Werkzeugergebnis in dem Gespräch bleibt, das das Modell erneut liest. Zwei Histogramme erfassen nun die gelieferte Größe und ihren Anteil am Kontextfenster des Modells, gespeist vom selben memoisierten Zähler, den der Zustands-Reducer ohnehin pflegt — die Messung kostet auf dem heißen Pfad also nichts. Bewusst wurde keine Kompressionsstrategie mitgeliefert: Ein System, das auf eine nie beobachtete Größe reagiert, optimiert eine Vermutung.</p><p>Dasselbe Prinzip hat die Erfolgsquote der Werkzeuge eingeholt. Ein Werkzeug scheitert, indem es einen Fehler <em>zurückgibt</em>, nie durch eine Ausnahme, und der Zähler beobachtete nur Ausnahmen: Die Quote lag konstruktionsbedingt bei 1,0, und die beiden Alarme, die sie lesen, konnten nicht auslösen. Ein einziges Prädikat entscheidet nun, was ein Erfolg ist – für das Register, die Metriken und die ReAct-Schleife –, und die angezeigte Quote sinkt, weil sie endlich die Wahrheit sagt.</p><h2>Signale, die aufeinander verweisen</h2><p>Eine Metrik, eine Logzeile und ein Trace erzählen dieselbe Anfrage — vorausgesetzt, man kommt vom einen zum anderen. In LIA öffnet eine Logzeile den Trace ihrer Anfrage, ein Trace seine Logs und Metriken, und ein Latenzpunkt das genaue Beispiel, das ihn erzeugt hat. Jede Verbindung wurde in der Produktion gemessen, bevor sie repariert wurde. Die Kette, die diese Signale transportiert, wird selbst überwacht — ein Alarm warnt, wenn Logs unterwegs verloren gehen —, und alle Dashboards folgen derselben Konvention: eine Woche Verlauf, ein gemeinsames Menü.</p>"
+        "title": "623 Prometheus-Metriken, 31 Grafana-Dashboards und Langfuse-Tracing",
+        "excerpt": "LIA bietet Enterprise-Observability mit 623 Metriken, dedizierten Grafana-Dashboards, LLM-Tracing via Langfuse und E-Mail-Alerting mit Runbooks.",
+        "body": "<h2>Die drei Säulen der Observability</h2><p>LIA implementiert die drei Säulen moderner Observability:</p><ul><li><strong>Metriken</strong> — 623 Prometheus-Metriken für HTTP, Agenten, Token, Kosten, OAuth und Performance, nach Routenvorlage beschriftet: nie ein Name oder eine Suche</li><li><strong>Logs</strong> — Strukturiertes JSON-Logging via structlog, von Grafana Alloy gesammelt und in Loki zentralisiert: Filterung persönlicher Inhalte in Betriebslogs; im Debug-Modus können mehr Details bleiben</li><li><strong>Traces</strong> — Verteiltes Tracing via OpenTelemetry (Tempo), nach der Routenvorlage benannt und nie nach der konkreten Adresse, und LLM-Tracing via Langfuse</li></ul><h2>43 spezialisierte Metrik-Dateien</h2><p>Jede Domäne besitzt ihre eigene deklarative Metrik-Datei. Die 43 Module decken unter anderem ab: HTTP, Agenten (SSE/Router/LLM/HITL/Planer), Datenbank, LangGraph, Langfuse, Voice, Live-Modus, Radio, RAG Spaces, OAuth, MCP, Channels, Fehler, Sub-Agenten, Redis, Attachments, Browser, Compaction, Briefing, Business, Registry, Heartbeat, Gesundheitsmetriken, Journale, Telefonie, Besprechungen, Workboard, Wirkungsregister und Nutzungslimits. Jede Datei definiert domänenspezifische Prometheus-Counter, Histogramme und Gauges.</p><h2>Definition der Prometheus-Metriken</h2><p>Jede Domäne definiert ihre Metriken deklarativ:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>31 Grafana-Dashboards</h2><p>LIA liefert 31 nummerierte Grafana-Dashboards von 01 bis 31: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard, live und radio. Jedes Dashboard bietet filterbare Ansichten nach Benutzer, Zeitraum und Umgebung. Das 26. ist ein Produkt-Cockpit: validierte Ergebnisse (explizites 👍 oder eine unkorrigiert gebliebene Aktion), Aktivierungs-Funnel, Retention und Kosten pro nützlichem Ergebnis — die exakte Zählung lebt in PostgreSQL, und Grafana liest sie über eine auf Aggregat-Views beschränkte Nur-Lese-Rolle.</p><h2>Ziel-KPIs aus dem Quellcode</h2><p>LIA überwacht präzise Indikatoren, die im Quellcode definiert sind: TTFT (Time To First Token) des Streamings, Router-Latenz zwischen 0,1 und 2 Sekunden, Tool-Ausführungsdauer der Agenten zwischen 0,1 und 10 Sekunden, Router-Konfidenz p50 &gt; 0,8, LLM-Kosten pro Anfrage &lt; 0,05€, HTTP-5xx-Fehlerrate &lt; 1%.</p><h2>E-Mail-Alerts mit Runbooks</h2><p>Die Überwachung endet nicht bei Dashboards: Ein Kern vitaler Alerts — darunter API, PostgreSQL oder Redis nicht erreichbar, Festplatte, Container-Speicher, 5xx-Fehlerrate, Streaming-Latenz, fehlgeschlagenes nächtliches Backup, nicht erreichbare öffentliche URL, bald ablaufendes TLS-Zertifikat, ausgefallene Ratenbegrenzung — wird kontinuierlich von Prometheus ausgewertet und per E-Mail über Alertmanager zugestellt. Jeder Alert verweist auf sein Runbook (Schritt-für-Schritt-Anleitung), die Schwellenwerte werden pro Umgebung in .env-Dateien gepflegt, und promtool-Unit-Tests garantieren, dass die in Benachrichtigungen angezeigten Schwellenwerte exakt den auslösenden Ausdrücken entsprechen. Eine Blackbox-Sonde testet sogar die gesamte Kette Ende-zu-Ende, vom Cloudflare-Edge bis zum Frontend — genau wie ein Nutzer. Der Alarm für die Streaming-Latenz beobachtet nur Durchläufe, auf die eine Person wartet — eine Routine läuft durch denselben Code, aber niemand wartet auf sie — und löst nur bei genügend Durchläufen aus, damit ein 95. Perzentil etwas bedeutet; ein Vorfall, dessen Auflösungsmeldung verloren ging, wird mit Alertmanager abgeglichen und geschlossen.</p><h2>Langfuse: Dediziertes LLM-Tracing</h2><p>Die Langfuse-Integration verfolgt jeden LLM-Aufruf — verbrauchte Token (Eingabe/Ausgabe/Cache), Antwortzeit, verwendetes Modell, geschätzte Kosten und Anfrage-Kontext —, und sieben eigene Prometheus-Metriken erfassen Prompt-Versionen, Bewertungs-Scores, A/B-Varianten, Trace-Tiefe und Übergaben zwischen Agenten. Dies ermöglicht die Identifizierung ineffizienter Prompts, den Vergleich von LLM-Modellen untereinander und die langfristige Optimierung des Token-Verbrauchs.</p><h2>DevOps Claude CLI: Diagnose in natürlicher Sprache (v1.13.0)</h2><p>Neueste Entwicklung des Observability-Stacks: Administratoren können Server jetzt direkt aus der LIA-Konversation diagnostizieren. Eine Bitte wie „Prüf die Logs, ob alles funktioniert“ genügt: Claude Code CLI — im API-Docker-Container installiert — inspiziert autonom Logs, prüft die Container-Gesundheit, analysiert die Ressourcennutzung und berichtet über seine Befunde. Persistente Sitzungen für Untersuchungen über mehrere Gesprächszüge, konfigurierbare Berechtigungen pro Umgebung (Produktion nur lesend, Entwicklung mit vollem Zugriff) und Echtzeit-Streaming der Untersuchungsschritte via SSE.</p><h2>Und seit v1.34: der Assistent liest die eigene Telemetrie</h2><p>All das gab es für Menschen; der Assistent selbst las nichts davon. ADR-247 hat diese Schleife geschlossen: Eine periodische Selbstprüfung verdichtet die goldenen Signale plus direkte Sonden zu Zustands-Snapshots mit exakten Werten; Alarme und kritische Verdikte konvergieren zu einem Vorfall pro Ausfall, diagnostiziert von einem budgetgedeckelten, auf den Runbooks gegründeten LLM; Administratoren erhalten ein Plattformzustand-Panel, proaktive Benachrichtigungen und lesende Chat-Werkzeuge. Und ein bekannter Ausfall formt nun die Antworten — beeinträchtigte Fähigkeiten werden bei der Planung umfahren, fehlgeschlagene Schritte aus typisierten Fehlercodes erklärt, nie aus rohen Logs. Seitdem wird die Diagnose nicht mehr aus einer Zahl allein geschrieben: Ein pro Vorfallsart deklariertes Rezept sagt, welche Aufschlüsselungen und welche Logereignisse zu lesen sind, das Paket wird im Moment der Diagnose gesammelt, personenbezogene Daten entfernt, eine unerreichbare Quelle wird als nicht verfügbar benannt statt als Stille gelesen, und was das Modell gelesen hat, wird unter seinem Urteil gezeigt.</p><h2>Ergebnisse zählen, nicht Versuche</h2><p>Ein Zähler musste in v1.38.3 neu gedacht werden. Die Aufrufe zu zählen, die einen Anbieter erreichen, ist die Wahrheit über den Anbieter — und der falsche Nenner, sobald diese Aufrufe wiederholt werden, denn ein aufgefangener Fehler bläht die Fehlerrate auf, obwohl nichts verloren ging. Ein zweiter Zähler erfasst nun eine Zeile je logischem Vorgang, Wiederholungen zusammengefaltet, und beantwortet die einzige Frage, auf die ein Betreiber reagiert: Hat der Aufrufer sein Ergebnis bekommen? Ein dritter sagt, was die Ratenglättung mit jedem Versuch tat, denn „das Budget ist zu klein“ und „Redis ist ausgefallen“ sehen in einem Boolean gleich aus und verlangen entgegengesetzte Maßnahmen.</p><p>Die jüngste Lektion betrifft die Wahl dessen, was man misst. Die autonome Schleife zählte ihre Iterationen und ihre Dauer — und nichts für das, was tatsächlich wächst: den Prompt, der dem Modell bei jedem Schritt geliefert wird. Am Produktionscode gemessen sind das 2,3 k Tokens bei der ersten und 112 k bei der neunzigsten Iteration, weil jedes Werkzeugergebnis in dem Gespräch bleibt, das das Modell erneut liest. Zwei Histogramme erfassen nun die gelieferte Größe und ihren Anteil am Kontextfenster des Modells, gespeist vom selben memoisierten Zähler, den der Zustands-Reducer ohnehin pflegt — die Messung kostet auf dem heißen Pfad also nichts. Bewusst wurde keine Kompressionsstrategie mitgeliefert: Ein System, das auf eine nie beobachtete Größe reagiert, optimiert eine Vermutung.</p><p>Dasselbe Prinzip hat die Erfolgsquote der Werkzeuge eingeholt. Ein Werkzeug scheitert, indem es einen Fehler <em>zurückgibt</em>, nie durch eine Ausnahme, und der Zähler beobachtete nur Ausnahmen: Die Quote lag konstruktionsbedingt bei 1,0, und die beiden Alarme, die sie lesen, konnten nicht auslösen. Ein einziges Prädikat entscheidet nun, was ein Erfolg ist – für das Register, die Metriken und die ReAct-Schleife –, und die angezeigte Quote sinkt, weil sie endlich die Wahrheit sagt.</p><h2>Signale, die aufeinander verweisen</h2><p>Eine Metrik, eine Logzeile und ein Trace erzählen dieselbe Anfrage — vorausgesetzt, man kommt vom einen zum anderen. In LIA öffnet eine Logzeile den Trace ihrer Anfrage, ein Trace seine Logs und Metriken, und ein Latenzpunkt das genaue Beispiel, das ihn erzeugt hat. Jede Verbindung wurde in der Produktion gemessen, bevor sie repariert wurde. Die Kette, die diese Signale transportiert, wird selbst überwacht — ein Alarm warnt, wenn Logs unterwegs verloren gehen —, und alle Dashboards folgen derselben Konvention: eine Woche Verlauf, ein gemeinsames Menü.</p>"
       },
       "prompt-engineering": {
         "title": "Versioniertes Prompt-System: 155 Prompts als Code verwaltet",
@@ -16055,7 +16083,8 @@
       "meetings": "Besprechungen",
       "bookmarks": "Lesezeichen",
       "live": "Live",
-      "radio": "Radio"
+      "radio": "Radio",
+      "sms": "Meine SMS"
     },
     "items": {
       "avatar": "Sprechender Avatar",
@@ -16124,7 +16153,8 @@
       "skill_library": "Skill-Bibliothek",
       "skill_library_description": "Ein Skill-Portal durchsuchen, einen Skill aus seinem GitHub-Repository installieren und ihn aktualisieren. Ausgeschaltet schließt sich die Bibliothek; bereits installierte Skills bleiben und laufen weiter.",
       "application_tools": "LIA-Einstellungen und Verwaltung",
-      "application_tools_description": "LIA darf Anwendungsinformationen lesen und Änderungen mit Bestätigung vorschlagen. Verwaltungsfunktionen bleiben Administratoren vorbehalten."
+      "application_tools_description": "LIA darf Anwendungsinformationen lesen und Änderungen mit Bestätigung vorschlagen. Verwaltungsfunktionen bleiben Administratoren vorbehalten.",
+      "sms": "Meine SMS"
     }
   },
   "showroom": {
@@ -17233,7 +17263,8 @@
       "peer_image_share": "Bild mit einer Verbindung geteilt",
       "email_share": "E-Mail an {{count}} Empfänger gesendet",
       "skill_proposal_install": "Fähigkeit „{{target}}“ zu deiner Bibliothek hinzugefügt",
-      "peer_capability_share": "Erweiterung mit einer Verbindung geteilt"
+      "peer_capability_share": "Erweiterung mit einer Verbindung geteilt",
+      "sms_notification": "SMS-Benachrichtigung"
     },
     "export": {
       "group_label": "Dieses Register exportieren",
@@ -17284,6 +17315,7 @@
       "event": "Kalender",
       "file": "Dateien",
       "generated_file": "Von LIA erstellte Dateien",
+      "sms": "SMS",
       "health": "Gesundheitsdaten",
       "hue": "Intelligente Beleuchtung",
       "image_generation": "Bilderzeugung",
@@ -18210,5 +18242,63 @@
     "phishing_scam": "Phishing/Betrug",
     "urgent": "Dringend",
     "critical": "Kritisch"
+  },
+  "sms": {
+    "title": "Meine SMS",
+    "description": "Auf dem iPhone empfangene SMS in Ihrem persönlichen Archiv.",
+    "archive": "SMS ansehen",
+    "api": "Import-API",
+    "url": "SMS-URL (POST)",
+    "payload": "Kurzbefehle: POST mit JSON-Feldern sender, date (ISO 8601 mit Zeitzone), body und o=\"iphone\". Header: Content-Type: application/json und Authorization: Bearer Ihr_Token. Token niemals in den Chat einfügen.",
+    "ingestion": "Neue SMS annehmen",
+    "assistant": "Zugriff für den Assistenten",
+    "assistant_hint": "Erlauben Sie LIA, SMS für Antworten, Zusammenfassungen und proaktive Hinweise zu lesen. Standardmäßig aus.",
+    "push": "Sofortige Push-Nachricht bei jeder neuen SMS",
+    "push_hint": "Zu jeder Uhrzeit, unabhängig von Ruhezeiten. Kein SMS-Text in Push-Nachrichten. Aktivieren Sie auch Gerätebenachrichtigungen.",
+    "filter_hint": "Erkennbare Anmeldecodes, Zugangsdaten und blockierte Absender werden vor der Archivierung ausgeschlossen. Ungewöhnliche Geheimnisse können übersehen werden. Andere SMS, auch medizinische und Banknachrichten, bleiben erhalten.",
+    "retention": "Bis zur manuellen Löschung gespeichert. Löschen macht gehostete Exporte ungültig; Downloads, frühere Chats und Erinnerungen bleiben unabhängig.",
+    "usage": "{{count}} archivierte SMS",
+    "quota": "Belegter Speicher: {{used}} / {{max}}",
+    "receipts": "Verarbeitete Ereignisse: {{count}} / {{max}}",
+    "last_received": "Letzte empfangene SMS",
+    "deliveries": "Push angenommen: {{sent}} · Ausstehend: {{pending}} · Fehler: {{failed}} · Unbekannt: {{unknown}}",
+    "token_label": "Name der Quelle",
+    "create_token": "Token erstellen",
+    "tokens": "Import-Token",
+    "revoke": "Widerrufen",
+    "rotate": "Neues Token für diese Quelle",
+    "revoked": "Widerrufen",
+    "no_tokens": "Keine Token. Verbinden Sie Ihr iPhone.",
+    "load_more": "Mehr anzeigen",
+    "blocked": "Blockierte Absender",
+    "block_sender": "Genauer Absendername oder Nummer",
+    "block": "Künftige SMS blockieren",
+    "unblock": "Freigeben",
+    "management": "Archivverwaltung",
+    "erase_all": "Alle meine SMS löschen",
+    "erase_range": "Ausgewählten Zeitraum löschen",
+    "from": "Ab (einschließlich)",
+    "to": "Bis (ausschließlich)",
+    "review": "Änderung prüfen",
+    "confirm": "Diese Änderung bestätigen",
+    "unknown_result": "Ergebnis ungewiss. Vor einer neuen Aktion aktualisieren. Ein erstelltes Token wird nie erneut angezeigt; widerrufen Sie es, falls es nicht angekommen ist.",
+    "before": "Vorher",
+    "after": "Nachher",
+    "empty": "Keine SMS in dieser Auswahl.",
+    "by_day": "Nach Tag",
+    "by_sender": "Nach Absender",
+    "search": "Meine SMS durchsuchen",
+    "search_button": "Suchen",
+    "clear_search": "Suche zurücksetzen",
+    "too_broad": "Suche zu breit. Wörter, Absender oder Zeitraum eingrenzen.",
+    "captured": "Von Kurzbefehle übermittelte Zeit; der genaue Empfangszeitpunkt ist nicht bestätigt.",
+    "unavailable": "Meine SMS sind vorübergehend nicht verfügbar.",
+    "all_senders": "Alle Absender",
+    "selected_count": "{{count}} SMS im bestätigten Umfang",
+    "on": "Aktiviert",
+    "off": "Deaktiviert",
+    "search_keywords": "sms nachricht telefon iphone kurzbefehle import absender archiv token",
+    "page_groups": "Suchgruppen enthalten die SMS auf dieser Seite.",
+    "new_received": "Neue SMS empfangen"
   }
 }

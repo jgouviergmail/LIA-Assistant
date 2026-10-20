@@ -25,6 +25,14 @@ from src.core.i18n_drafts import (
 from src.core.i18n_types import Language
 
 _MESSAGES: dict[str, dict[Language, str]] = {
+    "BROWSER_REQUIRED": {
+        "fr": "Poursuis cette opération dans les paramètres « Mes SMS » de LIA, depuis ton navigateur, puis confirme-la.",
+        "en": "Continue this operation in LIA’s My SMS settings in your browser, then confirm it.",
+        "de": "Setze diesen Vorgang in LIAs Einstellungen „Meine SMS“ im Browser fort und bestätige ihn dort.",
+        "es": "Continúa esta operación en los ajustes «Mis SMS» de LIA desde tu navegador y confírmala allí.",
+        "it": "Prosegui questa operazione nelle impostazioni «I miei SMS» di LIA dal browser, quindi confermala.",
+        "zh-CN": "请在浏览器中打开 LIA 的“我的短信”设置，继续并确认此操作。",
+    },
     "PARTIAL_SEND": {
         "fr": "Le serveur a accepté l’envoi pour certains destinataires et l’a refusé pour d’autres. Ne renvoie pas le message à tous : vérifie les destinataires avant une nouvelle tentative.",
         "en": "The server accepted sending to some recipients and refused others. Do not resend to everyone: check recipients before any new attempt.",
@@ -224,6 +232,7 @@ _MESSAGES: dict[str, dict[Language, str]] = {
 #: Codes that name the same cause as another: one cause, one wording.
 _SAME_AS: Mapping[str, str] = MappingProxyType(
     {
+        "BROWSER_APPROVAL_REQUIRED": "BROWSER_REQUIRED",
         "STALE_SELECTION": "STALE_STATE",
         "RESOURCE_BUSY": "BUSY",
         "INTERACTION_EXPIRED": "EXPIRED",

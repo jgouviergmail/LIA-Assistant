@@ -1852,6 +1852,11 @@
       "title": "Put places in context before their details",
       "summary": "One Position card groups selected Google Places before their individual cards, including in HTML and Markdown. The interactive map starts only after a click with its cost shown; a source list remains usable if Maps is unavailable.",
       "src": "b00abdd45dc8"
+    },
+    "357": {
+      "title": "Generic phone ingestion and a personal SMS archive",
+      "summary": "The phone submits strict events deduplicated per source. Independent consents, exports, erasure, registers and notifications share the same authority.",
+      "src": "539b8b751150"
     }
   }
 }

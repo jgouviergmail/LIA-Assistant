@@ -152,3 +152,28 @@ async def test_a_connections_words_relayed_by_lia_are_never_the_stations(
         True,
         True,
     ]
+
+
+async def test_sensitive_in_app_notifications_are_excluded_before_the_sql_limit(
+    async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    listener = await _user(async_session, "radio_sensitive@test.local")
+    rows = [
+        _message(listener.id, minute, "proactive_heartbeat") for minute in (55, 50, 45, 20, 15, 10)
+    ]
+    for row in rows:
+        row.message_metadata = {"type": "proactive_heartbeat", "sensitive_in_app_only": True}
+    public = _message(listener.id, 30, "proactive_interest")
+    async_session.add_all([*rows, public])
+    await async_session.commit()
+
+    @contextlib.asynccontextmanager
+    async def _ctx() -> AsyncIterator[AsyncSession]:
+        yield async_session
+
+    monkeypatch.setattr(module, "get_db_context", _ctx)
+    assert module.notification_line(rows[0]) is None
+    notes = await module.read_flash_notes(listener.id, after=NOW - timedelta(hours=1), limit=1)
+    drafts = await module.read_notifications(listener.id, now=NOW, tz=UTC)
+    assert [note.id for note in notes] == [str(public.id)]
+    assert len(drafts) == 1 and "Update 30 minutes ago" in drafts[0].text

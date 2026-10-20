@@ -32,6 +32,7 @@ from langchain_core.tools import InjectedToolArg
 
 from src.domains.agents.constants import AGENT_CONTACT
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.sms.overview import overview_output
 from src.domains.agents.tools.decorators import read_tool, with_user_preferences
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
@@ -125,7 +126,4 @@ async def get_person_overview_tool(
         blocks=sorted(evidence.blocks),
         unavailable=evidence.unavailable,
     )
-    return UnifiedToolOutput.data_success(
-        message=_overview_message(payload),
-        structured_data=payload,
-    )
+    return overview_output(payload, evidence, user_id, _overview_message(payload))

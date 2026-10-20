@@ -282,6 +282,7 @@ export interface ExecutionStepMetadata {
 export type RegistryItemType =
   | 'CONTACT'
   | 'EMAIL'
+  | 'SMS'
   | 'EVENT'
   | 'DRAFT'
   | 'CHART'

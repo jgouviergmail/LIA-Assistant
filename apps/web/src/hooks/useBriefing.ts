@@ -65,7 +65,7 @@ export function useBriefing(): UseBriefingResult {
       invalidated.current = { lifetime, sections: new Set() };
     const dirty = invalidated.current.sections;
     for (const section of dirty) {
-      if (cardsQuery.data?.cards[section].status === 'hidden') dirty.delete(section);
+      if (cardsQuery.data?.cards[section]?.status === 'hidden') dirty.delete(section);
     }
     return dirty;
   }, [lifetime, cardsQuery.data]);
@@ -125,7 +125,7 @@ export function useBriefing(): UseBriefingResult {
     async (section: BriefingSection) => {
       if (!isCurrent()) return;
       const dirty = dirtySections();
-      if (cardsQuery.data?.cards[section].status === 'hidden') return;
+      if (cardsQuery.data?.cards[section]?.status === 'hidden') return;
       dirty.add(section);
       const current = beginCardsRead();
       setRefreshFailure({ lifetime, error: null });
@@ -156,10 +156,21 @@ export function useBriefing(): UseBriefingResult {
   }, [cardsQuery.data, dirtySections, invalidateSection]);
   useEffect(() => {
     if (!ownerId) return;
-    return subscribeApplicationResource(ownerId, 'reminders', () => {
+    const reminders = subscribeApplicationResource(ownerId, 'reminders', () => {
       void invalidateSection('reminders');
     });
-  }, [ownerId, invalidateSection]);
+    const sms = subscribeApplicationResource(ownerId, 'sms', () => {
+      // Cancel a current GET and supersede any paid manual refresh in flight.
+      // The next text generation remains an explicit user action.
+      textRevision.current += 1;
+      acceptText(undefined);
+      void invalidateSection('sms');
+    });
+    return () => {
+      reminders();
+      sms();
+    };
+  }, [ownerId, invalidateSection, acceptText]);
 
   const refetchSection = useCallback(
     async (section: RefreshScope) => {

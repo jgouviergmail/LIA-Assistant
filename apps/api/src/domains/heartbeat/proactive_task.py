@@ -32,11 +32,13 @@ from src.core.llm_usage import LLMBillingRecord
 from src.domains.habits.presence import last_seen_at
 from src.domains.habits.tick_scoring import TickSurface, should_defer_tick_for_rhythm
 from src.domains.heartbeat.context_aggregator import ContextAggregator
+from src.domains.heartbeat.continuity import store_heartbeat_continuity
 from src.domains.heartbeat.prompts import (
     generate_heartbeat_message,
     get_heartbeat_decision,
 )
 from src.domains.heartbeat.schemas import HeartbeatTarget
+from src.domains.heartbeat.sms_context import settle_sms_notification, sms_privacy
 from src.domains.moments.busy_gate import agenda_verdict
 from src.domains.moments.schemas import ServedMoment
 from src.domains.push_channels.wake import WakePayload
@@ -442,7 +444,7 @@ class HeartbeatProactiveTask:
         enrich_cache = 0
         enrich_write = 0
         enrich_records: tuple[LLMBillingRecord, ...] = ()
-        interest_topic = target.decision.interest_topic
+        interest_topic = target.decision.interest_topic if target.context.sms is None else None
         if interest_topic:
             facts = await self._fetch_interest_facts(user_id, interest_topic, user_language)
             if facts is not None:
@@ -504,8 +506,9 @@ class HeartbeatProactiveTask:
         )
 
         return ProactiveTaskResult(
-            success=True,
+            success=bool(message.strip()),
             content=message,
+            privacy=sms_privacy(target.context),
             source=ContentSource.HEARTBEAT,
             # The audit row's primary key, decided HERE because the dispatcher
             # writes this value into the archived card's `metadata.target_id`
@@ -638,6 +641,7 @@ class HeartbeatProactiveTask:
         async with get_db_context() as db:
             from src.domains.heartbeat.repository import HeartbeatNotificationRepository
 
+            await settle_sms_notification(db, target, user_id=user_id)
             repo = HeartbeatNotificationRepository(db)
             await repo.create(
                 notification_id=notification_id,
@@ -656,6 +660,7 @@ class HeartbeatProactiveTask:
                 # ADR-214: persisted so the feedback route can bump the habit.
                 habit_offer_id=_as_uuid(result.metadata.get("habit_offer_id")),
                 trigger=self._trigger(),
+                sensitive_context=target.context.sms is not None,
             )
 
             # Unified mention ledger (ADR-135): an interest-centered heartbeat
@@ -714,31 +719,7 @@ class HeartbeatProactiveTask:
 
             await db.commit()
 
-        # 2. Store summary in LangGraph Store for conversational continuity
-        try:
-            from pydantic import JsonValue, TypeAdapter
-
-            from src.infrastructure.proactive.context_sink import write_heartbeat_context
-
-            # Validated as strings, then re-listed as JSON values: a list is invariant,
-            # so list[str] is not a list[JsonValue] even though every item is one.
-            sources: list[JsonValue] = [
-                *TypeAdapter(list[str]).validate_python(result.metadata.get("sources_used", []))
-            ]
-            await write_heartbeat_context(
-                user_id,
-                {
-                    "content": (result.content or "")[:200],
-                    "sources": sources,
-                    "sent_at": datetime.now(UTC).isoformat(),
-                },
-            )
-        except Exception:
-            # Non-critical: conversational continuity is a bonus
-            logger.debug(
-                "heartbeat_store_write_failed",
-                user_id=str(user_id),
-            )
+        await store_heartbeat_continuity(user_id, result, sensitive=target.context.sms is not None)
 
     async def _track_skip_tokens(
         self,

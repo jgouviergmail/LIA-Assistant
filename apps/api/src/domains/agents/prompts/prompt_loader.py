@@ -1,13 +1,7 @@
-"""
-Prompt Loader with Versioning and Integrity Validation.
+"""Load versioned prompt files with integrity validation and bounded caching.
 
-This module provides utilities for loading versioned prompts with:
-- Version management (semantic versioning)
-- Hash-based integrity validation
-- Fallback mechanisms
-- Caching for performance (Phase 3.2.9)
-
-Compliance: LangGraph v1.0 + LangChain v1.0 best practices
+Prompt text comes from one file; missing names/versions are errors (ADR-284).
+Available versions are discovered from the on-disk version directories.
 """
 
 import hashlib
@@ -268,6 +262,7 @@ PromptName = Literal[
     "html_cards_response_directive",
     # Health Metrics — assistant agent (v1.17.2)
     "health_agent_prompt",
+    "sms_agent_prompt",
     # Agentic telephony (ADR-127) — LIA-side domain agent prompt, plus the
     # ElevenLabs voice-agent and return-synthesis prompts. The two vendor-side
     # prompts are LOADED by telephony/prompts/loader.py (path-based read of

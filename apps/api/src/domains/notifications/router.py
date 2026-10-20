@@ -733,4 +733,5 @@ async def get_hub_counts(
         scheduled=counts.scheduled,
         offers=counts.offers,
         workboard=counts.workboard,
+        sms=counts.sms,
     )

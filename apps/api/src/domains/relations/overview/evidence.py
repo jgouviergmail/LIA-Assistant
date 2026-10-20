@@ -101,7 +101,12 @@ async def build_overview_evidence(
     wants_memories = scope.includes(OverviewSection.MEMORIES)
 
     detail, context, memories = await asyncio.gather(
-        RelationsService(user_id).build_detail(person_name),
+        RelationsService(user_id).build_detail(
+            person_name,
+            include_sms=scope.includes(OverviewSection.SMS)
+            and any(direction.value == "received" for direction in scope.directions),
+            sms_assistant=True,
+        ),
         (
             RelationContextService(user_id).build(person_name, sections=wanted_provider)
             if wanted_provider
@@ -116,6 +121,12 @@ async def build_overview_evidence(
 
     blocks = local_blocks(detail, scope)
     unavailable = _apply_memories(blocks, memories, wants_memories=wants_memories)
+    if (
+        scope.includes(OverviewSection.SMS)
+        and any(direction.value == "received" for direction in scope.directions)
+        and not detail.sms_available
+    ):
+        unavailable.append("sms")
     if wanted_provider:
         gaps = await _apply_provider(blocks, context, user_id, person_name, scope, wanted_provider)
         # Memories close the list, whatever else went missing: the provider

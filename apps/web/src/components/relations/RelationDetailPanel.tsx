@@ -60,6 +60,7 @@ import type { Language } from '@/i18n/settings';
 import { cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { RelationAvatar } from '@/components/relations/RelationAvatar';
+import { RelationSmsSection } from './RelationSmsSection';
 import {
   CONTEXT_SECTIONS,
   ProviderContactSection,
@@ -717,6 +718,12 @@ function RelationSections({
           <MemoriesSection memories={detail.memories} total={detail.memories_total} lng={lng} />
           <CallsSection calls={detail.recent_calls} total={detail.recent_calls_total} />
           <PeerMessagesSection messages={detail.peer_messages} total={detail.peer_messages_total} />
+          <RelationSmsSection
+            messages={detail.sms ?? []}
+            total={detail.sms_total ?? 0}
+            available={detail.sms_available ?? false}
+            lng={lng}
+          />
         </div>
         <div className="flex flex-col gap-4">
           <ProviderEmailsSection
@@ -881,6 +888,7 @@ export function RelationDetailPanel({
     detail.open_loops.length === 0 &&
     detail.recent_calls.length === 0 &&
     detail.peer_messages.length === 0 &&
+    (detail.sms_total ?? 0) === 0 &&
     detail.memories.length === 0 &&
     detail.peer_link === null;
 

@@ -441,6 +441,12 @@
         "Preferenze locali del browser"
       ],
       "src": "42c09ed2a4e1"
+    },
+    "t.phone_ingestion": {
+      "name": "Acquisizione dal telefono",
+      "role": "Autorizzazione per sorgente, ricevute per i tentativi, SMS cifrati e invio con prenotazione; gli estratti del modello restano limitati e autorizzati.",
+      "stack": ["Token per sorgente", "Indice lessicale cieco", "Notifiche private"],
+      "src": "da49b8382ff9"
     }
   },
   "flows": {

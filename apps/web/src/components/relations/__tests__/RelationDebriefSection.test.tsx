@@ -329,3 +329,15 @@ describe('RelationDebriefSection', () => {
     }
   );
 });
+
+it('announces an SMS-invalidated synthesis without showing the previous body', () => {
+  render({ debrief: debrief({ status: 'stale', body: null, sections_used: ['sms'] }) });
+  expect(screen.getByText('relations.debrief_stale')).toBeInTheDocument();
+  expect(screen.queryByText('Vous lui devez une réponse.')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'relations.debrief_rebuild' })).toBeEnabled();
+});
+
+it('announces unavailable SMS even when no other evidence produced a synthesis', () => {
+  render({ debrief: debrief({ status: 'empty', body: null, unavailable: ['sms'] }) });
+  expect(screen.getByText('relations.debrief_unavailable')).toBeInTheDocument();
+});

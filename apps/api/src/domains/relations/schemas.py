@@ -13,6 +13,8 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.domains.shared.relation_sms import PersonalSms, RelationSmsProof
+
 
 class IdentityConfidence(str, Enum):
     """How the relationship key was matched (honesty over false precision)."""
@@ -116,6 +118,7 @@ class RelationSummary(BaseModel):
     calls_count: int = Field(ge=0)
     # Relayed messages exchanged both ways with this person (peers D2 bridge).
     peer_messages_count: int = Field(default=0, ge=0)
+    sms_count: int = Field(default=0, ge=0)
     # ISO-8601 UTC of the most recent signal (loop/call), for "last seen".
     last_interaction_at: datetime | None = None
     # Starred by the user — persisted, survives the live signals expiring.
@@ -130,6 +133,7 @@ class RelationsOverview(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     relations: list[RelationSummary]
+    sms_available: bool = False
     # The account's own switch for the daily debrief. Carried HERE rather than
     # behind its own read: the page already loads this payload, and a second
     # round-trip for one boolean is a spinner the reader would notice.
@@ -166,6 +170,10 @@ class RelationDetail(BaseModel):
     memories_total: int = Field(default=0, ge=0)
     peer_messages: list[RelationPeerMessage] = Field(default_factory=list)
     peer_messages_total: int = Field(default=0, ge=0)
+    sms: list[PersonalSms] = Field(default_factory=list)
+    sms_total: int = Field(default=0, ge=0)
+    sms_available: bool = False
+    sms_proof: RelationSmsProof | None = Field(default=None, exclude=True)
     # Present only while an ACCEPTED connection exists — a removed one leaves
     # its past messages behind but has no state left to describe.
     peer_link: RelationPeerLink | None = None

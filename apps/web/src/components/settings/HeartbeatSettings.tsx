@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Clock, History, Radar, SlidersHorizontal } from 'lucide-react';
+import { SmsPushSettings } from '@/components/sms/SmsPushSettings';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useTranslation } from '@/i18n/client';
@@ -223,6 +224,9 @@ export function HeartbeatSettings({ lng }: BaseSettingsProps) {
       icon={Radar}
     >
       {content}
+      <div className="mt-5">
+        <SmsPushSettings lng={lng} />
+      </div>
     </SettingsSection>
   );
 }

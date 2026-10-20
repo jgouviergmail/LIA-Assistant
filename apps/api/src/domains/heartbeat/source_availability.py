@@ -26,10 +26,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.exceptions import AuthorizationError
 from src.domains.connectors.keyless import is_keyless_available
 from src.domains.connectors.models import CONNECTOR_FUNCTIONAL_CATEGORIES, ConnectorType
 from src.domains.connectors.repository import ConnectorRepository
+from src.domains.feature_switches.guard import require_capability_fresh
+from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.heartbeat.source_policy import HEARTBEAT_SOURCE_KEYS, HEARTBEAT_SOURCE_ORDER
+from src.domains.sms.preferences import SmsPreferences
 
 if TYPE_CHECKING:
     from src.domains.users.models import User
@@ -95,6 +99,16 @@ async def _health_signals(user: User, db: AsyncSession, repo: ConnectorRepositor
     )
 
 
+async def _sms(user: User, db: AsyncSession, repo: ConnectorRepository) -> bool:
+    if not SmsPreferences.from_stored(user.sms_preferences).assistant_enabled:
+        return False
+    try:
+        await require_capability_fresh(db, PlatformCapability.SMS)
+        return True
+    except AuthorizationError:
+        return False
+
+
 async def _birthdays(user: User, db: AsyncSession, repo: ConnectorRepository) -> bool:
     connector = await repo.get_by_user_and_type(user.id, ConnectorType.GOOGLE_CONTACTS)
     return bool(connector and connector.status.value == "active")
@@ -145,6 +159,7 @@ SOURCE_AVAILABILITY_PROBES: dict[str, Probe] = {
     "memories": _memories,
     "journals": _journals,
     "health_signals": _health_signals,
+    "sms": _sms,
     "birthdays": _birthdays,
     "departure": _departure,
     "open_loops": _open_loops,

@@ -299,7 +299,9 @@ def _deduplicate_meta_domains(domains: list[str]) -> list[str]:
     for domain in domains:
         config = DOMAIN_REGISTRY.get(domain)
         if config and config.metadata.get("is_meta_domain"):
-            aggregated.update(config.metadata.get("aggregates", []))
+            members = config.metadata.get("aggregates", [])
+            if isinstance(members, list):
+                aggregated.update(name for name in members if isinstance(name, str))
 
     if not aggregated:
         return domains

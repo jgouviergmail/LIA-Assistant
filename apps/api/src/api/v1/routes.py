@@ -297,6 +297,11 @@ if getattr(settings, "journals_enabled", False):
     from src.domains.journals.router import router as journals_router
 
     api_router.include_router(journals_router)
+if settings.sms_enabled:
+    from src.api.v1.sms_routes import router as sms_router
+
+    api_router.include_router(sms_router)
+
 if getattr(settings, "health_metrics_enabled", False):
     from src.domains.health_metrics.ingest_router import (
         ingest_router as health_ingest_router,
@@ -483,6 +488,7 @@ async def get_client_config() -> dict:
             # Meeting recording (ADR-258): gates the composer action, the
             # meetings pages and the settings section.
             "meetings_enabled": getattr(settings, "meetings_enabled", False),
+            "sms_enabled": settings.sms_enabled,
             # Workboard (ADR-276): gates the board page, its settings section
             # and the ticket actions under a chat notification.
             "workboard_enabled": getattr(settings, "workboard_enabled", False),

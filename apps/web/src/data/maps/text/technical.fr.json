@@ -373,6 +373,11 @@
         "Artwork offline",
         "Préférences locales au navigateur"
       ]
+    },
+    "t.phone_ingestion": {
+      "name": "Ingestion du téléphone",
+      "role": "Autorité par source, reçus de reprise, SMS chiffrés et livraisons revendiquées ; les extraits du modèle restent bornés et vérifiés.",
+      "stack": ["Jetons limités à une source", "Index lexical aveugle", "Notifications privées"]
     }
   },
   "flows": {

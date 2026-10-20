@@ -815,6 +815,7 @@ class ProactiveTaskRunner:
             target_id=target_id,
             metadata=result.metadata,
             db=db,
+            privacy=result.privacy,
             push_enabled=push_enabled,
             run_id=run_id,
         )

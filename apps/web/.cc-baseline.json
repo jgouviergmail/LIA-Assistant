@@ -90,7 +90,7 @@
     },
     "src/components/settings/HealthMetricsSettings.tsx": {
       "count": 1,
-      "max": 30
+      "max": 26
     },
     "src/components/settings/ImageGenerationSettings.tsx": {
       "count": 1,

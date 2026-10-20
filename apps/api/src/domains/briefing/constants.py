@@ -106,6 +106,7 @@ SECTION_FOR_YOU = "for_you"
 SECTION_TASKS = "tasks"
 SECTION_DOCUMENTS = "documents"
 SECTION_WORKBOARD = "workboard"
+SECTION_SMS = "sms"
 
 SECTION_NAMES: tuple[str, ...] = (
     SECTION_WEATHER,
@@ -114,6 +115,7 @@ SECTION_NAMES: tuple[str, ...] = (
     SECTION_BIRTHDAYS,
     SECTION_REMINDERS,
     SECTION_HEALTH,
+    SECTION_SMS,
     SECTION_FOR_YOU,
     SECTION_TASKS,
     SECTION_DOCUMENTS,
@@ -125,7 +127,7 @@ SECTION_NAMES: tuple[str, ...] = (
 # summarises: counting one it never sees would let a synthesis run on a single
 # summarised card. The workboard card is the person's own board, shown as
 # exact counts and links; the synthesis was deliberately not extended to it.
-SECTIONS_NOT_SUMMARISED: tuple[str, ...] = (SECTION_WORKBOARD,)
+SECTIONS_NOT_SUMMARISED: tuple[str, ...] = (SECTION_WORKBOARD, SECTION_SMS)
 
 # Default DISPLAY order of the grid (UXR Lot 5, B4) — mirrors the historical
 # TodayBriefing layout so users without stored preferences keep the exact
@@ -136,6 +138,7 @@ SECTION_DISPLAY_ORDER_DEFAULT: tuple[str, ...] = (
     SECTION_BIRTHDAYS,
     SECTION_REMINDERS,
     SECTION_HEALTH,
+    SECTION_SMS,
     SECTION_AGENDA,
     SECTION_MAILS,
     SECTION_FOR_YOU,

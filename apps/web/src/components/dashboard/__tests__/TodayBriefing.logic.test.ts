@@ -68,11 +68,11 @@ describe('visibleOrderedSections', () => {
 });
 
 describe('section registry completeness (frontend mirror)', () => {
-  it('the fallback covers exactly the 10 sections', () => {
+  it('the fallback covers every declared section', () => {
     // visibleOrderedSections' fallback derives from the renderer map keys —
     // equality with BRIEFING_SECTION_NAMES pins renderer completeness.
     const out = visibleOrderedSections(null, bundle());
-    expect(out.length).toBe(10);
+    expect(out.length).toBe(BRIEFING_SECTION_NAMES.length);
     expect(new Set(out)).toEqual(new Set(BRIEFING_SECTION_NAMES));
   });
 });

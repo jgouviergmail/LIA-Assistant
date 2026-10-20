@@ -27,6 +27,11 @@ from src.core.field_names import (
     FIELD_TARGET_ID,
 )
 from src.core.i18n import normalize_language
+from src.core.notification_privacy import (
+    PRIVATE_NOTIFICATION_MARKER,
+    NotificationPrivacy,
+    notification_preview,
+)
 from src.domains.agents.display.plain_text import (
     markdown_links_to_plain,
     markdown_to_plain_text,
@@ -226,6 +231,10 @@ async def _send_to_channel(
     return False
 
 
+def _channel_delivery_allowed(enabled: bool, requested: bool, privacy: NotificationPrivacy) -> bool:
+    return enabled and requested and privacy is NotificationPrivacy.NORMAL
+
+
 class NotificationDispatcher:
     """
     Dispatches proactive notifications via all available channels.
@@ -285,6 +294,7 @@ class NotificationDispatcher:
         run_id: str | None = None,
         commit_before_notification: bool = True,
         push_enabled: bool = True,
+        privacy: NotificationPrivacy = NotificationPrivacy.NORMAL,
     ) -> NotificationResult:
         """
         Dispatch notification via all enabled channels.
@@ -323,6 +333,13 @@ class NotificationDispatcher:
             "sent_at": datetime.now(UTC).isoformat(),
             **metadata,
         }
+        full_metadata[PRIVATE_NOTIFICATION_MARKER] = privacy is NotificationPrivacy.IN_APP_SENSITIVE
+        push_title, push_body = notification_preview(
+            privacy,
+            normalize_language(getattr(user, "language", None)),
+            title,
+            self._truncate_for_notification(plain_text_for_notification(content)),
+        )
         if run_id:
             full_metadata[FIELD_RUN_ID] = run_id
 
@@ -364,8 +381,8 @@ class NotificationDispatcher:
             try:
                 fcm_result = await self._send_fcm(
                     user=user,
-                    title=title,
-                    body=self._truncate_for_notification(plain_text_for_notification(content)),
+                    title=push_title,
+                    body=push_body,
                     task_type=task_type,
                     target_id=target_id,
                     db=db,
@@ -402,7 +419,7 @@ class NotificationDispatcher:
                 )
 
         # 4. Send via external channels (Telegram, etc.) — skip if push_enabled=False
-        if self.channel_enabled and push_enabled:
+        if _channel_delivery_allowed(self.channel_enabled, push_enabled, privacy):
             try:
                 channel_result = await self._send_channels(
                     user_id=user.id,

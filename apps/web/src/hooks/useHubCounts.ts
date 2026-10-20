@@ -15,7 +15,8 @@
  * paying for ROWS nobody is looking at — the page still waits for the fold.
  */
 
-import { useApiQuery } from './useApiQuery';
+import { useApplicationAccountQuery } from './useApplicationAccountQuery';
+import { useApplicationResourceSync } from './useApplicationResourceSync';
 
 export interface HubCounts {
   peer_messages: number;
@@ -32,6 +33,8 @@ export interface HubCounts {
    * everything the account owns.
    */
   workboard: number;
+  /** null is a source failure; absence supports older APIs. */
+  sms?: number | null;
 }
 
 export interface UseHubCountsResult {
@@ -47,9 +50,11 @@ export interface UseHubCountsResult {
 }
 
 export function useHubCounts(): UseHubCountsResult {
-  const { data, error, loading, refetch } = useApiQuery<HubCounts>('/notifications/hub-counts', {
-    componentName: 'useHubCounts',
-  });
+  const { data, error, loading, refetch, ownerId } = useApplicationAccountQuery<HubCounts>(
+    '/notifications/hub-counts',
+    'useHubCounts'
+  );
+  useApplicationResourceSync(ownerId, 'sms', refetch);
 
   return { counts: data, error, loading, refetch };
 }

@@ -37,6 +37,7 @@ from src.core.constants import (
     RELATION_DEBRIEF_LLM_TYPE,
     RELATION_DEBRIEF_PROACTIVE_TASK_TYPE,
 )
+from src.core.exceptions import AuthorizationError, ResourceConflictError
 from src.core.i18n import normalize_language
 from src.core.llm_usage import LLMUsage
 from src.core.time_utils import resolve_user_timezone
@@ -63,6 +64,7 @@ from src.domains.relations.overview import (
 from src.domains.relations.overview_scope import OverviewSection, RelationOverviewScope
 from src.domains.relations.repository import RelationAliasRepository
 from src.domains.shared.consultation_sink import consultation_collector
+from src.domains.shared.relation_sms import check_relation_sms
 from src.domains.users.models import User
 from src.domains.users.repository import UserRepository
 from src.infrastructure.database.session import get_db_context
@@ -216,6 +218,9 @@ def read_of(row: RelationDebrief) -> RelationDebriefRead:
     # open rebuilds instead of rendering an empty panel as ready.
     if status is DebriefStatus.READY and body is None:
         status = DebriefStatus.ABSENT
+    if "sms" in (row.sections_used or []) and row.evidence_digest is None and row.body is None:
+        status = DebriefStatus.STALE
+        body = None
     return RelationDebriefRead(
         status=status,
         person=row.display_name,
@@ -521,6 +526,13 @@ class RelationDebriefService:
             relation_debrief_builds_total.labels(outcome="unchanged").inc()
             return await self.read(name)
 
+        try:
+            async with get_db_context() as db:
+                await check_relation_sms(db, self.user_id, evidence.detail.sms_proof)
+        except AuthorizationError, ResourceConflictError:
+            await self._settle_failed(key, owner)
+            return await self.read(name)
+
         # ONE resolution of the spelling, used for the prompt AND stored: the
         # card's own "properest" name, never whatever the request carried.
         person = evidence.detail.display_name or name.strip()
@@ -547,8 +559,12 @@ class RelationDebriefService:
             relation_debrief_builds_total.labels(outcome="failed").inc()
             return await self.read(name)
 
-        await self._settle_ready(key, owner, evidence, payload, body, digest, person, usage)
         await self._track(usage, key, run_id)
+        try:
+            await self._settle_ready(key, owner, evidence, payload, body, digest, person, usage)
+        except AuthorizationError, ResourceConflictError:
+            await self._settle_failed(key, owner)
+            return await self.read(name)
         # Timed on the paid path only: the shortcut and the refusals above cost
         # no model call, and folding them in would flatter the histogram the
         # lease is sized against.
@@ -611,6 +627,7 @@ class RelationDebriefService:
         stored = StoredDebriefBody(**body.model_dump())
         async with get_db_context() as db:
             await check_debrief_boundary(self.user_id, "publish", db)
+            await check_relation_sms(db, self.user_id, evidence.detail.sms_proof)
             changed = await RelationDebriefRepository(db).settle_ready(
                 self.user_id,
                 name_key=key,

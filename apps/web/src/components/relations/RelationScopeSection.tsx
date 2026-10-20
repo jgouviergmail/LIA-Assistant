@@ -40,7 +40,7 @@ import type {
  * scope, so this never becomes a second source of truth.
  */
 const FALLBACK_SCOPE: RelationOverviewScope = {
-  sections: [...OVERVIEW_SECTIONS],
+  sections: OVERVIEW_SECTIONS.filter(section => section !== 'sms'),
   directions: [...OVERVIEW_DIRECTIONS],
   roles: [...OVERVIEW_ROLES],
   max_items: 5,

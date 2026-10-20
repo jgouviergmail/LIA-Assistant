@@ -26,7 +26,10 @@ Usage:
 """
 
 import importlib.util
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from langchain.agents.middleware import SummarizationMiddleware
 
 from langchain.chat_models import init_chat_model
 
@@ -94,6 +97,7 @@ def create_agent_middleware_stack(
     enable_call_limit: bool | None = None,
     enable_context_editing: bool | None = None,
     primary_model: str | None = None,
+    summarization_class: type[SummarizationMiddleware] | None = None,
 ) -> list[Any]:
     """
     Create middleware stack for an agent based on settings.
@@ -232,7 +236,9 @@ def create_agent_middleware_stack(
 
     # 5. Summarization Middleware (compresses context before LLM call)
     if use_summarization and _SUMMARIZATION_MIDDLEWARE_AVAILABLE:
-        summarization_middleware = _create_summarization_middleware(agent_model=primary_model)
+        summarization_middleware = _create_summarization_middleware(
+            agent_model=primary_model, middleware_class=summarization_class
+        )
         if summarization_middleware:
             middleware_stack.append(summarization_middleware)
             logger.debug(
@@ -447,7 +453,9 @@ def _create_retry_middleware() -> Any | None:
         return None
 
 
-def _create_summarization_middleware(agent_model: str | None = None) -> Any | None:
+def _create_summarization_middleware(
+    agent_model: str | None = None, middleware_class: type[SummarizationMiddleware] | None = None
+) -> Any | None:
     """
     Create SummarizationMiddleware with settings configuration.
 
@@ -510,7 +518,7 @@ def _create_summarization_middleware(agent_model: str | None = None) -> Any | No
             openai_api_key=_require_api_key("openai"),
         )
 
-        middleware = SummarizationMiddleware(
+        middleware = (middleware_class or SummarizationMiddleware)(
             model=summarization_llm,
             trigger=("tokens", max_tokens),
             keep=("messages", settings.summarization_keep_messages),
@@ -544,7 +552,7 @@ def _create_summarization_middleware(agent_model: str | None = None) -> Any | No
                 model=settings.summarization_model,
                 openai_api_key=_require_api_key("openai"),
             )
-            return SummarizationMiddleware(
+            return (middleware_class or SummarizationMiddleware)(
                 model=summarization_llm_fallback,
                 keep=("messages", settings.summarization_keep_messages),
             )

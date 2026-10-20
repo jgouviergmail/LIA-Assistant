@@ -411,10 +411,12 @@ export default defineConfig({
         // Raise each axis to floor(measured - 2), retaining the same margin rule.
         // Full-suite measurement 2026-10-11: 86.68 / 80.74 / 84.26 / 88.15.
         // Lock floor(measured - 2), preserving the existing shrink-only rule.
+        // Complete SMS suite, 2026-10-20: 87.74 / 81.77 / 85.52 / 89.27.
+        // Retain floor(measured - 2), never lower any existing axis.
         statements: 85,
         branches: 79,
-        functions: 82,
-        lines: 86,
+        functions: 83,
+        lines: 87,
         // Continuous avatar PCM and exclusive phrase routing, measured inline:
         // 99.24 / 95.45 / 100 / 100; retain a two-point margin on each axis.
         'src/lib/voice-output/*.ts': {

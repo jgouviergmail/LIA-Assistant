@@ -54,6 +54,7 @@ from src.domains.agents.domain_schemas import RouterOutput
 from src.domains.agents.models import MessagesState
 from src.domains.agents.nodes.draft_sequence import draft_turn_reset
 from src.domains.agents.nodes.router_tool_scoring import score_tools_for_turn
+from src.domains.agents.sms.state_policy import guard_sms_state
 from src.domains.agents.utils.react_budget import react_turn_reset
 from src.domains.agents.utils.state_tracking import track_state_updates
 from src.domains.agents.utils.turn_type import normalize_turn_type
@@ -147,6 +148,7 @@ async def router_node_v3(
         get_query_analyzer_service,
     )
 
+    state = await guard_sms_state(state)
     _router_start = _time.perf_counter()
     messages = state[STATE_KEY_MESSAGES]
 

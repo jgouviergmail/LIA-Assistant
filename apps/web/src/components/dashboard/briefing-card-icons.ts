@@ -20,6 +20,7 @@ import {
   LayoutGrid,
   ListTodo,
   Mail,
+  MessageSquare,
   Sparkles,
 } from 'lucide-react';
 
@@ -32,6 +33,7 @@ export const BRIEFING_CARD_ICONS: Record<BriefingSection, LucideIcon> = {
   birthdays: Cake,
   reminders: Bell,
   health: Heart,
+  sms: MessageSquare,
   for_you: Sparkles,
   tasks: ListTodo,
   documents: FileText,

@@ -382,6 +382,12 @@
       "role": "Du wählst einen Stil und seine angebotenen Varianten im nativen Katalog. Emotionen, Blick und Accessoires folgen der Aktivität und dem verfügbaren Kontext. Das Volumen ist ein angenähertes Relief der Frontalzeichnung; wenn Darstellung oder Ressourcen keine Animation zulassen, übernimmt die feste Zeichnung.",
       "goal": "Eine eigenständige Präsenz, die LIAs Zustand ausdrückt und deine Anzeigeauswahl respektiert.",
       "src": "798cc7462f28"
+    },
+    "f.sms": {
+      "name": "Meine SMS",
+      "role": "Archiviert vom Telefon gesendete Texte, löst Absender auf und zeigt sie mit ausdrücklicher Freigabe für den Assistenten in Chat, Beziehungen und Startseite.",
+      "goal": "Ein durchsuchbares persönliches Archiv mit getrennten Rechten für Empfang, Push und Modellzugriff.",
+      "src": "4972a13608d3"
     }
   },
   "flows": {

@@ -441,6 +441,12 @@
         "Preferencias locales del navegador"
       ],
       "src": "42c09ed2a4e1"
+    },
+    "t.phone_ingestion": {
+      "name": "Ingesta del teléfono",
+      "role": "Autorización por origen, recibos de reintento, SMS cifrados y entrega con reserva; los extractos del modelo siguen acotados y autorizados.",
+      "stack": ["Tokens por origen", "Índice léxico ciego", "Notificaciones privadas"],
+      "src": "da49b8382ff9"
     }
   },
   "flows": {

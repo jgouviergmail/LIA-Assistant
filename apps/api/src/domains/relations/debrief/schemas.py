@@ -47,6 +47,7 @@ class DebriefStatus(str, Enum):
     ABSENT = "absent"
     BUILDING = "building"
     READY = "ready"
+    STALE = "stale"
     FAILED = "failed"
     EMPTY = "empty"
     DISABLED = "disabled"

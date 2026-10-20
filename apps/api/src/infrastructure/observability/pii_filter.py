@@ -52,6 +52,9 @@ import re
 from typing import Any
 
 from src.core.credential_fields import CREDENTIAL_FIELD_NAMES
+from src.infrastructure.observability.log_locations import (
+    sanitize_url_locations as _sanitize_url_locations,
+)
 from src.infrastructure.observability.quoted_content import redact_quoted_content
 
 # Sensitive field names to always redact (exact match, case-insensitive)
@@ -471,11 +474,6 @@ _URL_QUERY_CONTENT_PATTERN = re.compile(
 # credential inside the PATH (Firecrawl) and names inside article/file paths.
 # Query-only filtering cannot see either. Match locations independently of
 # field names, including stdlib records carried by ``event``.
-_URL_LOCATION_PATTERN = re.compile(
-    r"\b(?P<scheme>https?|wss?)://(?P<authority>[^/?#\s\"'<>]+)" r"(?P<location>[/?#][^\s\"'<>]*)?",
-    re.IGNORECASE,
-)
-_FIRECRAWL_PATH_CREDENTIAL_PATTERN = re.compile(r"^/fc-[A-Za-z0-9_-]+(?=/|[?#]|$)")
 
 # Opaque-token shape (SEC-012): a single URL-safe-base64 / hex run of >= 20 chars
 # with no separators. Matches OAuth state (`secrets.token_urlsafe(32)` → 43
@@ -694,32 +692,6 @@ def _mask_amex(match: re.Match[str]) -> str:
     """Mask an Amex-shaped number when it is one (Luhn), leave it otherwise."""
     digits = re.sub(r"\D", "", match.group(0))
     return mask_credit_card(digits) if _luhn_valid(digits) else match.group(0)
-
-
-def _sanitize_url_locations(text: str, *, redact_content: bool) -> str:
-    """Keep URL origins above DEBUG; credentials never survive at any level.
-
-    Args:
-        text: A structured value or a foreign logger's free-text message.
-        redact_content: Whether paths, queries and fragments must be withheld.
-
-    Returns:
-        Text with locations reduced to origins, or safe DEBUG locations.
-    """
-    if "://" not in text:
-        return text
-
-    def _replace(match: re.Match[str]) -> str:
-        authority = match.group("authority").rsplit("@", 1)[-1]
-        origin = f"{match.group('scheme')}://{authority}"
-        if redact_content:
-            return origin
-        location = match.group("location") or ""
-        if authority.lower().split(":", 1)[0] == "mcp.firecrawl.dev":
-            location = _FIRECRAWL_PATH_CREDENTIAL_PATTERN.sub("/[REDACTED]", location)
-        return origin + location
-
-    return _URL_LOCATION_PATTERN.sub(_replace, text)
 
 
 def _sanitize_event_text(text: str, *, redact_content: bool) -> str:

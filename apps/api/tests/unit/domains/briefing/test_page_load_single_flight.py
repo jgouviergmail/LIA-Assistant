@@ -399,18 +399,23 @@ def test_the_build_plan_covers_exactly_the_declared_sections() -> None:
     by keyword). A section added to one and not the others fails at request
     time, on the home page, for everyone — so it is checked here instead."""
     plan = BriefingService(make_user())._build_plan(frozenset())
-    assert tuple(step.name for step in plan) == SECTION_NAMES
-    assert set(CardsBundle.model_fields) == set(SECTION_NAMES)
+    from src.domains.briefing.constants import SECTION_NAMES as canonical
+
+    assert tuple(step.name for step in plan) == canonical
+    assert tuple(step.name for step in plan if step.name != "sms") == SECTION_NAMES
+    assert set(CardsBundle.model_fields) == set(canonical)
 
 
-def test_every_section_is_written_to_the_cache() -> None:
+def test_only_sms_deliberately_bypasses_every_cache() -> None:
     """A section with no TTL is never written, and is therefore invisible to
     every cache-only reader — which is exactly how the reminders section
     disappeared from the synthesis. Coverage-based freshness assumes each
     visible section can be present, so none may have a zero TTL."""
     plan = BriefingService(make_user())._build_plan(frozenset())
     without_ttl = [step.name for step in plan if step.ttl <= 0]
-    assert not without_ttl, f"these sections can never be read back: {without_ttl}"
+    assert without_ttl == ["sms"]
+    sms = next(step for step in plan if step.name == "sms")
+    assert sms.force and not sms.cache_eligible
 
 
 # =============================================================================

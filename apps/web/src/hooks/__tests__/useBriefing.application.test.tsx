@@ -96,6 +96,87 @@ async function ready() {
 }
 
 describe('briefing reads and recovery', () => {
+  it('rereads only SMS on a matching account event without regenerating paid text', async () => {
+    const { result } = await ready();
+    const previous = result.current.text;
+    const fresh = response();
+    fresh.cards.sms = section({
+      timezone: 'Europe/Paris',
+      total: 137,
+      window_total: 5,
+      window_start: '2026-10-19T08:00:00Z',
+      as_of: '2026-10-20T08:00:00Z',
+      latest_at: '2026-10-20T07:55:00Z',
+    });
+    post.mockResolvedValue(fresh);
+    act(() => publishApplicationResources('foreign', new Set(['sms'])));
+    expect(post).not.toHaveBeenCalled();
+    expect(result.current.text).toBe(previous);
+    act(() => publishApplicationResources('one', new Set(['sms'])));
+    await waitFor(() => expect(result.current.cards?.sms?.data?.total).toBe(137));
+    expect(post.mock.calls.map(call => call[0])).toEqual(['/briefing/refresh-cards']);
+    expect(post.mock.calls[0][1]).toEqual({ sections: ['sms'] });
+    expect(result.current.text).toBeUndefined();
+    expect(get).toHaveBeenCalledTimes(2);
+  });
+
+  it('cannot reinstall an old initial synthesis after an SMS invalidation', async () => {
+    let completeText: ((value: unknown) => void) | undefined;
+    get.mockImplementation((path: string) =>
+      path.endsWith('/cards')
+        ? Promise.resolve(cards)
+        : new Promise(resolve => {
+            completeText = resolve;
+          })
+    );
+    post.mockResolvedValue(cards);
+    const hook = renderHook(() => useBriefing());
+    await waitFor(() => expect(hook.result.current.cards).toEqual(cards.cards));
+    act(() => publishApplicationResources('one', new Set(['sms'])));
+    await act(async () =>
+      completeText?.({
+        greeting: { ...cards.greeting, text: 'PRIVATE_OLD_SMS' },
+        synthesis: cards.synthesis,
+      })
+    );
+    expect(hook.result.current.text).toBeUndefined();
+    expect(get).toHaveBeenCalledTimes(2);
+  });
+
+  it('cannot reinstall a paid manual synthesis after an SMS invalidation', async () => {
+    const { result } = await ready();
+    let complete: ((value: BriefingResponse) => void) | undefined;
+    post.mockImplementation((path: string) =>
+      path === '/briefing/refresh'
+        ? new Promise(resolve => {
+            complete = resolve;
+          })
+        : Promise.resolve(cards)
+    );
+    let refresh: Promise<void> | undefined;
+    act(() => {
+      refresh = result.current.refetchSection('all');
+    });
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
+    act(() => publishApplicationResources('one', new Set(['sms'])));
+    const old = response();
+    old.synthesis = {
+      generated_at: old.greeting.generated_at,
+      usage: null,
+      text: 'PRIVATE_OLD_SMS',
+    };
+    await act(async () => {
+      complete?.(old);
+      await refresh;
+    });
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+    expect(result.current.text).toBeUndefined();
+    expect(post.mock.calls.map(call => call[0])).toEqual([
+      '/briefing/refresh',
+      '/briefing/refresh-cards',
+    ]);
+  });
+
   it('forces only visible cards for a committed reminder change without buying text', async () => {
     const { result } = await ready();
     post.mockResolvedValue(response(null));

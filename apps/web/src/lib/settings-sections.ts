@@ -344,6 +344,11 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'meetings',
     declaredIn: 'components/settings/MeetingsSettings.tsx',
   },
+  sms: {
+    tab: 'features',
+    accordionValue: 'sms',
+    declaredIn: 'components/settings/SmsSettings.tsx',
+  },
   // The workboard (ADR-276). This section is the board's DOOR — D15 gives it no
   // header destination — so a deep link here is how a person reaches their
   // tickets from anywhere in the settings.

@@ -20,7 +20,7 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
 | Lignes de source (hors tests) — 55 domaines fonctionnels | **967 000+** |
 | Tests automatisés inventoriés ; suites adaptées au commit et à la livraison | **64 000+** |
-| Décisions d'architecture documentées (ADR) | **350** |
+| Décisions d'architecture documentées (ADR) | **351** |
 | Versions livrées à rythme régulier | **284** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
@@ -68,7 +68,7 @@ Le projet est désormais conduit avec plusieurs agents de développement en para
 
 ## 4. Les arbitrages
 
-Trois décisions structurantes, parmi les 350 documentées :
+Trois décisions structurantes, parmi les 351 documentées :
 
 **Souveraineté & réversibilité — aucune dépendance fournisseur irréversible.** Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modèles locaux via Ollama) sont placés derrière une abstraction unique : chaque usage peut changer de fournisseur par configuration, avec comparaison de coût. Même principe côté métier : Google, Apple et Microsoft sont interchangeables par catégorie fonctionnelle. L'auto-hébergement te donne la maîtrise du serveur ; les données du compte sont stockées sur l'instance et les identifiants des connecteurs sont chiffrés. Les services distants que tu choisis reçoivent toujours les données utiles à leur part de la demande.
 

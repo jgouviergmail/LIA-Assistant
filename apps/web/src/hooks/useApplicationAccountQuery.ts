@@ -41,8 +41,15 @@ export function useApplicationAccountQuery<T>(
   });
   const { refetchVerified, setData: setQueryData, acceptData: acceptQueryData } = query;
   const acceptData = useCallback(
-    (data: T) => isCurrent() && acceptQueryData(data),
-    [isCurrent, acceptQueryData]
+    (data: T | undefined) => {
+      const applied = isCurrent() && acceptQueryData(data);
+      if (applied && data === undefined) {
+        received.current = lifetime;
+        setAccepted(lifetime);
+      }
+      return applied;
+    },
+    [isCurrent, acceptQueryData, lifetime]
   );
   const setData = useCallback(
     (action: SetStateAction<T | undefined>) => {

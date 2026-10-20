@@ -63,6 +63,7 @@ TRUST_BY_REGISTRY_TYPE: dict[RegistryItemType, ContentTrust] = {
     # body + subject + sender display name are authored by whoever wrote to
     # the user. Highest-volume injection vector: anybody can email anybody.
     RegistryItemType.EMAIL: ContentTrust.EXTERNAL,
+    RegistryItemType.SMS: ContentTrust.EXTERNAL,  # sender and body are third-party text.
     # summary / description / location of an invitation are authored by the
     # ORGANISER, not by the user. Second-highest vector: an attacker only
     # needs the user's address to place text in their calendar.

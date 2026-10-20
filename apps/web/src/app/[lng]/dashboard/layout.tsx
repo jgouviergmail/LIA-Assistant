@@ -19,6 +19,7 @@ import { ConnectorHealthAlert } from '@/components/connectors/ConnectorHealthAle
 import { OnboardingTutorial } from '@/components/onboarding';
 import { AvatarProvider } from '@/components/avatars/AvatarProvider';
 import { AvatarPreferenceSaveProvider } from '@/components/avatars/AvatarPreferenceSaveProvider';
+import { capabilityEnabled } from '@/lib/capability-state';
 import { ApplicationEyes } from '@/components/eyes/ApplicationEyes';
 import { usePsycheStore } from '@/stores/psycheStore';
 import { ShortcutsDock } from '@/components/shortcuts/ShortcutsDock';
@@ -362,7 +363,14 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
                 )}
 
                 {/* One animated avatar and its notification shortcut across all pages. */}
-                <ApplicationEyes />
+                <ApplicationEyes
+                  ownerId={user?.id}
+                  smsEnabled={capabilityEnabled(
+                    appConfig?.capabilities,
+                    'sms',
+                    appConfig?.features.sms_enabled
+                  )}
+                />
                 {/* The pinned settings sections, on every dashboard screen (ADR-277);
             renders nothing until one is pinned. */}
                 <ShortcutsDock lng={lng} />

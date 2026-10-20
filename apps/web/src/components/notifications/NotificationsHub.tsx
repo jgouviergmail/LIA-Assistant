@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+import { SmsHubSection } from '@/components/sms/SmsHubSection';
 import { HeartbeatHistory } from '@/components/settings/HeartbeatHistory';
 import { InterestNotificationHistory } from '@/components/settings/InterestNotificationHistory';
 import { HubSection, type HubSectionProps } from '@/components/notifications/HubSection';
@@ -288,7 +289,7 @@ function DeliveredNotifications({
   const { t } = useTranslation();
   const { config, counts, track, peers, proactive, interests } = sections;
   const shell = <TItem,>(key: string, section: PagedSection<TItem>, countKey: keyof HubCounts) =>
-    sectionShell(key, section, t, track(key), counts?.[countKey]);
+    sectionShell(key, section, t, track(key), counts?.[countKey] ?? undefined);
   return (
     <>
       {' '}
@@ -329,14 +330,14 @@ function DeliveredNotifications({
   );
 }
 
-export function NotificationsHub({ lng }: { lng: string }) {
+export function NotificationsHub({ lng }: { lng: Language }) {
   const { t, i18n } = useTranslation();
   const locale = getIntlLocale(i18n.language as Language);
   const sections = useHubSections();
   const { config, counts, track, offers, reminders, scheduled, workboard, workboardEnabled } =
     sections;
   const shell = <TItem,>(key: string, section: PagedSection<TItem>, countKey: keyof HubCounts) =>
-    sectionShell(key, section, t, track(key), counts?.[countKey]);
+    sectionShell(key, section, t, track(key), counts?.[countKey] ?? undefined);
 
   return (
     <div className="min-w-0 space-y-6">
@@ -416,6 +417,7 @@ export function NotificationsHub({ lng }: { lng: string }) {
           className="lg:col-start-1 lg:row-start-1"
         >
           <DeliveredNotifications sections={sections} locale={locale} />
+          <SmsHubSection lng={lng} total={counts?.sms} />
         </NotificationRegister>
       </div>
     </div>

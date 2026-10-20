@@ -3,6 +3,9 @@ import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import type { RelationSummary } from '@/hooks/useRelations';
 import RelationsPage from '@/app/[lng]/dashboard/relations/page';
 
+vi.mock('@/hooks/useAppConfig', () => ({
+  useAppConfig: () => ({ config: { features: { sms_enabled: true } } }),
+}));
 const account = vi.hoisted(() => ({ id: 'owner-a' }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: account }) }));
 vi.mock('@/hooks/useLanguageParam', () => ({ useLanguageParam: () => 'en' }));
@@ -26,6 +29,7 @@ const rows: RelationSummary[] = Array.from({ length: 12 }, (_, index) => ({
 }));
 vi.mock('@/hooks/useRelations', () => ({
   useRelationsOverview: () => ({
+    smsAvailable: false,
     relations: rows,
     relationsTotal: rows.length,
     loading: false,
@@ -65,4 +69,9 @@ it('clears list state when the account changes', async () => {
   account.id = 'owner-b';
   view.rerender(<RelationsPage params={Promise.resolve({ lng: 'en' })} />);
   expect(screen.getByRole('searchbox')).toHaveValue('');
+});
+
+it('announces unavailable SMS rather than claiming no relationship activity', () => {
+  renderWithProviders(<RelationsPage params={Promise.resolve({ lng: 'en' })} />);
+  expect(screen.getByRole('status')).toHaveTextContent('relations.sms_unavailable');
 });

@@ -176,6 +176,17 @@ function Bullets({ items, muted }: { items: string[]; muted?: boolean }) {
   );
 }
 
+function DebriefGaps({ source }: { source: RelationDebrief | null }) {
+  const { t } = useTranslation();
+  const count = source?.unavailable.length ?? 0;
+  if (count === 0) return null;
+  return (
+    <p className="mt-2 text-xs text-muted-foreground">
+      {t('relations.debrief_unavailable', { count })}
+    </p>
+  );
+}
+
 /** The written synthesis, field by field — an empty field renders nothing. */
 function DebriefBody({ debrief }: { debrief: RelationDebrief }) {
   const { t } = useTranslation();
@@ -364,9 +375,14 @@ export function RelationDebriefSection({
       <Shell busy={building} action={action} foot={foot}>
         <EmptyState
           icon={view.kind === 'notice' && view.failed ? AlertTriangle : Sparkles}
-          description={t(NOTICE_KEY[view.kind === 'empty' ? 'empty' : String(view.failed)])}
+          description={t(
+            debrief?.status === 'stale'
+              ? 'relations.debrief_stale'
+              : NOTICE_KEY[view.kind === 'empty' ? 'empty' : String(view.failed)]
+          )}
           reason="no-data"
         />
+        <DebriefGaps source={debrief} />
       </Shell>
     );
   }

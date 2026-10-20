@@ -1852,6 +1852,11 @@
       "title": "Situare i luoghi prima dei dettagli",
       "summary": "Posizione raggruppa i Google Places selezionati prima delle loro schede, anche in HTML e Markdown. La mappa interattiva aspetta un clic con costo visibile; l’elenco delle fonti resta utilizzabile se Maps non è disponibile.",
       "src": "b00abdd45dc8"
+    },
+    "357": {
+      "title": "Acquisizione generica dal telefono e archivio SMS personale",
+      "summary": "Il telefono invia eventi rigorosi deduplicati per sorgente. Consensi indipendenti, esportazione, cancellazione, registri e notifiche rispettano la stessa autorizzazione.",
+      "src": "539b8b751150"
     }
   }
 }

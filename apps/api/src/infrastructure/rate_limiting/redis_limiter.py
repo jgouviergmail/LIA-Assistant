@@ -145,6 +145,8 @@ class RedisRateLimiter:
         key: str,
         max_calls: int,
         window_seconds: int,
+        *,
+        fail_open: bool = True,
     ) -> bool:
         """
         Attempt to acquire a rate limit token.
@@ -275,6 +277,8 @@ class RedisRateLimiter:
                 error_type=error_type,
                 duration_ms=round(duration * 1000, 2),
             )
+            if not fail_open:
+                raise
             # On Redis failure, fail open (allow request) to prevent blocking
             # This is a trade-off: availability > strict rate limiting
             return True

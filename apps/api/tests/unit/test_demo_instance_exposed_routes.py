@@ -291,6 +291,12 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "PUT /api/v1/relations/overview-scope",
         "GET /api/v1/relations/{name}",
         "GET /api/v1/relations/{name}/context",
+        # Query aliases use the same owned handlers, session and quotas as the
+        # existing person routes; SMS remains disabled by the demo template.
+        "GET /api/v1/relations/lookup/person",
+        "GET /api/v1/relations/lookup/person/context",
+        "GET /api/v1/relations/lookup/person/debrief",
+        "POST /api/v1/relations/lookup/person/debrief",
         # The relationship debrief: a visitor reaches their OWN, over their own
         # data, like every other feature of their own account. The build verb is
         # capped per account per day on its own budget, and the read never

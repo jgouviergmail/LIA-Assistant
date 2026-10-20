@@ -15,6 +15,12 @@ Target: _deduplicate_meta_domains in
 
 from __future__ import annotations
 
+from dataclasses import replace
+
+import pytest
+from pydantic import JsonValue
+
+from src.domains.agents.registry.domain_taxonomy import DOMAIN_REGISTRY
 from src.domains.agents.services.query_analyzer_service import (
     _deduplicate_meta_domains,
 )
@@ -62,3 +68,31 @@ class TestDeduplicateMetaDomains:
         """Single domain that is not a meta-domain should pass through."""
         result = _deduplicate_meta_domains(["contact"])
         assert result == ["contact"]
+
+
+@pytest.mark.parametrize("aggregates", [None, True, 17, 1.5, "brave", {"brave": True}, [{}]])
+def test_malformed_metadata_does_not_remove_unlisted_domains(
+    monkeypatch: pytest.MonkeyPatch, aggregates: JsonValue
+) -> None:
+    """Generic JSON metadata cannot become a character/key collection or crash routing."""
+    config = replace(
+        DOMAIN_REGISTRY["web_search"],
+        metadata={"is_meta_domain": True, "aggregates": aggregates},
+    )
+    monkeypatch.setitem(DOMAIN_REGISTRY, "web_search", config)
+    domains = ["web_search", "brave", "b", "contact"]
+    assert _deduplicate_meta_domains(domains) == domains
+
+
+def test_mixed_metadata_only_aggregates_explicit_string_domains(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = replace(
+        DOMAIN_REGISTRY["web_search"],
+        metadata={"is_meta_domain": True, "aggregates": ["brave", {}, 17, False]},
+    )
+    monkeypatch.setitem(DOMAIN_REGISTRY, "web_search", config)
+    assert _deduplicate_meta_domains(["web_search", "brave", "contact"]) == [
+        "web_search",
+        "contact",
+    ]

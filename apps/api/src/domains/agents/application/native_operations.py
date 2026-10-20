@@ -182,6 +182,7 @@ from src.domains.agents.application.skill_library_read_spec import SKILL_LIBRARY
 from src.domains.agents.application.skill_read_spec import SKILL_READ_OPERATION
 from src.domains.agents.application.skill_update_spec import SKILL_UPDATE_OPERATION
 from src.domains.agents.application.skill_url_import_spec import SKILL_URL_IMPORT_OPERATION
+from src.domains.agents.application.sms_action_spec import SMS_NATIVE_OPERATIONS
 from src.domains.agents.application.source_delete_spec import SOURCE_DELETE_OPERATION
 from src.domains.agents.application.source_link_spec import SOURCE_LINK_OPERATION
 from src.domains.agents.application.source_options_spec import SOURCE_OPTIONS_OPERATION
@@ -198,6 +199,7 @@ from src.domains.agents.application.workboard_read_spec import WORKBOARD_UI_READ
 from src.domains.agents.application.workboard_update_spec import WORKBOARD_UPDATE_OPERATION
 
 NATIVE_OPERATIONS = (
+    *SMS_NATIVE_OPERATIONS,
     RECORDING_DEVICE_OPERATION,
     RECORDING_DEVICE_READ_OPERATION,
     MEETING_DELETION_OPERATION,

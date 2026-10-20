@@ -1531,6 +1531,17 @@ for _slot, _name in (
     LLM_DEFAULTS[_slot] = LLM_DEFAULTS["meeting_template_selection"].model_copy(deep=True)
 
 # Validate that REGISTRY and DEFAULTS are synchronized
+# SMS is an independent domain slot, initialized from the economical read-agent default.
+LLM_TYPES_REGISTRY["sms_agent"] = LLMTypeMetadata(
+    llm_type="sms_agent",
+    display_name="SMS Agent",
+    category=CATEGORY_DOMAIN_AGENTS,
+    description_key="settings.admin.llmConfig.types.sms_agent",
+    required_capabilities=["tools"],
+    power_tier=POWER_TIER_LOW,
+)
+LLM_DEFAULTS["sms_agent"] = LLM_DEFAULTS["health_agent"].model_copy(deep=True)
+
 assert set(LLM_TYPES_REGISTRY.keys()) == set(LLM_DEFAULTS.keys()), (
     f"LLM_TYPES_REGISTRY and LLM_DEFAULTS keys mismatch: "
     f"registry_only={set(LLM_TYPES_REGISTRY.keys()) - set(LLM_DEFAULTS.keys())}, "

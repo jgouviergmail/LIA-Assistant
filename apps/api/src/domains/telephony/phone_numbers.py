@@ -46,13 +46,15 @@ def looks_like_phone(value: str) -> bool:
     return bool(_PHONE_RE.match(value.strip()))
 
 
-def normalize_phone(value: str) -> str:
+def normalize_phone(value: str, *, infer_country: bool = True) -> str:
     """Collapse a raw number to a compact E.164-ish form (keep a leading '+').
 
     When ``TELEPHONY_DEFAULT_COUNTRY_CODE`` is configured, a national number
     (single leading 0, e.g. ``0682511639``) is converted to E.164 by replacing
     the trunk 0 (``+33682511639``). ``00``-prefixed international numbers and
-    numbers already carrying ``+`` are left untouched.
+    numbers already carrying ``+`` are left untouched. SMS archive equality
+    explicitly sets ``infer_country=False``: received identifiers never adopt
+    the deployment's default country.
 
     Args:
         value: The raw number, with any display punctuation.
@@ -64,7 +66,7 @@ def normalize_phone(value: str) -> str:
     if stripped.startswith("+"):
         return f"+{re.sub(r'[^0-9]', '', stripped)}"
     digits = re.sub(r"[^0-9]", "", stripped)
-    country_code = get_settings().telephony_default_country_code
+    country_code = get_settings().telephony_default_country_code if infer_country else None
     if country_code and len(digits) >= 6 and digits.startswith("0") and not digits.startswith("00"):
         return f"{country_code}{digits[1:]}"
     return digits
@@ -87,7 +89,7 @@ def to_e164(value: str) -> str | None:
     return normalized if _E164_RE.match(normalized) else None
 
 
-def same_line(a: str, b: str) -> bool:
+def same_line(a: str, b: str, *, infer_country: bool = True) -> bool:
     """Whether two raw numbers designate the same line.
 
     Equality after normalization is the nominal case. The national/E.164 pair
@@ -104,7 +106,10 @@ def same_line(a: str, b: str) -> bool:
     Returns:
         True when both name one line.
     """
-    na, nb = normalize_phone(a), normalize_phone(b)
+    na, nb = (
+        normalize_phone(a, infer_country=infer_country),
+        normalize_phone(b, infer_country=infer_country),
+    )
     if not na or not nb:
         return False
     if na == nb:

@@ -89,6 +89,7 @@ async def read_relation_debriefs(*, user_id: UUID, language: str) -> PortraitSou
                 user_id,
                 not_before=today - timedelta(days=settings.relation_debrief_injection_max_age_days),
             )
+        rows = [row for row in rows if "sms" not in (getattr(row, "sections_used", None) or [])]
         total = len(rows)
         if not total:
             return empty_section(KEY, "empty", total=total)

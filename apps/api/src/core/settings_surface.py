@@ -43,6 +43,7 @@ PERSONAL_SETTINGS_SECTION_TOKENS = frozenset(
         "security-devices",
         "security-export",
         "skills",
+        "sms",
         "telephony-calls",
         "telephony-identity",
         "theme",

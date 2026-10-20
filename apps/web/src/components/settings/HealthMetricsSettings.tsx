@@ -23,21 +23,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import {
-  Activity,
-  BarChart3,
-  Bot,
-  Copy,
-  Eye,
-  EyeOff,
-  HeartPulse,
-  Key,
-  Plus,
-  ShieldAlert,
-  Trash2,
-} from 'lucide-react';
+import { Activity, BarChart3, Bot, HeartPulse, Key, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { IngestionApiPanel } from '@/components/ingestion/IngestionApiPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { useHealthTokenSecret } from '@/hooks/useHealthTokenSecret';
 import { useHealthMetrics, type HealthMetricsPeriod } from '@/hooks/useHealthMetrics';
@@ -91,7 +80,6 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
   const [openSections, setOpenSections] = useState<string[]>(DEFAULT_OPEN_SECTIONS);
   const [period, setPeriod] = useState<HealthMetricsPeriod>('day');
   const [newTokenLabel, setNewTokenLabel] = useState('');
-  const [showJustCreated, setShowJustCreated] = useState(true);
 
   const { user, refreshUser } = useAuth();
   const {
@@ -159,7 +147,6 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
     const result = await issue(newTokenLabel.trim() || undefined);
     if (result === undefined) return;
     if (result) {
-      setShowJustCreated(true);
       setNewTokenLabel('');
       toast.success(t('healthMetrics.tokens.created', 'Jeton créé. Copiez-le maintenant.'));
     } else {
@@ -273,136 +260,33 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
             </AccordionTrigger>
             <AccordionContent>
               <div className="space-y-6 pb-2">
-                {/* URLs — one per kind */}
-                <div className="space-y-3">
-                  <Label
-                    className="text-xs uppercase tracking-wide text-muted-foreground"
-                    htmlFor="health-ingest-steps-url"
-                  >
-                    {t('healthMetrics.ingestion.stepsUrlLabel', 'URL pas (POST)')}
-                  </Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="health-ingest-steps-url"
-                      value={ingestStepsUrl}
-                      readOnly
-                      className="bg-card font-mono text-xs"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="bg-card"
-                      size="icon"
-                      onClick={() =>
-                        handleCopy(
-                          ingestStepsUrl,
-                          'healthMetrics.ingestion.urlCopied',
-                          'URL copiée.'
-                        )
-                      }
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label
-                    className="text-xs uppercase tracking-wide text-muted-foreground"
-                    htmlFor="health-ingest-heart-rate-url"
-                  >
-                    {t(
-                      'healthMetrics.ingestion.heartRateUrlLabel',
-                      'URL fréquence cardiaque (POST)'
-                    )}
-                  </Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="health-ingest-heart-rate-url"
-                      aria-describedby="health-ingest-payload-hint"
-                      value={ingestHeartRateUrl}
-                      readOnly
-                      className="bg-card font-mono text-xs"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="bg-card"
-                      size="icon"
-                      onClick={() =>
-                        handleCopy(
-                          ingestHeartRateUrl,
-                          'healthMetrics.ingestion.urlCopied',
-                          'URL copiée.'
-                        )
-                      }
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <p id="health-ingest-payload-hint" className="text-xs text-muted-foreground">
-                    {t(
-                      'healthMetrics.ingestion.payloadHint',
-                      'Corps JSON : tableau de mesures [{"date_start":"…","date_end":"…","steps":1234,"o":"iphone"}]. En-tête Authorization: Bearer <votre_jeton>.'
-                    )}
-                  </p>
-                </div>
-
-                {/* Just-created token banner */}
-                {justCreatedToken && (
-                  <div className="rounded-lg border border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 p-4 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <ShieldAlert className="h-4 w-4 text-amber-600" />
-                      <span id="health-just-created-token-label" className="font-medium text-sm">
-                        {t(
-                          'healthMetrics.tokens.justCreated',
-                          'Copiez ce jeton — il ne sera plus affiché.'
-                        )}
-                      </span>
-                    </div>
-                    <div className="flex gap-2 items-center">
-                      {/* Named by the banner heading above rather than a new key:
-                          the sentence already says what this field holds, and it
-                          is already translated in the six locales. */}
-                      <Input
-                        aria-labelledby="health-just-created-token-label"
-                        type={showJustCreated ? 'text' : 'password'}
-                        value={justCreatedToken}
-                        readOnly
-                        className="bg-card font-mono text-xs"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setShowJustCreated(v => !v)}
-                        aria-label={showJustCreated ? t('common.hide') : t('common.show')}
-                      >
-                        {showJustCreated ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() =>
-                          handleCopy(
-                            justCreatedToken,
-                            'healthMetrics.tokens.copied',
-                            'Jeton copié.'
-                          )
-                        }
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <Button type="button" variant="ghost" size="sm" onClick={clearSecret}>
-                      {t('common.close', 'Fermer')}
-                    </Button>
-                  </div>
-                )}
+                <IngestionApiPanel
+                  endpoints={[
+                    {
+                      id: 'health-ingest-steps-url',
+                      label: t('healthMetrics.ingestion.stepsUrlLabel'),
+                      url: ingestStepsUrl,
+                    },
+                    {
+                      id: 'health-ingest-heart-rate-url',
+                      label: t('healthMetrics.ingestion.heartRateUrlLabel'),
+                      url: ingestHeartRateUrl,
+                      hint: t('healthMetrics.ingestion.payloadHint'),
+                    },
+                  ]}
+                  labels={{
+                    copy: t('common.copy'),
+                    close: t('common.close'),
+                    show: t('common.show'),
+                    hide: t('common.hide'),
+                    secret: t('healthMetrics.tokens.justCreated'),
+                  }}
+                  secret={justCreatedToken}
+                  onClearSecret={clearSecret}
+                  onCopy={value => {
+                    void handleCopy(value, 'healthMetrics.tokens.copied', 'Copié.');
+                  }}
+                />
 
                 {/* Token creation */}
                 <div className="space-y-3">

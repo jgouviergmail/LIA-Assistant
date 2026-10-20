@@ -124,6 +124,7 @@ export function useHealthMetrics(period: HealthMetricsPeriod = 'day') {
   >({
     method: 'POST',
     componentName: 'useHealthMetrics',
+    retainResponse: false,
   });
 
   const { mutate: revokeTokenMutate } = useApiMutation({

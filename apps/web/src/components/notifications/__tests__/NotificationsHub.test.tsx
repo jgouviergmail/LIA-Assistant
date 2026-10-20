@@ -23,6 +23,12 @@ const { useApiQuery } = vi.hoisted(() => ({ useApiQuery: vi.fn() }));
 const { patchMock } = vi.hoisted(() => ({ patchMock: vi.fn() }));
 vi.mock('@/lib/api-client', () => ({ default: { patch: patchMock } }));
 vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery }));
+vi.mock('@/hooks/useApplicationAccountQuery', () => ({
+  useApplicationAccountQuery: (endpoint: string, componentName: string) => ({
+    ...useApiQuery(endpoint, { componentName }),
+    ownerId: 'hub-owner',
+  }),
+}));
 
 const { useAppConfig } = vi.hoisted(() => ({ useAppConfig: vi.fn() }));
 vi.mock('@/hooks/useAppConfig', () => ({ useAppConfig }));

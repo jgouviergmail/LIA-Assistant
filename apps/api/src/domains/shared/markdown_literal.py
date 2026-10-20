@@ -378,14 +378,16 @@ def read_as_markdown(
     return _SHIELDED.sub(_back, flatten(shielded) if flatten is not None else shielded)
 
 
-def literal_quote(text: str) -> str:
+def literal_quote(text: str, *, strict: bool = False) -> str:
     """A Markdown block quote of a person's text, rendering as itself.
 
     Args:
         text: Text somebody else wrote; surrounding blank lines are dropped.
+        strict: Also preserve emphasis marks as literal source data.
 
     Returns:
         One ``> `` line per line of text; a blank line keeps the quote open.
     """
     lines = [line.rstrip() for line in text.strip().splitlines()]
-    return "\n".join(f"> {markdown_literal(line)}" if line else ">" for line in lines)
+    literal = markdown_data_literal if strict else markdown_literal
+    return "\n".join(f"> {literal(line)}" if line else ">" for line in lines)

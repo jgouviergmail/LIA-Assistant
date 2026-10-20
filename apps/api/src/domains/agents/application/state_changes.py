@@ -104,6 +104,7 @@ from src.domains.agents.application.skill_file_upload_schemas import SkillFileUp
 from src.domains.agents.application.skill_library_import_schemas import LibraryImportField
 from src.domains.agents.application.skill_update_schemas import SkillUpdateField
 from src.domains.agents.application.skill_url_import_schemas import SkillUrlImportField
+from src.domains.agents.application.sms_action_schemas import SmsActionField
 from src.domains.agents.application.source_delete_schemas import SourceDeleteField
 from src.domains.agents.application.source_link_schemas import SourceLinkField
 from src.domains.agents.application.source_sync_schemas import SourceSyncField
@@ -166,6 +167,7 @@ class ApplicationStateChange(BaseModel):
         | JournalCreationField
         | JournalUpdateField
         | PsycheResetField
+        | SmsActionField
         | HealthTokenField
         | HealthRemovalField
         | PsycheSummaryField
@@ -257,6 +259,7 @@ class ApplicationStateChange(BaseModel):
         + len(JournalCreationField)
         + len(JournalUpdateField)
         + len(PsycheResetField)
+        + len(SmsActionField)
         + len(HealthTokenField)
         + len(HealthRemovalField)
         + len(PsycheSummaryField)
@@ -468,6 +471,7 @@ def publish_preference_change(
                 *JournalCreationField,
                 *JournalUpdateField,
                 *PsycheResetField,
+                *SmsActionField,
                 *HealthTokenField,
                 *HealthRemovalField,
                 *PsycheSummaryField,

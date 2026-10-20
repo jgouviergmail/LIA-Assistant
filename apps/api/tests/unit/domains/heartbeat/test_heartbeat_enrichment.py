@@ -16,6 +16,7 @@ from src.domains.heartbeat.proactive_task import HeartbeatProactiveTask
 
 def _target(topic: str | None) -> MagicMock:
     target = MagicMock()
+    target.context.sms = None
     target.decision.message_draft = "vague draft"
     target.decision.reason = "r"
     target.decision.priority = "low"

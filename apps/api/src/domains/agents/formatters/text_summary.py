@@ -16,6 +16,7 @@ Usage:
 from typing import Any
 
 from src.core.i18n import resolve_language
+from src.domains.agents.sms.prompt_projection import sms_items_prompt
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -218,6 +219,10 @@ DOMAIN_LABELS = {
 }
 
 
+for _domain_labels in DOMAIN_LABELS.values():
+    _domain_labels["sms_messages"] = "SMS"
+
+
 def _labels_for(user_language: str) -> dict[str, str]:
     """Resolve the DOMAIN_LABELS table for a raw locale.
 
@@ -248,14 +253,16 @@ def generate_text_summary_for_items(
     Returns:
         Concise text summary with data details for LLM
     """
+    if domain == "sms_messages":
+        return sms_items_prompt(items)
     user_language = resolve_language(user_language)
     if not items:
         return ""
 
-    from src.domains.agents.display.llm_serializer import payload_to_text
-
     # Generate text summaries using generic serializer
     summaries = []
+    from src.domains.agents.display.llm_serializer import payload_to_text
+
     for item in items:
         if isinstance(item, dict):
             text_summary = payload_to_text(item)
@@ -273,6 +280,14 @@ def generate_text_summary_for_items(
     # Include data details for intelligent LLM commenting
     items_text = "\n".join(f"  - {s}" for s in summaries)
     return f"**{count} {label}:**\n{items_text}"
+
+
+def _payload_summary(item_type: str, payload: dict[str, object]) -> str:
+    from src.domains.agents.display.llm_serializer import payload_to_text
+
+    if item_type == "SMS":
+        return sms_items_prompt([payload])
+    return payload_to_text(payload) if payload else ""
 
 
 def generate_text_summary_for_llm(
@@ -303,7 +318,6 @@ def generate_text_summary_for_llm(
     if not data_registry:
         return ""
 
-    from src.domains.agents.display.llm_serializer import payload_to_text
     from src.domains.agents.utils.type_domain_mapping import get_result_key_from_type
 
     # Group items by result key (pluriel) for DOMAIN_LABELS lookup
@@ -325,8 +339,8 @@ def generate_text_summary_for_llm(
         if item_type in ("DRAFT", "MCP_APP", "SKILL_APP"):
             continue
 
-        # Generate text summary using generic serializer
-        text_summary = payload_to_text(payload) if payload else ""
+        # SMS was already paged under its token cap; even a short body is evidence.
+        text_summary = _payload_summary(item_type, payload)
 
         domain = get_result_key_from_type(item_type) or "other"
 

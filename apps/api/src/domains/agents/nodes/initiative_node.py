@@ -97,6 +97,7 @@ from src.domains.agents.services.streaming.followup_metadata import (
     sanitize_followups,
     sanitize_motivation,
 )
+from src.domains.agents.sms.state_policy import guard_sms_state
 from src.domains.shared.extraction_targets import is_synthetic_message
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.structured_output import get_structured_output
@@ -518,6 +519,7 @@ async def _initiative_core(
 
     run_id = _extract_run_id(config)
     _initiative_start = _time.perf_counter()
+    state = await guard_sms_state(state)
     execution_mode = state.get("execution_mode", "pipeline")
 
     # Latency overlap: prefetch the response node's user-context injections

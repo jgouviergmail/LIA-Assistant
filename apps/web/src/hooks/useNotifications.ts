@@ -18,6 +18,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSmsNotificationSignals } from '@/hooks/useSmsNotificationSignals';
+import type { SmsReceivedSignal } from '@/lib/sms/notification';
+import { z } from '@/lib/zod';
 import { logger } from '@/lib/logger';
 import { redirectToLogin } from '@/lib/api-client';
 import { onForegroundMessage } from '@/lib/firebase';
@@ -66,6 +69,9 @@ export interface Notification {
 }
 
 export interface UseNotificationsOptions {
+  /** Authenticated owner of phone resource signals. Never supplied by a payload. */
+  ownerId?: string;
+  onSmsReceived?: (signal: SmsReceivedSignal) => void;
   /** Enable SSE connection (default: true) */
   enableSSE?: boolean;
   /** Enable FCM foreground messages (default: true) */
@@ -245,8 +251,57 @@ export function buildNotificationFromFcm(payload: MessagePayload): Notification 
  * });
  * ```
  */
+const sseNotice = z.object({
+  type: z
+    .enum([
+      'reminder',
+      'system',
+      'message',
+      'oauth_health_warning',
+      'oauth_health_critical',
+      'proactive_interest',
+      'proactive_heartbeat',
+      'scheduled_action',
+      'subagent_result',
+      'admin_broadcast',
+    ])
+    .default('system'),
+  content: z.string().optional(),
+  message: z.string().optional(),
+  reminder_id: z.string().optional(),
+  target_id: z.string().optional(),
+  action_id: z.string().optional(),
+  connector_id: z.string().optional(),
+  connector_type: z.string().optional(),
+  display_name: z.string().optional(),
+  authorize_url: z.string().optional(),
+  broadcast_id: z.string().optional(),
+  title: z.string().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+/** Runtime DTO at the untrusted SSE boundary; no payload is written to logs. */
+export function buildNotificationFromSse(payload: unknown): Notification {
+  const data = sseNotice.parse(payload);
+  return {
+    ...data,
+    id:
+      [data.reminder_id, data.target_id, data.action_id, data.connector_id, data.broadcast_id].find(
+        Boolean
+      ) ?? `notif-${Date.now()}`,
+    content: data.content ?? data.message ?? '',
+    metadata:
+      data.type === 'scheduled_action'
+        ? { type: data.type, action_id: data.action_id, title: data.title }
+        : data.metadata,
+    timestamp: new Date(),
+    read: false,
+  };
+}
+
 export function useNotifications(options: UseNotificationsOptions = {}): UseNotificationsReturn {
   const {
+    ownerId,
+    onSmsReceived,
     enableSSE = true,
     enableFCM = true,
     isAuthenticated = false,
@@ -261,6 +316,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     onReconnected,
   } = options;
 
+  const { receiveSms, refreshSms } = useSmsNotificationSignals(ownerId, onSmsReceived);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -354,6 +410,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
         reconnectAttempts.current = 0;
         if (droppedRef.current) {
           droppedRef.current = false;
+          refreshSms();
           onReconnectedRef.current?.();
         }
 
@@ -367,40 +424,17 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
         if (eventSourceRef.current !== eventSource) return;
         try {
           const data = JSON.parse(event.data);
+          if (data.type === 'sms_received') {
+            receiveSms(data);
+            return;
+          }
           if (CONVERSATION_SIGNALS.has(data.type)) {
             // The thread's own sync signal, not a notification (ADR-320).
             onConversationEventRef.current?.(data.type as ConversationSignal);
             return;
           }
 
-          // Construct metadata for types that send fields at top level
-          const metadata: Record<string, unknown> | undefined =
-            data.type === 'scheduled_action'
-              ? { type: 'scheduled_action', action_id: data.action_id, title: data.title }
-              : data.metadata;
-
-          const notification: Notification = {
-            id:
-              data.reminder_id ||
-              data.target_id ||
-              data.action_id ||
-              data.connector_id ||
-              data.broadcast_id ||
-              `notif-${Date.now()}`,
-            type: data.type || 'system',
-            content: data.content || data.message || '',
-            reminder_id: data.reminder_id,
-            target_id: data.target_id,
-            action_id: data.action_id,
-            connector_id: data.connector_id,
-            connector_type: data.connector_type,
-            display_name: data.display_name,
-            authorize_url: data.authorize_url,
-            broadcast_id: data.broadcast_id,
-            metadata,
-            timestamp: new Date(),
-            read: false,
-          };
+          const notification = buildNotificationFromSse(data);
 
           addNotification(notification);
 
@@ -500,7 +534,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
       });
       setError('Failed to connect to notification server');
     }
-  }, [addNotification]);
+  }, [addNotification, receiveSms, refreshSms]);
 
   /**
    * Disconnect SSE.
@@ -584,6 +618,10 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
         component: 'useNotifications',
       });
 
+      if (payload.data?.type === 'sms_received') {
+        receiveSms(payload.data);
+        return;
+      }
       // FCM sends flat data (not nested) — rebuild the Notification shape.
       addNotification(buildNotificationFromFcm(payload));
     });
@@ -592,7 +630,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
       subscribed = false;
       unsubscribe?.();
     };
-  }, [enableFCM, isAuthenticated, addNotification]);
+  }, [enableFCM, isAuthenticated, addNotification, receiveSms]);
 
   /**
    * Mark a notification as read.

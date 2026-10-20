@@ -10,7 +10,7 @@ Status semantics (CardStatus):
 - NOT_CONFIGURED  : no connector for this section — frontend hides the card entirely
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Annotated, Literal
 
@@ -23,11 +23,13 @@ from src.core.content_classification import EmailClassification, EventClassifica
 # surfaces come to report a cost differently). Every caller here, and
 # the OpenAPI schema name, are unchanged.
 from src.core.llm_usage import LLMUsage
+from src.domains.briefing.constants import SECTION_NAMES
 
 # BirthdayItem moved to the neutral connectors home (P7 — heartbeat consumes
 # it too and briefing→heartbeat→briefing would cycle). Re-exported here to
 # keep the historical briefing import surface stable.
 from src.domains.connectors.birthdays import BirthdayItem as BirthdayItem
+from src.domains.sms.summary import SmsSummary as SmsData
 
 # =============================================================================
 # Enums
@@ -504,6 +506,7 @@ SectionPayload = Annotated[
     | BirthdaysData
     | RemindersData
     | HealthData
+    | SmsData
     | ForYouData
     | TasksData
     | DocumentsData
@@ -584,6 +587,12 @@ class CardsBundle(BaseModel):
     tasks: CardSection
     documents: CardSection
     workboard: CardSection
+    sms: CardSection = Field(
+        default_factory=lambda: CardSection(
+            status=CardStatus.NOT_CONFIGURED, generated_at=datetime.now(UTC)
+        ),
+        description="Safe placeholder for pre-SMS cached bundles.",
+    )
 
 
 class BriefingResponse(BaseModel):
@@ -683,6 +692,7 @@ RefreshSectionLiteral = Literal[
     "tasks",
     "documents",
     "workboard",
+    "sms",
     "all",
 ]
 
@@ -695,6 +705,6 @@ class RefreshRequest(BaseModel):
     sections: list[RefreshSectionLiteral] = Field(
         ...,
         min_length=1,
-        max_length=11,
+        max_length=len(SECTION_NAMES) + 1,
         description="Sections to force-refresh; 'all' bypasses every cache.",
     )

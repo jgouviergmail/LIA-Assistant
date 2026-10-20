@@ -392,6 +392,13 @@
           "held_by_peers": "Con peers",
           "more_one": "y {{count}} más",
           "more_other": "y {{count}} más"
+        },
+        "sms": {
+          "title": "Mis SMS",
+          "empty": "No hay SMS archivados.",
+          "total": "Archivados",
+          "received": "En este período",
+          "open": "Abrir Mis SMS"
         }
       },
       "updated_hours_ago": "hace {{hours}} h",
@@ -2816,7 +2823,8 @@
           "jev_hitl_rejection": "Reconoce únicamente un rechazo explícito de todas las acciones propuestas. Las aprobaciones, correcciones, rechazos parciales y ambigüedades usan el clasificador existente. JEV no puede aprobar ninguna acción.",
           "jev_parameter_kind": "Antes de llamar a una herramienta, juzga qué es cada valor de dirección, lugar o correo electrónico. Solo un juicio seguro puede rechazar un valor de otro tipo (un nombre de persona, un número de teléfono, una fecha). Un juicio incierto o fallido deja la decisión a la protección existente, y JEV no puede aceptar ningún valor que esa protección rechace.",
           "jev_email_classification": "Clasifica la información de correo ya disponible con una categoría orientativa y un único nivel de atención. La incertidumbre no muestra insignia. No se consultan mensajes, enlaces ni adjuntos adicionales.",
-          "jev_event_classification": "Clasifica la información de citas ya disponible como profesional o personal. La incertidumbre no muestra insignia; la cita no cambia."
+          "jev_event_classification": "Clasifica la información de citas ya disponible como profesional o personal. La incertidumbre no muestra insignia; la cita no cambia.",
+          "sms_agent": "Agente de dominio que consulta SMS recibidos con tu permiso"
         },
         "voiceTts": {
           "sectionTitle": "Voz y ajustes del proveedor",
@@ -4736,7 +4744,8 @@
         "sandbox-egress": "entorno aislado, sandbox, python, script, red, internet, proxy, hosts, permisos, autorizar, revocar, salida, API, integración, skill, comando, npm, git, pip, Red del entorno aislado",
         "live-mode": "live, tiempo real, voz, habla, Gemini Live, GPT-Live, OpenAI, ElevenLabs, agente, sesión directa, delegación, modelo, nivel de razonamiento, silencio, duración, techo de gasto, interrupciones, pulsar para hablar, conversación, micrófono, espera, poner en espera, despertar, dormida, Modo Live",
         "radio": "radio, emisora, pódcast, noticias, boletín, titulares, análisis, columna, voces, música, temporizador, fuentes, sitios, feeds, RSS, verificación, escucha, en compañía, comentaristas, debate, tertulia, discusión, voces de los comentaristas, reacciones, risita, risa, suspiro",
-        "admin-jev": "JEV, TypeSafe, interruptores, latencia, decisión, reunión, informe, alternativa clasificación phishing estafa crítico urgente"
+        "admin-jev": "JEV, TypeSafe, interruptores, latencia, decisión, reunión, informe, alternativa clasificación phishing estafa crítico urgente",
+        "sms": "sms mensaje teléfono iphone atajos ingesta remitente archivo token"
       }
     },
     "haptics": {
@@ -5037,6 +5046,12 @@
     }
   },
   "relations": {
+    "debrief_stale": "Los SMS han cambiado. Vuelve a generar la síntesis para actualizarla.",
+    "sms_title": "SMS",
+    "sms_unavailable": "Fuente de SMS no disponible.",
+    "sms_open": "Abrir este SMS",
+    "sms_count": "{{count}} SMS",
+    "section_sms": "SMS",
     "title": "Relaciones",
     "subtitle": "Todo lo que LIA sabe de las personas con las que tratas — compromisos abiertos, llamadas, mensajes retransmitidos y recuerdos, en un solo lugar.",
     "empty": "Todavía no hay relaciones. A medida que LIA siga compromisos, haga llamadas y retransmita mensajes, las personas implicadas aparecerán aquí.",
@@ -5769,6 +5784,11 @@
       "delete_lia_health_samples": "Preparando la eliminación de medidas de salud...",
       "revoke_lia_health_ingestion_token": "Preparando la revocación del token de salud...",
       "create_lia_health_ingestion_token": "Preparando la creación del token de salud...",
+      "create_lia_sms_ingestion_token": "Preparando la creación del token SMS…",
+      "revoke_lia_sms_ingestion_token": "Preparando la revocación del token SMS…",
+      "update_lia_sms_preferences": "Preparando los ajustes de SMS…",
+      "set_lia_sms_sender_block": "Preparando el bloqueo de un remitente SMS…",
+      "delete_lia_sms": "Preparando la eliminación de SMS…",
       "update_lia_relation_settings": "Preparando los ajustes de relaciones...",
       "get_lia_relations": "Leyendo las tarjetas de relaciones...",
       "get_lia_relation_context": "Leyendo las fuentes externas de la relación...",
@@ -5895,7 +5915,10 @@
       "regenerate_lia_meeting_report": "Regenerar actas de reunión",
       "retry_lia_meeting": "Reintentar el procesamiento de la reunión",
       "get_lia_meeting_recorder": "Estado de la grabadora",
-      "control_lia_meeting_recording": "Controlar la grabadora"
+      "control_lia_meeting_recording": "Controlar la grabadora",
+      "list_sms": "Leyendo tus SMS…",
+      "search_sms": "Buscando en tus SMS…",
+      "get_sms": "Leyendo el SMS…"
     },
     "reasoning": {
       "title": "Razonamiento"
@@ -9274,7 +9297,7 @@
       "settings": {
         "title": "Ajustes",
         "description": "Configuración de cuenta y preferencias",
-        "count": "30",
+        "count": "31",
         "questions": {
           "q1": {
             "question": "¿Cómo cambio mi zona horaria?",
@@ -9395,6 +9418,10 @@
           "q30": {
             "question": "¿Qué pasa cuando cambia un dato que le conté a LIA?",
             "answer": "Díselo a LIA sin más — <em>mi hija se llama Elsa, no Emma</em> — y su memoria se actualiza. En segundo plano, LIA revisa lo que dijiste: la memoria antigua queda <strong>retirada, con la fecha</strong> en que dejó de ser cierta, y la nueva ocupa su lugar.<br><br><strong>🚫 Ningún dato caducado en las respuestas:</strong> una memoria retirada nunca vuelve a recuperarse, y <strong>Ajustes › Funcionalidades › Identidad y Memoria › Memoria a largo plazo</strong> enumera solo lo que LIA da por cierto hoy.<br><br><strong>🧾 Un rastro breve:</strong> la versión retirada se conserva durante un periodo que fija tu administrador, y luego se borra definitivamente.<br><br><strong>📌 Dos excepciones:</strong><br>• una memoria <strong>fijada</strong> nunca cambia automáticamente — edítala tú<br>• una edición que haces en Ajustes sustituye la memoria directamente: tu corrección es la autoridad, no una versión que archivar"
+          },
+          "q31": {
+            "question": "¿Cómo envío SMS a LIA y controlo su uso?",
+            "answer": "<p>En <strong>Ajustes → Mis SMS</strong>, después de Reuniones, crea y confirma un token para el teléfono. Una automatización de Atajos de iPhone envía remitente, fecha ISO con zona horaria, texto y origen iphone mediante POST HTTPS, con el token en Authorization. Reutiliza el mismo ID de evento y contenido al reintentar.</p><p>El archivo personal se conserva hasta borrarlo manualmente. El acceso del <strong>Asistente</strong> empieza desactivado y es independiente de la recepción y del push inmediato. Las notificaciones proactivas también tienen su fuente Mis SMS y horarios propios. Los secretos de acceso reconocidos se excluyen antes de almacenar; la heurística no reconoce todo texto privado.</p><p>La exportación personal incluye SMS legibles. El borrado invalida exportaciones alojadas, pero no recupera copias descargadas, conversaciones anteriores ni conocimientos guardados aparte. LIA solo recibe lo enviado por Atajos; comprueba los criterios y permisos de iOS en el teléfono.</p>"
           }
         }
       },
@@ -12743,6 +12770,7 @@
       "error": "Error al enviar la opinión"
     },
     "source_health_signals": "Salud",
+    "source_sms": "Mis SMS",
     "source_birthdays": "Cumpleaños",
     "source_open_loops": "Compromisos",
     "source_workboard": "Tablero de trabajo",
@@ -15231,9 +15259,9 @@
         "body": "<h2>Privacy by design</h2><p>LIA está diseñado desde el origen con la protección de datos como principio fundacional, no como un añadido posterior.</p><h2>Cifrado simétrico Fernet</h2><p><strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256), mediante <code>encrypt_data()</code>, protege tokens OAuth, credenciales de conectores y MCP, y campos específicos. Los servicios descifran los valores cuando los necesitan. El cifrado selectivo no abarca todos los datos personales: los mensajes se guardan como texto en la base de datos. El operador controla las claves y el acceso a la base.</p><h2>Minimización de la recopilación</h2><p>LIA solo recopila los datos estrictamente necesarios para su funcionamiento:</p><ul><li>Información de perfil (nombre, email, preferencias)</li><li>Historial de conversaciones almacenado en tu instancia</li><li>Tokens de conexión a los servicios (cifrados)</li><li>Métricas de uso con identificadores seudónimos</li></ul><h2>Operador y proveedores configurados</h2><p>El operador puede tener acceso técnico a los datos almacenados. El modelo recibe la pregunta y el contexto útil, como memorias elegidas o extractos de documentos; los servicios de voz, imagen y otros servicios reciben lo necesario para sus funciones. Se aplican sus políticas de privacidad, conservación y posible entrenamiento. El almacenamiento local y el acceso controlado no sustituyen sus acuerdos ni ajustes.</p><h2>Eliminación y cascading</h2><p>La eliminación de la cuenta borra el contenido personal de conversaciones, memorias, conectores, documentos y almacenes asociados. Los registros contables permanecen; la eliminación puede conservar nombre y correo para contacto contable y el borrado final elimina la fila de la cuenta. Los registros de auditoría o diagnóstico pueden conservar datos identificativos según sus políticas; las copias siguen la conservación del operador. Reactivar no recupera el contenido borrado.</p><h2>Sesiones y cookies seguras</h2><p>Las cookies de sesión se configuran con los atributos <code>HttpOnly</code>, <code>Secure</code> (en producción) y <code>SameSite=lax</code>. La duración de la sesión es de 7 días por defecto, extensible a 30 días con la opción \"Recordarme\". Los tokens de un solo uso se invalidan tras su primera utilización mediante una lista negra en Redis.</p><h2>Protección de contenidos externos</h2><p>Los contenidos recuperados de fuentes externas (emails, páginas web, documentos) se etiquetan como <code>UNTRUSTED</code> con un envoltorio configurable antes de su inyección en los prompts. La herramienta web_fetch está limitada a 10 llamadas por ventana de 60 segundos por usuario para prevenir abusos.</p><h2>Registros técnicos filtrados</h2><p>En la línea del <strong>OWASP Logging Cheat Sheet</strong>, una línea de registro por encima del nivel debug lleva <strong>hechos</strong> — cifras, longitudes, identificadores, códigos de error, el host de una URL — y nunca el texto que una persona escribió, o que un modelo escribió sobre ella: ni búsqueda, ni interés, ni nombre de archivo, etiqueta o espacio, ni página visitada.</p><p>La regla se comprueba <strong>por el valor</strong>, no por el nombre del campo: una prueba lee cada llamada de registro del código y rechaza una vista previa o un valor derivado de un contenido, se llame como se llame. Lo que un mensaje de error <strong>cita</strong> — un valor rechazado por PostgreSQL, la entrada de una validación — se retira antes de escribir la línea, y un error de base de datos se describe por sus hechos: código, restricción, tabla. Las claves de los proveedores se ocultan en toda dirección registrada. Las métricas y las trazas siguen la misma regla: nombran la ruta seguida por su patrón, nunca el nombre o la búsqueda que contiene una dirección. Dos límites se dicen tal cual: el error de un servicio externo en un formato desconocido aún puede citar un dato, y el nivel debug — desactivado en producción — guarda más.</p><h2>Portabilidad de datos (v1.9.1)</h2><p>LIA permite a cada usuario <strong>exportar sus propios datos de consumo</strong> en formato CSV desde Configuración > Funcionalidades. Tres tipos de exportación: consumo LLM (tokens y costos por llamada), consumo API Google, y resumen agregado. Seguridad: el <code>user_id</code> se fuerza en el servidor — ningún parámetro se expone (protección IDOR).</p><h2>Copias de seguridad con restauración probada</h2><p>El despliegue de producción ofrece herramientas de copia nocturna y comprobación de restauración, con conservación predeterminada de 7 días, 4 semanas y 6 meses. El operador las activa y supervisa. La prueba restaura el último volcado en una base desechable y compara versión del esquema y número de filas con la fuente. La recuperación depende de las copias válidas y de la política elegida.</p><h2>Un expediente completo, no una muestra</h2><p>Tres registros mantenidos automáticamente dicen lo que LIA <strong>hizo</strong> por ti, lo que <strong>consultó</strong> para responderte y lo que emprendió <strong>por su cuenta</strong>. No llevan contenido alguno: una consulta retiene la capacidad — «tu agenda» — y nunca lo que se buscó, porque escribirlo equivaldría a copiar el dato mismo que el registro existe para hacer rendir cuentas.</p><p>El expediente que descargas desde la página <strong>Registros</strong> es <strong>completo</strong>. Antes llevaba un tope de filas: una protección real, ya que el documento entero se ensamblaba en memoria en una Raspberry Pi, pero aplicada a la variable equivocada. Lo escaso era la memoria; lo acotado era la verdad. Un cursor del lado del servidor acota ahora el búfer: sea cual sea el volumen, el archivo lleva todo lo que tus filtros designan, el recuento exacto se anuncia en la cabecera junto con el instante de generación, y la descarga se comprime al vuelo cuando tu navegador lo acepta.</p><h2>Comandos y continuaciones privadas</h2><p>Las claves, los archivos elegidos, las conexiones de cuentas y los consentimientos del navegador usan la interfaz segura de la operación, no parámetros inventados por el modelo. El comando está vinculado a la cuenta y a su contexto autorizado; los permisos y la versión del recurso se comprueban de nuevo antes de escribir. Cifrar el contenido de los comandos no oculta todo el servicio a su operador: mensajes y datos operativos conservan los límites descritos aquí.</p><p>La confirmación corresponde a la operación y al contenido mostrados. La conexión OAuth, la selección de archivos, una clave o un permiso del dispositivo continúan en tu navegador autenticado: no pegues estos secretos en el chat. LIA puede preparar la solicitud y esperar ese paso. La activación de la escucha manos libres y los permisos sensibles mantienen sus protecciones; un comando no las evita.</p>"
       },
       "observability": {
-        "title": "621 métricas Prometheus, 31 dashboards Grafana y tracing Langfuse",
-        "excerpt": "LIA ofrece observabilidad empresarial con 621 métricas, dashboards Grafana dedicados, tracing LLM vía Langfuse y alertas por correo con runbooks.",
-        "body": "<h2>Los tres pilares de la observabilidad</h2><p>LIA implementa los tres pilares de la observabilidad moderna:</p><ul><li><strong>Métricas</strong> — 621 métricas Prometheus que cubren HTTP, agentes, tokens, costos, OAuth y rendimiento, etiquetadas por plantilla de ruta: nunca un nombre ni una búsqueda</li><li><strong>Logs</strong> — Registro estructurado JSON mediante structlog, recogido por Grafana Alloy y centralizado en Loki: filtrado de contenido personal en registros técnicos, con más detalles posibles en modo debug</li><li><strong>Trazas</strong> — Trazado distribuido mediante OpenTelemetry (Tempo), nombrado según la plantilla de la ruta y nunca según la dirección concreta, y trazado LLM mediante Langfuse</li></ul><h2>43 archivos de métricas especializados</h2><p>Cada dominio posee su propio archivo de métricas declarativo. Los 43 módulos cubren, entre otros: HTTP, agents (SSE/router/LLM/HITL/planner), base de datos, LangGraph, Langfuse, voice, modo live, radio, RAG spaces, OAuth, MCP, channels, errores, sub-agentes, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, métricas de salud, diarios, telefonía, reuniones, workboard, registros de efectos y límites de uso. Cada archivo define Counter, Histogram y Gauge Prometheus adaptados al dominio.</p><h2>Definición de métricas Prometheus</h2><p>Cada dominio define sus métricas de manera declarativa:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>31 dashboards Grafana</h2><p>LIA proporciona 31 paneles de control Grafana numerados del 01 al 31: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard, live y radio. Cada dashboard ofrece vistas filtrables por usuario, por período y por entorno. El 26.º es un cockpit de producto: resultados validados (👍 explícito o una acción sin corregir), funnel de activación, retención y coste por resultado útil — el conteo exacto vive en PostgreSQL y Grafana lo lee mediante un rol de solo lectura restringido a vistas agregadas.</p><h2>KPIs objetivo extraídos del código</h2><p>LIA monitoriza indicadores precisos definidos en el código fuente: TTFT (Time To First Token) del streaming, latencia del router entre 0,1 y 2 segundos, duración de ejecución de las herramientas de agentes entre 0,1 y 10 segundos, confianza del router p50 &gt; 0,8, costo LLM por solicitud &lt; 0,05 €, tasa de error HTTP 5xx &lt; 1 %.</p><h2>Alertas por correo con runbooks</h2><p>La supervisión no se detiene en los dashboards: un núcleo de alertas vitales — entre ellas API, PostgreSQL o Redis caídos, disco, memoria de contenedores, tasa de errores 5xx, latencia de streaming, copia de seguridad nocturna fallida, URL pública inaccesible, certificado TLS próximo a expirar, limitación de tasa fuera de servicio — es evaluado continuamente por Prometheus y notificado por correo mediante Alertmanager. Cada alerta referencia su runbook (procedimiento de resolución paso a paso), los umbrales se configuran por entorno en archivos .env, y tests unitarios de promtool garantizan que los umbrales mostrados en las notificaciones coinciden exactamente con las expresiones de disparo. Una sonda blackbox prueba incluso la cadena completa de extremo a extremo, del edge de Cloudflare al frontend, exactamente como un usuario. La alerta de latencia de streaming solo observa los turnos que una persona espera —una rutina pasa por el mismo código, pero nadie la espera— y solo salta con suficientes turnos para que un percentil 95 tenga sentido; un incidente cuyo aviso de resolución se perdió se concilia con Alertmanager y se cierra.</p><h2>Langfuse: trazado LLM dedicado</h2><p>La integración con Langfuse traza cada llamada LLM — tokens consumidos (entrada/salida/caché), tiempo de respuesta, modelo utilizado, costo estimado y contexto de la solicitud —, y siete métricas Prometheus propias siguen las versiones de prompts, las puntuaciones de evaluación, las variantes A/B, la profundidad de las trazas y los traspasos entre agentes. Esto permite identificar los prompts ineficientes, comparar los modelos LLM entre sí y optimizar el consumo de tokens a largo plazo.</p><h2>DevOps Claude CLI: Diagnóstico en lenguaje natural (v1.13.0)</h2><p>Última evolución del stack de observabilidad: los administradores ahora pueden diagnosticar servidores directamente desde la conversación de LIA. Basta con pedir «Revisa los logs para ver si todo funciona»: Claude Code CLI — instalado en el contenedor API Docker — inspecciona de forma autónoma los logs, verifica la salud de los contenedores, analiza el uso de recursos e informa de sus conclusiones. Sesiones persistentes para investigaciones de varios turnos, permisos configurables por entorno (producción en solo lectura, desarrollo con acceso completo) y streaming en tiempo real de los pasos de investigación vía SSE.</p><h2>Y desde la v1.34: la asistente lee su propia telemetría</h2><p>Todo lo anterior existía para los humanos; la propia asistente no leía nada. El ADR-247 cerró ese bucle: una autocomprobación periódica convierte las señales doradas y sondas directas en instantáneas de salud con valores exactos; alertas y veredictos críticos convergen en un incidente por avería, diagnosticado por un LLM con presupuesto limitado y basado en los runbooks de operación; los administradores disponen de un panel de Salud de la plataforma, notificaciones proactivas y herramientas de chat de solo lectura. Y una avería conocida ahora da forma a las respuestas: las capacidades degradadas se esquivan al planificar, y los pasos fallidos se explican desde códigos de error tipados, nunca desde logs en bruto. Desde entonces el diagnóstico ya no se escribe a partir de un número solo: una receta declarada por tipo de incidente indica qué desgloses y qué eventos de registro leer, el expediente se recoge en el momento del diagnóstico sin datos personales, una fuente inalcanzable se declara no disponible en lugar de leerse como silencio, y lo que el modelo leyó se muestra bajo su veredicto.</p><h2>Contar resultados, no intentos</h2><p>Un contador tuvo que repensarse en la v1.38.3. Contar las llamadas que llegan a un proveedor es la verdad sobre el proveedor, y el denominador equivocado en cuanto esas llamadas se reintentan, porque un fallo recuperado infla la tasa de error aunque no se haya perdido nada. Un segundo contador registra ahora una línea por operación lógica, con los reintentos plegados, y responde a la única pregunta sobre la que actúa un operador: ¿obtuvo el llamante su resultado? Un tercero dice qué hizo el suavizado de tasa con cada intento, porque «el presupuesto es demasiado pequeño» y «Redis se ha caído» son indistinguibles en un booleano y piden acciones opuestas.</p><p>La lección más reciente trata sobre qué se elige medir. El bucle autónomo contaba sus iteraciones y su duración, y nada de lo que realmente crece: el prompt entregado al modelo en cada paso. Medido sobre el código de producción, eso son 2,3 k tokens en la primera iteración y 112 k en la nonagésima, porque cada resultado de herramienta permanece en la conversación que el modelo vuelve a leer. Dos histogramas registran ahora el tamaño entregado y su proporción de la ventana de contexto del modelo, alimentados por el mismo contador memoizado que el reductor de estado ya mantiene, de modo que la medición no cuesta nada en el camino caliente. Ninguna política de compresión salió con ellos, deliberadamente: un sistema que actúa sobre una magnitud que nunca ha observado está optimizando una conjetura.</p><p>El mismo principio alcanzó a la tasa de éxito de las herramientas. Una herramienta falla <em>devolviendo</em> un fallo, nunca lanzando una excepción, y el contador solo miraba las excepciones: la tasa valía 1,0 por construcción, y las dos alertas que la leen no podían dispararse. Un solo predicado decide ahora qué es un éxito, para el registro, las métricas y el bucle ReAct: la tasa mostrada baja, porque por fin dice la verdad.</p><h2>Señales que se responden</h2><p>Una métrica, una línea de registro y una traza cuentan la misma petición: falta poder pasar de una a otra. En LIA, una línea de registro abre la traza de su petición, una traza abre sus registros y sus métricas, y un punto de latencia abre el ejemplo preciso que lo produjo. Cada enlace se midió en producción antes de repararlo. La cadena que transporta esas señales también está vigilada — una alerta avisa si se pierden registros por el camino —, y todos los paneles siguen una misma convención: una semana de historial, un menú común.</p>"
+        "title": "623 métricas Prometheus, 31 dashboards Grafana y tracing Langfuse",
+        "excerpt": "LIA ofrece observabilidad empresarial con 623 métricas, dashboards Grafana dedicados, tracing LLM vía Langfuse y alertas por correo con runbooks.",
+        "body": "<h2>Los tres pilares de la observabilidad</h2><p>LIA implementa los tres pilares de la observabilidad moderna:</p><ul><li><strong>Métricas</strong> — 623 métricas Prometheus que cubren HTTP, agentes, tokens, costos, OAuth y rendimiento, etiquetadas por plantilla de ruta: nunca un nombre ni una búsqueda</li><li><strong>Logs</strong> — Registro estructurado JSON mediante structlog, recogido por Grafana Alloy y centralizado en Loki: filtrado de contenido personal en registros técnicos, con más detalles posibles en modo debug</li><li><strong>Trazas</strong> — Trazado distribuido mediante OpenTelemetry (Tempo), nombrado según la plantilla de la ruta y nunca según la dirección concreta, y trazado LLM mediante Langfuse</li></ul><h2>43 archivos de métricas especializados</h2><p>Cada dominio posee su propio archivo de métricas declarativo. Los 43 módulos cubren, entre otros: HTTP, agents (SSE/router/LLM/HITL/planner), base de datos, LangGraph, Langfuse, voice, modo live, radio, RAG spaces, OAuth, MCP, channels, errores, sub-agentes, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, métricas de salud, diarios, telefonía, reuniones, workboard, registros de efectos y límites de uso. Cada archivo define Counter, Histogram y Gauge Prometheus adaptados al dominio.</p><h2>Definición de métricas Prometheus</h2><p>Cada dominio define sus métricas de manera declarativa:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>31 dashboards Grafana</h2><p>LIA proporciona 31 paneles de control Grafana numerados del 01 al 31: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard, live y radio. Cada dashboard ofrece vistas filtrables por usuario, por período y por entorno. El 26.º es un cockpit de producto: resultados validados (👍 explícito o una acción sin corregir), funnel de activación, retención y coste por resultado útil — el conteo exacto vive en PostgreSQL y Grafana lo lee mediante un rol de solo lectura restringido a vistas agregadas.</p><h2>KPIs objetivo extraídos del código</h2><p>LIA monitoriza indicadores precisos definidos en el código fuente: TTFT (Time To First Token) del streaming, latencia del router entre 0,1 y 2 segundos, duración de ejecución de las herramientas de agentes entre 0,1 y 10 segundos, confianza del router p50 &gt; 0,8, costo LLM por solicitud &lt; 0,05 €, tasa de error HTTP 5xx &lt; 1 %.</p><h2>Alertas por correo con runbooks</h2><p>La supervisión no se detiene en los dashboards: un núcleo de alertas vitales — entre ellas API, PostgreSQL o Redis caídos, disco, memoria de contenedores, tasa de errores 5xx, latencia de streaming, copia de seguridad nocturna fallida, URL pública inaccesible, certificado TLS próximo a expirar, limitación de tasa fuera de servicio — es evaluado continuamente por Prometheus y notificado por correo mediante Alertmanager. Cada alerta referencia su runbook (procedimiento de resolución paso a paso), los umbrales se configuran por entorno en archivos .env, y tests unitarios de promtool garantizan que los umbrales mostrados en las notificaciones coinciden exactamente con las expresiones de disparo. Una sonda blackbox prueba incluso la cadena completa de extremo a extremo, del edge de Cloudflare al frontend, exactamente como un usuario. La alerta de latencia de streaming solo observa los turnos que una persona espera —una rutina pasa por el mismo código, pero nadie la espera— y solo salta con suficientes turnos para que un percentil 95 tenga sentido; un incidente cuyo aviso de resolución se perdió se concilia con Alertmanager y se cierra.</p><h2>Langfuse: trazado LLM dedicado</h2><p>La integración con Langfuse traza cada llamada LLM — tokens consumidos (entrada/salida/caché), tiempo de respuesta, modelo utilizado, costo estimado y contexto de la solicitud —, y siete métricas Prometheus propias siguen las versiones de prompts, las puntuaciones de evaluación, las variantes A/B, la profundidad de las trazas y los traspasos entre agentes. Esto permite identificar los prompts ineficientes, comparar los modelos LLM entre sí y optimizar el consumo de tokens a largo plazo.</p><h2>DevOps Claude CLI: Diagnóstico en lenguaje natural (v1.13.0)</h2><p>Última evolución del stack de observabilidad: los administradores ahora pueden diagnosticar servidores directamente desde la conversación de LIA. Basta con pedir «Revisa los logs para ver si todo funciona»: Claude Code CLI — instalado en el contenedor API Docker — inspecciona de forma autónoma los logs, verifica la salud de los contenedores, analiza el uso de recursos e informa de sus conclusiones. Sesiones persistentes para investigaciones de varios turnos, permisos configurables por entorno (producción en solo lectura, desarrollo con acceso completo) y streaming en tiempo real de los pasos de investigación vía SSE.</p><h2>Y desde la v1.34: la asistente lee su propia telemetría</h2><p>Todo lo anterior existía para los humanos; la propia asistente no leía nada. El ADR-247 cerró ese bucle: una autocomprobación periódica convierte las señales doradas y sondas directas en instantáneas de salud con valores exactos; alertas y veredictos críticos convergen en un incidente por avería, diagnosticado por un LLM con presupuesto limitado y basado en los runbooks de operación; los administradores disponen de un panel de Salud de la plataforma, notificaciones proactivas y herramientas de chat de solo lectura. Y una avería conocida ahora da forma a las respuestas: las capacidades degradadas se esquivan al planificar, y los pasos fallidos se explican desde códigos de error tipados, nunca desde logs en bruto. Desde entonces el diagnóstico ya no se escribe a partir de un número solo: una receta declarada por tipo de incidente indica qué desgloses y qué eventos de registro leer, el expediente se recoge en el momento del diagnóstico sin datos personales, una fuente inalcanzable se declara no disponible en lugar de leerse como silencio, y lo que el modelo leyó se muestra bajo su veredicto.</p><h2>Contar resultados, no intentos</h2><p>Un contador tuvo que repensarse en la v1.38.3. Contar las llamadas que llegan a un proveedor es la verdad sobre el proveedor, y el denominador equivocado en cuanto esas llamadas se reintentan, porque un fallo recuperado infla la tasa de error aunque no se haya perdido nada. Un segundo contador registra ahora una línea por operación lógica, con los reintentos plegados, y responde a la única pregunta sobre la que actúa un operador: ¿obtuvo el llamante su resultado? Un tercero dice qué hizo el suavizado de tasa con cada intento, porque «el presupuesto es demasiado pequeño» y «Redis se ha caído» son indistinguibles en un booleano y piden acciones opuestas.</p><p>La lección más reciente trata sobre qué se elige medir. El bucle autónomo contaba sus iteraciones y su duración, y nada de lo que realmente crece: el prompt entregado al modelo en cada paso. Medido sobre el código de producción, eso son 2,3 k tokens en la primera iteración y 112 k en la nonagésima, porque cada resultado de herramienta permanece en la conversación que el modelo vuelve a leer. Dos histogramas registran ahora el tamaño entregado y su proporción de la ventana de contexto del modelo, alimentados por el mismo contador memoizado que el reductor de estado ya mantiene, de modo que la medición no cuesta nada en el camino caliente. Ninguna política de compresión salió con ellos, deliberadamente: un sistema que actúa sobre una magnitud que nunca ha observado está optimizando una conjetura.</p><p>El mismo principio alcanzó a la tasa de éxito de las herramientas. Una herramienta falla <em>devolviendo</em> un fallo, nunca lanzando una excepción, y el contador solo miraba las excepciones: la tasa valía 1,0 por construcción, y las dos alertas que la leen no podían dispararse. Un solo predicado decide ahora qué es un éxito, para el registro, las métricas y el bucle ReAct: la tasa mostrada baja, porque por fin dice la verdad.</p><h2>Señales que se responden</h2><p>Una métrica, una línea de registro y una traza cuentan la misma petición: falta poder pasar de una a otra. En LIA, una línea de registro abre la traza de su petición, una traza abre sus registros y sus métricas, y un punto de latencia abre el ejemplo preciso que lo produjo. Cada enlace se midió en producción antes de repararlo. La cadena que transporta esas señales también está vigilada — una alerta avisa si se pierden registros por el camino —, y todos los paneles siguen una misma convención: una semana de historial, un menú común.</p>"
       },
       "prompt-engineering": {
         "title": "Sistema de prompts versionados: 155 prompts gestionados como código",
@@ -16055,7 +16083,8 @@
       "meetings": "Reuniones",
       "bookmarks": "Marcadores",
       "live": "Live",
-      "radio": "Radio"
+      "radio": "Radio",
+      "sms": "Mis SMS"
     },
     "items": {
       "avatar": "Avatar parlante",
@@ -16124,7 +16153,8 @@
       "skill_library": "Biblioteca de skills",
       "skill_library_description": "Buscar en un portal de skills e instalar una skill desde su repositorio de GitHub, y luego actualizarla. Al desactivarla se cierra la biblioteca; las skills ya instaladas se quedan y siguen funcionando.",
       "application_tools": "Ajustes y gestión de LIA",
-      "application_tools_description": "Permitir que LIA consulte información de la aplicación y proponga cambios con confirmación. Las funciones administrativas siguen reservadas a los administradores."
+      "application_tools_description": "Permitir que LIA consulte información de la aplicación y proponga cambios con confirmación. Las funciones administrativas siguen reservadas a los administradores.",
+      "sms": "Mis SMS"
     }
   },
   "showroom": {
@@ -17233,7 +17263,8 @@
       "peer_image_share": "Imagen compartida con una conexión",
       "email_share": "Correo enviado a {{count}} destinatario(s)",
       "skill_proposal_install": "Habilidad «{{target}}» añadida a tu biblioteca",
-      "peer_capability_share": "Recurso compartido con una conexión"
+      "peer_capability_share": "Recurso compartido con una conexión",
+      "sms_notification": "Notificación SMS"
     },
     "export": {
       "group_label": "Exportar este registro",
@@ -17284,6 +17315,7 @@
       "event": "Calendario",
       "file": "Archivos",
       "generated_file": "Archivos creados por LIA",
+      "sms": "SMS",
       "health": "Datos de salud",
       "hue": "Iluminación conectada",
       "image_generation": "Generación de imágenes",
@@ -18210,5 +18242,63 @@
     "phishing_scam": "Phishing/Estafa",
     "urgent": "Urgente",
     "critical": "Crítico"
+  },
+  "sms": {
+    "title": "Mis SMS",
+    "description": "Los SMS recibidos en tu iPhone, en tu archivo personal.",
+    "archive": "Ver mis SMS",
+    "api": "API de ingesta",
+    "url": "URL de SMS (POST)",
+    "payload": "Atajos: POST JSON con sender, date (ISO 8601 con zona), body y o=\"iphone\". Cabeceras: Content-Type: application/json y Authorization: Bearer tu_token. Nunca pegues el token en el chat.",
+    "ingestion": "Aceptar nuevos SMS",
+    "assistant": "Acceso del asistente",
+    "assistant_hint": "Permite que LIA consulte tus SMS para responder, resumir y emitir avisos proactivos. Desactivado por defecto.",
+    "push": "Push inmediata por cada nuevo SMS",
+    "push_hint": "A cualquier hora, al margen del horario proactivo. La push no contiene el texto del SMS. Activa también las notificaciones del dispositivo.",
+    "filter_hint": "Los códigos de acceso, secretos identificables y remitentes bloqueados se excluyen antes del archivo. La detección puede omitir secretos inusuales. Se conservan los demás SMS, incluidos los médicos y bancarios.",
+    "retention": "Se conservan hasta el borrado manual. Se invalidan los archivos exportados alojados, sin recuperar descargas ni borrar chats o recuerdos anteriores.",
+    "usage": "{{count}} SMS archivados",
+    "quota": "Espacio usado: {{used}} / {{max}}",
+    "receipts": "Eventos procesados: {{count}} / {{max}}",
+    "last_received": "Último SMS recibido",
+    "deliveries": "Push aceptadas: {{sent}} · Pendientes: {{pending}} · Fallidas: {{failed}} · Desconocidas: {{unknown}}",
+    "token_label": "Nombre de la fuente",
+    "create_token": "Crear token",
+    "tokens": "Tokens de ingesta",
+    "revoke": "Revocar",
+    "rotate": "Nuevo token para esta fuente",
+    "revoked": "Revocado",
+    "no_tokens": "Sin tokens. Conecta tu iPhone para empezar.",
+    "load_more": "Mostrar más",
+    "blocked": "Remitentes bloqueados",
+    "block_sender": "Nombre o número exacto del remitente",
+    "block": "Bloquear futuros SMS",
+    "unblock": "Desbloquear",
+    "management": "Gestión del archivo",
+    "erase_all": "Borrar todos mis SMS",
+    "erase_range": "Borrar el periodo seleccionado",
+    "from": "Desde (incluido)",
+    "to": "Hasta (excluido)",
+    "review": "Revisar cambio",
+    "confirm": "Confirmar este cambio",
+    "unknown_result": "Resultado incierto. Actualiza antes de actuar de nuevo. Un token emitido no puede volver a mostrarse; revócalo si no lo recibiste.",
+    "before": "Antes",
+    "after": "Después",
+    "empty": "No hay SMS en esta selección.",
+    "by_day": "Por día",
+    "by_sender": "Por remitente",
+    "search": "Buscar en mis SMS",
+    "search_button": "Buscar",
+    "clear_search": "Borrar búsqueda",
+    "too_broad": "Búsqueda demasiado amplia. Añade palabras, remitente o fechas.",
+    "captured": "Hora facilitada por Atajos; no se confirma la hora exacta de recepción.",
+    "unavailable": "Mis SMS no están disponibles temporalmente.",
+    "all_senders": "Todos los remitentes",
+    "selected_count": "{{count}} SMS en el ámbito confirmado",
+    "on": "Activado",
+    "off": "Desactivado",
+    "search_keywords": "sms mensaje teléfono iphone atajos ingesta remitente archivo token",
+    "page_groups": "Los grupos de búsqueda contienen los SMS de esta página.",
+    "new_received": "Nuevo SMS recibido"
   }
 }

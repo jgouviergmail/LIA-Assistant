@@ -72,6 +72,7 @@ class PlatformCapability(str, Enum):
     MCP = "mcp"
     TELEPHONY = "telephony"
     MEETINGS = "meetings"
+    SMS = "sms"
     # ADR-299 — a duplex voice session on the person's provider key.
     LIVE = "live"
     AVATAR = "avatar"
@@ -262,6 +263,15 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
     ),
     # Meeting recording & minutes (ADR-258). No agent of its own: the feature is
     # a recording lifecycle plus a processing job, reached through its router.
+    PlatformCapability.SMS: CapabilitySpec(
+        capability=PlatformCapability.SMS,
+        agents=("sms_agent",),
+        family="knowledge",
+        env_flag="sms_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_SMS_ENABLED,
+        route_enforced=True,
+        service_enforced=True,
+    ),
     PlatformCapability.MEETINGS: CapabilitySpec(
         capability=PlatformCapability.MEETINGS,
         family="media",

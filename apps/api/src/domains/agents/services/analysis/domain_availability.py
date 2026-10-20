@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 # is one line of data, and the taxonomy-coherence test reads THIS mapping
 # instead of restating it.
 FLAG_GATED_DOMAINS: Final[dict[str, str]] = {
+    "sms": "sms_enabled",
     "setting": "application_tools_enabled",
     "telephony": "telephony_enabled",  # ADR-127
     "document": "rag_spaces_enabled",  # P1, ADR-141

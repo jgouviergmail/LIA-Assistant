@@ -15,6 +15,7 @@
  * shrink-only complexity ratchet.
  */
 
+import { useSmsReceivedToast } from '@/hooks/useSmsReceivedToast';
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 
@@ -104,6 +105,7 @@ export function useChatServerSync(options: UseChatServerSyncOptions): void {
     hydratePendingHitl,
   } = options;
 
+  const onSmsReceived = useSmsReceivedToast(owner?.id);
   const readSyncedPage = useCallback(async () => {
     const page = await readNewestPage();
     void hydratePendingHitl();
@@ -192,6 +194,8 @@ export function useChatServerSync(options: UseChatServerSyncOptions): void {
 
   // Admin broadcasts are handled by BroadcastProvider (its own listeners).
   useNotifications({
+    ownerId: owner?.id,
+    onSmsReceived,
     enableSSE: true,
     enableFCM: true,
     isAuthenticated: signedIn && !authLoading,

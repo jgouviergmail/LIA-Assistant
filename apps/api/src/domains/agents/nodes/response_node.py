@@ -144,6 +144,7 @@ from src.domains.agents.services.plan_blockers import (
     summarize_plan_blockers,
 )
 from src.domains.agents.services.rejection_indicators import RESULT_CONTENT_INDICATORS
+from src.domains.agents.sms.state_policy import guard_sms_state
 from src.domains.agents.utils.message_filters import (
     drop_current_turn_responses,
     filter_for_llm_context,
@@ -2976,6 +2977,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         - Basic metrics (duration, success/error counters) are tracked automatically
           by @track_metrics decorator. Only business logic error handling remains here.
     """
+    state = await guard_sms_state(state)
     run_id = run_id_of(config, "unknown")
     collection_preview = CollectionPreview()
     document_preview = CollectionPreview()

@@ -87,6 +87,7 @@ from src.domains.agents.data_registry.models import RegistryItem, RegistryItemTy
 REGISTRY_TYPE_TO_KEY: dict[RegistryItemType, str] = {
     RegistryItemType.CONTACT: "contacts",
     RegistryItemType.EMAIL: "emails",
+    RegistryItemType.SMS: "sms_messages",
     RegistryItemType.EVENT: "events",
     RegistryItemType.CALENDAR: "calendars",
     RegistryItemType.TASK: "tasks",

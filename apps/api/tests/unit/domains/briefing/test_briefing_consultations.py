@@ -260,6 +260,8 @@ class TestTheBundleFilesItsOwnAct:
 
         recorded: list[object] = []
         service = BriefingService(_FakeUser())  # type: ignore[arg-type]
+        service._hidden_sections = frozenset({"sms"})
+        # An always-live SMS source is deliberately outside this cached-only scenario.
 
         async def _gather(_self: object, _force: object = None) -> object:
             return "bundle"

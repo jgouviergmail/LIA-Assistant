@@ -31,6 +31,7 @@ import { DocumentsCard } from './cards/DocumentsCard';
 import { ForYouCard } from './cards/ForYouCard';
 import { TasksCard } from './cards/TasksCard';
 import { HealthCard } from './cards/HealthCard';
+import { SmsCard } from './cards/SmsCard';
 import { MailsCard } from './cards/MailsCard';
 import { RemindersCard } from './cards/RemindersCard';
 import { WeatherCard } from './cards/WeatherCard';
@@ -84,6 +85,7 @@ const CARD_RENDERERS: Record<
   birthdays: (c, p, w) => <BirthdaysCard section={c.birthdays} windows={w} {...p} />,
   reminders: (c, p) => <RemindersCard section={c.reminders} {...p} />,
   health: (c, p) => <HealthCard section={c.health} {...p} />,
+  sms: (c, p) => <SmsCard section={c.sms} {...p} />,
   agenda: (c, p) => <AgendaCard section={c.agenda} {...p} />,
   mails: (c, p) => <MailsCard section={c.mails} {...p} />,
   for_you: (c, p) => <ForYouCard section={c.for_you} {...p} />,

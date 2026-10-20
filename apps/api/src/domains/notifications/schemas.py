@@ -195,6 +195,7 @@ class HubCountsResponse(BaseModel):
     than taking the hub down with it.
     """
 
+    sms: int | None = Field(default=None, ge=0, description="Retained SMS, null when unavailable.")
     peer_messages: int = Field(ge=0, description="Relayed messages delivered, both directions.")
     proactive: int = Field(ge=0, description="Proactive notifications ever sent.")
     interests: int = Field(ge=0, description="Interest notifications ever sent.")

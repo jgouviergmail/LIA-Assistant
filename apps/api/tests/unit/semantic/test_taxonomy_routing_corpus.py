@@ -20,7 +20,7 @@ def _case(name: str) -> TaxonomyRoutingCase:
 
 
 def test_real_probe_corpus_is_bounded_and_names_and_requests_are_unique() -> None:
-    assert 0 < len(TAXONOMY_CASES) <= 48
+    assert 0 < len(TAXONOMY_CASES) <= 49  # One explicit additional native SMS routing probe.
     assert len({case.name for case in TAXONOMY_CASES}) == len(TAXONOMY_CASES)
     assert len({case.query for case in TAXONOMY_CASES}) == len(TAXONOMY_CASES)
 

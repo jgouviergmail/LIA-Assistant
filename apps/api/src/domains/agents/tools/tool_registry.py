@@ -425,6 +425,7 @@ _FLAG_GATED_TOOL_MODULES: tuple[tuple[str, str, str], ...] = (
     ),
     # Health Metrics (v1.17.2): seven tools owned by the unified health_agent.
     ("health_metrics_enabled", "src.domains.agents.tools.health_tools", "health_tools"),
+    ("sms_enabled", "src.domains.agents.tools.sms_tools", "sms_tools"),
     # Telephony: agentic outbound calls (per-user connector) and the owner's own.
     ("telephony_enabled", "src.domains.agents.tools.telephony_tools", "telephony_tools"),
     (
@@ -511,6 +512,7 @@ def _import_tool_modules() -> None:
         ),
         ("src.domains.agents.tools.application_psyche_tools", "application_psyche_tools"),
         ("src.domains.agents.tools.application_health_tools", "application_health_tools"),
+        ("src.domains.agents.tools.application_sms_tools", "application_sms_tools"),
         ("src.domains.agents.tools.application_relation_tools", "application_relation_tools"),
         ("src.domains.agents.tools.application_peer_tools", "application_peer_tools"),
         ("src.domains.agents.tools.application_workboard_tools", "application_workboard_tools"),

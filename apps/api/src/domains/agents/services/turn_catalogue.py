@@ -23,6 +23,8 @@ from collections.abc import Collection
 from typing import TYPE_CHECKING
 from uuid import UUID
 
+from src.domains.agents.sms.availability import without_unconsented_sms
+
 if TYPE_CHECKING:
     from src.domains.agents.registry import AgentRegistry
     from src.domains.agents.registry.catalogue import ToolManifest
@@ -59,6 +61,6 @@ async def build_turn_catalogue(
     offered = await without_disabled_capability_tools(
         build_request_tool_manifests(registry), registry
     )
-    return await filter_application_manifests(
-        without_unconnected_tools(offered, active_connector_types), user_id
-    )
+    connected = without_unconnected_tools(offered, active_connector_types)
+    consented = await without_unconsented_sms(connected, user_id)
+    return await filter_application_manifests(consented, user_id)

@@ -9,12 +9,8 @@ Binary files (attachments, RAG source uploads — arbitration A5) are copied
 into the archive; derived data (chunks, vectors) is excluded.
 """
 
-import asyncio
 import json
-import shutil
-import tempfile
-import zipfile
-from collections.abc import Callable
+from collections.abc import AsyncGenerator, Callable
 from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
@@ -22,23 +18,32 @@ from typing import Any
 from uuid import UUID
 
 import structlog
-from sqlalchemy import exists, or_, select
+from sqlalchemy import Select, exists, or_, select
 
 from src.core.config import settings
 from src.core.i18n import normalize_language, resolve_language
 from src.core.i18n_account_export import render_export_heading, render_export_speaker
 from src.core.i18n_drafts import label_separator
 from src.core.security.utils import decrypt_data
+from src.domains.account_export.archive_stream import (
+    ExportTooLargeError as ExportTooLargeError,
+)
+from src.domains.account_export.archive_stream import (
+    write_streaming_archive,
+)
+from src.domains.account_export.publication import (
+    ExportInvalidatedError as ExportInvalidatedError,
+)
+from src.domains.account_export.publication import (
+    publish_archive,
+)
+from src.domains.shared.markdown_literal import literal_quote, markdown_data_literal
 from src.domains.users.models import User
 from src.domains.users.user_column_map import USER_COLUMNS, UserColumnClass
 from src.domains.users.user_data_map import TABLE_RULES, ExportPolicy, TableDataClass
 from src.infrastructure.database.session import Base, get_db_context
 
 logger = structlog.get_logger(__name__)
-
-
-class ExportTooLargeError(Exception):
-    """The built archive exceeds the configured size cap (A5)."""
 
 
 # Owner column when it is not ``user_id``.
@@ -62,6 +67,8 @@ _REDACTED_COLUMNS: dict[str, frozenset[str]] = {
         {"snapshot", "lease_owner", "lease_expires_at", "fence"}
     ),
     "phone_calls": frozenset({"return_webhook_encrypted"}),
+    "sms_messages": frozenset({"sender_hash", "receipt_id"}),
+    "sms_sender_blocks": frozenset({"sender_hash"}),
 }
 
 # Fernet-encrypted columns that MUST leave the archive decrypted
@@ -69,6 +76,9 @@ _REDACTED_COLUMNS: dict[str, frozenset[str]] = {
 # marker instead of failing the whole export.
 _DECRYPTED_COLUMNS: dict[str, frozenset[str]] = {
     "phone_calls": frozenset({"callee_phone"}),
+    "sms_messages": frozenset({"sender_encrypted", "body_encrypted"}),
+    "sms_sender_blocks": frozenset({"sender_encrypted"}),
+    "ingestion_sources": frozenset({"label_encrypted"}),
     # ADR-258: the meeting transcript rests encrypted (third parties' speech)
     # and leaves the archive readable — it is the user's own record.
     "meetings": frozenset({"transcript_encrypted"}),
@@ -177,35 +187,56 @@ def _row_to_dict(table_name: str, row: Any, user_id: UUID) -> dict[str, Any]:
     return output
 
 
-async def _fetch_table_rows(table_name: str, user_id: UUID) -> list[dict[str, Any]]:
-    """Fetch a user's rows for one exportable table (own session per call)."""
+def _table_query(table_name: str, user_id: UUID) -> Select[tuple[object, ...]]:
     table = Base.metadata.tables[table_name]
+    if table_name == "peer_capability_transfers":
+        components = Base.metadata.tables["peer_capability_components"]
+        published = exists(
+            select(components.c.id).where(
+                components.c.transfer_id == table.c.id, components.c.resource_id.is_not(None)
+            )
+        )
+        query = select(table).where(
+            or_(table.c.sender_id == user_id, (table.c.recipient_id == user_id) & published)
+        )
+    elif table_name in _VIA_PARENT:
+        parent_name, fk_column, parent_owner = _VIA_PARENT[table_name]
+        parent = Base.metadata.tables[parent_name]
+        subquery = select(parent.c.id).where(parent.c[parent_owner] == user_id)
+        query = select(table).where(table.c[fk_column].in_(subquery))
+    elif table_name in _TWO_SIDED:
+        side_a, side_b = _TWO_SIDED[table_name]
+        query = select(table).where(or_(table.c[side_a] == user_id, table.c[side_b] == user_id))
+    else:
+        owner_column = _OWNER_COLUMN_OVERRIDES.get(table_name, "user_id")
+        query = select(table).where(table.c[owner_column] == user_id)
 
+    event_column = {
+        "sms_messages": "received_at",
+        "agent_effects": "claimed_at",
+        "agent_treatments": "occurred_at",
+        "agent_decisions": "started_at",
+        "ledger_chain": "seq",
+    }.get(table_name, "created_at")
+    ordering = [table.c[event_column]] if event_column in table.c else []
+    return query.order_by(*ordering, *table.primary_key.columns)
+
+
+async def _iter_table_rows(table_name: str, user_id: UUID) -> AsyncGenerator[dict[str, object]]:
+    """Core rows use a dedicated server cursor; no ORM identity map can grow."""
     async with get_db_context() as db:
-        if table_name == "peer_capability_transfers":
-            components = Base.metadata.tables["peer_capability_components"]
-            published = exists(
-                select(components.c.id).where(
-                    components.c.transfer_id == table.c.id, components.c.resource_id.is_not(None)
-                )
-            )
-            query = select(table).where(
-                or_(table.c.sender_id == user_id, (table.c.recipient_id == user_id) & published)
-            )
-        elif table_name in _VIA_PARENT:
-            parent_name, fk_column, parent_owner = _VIA_PARENT[table_name]
-            parent = Base.metadata.tables[parent_name]
-            subquery = select(parent.c.id).where(parent.c[parent_owner] == user_id)
-            query = select(table).where(table.c[fk_column].in_(subquery))
-        elif table_name in _TWO_SIDED:
-            side_a, side_b = _TWO_SIDED[table_name]
-            query = select(table).where(or_(table.c[side_a] == user_id, table.c[side_b] == user_id))
-        else:
-            owner_column = _OWNER_COLUMN_OVERRIDES.get(table_name, "user_id")
-            query = select(table).where(table.c[owner_column] == user_id)
+        result = await db.stream(_table_query(table_name, user_id).execution_options(yield_per=64))
+        try:
+            async for partition in result.partitions(64):
+                for row in partition:
+                    yield _row_to_dict(table_name, row, user_id)
+        finally:
+            await result.close()
 
-        result = await db.execute(query)
-        return [_row_to_dict(table_name, row, user_id) for row in result.fetchall()]
+
+async def _fetch_table_rows(table_name: str, user_id: UUID) -> list[dict[str, object]]:
+    """Compatibility for small diagnostic callers; full exports use the iterator."""
+    return [row async for row in _iter_table_rows(table_name, user_id)]
 
 
 async def _fetch_user_profile(user_id: UUID) -> dict[str, Any]:
@@ -348,6 +379,15 @@ def _render_decisions(rows: list[dict[str, Any]], language: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _render_sms(rows: list[dict[str, object]], language: str) -> str:
+    lines = ["# SMS\n"]
+    for row in rows:
+        sender = markdown_data_literal(" ".join(str(row.get("sender_encrypted", "")).split()))
+        body = literal_quote(str(row.get("body_encrypted", "")), strict=True)
+        lines.append(f"## {row.get('received_at', '')} — {sender}\n\n{body}\n")
+    return "\n".join(lines)
+
+
 def _render_chain(rows: list[dict[str, Any]], language: str) -> str:
     """The chain, as an ATTESTATION rather than ten thousand hashes.
 
@@ -385,6 +425,7 @@ _MARKDOWN_RENDERERS: dict[str, Callable[[list[dict[str, Any]], str], str]] = {
     "agent_treatments": _render_treatments,
     "agent_decisions": _render_decisions,
     "ledger_chain": _render_chain,
+    "sms_messages": _render_sms,
 }
 
 
@@ -407,94 +448,49 @@ def _render_markdown(
     return renderer(rows, resolve_language(language)) if renderer else None
 
 
-def _copy_user_files(archive: zipfile.ZipFile, user_id: UUID) -> None:
-    """Copy attachment + RAG source files into the archive (A5)."""
-    for label, base_path in (
-        ("files/attachments", settings.attachments_storage_path),
-        ("files/rag_documents", settings.rag_spaces_storage_path),
-    ):
-        user_dir = Path(base_path) / str(user_id)
-        if not user_dir.is_dir():
-            continue
-        for file_path in user_dir.rglob("*"):
-            # Symlinks are excluded: uploads never create them, and following
-            # one would embed content from OUTSIDE the user's directory.
-            if file_path.is_file() and not file_path.is_symlink():
-                arcname = f"{label}/{file_path.relative_to(user_dir)}"
-                # Media is usually already compressed — store, don't deflate.
-                archive.write(file_path, arcname=arcname, compress_type=zipfile.ZIP_STORED)
-
-
-def _write_archive(
-    tmp_path: Path,
-    tables_payload: dict[str, list[dict[str, Any]]],
-    profile: dict[str, Any],
-    user_id: UUID,
-) -> None:
-    """Assemble the ZIP on disk (CPU/disk-bound — runs in a thread)."""
-    with zipfile.ZipFile(tmp_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr(
-            "profile.json",
-            json.dumps(profile, indent=2, ensure_ascii=False, default=_json_default),
-        )
-        for table_name, rows in tables_payload.items():
-            archive.writestr(
-                f"data/{table_name}.json",
-                json.dumps(rows, indent=2, ensure_ascii=False, default=_json_default),
-            )
-            markdown = _render_markdown(
-                table_name, rows, normalize_language(profile.get("language"))
-            )
-            if markdown is not None:
-                archive.writestr(f"readable/{table_name}.md", markdown)
-        _copy_user_files(archive, user_id)
-
-
 async def build_export_archive(user_id: UUID, job_id: UUID) -> tuple[Path, int]:
-    """Build the full export archive for one user.
-
-    Args:
-        user_id: Account being exported.
-        job_id: Export job id (names the archive).
-
-    Returns:
-        (final archive path, size in bytes).
-
-    Raises:
-        ExportTooLargeError: When the archive exceeds the configured cap.
-    """
-    tables_payload: dict[str, list[dict[str, Any]]] = {}
-    for table_name in exportable_tables():
-        tables_payload[table_name] = await _fetch_table_rows(table_name, user_id)
+    """Stream a complete archive on the destination filesystem, with bounded RAM."""
     profile = await _fetch_user_profile(user_id)
-
+    tables = exportable_tables()
     exports_dir = Path(settings.exports_storage_path) / str(user_id)
-    exports_dir.mkdir(parents=True, exist_ok=True)
+    if exports_dir.is_symlink():
+        raise ExportInvalidatedError("invalid_export_directory")
+    exports_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     final_path = exports_dir / f"{job_id}.zip"
-
-    with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
-        tmp_path = Path(tmp.name)
+    tmp_path = exports_dir / f".{job_id}.building.zip"
+    published = False
     try:
-        await asyncio.to_thread(_write_archive, tmp_path, tables_payload, profile, user_id)
-
-        size = tmp_path.stat().st_size
-        if size > settings.account_export_max_bytes:
-            raise ExportTooLargeError(
-                f"archive is {size} bytes > cap {settings.account_export_max_bytes}"
+        await write_streaming_archive(
+            tmp_path,
+            profile,
+            user_id,
+            tables,
+            _iter_table_rows,
+            _render_markdown,
+            normalize_language(profile.get("language")),
+        )
+        async with get_db_context() as db:
+            await publish_archive(
+                db,
+                user_id,
+                job_id,
+                int(profile.get("extraction_revision") or 0),
+                tmp_path,
+                final_path,
             )
-
-        # Atomic hand-over: the download endpoint only ever sees complete files.
-        await asyncio.to_thread(shutil.move, str(tmp_path), str(final_path))
-    except Exception:
+            published = True
+    except BaseException:
         tmp_path.unlink(missing_ok=True)
+        if published:
+            final_path.unlink(missing_ok=True)
         raise
-
+    size = final_path.stat().st_size
     logger.info(
         "account_export_archive_built",
         user_id=str(user_id),
         job_id=str(job_id),
         size_bytes=size,
-        tables=len(tables_payload),
+        tables=len(tables),
         built_at=datetime.now(UTC).isoformat(),
     )
     return final_path, size

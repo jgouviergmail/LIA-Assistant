@@ -22,6 +22,8 @@ from src.core.i18n import get_language_name
 from src.core.llm_usage import LLMBillingRecord
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.heartbeat.schemas import HeartbeatContext, HeartbeatDecision
+from src.domains.heartbeat.sms_context import sms_decision_allowed, sms_owner_matches
+from src.domains.sms.summary import sms_signal_current
 from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot
 from src.infrastructure.llm.token_capture import TokenCaptureHandler
 from src.infrastructure.llm.usage_metadata import model_name_of
@@ -95,6 +97,15 @@ async def get_heartbeat_decision(
     from src.infrastructure.llm import get_llm
     from src.infrastructure.llm.structured_output import get_structured_output
 
+    if not sms_owner_matches(context.sms, user_id) or not await sms_signal_current(context.sms):
+        return (
+            HeartbeatDecision(action="skip", reason="Source changed before decision."),
+            0,
+            0,
+            0,
+            0,
+            (),
+        )
     language_name = get_language_name(user_language)
     llm = get_llm("heartbeat_decision")
 
@@ -135,6 +146,10 @@ async def get_heartbeat_decision(
             config=runnable_config,
         )
 
+    if not await sms_signal_current(context.sms) or not sms_decision_allowed(context, decision):
+        decision = HeartbeatDecision(
+            action="skip", reason="Source changed or SMS selection was not actionable and grounded."
+        )
     tokens_in = token_capture.tokens_in
     tokens_out = token_capture.tokens_out
     tokens_cache = token_capture.tokens_cache
@@ -182,6 +197,32 @@ def message_clock(context: HeartbeatContext) -> tuple[str, str | None]:
     return local.strftime("%d/%m/%Y %H:%M"), str(local.tzinfo)
 
 
+async def _heartbeat_profile_context(
+    user_id: str | UUID | None, user_timezone: str | None
+) -> tuple[str, str]:
+    psyche_block = ""
+    user_model_block = ""
+    if user_id:
+        # Psyche injection is best-effort
+        with suppress(Exception):
+            from src.domains.psyche.service import build_psyche_prompt_block
+
+            psyche_block = await build_psyche_prompt_block(
+                user_id=user_id, user_timezone=user_timezone
+            )
+        # Journal portrait injection is best-effort
+        with suppress(Exception):
+            from src.domains.journals.portrait_builder import (
+                build_journal_user_model_block,
+            )
+
+            user_model_block = await build_journal_user_model_block(
+                user_id=user_id, format="brief", flow="heartbeat"
+            )
+
+    return psyche_block, user_model_block
+
+
 async def generate_heartbeat_message(
     message_draft: str,
     context: HeartbeatContext,
@@ -220,26 +261,7 @@ async def generate_heartbeat_message(
     language_name = get_language_name(user_language)
     current_dt, user_timezone = message_clock(context)
 
-    # Resolve psyche context before template formatting
-    psyche_block = ""
-    user_model_block = ""
-    if user_id:
-        # Psyche injection is best-effort
-        with suppress(Exception):
-            from src.domains.psyche.service import build_psyche_prompt_block
-
-            psyche_block = await build_psyche_prompt_block(
-                user_id=user_id, user_timezone=user_timezone
-            )
-        # Journal portrait injection is best-effort
-        with suppress(Exception):
-            from src.domains.journals.portrait_builder import (
-                build_journal_user_model_block,
-            )
-
-            user_model_block = await build_journal_user_model_block(
-                user_id=user_id, format="brief", flow="heartbeat"
-            )
+    psyche_block, user_model_block = await _heartbeat_profile_context(user_id, user_timezone)
 
     system_prompt = read_prompt_file("heartbeat_message_prompt").format(
         personality_instruction=personality_instruction or default_personality_prompt(),
@@ -257,6 +279,8 @@ async def generate_heartbeat_message(
         # producing another vague "have a look at ..." message.
         system_prompt += "\n\n" + render_verified_facts(facts_block)
 
+    if not sms_owner_matches(context.sms, user_id) or not await sms_signal_current(context.sms):
+        return "", 0, 0, 0, 0, ()
     llm = get_llm("heartbeat_message")
     model_name = model_name_of(llm) or "unknown"
     started_at = time()
@@ -290,7 +314,7 @@ async def generate_heartbeat_message(
         capture.ensure_response_record(
             result, model_name=model_name, started_at=started_at, snapshot=pricing_snapshot
         )
-        message = result.text
+        message = result.text if await sms_signal_current(context.sms) else ""
         logger.info(
             "heartbeat_message_generated",
             language=user_language,

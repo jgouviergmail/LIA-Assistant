@@ -24,6 +24,7 @@ from fastapi import APIRouter, Depends, Query, Response, status
 
 from src.core.config import settings
 from src.core.exceptions import raise_invalid_input
+from src.core.private_input_route import PrivateApplicationInputRoute
 from src.core.session_dependencies import get_current_active_session
 from src.domains.auth.dependencies import create_user_rate_limiter
 from src.domains.relations.debrief.schemas import RelationDebriefRead
@@ -40,7 +41,9 @@ from src.domains.relations.schemas import (
 from src.domains.relations.service import RelationsService
 from src.domains.users.models import User
 
-router = APIRouter(prefix="/relations", tags=["relations"])
+router = APIRouter(
+    prefix="/relations", tags=["relations"], route_class=PrivateApplicationInputRoute
+)
 
 # Read once at import, like every settings-driven module constant. This guards
 # EXTERNAL quota, not the database: one provider-backed read costs up to
@@ -303,3 +306,29 @@ async def get_relation_detail(
 ) -> RelationDetail:
     """The full picture of one person, resolved by best-effort name match."""
     return await RelationsService(current_user.id).build_detail(name)
+
+
+# Query aliases preserve arbitrary received sender names without path shadowing.
+router.add_api_route(
+    "/lookup/person", get_relation_detail, methods=["GET"], response_model=RelationDetail
+)
+router.add_api_route(
+    "/lookup/person/context",
+    get_relation_context,
+    methods=["GET"],
+    response_model=RelationContext,
+    dependencies=[Depends(rate_limit_relation_context)],
+)
+router.add_api_route(
+    "/lookup/person/debrief",
+    get_relation_debrief,
+    methods=["GET"],
+    response_model=RelationDebriefRead,
+)
+router.add_api_route(
+    "/lookup/person/debrief",
+    build_relation_debrief,
+    methods=["POST"],
+    response_model=RelationDebriefRead,
+    dependencies=[Depends(rate_limit_relation_debrief)],
+)

@@ -15,7 +15,8 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.constants import FCM_WEBPUSH_ICON_PATH, PUSH_RELAY_HANDLE_PREFIX
+from src.core.constants import PUSH_RELAY_HANDLE_PREFIX
+from src.domains.notifications.delivery_payload import build_message, classify_failure
 from src.domains.notifications.device_commands import (
     NotificationDeviceSnapshot,
     delete_notification_device,
@@ -63,6 +64,9 @@ class FCMSendResult:
     #: verdict rather than re-derived by the caller, so the classification has a
     #: single implementation (see ``_is_permanently_invalid_token``).
     token_invalid: bool = False
+    error_code: str | None = None
+    retryable: bool = False
+    retry_after_seconds: int = 60
 
 
 @dataclass
@@ -352,6 +356,22 @@ class FCMNotificationService:
             },
         )
 
+    async def send_to_device(
+        self,
+        *,
+        token: str,
+        title: str,
+        body: str,
+        data: dict[str, str],
+        occurrence_key: str,
+    ) -> FCMSendResult:
+        """Send one detached device snapshot; never query, fan out or commit."""
+        if not occurrence_key or len(occurrence_key) > 64:
+            raise ValueError("Invalid notification occurrence")
+        return await self._send_to_token(
+            token=token, title=title, body=body, data=data, occurrence_key=occurrence_key
+        )
+
     async def _send_to_token(
         self,
         token: str,
@@ -359,6 +379,7 @@ class FCMNotificationService:
         body: str,
         data: dict | None = None,
         image_url: str | None = None,
+        occurrence_key: str | None = None,
     ) -> FCMSendResult:
         """
         Send notification to a single FCM token.
@@ -382,54 +403,21 @@ class FCMNotificationService:
             return FCMSendResult(
                 success=False,
                 error="Firebase not configured",
+                error_code="TRANSPORT_UNAVAILABLE",
+                retryable=True,
                 token=token,
             )
 
         try:
             from firebase_admin import messaging
 
-            # Build notification
-            notification = messaging.Notification(
+            message = build_message(
+                token=token,
                 title=title,
                 body=body,
-                image=image_url,
-            )
-
-            # Build message
-            message = messaging.Message(
-                notification=notification,
                 data=data or {},
-                token=token,
-                # Android config
-                android=messaging.AndroidConfig(
-                    priority="high",
-                    notification=messaging.AndroidNotification(
-                        click_action="OPEN_CHAT",
-                        channel_id="reminders",
-                    ),
-                ),
-                # iOS (APNs) config
-                apns=messaging.APNSConfig(
-                    payload=messaging.APNSPayload(
-                        aps=messaging.Aps(
-                            alert=messaging.ApsAlert(
-                                title=title,
-                                body=body,
-                            ),
-                            sound="default",
-                            badge=1,
-                        ),
-                    ),
-                ),
-                # Web config
-                webpush=messaging.WebpushConfig(
-                    notification=messaging.WebpushNotification(
-                        title=title,
-                        body=body,
-                        icon=FCM_WEBPUSH_ICON_PATH,
-                        require_interaction=True,
-                    ),
-                ),
+                image_url=image_url,
+                occurrence=occurrence_key,
             )
 
             # Send message (messaging.send is a blocking HTTP call — keep it
@@ -439,7 +427,6 @@ class FCMNotificationService:
             logger.debug(
                 "fcm_message_sent",
                 message_id=response,
-                token_prefix=token[:20],
             )
 
             return FCMSendResult(
@@ -452,29 +439,19 @@ class FCMNotificationService:
             error_msg = str(e)
             token_invalid = _is_permanently_invalid_token(e)
 
-            # A dead token is an expected end of life, not an incident: it is
-            # recorded once at INFO, and the token is deactivated right after, so
-            # it never comes back. Only genuine failures stay at ERROR.
-            if token_invalid:
-                logger.info(
-                    "fcm_token_permanently_invalid",
-                    error=error_msg,
-                    error_type=type(e).__name__,
-                    token_prefix=token[:20],
-                )
-            else:
-                logger.error(
-                    "fcm_send_failed",
-                    error=error_msg,
-                    error_type=type(e).__name__,
-                    token_prefix=token[:20],
-                )
+            failure = classify_failure(e)
+            logger.warning(
+                "fcm_delivery_refused", error_type=type(e).__name__, error_code=failure.code
+            )
 
             return FCMSendResult(
                 success=False,
                 error=error_msg,
                 token=token,
                 token_invalid=token_invalid,
+                error_code=failure.code,
+                retryable=failure.retryable,
+                retry_after_seconds=failure.retry_after_seconds,
             )
 
     async def _wake_through_relay(self, token: str) -> FCMSendResult:
@@ -504,6 +481,8 @@ class FCMNotificationService:
             return FCMSendResult(
                 success=False,
                 error="push_relay_url_not_configured",
+                error_code="TRANSPORT_UNAVAILABLE",
+                retryable=True,
                 token=token,
             )
 
@@ -518,6 +497,7 @@ class FCMNotificationService:
             error=result.error,
             token=token,
             token_invalid=result.should_forget_handle,
+            error_code="DEVICE_INVALID" if result.should_forget_handle else "DELIVERY_ACK_UNKNOWN",
         )
 
     # =========================================================================

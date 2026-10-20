@@ -24,6 +24,8 @@ from typing import Any
 import structlog
 
 from src.core.config import Settings, get_settings
+from src.domains.agents.formatters.reference_context import render_reference_items
+from src.domains.agents.sms.prompt_projection import sms_items_prompt
 
 logger = structlog.get_logger(__name__)
 
@@ -110,137 +112,18 @@ class ResolvedContext:
         Returns:
             Formatted string for inclusion in LLM prompt.
         """
-        if not self.items:
-            return ""
+        if self.source_domain in {"sms", "sms_messages"}:
+            return sms_items_prompt(self.items)
 
-        # Fields to exclude (internal/technical)
-        exclude_fields = {
-            "index",
-            "_index",
-            "meta",
-            "_meta",
-            "raw",
-            "_raw",
-            "etag",
-            "kind",
-            "selfLink",
-            "iCalUID",
-            "htmlLink",
-            "creator",
-            "organizer",
-        }
+        return self._ordinary_llm_context()
 
-        # Priority fields to show first (if present)
-        priority_fields = [
-            "id",
-            "resource_name",
-            "place_id",
-            "message_id",
-            "name",
-            "summary",
-            "title",
-            "subject",
-            "location",
-            "address",
-            "start",
-            "end",
-            "due",
-            "date",
-            "email",
-            "phone",
-            "attendees",
-            "participants",
-        ]
-
-        # Cross-domain key fields (for READY-TO-USE section)
-        cross_domain_keys = {
-            "location": "places",
-            "address": "places",
-            "email": "emails",
-            "name": "contacts",
-            "summary": "general",
-            "subject": "emails",
-        }
-
-        lines = []
-        ready_to_use_values: dict[str, str] = {}
-        id_aliases = _DOMAIN_ID_ALIASES.get(self.source_domain or "", {})
-
-        # === HEADER ===
-        lines.append(
-            "RESOLVED CONTEXT (items already fetched — use their IDs directly in parameters, "
-            "DO NOT create any resolve/context/reference step):"
+    def _ordinary_llm_context(self) -> str:
+        return render_reference_items(
+            self.items,
+            self.source_domain,
+            self._format_value,
+            _DOMAIN_ID_ALIASES.get(self.source_domain or "", {}),
         )
-        lines.append(f"Source domain: {self.source_domain or 'unknown'}")
-        lines.append(f"Items count: {len(self.items)}")
-
-        for i, item in enumerate(self.items, 1):
-            lines.append(f"\n  Item {i}:")
-            if isinstance(item, dict):
-                # Inject tool-parameter aliases for ID fields so the LLM can map directly.
-                # Example: event payload has "id" but update_event_tool expects "event_id".
-                for payload_field, param_name in id_aliases.items():
-                    if payload_field in item and item[payload_field] is not None:
-                        value = self._format_value(item[payload_field])
-                        if value and param_name not in item:
-                            lines.append(
-                                f"    - {param_name}: {value}"
-                                "  ← use this directly as tool parameter"
-                            )
-
-                # Collect fields: priority first, then rest
-                shown_fields = set()
-                field_lines = []
-
-                # Priority fields first
-                for field in priority_fields:
-                    if field in item and item[field] is not None:
-                        value = self._format_value(item[field])
-                        if value:
-                            field_lines.append(f"    - {field}: {value}")
-                            shown_fields.add(field)
-                            # Extract cross-domain values
-                            if field in cross_domain_keys and len(self.items) == 1:
-                                ready_to_use_values[field] = value
-
-                # Remaining fields (sorted alphabetically)
-                for field in sorted(item.keys()):
-                    if field in shown_fields or field in exclude_fields:
-                        continue
-                    if field.startswith("_"):
-                        continue
-                    value = self._format_value(item[field])
-                    if value:
-                        field_lines.append(f"    - {field}: {value}")
-
-                lines.extend(field_lines)
-            else:
-                # Non-dict item: just stringify
-                lines.append(f"    {str(item)[:300]}")
-
-        # === READY-TO-USE VALUES (explicit extraction for cross-domain) ===
-        if ready_to_use_values:
-            lines.append("\n" + "=" * 60)
-            lines.append("READY-TO-USE VALUES (use these DIRECTLY in tool parameters):")
-            lines.append("=" * 60)
-            for field, value in ready_to_use_values.items():
-                lines.append(f'  {field.upper()}: "{value}"')
-                if field == "location":
-                    lines.append(f'    → For places search: get_places_tool(query="{value}")')
-                elif field == "email":
-                    lines.append(f'    → For email search: get_emails_tool(query="{value}")')
-                elif field == "name":
-                    lines.append(f'    → For contacts: get_contacts_tool(query="{value}")')
-
-        # === CRITICAL INSTRUCTION ===
-        lines.append("\n" + "-" * 60)
-        lines.append("CRITICAL: These items are ALREADY RESOLVED from conversation history.")
-        lines.append(
-            "DO NOT generate any 'resolve' or 'get_reference' tool - use values above DIRECTLY."
-        )
-        lines.append("-" * 60)
-
-        return "\n".join(lines)
 
     def _format_value(self, value: Any, max_length: int = 200) -> str | None:
         """

@@ -126,6 +126,9 @@ class _CountedNode:
 # authority on the same figures (ADR-185). The briefing readout rides the
 # "voice" switch; procedural memories ride the "memory" tally.
 COUNTED_NODES: tuple[_CountedNode, ...] = (
+    _CountedNode(
+        "sms", lambda: _import("sms.models", "SmsMessage"), capability=PlatformCapability.SMS
+    ),
     _CountedNode("connectors", lambda: _import("connectors.models", "Connector")),
     _CountedNode(
         "memory",
@@ -273,6 +276,7 @@ PLATFORM_CAPABILITY_NODES: dict[PlatformCapability, str] = {
     PlatformCapability.MCP: "mcp_servers",
     PlatformCapability.TELEPHONY: "telephony",
     PlatformCapability.MEETINGS: "meetings",
+    PlatformCapability.SMS: "sms",
     # B7 — the thirteen. Most ride a node the map already drew; the board and
     # the open loops get their own, and two are ambient.
     PlatformCapability.WORKBOARD: "workboard",

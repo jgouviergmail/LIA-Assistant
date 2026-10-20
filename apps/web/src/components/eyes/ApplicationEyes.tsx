@@ -12,7 +12,13 @@ const EyesWidget = dynamic(() => import('./EyesWidget').then(module => module.Ey
 });
 
 /** One mount under the authenticated layout, preserved across all its pages. */
-export function ApplicationEyes() {
+export function ApplicationEyes({
+  ownerId,
+  smsEnabled = false,
+}: {
+  ownerId?: string;
+  smsEnabled?: boolean;
+}) {
   useAvatarStyleRollout();
   const onChat = isChatRoute(usePathname());
   const state = useEyesChatStore(store => store.state);
@@ -23,6 +29,8 @@ export function ApplicationEyes() {
   return (
     <>
       <CompanionPresence
+        ownerId={ownerId}
+        smsEnabled={smsEnabled}
         isAuthenticated
         renderAvatar={false}
         onWorkingChange={setBackgroundWorking}

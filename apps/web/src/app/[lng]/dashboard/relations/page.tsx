@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
 import { RelationCardList } from '@/components/relations/RelationCardList';
+import { RelationSmsSourceNotice } from '@/components/relations/RelationSmsSection';
 import { RelationDetailPanel } from '@/components/relations/RelationDetailPanel';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { FeatureErrorBoundary } from '@/components/errors';
@@ -37,6 +38,7 @@ function AccountRelationsPage({ params }: { params: Promise<{ lng: string }> }) 
   const {
     relations,
     relationsTotal,
+    smsAvailable,
     loading,
     initialLoading,
     toggleFavorite,
@@ -117,6 +119,7 @@ function AccountRelationsPage({ params }: { params: Promise<{ lng: string }> }) 
           // and staging a spinner then would unmount the toolbar mid-use —
           // the user's search text, sort choice and filters, gone on a star.
           <div ref={listRef} hidden={selected !== null} aria-busy={loading}>
+            <RelationSmsSourceNotice available={smsAvailable} />
             <RelationCardList
               relations={relations}
               relationsTotal={relationsTotal}

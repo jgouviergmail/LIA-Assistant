@@ -128,6 +128,25 @@ def local_blocks(detail: RelationDetail, scope: RelationOverviewScope) -> dict[s
         if len(wanted) == len(OverviewDirection):
             # Unfiltered: the stored total describes exactly these rows.
             blocks["relayed_messages_total"] = detail.peer_messages_total
+    if (
+        scope.includes(OverviewSection.SMS)
+        and detail.sms_available
+        and "received" in directions_of(scope)
+    ):
+        blocks["sms"] = [
+            {
+                "id": str(item.id),
+                "sender": item.sender,
+                "display_name": item.display_name,
+                "received_at": item.received_at.isoformat(),
+                "date_kind": item.date_kind,
+                "body": item.body[:256],
+                "body_truncated": len(item.body) > 256,
+                "trust": "external",
+            }
+            for item in detail.sms[: min(scope.max_items, 3)]
+        ]
+        blocks["sms_total"] = detail.sms_total
     return blocks
 
 

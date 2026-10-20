@@ -1,0 +1,47 @@
+[
+  {
+    "data": {
+      "id": "10000000-0000-4000-8000-000000000006",
+      "sender": "Alice",
+      "display_name": "Alice",
+      "body": "Oui. <script>window.smsLeak=true</script>\nhttps://example.invalid/secret",
+      "received_at": "2026-10-19T12:30:00Z",
+      "date_kind": "received",
+      "origin": "iphone",
+      "identity_source": "raw",
+      "identity_state": "unresolved",
+      "relation_key": null
+    },
+    "html": "<hr class=\"lia-response-separator\"><div class=\"lia-response-wrapper\" data-card-version=\"2\"><div class=\"lia-card lia-sms\"><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--blue\"><span class=\"material-symbols-outlined\">sms</span></div><div class=\"lia-card-top__info\"><a href=\"/fr/dashboard/sms?message=10000000-0000-4000-8000-000000000006\">Alice</a></div></div><div class=\"lia-secondary\">19/10/2026 à 14:30</div><div class=\"lia-card-content\">Oui. &lt;script&gt;window.smsLeak=true&lt;/script&gt;<br>https://example.invalid/secret</div></div></div><hr class=\"lia-response-separator\">"
+  },
+  {
+    "data": {
+      "id": "10000000-0000-4000-8000-000000000007",
+      "sender": "Vendor/UK",
+      "display_name": "Vendor/UK",
+      "body": "Oui. <script>window.smsLeak=true</script>\nhttps://example.invalid/secret",
+      "received_at": "2026-10-19T12:30:00Z",
+      "date_kind": "received",
+      "origin": "iphone",
+      "identity_source": "raw",
+      "identity_state": "unresolved",
+      "relation_key": null
+    },
+    "html": "<hr class=\"lia-response-separator\"><div class=\"lia-response-wrapper\" data-card-version=\"2\"><div class=\"lia-card lia-sms\"><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--blue\"><span class=\"material-symbols-outlined\">sms</span></div><div class=\"lia-card-top__info\"><a href=\"/fr/dashboard/sms?message=10000000-0000-4000-8000-000000000007\">Vendor/UK</a></div></div><div class=\"lia-secondary\">19/10/2026 à 14:30</div><div class=\"lia-card-content\">Oui. &lt;script&gt;window.smsLeak=true&lt;/script&gt;<br>https://example.invalid/secret</div></div></div><hr class=\"lia-response-separator\">"
+  },
+  {
+    "data": {
+      "id": "10000000-0000-4000-8000-000000000008",
+      "sender": "overview-scope",
+      "display_name": "overview-scope",
+      "body": "Oui. <script>window.smsLeak=true</script>\nhttps://example.invalid/secret",
+      "received_at": "2026-10-19T12:30:00Z",
+      "date_kind": "received",
+      "origin": "iphone",
+      "identity_source": "raw",
+      "identity_state": "unresolved",
+      "relation_key": null
+    },
+    "html": "<hr class=\"lia-response-separator\"><div class=\"lia-response-wrapper\" data-card-version=\"2\"><div class=\"lia-card lia-sms\"><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--blue\"><span class=\"material-symbols-outlined\">sms</span></div><div class=\"lia-card-top__info\"><a href=\"/fr/dashboard/sms?message=10000000-0000-4000-8000-000000000008\">overview-scope</a></div></div><div class=\"lia-secondary\">19/10/2026 à 14:30</div><div class=\"lia-card-content\">Oui. &lt;script&gt;window.smsLeak=true&lt;/script&gt;<br>https://example.invalid/secret</div></div></div><hr class=\"lia-response-separator\">"
+  }
+]

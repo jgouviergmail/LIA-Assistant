@@ -240,7 +240,7 @@
       "date": "2026-10-19"
     }
   ],
-  "domains": 55,
+  "domains": 57,
   "infra": 53,
   "adrFiles": {
     "1": "ADR-001-LangGraph-Orchestration.md",
@@ -592,6 +592,7 @@
     "348": "ADR-348-Efficacy-Learned-From-Evidence-Results-And-Usefulness-Kept-Apart.md",
     "350": "ADR-350-Peer-Capability-Copies-Without-Credentials.md",
     "351": "ADR-351-Advisory-Source-Annotations-Shared-With-The-Answer.md",
-    "352": "ADR-352-Position-Before-Places-In-Every-Display-Mode.md"
+    "352": "ADR-352-Position-Before-Places-In-Every-Display-Mode.md",
+    "357": "ADR-357-Phone-Ingestion-And-Personal-SMS-Archive.md"
   }
 }

@@ -131,6 +131,7 @@ CONSULTATION_SURFACES: Final[Mapping[str, ConsultationSurface]] = {
             "birthdays": "contact",
             "reminders": "reminder",
             "health": "health",
+            "sms": "sms",
             "for_you": "automation",
             "tasks": "task",
             "documents": "document",
@@ -156,6 +157,7 @@ CONSULTATION_SURFACES: Final[Mapping[str, ConsultationSurface]] = {
             "memories": "context",
             "open_loops": "peer",
             "peer_messages": "peer",
+            "sms": "sms",
         },
     ),
     # A documentary space is a STANDING INSTRUCTION: « keep this Drive folder
@@ -335,6 +337,9 @@ CONSULTATION_SURFACES: Final[Mapping[str, ConsultationSurface]] = {
     # and the address book of their contacts connector read to suggest from
     # (ADR-321 amendment). Filed on a live read only — a cached book opened
     # nothing.
+    "sms_identity": ConsultationSurface(
+        key="sms_identity", prefix="sms_identity:", source="user", domains={"contacts": "contact"}
+    ),
     "email_share": ConsultationSurface(
         key="email_share",
         prefix="email_share:",
@@ -390,6 +395,7 @@ CONSULTATION_SURFACES: Final[Mapping[str, ConsultationSurface]] = {
             "recent_interests": "automation",
             "recent_other": "automation",
             "health_signals": "health",
+            "sms": "sms",
             "birthdays": "contact",
             "open_loops": "peer",
             "workboard": "ticket",

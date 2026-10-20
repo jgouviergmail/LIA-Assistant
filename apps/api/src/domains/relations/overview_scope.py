@@ -35,6 +35,7 @@ class OverviewSection(str, Enum):
     CALLS = "calls"
     MEMORIES = "memories"
     PEER_MESSAGES = "peer_messages"
+    SMS = "sms"
     CONTACT = "contact"
     EMAILS = "emails"
     EVENTS = "events"
@@ -54,8 +55,10 @@ class OverviewRole(str, Enum):
     ORGANIZER = "organizer"
 
 
-#: Everything, five items each — the shape a first-time reader gets.
-_ALL_SECTIONS = tuple(OverviewSection)
+#: Preserve the established scope; SMS requires an explicit source selection.
+_DEFAULT_SECTIONS: tuple[OverviewSection, ...] = tuple(
+    section for section in OverviewSection if section is not OverviewSection.SMS
+)
 _ALL_DIRECTIONS = tuple(OverviewDirection)
 _ALL_ROLES = tuple(OverviewRole)
 
@@ -71,7 +74,7 @@ class RelationOverviewScope(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     sections: list[OverviewSection] = Field(
-        default_factory=lambda: list(_ALL_SECTIONS),
+        default_factory=lambda: list(_DEFAULT_SECTIONS),
         description="Sources the 360° may read. Empty means: none of them.",
     )
     directions: list[OverviewDirection] = Field(
@@ -98,7 +101,7 @@ class RelationOverviewScope(BaseModel):
 
     @classmethod
     def default(cls) -> RelationOverviewScope:
-        """Everything, five items each."""
+        """Established defaults; private SMS is selected only explicitly."""
         return cls()
 
     @classmethod
@@ -106,8 +109,8 @@ class RelationOverviewScope(BaseModel):
         """Rebuild a scope from the JSONB column, degrading to the default.
 
         A stored shape this version cannot read is not an error the reader can
-        act on — falling back to "everything" is the same answer they had
-        before the setting existed.
+        act on — use the established source defaults without silently granting
+        the new private SMS source.
 
         Args:
             raw: Whatever the column holds (dict, None, or worse).

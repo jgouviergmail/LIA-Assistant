@@ -1154,3 +1154,39 @@ tests:
       - eval_time: 45m
         alertname: RadioNewsroomStalled
         exp_alerts: []
+
+  # Phone ingestion: uncertain attempt, known acceptance, then an expired window.
+  - interval: 1m
+    input_series:
+    - series: ingestion_delivery_outcomes_total{destination="device",outcome="unknown"}
+      values: 0+1x20
+    alert_rule_test:
+    - eval_time: 5m
+      alertname: PhoneIngestionDeliveryUncertain
+      exp_alerts:
+      - exp_labels:
+          severity: warning
+          component: ingestion
+          tier: core
+        exp_annotations:
+          summary: A phone notice has an uncertain delivery result
+          description: The worker will not resend automatically. Inspect the content-free
+            delivery state and effect attempt chain; a transport acceptance does not
+            prove a device displayed or read it.
+          runbook: docs/runbooks/alerts/PhoneIngestionDeliveryUncertain.md
+  - interval: 1m
+    input_series:
+    - series: ingestion_delivery_outcomes_total{destination="device",outcome="accepted"}
+      values: 0+1x20
+    alert_rule_test:
+    - eval_time: 5m
+      alertname: PhoneIngestionDeliveryUncertain
+      exp_alerts: []
+  - interval: 1m
+    input_series:
+    - series: ingestion_delivery_outcomes_total{destination="device",outcome="unknown"}
+      values: 0 1+0x40
+    alert_rule_test:
+    - eval_time: 40m
+      alertname: PhoneIngestionDeliveryUncertain
+      exp_alerts: []

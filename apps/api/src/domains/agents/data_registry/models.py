@@ -52,6 +52,7 @@ class RegistryItemType(str, Enum):
     # Google Workspace domain types
     CONTACT = "CONTACT"
     EMAIL = "EMAIL"
+    SMS = "SMS"
     EVENT = "EVENT"
     TASK = "TASK"
     FILE = "FILE"  # Google Drive files

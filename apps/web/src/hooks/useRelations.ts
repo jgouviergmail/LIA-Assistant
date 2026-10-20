@@ -13,12 +13,14 @@
 import { useCallback, useEffect, useRef } from 'react';
 
 import { apiClient } from '@/lib/api-client';
+import { relationReadEndpoint, relationQuerySeparator } from '@/lib/relations-routing';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
 import { useApplicationAccountState } from '@/hooks/useApplicationAccountState';
 import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
 import type { LLMUsage } from '@/types/llm-usage';
+import type { SmsMessage } from '@/types/sms';
 
 /** How the relationship key was matched — honesty over false precision. */
 export type IdentityConfidence = 'exact' | 'normalized';
@@ -67,6 +69,7 @@ export interface RelationSummary {
   calls_count: number;
   /** Messages relayed both ways with this person (peers bridge). */
   peer_messages_count: number;
+  sms_count?: number;
   last_interaction_at: string | null;
   /** Starred by the user — persisted server-side, survives signal expiry. */
   is_favorite: boolean;
@@ -95,6 +98,7 @@ export interface RelationPeerLink {
 }
 
 export interface RelationsOverview {
+  sms_available?: boolean;
   relations: RelationSummary[];
   /** Exact number found before the page cap — the list states what it left out. */
   relations_total: number;
@@ -124,6 +128,9 @@ export interface RelationDetail {
   memories_total: number;
   peer_messages: RelationPeerMessage[];
   peer_messages_total: number;
+  sms?: SmsMessage[];
+  sms_total?: number;
+  sms_available?: boolean;
   /** Present only while an ACCEPTED connection exists. */
   peer_link: RelationPeerLink | null;
   is_favorite: boolean;
@@ -208,6 +215,7 @@ export function useRelationsOverview() {
     setDebriefOverride(null);
   }, [setOverrides, setDebriefOverride]);
   useApplicationResourceSync(ownerId, 'relations', refetch, releaseOverrides);
+  useApplicationResourceSync(ownerId, 'sms', refetch, releaseOverrides);
   const patchSettings = useApiMutation<{ debrief_enabled: boolean }, { debrief_enabled: boolean }>({
     method: 'PATCH',
     componentName: 'RelationSettings',
@@ -245,6 +253,7 @@ export function useRelationsOverview() {
     relations,
     // Zero until the first answer — never a claim we cannot back.
     relationsTotal: data?.relations_total ?? 0,
+    smsAvailable: data?.sms_available,
     loading,
     // Monotone: `useApiQuery` only ever sets `data`, so this flips to false at
     // the first answer and stays there. Refreshes are announced, not staged.
@@ -367,7 +376,7 @@ export interface RelationContext {
  * and these sections fill in behind it — never the reverse.
  */
 export function useRelationContext(name: string | null) {
-  const endpoint = name ? `/relations/${encodeURIComponent(name)}/context` : '';
+  const endpoint = name ? relationReadEndpoint(name, 'context') : '';
   const { data, loading, error, setData, refetch, ownerId, isCurrent } =
     useApplicationAccountQuery<RelationContext>(endpoint, 'RelationContext', !!name);
   const { lifetime: targetLifetime, isCurrent: isTargetCurrent } = useApplicationAccountLifetime(
@@ -404,7 +413,7 @@ export function useRelationContext(name: string | null) {
       setRefreshing(sections);
       try {
         const fresh = await apiClient.get<RelationContext>(
-          `${endpoint}?refresh=${sections.join(',')}`
+          `${endpoint}${relationQuerySeparator(endpoint)}refresh=${sections.join(',')}`
         );
         if (isCurrent() && isTargetCurrent() && generation === refreshGeneration.current)
           setData(fresh);
@@ -430,12 +439,13 @@ export function useRelationContext(name: string | null) {
 
 export function useRelationDetail(name: string | null) {
   const { data, loading, error, refetch, ownerId } = useApplicationAccountQuery<RelationDetail>(
-    name ? `/relations/${encodeURIComponent(name)}` : '',
+    name ? relationReadEndpoint(name) : '',
     'RelationDetail',
     !!name
   );
   const release = useCallback(() => {}, []);
   useApplicationResourceSync(ownerId, 'relations', refetch, release);
+  useApplicationResourceSync(ownerId, 'sms', refetch, release);
   // No `initialLoading` here, deliberately: this query is KEYED ON A PERSON,
   // and `useApiQuery` keeps the previous `data` while the next one loads. A
   // monotone first-load flag would therefore render the PREVIOUS person's
@@ -502,6 +512,7 @@ export const OVERVIEW_SECTIONS = [
   'calls',
   'memories',
   'peer_messages',
+  'sms',
   'emails',
   'events',
 ] as const;
@@ -575,7 +586,14 @@ export function useOverviewScope() {
 // =============================================================================
 
 /** What the API says about one relationship's debrief. */
-export type DebriefStatus = 'absent' | 'building' | 'ready' | 'failed' | 'empty' | 'disabled';
+export type DebriefStatus =
+  | 'absent'
+  | 'building'
+  | 'ready'
+  | 'stale'
+  | 'failed'
+  | 'empty'
+  | 'disabled';
 
 /** The synthesis itself, written by the model in the reader's language. */
 export interface DebriefBody {
@@ -632,7 +650,7 @@ export function useRelationDebrief(
   name: string | null,
   { enabled, providerReady }: { enabled: boolean; providerReady: boolean }
 ) {
-  const endpoint = name ? `/relations/${encodeURIComponent(name)}/debrief` : '';
+  const endpoint = name ? relationReadEndpoint(name, 'debrief') : '';
   const { data, loading, setData, refetch, ownerId, isCurrent, lifetime } =
     useApplicationAccountQuery<RelationDebrief>(endpoint, 'RelationDebrief', !!name && enabled);
   const { lifetime: targetLifetime, isCurrent: isTargetCurrent } = useApplicationAccountLifetime(
@@ -651,7 +669,7 @@ export function useRelationDebrief(
       setBuilding(true);
       try {
         const fresh = await apiClient.post<RelationDebrief>(
-          force ? `${endpoint}?force=true` : endpoint
+          force ? `${endpoint}${relationQuerySeparator(endpoint)}force=true` : endpoint
         );
         if (isCurrent() && isTargetCurrent() && generation === refreshGeneration.current)
           setData(fresh);
@@ -693,6 +711,7 @@ export function useRelationDebrief(
   }, [name, refetch]);
   const release = useCallback(() => {}, []);
   useApplicationResourceSync(ownerId, 'relations', rereadStored, release);
+  useApplicationResourceSync(ownerId, 'sms', rereadStored, release);
 
   useEffect(() => {
     if (loading) sawLoad.current = true;

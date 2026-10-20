@@ -450,6 +450,16 @@
         "Browserlokale Präferenzen"
       ],
       "src": "42c09ed2a4e1"
+    },
+    "t.phone_ingestion": {
+      "name": "Telefon-Eingang",
+      "role": "Berechtigungen pro Quelle, Wiederholungsbelege, verschlüsselte SMS und Zustellung mit Lease; Modellauszüge bleiben begrenzt und aktuell freigegeben.",
+      "stack": [
+        "Quellengebundene Token",
+        "Blinder lexikalischer Index",
+        "Private Benachrichtigungen"
+      ],
+      "src": "da49b8382ff9"
     }
   },
   "flows": {

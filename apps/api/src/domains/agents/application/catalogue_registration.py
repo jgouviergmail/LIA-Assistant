@@ -331,6 +331,7 @@ from src.domains.agents.application.skill_update_manifest import SKILL_UPDATE_MA
 from src.domains.agents.application.skill_url_import_manifest import (
     SKILL_URL_IMPORT_MANIFEST,
 )
+from src.domains.agents.application.sms_manifests import SMS_ACTION_MANIFESTS
 from src.domains.agents.application.source_delete_manifest import SOURCE_DELETE_MANIFEST
 from src.domains.agents.application.source_link_spec import SOURCE_LINK_MANIFEST
 from src.domains.agents.application.source_options_spec import SOURCE_OPTIONS_MANIFEST
@@ -360,6 +361,7 @@ if TYPE_CHECKING:
     from src.domains.agents.registry.agent_registry import AgentRegistry
 
 SETTING_MANIFESTS = (
+    *SMS_ACTION_MANIFESTS,
     RECORDING_DEVICE_MANIFEST,
     RECORDING_DEVICE_READ_MANIFEST,
     MEETING_DELETION_MANIFEST,

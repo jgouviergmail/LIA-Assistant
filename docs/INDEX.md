@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 45 |
-| ADRs | 350 ADR files (ADR-352 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
+| ADRs | 351 ADR files (ADR-357 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
 | Fiches knowledge (RAG système) | 40 |
 
 ---
@@ -53,7 +53,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (350 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (351 ADR files) |
 
 ### Pour les Product Managers
 
@@ -166,6 +166,10 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [TABULAR_ADMIN_IO.md](./technical/TABULAR_ADMIN_IO.md) | Import/export tabulaire des administrations (ADR-228) — socle déclaratif, classeur Excel, aperçu obligatoire, verrou optimiste par ligne | ✅ |
 | [HEARTBEAT_AUTONOME.md](./technical/HEARTBEAT_AUTONOME.md) | Notifications proactives LLM-driven (Heartbeat) — evolution F5 | ✅ |
 | [HEALTH_METRICS.md](./technical/HEALTH_METRICS.md) | Health Metrics — iPhone Shortcuts ingestion, per-user tokens, charts, aggregation; assistant integrations (agents + Heartbeat + journal + memory) + `HEALTH_KINDS` registry (v1.17.2) | ✅ |
+| [SMS_INGESTION.md](./technical/SMS_INGESTION.md) | Generic phone ingestion and Mes SMS — source authority, encrypted archive, assistant evidence, private notifications and lifecycle | ✅ |
+| [SMS_QUALIFICATION.md](./technical/SMS_QUALIFICATION.md) | SMS test/qualification matrix and physical-device acceptance limits | ✅ |
+| [GUIDE_IPHONE_SHORTCUTS_SMS.md](./guides/GUIDE_IPHONE_SHORTCUTS_SMS.md) | iPhone Shortcuts setup, stable retries, privacy and personal archive | ✅ |
+| [SMS_INGESTION_RECOVERY.md](./runbooks/SMS_INGESTION_RECOVERY.md) | Operator recovery, stable tenant material and restore reconciliation | ✅ |
 | [LANDING_PAGE.md](./technical/LANDING_PAGE.md) | Architecture Landing Page — composants React, SEO, OpenGraph | ✅ |
 | [CARD_SYSTEM.md](./technical/CARD_SYSTEM.md) | Système de cartes HTML riches dans le chat (Design System v4) | ✅ |
 | [HTML_CARDS.md](./technical/HTML_CARDS.md) | Cartes déterministes du chat : données, interactions, mémoire, sécurité et validation | ✅ |

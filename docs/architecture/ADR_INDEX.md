@@ -5266,3 +5266,11 @@ graph TD
 **Status**: Accepted, 2026-10-19.
 
 **Decision**: A source-derived Position card precedes places across Cards, HTML and Markdown. Interactive Maps loads only after a priced click; missing configuration or provider failures retain the address list. Quota, ownership and billing checks remain server-enforced.
+
+### ADR-357: Phone ingestion and a personal SMS archive
+
+**File**: [ADR-357-Phone-Ingestion-And-Personal-SMS-Archive.md](ADR-357-Phone-Ingestion-And-Personal-SMS-Archive.md)
+
+**Status**: Accepted, 2026-10-20. Physical iPhone/FCM acceptance remains separate.
+
+**Decision**: A shared typed ingestion boundary admits write-only phone credentials, stable replay receipts and a durable per-destination outbox. The encrypted personal SMS archive has independent assistant consent, deterministic access-secret exclusion and bounded external evidence across chat, relationships and proactivity. Immediate content-free push, personal export, erasure and indirect consumers keep explicit owner, freshness and privacy fences. Health ingestion stays compatible.

@@ -31,7 +31,9 @@ class TestHeartbeatMessage:
     async def test_bills_prompt_and_cache_separately(self) -> None:
         from src.domains.heartbeat import prompts as heartbeat_prompts
 
-        context = MagicMock()
+        # This billing probe has no SMS source; an unconstrained MagicMock
+        # fabricates one and correctly fails the private-source owner gate.
+        context = MagicMock(sms=None)
         context.to_prompt_context.return_value = "ctx"
         with (
             patch("src.infrastructure.llm.get_llm", return_value=MagicMock()),

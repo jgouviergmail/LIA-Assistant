@@ -4,7 +4,10 @@ import type { ApplicationCommandStatus } from '@/types/application-commands';
 
 const { useAuth, post } = vi.hoisted(() => ({ useAuth: vi.fn(), post: vi.fn() }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth }));
-vi.mock('@/lib/api-client', () => ({ default: { post } }));
+vi.mock('@/lib/api-client', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  default: { post },
+}));
 
 import { ApplicationHealthTokenCard } from '../ApplicationHealthTokenCard';
 
@@ -57,7 +60,11 @@ describe('Application health ingestion token', () => {
     expect(screen.getByDisplayValue(secret)).toBeInTheDocument();
     expect(screen.getByDisplayValue(secret)).toHaveFocus();
     expect(post).toHaveBeenCalledTimes(1);
-    expect(post).toHaveBeenCalledWith(`/application-commands/${identity}/health-token`, {});
+    expect(post).toHaveBeenCalledWith(
+      `/application-commands/${identity}/health-token`,
+      {},
+      undefined
+    );
     expect(
       screen.queryByRole('button', { name: 'healthMetrics.tokens.generate' })
     ).not.toBeInTheDocument();

@@ -33,9 +33,9 @@ pytestmark = pytest.mark.unit
 
 
 class TestDefaults:
-    def test_a_first_time_reader_gets_everything(self) -> None:
+    def test_a_first_time_reader_keeps_established_sources_with_sms_opt_in(self) -> None:
         scope = RelationOverviewScope.default()
-        assert set(scope.sections) == set(OverviewSection)
+        assert set(scope.sections) == set(OverviewSection) - {OverviewSection.SMS}
         assert set(scope.directions) == set(OverviewDirection)
         assert set(scope.roles) == set(OverviewRole)
         assert scope.max_items == RELATION_OVERVIEW_MAX_ITEMS_DEFAULT
@@ -48,6 +48,7 @@ class TestDefaults:
             "calls",
             "memories",
             "peer_messages",
+            "sms",
             "contact",
             "emails",
             "events",
@@ -122,3 +123,14 @@ class TestFromStored:
         deliberate choice, not a missing value."""
         scope = RelationOverviewScope.from_stored({"sections": []})
         assert scope.sections == []
+
+
+@pytest.mark.parametrize("stored", [None, {}, [], {"sections": "all"}, {"sections": ["unknown"]}])
+def test_missing_or_invalid_scope_never_adds_private_sms(stored: object) -> None:
+    assert not RelationOverviewScope.from_stored(stored).includes(OverviewSection.SMS)
+
+
+def test_explicit_stored_sms_selection_survives_round_trip() -> None:
+    scope = RelationOverviewScope.from_stored({"sections": ["sms"]})
+    assert scope.sections == [OverviewSection.SMS]
+    assert RelationOverviewScope.from_stored(scope.model_dump(mode="json")) == scope

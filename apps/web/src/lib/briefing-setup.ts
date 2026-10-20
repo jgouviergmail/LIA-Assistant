@@ -55,6 +55,7 @@ export const SECTION_SETTINGS_TARGET: Readonly<
   tasks: 'connectors',
   documents: 'connectors',
   health: 'health-metrics',
+  sms: 'sms',
   reminders: null,
   for_you: null,
   workboard: null,
@@ -67,6 +68,8 @@ export const SECTION_SETTINGS_TARGET: Readonly<
  */
 export const INSTANCE_GATED_SECTIONS: ReadonlySet<BriefingSection> = new Set<BriefingSection>([
   'workboard',
+  // SMS returns not_configured only when the deployment disables it.
+  'sms',
 ]);
 
 /** A card the user wants to see but that has no data source yet. */

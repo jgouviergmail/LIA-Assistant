@@ -233,6 +233,11 @@ disable_error_code = ["no-any-return", "arg-type", "assignment", "override", "un
 # or blanket ``# type: ignore`` was introduced. See git history + the
 # .mypy-debt-baseline.json ``pairs`` list for the current authoritative surface.
 
+[tool.coverage.run]
+# Full-suite AST audits intermittently hit a native iterator error with SysMonitor.
+# Use the supported C tracer; test selection and coverage thresholds stay below.
+core = "ctrace"
+
 [tool.pytest.ini_options]
 minversion = "9.0"
 # Coverage gate ratchet doctrine: +2 points per release, never lowered

@@ -1852,6 +1852,11 @@
       "title": "Situar los lugares antes de sus detalles",
       "summary": "Posición agrupa los Google Places seleccionados antes de sus tarjetas, también en HTML y Markdown. El mapa interactivo espera un clic con coste visible; la lista de fuentes sigue accesible si Maps falla.",
       "src": "b00abdd45dc8"
+    },
+    "357": {
+      "title": "Ingesta genérica del teléfono y archivo SMS personal",
+      "summary": "El teléfono envía eventos estrictos deduplicados por origen. Consentimientos independientes, exportación, borrado, registros y notificaciones respetan la misma autorización.",
+      "src": "539b8b751150"
     }
   }
 }

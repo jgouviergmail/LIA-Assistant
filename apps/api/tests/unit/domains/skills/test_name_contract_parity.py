@@ -38,6 +38,7 @@ GENERATOR_EXCLUDED_AGENTS = frozenset(
     {
         "devops_agent",  # admin-only in-container CLI
         "health_agent",  # personal health data, feature-flagged
+        "sms_agent",  # private phone archive; no implicit generated-template access
         "sub_agent_agent",  # internal delegation, not a plan-executable domain agent
         # Real paid outbound calls to real people, feature-flagged, HITL-confirmed
         # per call — generated skills must never be able to place phone calls.
@@ -129,10 +130,11 @@ class TestValidAgentsParity:
         ("agent", "tool", "valid"),
         [
             ("setting_agent", "update_lia_preferences_tool", False),
+            ("sms_agent", "list_sms_tool", False),
             ("contact_agent", "get_contacts_tool", True),
         ],
     )
-    def test_generated_templates_keep_account_configuration_out_of_the_tool_offer(
+    def test_generated_templates_keep_unapproved_sensitive_domains_out_of_the_tool_offer(
         self,
         agent: str,
         tool: str,
@@ -154,7 +156,7 @@ Perform the declared step.
         result = validator.validate_skill(content)
         assert result["valid"] is valid
         if not valid:
-            assert any("setting_agent" in error for error in result["errors"])
+            assert any(agent in error for error in result["errors"])
 
 
 class TestStepTypeParity:

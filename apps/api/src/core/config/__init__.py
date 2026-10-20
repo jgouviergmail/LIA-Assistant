@@ -50,6 +50,7 @@ from .email_share import EmailShareSettings
 from .habits import HabitsSettings
 from .health_metrics import HealthMetricsSettings
 from .image_generation import ImageGenerationSettings
+from .ingestion import IngestionSettings
 from .journals import JournalsSettings
 from .live import LiveSettings
 from .llm import (
@@ -137,6 +138,7 @@ class Settings(
     DevOpsSettings,
     DiagnosticsSettings,
     HealthMetricsSettings,
+    IngestionSettings,
     AutomationSettings,
     HabitsSettings,
     OpenLoopsSettings,

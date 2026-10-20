@@ -98,6 +98,7 @@ beforeEach(() => {
   apiPut.mockResolvedValue(SCOPE);
   apiGet.mockReset();
   apiGet.mockImplementation(async (endpoint: string) => {
+    if (endpoint === '/config') return { features: { sms_enabled: false } };
     if (endpoint === '/relations/overview-scope') return SCOPE;
     if (endpoint.endsWith('/context')) {
       return {
@@ -264,6 +265,7 @@ describe('switching relationship then running a 360°', () => {
 
     let slow: (value: unknown) => void = () => undefined;
     apiGet.mockImplementation(async (endpoint: string) => {
+      if (endpoint === '/config') return { features: { sms_enabled: false } };
       if (endpoint === '/relations/overview-scope') return SCOPE;
       if (endpoint.endsWith('/context')) return new Promise(() => undefined);
       return new Promise(resolve => {

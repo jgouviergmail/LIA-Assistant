@@ -27,6 +27,7 @@ from src.domains.agents.services.analysis.domain_availability import (
 # real flag — or with the wrong one — must fail here, which a local copy of the
 # table could never catch.
 EXPECTED_GATED = {
+    "sms": "sms_enabled",
     "setting": DOMAIN_REGISTRY["setting"].metadata["feature_flag"],
     "telephony": "telephony_enabled",
     "document": "rag_spaces_enabled",

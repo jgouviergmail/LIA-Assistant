@@ -19,6 +19,7 @@ from src.domains.agents.display.components.reminder_card import ReminderCard
 from src.domains.agents.display.components.route_card import RouteCard
 from src.domains.agents.display.components.search_result_card import SearchResultCard
 from src.domains.agents.display.components.skill_app_sentinel import SkillAppSentinel
+from src.domains.agents.display.components.sms_card import SmsCard
 from src.domains.agents.display.components.snapshot_cards import (
     HueLightCard,
     TicketCard,
@@ -41,6 +42,7 @@ class Presentation:
 PRESENTATIONS: dict[Kind, Presentation] = {
     Kind.CONTACT: Presentation("card", ContactCard, data_keys=("contacts", "items", "results")),
     Kind.EMAIL: Presentation("card", EmailCard, data_keys=("emails", "messages", "items")),
+    Kind.SMS: Presentation("card", SmsCard, data_keys=("sms_messages", "items")),
     Kind.EVENT: Presentation("card", EventCard, ("calendar",)),
     Kind.CALENDAR: Presentation("card", CalendarCard),
     Kind.TASK: Presentation("card", TaskItem),

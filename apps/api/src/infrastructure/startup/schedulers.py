@@ -70,9 +70,11 @@ from src.infrastructure.scheduler.token_refresh import refresh_expiring_tokens
 from src.infrastructure.scheduler.unverified_account_cleanup import (
     cleanup_unverified_accounts,
 )
+from src.infrastructure.startup.scheduler_ingestion import register_ingestion_jobs
 from src.infrastructure.startup.scheduler_jitter import jitter_seconds_for
 from src.infrastructure.startup.scheduler_ledger import register_ledger_jobs
 from src.infrastructure.startup.scheduler_meetings import register_meetings_jobs
+from src.infrastructure.startup.scheduler_peers import register_peer_maintenance
 from src.infrastructure.startup.scheduler_push import register_push_jobs
 from src.infrastructure.startup.scheduler_radio import register_radio_jobs
 from src.infrastructure.startup.scheduler_telephony import register_telephony_jobs
@@ -81,26 +83,6 @@ if TYPE_CHECKING:
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 logger = structlog.get_logger(__name__)
-
-
-def register_peer_maintenance(scheduler: AsyncIOScheduler) -> None:
-    """Retention runs while peers is off; the sweep gates all delivery itself."""
-    from src.core.constants import SCHEDULER_JOB_PEERS_DELIVERY_SWEEP
-    from src.infrastructure.scheduler.peer_message_delivery import (
-        sweep_pending_deliveries,
-    )
-
-    scheduler.add_job(
-        sweep_pending_deliveries,
-        trigger="interval",
-        seconds=settings.peers_delivery_sweep_seconds,
-        jitter=jitter_seconds_for(seconds=settings.peers_delivery_sweep_seconds),
-        id=SCHEDULER_JOB_PEERS_DELIVERY_SWEEP,
-        name="Peers retention and enabled-message delivery sweep",
-        replace_existing=True,
-        max_instances=1,
-        misfire_grace_time=60,
-    )
 
 
 async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
@@ -746,12 +728,11 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
                 minute=settings.demo_account_purge_minute,
             )
 
-        # Google push channel sync (lot H) + push-driven heartbeat wake sweep
-        # (ADR-261): both live in scheduler_push.py (this file is frozen).
+        # Push and durable ingestion sweeps.
         register_push_jobs(scheduler)
+        register_ingestion_jobs(scheduler)
 
-        # The ledger notary (ADR-263 lot 5): lives in scheduler_ledger.py for
-        # the same reason — this file is frozen at its audited size.
+        # The ledger notary (ADR-263 lot 5).
         register_ledger_jobs(scheduler)
 
         # The personal radio's newsroom pass and media sweep (ADR-324), in

@@ -32,6 +32,7 @@ const applicationResource = z.enum([
   'psyche',
   'journals',
   'health_metrics',
+  'sms',
   'relations',
   'peers',
   'workboard',

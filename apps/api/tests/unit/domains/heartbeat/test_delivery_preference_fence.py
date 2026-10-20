@@ -42,7 +42,7 @@ async def test_publication_rechecks_the_local_overnight_window(
     current = actor(uuid4(), True)
     current.heartbeat_notify_start_hour, current.heartbeat_notify_end_hour = 22, 6
     db = authority_db()
-    db.scalar.side_effect = [None, current]
+    db.scalar.side_effect = [None, current, None]
 
     @asynccontextmanager
     async def session() -> AsyncIterator[AsyncSession]:
@@ -97,9 +97,9 @@ async def test_opt_out_during_paid_work_suppresses_delivery_and_preserves_billin
     current = actor(actor_id, change_after == "none")
     db = authority_db()
     db.scalar.side_effect = (
-        [None, original, None, current]
+        [None, original, None, None, current, None]
         if change_after == "selection"
-        else [None, original, None, original, None, current]
+        else [None, original, None, None, original, None, None, current, None]
     )
 
     @asynccontextmanager
@@ -195,6 +195,7 @@ async def test_current_delivery_authority_is_closed_on_missing_rights_or_read_fa
         "heartbeat_notify_end_hour",
         "extraction_revision",
         "home_location_encrypted",
+        "sms_preferences",
     ],
 )
 async def test_scope_changes_invalidate_prepared_content_without_returning_private_data(
@@ -210,10 +211,11 @@ async def test_scope_changes_invalidate_prepared_content_without_returning_priva
         "heartbeat_notify_end_hour": 20,
         "extraction_revision": 1,
         "home_location_encrypted": "private ciphertext",
+        "sms_preferences": {"assistant_enabled": False},
     }
     setattr(changed, field, changes[field])
     db = authority_db()
-    db.scalar.side_effect = [None, initial, None, changed]
+    db.scalar.side_effect = [None, initial, None, None, changed, None]
 
     @asynccontextmanager
     async def sessions() -> AsyncIterator[AsyncSession]:
@@ -236,7 +238,7 @@ async def test_connector_authority_changes_fence_paid_content_but_refreshing_tok
     monkeypatch.setattr(settings, "heartbeat_enabled", True)
     current = actor(uuid4(), True)
     db = authority_db()
-    db.scalar.side_effect = [None, current] * 3
+    db.scalar.side_effect = [None, current, None] * 3
     connector_id = uuid4()
     active = (connector_id, ConnectorType.GOOGLE_GMAIL, ConnectorStatus.ACTIVE, None, ["read"])
     revoked = (connector_id, ConnectorType.GOOGLE_GMAIL, ConnectorStatus.REVOKED, None, ["read"])

@@ -75,6 +75,7 @@ class TestOneCauseOneWording:
     @pytest.mark.parametrize(
         ("alias", "same_as"),
         [
+            ("BROWSER_APPROVAL_REQUIRED", "BROWSER_REQUIRED"),
             ("STALE_SELECTION", "STALE_STATE"),
             ("INTERACTION_EXPIRED", "EXPIRED"),
             ("NOT_FOUND", "NOT_FOUND_OR_UNAUTHORIZED"),

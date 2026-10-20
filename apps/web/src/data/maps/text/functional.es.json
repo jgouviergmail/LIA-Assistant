@@ -382,6 +382,12 @@
       "role": "Eliges un estilo y sus variantes disponibles en el catálogo nativo. Las emociones, la mirada y los accesorios siguen la actividad y el contexto disponible. El volumen es un relieve aproximado del dibujo frontal; el dibujo fijo toma el relevo cuando la presentación o los recursos no permiten animación.",
       "goal": "Una presencia original que expresa el estado de LIA y respeta tu elección de visualización.",
       "src": "798cc7462f28"
+    },
+    "f.sms": {
+      "name": "Mis SMS",
+      "role": "Archiva los textos enviados por el teléfono, resuelve remitentes y los muestra en chat, relaciones e inicio con acceso explícito del asistente.",
+      "goal": "Mantener un archivo personal consultable con permisos separados de recepción, push y modelo.",
+      "src": "4972a13608d3"
     }
   },
   "flows": {

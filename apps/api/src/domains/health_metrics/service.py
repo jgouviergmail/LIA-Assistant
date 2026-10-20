@@ -21,7 +21,6 @@ Revised: 2026-04-21 — polymorphic samples + batch upsert pipeline.
 
 from __future__ import annotations
 
-import hashlib
 import secrets
 import unicodedata
 from dataclasses import dataclass
@@ -90,6 +89,7 @@ from src.domains.health_metrics.signals import (
     detect_notable_events_from_stats,
     detect_recent_variations_from_stats,
 )
+from src.domains.ingestion.token_auth import hash_token
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_health_metrics import (
     health_metrics_deleted_total,
@@ -124,7 +124,7 @@ def _hash_token(raw_token: str) -> str:
     """
     if HEALTH_METRICS_TOKEN_HASH_ALGO != "sha256":
         raise RuntimeError(f"Unsupported hash algo: {HEALTH_METRICS_TOKEN_HASH_ALGO}")
-    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    return hash_token(raw_token)
 
 
 def _generate_raw_token() -> tuple[str, str]:

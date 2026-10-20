@@ -82,6 +82,7 @@ import { SkillsSettings } from './SkillsSettings';
 import TelephonyCallsSection from './TelephonyCallsSection';
 import TelephonyIdentitySection from './TelephonyIdentitySection';
 import { MeetingsSettings } from './MeetingsSettings';
+import { SmsSettings } from './SmsSettings';
 import { WorkboardSettings } from '@/components/settings/WorkboardSettings';
 import { TimezoneSelector } from './TimezoneSelector';
 import UserConnectorsSection from './UserConnectorsSection';
@@ -188,6 +189,7 @@ export const SETTINGS_SECTION_REGISTRY: Readonly<
   plugins: { feature: 'plugins', render: lng => <PluginsSettings lng={lng} /> },
   'rag-spaces': { feature: 'rag-spaces', render: lng => <SpacesSettingsSection lng={lng} /> },
   meetings: { feature: 'meetings', render: lng => <MeetingsSettings lng={lng} /> },
+  sms: { feature: 'sms', render: lng => <SmsSettings lng={lng} /> },
   workboard: { feature: 'workboard', render: lng => <WorkboardSettings lng={lng} /> },
   'user-consumption-export': {
     feature: 'user-consumption-export',

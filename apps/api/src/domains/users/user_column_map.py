@@ -165,4 +165,6 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     # nothing once it is gone. The voices LIA speaks with, per engine (ADR-345
     # amendment 2026-10-14, owner decision the same day).
     "lia_voices": _SCRUBBED_PREFERENCE,
+    "sms_preferences": _SCRUBBED_PREFERENCE,
+    "ingestion_key_encrypted": _SCRUBBED,
 }

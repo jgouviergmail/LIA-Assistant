@@ -56,6 +56,7 @@ _ROUTER_MODULES: dict[PlatformCapability, str] = {
     PlatformCapability.MCP: "src.domains.user_mcp.router",
     PlatformCapability.TELEPHONY: "src.domains.telephony.router",
     PlatformCapability.MEETINGS: "src.domains.meetings.router",
+    PlatformCapability.SMS: "src.domains.sms.router",
     PlatformCapability.STT: "src.domains.voice.router",
     PlatformCapability.IMAGE_GENERATION: "src.domains.image_generation.options_router",
     # B7 — the features whose router IS the ability (habits and the heartbeat

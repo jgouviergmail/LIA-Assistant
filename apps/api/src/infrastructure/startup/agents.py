@@ -312,6 +312,11 @@ async def init_agent_registry(
         # Internal agents (no external API - operate on Registry data)
         registry.register_agent("query_agent", build_query_agent)
 
+        if settings.sms_enabled:
+            from src.domains.agents.graphs.sms_agent_builder import build_sms_agent
+
+            registry.register_agent("sms_agent", build_sms_agent)
+
         # Health Metrics agent (v1.17.2) — gated on feature flag
         if getattr(settings, "health_metrics_enabled", False):
             from src.domains.agents.graphs import build_health_agent

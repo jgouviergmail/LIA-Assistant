@@ -34,6 +34,7 @@ ApplicationResource = Literal[
     "psyche",
     "journals",
     "health_metrics",
+    "sms",
     "relations",
     "peers",
     "workboard",
@@ -49,6 +50,11 @@ GROUP_RESOURCES: dict[str, tuple[ApplicationResource, ...]] = {
 }
 
 DEDICATED_RESOURCES: dict[str, ApplicationResource] = {
+    "sms_token.create": "sms",
+    "sms_token.revoke": "sms",
+    "sms_preferences.update": "sms",
+    "sms_sender_block.update": "sms",
+    "sms_messages.delete": "sms",
     "meeting_device.control": "meetings",
     "knowledge_source.unlink": "spaces",
     "knowledge_source.link": "spaces",

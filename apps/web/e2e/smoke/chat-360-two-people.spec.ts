@@ -24,6 +24,7 @@
  * POST bodies are captured so the assertions are about WHAT was sent.
  */
 import { test, expect, chatRoutes, type ChatBody, type MockRoute } from '../fixtures';
+import type { RelationDebrief } from '../../src/hooks/useRelations';
 
 const FIRST = 'Marie Dupont';
 const SECOND = 'Paul Martin';
@@ -111,6 +112,21 @@ function relationsRoutes(): MockRoute[] {
           return json({ relations: [overviewRow(FIRST), overviewRow(SECOND)] });
         }
         if (path === '/overview-scope') return json(SCOPE);
+        if (path.endsWith('/debrief')) {
+          // This family catch-all must return the endpoint's actual DTO, not
+          // a RelationDetail that accidentally passed before gaps were shown.
+          const debrief: RelationDebrief = {
+            status: 'empty',
+            person: path.slice(1, -'/debrief'.length),
+            body: null,
+            generated_at: null,
+            generated_for: null,
+            sections_used: [],
+            unavailable: [],
+            can_rebuild: false,
+          };
+          return json(debrief);
+        }
         if (path.endsWith('/context')) return json(CONTEXT);
         return json(detailFor(path.replace(/^\//, '')));
       },

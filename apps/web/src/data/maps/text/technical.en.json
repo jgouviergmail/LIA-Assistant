@@ -437,6 +437,12 @@
         "Browser-local preferences"
       ],
       "src": "42c09ed2a4e1"
+    },
+    "t.phone_ingestion": {
+      "name": "Phone ingestion",
+      "role": "Per-source authority, replay receipts, encrypted SMS and leased delivery; model excerpts stay bounded and freshly authorized.",
+      "stack": ["Source-scoped tokens", "Blind lexical index", "Private notifications"],
+      "src": "da49b8382ff9"
     }
   },
   "flows": {

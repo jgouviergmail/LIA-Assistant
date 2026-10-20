@@ -382,6 +382,12 @@
       "role": "Choose a style and its offered variants from the native catalogue. Emotions, gaze and accessories follow activity and available context. The volume is approximate relief from frontal artwork; the fixed drawing takes over when presentation or resources do not permit animation.",
       "goal": "An original presence that expresses LIA's state and respects your display choice.",
       "src": "798cc7462f28"
+    },
+    "f.sms": {
+      "name": "My SMS",
+      "role": "Archives phone-supplied text, resolves senders and offers it in chat, relationships and home with explicit assistant access.",
+      "goal": "Keep a searchable personal archive with separate ingestion, push and model permissions.",
+      "src": "4972a13608d3"
     }
   },
   "flows": {

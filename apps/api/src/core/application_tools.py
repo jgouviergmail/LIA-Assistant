@@ -1,6 +1,11 @@
 """Native application tool identities shared by capability and catalogue guards."""
 
 APPLICATION_TOOL_NAMES: tuple[str, ...] = (
+    "create_lia_sms_ingestion_token_tool",
+    "revoke_lia_sms_ingestion_token_tool",
+    "update_lia_sms_preferences_tool",
+    "set_lia_sms_sender_block_tool",
+    "delete_lia_sms_tool",
     "delete_lia_meeting_tool",
     "control_lia_meeting_recording_tool",
     "get_lia_meeting_recorder_tool",

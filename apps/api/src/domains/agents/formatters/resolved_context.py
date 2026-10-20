@@ -22,6 +22,24 @@ from src.domains.agents.display.config import config_for_viewport
 from src.domains.agents.display.html_renderer import get_html_renderer
 from src.domains.agents.formatters.text_summary import generate_text_summary_for_items
 
+_PAYLOAD_SIGNATURES: tuple[tuple[str, tuple[frozenset[str], ...], str | None], ...] = (
+    ("sms_messages", (frozenset(["body_offset", "owner_id", "received_at"]),), None),
+    (
+        "contacts",
+        (frozenset(["resource_name"]), frozenset(["names"]), frozenset(["emailAddresses"])),
+        None,
+    ),
+    ("emails", (frozenset(["id", "subject"]), frozenset(["from", "to"])), None),
+    ("events", (frozenset(["start"]), frozenset(["end"])), None),
+    ("places", (frozenset(["place_id"]), frozenset(["formatted_address"])), None),
+    ("drive", (frozenset(["mimeType"]), frozenset(["webViewLink"])), None),
+    ("wikipedia", (frozenset(["extract"]), frozenset(["pageid"])), None),
+    ("perplexity", (frozenset(["citations"]),), "perplexity"),
+    ("weather", (frozenset(["temperature"]), frozenset(["forecast"])), None),
+    ("tasks", (frozenset(["notes", "title"]), frozenset(["status", "title"])), None),
+    ("routes", (frozenset(["travel_mode"]), frozenset(["destination", "origin"])), None),
+)
+
 
 def detect_domain_from_item(item: dict[str, Any]) -> str:
     """
@@ -50,28 +68,11 @@ def detect_domain_from_item(item: dict[str, Any]) -> str:
     if not isinstance(item, dict):
         return "other"
 
-    # Order matters - check most specific patterns first
-    if "resource_name" in item or "names" in item or "emailAddresses" in item:
-        return "contacts"
-    elif ("id" in item and "subject" in item) or ("from" in item and "to" in item):
-        return "emails"
-    elif "start" in item or "end" in item:
-        return "events"
-    elif "place_id" in item or "formatted_address" in item:
-        return "places"
-    elif "mimeType" in item or "webViewLink" in item:
-        return "drive"  # legacy display alias for the file domain (renderer maps it to FileItem)
-    elif "extract" in item or "pageid" in item:
-        return "wikipedia"
-    elif "citations" in item or item.get("source") == "perplexity":
-        return "perplexity"  # legacy display alias (renderer maps it to SearchResultCard)
-    elif "temperature" in item or "forecast" in item:
-        return "weather"
-    elif "title" in item and ("notes" in item or "status" in item):
-        return "tasks"  # Tasks have title + notes/status (more specific than just title+content)
-    elif "travel_mode" in item or ("origin" in item and "destination" in item):
-        return "routes"  # Matches TYPE_TO_DOMAIN_MAP: ROUTE → "routes"
-
+    for domain, signatures, source in _PAYLOAD_SIGNATURES:
+        if source is not None and item.get("source") == source:
+            return domain
+        if any(signature.issubset(item) for signature in signatures):
+            return domain
     return "other"
 
 

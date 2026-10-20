@@ -684,6 +684,15 @@
         "apps/web/src/app/api/runtime-ui/route.ts"
       ],
       "deps": ["t.web", "t.bff"]
+    },
+    {
+      "id": "t.phone_ingestion",
+      "layer": "l.integrations",
+      "icon": "plug-zap",
+      "paths": ["apps/api/src/domains/ingestion", "apps/api/src/domains/sms"],
+      "domains": ["ingestion", "sms"],
+      "infra": [],
+      "deps": ["t.postgres", "t.scheduler", "t.push", "t.registers"]
     }
   ],
   "flows": [

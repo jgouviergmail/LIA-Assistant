@@ -54,6 +54,8 @@ CLIENT_CALL_RECORDERS: Final[dict[str, str]] = {
     # door (ADR-304) and file a LIVE read of the book; a cache hit opens
     # nothing and files nothing (ADR-321 amendment).
     "domains/email_share/recipients.py": "email_share",
+    # SMS identity records actual live contact reads; cache hits record none.
+    "domains/sms/identity_directory.py": "sms_identity",
     # Reads the person's CALENDAR (free/busy) before a call is dialled;
     # recorded by the dial path in ``telephony/service.py``. It was filed as
     # « not a read » until 2026-09-16 on the strength of a wrong reading of

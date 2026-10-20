@@ -9,8 +9,6 @@ billing path.
 from __future__ import annotations
 
 import hashlib
-import json
-from collections.abc import Iterator
 from datetime import datetime
 from time import time
 from typing import TYPE_CHECKING
@@ -21,7 +19,6 @@ import structlog
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 
-from src.core.classification_projection import classification_fields
 from src.core.config import settings as app_settings
 from src.core.i18n import get_language_name, resolve_language
 from src.core.llm_config_helper import get_llm_config_for_agent
@@ -36,14 +33,12 @@ from src.domains.briefing.constants import (
     BRIEFING_SYNTHESIS_PROMPT_NAME,
     BRIEFING_SYNTHESIS_TARGET_PREFIX,
     BRIEFING_TASK_TYPE,
-    SECTION_NAMES,
-    SECTIONS_NOT_SUMMARISED,
     TIME_OF_DAY_AFTERNOON,
     TIME_OF_DAY_EVENING,
     TIME_OF_DAY_MORNING,
     TIME_OF_DAY_NIGHT,
 )
-from src.domains.briefing.schemas import CardsBundle, CardSection, CardStatus, LLMUsage
+from src.domains.briefing.schemas import CardsBundle, CardStatus, LLMUsage
 from src.domains.personalities.service import PersonalityService
 from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot
 from src.infrastructure.database.session import get_db_context
@@ -64,6 +59,15 @@ from src.infrastructure.proactive.tracking import (
 
 if TYPE_CHECKING:
     from src.domains.users.models import User
+
+from src.domains.briefing.prompt_cards import (
+    _iter_cards as _iter_cards,
+)
+from src.domains.briefing.prompt_cards import (
+    _summarize_cards_for_llm as _summarize_cards_for_llm,
+)
+from src.domains.briefing.sms_context import sms_for_prompt
+from src.domains.sms.summary import sms_signal_current
 
 logger = structlog.get_logger(__name__)
 
@@ -104,12 +108,18 @@ async def generate_greeting(
             personality_brief=await _resolve_personality(user.id),
             active_sections=_summarize_cards_for_llm(cards, verbose=False),
         )
+        sms_text, sms_source = await sms_for_prompt(user.id, cards.sms, verbose=False)
+        rendered += "\n" + sms_text
+        if not await sms_signal_current(sms_source):
+            return _fallback_greeting(user, user_tz, language), None
         text, usage = await _invoke_and_track(
             rendered=rendered,
             user=user,
             target_prefix=BRIEFING_GREETING_TARGET_PREFIX,
             kind="greeting",
         )
+        if not await sms_signal_current(sms_source):
+            return _fallback_greeting(user, user_tz, language), usage
         if not text:
             return _fallback_greeting(user, user_tz, language), None
         return text, usage
@@ -140,12 +150,14 @@ async def generate_synthesis(
         Tuple of (synthesis_text, usage). Both are None when synthesis is
         skipped or on failure.
     """
-    cards_with_data = sum(1 for c in _iter_cards(cards) if c.status == CardStatus.OK)
-    if cards_with_data < BRIEFING_SYNTHESIS_MIN_CARDS_WITH_DATA:
-        briefing_llm_invocations_total.labels(kind="synthesis", outcome="skipped").inc()
-        return None, None
-
     try:
+        sms_text, sms_source = await sms_for_prompt(user.id, cards.sms, verbose=True)
+        cards_with_data = sum(1 for c in _iter_cards(cards) if c.status == CardStatus.OK) + bool(
+            sms_text
+        )
+        if cards_with_data < BRIEFING_SYNTHESIS_MIN_CARDS_WITH_DATA:
+            briefing_llm_invocations_total.labels(kind="synthesis", outcome="skipped").inc()
+            return None, None
         prompt_text = load_prompt(
             BRIEFING_SYNTHESIS_PROMPT_NAME,
             version=app_settings.briefing_synthesis_prompt_version,
@@ -164,12 +176,17 @@ async def generate_synthesis(
             birthdays_horizon_days=app_settings.briefing_max_birthdays_horizon_days,
             health_window_days=app_settings.briefing_health_window_days,
         )
+        rendered += "\n" + sms_text
+        if not await sms_signal_current(sms_source):
+            return None, None
         text, usage = await _invoke_and_track(
             rendered=rendered,
             user=user,
             target_prefix=BRIEFING_SYNTHESIS_TARGET_PREFIX,
             kind="synthesis",
         )
+        if not await sms_signal_current(sms_source):
+            return None, usage
         if not text:
             return None, None
         return text, usage
@@ -421,164 +438,6 @@ async def _resolve_personality(user_id: UUID) -> str:
             error=str(exc),
         )
         return ""
-
-
-def _iter_cards(cards: CardsBundle) -> Iterator[CardSection]:
-    """Every card the prompts summarise, derived from the declared sections."""
-    for name in SECTION_NAMES:
-        if name not in SECTIONS_NOT_SUMMARISED:
-            yield getattr(cards, name)
-
-
-def _summarize_cards_for_llm(cards: CardsBundle, *, verbose: bool) -> str:
-    """Compact JSON summary of the cards data for prompt injection.
-
-    Verbose=False (greeting): minimal hints (counts, headline weather).
-    Verbose=True (synthesis): includes specific items (event titles, mail subjects).
-    """
-    summary: dict[str, object] = {}
-
-    if cards.weather.status == CardStatus.OK and cards.weather.data is not None:
-        w = cards.weather.data
-        alert = getattr(w, "forecast_alert", None)
-        summary["weather"] = {
-            "temp_c": getattr(w, "temperature_c", None),
-            "condition": getattr(w, "condition_code", None),
-            "city": getattr(w, "location_city", None),
-            # Compact "<kind>@<HH:MM>" pivot, e.g. "rain@23:00" — readable by
-            # the LLM without leaking pre-translated strings into the prompt.
-            "forecast_alert": (f"{alert.kind.value}@{alert.time}" if alert is not None else None),
-        }
-
-    if cards.agenda.status == CardStatus.OK and cards.agenda.data is not None:
-        events = getattr(cards.agenda.data, "events", []) or []
-        if verbose:
-            summary["agenda"] = [
-                {
-                    "title": e.title,
-                    "start": e.start_local,
-                    "loc": e.location,
-                    **classification_fields(e.classification),
-                }
-                for e in events[:3]
-            ]
-        else:
-            # Greeting: give the upcoming events (≤3, next ~24h) with a per-event
-            # day-aware start ("15:00" = today, "demain 08:00" = tomorrow). The
-            # greeting reacts to the day's SHAPE (empty/busy, today vs tomorrow) and
-            # can name an imminent one. Deliberately NO aggregate count — a bare
-            # count made the greeting lump tomorrow's events into today ("deux
-            # rendez-vous cet après-midi"); a per-event list keeps each day explicit.
-            summary["agenda"] = [
-                {
-                    "title": e.title,
-                    "start": e.start_local,
-                    **classification_fields(e.classification),
-                }
-                for e in events[:3]
-            ]
-
-    if cards.mails.status == CardStatus.OK and cards.mails.data is not None:
-        items = getattr(cards.mails.data, "items", []) or []
-        total = getattr(cards.mails.data, "total_unread_today", 0)
-        summary["mails"] = (
-            {
-                "unread_today": total,
-                "items": [
-                    {
-                        "from": (m.sender_name or m.sender_email or "(unknown)"),
-                        "subject": m.subject,
-                        **classification_fields(m.classification),
-                    }
-                    for m in items[:3]
-                ],
-            }
-            if verbose or any(classification_fields(m.classification) for m in items[:3])
-            else {"unread_today": total}
-        )
-
-    if cards.birthdays.status == CardStatus.OK and cards.birthdays.data is not None:
-        items = getattr(cards.birthdays.data, "items", []) or []
-        summary["birthdays"] = [
-            {"name": b.contact_name, "days_until": b.days_until} for b in items[:3]
-        ]
-
-    if cards.for_you.status == CardStatus.OK and cards.for_you.data is not None:
-        fy = cards.for_you.data
-        loops = getattr(fy, "open_loops", []) or []
-        recents = getattr(fy, "recent_automations", []) or []
-        nxt = getattr(fy, "next_automation", None)
-        summary["for_you"] = {
-            "open_loops": [
-                {
-                    "subject": ol.subject,
-                    "direction": ol.direction,
-                    "days_open": ol.days_open,
-                }
-                for ol in loops[:3]
-            ],
-            "automations_ran_24h": [a.title for a in recents[:3]],
-            "next_automation": (
-                f"{nxt.title} ({nxt.next_trigger_local})"
-                if nxt is not None and nxt.next_trigger_local
-                else (nxt.title if nxt is not None else None)
-            ),
-        }
-
-    if cards.tasks.status == CardStatus.OK and cards.tasks.data is not None:
-        t_items = getattr(cards.tasks.data, "items", []) or []
-        summary["tasks"] = {
-            "overdue_count": getattr(cards.tasks.data, "overdue_count", 0),
-            "top": [
-                {
-                    "title": t.title,
-                    "days_until_due": t.days_until_due,
-                    "overdue": t.overdue,
-                }
-                for t in t_items[:3]
-            ],
-        }
-
-    if cards.documents.status == CardStatus.OK and cards.documents.data is not None:
-        d_items = getattr(cards.documents.data, "items", []) or []
-        summary["documents"] = [{"name": d.name, "modified": d.modified_local} for d in d_items[:3]]
-
-    # The SYNTHESIS is told about reminders; the greeting deliberately is not.
-    # Both halves are decisions this codebase already made elsewhere:
-    #
-    # - a reminder fires on its own, so it is the least urgent thing a
-    #   one-sentence greeting could spend its single hint on — the same
-    #   ranking ``chat/suggestions`` states explicitly ("a meeting and a mail
-    #   batch are more time-bound than a reminder, which will fire on its own
-    #   anyway");
-    # - and the only shape a greeting could take them in was a BARE COUNT,
-    #   carrying no day at all. The agenda rule above records what that
-    #   produces: "deux rendez-vous cet après-midi" for events spread over two
-    #   days. That count was unreachable until the section became cacheable,
-    #   which is precisely why it must not be reached now.
-    #
-    # The synthesis gets the day-aware pair its own prompt documents.
-    if verbose and cards.reminders.status == CardStatus.OK and cards.reminders.data is not None:
-        items = getattr(cards.reminders.data, "items", []) or []
-        summary["reminders"] = [
-            {"content": r.content, "trigger": r.trigger_at_local} for r in items[:3]
-        ]
-
-    if cards.health.status == CardStatus.OK and cards.health.data is not None:
-        items = getattr(cards.health.data, "items", []) or []
-        summary["health"] = {
-            item.kind: {
-                "today": item.value_today,
-                "avg_window": item.value_avg_window,
-                "window_days": item.window_days,
-                "unit": item.unit,
-            }
-            for item in items
-        }
-
-    if not summary:
-        return "{}"
-    return json.dumps(summary, ensure_ascii=False, separators=(",", ":"))
 
 
 def _fallback_greeting(user: User, user_tz: ZoneInfo, language: str) -> str:

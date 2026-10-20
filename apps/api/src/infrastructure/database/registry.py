@@ -39,6 +39,7 @@ def import_all_models() -> None:
     import src.domains.health_metrics.models  # noqa: F401
     import src.domains.heartbeat.models  # noqa: F401
     import src.domains.image_generation.models  # noqa: F401
+    import src.domains.ingestion.models  # noqa: F401
     import src.domains.interests.models  # noqa: F401
     import src.domains.journals.evidence_models  # noqa: F401
     import src.domains.journals.models  # noqa: F401
@@ -66,6 +67,7 @@ def import_all_models() -> None:
     import src.domains.shared.provenance  # noqa: F401
     import src.domains.skill_library.models  # noqa: F401
     import src.domains.skills.models  # noqa: F401
+    import src.domains.sms.models  # noqa: F401
 
     # ADR-083 Phase 2 cleanup: sub_agents.models removed (table dropped).
     import src.domains.system_settings.models  # noqa: F401

@@ -53,6 +53,7 @@ from src.domains.health_metrics.parser import (
 )
 from src.domains.health_metrics.schemas import HealthIngestResponse
 from src.domains.health_metrics.service import HealthMetricsService
+from src.domains.ingestion.token_auth import extract_token
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_health_metrics import (
     health_metrics_auth_failures_total,
@@ -84,13 +85,7 @@ def _extract_token_from_header(authorization: str | None) -> str | None:
         Accepts both ``Bearer hm_xxx`` and the bare ``hm_xxx`` form so the
         iPhone Shortcut editor stays simple to configure.
     """
-    if not authorization:
-        return None
-    stripped = authorization.strip()
-    candidate = stripped[7:].strip() if stripped.lower().startswith("bearer ") else stripped
-    if not candidate.startswith(HEALTH_METRICS_TOKEN_PREFIX):
-        return None
-    return candidate
+    return extract_token(authorization, prefix=HEALTH_METRICS_TOKEN_PREFIX)
 
 
 # =============================================================================

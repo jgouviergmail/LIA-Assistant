@@ -57,6 +57,7 @@ def _user(**overrides: Any) -> Any:
         "memory_enabled": False,
         "journals_enabled": False,
         "health_metrics_agents_enabled": False,
+        "sms_preferences": None,
         "habits_enabled": True,
         "home_location_encrypted": None,
     }

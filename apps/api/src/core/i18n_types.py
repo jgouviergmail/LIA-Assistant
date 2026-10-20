@@ -54,6 +54,16 @@ def canonical_language(code: str | None) -> Language | None:
     return _BASE_CODES.get(locale.split("-")[0])
 
 
+def frontend_language_code(language: Language) -> str:
+    """Project a canonical language to the frontend URL and locale vocabulary.
+
+    Resolve raw input through core.i18n first; the parameter accepts only the
+    canonical supported Language type. Keep this regional-code conversion at
+    the same leaf boundary as canonical_language.
+    """
+    return language.split("-")[0]
+
+
 # Human-readable language names for LLM prompts. Name a language through
 # ``core.i18n.get_language_name`` (it normalises the code first); never key this
 # table on a raw locale.
@@ -101,4 +111,5 @@ __all__ = [
     "SupportedLanguage",
     "LANGUAGE_NAMES",
     "canonical_language",
+    "frontend_language_code",
 ]

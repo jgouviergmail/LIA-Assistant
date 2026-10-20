@@ -10,6 +10,7 @@ from langchain_core.messages import BaseMessage
 
 from src.core.config import get_settings
 from src.core.field_names import FIELD_TOTAL
+from src.core.token_budget import count_external_tokens as count_external_tokens
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
 

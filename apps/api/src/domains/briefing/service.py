@@ -1,7 +1,7 @@
-"""BriefingService — orchestrates the 6 source fetchers, cache, and LLM helpers.
+"""BriefingService — orchestrates source fetchers, cache, and LLM helpers.
 
 Lecture pure: no LangGraph, no DB model, no migration. Sources are fetched in
-parallel via asyncio.gather. Each section has its own Redis cache TTL.
+parallel via asyncio.gather. Cacheable sections use source-specific Redis TTLs.
 
 Two LLM calls (greeting + synthesis) run in parallel after the cards are
 assembled. Both are non-fatal: failures fall back to a static greeting and a
@@ -35,6 +35,8 @@ from src.domains.briefing.cache_keys import (
     last_good_key,
     section_cache_key,
 )
+from src.domains.briefing.cache_state import classify_cache_state
+from src.domains.briefing.card_content import _has_content as _has_content
 from src.domains.briefing.classification import expire_cached_annotations
 from src.domains.briefing.constants import (
     BRIEFING_SHARED_BUILD_WAIT_SECONDS,
@@ -53,6 +55,7 @@ from src.domains.briefing.constants import (
     SECTION_NAMES,
     SECTION_REMINDERS,
     SECTION_REMINDERS_TTL_SECONDS,
+    SECTION_SMS,
     SECTION_TASKS,
     SECTION_TASKS_TTL_SECONDS,
     SECTION_WEATHER,
@@ -89,10 +92,10 @@ from src.domains.briefing.schemas import (
     MailsData,
     SynthesisResponse,
     TextSection,
-    WorkboardData,
 )
 from src.domains.briefing.selected_cards import SectionPlan as _SectionPlan
 from src.domains.briefing.selected_cards import selected_cards_bundle
+from src.domains.briefing.sms_context import fetch_sms
 from src.domains.shared.consultation_sink import consultation_collector
 from src.domains.shared.consultation_surfaces import record_surface_consultations
 from src.infrastructure.cache.redis import get_redis_cache
@@ -147,30 +150,6 @@ def build_briefing_windows() -> BriefingWindows:
         tasks_horizon_days=settings.briefing_tasks_horizon_days,
         weather_forecast_days=settings.briefing_weather_daily_forecast_days,
     )
-
-
-def _has_content(data: Any) -> bool:
-    """Return True if the data payload has at least one displayable item."""
-    if data is None:
-        return False
-    # The workboard card is counts first: an open board with nothing in the
-    # « needs me » page still has something to say. Only a board with no open
-    # ticket at all is the empty state.
-    if isinstance(data, WorkboardData):
-        return data.open_total > 0 or data.needs_me > 0
-    for attr in ("events", "items"):
-        value = getattr(data, attr, None)
-        if value is not None:
-            return len(value) > 0
-    # ForYouData (P15): three optional sub-blocks — content when any is filled.
-    if hasattr(data, "open_loops"):
-        return bool(
-            getattr(data, "open_loops", None)
-            or getattr(data, "recent_automations", None)
-            or getattr(data, "next_automation", None)
-        )
-    # Non-list payloads (e.g. WeatherData) — assume present means content.
-    return True
 
 
 class BriefingService:
@@ -370,7 +349,9 @@ class BriefingService:
             self._exclude_commercial_mails,
         )
 
-    async def _record_cards_turn(self) -> None:
+    async def _record_cards_turn(
+        self, *, run_id: str | None = None, route: str = "briefing_cards"
+    ) -> None:
         """File the act the consultations belong to.
 
         Only when at least one source was actually read: a page load served
@@ -385,19 +366,19 @@ class BriefingService:
             from src.domains.agents.effects.models import DecisionOutcome, EffectSource
 
             decision = out_of_turn_decision(
-                run_id=self._consultation_run_id,
+                run_id=run_id or self._consultation_run_id,
                 user_id=self.user.id,
-                thread_id=self._consultation_run_id,
+                thread_id=run_id or self._consultation_run_id,
                 # A request reached the API; nothing schedules the briefing.
                 source=EffectSource.USER.value,
             )
             decision.outcome = DecisionOutcome.ANSWERED
-            decision.route = "briefing_cards"
+            decision.route = route
             await record_decision(decision)
         except Exception as exc:  # noqa: BLE001 - observing never breaks the observed
             logger.warning(
                 "briefing_cards_decision_not_recorded",
-                run_id=self._consultation_run_id,
+                run_id=run_id or self._consultation_run_id,
                 error_type=type(exc).__name__,
             )
 
@@ -470,6 +451,9 @@ class BriefingService:
                 lambda: fetch_health(user=self.user),
                 SECTION_HEALTH_TTL_SECONDS,
                 forced(SECTION_HEALTH),
+            ),
+            _SectionPlan(
+                SECTION_SMS, lambda: fetch_sms(user_id=self.user.id), 0, True, cache_eligible=False
             ),
             _SectionPlan(
                 SECTION_FOR_YOU,
@@ -591,20 +575,26 @@ class BriefingService:
                 )
                 cards = await self.build_cards()
 
-        (greeting_text, greeting_usage), (synthesis_text, synthesis_usage) = await asyncio.gather(
-            generate_greeting(
-                user=self.user,
-                user_tz=self.user_tz,
-                cards=cards,
-                language=self.language,
-            ),
-            generate_synthesis(
-                user=self.user,
-                user_tz=self.user_tz,
-                cards=cards,
-                language=self.language,
-            ),
-        )
+        text_run_id = f"briefing_text_{uuid.uuid4().hex[:12]}"
+        async with consultation_collector(text_run_id) as consulted:
+            (greeting_text, greeting_usage), (synthesis_text, synthesis_usage) = (
+                await asyncio.gather(
+                    generate_greeting(
+                        user=self.user,
+                        user_tz=self.user_tz,
+                        cards=cards,
+                        language=self.language,
+                    ),
+                    generate_synthesis(
+                        user=self.user,
+                        user_tz=self.user_tz,
+                        cards=cards,
+                        language=self.language,
+                    ),
+                )
+            )
+        if consulted:
+            await self._record_cards_turn(run_id=text_run_id, route="briefing_text")
 
         now = datetime.now(UTC)
         return SynthesisResponse(
@@ -736,9 +726,9 @@ class BriefingService:
         # disconnect the section raises ConnectorNotConfiguredError, so a
         # stale copy can never leak past a disconnect (no purge needed).
         origin = _ORIGIN_LIVE
-        if section.status is CardStatus.OK and section.data is not None:
+        if ttl > 0 and section.status is CardStatus.OK and section.data is not None:
             await self._write_last_good(name, section)
-        elif section.status is CardStatus.ERROR:
+        elif ttl > 0 and section.status is CardStatus.ERROR:
             section = await self._attach_stale(name, section)
             if section.data is not None:
                 origin = _ORIGIN_STALE
@@ -889,7 +879,7 @@ class BriefingService:
         placeholders — the LLM helpers ignore them when summarizing for the
         prompt, and the suggestion builder treats them as "no evidence".
         """
-        cards, _missing = await self._read_cached_bundle()
+        cards, _missing = await self._read_cached_bundle(include_sms=False)
         return cards
 
     async def read_selected_cards(
@@ -919,7 +909,9 @@ class BriefingService:
         plans = [plan for plan in self._build_plan(frozenset()) if plan.name in sections]
         return await selected_cards_bundle(plans, self._section, on_read)
 
-    async def _read_cached_bundle(self) -> tuple[CardsBundle, frozenset[str]]:
+    async def _read_cached_bundle(
+        self, *, include_sms: bool = True
+    ) -> tuple[CardsBundle, frozenset[str]]:
         """Read the bundle from cache, and say which sections were absent.
 
         The absence is the useful half: it is what tells a caller whether the
@@ -940,8 +932,11 @@ class BriefingService:
             entry for.
         """
         now = datetime.now(UTC)
-        results = await asyncio.gather(*(self._read_section_cache(name) for name in SECTION_NAMES))
-        by_name = dict(zip(SECTION_NAMES, results, strict=True))
+        names = tuple(name for name in SECTION_NAMES if include_sms or name != SECTION_SMS)
+        results = await asyncio.gather(*(self._read_section_cache(name) for name in names))
+        by_name = dict(zip(names, results, strict=True))
+        if not include_sms:
+            by_name[SECTION_SMS] = CardSection(status=CardStatus.HIDDEN, generated_at=now)
         missing = frozenset(name for name, section in by_name.items() if section is None)
 
         def _or_placeholder(name: str) -> CardSection:
@@ -962,6 +957,10 @@ class BriefingService:
         """
         if name in self._hidden_sections:
             return CardSection(status=CardStatus.HIDDEN, generated_at=datetime.now(UTC))
+        if name == SECTION_SMS:
+            return await self._read_live_section(
+                name, lambda: fetch_sms(user_id=self.user.id), record=True, on_read=None
+            )
         return await self._read_cache(self._cache_key(name))
 
     async def _read_cache(self, key: str) -> CardSection | None:
@@ -1039,33 +1038,5 @@ class BriefingService:
     def _classify_cache_state(
         outcomes: Iterable[tuple[CardSection, bool]],
     ) -> str:
-        """Return 'cold' / 'warm' / 'partial' for the duration histogram label.
-
-        Heuristic: a section was a cache hit if its ``generated_at`` predates
-        this build. Sections that can never be cache hits (the always-live one)
-        are excluded — counting them would report every build as 'partial'.
-
-        This is a coarse global tag; per-section origin is what the
-        ``origin`` label on ``briefing_section_status_total`` carries.
-
-        Args:
-            outcomes: Each built section and whether a cache hit was possible
-                for it.
-
-        Returns:
-            One of 'cold', 'warm', 'partial'.
-        """
-        now = datetime.now(UTC)
-        live_count = 0
-        eligible_count = 0
-        for section, cache_eligible in outcomes:
-            if not cache_eligible:
-                continue
-            eligible_count += 1
-            if (now - section.generated_at).total_seconds() < 1.5:
-                live_count += 1
-        if eligible_count == 0 or live_count == 0:
-            return "warm"
-        if live_count == eligible_count:
-            return "cold"
-        return "partial"
+        """Keep the existing helper and clock seam while sharing the pure calculation."""
+        return classify_cache_state(outcomes, now=datetime.now(UTC))

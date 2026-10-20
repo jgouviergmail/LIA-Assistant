@@ -223,6 +223,11 @@ EVIDENCE_RECIPES: dict[str, EvidenceRecipe] = {
                 events=("push_wake_timed_out", "push_wake_failed", "push_wake_served"),
             ),
         ),
+        EvidenceRecipe(
+            "PhoneIngestionDeliveryUncertain",
+            prom_queries=("ingestion_delivery_outcomes", "ingestion_delivery_freshness"),
+            logs=LogRecipe(events=("fcm_delivery_refused", "ingestion_transport_ack_unknown")),
+        ),
         # ---- radio newsroom (ADR-324) ------------------------------------
         # No tick ended: the tick census says whether passes FAIL (then the
         # failure line carries the database facts) or nothing runs at all (the

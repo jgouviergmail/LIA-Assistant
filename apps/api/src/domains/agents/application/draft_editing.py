@@ -22,9 +22,9 @@ from src.domains.agents.application.export_download import prepare_export_downlo
 from src.domains.agents.application.export_download_schemas import ExportDownloadRequest
 from src.domains.agents.application.habit_editing import rebuild_habit_draft
 from src.domains.agents.application.habit_settings_editing import rebuild_habit_settings_draft
-from src.domains.agents.application.health_editors import HEALTH_EDITORS
 from src.domains.agents.application.heartbeat_operations import prepare_heartbeat_content
 from src.domains.agents.application.heartbeat_schemas import HeartbeatPreferencePatch
+from src.domains.agents.application.ingestion_editors import INGESTION_EDITORS
 from src.domains.agents.application.interest_editing import rebuild_interest_draft
 from src.domains.agents.application.interest_settings import prepare_interest_settings
 from src.domains.agents.application.interest_settings_schemas import InterestSettingsPatch
@@ -180,7 +180,7 @@ async def rebuild_application_draft(
             "journal_entries.delete": rebuild_journal_removal_draft,
             "journal_settings.update": rebuild_journal_settings_draft,
             "psyche.reset": rebuild_psyche_reset_draft,
-            **HEALTH_EDITORS,
+            **INGESTION_EDITORS,
             "psyche.summary": rebuild_psyche_summary_draft,
             "psyche_settings.update": rebuild_psyche_settings_draft,
             **MANAGEMENT_EDITORS,

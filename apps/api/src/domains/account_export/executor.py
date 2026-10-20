@@ -12,7 +12,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import structlog
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 
 from src.core.config import settings
 from src.core.i18n import normalize_language
@@ -60,8 +60,12 @@ async def _sweep_expired() -> None:
     async with get_db_context() as db:
         result = await db.execute(
             select(AccountExportJob).where(
-                AccountExportJob.status == ExportJobStatus.DONE.value,
-                AccountExportJob.expires_at < now,
+                or_(
+                    (AccountExportJob.status == ExportJobStatus.DONE.value)
+                    & (AccountExportJob.expires_at < now),
+                    (AccountExportJob.status == ExportJobStatus.EXPIRED.value)
+                    & AccountExportJob.file_path.is_not(None),
+                ),
             )
         )
         for job in result.scalars().all():
@@ -97,13 +101,16 @@ async def _build_next_pending() -> None:
 
     try:
         archive_path, size = await build_export_archive(user_id, job_id)
-        await _finish_job(
+        accepted = await _finish_job(
             job_id,
             status=ExportJobStatus.DONE.value,
             file_path=str(archive_path),
             file_size_bytes=size,
         )
-        await _notify_ready(user_id)
+        if accepted:
+            await _notify_ready(user_id)
+        else:
+            archive_path.unlink(missing_ok=True)
     except ExportTooLargeError as exc:
         logger.warning("account_export_too_large", job_id=str(job_id), error=str(exc))
         await _finish_job(
@@ -120,7 +127,7 @@ async def _finish_job(
     file_path: str | None = None,
     file_size_bytes: int | None = None,
     error_code: str | None = None,
-) -> None:
+) -> bool:
     """Persist the terminal state of a build."""
     now = datetime.now(UTC)
     expires = (
@@ -129,19 +136,31 @@ async def _finish_job(
         else None
     )
     async with get_db_context() as db:
-        await db.execute(
-            update(AccountExportJob)
-            .where(AccountExportJob.id == job_id)
-            .values(
-                status=status,
-                file_path=file_path,
-                file_size_bytes=file_size_bytes,
-                error_code=error_code,
-                completed_at=now,
-                expires_at=expires,
-            )
+        owner_id = await db.scalar(
+            select(AccountExportJob.user_id).where(AccountExportJob.id == job_id)
         )
+        if owner_id is None:
+            return False
+        actor = await db.scalar(
+            select(User)
+            .where(User.id == owner_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        job = await db.scalar(
+            select(AccountExportJob)
+            .where(AccountExportJob.id == job_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if job is None or job.status != ExportJobStatus.RUNNING.value:
+            return False
+        if actor is None or not actor.is_active or actor.is_deleted:
+            return False
+        job.status, job.file_path, job.file_size_bytes = status, file_path, file_size_bytes
+        job.error_code, job.completed_at, job.expires_at = error_code, now, expires
         await db.commit()
+        return True
 
 
 async def _notify_ready(user_id: uuid.UUID) -> None:

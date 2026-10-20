@@ -45,7 +45,7 @@ def _user(disabled: object = None) -> SimpleNamespace:
 
 
 class TestRegistry:
-    def test_covers_the_thirteen_sources_a_notification_can_come_from(self) -> None:
+    def test_covers_the_registered_sources_a_notification_can_come_from(self) -> None:
         assert HEARTBEAT_SOURCE_KEYS == frozenset(
             {
                 "calendar",
@@ -56,6 +56,7 @@ class TestRegistry:
                 "memories",
                 "journals",
                 "health_signals",
+                "sms",
                 "birthdays",
                 "open_loops",
                 "departure",
@@ -81,7 +82,7 @@ class TestDefaults:
 
         assert disabled_sources_for(user) == frozenset()
         for key in HEARTBEAT_SOURCE_KEYS:
-            assert is_source_enabled(user, key) is True
+            assert is_source_enabled(user, key) is (key != "sms")
 
     def test_a_source_the_registry_does_not_own_is_never_gated(self) -> None:
         """Internal context (activity, anti-redundancy windows) is not a source.
@@ -211,7 +212,7 @@ class TestASwitchedOffSubsystemOpensNothing:
     def test_every_declared_flag_names_a_real_source(self) -> None:
         assert set(HEARTBEAT_SOURCE_FEATURE_FLAGS) <= HEARTBEAT_SOURCE_KEYS
 
-    def test_the_five_flagged_subsystems_are_declared(self) -> None:
+    def test_the_flagged_subsystems_are_declared(self) -> None:
         """Found by reading the fetchers, not by reading this table — so the
         table is the claim and the fetchers are the evidence."""
         assert set(HEARTBEAT_SOURCE_FEATURE_FLAGS) == {
@@ -220,4 +221,5 @@ class TestASwitchedOffSubsystemOpensNothing:
             "departure",
             "habits",
             "health_signals",
+            "sms",
         }

@@ -117,3 +117,11 @@ async def test_a_failing_read_is_unavailable(harness: SimpleNamespace) -> None:
     assert (
         await read_relation_debriefs(user_id=uuid.uuid4(), language="fr")
     ).status == "unavailable"
+
+
+async def test_sms_derived_debrief_does_not_become_an_implicit_portrait(harness):
+    rows = harness.repo.list_injectable.return_value
+    rows[0].sections_used = ["sms"]
+    section = await read_relation_debriefs(user_id=uuid.uuid4(), language="fr")
+    assert "Claire Dupont" not in section.text
+    assert section.used == 2

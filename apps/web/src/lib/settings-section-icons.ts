@@ -59,6 +59,7 @@ import {
   MapPin,
   Megaphone,
   MessageCircle,
+  MessageSquareText,
   Mic,
   MicVocal,
   Microscope,
@@ -142,6 +143,7 @@ export const SETTINGS_SECTION_ICONS: Readonly<Record<SettingsSectionToken, Lucid
   plugins: Puzzle,
   'rag-spaces': Library,
   meetings: ClipboardList,
+  sms: MessageSquareText,
   workboard: LayoutGrid,
   'user-consumption-export': FileSpreadsheet,
 

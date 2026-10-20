@@ -104,6 +104,7 @@ from src.domains.agents.application.skill_delete import execute_skill_deletion
 from src.domains.agents.application.skill_library_import import execute_library_import
 from src.domains.agents.application.skill_update import execute_skill_update
 from src.domains.agents.application.skill_url_import import execute_skill_url_import
+from src.domains.agents.application.sms_execution import execute_sms_native_action
 from src.domains.agents.application.source_delete import execute_source_deletion
 from src.domains.agents.application.source_link import execute_source_link
 from src.domains.agents.application.source_sync import execute_source_sync
@@ -212,6 +213,10 @@ async def _apply_approved_action(
             "journal_entries.delete": execute_journal_removal,
             "journal_settings.update": execute_journal_settings,
             "psyche.reset": execute_psyche_reset,
+            "sms_token.revoke": execute_sms_native_action,
+            "sms_preferences.update": execute_sms_native_action,
+            "sms_sender_block.update": execute_sms_native_action,
+            "sms_messages.delete": execute_sms_native_action,
             "health_token.revoke": execute_health_token_revocation,
             "health_samples.delete": execute_health_removal,
             "psyche.summary": execute_psyche_summary,

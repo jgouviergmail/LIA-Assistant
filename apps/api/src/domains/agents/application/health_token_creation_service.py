@@ -10,7 +10,7 @@ from src.core.exceptions import AuthorizationError, ResourceConflictError
 from src.domains.agents.application.command_service import CommandRejected
 from src.domains.agents.application.command_status import read_command_status
 from src.domains.agents.application.continuation_approval import claim_approved_waiting_interaction
-from src.domains.agents.application.export_download_service import _download_failure
+from src.domains.agents.application.continuation_failure import application_continuation_failure
 from src.domains.agents.application.health_token_creation import (
     authorize_health_token_creation,
     canonical_health_token_creation,
@@ -66,7 +66,7 @@ async def serve_health_token_creation(
         )
     except BaseException as error:
         await db.rollback()
-        failed = _download_failure(error, receipt).model_copy(
+        failed = application_continuation_failure(error, receipt).model_copy(
             update={"values": receipt.values or {}}
         )
         await finish_application_continuation(ticket, failed)

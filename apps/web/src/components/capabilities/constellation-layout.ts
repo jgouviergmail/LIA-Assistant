@@ -61,6 +61,7 @@ export const CAPABILITY_ORDER: readonly { key: string; ring: 'inner' | 'outer' }
   // The personal radio (ADR-324): a switch node beside the other voices.
   { key: 'radio', ring: 'outer' },
   { key: 'meetings', ring: 'outer' },
+  { key: 'sms', ring: 'outer' },
   { key: 'spaces', ring: 'outer' },
   { key: 'journals', ring: 'outer' },
   { key: 'skills', ring: 'outer' },

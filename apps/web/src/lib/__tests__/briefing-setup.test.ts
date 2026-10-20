@@ -43,6 +43,10 @@ function bundle(notConfigured: readonly BriefingSection[]): CardsBundle {
 const ALL = [...BRIEFING_SECTION_NAMES];
 
 describe('unconfiguredCards', () => {
+  it('does not ask a person to configure SMS disabled by the instance', () => {
+    expect(unconfiguredCards(bundle(['sms']), ALL)).toEqual([]);
+  });
+
   it('names nothing when everything is configured', () => {
     expect(unconfiguredCards(bundle([]), ALL)).toEqual([]);
   });

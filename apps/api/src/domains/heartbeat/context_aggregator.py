@@ -63,6 +63,7 @@ from src.domains.heartbeat.health_context import fetch_health_signals
 from src.domains.heartbeat.repository import HeartbeatNotificationRepository
 from src.domains.heartbeat.schemas import HeartbeatContext, WeatherChange
 from src.domains.heartbeat.second_pass_query import build_second_pass_query
+from src.domains.heartbeat.sms_context import fetch_sms_context
 from src.domains.heartbeat.source_placement import SOURCE_PLACEMENTS
 from src.domains.heartbeat.source_policy import is_source_available, is_source_enabled
 from src.domains.interests.models import InterestNotification, UserInterest
@@ -241,6 +242,7 @@ class ContextAggregator:
             ("recent_interests", self._fetch_recent_interest_notifications, (user_id, user), True),
             ("recent_other", self._fetch_recent_other_notifications, (user_id, user), True),
             ("health_signals", fetch_health_signals, common, False),
+            ("sms", fetch_sms_context, common, False),
             ("birthdays", self._fetch_birthdays, common, False),
             ("open_loops", fetch_open_loops_context, common, True),
             ("habits", fetch_habits_context, (user_id, user, settings), True),
@@ -971,6 +973,7 @@ class ContextAggregator:
             user_id,
             limit=settings.heartbeat_recent_window_count,
             max_age_days=settings.heartbeat_recent_window_days,
+            for_context=True,
         )
 
         if not notifications:

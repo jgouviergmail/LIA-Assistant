@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID
 
-from src.domains.relations.overview_scope import RelationOverviewScope
+from src.domains.relations.overview_scope import OverviewSection, RelationOverviewScope
 from src.domains.relations.providers.schemas import (
     ContactCard,
     ContactEmail,
@@ -161,7 +161,12 @@ def context(**over: object) -> RelationContext:
 
 def scope(**over: object) -> RelationOverviewScope:
     """A 360° scope, defaults unless overridden."""
-    return RelationOverviewScope(**over)  # type: ignore[arg-type]
+    # Preserve the explicit pre-SMS scope of the frozen capture.
+    payload = {
+        "sections": [section for section in OverviewSection if section is not OverviewSection.SMS],
+        **over,
+    }
+    return RelationOverviewScope.model_validate(payload)
 
 
 NO_ADDRESS_CONTEXT = context(

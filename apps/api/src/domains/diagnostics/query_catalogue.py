@@ -339,6 +339,24 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             external_metrics=(),
         ),
         NamedQuery(
+            query_id="ingestion_delivery_outcomes",
+            title="Phone notice outcomes by destination kind",
+            promql_template="sum by (destination, outcome) (increase(ingestion_delivery_outcomes_total[{window_minutes}m]))",
+            params=(_WINDOW,),
+            unit="count",
+            lia_metrics=("ingestion_delivery_outcomes_total",),
+            external_metrics=(),
+        ),
+        NamedQuery(
+            query_id="ingestion_delivery_freshness",
+            title="Age of the last completed phone-notice sweep",
+            promql_template="time() - max(ingestion_delivery_sweep_timestamp_seconds)",
+            params=(),
+            unit="seconds",
+            lia_metrics=("ingestion_delivery_sweep_timestamp_seconds",),
+            external_metrics=(),
+        ),
+        NamedQuery(
             query_id="radio_newsroom_ticks",
             title="Radio newsroom ticks by outcome (ADR-324)",
             promql_template=(

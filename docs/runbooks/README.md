@@ -354,3 +354,8 @@ For questions or issues with runbooks:
 **Last reviewed**: 2025-11-22
 **Next review**: 2025-12-22
 **Maintained by**: SRE Team
+
+## Phone ingestion and SMS
+
+- [SMS ingestion recovery](SMS_INGESTION_RECOVERY.md) — source authority, key rewrap, index repair and restore reconciliation.
+- [Uncertain phone delivery](alerts/PhoneIngestionDeliveryUncertain.md) — terminal unknown outcomes and duplicate-risk handling.

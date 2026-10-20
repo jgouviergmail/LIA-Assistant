@@ -33,6 +33,7 @@ pytestmark = [pytest.mark.unit]
 # Types whose payload can carry free text written by someone other than the
 # user or LIA, with the attacker-writable field named.
 EXPECTED_EXTERNAL: dict[RegistryItemType, str] = {
+    RegistryItemType.SMS: "body and raw sender authored by the SMS sender",
     RegistryItemType.EMAIL: "body/subject/sender name",
     RegistryItemType.EVENT: "summary/description authored by the organiser",
     RegistryItemType.CONTACT: "notes/organisation from directory sync",

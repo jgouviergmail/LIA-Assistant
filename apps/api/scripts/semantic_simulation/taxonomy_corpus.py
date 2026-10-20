@@ -122,6 +122,11 @@ TAXONOMY_CASES: tuple[TaxonomyRoutingCase, ...] = (
         "Combien de pas mes données de santé iPhone ont-elles enregistrés hier ?",
         "health",
     ),
+    _single(
+        "native_personal_sms",
+        "Dans mes SMS reçus sur le téléphone, retrouve celui qui contient le lieu du dîner de samedi.",
+        "sms",
+    ),
     _single("native_hue_state", "Liste mes ampoules Philips Hue et leur état actuel.", "hue"),
     _single(
         "native_image_creation",

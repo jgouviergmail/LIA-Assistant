@@ -20,6 +20,9 @@ import structlog
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from src.core.llm_usage import LLMBillingRecord
+from src.domains.heartbeat.context_prompt import render_context
+from src.domains.heartbeat.sms_context import repair_sms_ids
+from src.domains.sms.summary import SmsSignal
 
 logger = structlog.get_logger(__name__)
 
@@ -38,6 +41,7 @@ HeartbeatSourceLabel = Literal[
     "USER_MEMORIES",
     "JOURNAL_ENTRIES",
     "HEALTH_SIGNALS",
+    "SMS",
     "UPCOMING_BIRTHDAYS",
     "OPEN_LOOPS",
     "DEPARTURE_ADVICE",
@@ -121,6 +125,20 @@ class HeartbeatDecision(BaseModel):
         ),
     )
 
+    sms_actionable: bool = Field(
+        default=False,
+        description="True only for a concrete useful action or fact from an offered SMS, never receipt alone.",
+    )
+    sms_message_ids: list[UUID] = Field(
+        default_factory=list,
+        description="Exact offered SMS IDs actually used for that useful fact; empty otherwise.",
+    )
+
+    @field_validator("sms_message_ids", mode="before")
+    @classmethod
+    def keep_valid_sms_ids(cls, value: object) -> list[UUID]:
+        return repair_sms_ids(value)
+
     @field_validator("sources_used", mode="before")
     @classmethod
     def keep_canonical_source_labels(cls, value: Any) -> Any:
@@ -183,42 +201,6 @@ class WeatherChange:
     severity: str  # info | warning
 
 
-def _missed_routine_section(missed: dict[str, Any]) -> str:
-    """The MISSED ROUTINE section of the decision prompt — data only.
-
-    C13: the offer has an OBJECT. The signature is a domain key (« email »,
-    « web_search »); the descriptor says what is usually asked for on it, so
-    the model can name the service it offers instead of a generic « it ».
-    What to DO with it (offer at most once, name the request, declare it
-    with ``habit_offered``) is rule 24 of the versioned decision prompt, not
-    a sentence repeated here: two wordings of one rule drift.
-
-    Args:
-        missed: The offer candidate ``habit_context.detect_missed_routine``
-            produced.
-
-    Returns:
-        One prompt section.
-    """
-    schedule = (
-        f"weekly (weekday {missed.get('weekday')})"
-        if missed.get("shape") == "weekly"
-        else str(missed.get("shape", "?"))
-    )
-    signature = missed.get("signature", "?")
-    usual_intent = missed.get("usual_intent")
-    request = (
-        f"the user usually asks for a '{usual_intent}' on '{signature}'"
-        if usual_intent
-        else f"the user usually makes a request on '{signature}'"
-    )
-    return (
-        "MISSED ROUTINE (learned recurring request whose usual slot passed "
-        f"today with no ask — rule 24): {request} — {schedule} around "
-        f"{missed.get('trigger_label', '?')}."
-    )
-
-
 @dataclass
 class HeartbeatContext:
     """Aggregated context from multiple sources for LLM decision.
@@ -266,6 +248,8 @@ class HeartbeatContext:
     # opted into assistant integrations. Never contains raw sensor values —
     # only deltas, trends, and freshness metadata.
     health_signals: dict[str, Any] | None = None
+
+    sms: SmsSignal | None = None
 
     # Upcoming contact birthdays (P7) — {contact_name, days_until, age_at_next}
     # entries within the configured look-ahead (today + N days).
@@ -323,6 +307,7 @@ class HeartbeatContext:
                 self.user_memories,
                 self.journal_entries,
                 self.health_signals,
+                self.sms,
                 self.upcoming_birthdays,
                 self.open_loops,
                 self.workboard,
@@ -337,192 +322,7 @@ class HeartbeatContext:
         )
 
     def to_prompt_context(self) -> str:
-        """Serialize context for the LLM decision prompt.
-
-        Only includes sections with data. Returns a structured text block
-        that the LLM can reason about.
-        """
-        sections: list[str] = []
-
-        if self.user_local_time:
-            sections.append(
-                f"TIME: {self.day_of_week}, "
-                f"{self.user_local_time.strftime('%d/%m/%Y %H:%M')} "
-                f"({self.time_of_day})"
-            )
-
-        if self.moment is not None:
-            from src.domains.moments.rendering import render_moment_section
-
-            sections.append(render_moment_section(self.moment))
-
-        if self.wake_trigger:
-            from src.domains.heartbeat.wake_context import fresh_section
-
-            fresh = fresh_section(self.wake_trigger)
-            if fresh:
-                sections.append(fresh)
-
-        if self.calendar_events:
-            events_text = "\n".join(
-                f"  - {e.get('summary', 'Untitled')} "
-                f"({e.get('start', '?')} → {e.get('end', '?')})"
-                + (f" @ {e['location']}" if e.get("location") else "")
-                for e in self.calendar_events
-            )
-            sections.append(
-                f"UPCOMING CALENDAR EVENTS (times in user's local timezone):\n{events_text}"
-            )
-
-        if self.pending_tasks:
-            tasks_text = "\n".join(
-                f"  - {t.get('title', 'Untitled')} (due: {t.get('due', 'no date')})"
-                + (" [OVERDUE]" if t.get("overdue") else "")
-                for t in self.pending_tasks
-            )
-            sections.append(f"PENDING TASKS:\n{tasks_text}")
-
-        if self.unread_emails:
-            emails_text = "\n".join(
-                f"  - From: {e.get('from', '?')} — \"{e.get('subject', 'No subject')}\" "
-                f"({e.get('date', '?')})"
-                + (f" [{e['snippet'][:80]}...]" if e.get("snippet") else "")
-                for e in self.unread_emails
-            )
-            sections.append(f"UNREAD EMAILS (received today):\n{emails_text}")
-
-        if self.weather_current:
-            temp = self.weather_current.get("main", {}).get("temp", "?")
-            desc = self.weather_current.get("weather", [{}])[0].get("description", "?")
-            wind = self.weather_current.get("wind", {}).get("speed", "?")
-            location_suffix = ""
-            if self.weather_location_city:
-                src_label = (
-                    "away from home" if self.weather_location_source == "last_known" else "at home"
-                )
-                location_suffix = f" in {self.weather_location_city} ({src_label})"
-            sections.append(f"CURRENT WEATHER{location_suffix}: {desc}, {temp}°C, wind {wind} m/s")
-
-        if self.weather_changes:
-            changes_text = "\n".join(
-                f"  - [{c.severity.upper()}] {c.description}" for c in self.weather_changes
-            )
-            sections.append(f"WEATHER CHANGES DETECTED:\n{changes_text}")
-
-        if self.trending_interests:
-            topics = ", ".join(i.get("topic", "?") for i in self.trending_interests)
-            sections.append(f"USER INTERESTS (trending): {topics}")
-
-        if self.user_memories:
-            memories_text = "\n".join(f"  - {m}" for m in self.user_memories)
-            sections.append(f"USER MEMORIES:\n{memories_text}")
-
-        if self.journal_entries:
-            journal_text = "\n".join(
-                f"  - [{e.get('date', '?')} | {e.get('theme', '')} | {e.get('mood', '')}] "
-                f"{e.get('title', 'Untitled')} — {e.get('content_preview', '')}"
-                for e in self.journal_entries
-            )
-            sections.append(f"ASSISTANT JOURNAL ENTRIES (your own reflections):\n{journal_text}")
-
-        if self.health_signals:
-            lines: list[str] = []
-            summary_today = self.health_signals.get("summary_today", {})
-            for kind, payload in summary_today.items():
-                lines.append(
-                    f"  - today {kind}: {payload.get('value')} {payload.get('unit', '')} "
-                    f"(updated {payload.get('last_update_minutes_ago', '?')} min ago)"
-                )
-            for kind, payload in self.health_signals.get("baseline_deltas_7d", {}).items():
-                pct = payload.get("pct")
-                mode = payload.get("mode")
-                if pct is not None:
-                    lines.append(
-                        f"  - 7d {kind} vs baseline: {pct:+.1f}% (mode={mode}, "
-                        f"baseline={payload.get('baseline_value')})"
-                    )
-            for variation in self.health_signals.get("recent_variations", []):
-                lines.append(
-                    f"  - {variation.get('kind')} trend: {variation.get('trend')} "
-                    f"over {variation.get('days')} days "
-                    f"(avg {variation.get('delta_pct')}%)"
-                )
-            for event in self.health_signals.get("notable_events", []):
-                lines.append(
-                    f"  - event: {event.get('event')} on {event.get('kind')} "
-                    f"({event.get('days')} days)"
-                )
-            if lines:
-                sections.append("HEALTH SIGNALS (factual, not medical):\n" + "\n".join(lines))
-
-        if self.upcoming_birthdays:
-            bday_lines = []
-            for b in self.upcoming_birthdays:
-                days = b.get("days_until")
-                when = "TODAY" if days == 0 else f"in {days} day(s)"
-                age = b.get("age_at_next")
-                age_txt = f", turning {age}" if age else ""
-                bday_lines.append(f"  - {b.get('contact_name', '?')} — {when}{age_txt}")
-            sections.append("UPCOMING BIRTHDAYS:\n" + "\n".join(bday_lines))
-
-        if self.departure_advice:
-            da = self.departure_advice
-            sections.append(
-                "DEPARTURE ADVICE (traffic-aware): leave by "
-                f"{da.get('leave_by_local', '?')} for '{da.get('event_title', '?')}' "
-                f"at {da.get('event_start_local', '?')} — {da.get('eta_minutes', '?')} min "
-                f"to {da.get('destination', '?')}"
-            )
-
-        if self.open_loops:
-            loop_lines = []
-            for ol in self.open_loops:
-                due = f" (due {ol['due_local']})" if ol.get("due_local") else ""
-                who = f" — {ol['counterparty']}" if ol.get("counterparty") else ""
-                loop_lines.append(
-                    f"  - [{ol.get('direction', '?')}] {ol.get('subject', '?')}{who}{due} "
-                    f"(open for {ol.get('days_open', '?')} days)"
-                )
-            sections.append(
-                "OPEN LOOPS (commitments being tracked for the user):\n" + "\n".join(loop_lines)
-            )
-
-        if self.workboard:
-            ticket_lines = []
-            for ticket in self.workboard:
-                due = f" (due {ticket['due_local']})" if ticket.get("due_local") else ""
-                said = f' — LIA wrote: "{ticket["waiting_on"]}"' if ticket.get("waiting_on") else ""
-                ticket_lines.append(
-                    f"  - [{ticket.get('reason', '?')}] {ticket.get('title', '?')}"
-                    f" - {ticket.get('status', '?')},"
-                    f" {ticket.get('priority', '?')} priority{due}{said}"
-                )
-            sections.append(
-                "WORKBOARD (tickets on the user's board needing attention):\n"
-                + "\n".join(ticket_lines)
-            )
-
-        if self.habits:
-            rhythm = self.habits.get("rhythm") or {}
-            if rhythm:
-                windows = "; ".join(
-                    f"{name}: {', '.join(labels)}" for name, labels in rhythm.items()
-                )
-                sections.append(
-                    "USER RHYTHM (learned activity windows — prefer notifying inside "
-                    "them; the user's configured hour bounds always prevail): " + windows
-                )
-            missed = self.habits.get("missed_routine")
-            if missed:
-                sections.append(_missed_routine_section(missed))
-
-        if self.hours_since_last_interaction is not None:
-            sections.append(f"LAST INTERACTION: {self.hours_since_last_interaction:.1f} hours ago")
-
-        if not sections:
-            return "No context available."
-
-        return "\n\n".join(sections)
+        return render_context(self)
 
     @property
     def recent_heartbeats_summary(self) -> str | None:

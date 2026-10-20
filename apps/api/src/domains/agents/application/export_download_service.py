@@ -1,17 +1,16 @@
 """Initiate one exact archive request under its immutable original HITL receipt."""
 
-import asyncio
 from uuid import UUID
 
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.application_origin import ApplicationOrigin
-from src.core.exceptions import AuthorizationError, ResourceConflictError, ResourceNotFoundError
-from src.domains.agents.application.availability import application_access_error_code
-from src.domains.agents.application.command_service import CommandRejected
+from src.core.exceptions import AuthorizationError, ResourceConflictError
 from src.domains.agents.application.command_status import read_command_status
 from src.domains.agents.application.continuation_approval import claim_approved_waiting_interaction
+from src.domains.agents.application.continuation_failure import (
+    application_continuation_failure as _download_failure,
+)
 from src.domains.agents.application.export_action import _authorize_export
 from src.domains.agents.application.export_download_response import ExportDownloadResponse
 from src.domains.agents.application.export_download_schemas import ExportDownloadPatch
@@ -24,33 +23,8 @@ from src.domains.agents.application.secure_continuation import (
 from src.domains.users.preference_cas import PreferenceWriteReceipt
 from src.infrastructure.account_export_downloads import (
     ExportArchiveRead,
-    ExportDownloadCompletionUnknown,
 )
 from src.infrastructure.account_exports import get_account_exports
-
-
-def _download_failure(
-    error: BaseException, receipt: PreferenceWriteReceipt
-) -> ApplicationExecutionOutcome:
-    code, phase = "EXECUTION_FAILED", ApplicationPhase.FAILED
-    if isinstance(error, AuthorizationError):
-        code = application_access_error_code(error)
-    elif isinstance(error, ResourceConflictError | ResourceNotFoundError):
-        code, phase = "STALE_STATE", ApplicationPhase.CONFLICT
-    elif isinstance(error, ExportDownloadCompletionUnknown | asyncio.CancelledError):
-        code = "COMPLETION_UNKNOWN"
-    elif isinstance(error, CommandRejected):
-        code = error.code
-    elif isinstance(error, SQLAlchemyError | OSError):
-        code = "DEPENDENCY_ERROR"
-    elif isinstance(error, ValueError):
-        code = "INVALID_INPUT"
-    return ApplicationExecutionOutcome(
-        success=False,
-        phase=phase,
-        committed=receipt.committed,
-        error_code="POST_COMMIT_FAILURE" if receipt.committed else code,
-    )
 
 
 async def serve_export_download_command(

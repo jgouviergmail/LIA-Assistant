@@ -53,6 +53,8 @@ EXPECTED_CAPABILITIES: frozenset[str] = frozenset(
         "mcp",
         "telephony",
         "meetings",
+        # Personal phone ingestion and its private SMS archive have an explicit operator ceiling.
+        "sms",
         # B7 — thirteen features that shipped without a switch.
         "workboard",
         "journals",

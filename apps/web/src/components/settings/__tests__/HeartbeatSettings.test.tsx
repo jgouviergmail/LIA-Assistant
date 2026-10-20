@@ -37,6 +37,9 @@ vi.mock('@/hooks/useHeartbeatHistory', async importOriginal => {
   return { ...actual, useHeartbeatHistory };
 });
 
+vi.mock('@/hooks/useAppConfig', () => ({
+  useAppConfig: () => ({ config: { features: { sms_enabled: false } } }),
+}));
 import { HeartbeatSettings } from '../HeartbeatSettings';
 import type { useHeartbeatSettings as useHeartbeatSettingsFn } from '@/hooks/useHeartbeatSettings';
 

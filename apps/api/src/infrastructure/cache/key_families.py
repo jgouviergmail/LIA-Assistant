@@ -43,6 +43,7 @@ class KeyScope(str, Enum):
 
 #: Family prefix (``:``-separated segments, no trailing colon) → scope.
 KEY_FAMILIES: dict[str, KeyScope] = {
+    "ingestion": KeyScope.USER_RUNTIME,
     # --- conversation: purged by a reset ---------------------------------
     "hitl_pending": KeyScope.CONVERSATION,
     "hitl:request_ts": KeyScope.CONVERSATION,

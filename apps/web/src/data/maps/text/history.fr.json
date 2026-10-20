@@ -1482,6 +1482,10 @@
     "348": {
       "title": "L'expérience de LIA s'apprend sur des preuves, jamais sur sa propre note",
       "summary": "L'ancienne auto-efficacité ne bougeait que sur l'auto-évaluation de LIA, un seul échange suffisait à faire une force ou une faiblesse, et seule la réponse finale la lisait. Sept domaines gardent désormais deux axes séparés : ce qu'un tour a vérifiablement accompli, et l'utilité que la personne a exprimée par 👍/👎. À partir de cinq observations, LIA peut vérifier un point, poser une question ou nommer une limite — sans changer ni modèle, ni outil, ni budget."
+    },
+    "357": {
+      "title": "Ingestion générique et archive SMS personnelle",
+      "summary": "Le téléphone envoie des événements stricts, dédupliqués par source. Les consentements sont indépendants ; exports, effacements, registres et notifications respectent la même autorité."
     }
   }
 }

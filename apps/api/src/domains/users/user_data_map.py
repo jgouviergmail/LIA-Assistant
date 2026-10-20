@@ -340,6 +340,22 @@ TABLE_RULES: dict[str, TableRule] = {
         "callee_phone decrypted by the telephony service at export time.",
     ),
     "health_samples": _PURGED_FULL,
+    "sms_messages": _PURGED_FULL,
+    "sms_sender_blocks": _PURGED_FULL,
+    "ingestion_sources": _PURGED_FULL,
+    **{
+        name: TableRule(
+            TableDataClass.USER_PURGED,
+            ExportPolicy.EXCLUDED,
+            "Opaque derived ingestion state or secret credential; explicitly purged on soft deletion.",
+        )
+        for name in (
+            "ingestion_tokens",
+            "ingestion_receipts",
+            "ingestion_deliveries",
+            "sms_search_terms",
+        )
+    },
     "user_skill_states": _PURGED_FULL,
     "skills": _PURGED_FULL,
     "skill_library_sources": TableRule(

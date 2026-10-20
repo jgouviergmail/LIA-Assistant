@@ -317,6 +317,11 @@
       "name": "Compagnons natifs animés",
       "role": "Tu choisis un style et les variantes proposées dans le catalogue natif. Émotions, regard et accessoires suivent l'activité et le contexte disponible. Le volume est un relief approché du dessin frontal ; le dessin fixe prend le relais lorsque la présentation ou les ressources ne permettent pas l'animation.",
       "goal": "Une présence originale qui exprime l'état de LIA et respecte ton choix d'affichage."
+    },
+    "f.sms": {
+      "name": "Mes SMS",
+      "role": "Archive les textes envoyés par le téléphone, résout l’expéditeur et les présente dans la discussion, les relations et l’accueil avec un accès Assistant explicite.",
+      "goal": "Garder une archive personnelle consultable, sans confondre réception, push et accès du modèle."
     }
   },
   "flows": {

@@ -172,7 +172,17 @@ HUE_LIGHT_ID = SemanticType(
     source_domains=["hue"],
 )
 
+SMS_MESSAGE_ID = SemanticType(
+    name="sms_message_id",
+    parent="Identifier",
+    category=TypeCategory.IDENTITY,
+    description="Exact UUID of one owned archived received SMS; never a phone number, email message id or contact id.",
+    source_domains=["sms"],
+    used_in_tools=["get_sms_tool"],
+)
+
 ALL_NATIVE_TYPES: tuple[SemanticType, ...] = (
+    SMS_MESSAGE_ID,
     DATE,
     UNIX_TIMESTAMP,
     DURATION_MINUTES,

@@ -80,6 +80,7 @@ DEPLOYMENT_FLAGS: dict[str, str] = {
     "DEVOPS_ENABLED": "true",
     "PYTHON_SANDBOX_TOOL_ENABLED": "true",
     "HEALTH_METRICS_ENABLED": "true",
+    "SMS_ENABLED": "true",
     "SKILLS_ENABLED": "true",
     "SUB_AGENTS_ENABLED": "true",
     "IMAGE_GENERATION_ENABLED": "true",
@@ -354,3 +355,21 @@ class TestEveryRegisteredToolResolves:
             f"{len(unreadable)} capability(ies) have no readable domain: {unreadable}. "
             "The boot guard refuses to start on this."
         )
+
+
+def test_every_registered_domain_has_a_frontend_label_in_every_language(registry: object) -> None:
+    from src.core.i18n import SUPPORTED_LANGUAGES
+
+    needed = _spoken_domains(registry) | {UNKNOWN_DOMAIN}
+    locales = Path(__file__).resolve().parents[7] / "apps/web/locales"
+    for language in SUPPORTED_LANGUAGES:
+        data = json.loads(
+            (locales / language.split("-")[0] / "translation.json").read_text(encoding="utf-8")
+        )
+        labels = data["treatments"]["domains"]
+        missing = sorted(
+            domain
+            for domain in needed
+            if not isinstance(labels.get(domain), str) or not labels[domain].strip()
+        )
+        assert not missing, f"Unreadable treatment domains in frontend {language}: {missing}"

@@ -656,3 +656,19 @@ groups:
           summary: "The radio newsroom last ran to its end {{ $value | humanizeDuration }} ago"
           description: "No newsroom tick has ended for longer than 1800 seconds: every pass failed, or the job is not running (no scheduler leader, a pass blocked on the database). No new story is filed: sessions air what the newsroom already holds, then no news at all. Read radio_newsroom_passes_total by outcome — failed means radio_newsroom_pass_failed in the API log, with the database facts; nothing at all means the scheduler."
           runbook: "docs/runbooks/alerts/RadioNewsroomStalled.md"
+
+  # Durable SMS notices never depend on a language-model run or quiet hours.
+  - name: core_phone_ingestion
+    interval: 1m
+    rules:
+      - alert: PhoneIngestionDeliveryUncertain
+        expr: sum(increase(ingestion_delivery_outcomes_total{outcome="unknown"}[15m])) > 0
+        for: 1m
+        labels:
+          severity: warning
+          component: ingestion
+          tier: core
+        annotations:
+          summary: "A phone notice has an uncertain delivery result"
+          description: "The worker will not resend automatically. Inspect the content-free delivery state and effect attempt chain; a transport acceptance does not prove a device displayed or read it."
+          runbook: "docs/runbooks/alerts/PhoneIngestionDeliveryUncertain.md"

@@ -73,6 +73,7 @@ class HeartbeatNotificationRepository:
         notification_id: UUID | None = None,
         habit_offer_id: UUID | None = None,
         trigger: str = "tick",
+        sensitive_context: bool = False,
     ) -> HeartbeatNotification:
         """Create an audit record for a sent heartbeat notification.
 
@@ -110,6 +111,7 @@ class HeartbeatNotificationRepository:
             content=content,
             content_hash=content_hash,
             sources_used=sources_used,
+            sensitive_context=sensitive_context,
             decision_reason=decision_reason,
             priority=priority,
             tokens_in=tokens_in,
@@ -179,6 +181,7 @@ class HeartbeatNotificationRepository:
         user_id: UUID,
         limit: int = 5,
         max_age_days: int | None = None,
+        for_context: bool = False,
     ) -> list[HeartbeatNotification]:
         """Get recent notifications for a user (for anti-redundancy).
 
@@ -194,6 +197,8 @@ class HeartbeatNotificationRepository:
             List of recent HeartbeatNotification (newest first).
         """
         query = select(HeartbeatNotification).where(HeartbeatNotification.user_id == user_id)
+        if for_context:
+            query = query.where(HeartbeatNotification.sensitive_context.is_(False))
         if max_age_days is not None:
             threshold = datetime.now(UTC) - timedelta(days=max_age_days)
             query = query.where(HeartbeatNotification.created_at >= threshold)

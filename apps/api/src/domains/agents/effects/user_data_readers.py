@@ -30,6 +30,7 @@ from typing import Final
 #: The guard asserts each named module actually calls the recording function —
 #: a pointer to a module that records nothing would certify a gap.
 CONSULTATION_RECORDERS: Final[dict[str, str]] = {
+    "sms_identity": "domains/sms/identity_directory.py",
     "briefing": "domains/briefing/service.py",
     "relation_debrief": "domains/relations/overview/consultations.py",
     "heartbeat": "domains/heartbeat/consultations.py",

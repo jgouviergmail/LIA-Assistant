@@ -123,6 +123,7 @@ from src.core.i18n_skill_file_upload import SKILL_FILE_UPLOAD_COPY
 from src.core.i18n_skill_library_import import SKILL_LIBRARY_IMPORT_COPY
 from src.core.i18n_skill_personal import SKILL_PERSONAL_COPY
 from src.core.i18n_skill_url_import import SKILL_URL_IMPORT_COPY
+from src.core.i18n_sms import SMS_APPROVAL_NOTE
 from src.core.i18n_source_delete import SOURCE_DELETE_COPY
 from src.core.i18n_source_link import SOURCE_LINK_COPY
 from src.core.i18n_source_sync import SOURCE_SYNC_COPY
@@ -1134,6 +1135,7 @@ for _language, _application_copy in APPLICATION_DRAFT_COPY.items():
         application_management_export_note=MANAGEMENT_EXPORT_COPY[_language].note,
         application_interests_export_title=MANAGEMENT_EXPORT_COPY[_language].interests,
         application_journal_feedback_note=JOURNAL_FEEDBACK_COPY[_language][1],
+        application_sms_note=SMS_APPROVAL_NOTE[_language],
         application_health_token_note=HEALTH_TOKEN_COPY[_language][1],
         application_health_token_creation_note=HEALTH_TOKEN_CREATION_COPY[_language][1],
         application_field_health_token_to_create=HEALTH_TOKEN_CREATION_COPY[_language][0],

@@ -2540,7 +2540,18 @@
       "adr": 343,
       "date": "2026-10-12",
       "theme": "memory",
-      "functional": ["f.journals", "f.memory", "f.interests", "f.habits", "f.relations", "f.openloops", "f.workboard", "f.routines", "f.reminders", "f.bookmarks"],
+      "functional": [
+        "f.journals",
+        "f.memory",
+        "f.interests",
+        "f.habits",
+        "f.relations",
+        "f.openloops",
+        "f.workboard",
+        "f.routines",
+        "f.reminders",
+        "f.bookmarks"
+      ],
       "technical": ["t.promptsys"]
     },
     {
@@ -2582,45 +2593,29 @@
       "adr": 350,
       "date": "2026-10-19",
       "theme": "connectors",
-      "functional": [
-        "f.peers",
-        "f.skills",
-        "f.mcp"
-      ],
-      "technical": [
-        "t.skills",
-        "t.mcp",
-        "t.postgres"
-      ]
+      "functional": ["f.peers", "f.skills", "f.mcp"],
+      "technical": ["t.skills", "t.mcp", "t.postgres"]
     },
     {
       "adr": 351,
       "date": "2026-10-19",
       "theme": "orchestration",
-      "functional": [
-        "f.mail",
-        "f.calendar",
-        "f.llmconfig"
-      ],
-      "technical": [
-        "t.response",
-        "t.catalogue",
-        "t.pricing"
-      ]
+      "functional": ["f.mail", "f.calendar", "f.llmconfig"],
+      "technical": ["t.response", "t.catalogue", "t.pricing"]
     },
     {
       "adr": 352,
       "date": "2026-10-19",
       "theme": "connectors",
-      "functional": [
-        "f.places",
-        "f.chat"
-      ],
-      "technical": [
-        "t.response",
-        "t.connclients",
-        "t.pricing"
-      ]
+      "functional": ["f.places", "f.chat"],
+      "technical": ["t.response", "t.connclients", "t.pricing"]
+    },
+    {
+      "adr": 357,
+      "date": "2026-10-20",
+      "theme": "connectors",
+      "functional": ["f.sms", "f.relations", "f.heartbeat", "f.notifications"],
+      "technical": ["t.phone_ingestion", "t.proactive", "t.registers"]
     }
   ]
 }

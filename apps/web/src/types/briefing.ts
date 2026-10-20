@@ -30,6 +30,7 @@ export const BRIEFING_SECTION_NAMES: readonly BriefingSection[] = [
   'birthdays',
   'reminders',
   'health',
+  'sms',
   'for_you',
   'tasks',
   'documents',
@@ -302,6 +303,7 @@ export type SectionData =
   | BirthdaysData
   | RemindersData
   | HealthData
+  | SmsData
   | ForYouData
   | TasksData
   | DocumentsData
@@ -347,7 +349,18 @@ export interface BriefingWindows {
   weather_forecast_days: number;
 }
 
+export interface SmsData {
+  timezone: string;
+  total: number;
+  window_total: number;
+  window_start: string;
+  as_of: string;
+  latest_at: string | null;
+}
+
 export interface CardsBundle {
+  /** Optional for pre-SMS server bundles during a rolling upgrade. */
+  sms?: CardSection<SmsData>;
   weather: CardSection<WeatherData>;
   agenda: CardSection<AgendaData>;
   mails: CardSection<MailsData>;
@@ -378,6 +391,7 @@ export type BriefingSection =
   | 'birthdays'
   | 'reminders'
   | 'health'
+  | 'sms'
   | 'for_you'
   | 'tasks'
   | 'documents'

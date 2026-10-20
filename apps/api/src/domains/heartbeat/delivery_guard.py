@@ -7,7 +7,7 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import structlog
-from pydantic import TypeAdapter, ValidationError
+from pydantic import JsonValue, TypeAdapter, ValidationError
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +27,7 @@ from src.infrastructure.proactive.eligibility import is_within_hour_window
 
 logger = structlog.get_logger(__name__)
 _SCOPES = TypeAdapter(list[str])
+_JSON_VALUE: TypeAdapter[JsonValue] = TypeAdapter(JsonValue)
 
 
 async def _connector_authority_digest(db: AsyncSession, actor_id: UUID) -> str:
@@ -108,6 +109,13 @@ async def heartbeat_delivery_stamp(actor_id: UUID) -> str | None:
                 timezone=user.timezone,
                 language=user.language,
                 extraction_revision=user.extraction_revision,
+                sms_preferences=_JSON_VALUE.validate_python(user.sms_preferences),
+                sms_enabled=settings.sms_enabled,
+                sms_capability=await db.scalar(
+                    select(SystemSetting.value).where(
+                        SystemSetting.key == SystemSettingKey.CAPABILITY_SMS_ENABLED
+                    )
+                ),
                 home_location_encrypted=user.home_location_encrypted,
                 last_known_location_encrypted=user.last_known_location_encrypted,
                 use_last_known_location=user.use_last_known_location,

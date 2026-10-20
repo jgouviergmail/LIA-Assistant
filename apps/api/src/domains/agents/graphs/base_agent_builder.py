@@ -39,6 +39,7 @@ from typing_extensions import TypedDict
 from src.core.config import settings
 from src.core.field_names import FIELD_AGENT_NAME, FIELD_METADATA, FIELD_STATUS
 from src.domains.agents.prompts.prompt_loader import load_prompt
+from src.domains.agents.sms.model_middleware import SmsModelBoundary, SmsSafeSummarization
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.usage_metadata import tokens_from_usage_metadata
 from src.infrastructure.observability.logging import get_logger
@@ -246,6 +247,7 @@ def build_generic_agent(config: AgentConfig) -> Any:
         "routes_agent": "route_agent",
         # Health Metrics agent (v1.17.2)
         "health_agent": "health_agent",
+        "sms_agent": "sms_agent",
         # Philips Hue agent — absent from this map until ADR-244, so every one
         # of its calls silently resolved to the CONTACTS slot's configuration.
         "hue_agent": "hue_agent",
@@ -305,7 +307,7 @@ def build_generic_agent(config: AgentConfig) -> Any:
     # 3. MessageHistoryMiddleware - Message filtering for LLM input
     from src.infrastructure.llm.middleware_config import create_agent_middleware_stack
 
-    middleware = create_agent_middleware_stack(agent_name)
+    middleware = create_agent_middleware_stack(agent_name, summarization_class=SmsSafeSummarization)
 
     logger.info(
         "agent_middleware_configured",
@@ -327,6 +329,7 @@ def build_generic_agent(config: AgentConfig) -> Any:
         max_tokens=max_history_tokens,
     )
     middleware.append(history_middleware)
+    middleware.append(SmsModelBoundary())
 
     logger.debug(
         "message_history_middleware_configured",

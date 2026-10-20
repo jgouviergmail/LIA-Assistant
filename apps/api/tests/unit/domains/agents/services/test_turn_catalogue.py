@@ -24,14 +24,17 @@ def _registry(tools_by_agent: dict[str, list[str]]) -> MagicMock:
     registry = MagicMock()
 
     def _list(agent: str | None = None) -> list[SimpleNamespace]:
-        return [SimpleNamespace(name=name) for name in tools_by_agent.get(agent or "", [])]
+        return [
+            SimpleNamespace(name=name, agent=agent or "test_agent")
+            for name in tools_by_agent.get(agent or "", [])
+        ]
 
     registry.list_tool_manifests.side_effect = _list
     return registry
 
 
 def _catalogue(*names: str) -> list[SimpleNamespace]:
-    return [SimpleNamespace(name=name) for name in names]
+    return [SimpleNamespace(name=name, agent="test_agent") for name in names]
 
 
 async def test_a_switched_off_capability_and_an_unconnected_provider_are_both_withheld() -> None:

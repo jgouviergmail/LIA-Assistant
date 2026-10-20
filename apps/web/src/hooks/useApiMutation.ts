@@ -30,6 +30,8 @@ export interface UseApiMutationOptions<TResponse = unknown> {
   componentName: string;
   /** Additional request config */
   config?: RequestConfig;
+  /** Keep a response copy in state. Disable for ephemeral secret delivery. */
+  retainResponse?: boolean;
   /** Callback on success */
   onSuccess?: (data: TResponse) => void;
   /** Callback on error */
@@ -38,7 +40,11 @@ export interface UseApiMutationOptions<TResponse = unknown> {
 
 export interface UseApiMutationResult<TData = unknown, TResponse = unknown> {
   /** Function to perform the mutation */
-  mutate: (endpoint: string, data?: TData) => Promise<TResponse | undefined>;
+  mutate: (
+    endpoint: string,
+    data?: TData,
+    config?: RequestConfig
+  ) => Promise<TResponse | undefined>;
   /** Loading state */
   loading: boolean;
   /** Error if mutation failed */
@@ -47,6 +53,35 @@ export interface UseApiMutationResult<TData = unknown, TResponse = unknown> {
   reset: () => void;
   /** Response data from last successful mutation */
   data: TResponse | null;
+}
+
+async function sendMutation<TData, TResponse>(
+  method: UseApiMutationOptions['method'],
+  endpoint: string,
+  requestData: TData | undefined,
+  config?: RequestConfig
+): Promise<TResponse> {
+  let response;
+
+  switch (method) {
+    case 'POST':
+      response = await apiClient.post<TResponse>(endpoint, requestData, config);
+      break;
+    case 'PUT':
+      response = await apiClient.put<TResponse>(endpoint, requestData, config);
+      break;
+    case 'PATCH':
+      response = await apiClient.patch<TResponse>(endpoint, requestData, config);
+      break;
+    case 'DELETE':
+      response = await apiClient.delete<TResponse>(endpoint, {
+        ...config,
+        body: requestData ? JSON.stringify(requestData) : undefined,
+      });
+      break;
+  }
+
+  return response;
 }
 
 export function useApiMutation<TData = unknown, TResponse = unknown>(
@@ -59,47 +94,36 @@ export function useApiMutation<TData = unknown, TResponse = unknown>(
     );
   }
 
-  const { method, componentName, config, onSuccess, onError } = options;
+  const { method, componentName, config, onSuccess, onError, retainResponse = true } = options;
 
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [data, setData] = useState<TResponse | null>(null);
 
   const mutate = useCallback(
-    async (endpoint: string, requestData?: TData): Promise<TResponse | undefined> => {
+    async (
+      endpoint: string,
+      requestData?: TData,
+      requestConfig?: RequestConfig
+    ): Promise<TResponse | undefined> => {
+      const selectedConfig = requestConfig ? { ...config, ...requestConfig } : config;
       setLoading(true);
       setError(null);
 
       try {
-        let response;
+        const response = await sendMutation<TData, TResponse>(
+          method,
+          endpoint,
+          requestData,
+          selectedConfig
+        );
 
-        switch (method) {
-          case 'POST':
-            response = await apiClient.post<TResponse>(endpoint, requestData, config);
-            break;
-          case 'PUT':
-            response = await apiClient.put<TResponse>(endpoint, requestData, config);
-            break;
-          case 'PATCH':
-            response = await apiClient.patch<TResponse>(endpoint, requestData, config);
-            break;
-          case 'DELETE':
-            response = await apiClient.delete<TResponse>(endpoint, {
-              ...config,
-              body: requestData ? JSON.stringify(requestData) : undefined,
-            });
-            break;
-        }
-
-        setData(response);
+        if (retainResponse) setData(response);
         onSuccess?.(response);
         return response;
       } catch (err) {
-        const apiError = err as ApiError;
-        const errorObj =
-          apiError instanceof ApiError
-            ? apiError
-            : new Error((err as Error).message || 'Mutation failed');
+        if (selectedConfig?.signal?.aborted) throw err;
+        const errorObj = err instanceof Error ? err : new Error('Mutation failed');
 
         setError(errorObj);
 
@@ -107,7 +131,7 @@ export function useApiMutation<TData = unknown, TResponse = unknown>(
           component: componentName,
           method,
           endpoint,
-          status: apiError instanceof ApiError ? apiError.status : undefined,
+          status: err instanceof ApiError ? err.status : undefined,
         });
 
         onError?.(errorObj);
@@ -116,7 +140,7 @@ export function useApiMutation<TData = unknown, TResponse = unknown>(
         setLoading(false);
       }
     },
-    [method, componentName, config, onSuccess, onError]
+    [method, componentName, config, onSuccess, onError, retainResponse]
   );
 
   const reset = useCallback(() => {

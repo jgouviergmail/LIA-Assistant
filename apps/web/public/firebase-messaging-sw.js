@@ -20,24 +20,24 @@ const OFFLINE_URL = '/offline.html';
 
 const PRECACHE_ASSETS = [OFFLINE_URL, '/icon-192.png', '/icon.svg'];
 
-self.addEventListener('install', (event) => {
+self.addEventListener('install', event => {
   event.waitUntil(
     caches
       .open(SHELL_CACHE)
-      .then((cache) => cache.addAll(PRECACHE_ASSETS))
+      .then(cache => cache.addAll(PRECACHE_ASSETS))
       .then(() => self.skipWaiting())
   );
 });
 
-self.addEventListener('activate', (event) => {
+self.addEventListener('activate', event => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) =>
+      .then(keys =>
         Promise.all(
           keys
-            .filter((key) => key.startsWith('lia-shell-v') && key !== SHELL_CACHE)
-            .map((key) => caches.delete(key))
+            .filter(key => key.startsWith('lia-shell-v') && key !== SHELL_CACHE)
+            .map(key => caches.delete(key))
         )
       )
       .then(() => self.clients.claim())
@@ -57,15 +57,13 @@ function isCacheableRequest(request) {
   return true;
 }
 
-self.addEventListener('fetch', (event) => {
+self.addEventListener('fetch', event => {
   const { request } = event;
   if (!isCacheableRequest(request)) return; // browser default handling
 
   // Navigations: network-first, branded offline page as the fallback.
   if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request).catch(() => caches.match(OFFLINE_URL))
-    );
+    event.respondWith(fetch(request).catch(() => caches.match(OFFLINE_URL)));
     return;
   }
 
@@ -77,10 +75,10 @@ self.addEventListener('fetch', (event) => {
   if (!isStaticAsset) return;
 
   event.respondWith(
-    caches.open(SHELL_CACHE).then(async (cache) => {
+    caches.open(SHELL_CACHE).then(async cache => {
       const cached = await cache.match(request);
       const refresh = fetch(request)
-        .then((response) => {
+        .then(response => {
           if (response.ok) cache.put(request, response.clone());
           return response;
         })
@@ -96,9 +94,7 @@ self.addEventListener('fetch', (event) => {
  * This is called when a push message is received, regardless of whether
  * the app is in the foreground or background.
  */
-self.addEventListener('push', (event) => {
-  console.log('[SW] Push received:', event);
-
+self.addEventListener('push', event => {
   let data = {};
   let title = 'Notification';
   let body = '';
@@ -107,7 +103,6 @@ self.addEventListener('push', (event) => {
     // Try to parse the push data
     if (event.data) {
       const payload = event.data.json();
-      console.log('[SW] Push payload:', payload);
 
       // FCM sends data in different formats depending on the message type
       // Handle both notification and data messages
@@ -153,7 +148,10 @@ self.addEventListener('push', (event) => {
     // same silent lie. Guarded by src/__tests__/service-worker.test.ts.
     icon: '/icon-192.png',
     // Use reminder_id as tag to prevent duplicate notifications
-    tag: data.reminder_id || 'lia-notification',
+    tag:
+      data.type === 'sms_received' && data.occurrence_id
+        ? `sms:${data.occurrence_id}`
+        : data.reminder_id || 'lia-notification',
     // Keep notification visible until user interacts
     requireInteraction: true,
     // Store data for click handling
@@ -166,9 +164,7 @@ self.addEventListener('push', (event) => {
   };
 
   // Show notification
-  event.waitUntil(
-    self.registration.showNotification(title, notificationOptions)
-  );
+  event.waitUntil(self.registration.showNotification(title, notificationOptions));
 });
 
 /**
@@ -176,30 +172,64 @@ self.addEventListener('push', (event) => {
  *
  * Opens the app when user clicks on a notification.
  */
-self.addEventListener('notificationclick', (event) => {
-  console.log('[SW] Notification clicked:', event);
+/** Only same-origin dashboard destinations may be followed by a push click. */
+function notificationTarget(value, clientUrl) {
+  let prefix = '';
+  try {
+    const match = new URL(clientUrl || self.location.origin).pathname.match(
+      /^\/(en|es|de|it|zh)(?=\/)/
+    );
+    if (match) prefix = `/${match[1]}`;
+  } catch {
+    /* A missing client uses the application's default language. */
+  }
+  const fallback = new URL(`${prefix}/dashboard/chat`, self.location.origin).href;
+  if (typeof value !== 'string') return fallback;
+  try {
+    const target = new URL(value, self.location.origin);
+    if (target.origin !== self.location.origin || target.username || target.password)
+      return fallback;
+    if (!/^\/(?:(?:fr|en|es|de|it|zh)\/)?dashboard(?:\/|$)/.test(target.pathname)) return fallback;
+    if (target.pathname.startsWith('/fr/')) target.pathname = target.pathname.slice(3);
+    else if (target.pathname.startsWith('/dashboard'))
+      target.pathname = `${prefix}${target.pathname}`;
+    return target.href;
+  } catch {
+    return fallback;
+  }
+}
 
-  // Close the notification
+self.addEventListener('notificationclick', event => {
   event.notification.close();
-
-  // Get URL to open
-  const urlToOpen = event.notification.data?.url || '/dashboard/chat';
-
-  // Focus existing window or open new one
+  const destination = event.notification.data?.url;
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // Check if there's already a window/tab open
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async windowClients => {
       for (const client of windowClients) {
-        // If a window is already open, focus it
-        if (client.url.includes('/dashboard') && 'focus' in client) {
-          return client.focus();
+        let current;
+        try {
+          current = new URL(client.url);
+        } catch {
+          continue;
         }
+        if (
+          current.origin !== self.location.origin ||
+          !/^\/(?:(?:fr|en|es|de|it|zh)\/)?dashboard(?:\/|$)/.test(current.pathname) ||
+          !('focus' in client)
+        )
+          continue;
+        const target = notificationTarget(destination, client.url);
+        if (current.href !== target && 'navigate' in client) {
+          try {
+            const navigated = await client.navigate(target);
+            return (navigated || client).focus();
+          } catch {
+            if (clients.openWindow) return clients.openWindow(target);
+          }
+        }
+        if (current.href !== target && clients.openWindow) return clients.openWindow(target);
+        return client.focus();
       }
-
-      // If no window is open, open a new one
-      if (clients.openWindow) {
-        return clients.openWindow(urlToOpen);
-      }
+      if (clients.openWindow) return clients.openWindow(notificationTarget(destination));
     })
   );
 });
@@ -207,9 +237,7 @@ self.addEventListener('notificationclick', (event) => {
 /**
  * Handle notification close.
  */
-self.addEventListener('notificationclose', (event) => {
-  console.log('[SW] Notification closed:', event);
-});
+self.addEventListener('notificationclose', event => {});
 
 // NOTE: install/activate are declared ONCE, at the top of this file. A second
 // pair used to live here — leftovers from the push-only service worker this

@@ -128,7 +128,8 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // 68 since the voice library joined Administration / AI & Connectors
     // (ADR-345, 2026-10-14): the instance's Fish Audio voices — clone,
     // design, rename, delete.
-    expect(TOKENS).toHaveLength(68);
+    // 69: Mes SMS follows Meetings, gated by the SMS platform capability.
+    expect(TOKENS).toHaveLength(69);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(
@@ -232,6 +233,7 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
         'meetings',
         'security-auth',
         'security-export',
+        'sms',
         'telephony-calls',
         'telephony-identity',
         'workboard',

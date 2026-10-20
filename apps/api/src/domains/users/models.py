@@ -205,6 +205,16 @@ class User(
         comment="User preference for long-term memory (extraction + injection). True = enabled by default.",
     )
 
+    ingestion_key_encrypted: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Wrapped tenant HMAC key; never exported or projected to clients.",
+    )
+
+    sms_preferences: Mapped[dict[str, bool] | None] = mapped_column(
+        JSONB, nullable=True, comment="Ingestion/assistant/push consent; never sender identifiers."
+    )
+
     # Health Metrics — assistant integrations opt-in (v1.17.2)
     health_metrics_agents_enabled: Mapped[bool] = mapped_column(
         default=False,

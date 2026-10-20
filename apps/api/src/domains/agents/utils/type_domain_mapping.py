@@ -25,6 +25,7 @@ TYPE_TO_DOMAIN_MAP: dict[str, tuple[str, str]] = {
     # Google Workspace domain types
     "CONTACT": ("contact", "contacts"),
     "EMAIL": ("email", "emails"),
+    "SMS": ("sms", "sms_messages"),
     "EVENT": ("event", "events"),
     "CALENDAR": ("calendar", "calendars"),  # Calendar list items (list_calendars_tool)
     "TASK": ("task", "tasks"),

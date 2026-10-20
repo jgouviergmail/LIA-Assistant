@@ -15,14 +15,10 @@ from src.domains.agents.application.habit_rendering import (
     habit_preview,
     habit_recompute_preview,
 )
-from src.domains.agents.application.health_removal import canonical_health_removal
-from src.domains.agents.application.health_removal_rendering import health_removal_preview
-from src.domains.agents.application.health_token_creation import canonical_health_token_creation
-from src.domains.agents.application.health_token_rendering import (
-    health_token_creation_preview,
-    health_token_preview,
+from src.domains.agents.application.ingestion_rendering import (
+    INGESTION_CANONICAL,
+    INGESTION_PREVIEWS,
 )
-from src.domains.agents.application.health_token_revocation import canonical_health_token_revocation
 from src.domains.agents.application.interest_reactivation_schemas import (
     canonical_interest_reactivation,
 )
@@ -121,6 +117,7 @@ _EDITABLE_NESTED_FIELDS = {
 }
 _STRUCTURED_OPERATIONS = frozenset(
     {
+        *INGESTION_CANONICAL,
         *MANAGEMENT_CANONICAL,
         "relation_settings.update",
         "journal_portrait.feedback",
@@ -129,9 +126,6 @@ _STRUCTURED_OPERATIONS = frozenset(
         "journal_entries.create",
         "journal_entries.delete",
         "psyche.reset",
-        "health_token.revoke",
-        "health_token.create",
-        "health_samples.delete",
         "psyche.summary",
         "habits.recompute",
         "habits.forget",
@@ -204,15 +198,13 @@ def render_application_preview(
     except ValidationError, ValueError, KeyError:
         return [Note(text=labels["application_unavailable"])]
     specialized = {
+        **INGESTION_PREVIEWS,
         "journal_portrait.feedback": journal_feedback_preview,
         "journals.consolidate": journal_consolidation_preview,
         "journal_entries.update": journal_update_preview,
         "journal_entries.create": journal_creation_preview,
         "journal_entries.delete": journal_removal_preview,
         "psyche.reset": render_psyche_reset,
-        "health_token.revoke": health_token_preview,
-        "health_token.create": health_token_creation_preview,
-        "health_samples.delete": health_removal_preview,
         "psyche.summary": psyche_summary_preview,
         "habits.recompute": habit_recompute_preview,
         "habits.forget": habit_forgetting_preview,
@@ -581,15 +573,13 @@ def _display_value(
 
 
 _CANONICAL_OPERATIONS = {
+    **INGESTION_CANONICAL,
     **MANAGEMENT_CANONICAL,
     "journal_portrait.feedback": canonical_journal_feedback,
     "journals.consolidate": canonical_journal_consolidation,
     "journal_entries.update": canonical_journal_update,
     "journal_entries.delete": canonical_journal_removal,
     "psyche.reset": canonical_psyche_reset,
-    "health_token.revoke": canonical_health_token_revocation,
-    "health_token.create": canonical_health_token_creation,
-    "health_samples.delete": canonical_health_removal,
     "psyche.summary": canonical_psyche_summary,
     "habits.recompute": canonical_habit_recompute,
     "habits.forget": canonical_habit_forgetting,

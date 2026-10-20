@@ -19,6 +19,7 @@ from src.domains.agents.semantic.entity_types import (
     CONTACT,
     EMAIL_MESSAGE,
     PLACE,
+    SMS_MESSAGE,
 )
 from src.domains.agents.semantic.native_types import load_native_types
 from src.domains.agents.semantic.resource_handle_types import load_resource_handle_types
@@ -977,6 +978,7 @@ def load_core_types(registry: TypeRegistry) -> None:
     # Creative works and content
     registry.register(CREATIVE_WORK)
     registry.register(EMAIL_MESSAGE)
+    registry.register(SMS_MESSAGE)
     registry.register(TEXT)
     registry.register(URL)
     registry.register(EMAIL_BODY)

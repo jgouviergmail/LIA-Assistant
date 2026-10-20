@@ -67,6 +67,7 @@ from src.domains.agents.services.react_tool_selector import (
     ReactToolSelector,
     bound_tool_tokens,
 )
+from src.domains.agents.sms.state_policy import guard_sms_state
 from src.domains.agents.tools.react_tool_wrapper import ReactToolWrapper
 from src.domains.agents.tools.tool_resolution import (
     resolve_tool_instance,
@@ -331,6 +332,7 @@ async def react_call_model_node(
     Returns:
         State update with the AIMessage (with or without tool_calls).
     """
+    state = await guard_sms_state(state)
     node_started = time.perf_counter()
     tool_names = state.get("react_tool_names", [])
     hitl_map = state.get("react_hitl_map", {})

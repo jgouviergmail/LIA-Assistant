@@ -4,9 +4,10 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 import structlog
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 
 from src.core.config import settings
+from src.domains.agents.sms.message_policy import is_sms_source_message
 from src.domains.shared.extraction_targets import is_synthetic_message
 
 if TYPE_CHECKING:
@@ -24,6 +25,8 @@ def format_messages_for_extraction(messages: list[BaseMessage]) -> str:
     """
     lines = []
     for msg in messages:
+        if isinstance(msg, ToolMessage) and (is_sms_source_message(msg)):
+            continue
         if isinstance(msg, HumanMessage):
             # System-fabricated HITL scaffolding is not conversation.
             if is_synthetic_message(msg):

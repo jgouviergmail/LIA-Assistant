@@ -26,6 +26,7 @@ import { AssistantAvatar } from '@/components/psyche/AssistantAvatar';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { liveAvatarPsyche, usePsycheStore } from '@/stores/psycheStore';
 import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
+import { useSmsReceivedToast } from '@/hooks/useSmsReceivedToast';
 import { useNotifications, type NotificationType } from '@/hooks/useNotifications';
 import { fetchActiveRun } from '@/lib/api/chat';
 import { getLanguageFromPath, buildLocalizedPath } from '@/utils/i18n-path-utils';
@@ -77,6 +78,8 @@ export function deriveCompanionState(input: {
 }
 
 interface CompanionPresenceProps {
+  ownerId?: string;
+  smsEnabled?: boolean;
   /** Only render/subscribe when the user is authenticated. */
   isAuthenticated: boolean;
   /** The application widget already carries the face; retain only its chat action. */
@@ -121,8 +124,22 @@ function CompanionActionVisual({
   );
 }
 
+function companionActivity(
+  authenticated: boolean,
+  onChat: boolean,
+  dismissed: boolean,
+  sms: boolean
+) {
+  return {
+    active: authenticated && !onChat && !dismissed,
+    receptionActive: authenticated && !onChat && (!dismissed || sms),
+  };
+}
+
 export function CompanionPresence({
   isAuthenticated,
+  ownerId,
+  smsEnabled = false,
   renderAvatar = true,
   onWorkingChange,
 }: CompanionPresenceProps) {
@@ -149,25 +166,36 @@ export function CompanionPresence({
   }, [onWorkingChange, working]);
   useEffect(() => () => workingCallback.current?.(false), []);
 
-  const active = isAuthenticated && !onChat && !dismissed;
+  const { active, receptionActive } = companionActivity(
+    isAuthenticated,
+    onChat,
+    dismissed,
+    smsEnabled
+  );
+  const onSmsReceived = useSmsReceivedToast(ownerId);
 
   // Stable callback — an inline one would change identity every render and make
   // useNotifications tear down + rebuild its EventSource on each render (a
   // reconnect storm). Uses only stable setters/refs, so [] deps are safe.
-  const handleNotification = useCallback((n: { type: NotificationType }) => {
-    if (!COUNTED_TYPES.has(n.type)) return;
-    useEyesSignalsStore.getState().recordNotification();
-    setUnread(c => c + 1);
-    setRinging(true);
-    if (ringTimeout.current) clearTimeout(ringTimeout.current);
-    ringTimeout.current = setTimeout(() => setRinging(false), BELL_RING_MS);
-  }, []);
+  const handleNotification = useCallback(
+    (n: { type: NotificationType }) => {
+      if (!COUNTED_TYPES.has(n.type)) return;
+      useEyesSignalsStore.getState().recordNotification();
+      setUnread(c => c + 1);
+      setRinging(true);
+      if (ringTimeout.current) clearTimeout(ringTimeout.current);
+      ringTimeout.current = setTimeout(() => setRinging(false), BELL_RING_MS);
+    },
+    [setUnread, setRinging]
+  );
 
   // Notification badge: reuse the battle-tested SSE hook (no FCM double-handling).
   // Disabled on the chat page so its own useNotifications stays the only one.
   useNotifications({
-    isAuthenticated: active,
-    enableSSE: active,
+    ownerId,
+    onSmsReceived,
+    isAuthenticated: receptionActive,
+    enableSSE: receptionActive,
     enableFCM: false,
     onNotification: handleNotification,
   });

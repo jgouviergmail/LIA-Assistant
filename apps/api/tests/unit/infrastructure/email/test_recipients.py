@@ -9,8 +9,11 @@ split on every comma (a display name holding one became two broken recipients).
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 from email.mime.multipart import MIMEMultipart
-from time import perf_counter
+from pathlib import Path
 
 import pytest
 
@@ -28,15 +31,33 @@ pytestmark = pytest.mark.unit
 def test_unclosed_address_brackets_do_not_block_later_recipients() -> None:
     """Malformed provider/model input must not occupy the event loop quadratically."""
     field = "<" * 64_000 + ", safe@example.com"
-    started = perf_counter()
-
-    segments = recipient_segments(field)
-
-    elapsed = perf_counter() - started
-    assert segments == [("<" * 64_000, False), ("safe@example.com", True)]
-    # A generous budget for the linear scan and Python's header parser; the
-    # former overlapping regex takes seconds retrying an unclosed span.
-    assert elapsed < 0.5
+    # Measure native parser work outside the retained heap and coverage flushes
+    # of the entire suite. Keep the same half-second budget and exercise the
+    # functional result in this instrumented process as well.
+    probe = (
+        "from time import perf_counter\n"
+        "from src.infrastructure.email.recipients import recipient_segments\n"
+        "field = '<' * 64000 + ', safe@example.com'\n"
+        "started = perf_counter()\n"
+        "segments = recipient_segments(field)\n"
+        "print(perf_counter() - started)\n"
+        "assert segments == [('<' * 64000, False), ('safe@example.com', True)]\n"
+    )
+    measured = subprocess.run(
+        [sys.executable, "-c", probe],
+        cwd=Path(__file__).resolve().parents[4],
+        env={
+            key: value
+            for key, value in os.environ.items()
+            if not key.startswith(("COVERAGE_", "COV_CORE_"))
+        },
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    assert float(measured.stdout.strip()) < 0.5
+    assert recipient_segments(field) == [("<" * 64_000, False), ("safe@example.com", True)]
 
 
 class TestParseRecipients:

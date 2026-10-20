@@ -89,3 +89,19 @@ EMAIL_MESSAGE = SemanticType(
     source_domains=["email"],
     used_in_tools=["get_emails_tool", "reply_email_tool", "forward_email_tool"],
 )
+
+
+SMS_MESSAGE = SemanticType(
+    name="SmsMessage",
+    parent="CreativeWork",
+    category=TypeCategory.CONTENT,
+    description="A received SMS retained in the user's personal archive, with exact identity/date provenance and paginated literal body.",
+    properties={
+        "identifier": "sms_message_id",
+        "sender": "Text",
+        "body": "Text",
+        "received_at": "datetime",
+    },
+    source_domains=["sms"],
+    used_in_tools=["list_sms_tool", "search_sms_tool", "get_sms_tool"],
+)

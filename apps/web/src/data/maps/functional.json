@@ -324,7 +324,8 @@
         "f.psyche",
         "f.health",
         "f.workboard",
-        "f.openloops"
+        "f.openloops",
+        "f.sms"
       ]
     },
     {
@@ -502,6 +503,14 @@
       "domains": [],
       "surfaces": ["/dashboard/chat", "/dashboard/settings"],
       "deps": ["f.personality", "f.voice"]
+    },
+    {
+      "id": "f.sms",
+      "group": "g.know",
+      "icon": "message-square",
+      "domains": ["sms"],
+      "surfaces": ["/dashboard/sms", "/dashboard/settings"],
+      "deps": ["f.security", "f.contacts", "f.relations", "f.notifications"]
     }
   ],
   "flows": [

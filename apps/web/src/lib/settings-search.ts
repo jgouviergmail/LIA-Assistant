@@ -484,6 +484,13 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
       reason: 'renders nothing when the instance flag meetings_enabled is off',
     },
   },
+  sms: {
+    titleKey: 'sms.title',
+    descriptionKey: 'sms.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.sms`,
+    group: 'extensions_data',
+    gate: { kind: 'runtime', reason: 'renders nothing when the SMS capability is disabled' },
+  },
   workboard: {
     titleKey: 'settings.workboard.title',
     descriptionKey: 'settings.workboard.description',

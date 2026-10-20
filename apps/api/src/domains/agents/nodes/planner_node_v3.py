@@ -55,6 +55,7 @@ from src.domains.agents.context.runtime_context import (
     runtime_user_id_str,
 )
 from src.domains.agents.models import MessagesState
+from src.domains.agents.sms.state_policy import guard_sms_state
 from src.domains.agents.utils.shape_agnostic import read_field
 from src.domains.agents.utils.state_tracking import track_state_updates
 from src.infrastructure.llm.message_text import coerce_content_to_text
@@ -94,6 +95,7 @@ async def planner_node_v3(
         get_smart_planner_service,
     )
 
+    state = await guard_sms_state(state)
     configurable = config.get("configurable", {})
     run_id = run_id_of(config, "unknown")
 

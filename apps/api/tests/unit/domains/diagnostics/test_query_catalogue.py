@@ -94,6 +94,7 @@ class TestLiaMetricsResolveToProducers:
         import src.infrastructure.observability.metrics  # noqa: F401
         import src.infrastructure.observability.metrics_agents  # noqa: F401
         import src.infrastructure.observability.metrics_errors  # noqa: F401
+        import src.infrastructure.observability.metrics_ingestion  # noqa: F401
         import src.infrastructure.observability.metrics_push_channels  # noqa: F401
         import src.infrastructure.observability.metrics_react  # noqa: F401
         import src.infrastructure.observability.metrics_usage_limits  # noqa: F401

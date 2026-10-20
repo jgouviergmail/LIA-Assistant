@@ -286,3 +286,12 @@ describe('CompanionPresence — working state', () => {
     expect(fetchActiveRun).toHaveBeenCalledTimes(2);
   });
 });
+
+it('keeps owned SMS reception alive when its avatar is minimized', async () => {
+  const { user } = renderWithProviders(
+    <CompanionPresence isAuthenticated ownerId="owner" smsEnabled renderAvatar={false} />
+  );
+  await screen.findByRole('button', { name: AVATAR });
+  await user.click(screen.getByRole('button', { name: MINIMIZE }));
+  expect(notifications.calls.at(-1)?.enableSSE).toBe(true);
+});

@@ -71,7 +71,7 @@ class TestUnifiedLedger:
 
             await task.on_notification_sent(
                 uuid.uuid4(),
-                MagicMock(),
+                MagicMock(context=MagicMock(sms=None)),
                 _result({"interest_topic": "Cinéma A24", "sources_used": ["USER_INTERESTS"]}),
             )
 
@@ -110,7 +110,9 @@ class TestUnifiedLedger:
             ledger_repo_cls.return_value.create = AsyncMock()
 
             await task.on_notification_sent(
-                uuid.uuid4(), MagicMock(), _result({"interest_topic": "Cinéma A24"})
+                uuid.uuid4(),
+                MagicMock(context=MagicMock(sms=None)),
+                _result({"interest_topic": "Cinéma A24"}),
             )
 
             kwargs = ledger_repo_cls.return_value.create.await_args.kwargs
@@ -130,7 +132,9 @@ class TestUnifiedLedger:
             hb_repo_cls.return_value.create = AsyncMock()
 
             await task.on_notification_sent(
-                uuid.uuid4(), MagicMock(), _result({"sources_used": ["UNREAD_EMAILS"]})
+                uuid.uuid4(),
+                MagicMock(context=MagicMock(sms=None)),
+                _result({"sources_used": ["UNREAD_EMAILS"]}),
             )
 
             interest_repo_cls.return_value.get_by_user_and_topic_ci.assert_not_called()
@@ -155,7 +159,9 @@ class TestUnifiedLedger:
             ledger_repo_cls.return_value.create = AsyncMock()
 
             await task.on_notification_sent(
-                uuid.uuid4(), MagicMock(), _result({"interest_topic": "Gone topic"})
+                uuid.uuid4(),
+                MagicMock(context=MagicMock(sms=None)),
+                _result({"interest_topic": "Gone topic"}),
             )
 
             ledger_repo_cls.return_value.create.assert_not_called()

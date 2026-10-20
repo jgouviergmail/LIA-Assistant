@@ -21,6 +21,7 @@ from src.core.bootstrap import (
     validate_tool_error_codes,
 )
 from src.core.config import settings
+from src.domains.ingestion.registry import validate_registry as validate_ingestion_registry
 from src.infrastructure.startup.errors import StartupCompletenessError
 
 logger = structlog.get_logger(__name__)
@@ -694,6 +695,8 @@ def run_failfast_validations() -> None:
     Raises:
         RuntimeError: If any validation fails (the app must not boot).
     """
+    validate_ingestion_registry()
+
     # Validate LLM configuration (fail-fast if config is incomplete)
     try:
         validate_llm_configuration()
