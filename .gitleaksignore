@@ -1,5 +1,13 @@
 # gitleaks findings in commits that can no longer change, each one reviewed.
 #
+# v3.4.0 technical audit V14 report, reviewed 2026-10-22: one Docker build label
+# of the audit's evidence register, `lia.audit.retained-api-sha256=<64 hex>`,
+# matched generic-api-key because the label NAME holds « api ». The value is the
+# SHA-256 of the audited API source manifest, printed in clear twice more in the
+# same public report (T11b and annex D); no credential exists. The report is a
+# dated, published document: its bytes stay as the auditor wrote them.
+ec9ab9db31fe5f821c1680118398a87bfeb5e5a6:docs/audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14.html:generic-api-key:138
+#
 # v3.3.0 peer-package rejection fixtures, reviewed 2026-10-19: four deliberately
 # embedded dummy values (abcdef0123456789 and literal query strings ending in
 # secret), repeated by the first-parent merge. They exercise credential refusal;
