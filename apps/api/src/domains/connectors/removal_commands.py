@@ -14,17 +14,45 @@ from src.core.exceptions import (
     raise_invalid_input,
     raise_user_not_found,
 )
-from src.domains.connectors.models import Connector, ConnectorStatus, ConnectorType, OAuthGrant
+from src.domains.connectors.models import (
+    Connector,
+    ConnectorStatus,
+    ConnectorType,
+    OAuthGrant,
+    get_functional_category,
+)
 from src.domains.connectors.oauth_grant_lifecycle import delete_shared_connector
+from src.domains.connectors.provider_resolver import LEGACY_CONNECTOR_ALIASES
 from src.domains.connectors.repository import ConnectorRepository
+from src.domains.shared.discussion_catalogue import SOURCE_REGISTRY
+from src.domains.shared.discussion_sources import SourceKey
 from src.domains.users.preference_cas import PreferenceWriteReceipt
 from src.domains.users.repository import UserRepository
+from src.infrastructure.discussion_invalidation import invalidate_discussion_sources
 
 logger = structlog.get_logger(__name__)
 
 
 class ConnectorIdentityUnavailable(ValueError):
     """A saved connection identity cannot be projected safely."""
+
+
+def discussion_sources_of(connector_type: ConnectorType) -> tuple[SourceKey, ...]:
+    """The discussion sources a connector of this type serves, from the source catalogue.
+
+    Args:
+        connector_type: The connector's type; a legacy alias reads as its canonical type.
+
+    Returns:
+        The sources whose ``connector_category`` is the type's category, in catalogue
+        order; empty for a connector no discussion source reads.
+    """
+    category = get_functional_category(LEGACY_CONNECTOR_ALIASES.get(connector_type, connector_type))
+    return tuple(
+        source
+        for source, definition in SOURCE_REGISTRY.items()
+        if category is not None and definition.connector_category == category
+    )
 
 
 async def remove_owned_connector(
@@ -40,6 +68,9 @@ async def remove_owned_connector(
 ) -> None:
     """Share the actual local unlink transaction and its post-commit invalidation."""
     connector = await locked_connector_for_removal(db, actor_id, connector_id, expected=expected)
+    await invalidate_discussion_sources(
+        db, actor_id, discussion_sources_of(connector.connector_type)
+    )
     if connector.oauth_grant_id:
         await delete_shared_connector(db, repository, connector)
     else:

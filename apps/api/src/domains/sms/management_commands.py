@@ -1,4 +1,4 @@
-"""Owner-first, freshly confirmed writers; no direct HTTP mutation bypass."""
+"""Owner-first writers shared by approved agent commands and explicit settings toggles."""
 
 import hashlib
 import json
@@ -17,15 +17,19 @@ from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.ingestion.authority import lock_active_owner
 from src.domains.ingestion.models import IngestionDelivery, IngestionReceipt
 from src.domains.relations.debrief.models import RelationDebrief
+from src.domains.shared.discussion_sources import SourceKey
 from src.domains.sms.cursors import SmsCursor
+from src.domains.sms.identity_models import SmsSenderIdentity
 from src.domains.sms.management_schemas import SmsEraseRequest, SmsEraseSelection
 from src.domains.sms.models import SmsMessage
-from src.domains.sms.preferences import SmsPreferences
+from src.domains.sms.preferences import SmsPreferences, SmsPreferenceUpdate
 from src.domains.sms.read_schemas import SmsQuery
 from src.domains.sms.reads import require_read
 from src.domains.sms.repository import message_query
 from src.domains.users.extraction_consent import invalidate_extractions
+from src.domains.users.models import User
 from src.domains.users.preference_cas import PreferenceWriteReceipt
+from src.infrastructure.discussion_invalidation import invalidate_discussion_sources
 
 
 class SmsCompletionUnknown(RuntimeError):
@@ -125,8 +129,11 @@ async def erase_sms(
     if remaining:
         raise ValueError("sms_erasure_not_observed")
     await db.execute(delete(RelationDebrief).where(RelationDebrief.user_id == owner))
+    # Resolutions are derived from the erased archive; never retain its identities.
+    await db.execute(delete(SmsSenderIdentity).where(SmsSenderIdentity.user_id == owner))
     await invalidate_account_exports(db, owner)
     invalidate_extractions(actor)
+    await invalidate_discussion_sources(db, owner, (SourceKey.SMS,))
     await db.flush()
     await check()
     await _commit(db)
@@ -148,12 +155,40 @@ async def update_sms_preferences(
     if SmsPreferences.from_stored(actor.sms_preferences) != expected:
         raise ResourceConflictError("sms_preferences", detail={"error_code": "STALE_STATE"})
     changed = SmsPreferences.model_validate(selected.model_dump())
+    await _write_preferences(db, actor, expected, changed, receipt, check)
+
+
+async def set_sms_preference(
+    db: AsyncSession, owner: UUID, change: SmsPreferenceUpdate
+) -> SmsPreferences:
+    """The authenticated user's settings click is the intent; agent writes still need approval."""
+    actor = await lock_active_owner(db, owner)
+
+    async def check() -> None:
+        await require_capability_fresh(db, PlatformCapability.SMS)
+
+    await check()
+    expected = SmsPreferences.from_stored(actor.sms_preferences)
+    changed = SmsPreferences.model_validate({**expected.model_dump(), change.field: change.value})
+    await _write_preferences(db, actor, expected, changed, PreferenceWriteReceipt(), check)
+    return changed
+
+
+async def _write_preferences(
+    db: AsyncSession,
+    actor: User,
+    expected: SmsPreferences,
+    changed: SmsPreferences,
+    receipt: PreferenceWriteReceipt,
+    check: Callable[[], Awaitable[None]],
+) -> None:
     actor.sms_preferences = changed.model_dump()
     if not changed.push_enabled or not changed.ingestion_enabled:
-        await cancel_sms_deliveries(db, owner)
+        await cancel_sms_deliveries(db, actor.id)
     if changed.assistant_enabled != expected.assistant_enabled:
         invalidate_extractions(actor)
-        await db.execute(delete(RelationDebrief).where(RelationDebrief.user_id == owner))
+        await invalidate_discussion_sources(db, actor.id, (SourceKey.SMS,))
+        await db.execute(delete(RelationDebrief).where(RelationDebrief.user_id == actor.id))
     await db.flush()
     await check()
     await _commit(db)

@@ -6,6 +6,7 @@ from src.domains.agents.application.asset_retention_editing import rebuild_asset
 from src.domains.agents.application.bookmark_delete_editing import rebuild_bookmark_deletion
 from src.domains.agents.application.bookmark_download_editing import rebuild_bookmark_download
 from src.domains.agents.application.bookmark_keep_editing import rebuild_bookmark_keep
+from src.domains.agents.application.discussion_editing import DISCUSSION_EDITORS
 from src.domains.agents.application.document_archive_editing import rebuild_document_archive
 from src.domains.agents.application.document_delete_editing import rebuild_document_deletion
 from src.domains.agents.application.document_download_editing import rebuild_document_download
@@ -65,6 +66,7 @@ from src.domains.agents.application.workboard_delete_editing import rebuild_work
 from src.domains.agents.application.workboard_update_editing import rebuild_workboard_update
 
 MANAGEMENT_EDITORS = {
+    **DISCUSSION_EDITORS,
     "meeting_device.control": rebuild_recording_device,
     "meeting.delete": rebuild_meeting_deletion,
     "meeting_report.reformat": rebuild_meeting_reformat,

@@ -395,6 +395,8 @@ class TestTheTicketsRunningTotal:
         assignments = (await self._settled_assignments()).replace(" ", "")
 
         assert "last_run_tokens_in=" in assignments
+        assert "last_run_tokens_cache=" in assignments
+        assert "last_run_google_requests=" in assignments
         assert "last_run_cost_eur=" in assignments
 
     async def test_a_settle_with_nothing_measured_adds_nothing(self) -> None:

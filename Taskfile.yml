@@ -650,6 +650,17 @@ tasks:
       - cmd: .venv/bin/python scripts/react/measure_recovery.py {{.CLI_ARGS}}
         platforms: [linux, darwin]
 
+  discussions:context:measure:
+    desc: Measure what a proactive-discussion context pass reads, admits and interprets for one account (dev API; --mode context is BILLED)
+    # A MEASUREMENT, never a gate (ADR-359 amendment 2026-10-21 b). It runs inside
+    # the API container: the account's connectors and the configured slots.
+    # `--mode read` calls no model and writes nothing to the discussion tables;
+    # `--mode context` runs the run's own loop on the configured context slot
+    # under an in-memory reservation (`--max-usd`), bills the account like any run
+    # and files every source it opens. It prints counts only.
+    cmds:
+      - cmd: docker exec lia-api-dev python -m scripts.proactive_discussions.measure_context {{.CLI_ARGS}}
+
   journals:portrait:measure:
     desc: Seed a synthetic persona into the PROOF account on dev and measure what the portrait publishes (NETWORK, billed, on demand)
     dir: "{{.API_DIR}}"

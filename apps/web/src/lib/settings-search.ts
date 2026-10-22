@@ -390,6 +390,13 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
   },
 
   // ---- Features / Automation & Tracking
+  'proactive-discussions': {
+    titleKey: 'discussions.title',
+    descriptionKey: 'discussions.description',
+    keywordsKey: 'discussions.search_keywords',
+    group: 'automation_tracking',
+    gate: { kind: 'always' },
+  },
   heartbeat: {
     titleKey: 'heartbeat.settings.title',
     descriptionKey: 'heartbeat.settings.description',
@@ -485,7 +492,7 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     },
   },
   sms: {
-    titleKey: 'sms.title',
+    titleKey: 'sms.settings_title',
     descriptionKey: 'sms.description',
     keywordsKey: `${KEYWORDS_PREFIX}.sms`,
     group: 'extensions_data',

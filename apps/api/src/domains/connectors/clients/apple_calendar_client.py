@@ -17,9 +17,11 @@ from typing import Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
+import httpx
 import structlog
 
 from src.core.config import settings
+from src.core.read_budget import current_read_owner, source_dav_request, source_http_hooks
 from src.domains.connectors.clients.base_apple_client import BaseAppleClient
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.normalizers.calendar_normalizer import (
@@ -61,11 +63,29 @@ class AppleCalendarClient(BaseAppleClient):
             try:
                 from caldav.aio import get_async_davclient
 
-                self._dav_client = await get_async_davclient(
-                    url=settings.apple_caldav_url,
-                    username=self.credentials.apple_id,
-                    password=self.credentials.app_password,
-                )
+                if current_read_owner() is not None:
+                    # Install before discovery. Fixed Basic auth avoids a replaced session
+                    # escaping the hook during CalDAV's automatic negotiation fallback.
+                    self._dav_client = await get_async_davclient(
+                        url=settings.apple_caldav_url,
+                        username=self.credentials.apple_id,
+                        password=self.credentials.app_password,
+                        probe=False,
+                        auth_type="basic",
+                        features={"http.multiplexing": False},
+                    )
+                    if isinstance(self._dav_client.session, httpx.AsyncClient):
+                        self._dav_client.session.event_hooks["request"].extend(
+                            source_http_hooks(self.user_id)["request"]
+                        )
+                    else:
+                        self._dav_client.session.hooks["pre_request"].append(source_dav_request)
+                else:
+                    self._dav_client = await get_async_davclient(
+                        url=settings.apple_caldav_url,
+                        username=self.credentials.apple_id,
+                        password=self.credentials.app_password,
+                    )
                 self._principal = await self._dav_client.get_principal()
             except Exception as e:
                 self._check_http_auth_error(getattr(getattr(e, "response", None), "status_code", 0))

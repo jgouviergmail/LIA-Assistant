@@ -62,7 +62,7 @@ export function PeerRequestsBlock({
           {requests.map(request => (
             <li
               key={request.id}
-              className="space-y-3 rounded-xl border border-border/50 bg-card p-4 [--lia-field-background:var(--color-background)]"
+              className="space-y-3 rounded-xl border border-border bg-card p-4 [--lia-field-background:var(--color-background)]"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-3">
@@ -89,12 +89,12 @@ export function PeerRequestsBlock({
                 )}
               </div>
               {request.direction === 'incoming' && request.context_message && (
-                <blockquote className="break-words rounded-lg bg-primary/5 p-3 text-sm leading-relaxed text-muted-foreground">
+                <blockquote className="break-words rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm leading-relaxed text-muted-foreground">
                   {request.context_message}
                 </blockquote>
               )}
               {request.direction === 'incoming' && (
-                <div className="flex flex-col items-stretch gap-2 border-t border-border/40 pt-3 sm:items-start">
+                <div className="flex flex-col items-stretch gap-2 border-t border-border pt-3 sm:items-start">
                   <Button
                     type="button"
                     size="sm"

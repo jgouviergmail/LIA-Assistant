@@ -33,6 +33,7 @@ import { cardSourceMessageId, retryFromCardMessage } from '@/lib/card-actions';
 import type { CardCompositionDraft } from '@/types/card-actions';
 import { documentTypeIcon } from './document-card-icon';
 import { PeerMessageActions } from '@/components/chat/PeerMessageActions';
+import { DiscussionActions } from '@/components/chat/DiscussionActions';
 import { ShareImageButton } from '@/components/peers/ShareImageButton';
 import { FileEmailShareButton } from '@/components/email-share/FileEmailShareButton';
 import { WorkboardNotificationActions } from '@/components/chat/WorkboardNotificationActions';
@@ -470,7 +471,11 @@ function assistantBubbleSurface(metadata: Record<string, unknown> | undefined): 
   const type = typeof rawType === 'string' ? rawType : '';
   // ADR-299: the live session's closing card wears the same primary tint as
   // the band the session was drawn in.
-  if (type.startsWith('proactive_peer') || isLiveSummary(metadata)) {
+  if (
+    type.startsWith('proactive_peer') ||
+    type === 'proactive_discussion' ||
+    isLiveSummary(metadata)
+  ) {
     return 'bg-primary/10 border-primary/25 hover:bg-primary/15';
   }
   if (type.startsWith('proactive_')) {
@@ -778,7 +783,9 @@ function BrowserScreenshotCard({ screenshot }: { screenshot: { url: string; alt:
   const source = imageProps.src;
   return (
     <>
-      <div className="mt-3">
+      {/* A clear gap before the answer: the caption ran straight into its
+          first line (owner request 2026-10-21). */}
+      <div className="mt-3 mb-6">
         <div className="group relative w-full max-w-[512px] mx-auto">
           {/* Real action -> native button around the image (audit F013);
               the download button below stays a sibling. */}
@@ -1210,12 +1217,19 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
                 feedbackProps={feedbackProps}
                 bookmarkMessageDbId={bookmarkableMessageDbId(message, isActiveStream)}
                 proactiveFeedback={
-                  feedbackRow ? (
-                    <ProactiveFeedbackButtons
-                      {...feedbackRow}
-                      onFeedbackSubmitted={setJustSubmittedVerdict}
+                  <>
+                    <DiscussionActions
+                      metadata={message.metadata}
+                      content={message.content}
+                      onPrefillComposer={props.onPrefillComposer}
                     />
-                  ) : null
+                    {feedbackRow ? (
+                      <ProactiveFeedbackButtons
+                        {...feedbackRow}
+                        onFeedbackSubmitted={setJustSubmittedVerdict}
+                      />
+                    ) : null}
+                  </>
                 }
                 trace={message.executionTrace}
                 effects={message.performedEffects}

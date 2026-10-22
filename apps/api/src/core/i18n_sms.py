@@ -13,23 +13,23 @@ SMS_APPROVAL_NOTE = {
 SMS_CARD_LABELS: dict[str, dict[str, str]] = {
     "fr": {
         "provided_time": "Heure fournie par le téléphone",
-        "more": "Le message continue dans l’archive.",
+        "more": "Lire la suite dans Mes SMS.",
     },
     "en": {
         "provided_time": "Time supplied by the phone",
-        "more": "The message continues in the archive.",
+        "more": "Read the rest in My SMS.",
     },
     "de": {
         "provided_time": "Vom Telefon angegebene Zeit",
-        "more": "Die Nachricht geht im Archiv weiter.",
+        "more": "Lies den Rest unter Meine SMS.",
     },
     "es": {
         "provided_time": "Hora indicada por el teléfono",
-        "more": "El mensaje continúa en el archivo.",
+        "more": "Lee el resto en Mis SMS.",
     },
     "it": {
         "provided_time": "Ora fornita dal telefono",
-        "more": "Il messaggio continua nell’archivio.",
+        "more": "Leggi il resto in I miei SMS.",
     },
-    "zh-CN": {"provided_time": "手机提供的时间", "more": "完整消息可在存档中查看。"},
+    "zh-CN": {"provided_time": "手机提供的时间", "more": "在“我的短信”中查看完整内容。"},
 }

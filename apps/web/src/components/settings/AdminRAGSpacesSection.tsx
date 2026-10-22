@@ -245,7 +245,7 @@ export default function AdminRAGSpacesSection({ lng }: BaseSettingsProps) {
               return (
                 <div
                   key={space.id}
-                  className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-3 bg-card rounded-md"
+                  className="flex flex-col gap-3 rounded-md border bg-card p-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2">

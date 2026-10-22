@@ -802,6 +802,8 @@ class WorkboardRepository(BaseRepository[WorkboardTicket]):
                 last_run_error=error,
                 last_run_tokens_in=None if usage is None else usage.tokens_in,
                 last_run_tokens_out=None if usage is None else usage.tokens_out,
+                last_run_tokens_cache=None if usage is None else usage.tokens_cache,
+                last_run_google_requests=None if usage is None else usage.google_requests,
                 last_run_cost_eur=None if usage is None else usage.cost_eur,
                 **(
                     {}

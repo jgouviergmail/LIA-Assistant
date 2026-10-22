@@ -36,6 +36,8 @@ POST /api/v1/ingest/health/heart_rate
 
 The parser accepts four envelope shapes to absorb iOS Shortcut authoring variations: canonical JSON array, NDJSON, `{"data": [...]}`, and the "Dictionary" wrapping where the NDJSON is encoded as the sole key of an outer dict with an empty value.
 
+Up to 1,000 samples per request. The response — `{"received": 1, "inserted": 1, "updated": 0, "rejected": []}` — lists every rejected sample with its index and reason while the others are stored; an unreadable body returns 400, an invalid token 401, an oversized batch 413 and too frequent sends 429.
+
 ## Where to find it
 
 **Settings → Features → Health data**. Five sub-sections behind one collapsible card:

@@ -99,7 +99,7 @@ function IssueLine({ issue, label }: { issue: SheetIssue; label: string }) {
  */
 function ChangeLine({ change }: { change: SheetModelChange }) {
   return (
-    <li className="space-y-1 rounded-md border border-border/40 bg-card px-3 py-2">
+    <li className="space-y-1 rounded-md border border-border bg-card px-3 py-2">
       {/* The group this row sits in is already titled with the action, so the
           row states its identity, not its category. A badge repeating the
           heading on every line is noise the reader has to skip. */}

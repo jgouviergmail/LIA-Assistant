@@ -35,6 +35,7 @@ from src.domains.agents.application.connector_catalogue import (
     CONNECTOR_PREFERENCES_READ_MANIFEST,
     CONNECTOR_PREFERENCES_UPDATE_MANIFEST,
 )
+from src.domains.agents.application.discussion_specs import DISCUSSION_MANIFESTS
 from src.domains.agents.application.document_archive_manifest import (
     DOCUMENT_ARCHIVE_MANIFEST,
 )
@@ -361,6 +362,7 @@ if TYPE_CHECKING:
     from src.domains.agents.registry.agent_registry import AgentRegistry
 
 SETTING_MANIFESTS = (
+    *DISCUSSION_MANIFESTS,
     *SMS_ACTION_MANIFESTS,
     RECORDING_DEVICE_MANIFEST,
     RECORDING_DEVICE_READ_MANIFEST,

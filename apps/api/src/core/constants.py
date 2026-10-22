@@ -1315,6 +1315,14 @@ BUILD_DATE_DEFAULT = "unknown"  # env BUILD_DATE (ISO 8601 build timestamp)
 RATE_LIMIT_PER_MINUTE_DEFAULT = 60
 RATE_LIMIT_BURST_DEFAULT = 10
 
+# API scan protection: unknown routes and explicit credential attempts only.
+HTTP_SCAN_WINDOW_SECONDS_DEFAULT = 60
+HTTP_SCAN_NOT_FOUND_LIMIT_DEFAULT = 20
+HTTP_SCAN_AUTH_WINDOW_SECONDS_DEFAULT = 600
+HTTP_SCAN_AUTH_FAILURE_LIMIT_DEFAULT = 20
+HTTP_SCAN_BAN_SECONDS_DEFAULT = 900
+HTTP_SCAN_REDIS_TIMEOUT_SECONDS_DEFAULT = 0.2
+
 # Endpoint-specific rate limits
 RATE_LIMIT_AUTH_LOGIN_PER_MINUTE = 10  # Brute force protection
 RATE_LIMIT_AUTH_REGISTER_PER_MINUTE = 5  # Spam protection
@@ -1588,6 +1596,10 @@ MAX_REQUEST_BODY_EXEMPT_PATHS: tuple[str, ...] = ()
 # a conversation, so the window is deliberately generous: it exists to bound a
 # runaway loop or a scripted account, not to police normal browsing.
 RATE_LIMIT_STATIC_MAP_PER_MINUTE = 60
+
+# Per-user budget for the Position map's selected-place route: each request is one
+# BILLED Google Routes call, asked by a click on a place, never by a render loop.
+RATE_LIMIT_PLACE_ROUTE_PER_MINUTE = 12
 
 # Static map display dimensions (for RouteCard component)
 # Single high-quality size used for all viewports; CSS handles responsive scaling
@@ -2413,6 +2425,7 @@ SCHEDULER_JOB_INTEREST_SUBJECT_FULL = "interest_subject_full"
 # Heartbeat autonome (Proactive Notifications)
 # Scheduler
 SCHEDULER_JOB_HEARTBEAT_NOTIFICATION = "heartbeat_notification"
+SCHEDULER_JOB_PROACTIVE_DISCUSSIONS = "proactive_discussions"
 HEARTBEAT_NOTIFICATION_INTERVAL_MINUTES_DEFAULT = 30
 HEARTBEAT_NOTIFICATION_BATCH_SIZE_DEFAULT = 50
 
@@ -3512,6 +3525,7 @@ SEMANTIC_PIVOT_ENABLED_DEFAULT = True
 BRIEFING_MAX_AGENDA_ITEMS_DEFAULT = 10
 BRIEFING_AGENDA_LOOKAHEAD_HOURS_DEFAULT = 24
 BRIEFING_MAX_MAILS_ITEMS_DEFAULT = 10
+BRIEFING_MAX_SMS_ITEMS_DEFAULT = 10
 BRIEFING_MAX_BIRTHDAYS_ITEMS_DEFAULT = 10
 BRIEFING_MAX_BIRTHDAYS_HORIZON_DAYS_DEFAULT = 7
 BRIEFING_MAX_OPEN_LOOPS_ITEMS_DEFAULT = 10
@@ -6601,10 +6615,13 @@ DIAGNOSTICS_CHECK_MEMORY_USAGE_WARN_DEFAULT = 85.0
 DIAGNOSTICS_CHECK_MEMORY_USAGE_CRIT_DEFAULT = 95.0
 DIAGNOSTICS_CHECK_SCHEDULER_TICK_STALE_SECONDS_DEFAULT = 900
 
-# Egress probe: one bounded TCP connect per self-check tick. No default target —
-# pointing an installation at a host it does not already talk to would be a
-# third-party disclosure decided by a constant (same doctrine as PUSH_RELAY_URL).
+# Egress probe: a name resolution then a TCP connect, confirmed over paced
+# attempts (ADR-361). No default target — pointing an installation at a host it
+# does not already talk to would be a third-party disclosure decided by a
+# constant (same doctrine as PUSH_RELAY_URL).
 DIAGNOSTICS_EGRESS_PROBE_TIMEOUT_SECONDS_DEFAULT = 5.0
+DIAGNOSTICS_EGRESS_PROBE_ATTEMPTS_DEFAULT = 3
+DIAGNOSTICS_EGRESS_PROBE_SLOW_SECONDS_DEFAULT = 2.0
 
 DIAGNOSTICS_AGENT_NAME: str = "devops_diagnostics_agent"
 SCHEDULER_JOB_ID_DIAGNOSTICS_SELF_CHECK = "diagnostics_self_check"
@@ -6764,6 +6781,120 @@ BOOKMARKS_DOCUMENT_NAME_EXCERPT_CHARS: int = 60
 #: initiative: ``proactive_<task_type>``. ONE prefix, read by the heartbeat's
 #: context sources and by the bookmarks (a notification answers no request).
 PROACTIVE_MESSAGE_TYPE_PREFIX: str = "proactive_"
+PROACTIVE_DISCUSSION_MESSAGE_TYPE: str = "proactive_discussion"
+#: Minutes between two elected proactive-discussion ticks (ADR-358).
+DISCUSSION_INTERVAL_MINUTES_DEFAULT: int = 15
+#: A tick's capacity: the owners it examines at random, the owners it serves (a
+#: requested rebuild first) and the runs it drives at once.
+DISCUSSION_TICK_CANDIDATES_DEFAULT: int = 200
+DISCUSSION_TICK_OWNERS_DEFAULT: int = 4
+DISCUSSION_TICK_CONCURRENCY_DEFAULT: int = 2
+#: How long a reply to an opening restrains later discussions while memory has not
+#: acknowledged it (ADR-359's transient guard): an extraction that never comes cannot
+#: hold the producer for ever, nor become permanent learning.
+DISCUSSION_REPLY_GUARD_TTL_HOURS_DEFAULT: int = 168
+#: The live guards are read complete or not at all: past either bound every run
+#: defers until memory acknowledges the replies or their lifetime ends.
+DISCUSSION_REPLY_GUARD_MAX_ROWS_DEFAULT: int = 100
+DISCUSSION_REPLY_GUARD_MAX_TOKENS_DEFAULT: int = 1600
+#: The sensitive topics a person may consent to, in display order. The shared
+#: ``SensitiveTopic`` vocabulary is held equal to it by a test; a new account
+#: consents to every one of them by default (``DISCUSSION_DEFAULT_SENSITIVE_TOPICS``).
+DISCUSSION_SENSITIVE_TOPICS: tuple[str, ...] = (
+    "health",
+    "relationships",
+    "finances",
+    "grief",
+    "intimacy",
+)
+# Operator-tunable bounds of the discussion producer (ADR-358/359/360): the DEFAULTS
+# of ``core/config/proactive_discussions.py``, read through ``settings`` everywhere.
+# A run holds its account under a lease it renews before every act, and stops at a
+# deadline shorter than that lease.
+DISCUSSION_RUN_LEASE_SECONDS_DEFAULT: int = 300
+DISCUSSION_RUN_DEADLINE_SECONDS_DEFAULT: int = 240
+#: A requested rebuild's deadline. Measured 2026-10-21 on dev: 69 facts took 6 calls
+#: growing from 14 to 53 seconds (each pass shows the model what earlier passes
+#: understood), 237 seconds against an opening's 240. Its lease is renewed at every
+#: read and every model call, so it only has to outlast one step, never the rebuild.
+DISCUSSION_REBUILD_DEADLINE_SECONDS_DEFAULT: int = 900
+#: Physical source calls one whole run may make, across all its reads.
+DISCUSSION_RUN_READ_CALLS_MAX_DEFAULT: int = 64
+#: Context-phase model calls one run may buy: the read-rule compiler and the
+#: context passes share them (a compiled rule leaves one pass less).
+DISCUSSION_CONTEXT_CALLS_PER_RUN_DEFAULT: int = 3
+# A rebuild interprets every admitted fact, a pass after another: measured on
+# production 2026-10-21, 58 admitted facts at 12 a pass need 5 calls (~0.05 USD
+# each); 3 covered 36 of them.
+DISCUSSION_REBUILD_CONTEXT_CALLS_DEFAULT: int = 8
+#: Facts one context pass interprets, at most: the attention of one call.
+DISCUSSION_CONTEXT_FACTS_PER_PASS_DEFAULT: int = 12
+#: Proposals one context call may return: published to the model as the schema's
+#: maxItems; those beyond it are set aside one by one, never the whole answer.
+DISCUSSION_CONTEXT_PROPOSALS_MAX: int = 16
+#: Bounds of one source read: its physical calls and its deadline.
+DISCUSSION_READ_CALL_LIMIT_DEFAULT: int = 8
+DISCUSSION_READ_TIMEOUT_SECONDS_DEFAULT: int = 10
+#: The most one read may be given: the source contract's ceiling AND the setting's,
+#: one bound each. Two bounds diverged on 2026-10-21 (a setting accepted 20 calls, the
+#: contract refused anything past 16) and every run failed before its first read.
+DISCUSSION_READ_CALL_LIMIT_MAX: int = 100
+DISCUSSION_READ_TIMEOUT_SECONDS_MAX: int = 120
+#: A read returns few items, briefly excerpted (the portrait is read whole), over a
+#: default window around now when the model names no dates.
+DISCUSSION_RESEARCH_ITEM_LIMIT_DEFAULT: int = 5
+DISCUSSION_RESEARCH_ITEM_MAX_CHARS_DEFAULT: int = 2000
+DISCUSSION_RESEARCH_DEFAULT_WINDOW_DAYS_DEFAULT: int = 7
+#: Reading a stored proof or a selected fact again: one page of items.
+DISCUSSION_REREAD_ITEM_LIMIT: int = 100
+#: An excerpt read in full: the evidence contract's bound, used by a re-read and by
+#: the portrait (read as one whole). A contract bound, never a setting.
+DISCUSSION_FULL_EXCERPT_CHARS: int = 16000
+#: An opening's text, at most: what the wording call may return, what is published
+#: and what a later decision is shown of it. A contract bound, never a setting.
+DISCUSSION_OPENING_MAX_CHARS: int = 2000
+#: Facts one opening may rest on: the decision's references, the draft's proofs and
+#: the delivery check that reads them again. A contract bound, never a setting.
+DISCUSSION_OPENING_PROOFS_MAX: int = 16
+#: Stored items reused per run, and the proofs their reuse may re-read.
+DISCUSSION_REUSED_ITEMS_MAX_DEFAULT: int = 100
+DISCUSSION_REUSED_PROOFS_MAX_DEFAULT: int = 24
+#: Prior openings a decision is shown (only those whose support is current).
+DISCUSSION_HISTORY_OPENINGS_DEFAULT: int = 10
+#: Attention: a person who wrote recently, a recent opening or a reminder about to
+#: ring leaves no room for a personal initiative. A recent ALERT does not, unless
+#: the operator sets a gap (0 lets alerts and discussions coexist, owner decision
+#: 2026-10-21: the 30-minute gap was too restrictive).
+DISCUSSION_ATTENTION_RECENT_TURN_MINUTES_DEFAULT: int = 5
+DISCUSSION_ATTENTION_ALERT_GAP_MINUTES_DEFAULT: int = 0
+DISCUSSION_ATTENTION_OPENING_GAP_MINUTES_DEFAULT: int = 30
+DISCUSSION_ATTENTION_REMINDER_AHEAD_MINUTES_DEFAULT: int = 5
+#: How long a compiled read restriction is reused for the same inputs.
+DISCUSSION_RULE_CACHE_HOURS_DEFAULT: int = 24
+#: An opening waits this long for a reply before it lapses.
+DISCUSSION_OPENING_PENDING_HOURS_DEFAULT: int = 24
+#: A pause (the settings' button and the "not now" reaction) lasts this long; the
+#: settings API publishes it, so every label states the configured duration.
+DISCUSSION_PAUSE_HOURS_DEFAULT: int = 24
+#: How long a derived context item may outlive its read: a year, a week for what
+#: comes from a peer connection (each capped by its source's own retention).
+DISCUSSION_CONTEXT_RETENTION_DAYS_DEFAULT: int = 365
+DISCUSSION_PEER_CONTEXT_RETENTION_DAYS_DEFAULT: int = 7
+#: The complete procedural rules a run reads, or it defers (ADR-359).
+DISCUSSION_DIRECTIVES_MAX_TOKENS_DEFAULT: int = 8000
+#: Tokenizer and provider framing margin counted on every discussion prompt.
+DISCUSSION_PROMPT_FRAMING_TOKENS: int = 512
+#: Delivery: connector and weather proofs older than this are read again or refused,
+#: and an attempt still dispatching after it is settled as uncertain (no send may go
+#: out once its proofs are stale, so one delay, never two).
+DISCUSSION_DELIVERY_PROOF_MAX_AGE_MINUTES_DEFAULT: int = 5
+#: Pending deliveries one sweep serves, accounts (and expired reservations) one
+#: maintenance pass settles, and observations a purge streams per batch.
+DISCUSSION_DELIVERY_BATCH_SIZE_DEFAULT: int = 20
+DISCUSSION_MAINTENANCE_BATCH_SIZE_DEFAULT: int = 100
+DISCUSSION_CONTEXT_PURGE_BATCH_SIZE_DEFAULT: int = 250
+#: A provider backoff that states no Retry-After defers the run this long.
+DISCUSSION_BACKOFF_MINUTES_DEFAULT: int = 15
 #: ``message_metadata["type"]`` of the message a reminder leaves in the chat when it
 #: rings — the person's own deferred instruction, never an initiative. Written by the
 #: reminder scheduler and read by the radio's journal (ADR-324 decision 41): writer and

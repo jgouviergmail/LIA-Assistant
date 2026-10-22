@@ -101,7 +101,7 @@ export function Disclosure({
   return (
     <details
       className={cn(
-        'group rounded-lg border border-border/40 px-3',
+        'group rounded-lg border border-border px-3',
         surface === 'nested'
           ? 'bg-background [--lia-field-background:var(--color-card)]'
           : 'bg-card [--lia-field-background:var(--color-background)]',
@@ -120,8 +120,10 @@ export function Disclosure({
       }}
     >
       {/* `list-none` removes the native marker; the chevron replaces it and
-          rotates with `group-open`. The summary is the toggle, so the focus
-          ring belongs here. */}
+          rotates with THIS block's own state. `group-open:` matched any open
+          ancestor `group`, so a folded disclosure nested in an open one showed
+          an open chevron. The summary is the toggle, so the focus ring
+          belongs here. */}
       <summary
         ref={summaryRef}
         className={cn(
@@ -151,7 +153,10 @@ export function Disclosure({
           </span>
         )}
         <ChevronDown
-          className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180 motion-reduce:transition-none"
+          className={cn(
+            'h-4 w-4 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none',
+            open && 'rotate-180'
+          )}
           aria-hidden="true"
         />
       </summary>

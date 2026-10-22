@@ -4,10 +4,11 @@
  * RelationDetailPanel — the 360° view of one relationship (N-09, restyled).
  *
  * Identity header (large avatar, peers badge, star), a row of quick actions,
- * then sectioned CARDS — open loops with an age pill, dated calls, relayed peer
- * messages, memories as bordered notes — and the LIA connection block last,
- * when one exists. Every section shows a preview and reveals the rest on
- * demand, with its EXACT total on the pill.
+ * then sectioned CARDS whose items are plain rows split by a hairline, each
+ * titled by when it happened, with no icon before it — open loops, memories,
+ * calls, relayed peer messages — and the LIA connection block last, when one
+ * exists. Every section shows a preview and reveals the rest on demand, with
+ * its EXACT total on the pill.
  *
  * Read-only aggregation, with two chat deep links whose difference is
  * load-bearing:
@@ -26,9 +27,7 @@
  */
 
 import {
-  ArrowDownLeft,
   ArrowLeft,
-  ArrowUpRight,
   Check,
   ChevronDown,
   CircleSlash,
@@ -63,23 +62,32 @@ import { RelationAvatar } from '@/components/relations/RelationAvatar';
 import { RelationSmsSection } from './RelationSmsSection';
 import {
   CONTEXT_SECTIONS,
+  contactCardOf,
   ProviderContactSection,
   ProviderEmailsSection,
   ProviderEventsSection,
   ProviderNote,
   providerNoteKey,
 } from '@/components/relations/RelationProviderSections';
-import { CollapsibleSection, SectionBadge } from '@/components/relations/CollapsibleSection';
+import {
+  CollapsibleSection,
+  SectionBadge,
+  SectionRow,
+  SectionRowTitle,
+  SectionRows,
+} from '@/components/relations/CollapsibleSection';
 import { RelationDebriefSection } from '@/components/relations/RelationDebriefSection';
 import { RelationMergePanel } from '@/components/relations/RelationMergePanel';
 import { RelationScopeSection, useScopeDraft } from '@/components/relations/RelationScopeSection';
-import { chatDraftHref, chatIntentHref, timeAgoLabel } from '@/lib/briefing-utils';
+import { RelationWhen } from '@/components/relations/RelationWhen';
+import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
 import {
   useRelationMerge,
   useRelationContext,
   useRelationDebrief,
   useRelationDetail,
+  type ContactCard,
   type RelationContext,
   type RelationDetail,
   type RelationOverviewScope,
@@ -87,6 +95,14 @@ import {
   type RelationPeerMessage,
   type RelationShare,
 } from '@/hooks/useRelations';
+import {
+  contactQuickActions,
+  type QuickAction,
+  type QuickActionColumn,
+} from '@/lib/relations/contact-actions';
+import { useApplicationConnectors } from '@/hooks/useApplicationConnectors';
+import { TELEPHONY_CONNECTOR_TYPES } from '@/components/settings/connectors/constants';
+import { isConnectorActive } from '@/components/settings/connectors/types';
 
 /** Items a section shows before the reader asks for more. */
 const SECTION_PREVIEW_COUNT = 10;
@@ -120,7 +136,7 @@ function SectionCard({
 
   return (
     <CollapsibleSection icon={Icon} title={title} badge={<SectionBadge>{total}</SectionBadge>}>
-      {visible}
+      <SectionRows>{visible}</SectionRows>
       {collapsed > 0 && (
         <button
           type="button"
@@ -145,43 +161,36 @@ function SectionCard({
 }
 
 /**
- * One relayed message. The direction is carried by TRANSLATED TEXT, never by
- * the arrow alone — the icon is decorative. A message with no text says so
- * plainly instead of rendering an empty line (honesty rule).
+ * One relayed message, titled like a mail row: the direction as TRANSLATED
+ * TEXT in a toned badge, then when — no icon leads the row (owner request
+ * 2026-10-21). A message with no text says so plainly instead of rendering an
+ * empty line (honesty rule).
  */
 function PeerMessageItem({ message }: { message: RelationPeerMessage }) {
   const { t } = useTranslation();
   const received = message.direction === 'received';
-  const DirectionIcon = received ? ArrowDownLeft : ArrowUpRight;
 
   return (
-    <div className="border-l-2 border-primary/40 pl-3">
-      <p className="flex flex-wrap items-baseline gap-2">
+    <SectionRow className="[overflow-wrap:anywhere]">
+      <SectionRowTitle>
         {/* One tone per direction. Both sides used to be the same primary
-            blue, so a reader scanning the timeline had only the arrow to go
-            on. The word stays — the tone is what makes the two sides legible
-            at a glance. */}
-        <Badge
-          variant={directionTone(message.direction)}
-          size="sm"
-          icon={<DirectionIcon className="h-3 w-3" aria-hidden="true" />}
-        >
+            blue, so nothing but the wording separated them while scanning.
+            The word stays — the tone is what makes the two sides legible at
+            a glance. */}
+        <Badge variant={directionTone(message.direction)} size="sm">
           {received ? t('relations.peer_message_received') : t('relations.peer_message_sent')}
         </Badge>
-        <span className="text-px-11 text-muted-foreground">
-          {timeAgoLabel(t, message.occurred_at)}
-        </span>
+        <RelationWhen start={message.occurred_at} />
+      </SectionRowTitle>
+      <p
+        className={cn(
+          'min-w-0 whitespace-pre-line',
+          message.content ? 'text-sm text-foreground/90' : 'text-xs italic text-muted-foreground'
+        )}
+      >
+        {message.content || t('relations.peer_message_no_content')}
       </p>
-      {message.content ? (
-        <p className="mt-0.5 whitespace-pre-line text-sm text-foreground/90">{message.content}</p>
-      ) : (
-        // Full muted-foreground, never a diluted /80: at 12px the faded pair
-        // measures 3.51:1, under the 4.5:1 AA floor (axe, production bundle).
-        <p className="mt-0.5 text-xs italic text-muted-foreground">
-          {t('relations.peer_message_no_content')}
-        </p>
-      )}
-    </div>
+    </SectionRow>
   );
 }
 
@@ -223,7 +232,7 @@ function PeerLinkSection({ link }: { link: RelationPeerLink | null }) {
         {t('relations.peer_link_title')}
         {link.connected_since && (
           <span className="text-px-11 font-normal text-muted-foreground">
-            {t('relations.peer_link_since', { when: timeAgoLabel(t, link.connected_since) })}
+            {t('relations.peer_link_connected')} <RelationWhen start={link.connected_since} />
           </span>
         )}
       </h3>
@@ -243,7 +252,12 @@ function PeerLinkSection({ link }: { link: RelationPeerLink | null }) {
   );
 }
 
-/** Open commitments, oldest-first as the API ranks them, with an age pill. */
+/**
+ * Open commitments, oldest-first as the API ranks them, each titled by when it
+ * was recorded — how long ago and the moment, like a mail row (owner request
+ * 2026-10-21). The title replaced an "open for N days" pill that stated the
+ * same age a second time on the same row.
+ */
 function OpenLoopsSection({
   loops,
   total,
@@ -291,7 +305,7 @@ function OpenLoopsSection({
     <SectionCard icon={ListTodo} title={t('relations.section_open_loops')} total={total}>
       {loops.map(loop =>
         editingId === loop.id ? (
-          <div key={loop.id} className="border-l-2 border-amber-500/40 pl-3">
+          <SectionRow key={loop.id}>
             <CommitmentEditor
               lng={lng as Language}
               subject={loop.subject}
@@ -300,16 +314,15 @@ function OpenLoopsSection({
               onCancel={() => setEditingId(null)}
               onSave={patch => void save(loop.id, patch)}
             />
-          </div>
+          </SectionRow>
         ) : (
-          <div key={loop.id} className="flex items-start gap-2 border-l-2 border-amber-500/40 pl-3">
-            <p className="flex min-w-0 flex-1 flex-wrap items-baseline gap-2 text-sm text-foreground/90">
-              {loop.subject}
-              {/* amber-800 for the AA floor at this size — see RelationCardList. */}
-              <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-px text-px-10 font-medium text-amber-800 dark:text-amber-300">
-                {t('relations.days_open', { count: loop.days_open })}
-              </span>
-            </p>
+          <SectionRow key={loop.id} className="flex items-start gap-2">
+            <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+              <SectionRowTitle>
+                <RelationWhen start={loop.opened_at} />
+              </SectionRowTitle>
+              <p className="text-sm text-foreground/90">{loop.subject}</p>
+            </div>
             <span className="flex shrink-0 items-center gap-1">
               <CommitmentButton
                 icon={Pencil}
@@ -340,7 +353,7 @@ function OpenLoopsSection({
                 onClick={() => void act(loop.id, 'dismissed')}
               />
             </span>
-          </div>
+          </SectionRow>
         )
       )}
     </SectionCard>
@@ -375,7 +388,7 @@ function CommitmentButton({
       aria-disabled={busy}
       aria-label={label}
       title={title}
-      className={`rounded-md border border-border/30 bg-background/80 p-1.5 ${
+      className={`rounded-md border border-border bg-background/80 p-1.5 ${
         busy ? 'opacity-40' : `hover:bg-background ${hover}`
       }`}
     >
@@ -385,37 +398,49 @@ function CommitmentButton({
 }
 
 /** Past calls — the objective and the outcome summary, never the number (D-8). */
-function CallsSection({ calls, total }: { calls: RelationDetail['recent_calls']; total: number }) {
+function CallsSection({
+  calls,
+  total,
+  lng,
+}: {
+  calls: RelationDetail['recent_calls'];
+  total: number;
+  lng: string;
+}) {
   const { t } = useTranslation();
   if (calls.length === 0) return null;
   return (
     <SectionCard icon={PhoneCall} title={t('relations.section_calls')} total={total}>
       {calls.map(call => (
-        <div key={call.id} className="border-l-2 border-primary/40 pl-3">
-          {/* The OBJECTIVE is what the call was for and the summary is what
-              came of it. Rendered as one paragraph they read as a single grey
-              block; the objective becomes a tag so the eye finds "why" before
-              "what happened". `border-primary` rather than a raw sky-500: the
-              palette is the theme's, not a colour picked here. */}
-          <p className="flex flex-wrap items-baseline gap-2">
+        <SectionRow key={call.id} className="py-1.5">
+          <Link
+            href={`${settingsSectionHref(lng, 'telephony-calls')}&call=${encodeURIComponent(call.id)}`}
+            className="-mx-2 block min-w-0 rounded-md px-2 py-1.5 transition-colors [overflow-wrap:anywhere] hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {/* The title is WHEN the call happened, like a mail row (owner
+                request 2026-10-21): how long ago, then the day, the date and
+                the hour. No icon leads any line of the row; the direction
+                badge does — LIA placed every call, so it is « sent », in the
+                tone the relayed messages and e-mails use. */}
+            <SectionRowTitle>
+              <Badge variant={directionTone('sent')} size="sm">
+                {t('relations.peer_message_sent')}
+              </Badge>
+              <RelationWhen start={call.created_at} />
+            </SectionRowTitle>
             {/* NOT a badge. A call objective is a full instruction — "ask her
                 why she does not use LIA, in three or four questions" — and a
                 pill is sized for a word: `Badge` pins its height, so three
                 lines of text spilled out of a 16 px capsule and read as struck
-                through (measured on a real card, 2026-08-04). The hierarchy is
-                carried by WEIGHT instead, which costs no layout assumption:
-                the objective is the strong line, the summary the quiet one. */}
-            <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">
-              {call.objective}
-            </span>
-            <span className="shrink-0 text-px-11 text-muted-foreground">
-              {timeAgoLabel(t, call.created_at)}
-            </span>
-          </p>
-          {call.summary && (
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{call.summary}</p>
-          )}
-        </div>
+                through (measured on a real card, 2026-08-04). */}
+            <p className="text-sm text-foreground/90">{call.objective}</p>
+            {call.summary && (
+              <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-muted-foreground">
+                {call.summary}
+              </p>
+            )}
+          </Link>
+        </SectionRow>
       ))}
     </SectionCard>
   );
@@ -449,13 +474,36 @@ function PeerMessagesSection({
  * the deliberate act. Writing to another human is never that.
  *
  * The message action appears only on a live connection: offering it after a
- * removal would promise a relay that cannot happen.
+ * removal would promise a relay that cannot happen. Below them, the address
+ * book's actions: one per email, postal address and number of the contact
+ * card, one column per kind (owner request 2026-10-21) — still `?draft=`, the
+ * subject or the purpose is the person's to add. A call is offered only on a
+ * NUMBER, and only while the account holds an active telephony connector:
+ * the generic « call » that let LIA guess the number is gone.
  */
-function QuickActions({ detail, lng }: { detail: RelationDetail; lng: string }) {
+function QuickActions({
+  detail,
+  card,
+  lng,
+}: {
+  detail: RelationDetail;
+  card: ContactCard | null;
+  lng: string;
+}) {
   const { t } = useTranslation();
   const name = detail.display_name;
+  // The connectors page's own predicate: a call needs the account's ACTIVE
+  // telephony connector, and an unanswered read offers none rather than one
+  // nothing could place.
+  const { data: connectorList } = useApplicationConnectors();
+  const telephony = (connectorList?.connectors ?? []).some(
+    connector =>
+      TELEPHONY_CONNECTOR_TYPES.includes(
+        connector.connector_type.toLowerCase() as (typeof TELEPHONY_CONNECTOR_TYPES)[number]
+      ) && isConnectorActive(connector)
+  );
 
-  const actions: { key: string; icon: typeof Handshake; label: string; draft: string }[] = [
+  const actions: QuickAction[] = [
     ...(detail.is_peer
       ? [
           {
@@ -470,12 +518,6 @@ function QuickActions({ detail, lng }: { detail: RelationDetail; lng: string }) 
         ]
       : []),
     {
-      key: 'call',
-      icon: PhoneCall,
-      label: t('relations.action_call'),
-      draft: t('relations.action_call_prefill', { name }),
-    },
-    {
       key: 'loop',
       icon: ListTodo,
       label: t('relations.action_loop'),
@@ -483,31 +525,81 @@ function QuickActions({ detail, lng }: { detail: RelationDetail; lng: string }) 
     },
   ];
 
+  const columns = contactQuickActions(card, t, { telephony });
+
   return (
-    <div className="flex flex-wrap justify-center gap-2">
-      {actions.map(({ key, icon: Icon, label, draft }) => (
-        <Button
-          key={key}
-          type="button"
-          // SOLID (ADR-207, owner arbitration 2026-08-05): a section's
-          // constructive CTA takes the filled primary, like "+ Add" on
-          // memories, MCP or scheduled actions. The earlier `outline` reading
-          // (ADR-205) counted all 137 outline sites in one bucket — cancels
-          // and filter presets included; at CTA altitude, solid is the
-          // codebase's actual convention.
-          variant="default"
-          size="sm"
-          onClick={() => openChatDeepLink(chatDraftHref(lng, draft))}
-          // `min-h-11`: these read as chips, but they are the card's primary
-          // actions and were 30 px tall on a phone — wide enough to look
-          // clickable, too short to hit reliably (measured 2026-08-01).
-          className="min-h-11"
-        >
-          <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-          {label}
-        </Button>
+    <div className="space-y-3">
+      <div className="flex flex-wrap justify-center gap-2">
+        {actions.map(action => (
+          <QuickActionButton key={action.key} action={action} lng={lng} />
+        ))}
+      </div>
+      {columns.length > 0 && <ContactActionColumns columns={columns} lng={lng} />}
+    </div>
+  );
+}
+
+/**
+ * The address book's actions: one column per kind, every button of a column
+ * the size of its largest one (owner request 2026-10-21).
+ *
+ * A column is a one-track grid sized to its content (`w-max`): the track
+ * takes the widest button, every button stretches to it, and `auto-rows-fr`
+ * gives every row the tallest one's height. `max-w-full` caps a column at the
+ * sheet's width — a long address then wraps inside its buttons instead of
+ * pushing the page sideways — and the columns wrap under one another on a
+ * narrow screen.
+ */
+function ContactActionColumns({ columns, lng }: { columns: QuickActionColumn[]; lng: string }) {
+  return (
+    <div className="flex flex-wrap items-start justify-center gap-2">
+      {columns.map(column => (
+        <div key={column.kind} className="grid w-max max-w-full auto-rows-fr gap-2">
+          {column.actions.map(action => (
+            <QuickActionButton
+              key={action.key}
+              action={action}
+              lng={lng}
+              className="h-auto w-full justify-start whitespace-normal text-left [overflow-wrap:anywhere]"
+            />
+          ))}
+        </div>
       ))}
     </div>
+  );
+}
+
+/** One quick action: a solid call to action that prefills the composer. */
+function QuickActionButton({
+  action,
+  lng,
+  className,
+}: {
+  action: QuickAction;
+  lng: string;
+  className?: string;
+}) {
+  const { icon: Icon, label, draft } = action;
+  return (
+    <Button
+      type="button"
+      // SOLID (ADR-207, owner arbitration 2026-08-05): a section's
+      // constructive CTA takes the filled primary, like "+ Add" on
+      // memories, MCP or scheduled actions. The earlier `outline` reading
+      // (ADR-205) counted all 137 outline sites in one bucket — cancels
+      // and filter presets included; at CTA altitude, solid is the
+      // codebase's actual convention.
+      variant="default"
+      size="sm"
+      onClick={() => openChatDeepLink(chatDraftHref(lng, draft))}
+      // `min-h-11`: these read as chips, but they are the card's primary
+      // actions and were 30 px tall on a phone — wide enough to look
+      // clickable, too short to hit reliably (measured 2026-08-01).
+      className={cn('min-h-11', className)}
+    >
+      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+      {label}
+    </Button>
   );
 }
 
@@ -535,13 +627,21 @@ function MemoriesSection({
         // memory would be false the moment it sits on page three. `<Link>`
         // rather than a click handler — middle-click, open-in-new-tab and the
         // "link" role are what a navigation owes its reader.
-        <Link
-          key={memory.id}
-          href={settingsSectionHref(lng, 'memories')}
-          className="block rounded-lg border border-border/40 bg-background px-3 py-2 text-sm text-foreground/90 transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {memory.content}
-        </Link>
+        //
+        // Titled by when it was kept, like a mail row — how long ago, then the
+        // day, the date and the hour in bold — with no icon before it (owner
+        // request 2026-10-21).
+        <SectionRow key={memory.id} className="py-1.5">
+          <Link
+            href={settingsSectionHref(lng, 'memories')}
+            className="-mx-2 block min-w-0 rounded-md px-2 py-1.5 transition-colors [overflow-wrap:anywhere] hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <SectionRowTitle>
+              <RelationWhen start={memory.created_at} />
+            </SectionRowTitle>
+            <p className="text-sm text-foreground/90">{memory.content}</p>
+          </Link>
+        </SectionRow>
       ))}
     </SectionCard>
   );
@@ -574,7 +674,7 @@ function RelationHeader({
     : t('relations.favorite_add', { name: detail.display_name });
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/50 bg-card p-4">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
       <div className="flex min-w-0 items-center gap-3">
         <button
           type="button"
@@ -716,16 +816,16 @@ function RelationSections({
             onChanged={onCommitmentChanged}
           />
           <MemoriesSection memories={detail.memories} total={detail.memories_total} lng={lng} />
-          <CallsSection calls={detail.recent_calls} total={detail.recent_calls_total} />
+          <CallsSection calls={detail.recent_calls} total={detail.recent_calls_total} lng={lng} />
           <PeerMessagesSection messages={detail.peer_messages} total={detail.peer_messages_total} />
+        </div>
+        <div className="flex flex-col gap-4">
           <RelationSmsSection
             messages={detail.sms ?? []}
             total={detail.sms_total ?? 0}
             available={detail.sms_available ?? false}
             lng={lng}
           />
-        </div>
-        <div className="flex flex-col gap-4">
           <ProviderEmailsSection
             section={context?.emails}
             personName={detail.display_name}
@@ -908,7 +1008,7 @@ export function RelationDetailPanel({
           can over-match even on an EXACT loop/call identity (a common first
           name landing in an unrelated note). Honesty over false precision. */}
       {(detail.identity_confidence === 'normalized' || detail.memories.length > 0) && (
-        <p className="rounded-md border border-border/40 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+        <p className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
           {t('relations.identity_best_effort')}
         </p>
       )}
@@ -925,7 +1025,7 @@ export function RelationDetailPanel({
         onToggle={onDebriefToggle}
       />
 
-      <QuickActions detail={detail} lng={lng} />
+      <QuickActions detail={detail} card={contactCardOf(context)} lng={lng} />
 
       <RelationSections
         detail={detail}

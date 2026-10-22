@@ -340,3 +340,84 @@ async def test_two_cold_reads_at_once_read_the_provider_once(redis: MemoryRedis)
     compact = [compact_person(_person(1))]
     assert [r.persons for r in results] == [compact, compact]
     assert sorted(r.from_cache for r in results) == [False, True]
+
+
+async def test_sms_account_and_refresh_scopes_never_reuse_another_directory(
+    redis: MemoryRedis,
+) -> None:
+    owner = uuid4()
+    read = AsyncMock(return_value=([_person(1)], False))
+    await cached_directory(owner, "google_contacts", 10, read)
+    a = await cached_directory(
+        owner, "google_contacts", 10, read, cache_scope="account-a:generation-1"
+    )
+    again = await cached_directory(
+        owner, "google_contacts", 10, read, cache_scope="account-a:generation-1"
+    )
+    b = await cached_directory(
+        owner, "google_contacts", 10, read, cache_scope="account-b:generation-1"
+    )
+    refreshed = await cached_directory(
+        owner, "google_contacts", 10, read, cache_scope="account-b:generation-2"
+    )
+    assert read.await_count == 4
+    assert again.from_cache and a.version == again.version
+    assert len({a.version, b.version, refreshed.version}) == 3
+    await invalidate_contacts_cache(owner)
+    await cached_directory(owner, "google_contacts", 10, read, cache_scope="account-b:generation-2")
+    assert read.await_count == 5
+
+
+@pytest.mark.parametrize("factory", [_google, _microsoft])
+async def test_provider_passes_sms_cache_scope_to_the_directory(
+    redis: MemoryRedis, factory
+) -> None:
+    client = factory(uuid4())
+    read = AsyncMock(side_effect=[([_person(1)], False), ([_person(2)], False)])
+    with patch.object(client, "_read_directory", read):
+        first = await client.list_email_directory(10, cache_scope="account-a:1")
+        again = await client.list_email_directory(10, cache_scope="account-a:1")
+        other = await client.list_email_directory(10, cache_scope="account-b:1")
+    assert first.persons == again.persons
+    assert first.persons != other.persons and read.await_count == 2
+
+
+async def test_sms_icloud_scope_bypasses_the_unscoped_full_book(redis: MemoryRedis) -> None:
+    client = AppleContactsClient.__new__(AppleContactsClient)
+    client.user_id = uuid4()
+    read = AsyncMock(return_value=([_person(2)], False, "now"))
+    with patch.object(client, "_get_all_contacts_cached", read):
+        await client._list_email_directory_impl(10, "account-b:generation-1")
+        await client._list_email_directory_impl(10, "account-b:generation-1")
+    read.assert_awaited_once_with(False)
+
+
+async def test_icloud_public_directory_passes_its_sms_scope_to_the_retry_door() -> None:
+    client = AppleContactsClient.__new__(AppleContactsClient)
+    execute = AsyncMock()
+    with patch.object(client, "_execute_with_retry", execute):
+        await client.list_email_directory(10, cache_scope="account:generation")
+    assert execute.await_args.args[2:] == (10, "account:generation")
+
+
+async def test_an_old_inflight_directory_cannot_replace_the_refreshed_sms_book(
+    redis: MemoryRedis,
+) -> None:
+    owner = uuid4()
+    release = asyncio.Event()
+
+    async def old_read(cap):
+        await release.wait()
+        return [_person(1)], False
+
+    old = asyncio.create_task(
+        cached_directory(owner, "google_contacts", 10, old_read, cache_scope="account:1")
+    )
+    await asyncio.sleep(0)
+    fresh = AsyncMock(return_value=([_person(2)], False))
+    current = await cached_directory(owner, "google_contacts", 10, fresh, cache_scope="account:2")
+    release.set()
+    await old
+    again = await cached_directory(owner, "google_contacts", 10, fresh, cache_scope="account:2")
+    assert again.persons == current.persons == [compact_person(_person(2))]
+    fresh.assert_awaited_once()

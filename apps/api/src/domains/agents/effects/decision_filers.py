@@ -56,6 +56,7 @@ DECISION_FILERS: Final[dict[str, tuple[str, ...]]] = {
     # accounting around a whole act bill their model calls through it.
     "infrastructure/proactive/tracking.py": (_OUT_OF_TURN_FUNNEL,),
     "infrastructure/proactive/runner.py": (_OUT_OF_TURN_FUNNEL,),
+    "infrastructure/proactive/discussion_runner.py": (_OUT_OF_TURN_FUNNEL,),
     "domains/meetings/enrichment.py": (_OUT_OF_TURN_FUNNEL,),
     # Native selection shares the meeting run. Its finalizer also files failed
     # synthesis attempts that never reached the normal completion funnel.
@@ -70,6 +71,10 @@ DECISION_FILERS: Final[dict[str, tuple[str, ...]]] = {
 
 #: Modules opening an accounting whose run is no turn, and why.
 NOT_A_TURN: Final[dict[str, str]] = {
+    "domains/connectors/place_route_service.py": (
+        "An explicit display request computes a route for an already acquired place, with no "
+        "agent turn or model decision; its paid API request is attributed to the authenticated account."
+    ),
     "domains/connectors/map_load_metering.py": (
         "Records browser-observed Maps JavaScript construction under an idempotent "
         "account-owned run: provider display spend, with no model or decision."

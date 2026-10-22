@@ -1,10 +1,10 @@
 /**
- * Single source of truth for the "/more" small-attentions page: 100 cards in
+ * Single source of truth for the "/more" small-attentions page: 105 cards in
  * 6 moment sections, each card carrying one lucide icon and the list of
  * translated micro-labels its animated scene needs.
  *
  * ANTI-REGRESSION CONTRACT: the guard test
- * `__tests__/more-content-coverage.test.ts` asserts the structure (100 unique
+ * `__tests__/more-content-coverage.test.ts` asserts the structure (105 unique
  * cards, icon/scene-label completeness), the level contract (keys disjoint
  * from the editorial landing's REQUIRED_FEATURE_KEYS — this page presents
  * craft, one level below capabilities), and the i18n content (every
@@ -111,6 +111,11 @@ import {
   ListX,
   MousePointerClick,
   Undo2,
+  BellDot,
+  MailOpen,
+  MapPinned,
+  MessageCircleHeart,
+  SeparatorHorizontal,
 } from 'lucide-react';
 
 export interface MoreSectionConfig {
@@ -157,6 +162,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'image_share',
       'keep_answer',
       'draft_sequence',
+      'discussion_reactions',
       'network_question',
       'skill_proposal',
       'backstage',
@@ -200,8 +206,10 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'mail_label_source',
       'sync_count',
       'mobile_logo_nav',
+      'place_numbers',
       'relation_star',
       'relation_sections',
+      'dated_rows',
       'relation_debrief',
       'pinned_dock',
       'network_grants',
@@ -217,6 +225,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'briefing_custom',
       'card_actions',
       'alerts_hub',
+      'sender_notice',
       'week_grid',
       'day_timeline',
       'folded_settings',
@@ -259,6 +268,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'pricing_workbook',
       'haptics',
       'readable_at_a_glance',
+      'one_line',
       'oled_black',
       'text_size',
       'a11y_care',
@@ -376,6 +386,11 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   narrow_screens: Smartphone,
   local_model_fit: Sliders,
   slide_never_overflows: Presentation,
+  discussion_reactions: MessageCircleHeart,
+  place_numbers: MapPinned,
+  dated_rows: MailOpen,
+  sender_notice: BellDot,
+  one_line: SeparatorHorizontal,
 };
 
 /**
@@ -484,4 +499,9 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   narrow_screens: [],
   local_model_fit: ['thinking', 'dropped'],
   slide_never_overflows: [],
+  discussion_reactions: ['thanks', 'not_now', 'avoid', 'wrong', 'heard'],
+  place_numbers: ['details', 'route'],
+  dated_rows: ['ago', 'when', 'sent', 'received'],
+  sender_notice: ['sender', 'message', 'new_sms'],
+  one_line: [],
 };

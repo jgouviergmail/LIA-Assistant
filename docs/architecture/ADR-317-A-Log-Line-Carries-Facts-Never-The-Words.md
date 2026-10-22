@@ -62,8 +62,14 @@ full request URL.
    SQLAlchemy's `[parameters: …]`, asyncpg's query-argument message, the PostgreSQL
    message families that end by quoting their input, Pydantic's `input_value=` (to the
    LAST marker of the line: a value can forge one) — and replaces the quotation alone:
-   the constraint, the table, the statement and the error class stay. The PII filter
-   applies it to every string value, the rendered traceback included, and to foreign
+   the constraint, the table, the statement and the error class stay. It also
+   recognises jsonschema's `Failed validating` / `On instance` layout used by
+   MCP: the header, schema dump (examples/defaults included), instance dump and
+   dynamic paths are withheld. The standard validator keyword and exception class
+   remain, including inside decorated `ExceptionGroup` tracebacks. User MCP failures
+   retain one operation-level `user_mcp_tool_error` warning; transport unwinding and
+   the ReAct wrapper's duplicate diagnostics stay at DEBUG.
+   The PII filter applies it to every string value, the rendered traceback included, and to foreign
    stdlib messages. Free-text query parameters (`q`, `query`, `$search`, `srsearch`,
    `input`, `address`, …) are withheld above DEBUG; provider keys (`key`, `appid`) are
    masked at every level, like any credential. The content names grew, but a name

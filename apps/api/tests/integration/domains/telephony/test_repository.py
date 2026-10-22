@@ -9,6 +9,7 @@ the conditional UPDATE silently match nothing (the P1 name/value trap).
 
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import text, update
@@ -50,6 +51,32 @@ def _call_data(user_id, **overrides):
     }
     data.update(overrides)
     return data
+
+
+@pytest.mark.integration
+async def test_owned_call_detail_reaches_history_outside_recent_page(async_session, test_user):
+    repo = TelephonyRepository(async_session)
+    older = await repo.create(
+        _call_data(
+            test_user.id,
+            status=PhoneCallStatus.COMPLETED,
+            created_at=datetime.now(UTC) - timedelta(days=90),
+        )
+    )
+    for offset in range(11):
+        await repo.create(
+            _call_data(
+                test_user.id,
+                status=PhoneCallStatus.COMPLETED,
+                created_at=datetime.now(UTC) - timedelta(days=offset),
+            )
+        )
+    assert older.id not in {
+        call.id for call in await repo.list_recent_for_user(test_user.id, limit=10)
+    }
+    assert (await repo.get_for_user(test_user.id, older.id)).id == older.id
+    assert await repo.get_for_user(uuid4(), older.id) is None
+    assert await repo.get_for_user(test_user.id, uuid4()) is None
 
 
 @pytest.mark.integration

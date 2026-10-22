@@ -222,6 +222,15 @@ present and non-empty in all six languages.
 ## Calls surface (A6)
 
 `GET /telephony/calls` shipped with the domain and was consumed by nothing.
+
+Relations links each call to `dashboard/settings?section=telephony-calls&call=<uuid>`.
+The selected call opens with its details and keyboard focus. A call already in the
+recent page is reused; an older one is read through authenticated
+`GET /telephony/calls/{call_id}`, using an owner-scoped SQL predicate and the same
+public projection as the recent list. Missing and foreign calls have the same 404
+response. This read never calls a provider or model and does not expose the stored
+phone number. Changing accounts cancels the old read; manual refresh also reloads
+an older selected call.
 Two frontend surfaces read it now:
 
 - `TelephonyCallsSection` — a deep-linkable settings section
@@ -296,7 +305,7 @@ flowchart TD
   vocabulary), and whose required parameters a voice can speak (an
   identifier — by `semantic_type` or by name — hides its parameter; a tool
   whose required parameter is an id is left out). Measured on the real
-  catalogue: 55 tools over 22 domains, plus the native `recall_memories`
+  catalogue: 56 tools over 24 domains, plus the native `recall_memories`
   lookup (the chat has no memory tool; it reads through the chat's own
   profile builder). Since ADR-313 the chat has one (`search_memories_tool`, domain
   `memory`, which the phone keeps off its list for its native lookup), and

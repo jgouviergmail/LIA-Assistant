@@ -35,7 +35,7 @@ const STATE_ICON: Record<ConnectorGroupState, typeof CheckCircle2> = {
 const STATE_CHIP_TONE: Record<ConnectorGroupState, string> = {
   connected: 'bg-success/10 text-success border-success/30',
   error: 'bg-destructive/10 text-destructive border-destructive/30',
-  available: 'bg-muted text-muted-foreground border-border/60',
+  available: 'bg-muted text-muted-foreground border-border',
 };
 
 const STATE_CHIP_KEY: Record<ConnectorGroupState, string> = {

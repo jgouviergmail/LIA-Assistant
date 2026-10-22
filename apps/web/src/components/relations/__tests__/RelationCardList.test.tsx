@@ -298,3 +298,28 @@ describe('RelationCardList — dormancy, ordering and quick filters', () => {
     });
   });
 });
+
+describe('RelationCardList — card and toolbar layout (owner request 2026-10-21)', () => {
+  it('keeps a long name on one line and states it whole', () => {
+    const name = 'Marie-Christine de La Rochefoucauld-Montbazon';
+    renderList([relation({ display_name: name })]);
+
+    const label = screen.getByText(name);
+    expect(label).toHaveClass('truncate');
+    expect(label).toHaveAttribute('title', name);
+  });
+
+  it('puts the ordering under the search field, never beside it', () => {
+    renderList(
+      Array.from({ length: 10 }, (_, index) => relation({ display_name: `Personne ${index}` }))
+    );
+
+    const search = screen.getByRole('searchbox');
+    const sort = screen.getByRole('combobox');
+    const searchRow = search.parentElement;
+    expect(searchRow).not.toBeNull();
+    // Its own row: the sort lives in the NEXT one.
+    expect(searchRow).not.toContainElement(sort);
+    expect(searchRow?.nextElementSibling).toContainElement(sort);
+  });
+});

@@ -17,7 +17,7 @@ advisor so a known outage shapes the answer instead of a timeout.
 | `domains/diagnostics/query_catalogue.py` | The ONLY producer of PromQL: named queries, bounded params (published in manifests), boot completeness assert. |
 | `domains/diagnostics/logql.py` | The ONLY producer of LogQL: closed service enum, closed levels, strict event pattern, range/line hard caps (constants). |
 | `domains/diagnostics/checks.py` + `engine.py` | Declarative check registry (Prometheus-backed + in-process probes) → `HealthSnapshotDTO`. Prometheus down ⇒ those checks `unknown`, probes still run; `unknown` caps overall at `degraded`. `evidence_for` builds the pack an incident carries: the value **with** its unit, its verdict and the two thresholds it was compared against — a number with no threshold beside it cannot be judged, and the diagnoses said exactly that. Deliberately no log excerpt: that is the chat tool's job, and a scheduler tick must not start depending on Loki. |
-| `domains/diagnostics/models.py` + `repository.py` | `health_snapshots`, `incidents`. One OPEN incident per correlation key via a partial unique index; open-or-touch is a single `ON CONFLICT` upsert (`xmax = 0` detects creation). |
+| `domains/diagnostics/models.py` + `repository.py` | `health_snapshots`, `incidents`. One OPEN incident per correlation key via a partial unique index; open-or-touch is a single `ON CONFLICT` upsert (`xmax = 0` detects creation) whose conflict target repeats the index predicate LITERALLY (`INCIDENT_OPEN_SQL`): bound as a parameter, PostgreSQL cannot infer the arbiter index once a reused prepared statement is planned generically, and the touch failed intermittently. |
 | `domains/diagnostics/incident_sync.py` | Snapshot verdicts → incidents. Critical opens/touches; OK auto-resolves **self_check-sourced only** (the alert's resolved event owns alert-sourced ones); a check may declare the `alertname` it mirrors so both sources share one identity. **A lost « resolved » delivery is reconciled from the same authority** (`reconcile_alert_incidents`, 2026-10-18 — one incident had stayed open 28 days): an alert-sourced incident Alertmanager no longer holds as firing (silenced and inhibited alerts count as firing) AND not re-delivered for `DIAGNOSTICS_INCIDENT_SILENCE_CLOSE_SECONDS` is closed in one statement with an `auto_resolved` audit entry; Alertmanager unreadable closes nothing, and neither does one that started less than `ALERTMANAGER_WARMUP_SECONDS` ago: it keeps its alerts in memory, so until Prometheus re-sends what is firing its listing is empty — and a silenced alert, which no webhook re-delivers, would have had its incident closed with nothing to reopen it. The start instant is read after the listing, so a restart between the two reads defers the pass too. The default silence is held to at least twice the webhook route's `repeat_interval` and the warm-up to several Prometheus re-send periods by `test_incident_reconciliation.py`, and the statement is proven on PostgreSQL (`tests/integration/domains/diagnostics/`). |
 | `domains/diagnostics/webhook_router.py` | `POST /api/v1/internal/diagnostics/alert-webhook` — Bearer shared secret; 404 while the flag is off or the secret unset; firing→open, resolved→resolve; nameless alerts skipped. |
 | `domains/diagnostics/notifications.py` | Superuser fan-out (in-app + push + channels; **no email**), cooldown = one atomic `SET NX EX`, fail-OPEN. Strings in `core/i18n_diagnostics.py` (6 languages, backend-canonical `zh-CN`). |
@@ -53,8 +53,8 @@ upgrade re-applying a contradictory `sysctl.d` drop-in); every container lost
 outbound routing while `/health` stayed green, DNS kept resolving and the host
 itself reached the internet. LIA detected the *consequence* within six minutes —
 `LLMAPIFailureRateHigh`, 100 % LLM failures, two open circuit breakers — but
-nothing in the snapshot could say **why**. One bounded TCP connect per tick now
-does, and it is:
+nothing in the snapshot could say **why**. One probe per tick now does — a name
+resolution then a TCP connect, no TLS, no request — and it is:
 
 - **configured, never guessed** (`DIAGNOSTICS_EGRESS_PROBE_TARGET`, `host:port`):
   point it at a host the instance already talks to, so the probe discloses
@@ -62,7 +62,21 @@ does, and it is:
 - **absent when unconfigured**, not `ok` (that would claim a measurement nobody
   took) and not `unknown` (that would cap every default install at `degraded`).
   `InProcessCheck.enabled_setting` expresses this declaratively, and the boot
-  assert refuses a gate no `Settings` field backs.
+  assert refuses a gate no `Settings` field backs;
+- **explicit about the step that failed** ([ADR-361](../architecture/ADR-361-Egress-Probe-Names-The-Failing-Step-And-Confirms-A-Cut.md)):
+  the resolution goes through the loop's resolver, the one every outbound call
+  uses, and a failure reads `name resolution timed out`, `name resolution
+  failed (<class>)`, `connect timed out (name resolution took N ms)` — never the
+  exception's message. In production, Docker's embedded resolver waits 4 s before
+  failing over to its next DNS server, so a resolution and a connect measured as
+  one used to read « unreachable » for a connection never attempted;
+- **confirmed before it is critical**: up to `DIAGNOSTICS_EGRESS_PROBE_ATTEMPTS`
+  attempts per tick, one per `DIAGNOSTICS_EGRESS_PROBE_TIMEOUT_SECONDS` slot (a
+  fast failure waits out its slot). Every attempt failing is `critical`; a
+  success after a failed attempt, or slower than
+  `DIAGNOSTICS_EGRESS_PROBE_SLOW_SECONDS`, is `degraded` — on the health page
+  with both phase durations, never paged. With a target configured, a slow
+  threshold not below the timeout is refused at boot: no success could reach it.
 
 `assert_probe_coverage` closes the matching hole on the other side: an
 in-process check with no probe used to raise `KeyError` mid-tick — no snapshot,

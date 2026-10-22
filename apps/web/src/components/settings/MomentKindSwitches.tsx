@@ -91,22 +91,20 @@ export function MomentKindsSection({
   if (allKinds.length === 0) return null;
 
   return (
-    <div className="border-t pt-4">
-      <Disclosure
-        surface="nested"
-        icon={CalendarClock}
-        title={t('moments.settings_title')}
-        badge={disabledKinds.length > 0 ? disabledKinds.length : undefined}
-      >
-        <p className="mb-2 text-xs text-muted-foreground">{t('moments.settings_description')}</p>
-        <MomentKindSwitches
-          allKinds={allKinds}
-          disabledKinds={disabledKinds}
-          kindDependencies={kindDependencies}
-          updating={updating}
-          onChange={onChange}
-        />
-      </Disclosure>
-    </div>
+    <Disclosure
+      surface="nested"
+      icon={CalendarClock}
+      title={t('moments.settings_title')}
+      badge={disabledKinds.length > 0 ? disabledKinds.length : undefined}
+    >
+      <p className="mb-2 text-xs text-muted-foreground">{t('moments.settings_description')}</p>
+      <MomentKindSwitches
+        allKinds={allKinds}
+        disabledKinds={disabledKinds}
+        kindDependencies={kindDependencies}
+        updating={updating}
+        onChange={onChange}
+      />
+    </Disclosure>
   );
 }

@@ -189,7 +189,7 @@ function PreferencesForm({
         value={value.default_template_ref}
         onChange={ref => edit({ default_template_ref: ref })}
       />
-      <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 p-3">
+      <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-card p-3">
         <div>
           <Label htmlFor="meeting-auto-email">{t('meetings.settings.auto_email_label')}</Label>
           <p className="text-xs text-muted-foreground">{t('meetings.settings.auto_email_hint')}</p>

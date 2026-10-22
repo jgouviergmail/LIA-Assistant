@@ -439,6 +439,7 @@ class JournalService:
         """
         return JournalCostInfo(
             tokens_in=getattr(user, "journal_last_cost_tokens_in", None),
+            tokens_cache=getattr(user, "journal_last_cost_tokens_cache", None),
             tokens_out=getattr(user, "journal_last_cost_tokens_out", None),
             cost_eur=getattr(user, "journal_last_cost_eur", None),
             timestamp=getattr(user, "journal_last_cost_at", None),

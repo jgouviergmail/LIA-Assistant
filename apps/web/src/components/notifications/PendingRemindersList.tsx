@@ -29,7 +29,7 @@ export function PendingRemindersList({
   locale: string;
 }) {
   return (
-    <ul className="divide-y divide-border/50" role="list">
+    <ul className="divide-y divide-border" role="list">
       {reminders.map(reminder => (
         <li key={reminder.id} className="min-w-0 py-4 first:pt-0 last:pb-0">
           <div className="min-w-0 flex-1">

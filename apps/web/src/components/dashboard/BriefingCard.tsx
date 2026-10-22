@@ -233,7 +233,7 @@ export function BriefingCard<T extends SectionData>({
 
       <div className="relative flex h-[420px] flex-col gap-4 p-5 sm:h-[470px] sm:p-6">
         {/* Header stays outside the scroll area; long labels wrap instead of clipping. */}
-        <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border/60 pb-4">
+        <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border pb-4">
           <div className="flex min-w-0 flex-1 basis-28 items-center gap-3">
             <div
               className={cn(TILE_ICON_BADGE, DOMAIN_CHIP_TONE[tone], 'border ring-0')}
@@ -259,7 +259,7 @@ export function BriefingCard<T extends SectionData>({
               aria-disabled={isRefreshing}
               aria-label={t('dashboard.briefing.refresh_section', { section: titleLabel })}
               className={cn(
-                'flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-card transition-colors duration-150 active:scale-[0.98]',
+                'flex size-10 shrink-0 items-center justify-center rounded-xl border border-border bg-card transition-colors duration-150 active:scale-[0.98]',
                 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card',
                 isRefreshing && 'cursor-wait text-primary'
@@ -326,7 +326,7 @@ function CardBody<T extends SectionData>({
         <div
           className={cn(
             'shrink-0',
-            isError && 'mt-3 border-t border-border/60 pt-3',
+            isError && 'mt-3 border-t border-border pt-3',
             centerContent && 'flex-1 flex flex-col items-center justify-center text-center'
           )}
         >

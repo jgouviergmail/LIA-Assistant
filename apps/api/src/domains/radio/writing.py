@@ -39,6 +39,7 @@ from src.domains.radio.prompting import (
     render_writer_prompt,
 )
 from src.domains.radio.script import Reaction, ScriptDraft
+from src.domains.radio.sms_context import sms_pack_current
 from src.domains.radio.verification import VerifiedLine
 from src.infrastructure.llm.structured_output_errors import (
     StructuredOutputError,
@@ -106,6 +107,8 @@ class ModelScriptWriter:
 
     async def write(self, request: WritingRequest) -> ScriptDraft | None:
         """Write the script, or ``None`` when no usable answer came back."""
+        if not await sms_pack_current(request.pack):
+            return None
         prompt = render_writer_prompt(
             self._template,
             request,
@@ -191,6 +194,8 @@ class ModelLineChecker:
         self, lines: Sequence[VerifiedLine], pack: FactPack
     ) -> frozenset[int] | None:
         """The places of the lines the verifier did not vouch for; ``None`` on no answer."""
+        if not await sms_pack_current(pack):
+            return None
         if not checked_positions(lines):
             return frozenset()  # nothing cites a fact: nothing to check, nothing paid
         prompt = render_verifier_prompt(

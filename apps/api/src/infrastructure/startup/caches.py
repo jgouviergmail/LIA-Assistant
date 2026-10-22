@@ -115,6 +115,42 @@ async def init_pricing_caches() -> None:
         register_cache(CACHE_NAME_IMAGE_GENERATION_PRICING, _reload_image_generation_pricing_cache)
 
 
+async def _init_model_capabilities_cache() -> None:
+    """Load the catalogue, then independently audit live slots and failover."""
+    # Initialize LLM model capabilities cache from llm_models table.
+    # Sits on the LLM hot path: get_model_profile() reads from this cache
+    # synchronously without DB I/O.
+    try:
+        from src.infrastructure.database.session import get_db_context
+        from src.infrastructure.llm.model_capabilities_cache import (
+            ModelCapabilitiesCache,
+        )
+
+        async with get_db_context() as db:
+            await ModelCapabilitiesCache.load_from_db(db)
+        logger.info("model_capabilities_cache_initialized")
+
+    except Exception as exc:
+        # Boot continues; get_model_profile() will fall back to a conservative
+        # default for any model not in the (possibly empty) cache.
+        logger.critical(
+            "model_capabilities_cache_initialization_failed",
+            error=str(exc),
+            exc_info=True,
+        )
+    else:
+        # A configuration audit must neither invalidate a loaded cache nor
+        # prevent the independent failover audit from running (ADR-244).
+        try:
+            validate_llm_defaults_against_matrix(effective=True)
+        except Exception as exc:
+            logger.error("llm_configuration_validation_failed", error=str(exc), exc_info=True)
+
+        from src.infrastructure.llm.failover import assert_failover_chain
+
+        assert_failover_chain(settings.fallback_models)
+
+
 async def init_config_caches() -> None:
     """Initialize the DB-backed config caches and register them for invalidation.
 
@@ -181,42 +217,7 @@ async def init_config_caches() -> None:
 
     register_cache(CACHE_NAME_LLM_CONFIG, _reload_llm_config_cache)
 
-    # Initialize LLM model capabilities cache from llm_models table.
-    # Sits on the LLM hot path: get_model_profile() reads from this cache
-    # synchronously without DB I/O.
-    try:
-        from src.infrastructure.database.session import get_db_context
-        from src.infrastructure.llm.model_capabilities_cache import (
-            ModelCapabilitiesCache,
-        )
-
-        async with get_db_context() as db:
-            await ModelCapabilitiesCache.load_from_db(db)
-        logger.info("model_capabilities_cache_initialized")
-
-        # Fail-fast: every LLM_DEFAULTS entry must be compatible with the
-        # matrix exposed by ModelCapabilitiesCache. Catches config drift at
-        # boot rather than at the next admin API write or runtime call.
-        validate_llm_defaults_against_matrix()
-
-        # Assert, not crash (ADR-244): this is the only moment the failover
-        # chain can be checked against the real catalogue. A chain naming
-        # models that do not exist is reported loudly; the middleware then
-        # mounts exactly the reachable subset, so what is announced and what is
-        # armed cannot differ. A broken chain never prevents a boot -- the
-        # primary model works, and refusing to start would turn a degraded
-        # fallback into a total outage.
-        from src.infrastructure.llm.failover import assert_failover_chain
-
-        assert_failover_chain(settings.fallback_models)
-    except Exception as exc:
-        # Boot continues; get_model_profile() will fall back to a conservative
-        # default for any model not in the (possibly empty) cache.
-        logger.critical(
-            "model_capabilities_cache_initialization_failed",
-            error=str(exc),
-            exc_info=True,
-        )
+    await _init_model_capabilities_cache()
 
     # Register model capabilities cache for cross-worker invalidation (ADR-063)
     from src.core.constants import CACHE_NAME_MODEL_CAPABILITIES

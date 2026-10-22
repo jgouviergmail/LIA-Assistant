@@ -54,6 +54,9 @@ def import_all_models() -> None:
     import src.domains.peers.models  # noqa: F401
     import src.domains.personalities.models  # noqa: F401
     import src.domains.plugins.models  # noqa: F401
+    import src.domains.proactive_discussions.context_store.models  # noqa: F401
+    import src.domains.proactive_discussions.finance_models  # noqa: F401
+    import src.domains.proactive_discussions.models  # noqa: F401
     import src.domains.product.models  # noqa: F401
     import src.domains.psyche.efficacy_models  # noqa: F401
     import src.domains.psyche.models  # noqa: F401
@@ -67,6 +70,7 @@ def import_all_models() -> None:
     import src.domains.shared.provenance  # noqa: F401
     import src.domains.skill_library.models  # noqa: F401
     import src.domains.skills.models  # noqa: F401
+    import src.domains.sms.identity_models  # noqa: F401
     import src.domains.sms.models  # noqa: F401
 
     # ADR-083 Phase 2 cleanup: sub_agents.models removed (table dropped).

@@ -97,13 +97,14 @@ beforeEach(() => {
 });
 
 describe('UsageStatistics — consumption period and totals', () => {
-  it('opens by default and remains a native disclosure the reader can fold', () => {
-    renderWithProviders(<UsageStatistics />);
-    const details = screen.getByRole('group');
-    expect(details).toHaveAttribute('open');
+  it('is a rubrique of its own, never folded, its heading naming the region', () => {
+    // Owner request 2026-10-21: no fold, the heading runs into a hairline.
+    const { container } = renderWithProviders(<UsageStatistics />);
+    expect(container.querySelector('details')).toBeNull();
+    expect(
+      screen.getByRole('region', { name: 'dashboard.statistics.consumption_title' })
+    ).toBeVisible();
     expect(screen.getByText('42')).toBeVisible();
-    details.removeAttribute('open');
-    expect(screen.getByText('42')).not.toBeVisible();
   });
 
   it('associates every metric with its period and lifetime values in a single table', () => {
@@ -205,7 +206,7 @@ describe('UsageStatistics — consumption period and totals', () => {
     expect(retry).toHaveAttribute('aria-disabled', 'false');
   });
 
-  it('restores focus to the consumption summary when success removes the retry control', async () => {
+  it('restores focus to the consumption heading when success removes the retry control', async () => {
     let finish!: () => void;
     refetch.mockImplementationOnce(
       () =>
@@ -223,9 +224,7 @@ describe('UsageStatistics — consumption period and totals', () => {
     });
     expect(screen.queryByRole('button', { name: 'common.retry' })).not.toBeInTheDocument();
     expect(
-      screen
-        .getByText('dashboard.statistics.consumption_title', { selector: 'h2' })
-        .closest('summary')
+      screen.getByText('dashboard.statistics.consumption_title', { selector: 'h2' })
     ).toHaveFocus();
   });
 

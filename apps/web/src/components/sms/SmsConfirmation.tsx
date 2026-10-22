@@ -1,4 +1,5 @@
 'use client';
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from '@/lib/zod';
 import { Button } from '@/components/ui/button';
@@ -91,6 +92,7 @@ function Scope({ value }: { value: Record<string, SmsJson> }) {
 export function SmsConfirmation({ actions }: { actions: ReturnType<typeof useSmsManagement> }) {
   const { t } = useTranslation();
   const proposal = actions.proposal;
+  const returnTargets = useRef<HTMLElement[]>([]);
   return (
     <AlertDialog
       open={proposal !== null}
@@ -98,7 +100,28 @@ export function SmsConfirmation({ actions }: { actions: ReturnType<typeof useSms
         if (!open) void actions.cancel();
       }}
     >
-      <AlertDialogContent>
+      <AlertDialogContent
+        onOpenAutoFocus={() => {
+          const active = document.activeElement;
+          if (!(active instanceof HTMLElement)) return;
+          const targets = [active];
+          for (let node = active.parentElement; node; node = node.parentElement) {
+            if (node instanceof HTMLDetailsElement) {
+              const summary = node.querySelector<HTMLElement>(':scope > summary');
+              if (summary) targets.push(summary);
+            }
+          }
+          returnTargets.current = targets;
+        }}
+        onCloseAutoFocus={event => {
+          if (returnTargets.current[0]?.isConnected) return;
+          const target = returnTargets.current.find(item => item.isConnected);
+          if (target) {
+            event.preventDefault();
+            target.focus();
+          }
+        }}
+      >
         <AlertDialogHeader>
           <AlertDialogTitle>{t('sms.review')}</AlertDialogTitle>
           <AlertDialogDescription>

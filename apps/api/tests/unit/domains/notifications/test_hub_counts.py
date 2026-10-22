@@ -122,7 +122,7 @@ class TestTheProbesDegradeRatherThanFail:
 
         source = Path("src/domains/notifications/hub_counts.py").read_text(encoding="utf-8")
         # One context manager per probe that reads a table.
-        assert source.count("async with get_db_context()") == 8
+        assert source.count("async with get_db_context()") == 9
         assert "asyncio.gather" in source
 
 

@@ -12,6 +12,7 @@
  * already applies to the same data.
  */
 
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -21,6 +22,27 @@ import {
   type NotificationHistoryPresentation,
 } from '@/components/settings/NotificationHistoryList';
 import { directionTone } from '@/lib/status-tone';
+
+/** A private-use character: no translation or display name carries one. */
+const NAME_SLOT = '';
+
+/**
+ * « de **Camille** » — the sentence stays the translator's, the name alone in
+ * bold (owner request 2026-10-21). The name is placed as a React CHILD, never
+ * interpolated into markup: a peer chooses their own display name, and a
+ * `<Trans>` string would parse whatever tags it carried.
+ */
+function attributionOf(sentence: string, name: string): ReactNode {
+  if (!sentence.includes(NAME_SLOT)) return sentence;
+  const [before, after = ''] = sentence.split(NAME_SLOT);
+  return (
+    <>
+      {before}
+      <strong className="font-semibold">{name}</strong>
+      {after}
+    </>
+  );
+}
 
 export interface RelayedMessage {
   id: string;
@@ -38,7 +60,7 @@ export interface RelayedMessage {
 export function RelayedMessagesList({
   messages,
   locale,
-  presentation = 'cards',
+  presentation = 'panels',
 }: {
   presentation?: NotificationHistoryPresentation;
   messages: readonly RelayedMessage[];
@@ -66,9 +88,12 @@ export function RelayedMessagesList({
               : t('notifications_hub.direction_sent'),
             tone: directionTone(message.direction),
           },
-          attribution: t(received ? 'notifications_hub.from_peer' : 'notifications_hub.to_peer', {
-            name: message.peer_display_name,
-          }),
+          attribution: attributionOf(
+            t(received ? 'notifications_hub.from_peer' : 'notifications_hub.to_peer', {
+              name: NAME_SLOT,
+            }),
+            message.peer_display_name
+          ),
           chips: [],
         };
         return (

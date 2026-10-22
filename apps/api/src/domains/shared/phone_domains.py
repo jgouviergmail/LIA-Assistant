@@ -62,6 +62,7 @@ PHONE_DOMAINS: Final[tuple[str, ...]] = (
     "place",
     "reminder",
     "route",
+    "sms",
     "task",
     "telephony",
     "ticket",

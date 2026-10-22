@@ -286,8 +286,8 @@ tests:
               component: api
               tier: core
             exp_annotations:
-              summary: "Global rate limit degraded — requests admitted unchecked"
-              description: "1 req/s are crossing the API with no rate limit applied because the limiter cannot reach Redis (threshold: 0.01 req/s over 5 minutes — fail-open is deliberate, but the API is running without a global ceiling until Redis recovers)."
+              summary: "HTTP abuse protection degraded — Redis checks failing open"
+              description: "1 guard operations/s are failing open because the API cannot use Redis for its global rate limit or temporary HTTP scan bans (threshold: 0.01 operations/s over 5 minutes). The counter counts failed operations, not unique requests; inspect the HTTP dashboard to identify the affected guard."
               runbook: "docs/runbooks/alerts/GlobalRateLimitDegraded.md"
 
   # ===== …but a trickle stays silent — this is what buys the 0.01 threshold =====
@@ -302,6 +302,81 @@ tests:
         values: '0 0 0 0 0 1 1 1 1 1 2 2 2 2 2 3'
     alert_rule_test:
       - eval_time: 12m
+        alertname: GlobalRateLimitDegraded
+        exp_alerts: []
+
+  # ===== HTTP scan guard: check/record outages also fire without a global-limit series =====
+  # Combined operations are added; isolated timeouts and failures shorter than for: 5m stay quiet.
+  - interval: 1m
+    input_series:
+      - series: http_scan_degraded_total{operation="check"}
+        values: 0+60x15
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: GlobalRateLimitDegraded
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: api
+              tier: core
+            exp_annotations:
+              summary: HTTP abuse protection degraded — Redis checks failing open
+              description: '1 guard operations/s are failing open because the API cannot use Redis for its global rate limit
+                or temporary HTTP scan bans (threshold: 0.01 operations/s over 5 minutes). The counter counts failed operations,
+                not unique requests; inspect the HTTP dashboard to identify the affected guard.'
+              runbook: docs/runbooks/alerts/GlobalRateLimitDegraded.md
+  - interval: 1m
+    input_series:
+      - series: http_scan_degraded_total{operation="record"}
+        values: 0+60x15
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: GlobalRateLimitDegraded
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: api
+              tier: core
+            exp_annotations:
+              summary: HTTP abuse protection degraded — Redis checks failing open
+              description: '1 guard operations/s are failing open because the API cannot use Redis for its global rate limit
+                or temporary HTTP scan bans (threshold: 0.01 operations/s over 5 minutes). The counter counts failed operations,
+                not unique requests; inspect the HTTP dashboard to identify the affected guard.'
+              runbook: docs/runbooks/alerts/GlobalRateLimitDegraded.md
+  - interval: 1m
+    input_series:
+      - series: http_rate_limit_degraded_total
+        values: 0+30x15
+      - series: http_scan_degraded_total{operation="check"}
+        values: 0+30x15
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: GlobalRateLimitDegraded
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: api
+              tier: core
+            exp_annotations:
+              summary: HTTP abuse protection degraded — Redis checks failing open
+              description: '1 guard operations/s are failing open because the API cannot use Redis for its global rate limit
+                or temporary HTTP scan bans (threshold: 0.01 operations/s over 5 minutes). The counter counts failed operations,
+                not unique requests; inspect the HTTP dashboard to identify the affected guard.'
+              runbook: docs/runbooks/alerts/GlobalRateLimitDegraded.md
+  - interval: 1m
+    input_series:
+      - series: http_scan_degraded_total{operation="check"}
+        values: 0 0 0 0 0 1 1 1 1 1 2 2 2 2 2 3
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: GlobalRateLimitDegraded
+        exp_alerts: []
+  - interval: 1m
+    input_series:
+      - series: http_scan_degraded_total{operation="check"}
+        values: 0+60x15
+    alert_rule_test:
+      - eval_time: 3m
         alertname: GlobalRateLimitDegraded
         exp_alerts: []
 

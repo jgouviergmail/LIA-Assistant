@@ -108,6 +108,7 @@ def _sent_after(conversation_id: UUID, after: datetime) -> Select[tuple[Conversa
             ConversationMessage.created_at > after,
             ConversationMessage.role == "assistant",
             kind.startswith(PROACTIVE_MESSAGE_TYPE_PREFIX, autoescape=True),
+            kind != "proactive_discussion",
             kind.not_in(sorted(RELAYED_MESSAGE_TYPES)),
             ConversationMessage.message_metadata[
                 PRIVATE_NOTIFICATION_MARKER

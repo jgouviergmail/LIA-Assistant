@@ -83,8 +83,8 @@ def _call(callee, objective="réserver", *, days_ago=0, outcome=None, summary=No
     )
 
 
-def _memory(content):
-    return SimpleNamespace(id=uuid4(), content=content)
+def _memory(content, created_at=datetime(2026, 7, 20, 10, 0, tzinfo=UTC)):
+    return SimpleNamespace(id=uuid4(), content=content, created_at=created_at)
 
 
 def _patch_sources(
@@ -577,8 +577,12 @@ class TestDetail:
             detail = await service.build_detail("Gérard")
 
         assert [loop.subject for loop in detail.open_loops] == ["prêt perceuse"]
+        # Dated by when it was recorded: the card titles each commitment with it.
+        assert detail.open_loops[0].opened_at == NOW - timedelta(days=1)
         assert [call.objective for call in detail.recent_calls] == ["anniversaire"]
         assert "randonnée" in detail.memories[0].content
+        # Dated by when it was kept: the card titles each memory with it.
+        assert detail.memories[0].created_at == datetime(2026, 7, 20, 10, 0, tzinfo=UTC)
 
     async def test_queries_every_stored_spelling_of_the_person(self) -> None:
         """SQL matches EXACT strings; the spellings come from the aggregates,

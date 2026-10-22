@@ -11,12 +11,13 @@ This reference distinguishes real local database/browser execution from simulate
 | Strict/malformed wire values, bearer scope, owner/source/token revocation, idempotence and atomic writes | [HTTP ingestion](../../apps/api/tests/integration/test_sms_ingest_http.py), [ingestion](../../apps/api/tests/integration/test_sms_ingestion.py), [authority races](../../apps/api/tests/integration/test_sms_authority_races.py) |
 | Exact pagination, owner isolation, broad-query refusal, Unicode/index bounds and sender selection | [reads](../../apps/api/tests/integration/test_sms_reads.py), [read races](../../apps/api/tests/integration/test_sms_read_races.py), [sender selection](../../apps/api/tests/integration/test_sms_sender_selection.py), [index](../../apps/api/tests/integration/test_sms_search_index.py) |
 | Confirmed mutations, two browser sessions, stale/expired approvals and secret delivery once | [commands](../../apps/api/tests/integration/test_sms_ui_commands.py), [command races](../../apps/api/tests/integration/test_sms_ui_command_races.py), [authority boundaries](../../apps/api/tests/integration/test_sms_ui_authority_boundaries.py) |
+| Direct settings toggles, strict session-only input, concurrent fields, delivery cancellation and consent invalidation | [preference settings](../../apps/api/tests/integration/test_sms_preference_settings.py), [browser settings](../../apps/web/e2e/smoke/sms-settings.spec.ts) |
 | Erasure, hosted export invalidation, bounded readable archive and key stability | [erasure](../../apps/api/tests/integration/test_sms_erasure.py), [streaming export](../../apps/api/tests/integration/test_sms_export_stream.py), [isolation](../../apps/api/tests/integration/test_sms_isolation.py) |
 | Durable per-destination attempt/fence, timeout and unknown result | [delivery worker](../../apps/api/tests/integration/test_sms_delivery_worker.py), [transport destination](../../apps/api/tests/unit/domains/notifications/test_sms_transport_destination.py) |
 | Both assistant modes, proof/budget/card contracts and real compiled tool-to-model flow with fake model | [tool flows](../../apps/api/tests/integration/test_sms_tool_flows.py), [compiled model flow](../../apps/api/tests/integration/test_sms_agent_model_flow.py), [SMS unit contracts](../../apps/api/tests/unit/domains/agents/sms/) |
 | Relationship exact aggregates, alias/partial-directory cases and publication freshness | [relations](../../apps/api/tests/integration/test_sms_relations.py) |
 | Missing, invalid or loading 360 scope never adds SMS; explicit SMS selection survives | [server scope](../../apps/api/tests/unit/domains/relations/test_overview_scope.py), [form commit](../../apps/web/src/components/relations/__tests__/RelationScopeSection.test.tsx) |
-| Home counts without decryption, profile-lookup withdrawal, paid-result refusal and consultation trail | [summary](../../apps/api/tests/integration/test_sms_summary.py), [briefing SMS](../../apps/api/tests/unit/domains/briefing/test_sms_section.py) |
+| Metadata counts without decryption, bounded personal previews, source withdrawal, paid-result refusal and consultation trail | [summary](../../apps/api/tests/integration/test_sms_summary.py), [briefing SMS](../../apps/api/tests/unit/domains/briefing/test_sms_section.py), [personal projection](../../apps/api/tests/unit/domains/briefing/test_sms_card_preview.py) |
 | Proactive consent, useful offered IDs, post-delivery bookkeeping, private audit and no implicit continuity memory | [heartbeat](../../apps/api/tests/integration/test_sms_heartbeat.py), [source decisions](../../apps/api/tests/unit/domains/heartbeat/test_sms_source.py), [private dispatch](../../apps/api/tests/unit/infrastructure/proactive/test_sensitive_dispatch.py) |
 | Radio exclusion before SQL limits, flash and personal corner | [real PostgreSQL reader](../../apps/api/tests/integration/domains/radio/test_reader_notifications_db.py) |
 | Frozen migration downgrade/upgrade, columns/indexes/foreign keys | [migration round trip](../../apps/api/tests/integration/test_sms_migration.py) |
@@ -113,3 +114,192 @@ An absolute 100% or "perfect under every real condition" claim would exceed the 
 ## Local integration follow-up
 
 The local Windows commit hook exposed an additional test-runner limit: pytest derived a CJK/emoji test ID from the full long payload, exceeding the Windows environment-variable limit while setting `PYTEST_CURRENT_TEST`. A focused replay reproduced the setup/teardown errors. Short explicit parameter IDs retain every payload and assertion; the complete hook is rerun before integration. The ADR index and all backend environment templates, including minimal-production and demo profiles, are included in this handoff. Actual local environment values are preserved and their encrypted copies are checked without exposing secrets.
+
+## Reading directly in SMS settings
+
+The shared archive now mounts directly below statistics in an initially open disclosure at `/dashboard/settings?section=sms`. Existing archive links redirect there while preserving the focused message. Setup and management folds retain their previous defaults.
+
+TDD reproduced missing inline consultation and stale focused content after source invalidation. The focused reader now withdraws old text before rereading, including after deletion from the same settings pane, and subsequent refreshes preserve keyboard focus. The settings archive has its own component to keep the complexity ratchet unchanged.
+
+Hermetic Chromium journeys exercise the built application at mobile and desktop widths, keyboard collapse/reopen, private search failure/retry, legacy-link targeting, confirmed deletion of the focused message, unchanged direct preferences/token approval, axe and reflow. No backend contract, LLM call, permission, storage setting or environment variable is added by this adjustment.
+
+## Personal dashboard previews follow-up
+
+The subsequent dashboard refinement replaces the archive footer link with the latest retained messages using the shared Mails row primitive. `BRIEFING_MAX_SMS_ITEMS` is declared in backend settings and the applicable unencrypted backend environment profiles/templates; encrypted environment files are outside this adjustment. The older metadata-only dashboard decision is amended in ADR-357, while other aggregation readers and model-consent boundaries retain their prior contracts.
+
+TDD covers the default/configured limit, archive-wide descending selection beyond the recent-count window, batched identity resolution, bounded excerpts, old metadata-only response compatibility, and rejection after concurrent arrival or erasure. Projection canaries prove that personal preview text never enters the generic model prompt. Final source-proof checks protect publication after slower sibling fetches and after text generation during a global refresh. Real authenticated [HTTP tests](../../apps/api/tests/unit/domains/briefing/test_sms_http_privacy.py) verify cache prohibition on cards and both refresh routes. Browser-hook regressions cover immediate preview withdrawal, failed refresh and an older first-load response.
+
+The built Chromium journeys exercise the latest-message rows at mobile and desktop widths, account timezone differing from the browser, literal hostile text, keyboard navigation into the focused message, axe and reflow. Real PostgreSQL integration tests exercise the card reader, its internal non-serialized proof and concurrent source changes. These display reads add no model call, token budget, persisted memory or implicit assistant permission.
+
+## Radio, phone and scoped-erasure follow-up
+
+SMS is now registered as an explicit Radio personal source and owner phone/direct-Live
+read domain. The spoken adapter keeps catalogue/capability identity while validating
+flat filters through the existing request models. Radio uses sensitive day facts,
+receiving-slot projection budgets and private source proofs. No new ingestion model,
+memory writer, mutation capability, dependency or environment setting is introduced.
+
+The archive defaults to sender threads and exposes the existing reviewed command for
+one message, a whole sender or an account-civil-day interval. Read-only relation and
+notification surfaces remain read-only. SMS is placed directly above provider emails
+in relations. The requested capture-time sentence is removed from visual output;
+timestamp provenance remains available to the data/model contracts.
+
+The INLINE cold reviews found and corrected a source invalidation race in sender
+results, a confirmation dialog closing before commit, and a late initial message
+read stealing keyboard focus. Radio facts now put excerpt/read-status limitations
+before body text so the existing character clamp cannot remove them. The spoken
+result no longer suggests a continuation tool unavailable to the phone host.
+
+| Verification | Observed result for this follow-up |
+|---|---|
+| Whole frontend coverage selection | 13389 tests across 1098 suites passed; all global and scoped floors passed |
+| Whole backend strict typing | MyPy passed over 3496 source files; changed-source Ruff and Black also passed |
+| Built Chromium SMS journeys | 22 passed, covering mobile/desktop deletion scopes, cancellation/confirmation, focus recovery, sender default, relation ordering, source settings, title geometry, accessibility and reflow |
+| Real PostgreSQL SMS integration | 30 passed: exact deletion retained sets, direct source consent/withdrawal, export, source summaries, command confirmation and races |
+| Application and E2E TypeScript | Clean nonincremental checks passed |
+| Shrink-only quality gates | Backend complexity tightened by one hotspot; runtime cycle, hygiene, typing-debt, locale and lockfile/CI-parity checks passed |
+
+The new [channel integration](../../apps/api/tests/integration/test_sms_channel_reads.py)
+uses committed source rows and verifies consent off/on, withdrawal and erasure for
+both direct readers. The [Radio tests](../../apps/api/tests/unit/domains/radio/test_sms_source.py)
+exercise actual listener-day source exclusions, hostile prompt framing, missing/stale
+proof and erasure during writing before speech. The final ten source tests also
+withdraw access during checking, speech and mixing: no new audio is published,
+spent speech usage is retained, and an older unrelated output remains untouched.
+An initial simulation fixture was correctly rejected for using a news anchor on
+sensitive personal material; the corrected fixture uses the authorized host, with
+the production privacy rule unchanged. The
+[spoken-reader tests](../../apps/api/tests/unit/domains/agents/telephony/test_sms_reads.py)
+exercise disabled domains/capabilities and malformed, foreign or withdrawn proof.
+Existing literal JSON/Markdown export tests were rerun against PostgreSQL; the export
+already included SMS and required no production change.
+
+The broad fast-unit selection also found an older SMS guard forbidding the phone
+domain entirely. Its expectation now matches the requested explicit native reader,
+while retaining the original prohibition of an extra collection-decision call.
+Its whole module and the general admin-route guard passed together (8 tests).
+Administration source-inspection and documentation guards passed in a native Linux
+copy with a private prospective Git index (24 tests); Git-isolation tests passed
+with a container-only qualification identity (2 tests). The original Windows index,
+Git configuration and concurrent staged changes were preserved. These are separate
+replays and are not presented as an uninterrupted green broad run.
+
+The fast backend selection initially collected 45263 cases. On the Windows bind
+mount, 44758 passed, 136 were skipped, and six failed before interruption of the
+last slow prompt-source guard. One failure was the obsolete phone-domain assertion
+above; three concerned source inspection with reused Windows Python cache paths,
+one used the original index without the new files, and one lacked a container Git
+author email. All six were superseded by the passing replays described above.
+The unchanged pure prompt guard then passed all 392 cases on a native source copy.
+A result census confirms every non-prompt case had completed before interruption;
+the selections overlap and their counts must not be added. The three newly added
+production-withdrawal cases ran in the separate final ten-test source selection.
+
+The 136 skips include existing tests requiring an unavailable database, Docker socket,
+PowerShell or enabled optional features. They are not treated as passes. The dedicated
+SMS PostgreSQL selection above did run its actual database flows. No physical-phone
+or paid-provider acceptance was attempted. The built frontend's source and locale
+snapshot matches all 2684 current files checked; no source mismatch was found.
+
+## SMS terminology and direct single-message deletion
+
+The UI no longer presents retained SMS as an archived state: dashboard, settings,
+search hints, help, HTML-card continuation labels, assistant descriptions and the
+documentary map titles use received or retained messages in all six languages.
+Existing technical identifiers and receipt/schema compatibility remain intact.
+
+A visible message has one red trash icon under its date. Clicking it invokes the
+existing authenticated prepare/confirm command flow without opening a dialog. The
+client accepts only that same single ID with no sender/date/all selector, at most
+one affected row and an unexpired proposal. Account switches, duplicate clicks and
+lost acknowledgements remain guarded; the action never retries automatically or
+publishes a secret. Group deletion and agent actions retain reviewed confirmation.
+Keyboard focus returns to a surviving disclosure only when the deleted control
+disappeared and the person has not focused another control.
+
+The real SQL retry test covers both stable event IDs and stable payloads without
+an ID. Erasure keeps a content-free receipt, so the same source/event/payload cannot
+recreate the message. Changing source/event identity, or changing an unkeyed payload
+including its date, can represent a new event; this is not semantic deduplication
+across devices or newly generated IDs.
+
+| Verification | Observed result for this refinement |
+|---|---|
+| Frontend TDD | Four intended RED failures before implementation; 43 targeted tests passed after implementation, including account switch, widened scope, busy controls, unknown acknowledgement, focus and localized icon names |
+| Full frontend coverage | 1098 suites / 13398 tests passed; statements 87.88%, branches 81.92%, functions 85.64%, lines 89.41%; existing global/scoped floors passed |
+| Frontend quality | Full ESLint, clean nonincremental application/E2E TypeScript and all a11y/hooks/complexity ratchets passed without a baseline increase |
+| Docker production builds | Initial SMS build and final documentary-title build passed |
+| Built Chromium journeys | 22 passed at mobile/desktop widths, including a single keyboard activation without a dialog, icon geometry below the date, focus after deletion and retained group confirmations |
+| PostgreSQL integration | 24 passed: both non-resurrection identities, erasure, export, command confirmation and race flows |
+| Backend regression | 76 SMS/tool/registry/Radio tests passed; final HTML-card labels and shared rendering corpus separately passed all 14 cases |
+| Documentation and locales | Six-language key parity, documentary translation fingerprints and documentation preview passed |
+
+The first concurrent coverage/build run had one timeout in the unrelated eye-style
+settings test (13397 passed). Its 33-case module passed in isolation with the same
+deadline. A fresh full run with bounded workers and no competing build/browser work
+passed all 13398 tests; no test timeout, threshold or assertion was relaxed. The
+initial backend harness also named a nonexistent card-test path; that run was stopped
+and the corrected selection above passed. These failures are not treated as passes.
+
+The staged index remained byte-for-byte unchanged during this refinement. A final
+source comparison found only three concurrent French administrator LLM-slot labels
+outside SMS; they were preserved. Actual phone/provider acceptance remains separate
+from the software evidence above. This refinement adds no environment variable,
+dependency, schema migration or new LLM call.
+
+These checks run the built UI with hermetic APIs and simulate model/speech boundaries.
+They do not certify physical phone calls, an actual paid Radio model or already
+delivered audio recall. Original source deletion and previously delivered copies
+retain their separate lifecycle contracts described in the technical reference.
+
+## Relations and Alerts presentation refinement (2026-10-20)
+
+Alerts now uses the shared notification hub shell, timeline rows and pagination
+for received SMS, ordered by the existing server predicate (received time then
+ID, both descending). Pages remain lazy and use opaque cursors in a private POST
+body. Paging retains the current page and its keyboard controls during the read;
+source invalidation clears it immediately. Closing the section clears its snapshot
+before the next opening. Settings keeps its sender-first default independently.
+
+Relations presents SMS, calls, relayed messages, emails and appointments in nested
+panels. The requested sections no longer use a left accent stripe. SMS and calls
+are native links whose content is the selection target; the explicit SMS-open text
+is removed. The destination opens the exact owned SMS or call in settings. Older
+calls use an authenticated owner-scoped read and the existing public call projection;
+recent calls reuse their loaded row. The selected call preserves its visible civil
+day, disclosure and actions. A delayed read cannot steal focus after the person has
+moved elsewhere. Memories and messages carry theme-coloured decorative icons.
+Email selection, direction labels, expired-message placeholders and appointment
+roles retain their previous contracts. The simplified section titles ship in all
+six languages.
+
+The first complete frontend run identified an authentication coupling while SMS
+was disabled. The capability boundary now excludes the account-bound subtree,
+and all existing notification-hub tests pass without adding a test-only provider.
+The first complexity gate also rejected two new hotspots; extracting the read
+projection and history toolbar corrected them rather than raising a baseline.
+No additional model call, environment variable, memory write, schema migration or
+data-export shape is introduced by this refinement.
+
+| Verification | Observed result |
+|---|---|
+| Full frontend coverage | 1099 suites / 13407 tests passed; 87.89% statements, 81.94% branches, 85.65% functions, 89.43% lines; all existing floors passed |
+| Frontend quality | Full ESLint, cold application and E2E TypeScript, a11y/hooks/complexity ratchets passed; no baseline increase |
+| Backend | 14 route unit tests and 16 real PostgreSQL repository tests passed, including foreign/missing IDs and history outside the recent page; both touched sources passed MyPy and Ruff |
+| Built UI | Docker production build passed; 40 Chromium scenarios qualified across desktop, mobile, the reflow floor, six locales, keyboard navigation, literal content and axe checks |
+| Visual review | Built mobile Relations subpanels and the paginated SMS Alerts timeline inspected from captured screenshots |
+| Docker dev runtime | The running HTTPS API's OpenAPI document exposes `/api/v1/telephony/calls/{call_id}` after its automatic source reload; no service restart was needed |
+| Source integrity | Eight changed frontend implementation files and all eighteen relevant locale checks matched the built snapshot; staged index unchanged |
+
+The first browser attempt passed 38 scenarios and failed the two new older-call
+journeys because their mock used the reserved-name lookup route for an ordinary
+person. The fixture now uses the application's `relationReadEndpoint` generator;
+both journeys then passed against the same build, including exact ID navigation,
+opened details, keyboard focus and accessibility. No product fallback, assertion
+or timeout was relaxed. The complete quality script also passed after correcting
+its Windows line ending; its initial wrapper failure remains in the evidence log.
+
+Concurrent proactive-discussion files and locale changes were preserved. The
+qualified native snapshot freezes the implementation above; these checks do not
+claim qualification of unrelated edits made later in the shared workspace.

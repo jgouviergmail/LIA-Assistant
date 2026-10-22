@@ -9,6 +9,7 @@ vi.mock('@/lib/api-client', async importOriginal => ({
   default: { post, get },
 }));
 import { SmsArchive } from '../SmsArchive';
+import { SmsErasureProvider } from '../SmsErasure';
 const message = {
   id: 'df63b582-413f-4fd4-9f63-df30d1d3a4a2',
   sender: 'Alice',
@@ -28,6 +29,30 @@ const page = {
   as_of: '2026-10-19T12:00:00Z',
   next_cursor: null,
 };
+it('refreshes names only on explicit request and coalesces double clicks without losing focus', async () => {
+  let finish: (() => void) | undefined;
+  const pending = new Promise<void>(resolve => {
+    finish = resolve;
+  });
+  render(<SmsArchive lng="en" />);
+  await screen.findByText('Alice');
+  expect(post).not.toHaveBeenCalled();
+  post.mockReturnValueOnce(pending);
+  const button = screen.getByRole('button', { name: 'sms.refresh_names' });
+  button.focus();
+  fireEvent.click(button);
+  fireEvent.click(button);
+  expect(post).toHaveBeenCalledExactlyOnceWith('/sms/identities/refresh', undefined, undefined);
+  expect(button).toHaveFocus();
+  expect(button).toHaveAttribute('aria-disabled', 'true');
+  const before = get.mock.calls.length;
+  await act(async () => {
+    finish?.();
+    await pending;
+  });
+  await waitFor(() => expect(get.mock.calls.length).toBeGreaterThan(before));
+  expect(button).toHaveFocus();
+});
 beforeEach(() => {
   vi.clearAllMocks();
   post.mockResolvedValue(page);
@@ -52,6 +77,7 @@ beforeEach(() => {
 });
 it('reads day view, submits a private search, and keeps grouping usable without issuing mutations', async () => {
   render(<SmsArchive lng="en" />);
+  fireEvent.click(screen.getByRole('button', { name: 'sms.by_day' }));
   await screen.findByText('Dinner tomorrow');
   fireEvent.change(screen.getByRole('searchbox', { name: 'sms.search' }), {
     target: { value: 'private words' },
@@ -66,9 +92,12 @@ it('reads day view, submits a private search, and keeps grouping usable without 
 });
 it('opens sender content lazily instead of loading every SMS thread at once', async () => {
   render(<SmsArchive lng="en" />);
-  await screen.findByText('Dinner tomorrow');
-  fireEvent.click(screen.getByRole('button', { name: 'sms.by_sender' }));
   await screen.findByText('Alice');
+  expect(screen.getByRole('button', { name: 'sms.by_sender' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+  expect(post).not.toHaveBeenCalled();
   const calls = post.mock.calls.length;
   expect(screen.queryByText('Dinner tomorrow')).not.toBeInTheDocument();
   const summary = screen.getByText('Alice').closest('summary');
@@ -81,10 +110,46 @@ it('opens sender content lazily instead of loading every SMS thread at once', as
   expect(post.mock.calls.length).toBe(calls + 1);
 });
 
+it('keeps the SMS archive readable when refreshing names fails and allows a retry', async () => {
+  const { toast } = await import('sonner');
+  const notify = vi.spyOn(toast, 'error').mockImplementation(() => 'sms-refresh-error');
+  render(<SmsArchive lng="en" />);
+  await screen.findByText('Alice');
+  post.mockRejectedValueOnce(new Error('offline'));
+  const button = screen.getByRole('button', { name: 'sms.refresh_names' });
+  fireEvent.click(button);
+  await waitFor(() => expect(notify).toHaveBeenCalledWith('sms.unavailable'));
+  expect(screen.getByText('Alice')).toBeInTheDocument();
+  expect(button).toHaveAttribute('aria-disabled', 'false');
+  post.mockResolvedValueOnce(undefined);
+  fireEvent.click(button);
+  await waitFor(() =>
+    expect(post.mock.calls.filter(call => call[0] === '/sms/identities/refresh')).toHaveLength(2)
+  );
+  notify.mockRestore();
+});
+
+it('proposes a sender scope from its source identifier without deleting directly', async () => {
+  const request = vi.fn();
+  render(
+    <SmsErasureProvider value={{ busy: false, request }}>
+      <SmsArchive lng="en" />
+    </SmsErasureProvider>
+  );
+  const details = (await screen.findByText('Alice')).closest('details');
+  if (!details) throw new Error('Missing sender disclosure');
+  details.open = true;
+  fireEvent(details, new Event('toggle'));
+  fireEvent.click(await screen.findByRole('button', { name: /sms.erase_sender/ }));
+  expect(request).toHaveBeenCalledExactlyOnceWith({ sender_id: message.id });
+  expect(post.mock.calls.every(call => call[0] === '/sms/search')).toBe(true);
+});
+
 it('returns to the first page after a source change without resubmitting an invalid cursor', async () => {
   const { publishApplicationResources } = await import('@/lib/application-resources');
   post.mockResolvedValue({ ...page, next_cursor: 'old-snapshot' });
   render(<SmsArchive lng="en" />);
+  fireEvent.click(screen.getByRole('button', { name: 'sms.by_day' }));
   await screen.findByText('Dinner tomorrow');
   fireEvent.click(screen.getByRole('button', { name: 'sms.load_more' }));
   await waitFor(() => expect(post.mock.lastCall?.[1].cursor).toBe('old-snapshot'));
@@ -104,5 +169,6 @@ it.each([
     new ApiError('Request failed', status, { detail: { error_code: code } })
   );
   render(<SmsArchive lng="en" />);
+  fireEvent.click(screen.getByRole('button', { name: 'sms.by_day' }));
   expect(await screen.findByRole('alert')).toHaveTextContent(label);
 });

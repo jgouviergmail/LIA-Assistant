@@ -52,6 +52,7 @@ from src.core.exceptions import (
     MaxRetriesExceededError,
     RateLimitError,
 )
+from src.core.read_budget import source_http_hooks
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import APIKeyCredentials
 from src.infrastructure.rate_limiting import RedisRateLimiter, get_rate_limiter
@@ -181,6 +182,7 @@ class BaseAPIKeyClient(ABC):
         """
         if self._http_client is None:
             self._http_client = httpx.AsyncClient(
+                event_hooks=source_http_hooks(self.user_id),
                 timeout=self._get_http_timeout(),
                 follow_redirects=self.follow_redirects,
                 limits=httpx.Limits(

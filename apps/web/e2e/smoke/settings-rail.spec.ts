@@ -114,7 +114,8 @@ test.describe('settings rail — desktop', () => {
     await expect(nav).toBeVisible({ timeout: APPEARS_COLD });
     await expect(nav.getByText('Administration', { exact: true })).toBeVisible();
 
-    await nav.getByRole('button', { name: 'Administration des utilisateurs' }).click();
+    // The rail shows the compact title; the full name stays a search keyword.
+    await nav.getByRole('button', { name: 'Admin. des utilisateurs' }).click();
     await expect(page.locator('#settings-section-admin-users')).toBeVisible({ timeout: APPEARS });
   });
 

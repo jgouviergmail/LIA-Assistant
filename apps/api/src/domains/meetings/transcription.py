@@ -49,6 +49,7 @@ PERMANENT_STT_CODES: frozenset[str] = frozenset(
     {
         "invalid_api_key",
         "provider_file_too_large",
+        "provider_audio_too_short",
         "elevenlabs_api_key_missing",
         "openai_api_key_missing",
         "fishaudio_api_key_missing",

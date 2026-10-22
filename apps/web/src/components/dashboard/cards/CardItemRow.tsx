@@ -61,7 +61,7 @@ export function CardItemRow({
   return (
     <li
       className={cn(
-        'flex gap-1 border-b border-border/50 py-2 last:border-b-0',
+        'flex gap-1 border-b border-border py-2 last:border-b-0',
         align === 'center' ? 'items-center' : 'items-start',
         className
       )}

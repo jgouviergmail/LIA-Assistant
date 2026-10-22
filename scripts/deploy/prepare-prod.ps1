@@ -494,6 +494,38 @@ fi
 echo "[2/7] Verification des permissions..."
 chmod +x apps/api/docker-entrypoint.sh 2>/dev/null || true
 
+# Grafana's non-owner UID must traverse these public bind-mounted directories.
+# A fresh staging transfer can leave them 0700; normalize before Compose starts.
+# Minimal bundles without the dashboard provider do not require Grafana files.
+GRAFANA_PROVIDER=infrastructure/observability/grafana/provisioning/dashboards/dashboards.yml
+if [ -e "$GRAFANA_PROVIDER" ] || [ -L "$GRAFANA_PROVIDER" ]; then
+    # Check every ancestor before chmod: a substituted parent must not redirect
+    # the permission change outside the public configuration tree.
+    for grafana_path in infrastructure infrastructure/observability \
+        infrastructure/observability/grafana \
+        infrastructure/observability/grafana/dashboards \
+        infrastructure/observability/grafana/provisioning \
+        infrastructure/observability/grafana/provisioning/dashboards; do
+        if [ -L "$grafana_path" ] || [ ! -d "$grafana_path" ]; then
+            echo "ERREUR: chemin public Grafana invalide: $grafana_path" >&2
+            exit 1
+        fi
+    done
+    if [ -L "$GRAFANA_PROVIDER" ] || [ ! -f "$GRAFANA_PROVIDER" ]; then
+        echo "ERREUR: provider Grafana invalide: $GRAFANA_PROVIDER" >&2
+        exit 1
+    fi
+    for grafana_public_dir in infrastructure/observability/grafana/dashboards \
+        infrastructure/observability/grafana/provisioning \
+        infrastructure/observability/grafana/provisioning/dashboards; do
+        chmod 755 "$grafana_public_dir"
+        if [ "$(stat -c '%a' "$grafana_public_dir")" != 755 ]; then
+            echo "ERREUR: permissions publiques Grafana invalides: $grafana_public_dir" >&2
+            exit 1
+        fi
+    done
+fi
+
 # Repertoire des backups PostgreSQL (ADR-109) : cree AVANT le up pour eviter
 # qu'un bind mount cree par Docker (root, 755) n'expose les dumps.
 echo "[3/7] Preparation du repertoire de backups PostgreSQL..."

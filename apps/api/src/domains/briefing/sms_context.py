@@ -1,6 +1,7 @@
 """Live SMS source for the existing briefing call, never an event-triggered model."""
 
 import asyncio
+from datetime import UTC, datetime
 from time import perf_counter
 from uuid import UUID
 
@@ -9,19 +10,66 @@ from sqlalchemy.exc import SQLAlchemyError
 from src.core.config import settings
 from src.core.exceptions import AuthorizationError, ResourceConflictError
 from src.core.llm_config_helper import get_effective_context_window_for_slot
+from src.domains.briefing.constants import ERROR_CODE_INTERNAL
 from src.domains.briefing.exceptions import ConnectorNotConfiguredError
-from src.domains.briefing.schemas import CardSection, CardStatus, SmsData
+from src.domains.briefing.schemas import CardsBundle, CardSection, CardStatus, SmsData
 from src.domains.shared.consultation_surfaces import record_surface_consultations
-from src.domains.sms.summary import SmsSignal, read_sms_signal, read_sms_summary, render_sms_signal
+from src.domains.sms.summary import (
+    SmsSignal,
+    read_sms_card,
+    read_sms_signal,
+    read_sms_summary,
+    render_sms_signal,
+    sms_card_current,
+)
 
 
-async def fetch_sms(*, user_id: UUID) -> SmsData:
+async def fetch_sms(*, user_id: UUID, include_messages: bool = False) -> SmsData:
+    """Read the SMS briefing section: the summary, or the card with its messages.
+
+    Args:
+        user_id: The account.
+        include_messages: Whether the card's messages are read too.
+
+    Returns:
+        The section's data.
+
+    Raises:
+        ConnectorNotConfiguredError: SMS are off, or the person cannot read them.
+    """
     if not settings.sms_enabled:
         raise ConnectorNotConfiguredError("sms")
     try:
-        return await read_sms_summary(user_id)
+        if include_messages:
+            return await read_sms_card(user_id)
+        return SmsData(**(await read_sms_summary(user_id)).model_dump())
     except AuthorizationError as error:
         raise ConnectorNotConfiguredError("sms") from error
+
+
+async def revalidate_sms_card(cards: CardsBundle) -> CardsBundle:
+    """Turn a cached SMS card whose messages changed since into an error section.
+
+    Args:
+        cards: The cached bundle.
+
+    Returns:
+        The bundle, its SMS section replaced when its proof no longer holds.
+    """
+    data = cards.sms.data
+    if not isinstance(data, SmsData) or not data.items or await sms_card_current(data):
+        return cards
+    now = datetime.now(UTC)
+    return cards.model_copy(
+        update={
+            "sms": CardSection(
+                status=CardStatus.ERROR,
+                generated_at=now,
+                last_attempt_at=now,
+                error_code=ERROR_CODE_INTERNAL,
+            )
+        }
+    )
 
 
 async def sms_for_prompt(

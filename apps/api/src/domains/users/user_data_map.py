@@ -291,6 +291,47 @@ TABLE_RULES: dict[str, TableRule] = {
     # by design, purged with the account and by "forget everything".
     "user_activity_days": _PURGED_FULL,
     "heartbeat_notifications": _PURGED_FULL,
+    # Proactive discussions (ADR-358, ADR-359): everything a discussion rests on
+    # leaves in the archive — the context and its evidence, the runs, the
+    # deliveries, the person's exclusions and forgetting marks. Only the support
+    # links stay out (each item's exported proofs already name them), and the
+    # builder strips the server's own fencing, claim and cache tokens.
+    "discussion_preferences": _PURGED_FULL,
+    "discussion_openings": _PURGED_FULL,
+    "discussion_context_items": _PURGED_FULL,
+    "discussion_context_exclusions": _PURGED_FULL,
+    "discussion_spend_reservations": _PURGED_FULL,
+    "discussion_budget_buckets": _PURGED_FULL,
+    "discussion_runs": TableRule(
+        TableDataClass.USER_PURGED,
+        ExportPolicy.FULL,
+        "Each time LIA weighed opening a discussion or rebuilt the context the person asked for: when, how it ended and why, counts only. The fence is redacted.",
+    ),
+    "discussion_outbox": TableRule(
+        TableDataClass.USER_PURGED,
+        ExportPolicy.FULL,
+        "Whether each published opening reached the person; the attempt token is redacted.",
+    ),
+    "discussion_context_states": TableRule(
+        TableDataClass.USER_PURGED,
+        ExportPolicy.FULL,
+        "When the context was last forgotten, a pending rebuild, what the last read of each source covered and the sources the person's own rules deny; the ready-context fingerprint is redacted.",
+    ),
+    "discussion_context_observations": TableRule(
+        TableDataClass.USER_PURGED,
+        ExportPolicy.FULL,
+        "What LIA read of the person's sources to build the context — identity, version, dates, who a fact is about, its sensitive topics and weight, never a body. A checkpoint whose evidence produced no item is in no other record.",
+    ),
+    "discussion_context_resume_markers": TableRule(
+        TableDataClass.USER_PURGED,
+        ExportPolicy.FULL,
+        "The content-free mark of each version the person had forgotten, which keeps LIA from learning it again.",
+    ),
+    "discussion_context_supports": TableRule(
+        TableDataClass.USER_CASCADE,
+        ExportPolicy.EXCLUDED,
+        "Duplicate proof links cascade from the explicitly purged context items, whose exported data already includes every proof.",
+    ),
     # Anticipated moments (ADR-281): scheduling bookkeeping, not a record.
     # A row says « at this instant there will be something to say about this
     # calendar event » and holds a title, two instants and a score — no
@@ -341,6 +382,14 @@ TABLE_RULES: dict[str, TableRule] = {
     ),
     "health_samples": _PURGED_FULL,
     "sms_messages": _PURGED_FULL,
+    **{
+        name: TableRule(
+            TableDataClass.USER_PURGED,
+            ExportPolicy.EXCLUDED,
+            "Derived SMS sender resolutions, encrypted and resettable; explicitly purged.",
+        )
+        for name in ("sms_sender_identities", "sms_identity_states")
+    },
     "sms_sender_blocks": _PURGED_FULL,
     "ingestion_sources": _PURGED_FULL,
     **{

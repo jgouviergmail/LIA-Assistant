@@ -23,6 +23,7 @@ import time
 from collections import OrderedDict
 from collections.abc import Awaitable, Callable, Container
 from copy import deepcopy
+from keyword import iskeyword
 from typing import Any
 
 import structlog
@@ -62,7 +63,11 @@ logger = structlog.get_logger(__name__)
 
 def _python_field_name(name: str, occupied: Container[str]) -> str:
     """Keep server names as aliases when they collide with Pydantic's API."""
-    if not (hasattr(BaseModel, name) or name.startswith(("_", "model_validate", "model_dump"))):
+    if (
+        name.isidentifier()
+        and not iskeyword(name)
+        and not (hasattr(BaseModel, name) or name.startswith(("_", "model_validate", "model_dump")))
+    ):
         return name
     suffix = 0
     candidate = f"mcp_arg_{suffix}"
@@ -79,6 +84,20 @@ def _python_field_name(name: str, occupied: Container[str]) -> str:
 #: worker over five hours (ADR-283 amendment 2026-10-12). The same schema gives
 #: the same class, bounded by ``MCP_ARGS_SCHEMA_CACHE_MAX``.
 _ARGS_SCHEMA_CACHE: OrderedDict[str, type[BaseModel] | None] = OrderedDict()
+
+# Only a plain object can be closed without interpreting JSON Schema. Any
+# other root keyword may admit dynamic fields (patternProperties, composition,
+# references, conditionals). Those remain the server's authority, not a regex
+# or a partial JSON Schema evaluator on the API's event loop.
+_PLAIN_OBJECT_KEYS = frozenset(
+    {"type", "properties", "required", "additionalProperties", "title", "description", "$schema"}
+)
+
+
+def _is_plain_closed_object(input_schema: dict[str, Any]) -> bool:
+    return input_schema.get("additionalProperties") is False and not (
+        input_schema.keys() - _PLAIN_OBJECT_KEYS
+    )
 
 
 def _args_schema_key(input_schema: dict[str, Any]) -> str:
@@ -142,9 +161,6 @@ def _build_args_schema_uncached(
         property at all.
     """
     properties = properties_of(input_schema)
-    if not properties:
-        return None
-
     required_fields = required_of(input_schema)
     field_definitions: dict[str, Any] = {}
     occupied = set(properties)
@@ -184,12 +200,17 @@ def _build_args_schema_uncached(
                 Field(default=default, description=description, alias=field_name),
             )
 
-    if not field_definitions:
+    if not field_definitions and not _is_plain_closed_object(input_schema):
         return None
 
     try:
         return create_model(
-            "MCPToolInput", __config__=ConfigDict(validate_by_name=True), **field_definitions
+            "MCPToolInput",
+            __config__=ConfigDict(
+                validate_by_name=True,
+                extra="forbid" if _is_plain_closed_object(input_schema) else "allow",
+            ),
+            **field_definitions,
         )
     except Exception as e:
         logger.warning(

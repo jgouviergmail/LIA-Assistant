@@ -3,9 +3,10 @@
  * the group tones that turn a flat list into a map, the everyday-words settings
  * search, settings deep links that survive a reload, full history search, the
  * minutes-template library whose categories open closed, the phone logo
- * navigation, the written debrief that opens a relationship card, and the
- * sandbox-network permissions a person revokes in place. Timer-driven
- * micro-demos; last phase = resting frame.
+ * navigation, the written debrief that opens a relationship card, a
+ * relationship's rows dated like an e-mail, the number a place shares between
+ * its list row and its pin, and the sandbox-network permissions a person
+ * revokes in place. Timer-driven micro-demos; last phase = resting frame.
  */
 
 'use client';
@@ -18,14 +19,17 @@ import {
   ChevronDown,
   Fingerprint,
   FolderTree,
+  Footprints,
   Globe,
   Hash,
   KeyRound,
   Link2,
+  MessageSquare,
   Moon,
   NotebookPen,
   Palette,
   PanelLeft,
+  PhoneCall,
   Pin,
   Plug,
   RefreshCw,
@@ -36,7 +40,9 @@ import {
   Undo2,
 } from 'lucide-react';
 
+import { Badge } from '@/components/ui/badge';
 import { SETTINGS_GROUP_TONES } from '@/lib/settings-group-tones';
+import { directionTone } from '@/lib/status-tone';
 
 import { cn } from '@/lib/utils';
 
@@ -1021,7 +1027,141 @@ function BackWhereYouWereScene({ active, labels }: SceneProps) {
   );
 }
 
+type PlacePhase = 'list' | 'pick' | 'details';
+const PLACE_STEPS: readonly TimelineStep<PlacePhase>[] = [
+  { at: 0, state: 'list' },
+  { at: 900, state: 'pick' },
+  { at: 1700, state: 'details' },
+];
+
+/** Three places: the number each carries, and where its pin sits on the map. */
+const PLACE_PINS = [
+  { n: 1, left: '24%', top: '30%' },
+  { n: 2, left: '64%', top: '52%' },
+  { n: 3, left: '36%', top: '74%' },
+] as const;
+
+/**
+ * Position's numbered places (ADR-356): one number per place, the same in the
+ * list and on its pin. Selecting row 2 lights pin 2 and opens the details the
+ * answer already gathered, with one route — no new search (ADR-355).
+ */
+function PlaceNumbersScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(PLACE_STEPS, { active });
+  const picked = phase !== 'list';
+  return (
+    <div className={cn(STAGE, 'flex-row items-center gap-2.5')}>
+      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-border bg-background">
+        <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 bg-muted-foreground/10" />
+        <div className="absolute inset-y-0 left-1/2 w-1 -translate-x-1/2 bg-muted-foreground/10" />
+        {PLACE_PINS.map(pin => (
+          <span
+            key={pin.n}
+            className={cn(
+              'absolute flex h-4 w-4 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border text-px-9 font-semibold transition-all duration-300',
+              picked && pin.n === 2
+                ? 'scale-125 border-primary bg-primary text-primary-foreground'
+                : 'border-border bg-background text-muted-foreground'
+            )}
+            style={{ left: pin.left, top: pin.top }}
+          >
+            {pin.n}
+          </span>
+        ))}
+      </div>
+      <div className="flex w-28 flex-col gap-1">
+        {PLACE_PINS.map(pin => (
+          <span
+            key={pin.n}
+            className={cn(
+              'flex items-center gap-1.5 rounded-md border border-border bg-background px-1.5 py-1 transition-shadow duration-300',
+              picked && pin.n === 2 && 'ring-2 ring-primary/60'
+            )}
+          >
+            <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-muted text-px-9 font-semibold text-foreground/80">
+              {pin.n}
+            </span>
+            <SkeletonLine w="w-14" className="h-1.5" />
+          </span>
+        ))}
+        <span
+          className={cn(
+            'flex flex-col gap-1 overflow-hidden rounded-md border border-border bg-background px-1.5 transition-all duration-500 ease-out',
+            phase === 'details' ? 'max-h-14 py-1 opacity-100' : 'max-h-0 py-0 opacity-0'
+          )}
+        >
+          <span className="text-px-9 font-medium text-foreground/80">{labels.details}</span>
+          <MiniChip className="self-start px-1.5 py-0.5 text-px-9">
+            <Footprints className="h-2.5 w-2.5" />
+            {labels.route}
+          </MiniChip>
+        </span>
+      </div>
+      <Cursor
+        className={cn(
+          'right-[14%] top-[46%] transition-opacity',
+          phase === 'pick' ? 'opacity-100' : 'opacity-0'
+        )}
+      />
+    </div>
+  );
+}
+
+type DatedPhase = 'plain' | 'dated';
+const DATED_STEPS: readonly TimelineStep<DatedPhase>[] = [
+  { at: 0, state: 'plain' },
+  { at: 1200, state: 'dated' },
+];
+
+/** A call LIA placed and an SMS the phone relayed: the row kind and its direction. */
+const DATED_ROWS = [
+  { direction: 'sent', icon: PhoneCall },
+  { direction: 'received', icon: MessageSquare },
+] as const;
+
+/**
+ * A relationship's rows titled like an e-mail (`RelationWhen`): how long ago
+ * and when, in bold, then what the row is about, with no icon in front; a call
+ * or an SMS opens on its direction, in the tone `directionTone` gives the real
+ * badge — read, never restated here.
+ */
+function DatedRowsScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(DATED_STEPS, { active });
+  const dated = phase === 'dated';
+  return (
+    <div className={cn(STAGE, 'justify-center gap-1.5')}>
+      {DATED_ROWS.map(({ direction, icon: Icon }) => (
+        <div
+          key={direction}
+          className="w-4/5 rounded-lg border border-border bg-background px-2 py-1.5"
+        >
+          <span
+            className={cn(
+              'block overflow-hidden text-px-9 text-foreground/80 transition-all duration-500',
+              dated ? 'max-h-5 opacity-100' : 'max-h-0 opacity-0'
+            )}
+          >
+            <strong>{labels.ago}</strong> · <strong>{labels.when}</strong>
+          </span>
+          <span className="mt-1 flex items-center gap-1.5">
+            {dated ? (
+              <Badge variant={directionTone(direction)} size="sm">
+                {labels[direction]}
+              </Badge>
+            ) : (
+              <Icon className="h-3 w-3 shrink-0 text-muted-foreground" />
+            )}
+            <SkeletonLine w="w-1/2" className="h-1.5" />
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
+  place_numbers: PlaceNumbersScene,
+  dated_rows: DatedRowsScene,
   settings_shell: SettingsShellScene,
   settings_tones: SettingsTonesScene,
   settings_search: SettingsSearchScene,

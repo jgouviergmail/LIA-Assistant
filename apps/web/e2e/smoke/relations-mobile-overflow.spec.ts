@@ -26,7 +26,6 @@ import { test, expect } from '../fixtures';
 import { relationsData } from '../fixtures/relations';
 import { awaitStyledPage, expectNoOverflow } from './overflow-report';
 
-
 /** Frontend-canonical locale segment (zh, never zh-CN — ADR: backend is zh-CN). */
 const LOCALES = ['fr', 'en', 'de', 'es', 'it', 'zh'] as const;
 
@@ -62,7 +61,7 @@ test.describe('relations — no horizontal overflow on mobile', () => {
       page,
       authenticate,
       mockApi,
-    }) => {
+    }, info) => {
       await authenticate();
       await mockApi(relationsData);
       await page.goto(`/${lng}/dashboard/relations`);
@@ -81,6 +80,11 @@ test.describe('relations — no horizontal overflow on mobile', () => {
       // Then the widest content the product can show: a postal address that
       // must wrap on its spaces and a URL that cannot wrap at all.
       await expectNoOverflow(page, `relations card unfolded @375 (${lng})`);
+      if (lng === 'fr')
+        await page.screenshot({
+          path: info.outputPath('relations-subpanels-mobile.png'),
+          fullPage: true,
+        });
     });
   }
 });

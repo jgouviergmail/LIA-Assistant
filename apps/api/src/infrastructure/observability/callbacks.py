@@ -28,6 +28,7 @@ from src.core.field_names import (
 )
 from src.infrastructure.cache.pricing_cache import PricingCacheData, capture_pricing_snapshot
 from src.infrastructure.llm.inference_params import capture_inference_params, requested_model
+from src.infrastructure.llm.usage_metadata import model_name_of
 from src.infrastructure.observability.error_taxonomy import classify_llm_error
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
@@ -78,6 +79,7 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
         self.llm = llm
         self.start_times: dict[UUID, float] = {}
         self.pricing_snapshots: dict[UUID, PricingCacheData] = {}
+        self._call_identities: dict[UUID, tuple[str | None, str | None]] = {}
         # Phase 2.1 (RC4 Fix): Store last usage for cache decorator
         # CRITICAL: Cleared on each on_llm_start to prevent memory leaks
         self._last_usage_metadata: dict[str, Any] | None = None
@@ -92,10 +94,24 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
         # reaches the same instance from another source.
         self._recorded_llm_run_ids: set[UUID] = set()
 
-    def _store_start_time(self, run_id: UUID) -> None:
-        """Store start time for latency calculation (DRY helper)."""
+    def _store_start_time(
+        self,
+        run_id: UUID,
+        metadata: dict[str, Any] | None,
+        invocation_params: dict[str, Any] | None,
+    ) -> None:
+        """Retain timing and identity facts for one run, never its prompts or credentials."""
         self.start_times[run_id] = time.time()
         self.pricing_snapshots[run_id] = capture_pricing_snapshot()
+        md = metadata or {}
+        self._call_identities[run_id] = (
+            requested_model(invocation_params)
+            or requested_model({"model": md.get("ls_model_name")}),
+            capture_inference_params(
+                invocation_params,
+                declared_provider=md.get(FIELD_LLM_PROVIDER) or md.get("ls_provider"),
+            ).provider,
+        )
         self._last_usage_metadata = None
 
     async def on_llm_start(
@@ -110,7 +126,7 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
         **kwargs: Any,
     ) -> None:
         """Called when LLM starts (legacy text completion models)."""
-        self._store_start_time(run_id)
+        self._store_start_time(run_id, metadata, kwargs.get("invocation_params"))
 
     async def on_chat_model_start(
         self,
@@ -124,7 +140,7 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
         **kwargs: Any,
     ) -> None:
         """Called when ChatModel starts (modern chat models like GPT-4)."""
-        self._store_start_time(run_id)
+        self._store_start_time(run_id, metadata, kwargs.get("invocation_params"))
 
     async def on_llm_end(
         self,
@@ -142,6 +158,7 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
         if run_id in self._recorded_llm_run_ids:
             return
         self._recorded_llm_run_ids.add(run_id)
+        requested, _ = self._call_identities.pop(run_id, (None, None))
 
         # Calculate latency
         finished_at = time.time()
@@ -178,6 +195,8 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
             return
 
         model_name = usage.model_name
+        if model_name == "unknown":
+            model_name = requested or model_name_of(self.llm) or "unknown"
         prompt_tokens = usage.input_tokens
         completion_tokens = usage.output_tokens
         cached_tokens = usage.cached_tokens
@@ -244,6 +263,22 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
         # in AgentService after graph execution completes
         # This approach is more reliable and follows LangChain 2025 best practices
 
+    def _failed_call_identity(self, run_id: UUID, reported_model: str | None) -> tuple[str, str]:
+        """Resolve a failure's model/provider before settlement releases its run context."""
+        requested, declared_provider = self._call_identities.get(run_id, (None, None))
+        model_name = requested or model_name_of(self.llm) or "unknown"
+        if reported_model is not None and reported_model != "unknown":
+            model_name = reported_model
+        llm_metadata = self.llm.metadata if self.llm is not None else None
+        provider = (
+            declared_provider
+            or capture_inference_params(
+                None, declared_provider=(llm_metadata or {}).get(FIELD_LLM_PROVIDER)
+            ).provider
+            or self._infer_provider(model_name)
+        )
+        return model_name, provider
+
     async def on_llm_error(
         self,
         error: BaseException,
@@ -260,6 +295,9 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
         partial_usage = (
             TokenExtractor.extract(partial, self.llm) if isinstance(partial, LLMResult) else None
         )
+        model_name, provider = self._failed_call_identity(
+            run_id, partial_usage.model_name if partial_usage is not None else None
+        )
         if isinstance(partial, LLMResult) and partial_usage is not None:
             await self.on_llm_end(
                 partial,
@@ -274,6 +312,7 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
         # Clean up start time
         self.start_times.pop(run_id, None)
         self.pricing_snapshots.pop(run_id, None)
+        self._call_identities.pop(run_id, None)
 
         # **Phase 2.1 - Token Tracking Alignment Fix (CRITICAL)**
         # Extract node_name from kwargs metadata (set by enrich_config_with_node_metadata)
@@ -281,19 +320,9 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
         metadata = kwargs.get(FIELD_METADATA, {})
         node_name = metadata.get("langgraph_node", self.node_name)
 
-        # Extract model name from LLM instance if available
-        model_name = "unknown"
-        if self.llm:
-            with suppress(Exception):
-                model_name = getattr(self.llm, "model_name", "unknown")
-
         # Track API call error
-        if partial_usage is not None:
-            model_name = partial_usage.model_name
-        else:
+        if partial_usage is None:
             llm_api_calls_total.labels(model=model_name, node_name=node_name, status="error").inc()
-
-        provider = self._infer_provider(model_name)
         error_type = self._classify_llm_error(error)
         self._record_error_categories(error, model_name, provider, error_type)
 

@@ -44,6 +44,7 @@ class SpendRoad(str, Enum):
 #: Keys are posix paths relative to ``src``. Adding a spend site without adding
 #: it here fails the build; leaving one here after deleting the call fails too.
 LLM_SPEND_ROADS: dict[str, SpendRoad] = {
+    "infrastructure/proactive/discussion_llm.py": SpendRoad.CALLER,
     "infrastructure/llm/jev_runtime.py": SpendRoad.ACCOUNTED,
     # --- Inside the agent turn: the ambient TrackingContext records these ----
     "domains/agents/graphs/base_agent_builder.py": SpendRoad.TURN,
@@ -173,6 +174,7 @@ INSTANCE_GATE_EXEMPT: dict[str, str] = {
 #: Named rather than implied, so the road graph terminates on a real road: a
 #: caller nobody names is indistinguishable from a spend nobody records.
 CALLER_ROAD_ACCOUNTANTS: dict[str, str] = {
+    "infrastructure/proactive/discussion_llm.py": "infrastructure/proactive/tracking.py",
     "domains/heartbeat/prompts.py": "domains/heartbeat/billing.py",
     "domains/psyche/service.py": "domains/psyche/billing.py",
     "infrastructure/scheduler/reminder_notification.py": (

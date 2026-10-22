@@ -48,7 +48,7 @@ When a limit is reached:
 - Contact your administrator to adjust your quotas
 
 ## Can administrators manually block a user?
-Yes. Administrators can **block or unblock** any user instantly via **Settings › Administration › Users & Access › Limits Administration**. A reason can be provided and will be shown to the user. The admin table supports **sorting by Email and Blocked status** for quick management.
+Yes. Administrators can **block or unblock** any user instantly via **Settings › Administration › Users & Access › Limits admin**. A reason can be provided and will be shown to the user. The admin table supports **sorting by Email and Blocked status** for quick management.
 
 ## What types of limits can be set?
 **3 dimensions × 2 modes = 6 possible limits:**
@@ -104,7 +104,7 @@ Yes, when your administrator sets one. Personal limits bound what each account c
 
 **⏳ When it is reached:** first come, first served — paid work stops for everyone until the next day begins, at midnight UTC, and the message says the daily budget is reached, not that you exceeded your own limit. Work running in the background is skipped rather than failed. If the day's spend cannot be read, LIA refuses rather than risk the whole budget — the opposite of personal limits, which let a request through in doubt.
 
-**🛠️ For administrators:** **Settings › Administration › Users & Access › Limits Administration** holds the **Daily spend ceiling (instance)**, with the enforced ceiling, today's spend and runs. When the deployment sets a lower bound, the smaller one applies.
+**🛠️ For administrators:** **Settings › Administration › Users & Access › Limits admin** holds the **Daily spend ceiling (instance)**, with the enforced ceiling, today's spend and runs. When the deployment sets a lower bound, the smaller one applies.
 
 Services paid with your own key stay outside it.
 

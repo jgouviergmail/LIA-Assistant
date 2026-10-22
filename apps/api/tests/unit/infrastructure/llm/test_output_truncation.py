@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from src.infrastructure.llm.output_truncation import is_output_truncated
 from src.infrastructure.llm.structured_output import (
     StructuredOutputError,
+    StructuredOutputRefusedError,
     StructuredOutputTruncatedError,
     _get_json_mode_fallback,
     _get_native_structured_output,
@@ -247,6 +248,54 @@ class TestTheRefusalHappensBeforeAnyRescue:
             )
             is None
         )
+
+
+class TestARefusedAutoToolRequestKeepsItsFallback:
+    """OpenAI's buffered request is a different request (no stream, no reasoning
+    summary): a 4xx of the streamed auto-tool call does not condemn it. Only a
+    Claude that refuses the forced tool has no other door, so only there is the
+    refusal final."""
+
+    class _Refused(Exception):
+        status_code = 400
+
+    @classmethod
+    def _llm(cls) -> Any:
+        refused = cls._Refused()
+
+        class _Bound:
+            async def ainvoke(self, payload: Any, **_: Any) -> AIMessage:
+                raise refused
+
+        class _LLM:
+            def bind_tools(self, tools: Any, tool_choice: str) -> _Bound:
+                return _Bound()
+
+        return _LLM()
+
+    async def test_a_refusal_with_another_door_hands_over_to_it(self) -> None:
+        assert (
+            await _structured_via_auto_tool(
+                llm=self._llm(),
+                messages=[],
+                schema=_Report,
+                reasoning_emit=None,
+                provider="openai",
+            )
+            is None
+        )
+
+    async def test_a_refusal_on_the_last_door_is_final(self) -> None:
+        with pytest.raises(StructuredOutputRefusedError) as caught:
+            await _structured_via_auto_tool(
+                llm=self._llm(),
+                messages=[],
+                schema=_Report,
+                reasoning_emit=None,
+                provider="anthropic",
+                last_door=True,
+            )
+        assert caught.value.status_code == 400
 
 
 class TestTheJsonModeFallbackRefusesItToo:

@@ -73,7 +73,7 @@ export function Page2Connectors({ lng, onAction, isLoading }: Page2ConnectorsPro
       {/* External Connector Options */}
       <div className="space-y-3">
         {externalConnectors.map(option => (
-          <Card key={option.nameKey} className="border-border/50 bg-card/50">
+          <Card key={option.nameKey} className="border-border bg-card/50">
             <CardContent className="p-4 flex items-center gap-3">
               <div className={`p-2 rounded-lg ${option.bgColor}`}>
                 <option.icon className={`w-5 h-5 ${option.color}`} />

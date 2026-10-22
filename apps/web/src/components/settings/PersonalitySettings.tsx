@@ -56,7 +56,7 @@ function StyleChoice({
       onFocus={() => setActive(true)}
       onBlur={() => setActive(false)}
       className={cn(
-        'flex min-h-20 min-w-0 items-start gap-3 rounded-xl border border-border/60 p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background aria-disabled:cursor-wait motion-reduce:transition-none sm:p-4',
+        'flex min-h-20 min-w-0 items-start gap-3 rounded-xl border border-border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background aria-disabled:cursor-wait motion-reduce:transition-none sm:p-4',
         selected ? 'bg-primary/10' : 'bg-background hover:bg-primary/5'
       )}
     >

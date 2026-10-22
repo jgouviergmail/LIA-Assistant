@@ -1,4 +1,4 @@
-"""Grouped dashboard previews reuse the five real board reads and their predicates."""
+"""Grouped dashboard previews reuse the real board reads and their predicates."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from src.domains.workboard.repository import WorkboardRepository
 from src.domains.workboard.summary_queries import read_attention
 
 pytestmark = pytest.mark.unit
-GROUPS = ("needs_me", "held_by_lia", "held_by_peers", "overdue", "open_total")
+GROUPS = ("needs_me", "held_by_me", "held_by_lia", "held_by_peers", "overdue", "open_total")
 
 
 @pytest.mark.parametrize("limit", [1, 4])
@@ -108,15 +108,19 @@ async def test_each_preview_is_the_first_two_of_its_real_set_without_extra_reads
 
     assert (
         figures.needs_me,
+        figures.held_by_me,
         figures.held_by_lia,
         figures.held_by_peers,
         figures.overdue,
         figures.open_total,
-    ) == (4, 3, 3, 2, 8)
+    ) == (4, 3, 3, 3, 2, 8)
     assert {
         key: [ticket.title for ticket in values] for key, values in figures.previews.items()
     } == {
         "needs_me": ["Late LIA", "Late peer"],
+        # Mine: my own question, my undated ticket — never a late one LIA or
+        # a peer holds, which « needs me » shows.
+        "held_by_me": ["My question", "Undated mine"],
         "held_by_lia": ["Late LIA", "Peer LIA first tie"],
         "held_by_peers": ["Late peer", "Peer LIA first tie"],
         "overdue": ["Late LIA", "Late peer"],
@@ -132,11 +136,11 @@ async def test_each_preview_is_the_first_two_of_its_real_set_without_extra_reads
     assert sum("UNION ALL" in sql for sql in statements) == 1
 
 
-async def test_empty_board_has_five_known_empty_previews() -> None:
+async def test_empty_board_has_known_empty_previews() -> None:
     db = AsyncMock()
     result = MagicMock()
     result.all.return_value = []
-    result.one.return_value = (0, 0)
+    result.one.return_value = (0, 0, 0)
     result.scalar.return_value = 0
     db.execute.return_value = result
     figures = await read_attention(WorkboardRepository(db), uuid4(), datetime.now(UTC), limit=1)

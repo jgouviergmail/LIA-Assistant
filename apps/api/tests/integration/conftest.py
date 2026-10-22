@@ -7,6 +7,7 @@ unit-test runs (pre-commit) with per-test Redis round trips.
 
 import socket
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
 from uuid import UUID
 
@@ -18,6 +19,21 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from src.domains.users.models import User
 from tests import conftest as root_conftest
 from tests.helpers.committed_users import committed_user_scope
+
+
+@pytest_asyncio.fixture
+async def sms_identity_session(db_session, monkeypatch):
+    """Opt-in for SMS tests whose owner exists only in an outer rollback transaction.
+
+    Independent-connection and concurrency tests deliberately do not use this
+    fixture: they commit their owned accounts and exercise the production door.
+    """
+
+    @asynccontextmanager
+    async def session():
+        yield db_session
+
+    monkeypatch.setattr("src.domains.sms.identity_store.get_db_context", session)
 
 
 @pytest_asyncio.fixture

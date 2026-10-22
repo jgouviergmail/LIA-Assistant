@@ -169,7 +169,7 @@ function MeetingRows({
                 heading={t(`meetings.list.period.${period.key}`)}
                 className="space-y-0 [&>div:first-child]:px-4 [&>div:first-child]:pt-4"
               >
-                <ul className="divide-y divide-border/60">
+                <ul className="divide-y divide-border">
                   {period.entries.map(item => (
                     <MeetingTimelineEntry
                       key={item.meeting.id}

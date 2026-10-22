@@ -28,6 +28,7 @@ from src.domains.agents.context.runtime_context import (
 from src.domains.agents.services.memory_extractor import extract_memories_background
 from src.domains.agents.services.open_loop_extractor import extract_open_loops_background
 from src.domains.interests.services import extract_interests_background
+from src.domains.proactive_discussions.reply_receipts import acknowledge_extracted_reply
 from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.llm.message_view import as_model_messages
 from src.infrastructure.observability.metrics_extractions import (
@@ -211,6 +212,11 @@ def _schedule_post_response_extractions(
             )
         elif user_msg_is_trivial:
             _record_extraction(KIND_MEMORY, OUTCOME_TRIVIAL)
+            safe_fire_and_forget(
+                acknowledge_extracted_reply(runtime_user_id_str(None), run_id),
+                name="discussion_trivial_reply_receipt",
+                run_id=run_id,
+            )
             logger.info(
                 "memory_extraction_skipped_trivial",
                 run_id=run_id,

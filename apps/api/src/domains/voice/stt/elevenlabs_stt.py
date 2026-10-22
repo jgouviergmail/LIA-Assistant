@@ -305,6 +305,12 @@ class ElevenLabsSttService:
                 message="ElevenLabs rejected the configured API key",
                 details=refusal.details(),
             )
+        if refusal.vendor_code == "audio_too_short":
+            raise STTProviderError(
+                code="provider_audio_too_short",
+                message="ElevenLabs requires a longer audio recording",
+                details=refusal.details(),
+            )
         raise STTProviderError(
             code="provider_http_error",
             message=f"ElevenLabs returned HTTP {refusal.status}",

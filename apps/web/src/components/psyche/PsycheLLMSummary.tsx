@@ -60,8 +60,8 @@ function OwnedSummary({
       className="min-w-0 space-y-3"
     >
       {!hideHeading && (
-        <h4 className="flex items-center gap-2 text-base font-semibold">
-          <Sparkles className="size-5 shrink-0 text-primary" aria-hidden="true" />
+        <h4 className="flex items-center gap-2 text-sm font-medium">
+          <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
           {t('psyche.presentation.point')}
         </h4>
       )}

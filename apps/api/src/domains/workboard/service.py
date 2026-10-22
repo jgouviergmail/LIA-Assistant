@@ -44,7 +44,6 @@ from src.domains.workboard.answers import Answer, classify_answer
 from src.domains.workboard.assignment_notifications import (
     AssignmentNotice,
     collect_assignment_notices,
-    dispatch_assignment_notices,
 )
 from src.domains.workboard.board_queries import BoardFilters
 from src.domains.workboard.constants import (
@@ -96,7 +95,11 @@ class WorkboardService:
     ) -> None:
         self.db = db
         self.repo = WorkboardRepository(db)
-        self.assignment_notices = assignment_notices
+        # Collected, never sent from here: the caller sends them once its
+        # transaction has committed (`dispatch_committed_assignment_notices`).
+        self.assignment_notices: list[AssignmentNotice] = (
+            [] if assignment_notices is None else assignment_notices
+        )
         self.mutation_events = mutation_events
 
     # ---------------------------------------------------------------- helpers
@@ -532,6 +535,7 @@ class WorkboardService:
             counts_by_status=figures.counts_by_status,
             overdue=figures.overdue,
             held_by_lia=figures.held_by_lia,
+            held_by_me=figures.held_by_me,
             needs_me=figures.needs_me,
             owned=figures.owned,
             max_tickets=settings.workboard_max_tickets_per_user,
@@ -834,22 +838,23 @@ class WorkboardService:
         importing the dispatcher: ``agents`` imports this package, and the
         dispatcher imports ``agents``.
 
-        Native callers collect immutable notices and dispatch them after
-        acknowledged commit on their own session. The default GUI path keeps
-        its existing direct dispatch. A reported delivery failure does not
-        change the assignment; SQL failures still belong to the caller's
-        transaction.
+        COLLECTED here, for every caller: the screen and the chat alike send
+        them after their commit (`dispatch_committed_assignment_notices`).
+        Sending from here held the mutation fence — the accounts' ``users``
+        rows FOR UPDATE — while the notice claimed its act on a connection of
+        its own, which needs a share lock on the recipient's row: the request
+        waited for a claim that waited for the request (production,
+        2026-10-21). A reported delivery failure does not change the
+        assignment.
 
         Args:
             ticket: The reassigned row.
             actor: Who reassigned it.
             event_id: The ASSIGNED event — the run the register row is filed under.
         """
-        notices = await collect_assignment_notices(self.db, ticket, actor.id, event_id)
-        if self.assignment_notices is not None:
-            self.assignment_notices.extend(notices)
-        else:
-            await dispatch_assignment_notices(self.db, notices)
+        self.assignment_notices.extend(
+            await collect_assignment_notices(self.db, ticket, actor.id, event_id)
+        )
 
     async def _transition(
         self,

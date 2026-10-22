@@ -38,7 +38,7 @@ class TestLLMDefaults:
 
     def test_default_count(self) -> None:
         """A newly exposed configuration slot must be an intentional addition."""
-        assert len(LLM_DEFAULTS) == 90  # Includes the SMS agent and native decisions.
+        assert len(LLM_DEFAULTS) == 93  # Includes the three independent discussion stages.
 
     @pytest.mark.parametrize(
         "llm_type,expected_provider,expected_model",

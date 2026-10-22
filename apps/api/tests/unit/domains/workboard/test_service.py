@@ -25,6 +25,7 @@ import pytest
 from src.core.config import settings
 from src.core.exceptions import BaseAPIException, ResourceNotFoundError
 from src.domains.users.models import User
+from src.domains.workboard.assignment_notifications import dispatch_assignment_notices
 from src.domains.workboard.constants import (
     ActorKind,
     AssigneeKind,
@@ -448,6 +449,11 @@ class TestHandingATicketOver:
             patch("src.domains.shared.proactive_sink.send_proactive_notification", sent),
         ):
             await service.update(_user(OWNER), ticket.id, TicketUpdate(assignee_user_id=PEER))
+            # Nothing leaves under the mutation fence (production deadlock,
+            # 2026-10-21): the notice is collected for the caller's commit.
+            sent.assert_not_awaited()
+            assert [notice.recipient_id for notice in service.assignment_notices] == [PEER]
+            await dispatch_assignment_notices(service.db, service.assignment_notices)
 
         sent.assert_awaited_once()
         call = sent.await_args.kwargs
@@ -471,6 +477,8 @@ class TestHandingATicketOver:
         with patch("src.domains.shared.proactive_sink.send_proactive_notification", sent):
             await service._announce_assignment(ticket, _user(OWNER), event_id=uuid.uuid4())
             await service._announce_assignment(ticket, _user(OWNER), event_id=uuid.uuid4())
+            sent.assert_not_awaited()
+            await dispatch_assignment_notices(service.db, service.assignment_notices)
 
         runs = [c.kwargs["run_id"] for c in sent.await_args_list]
         assert len(runs) == 2
@@ -491,6 +499,7 @@ class TestHandingATicketOver:
             await service.update(_user(OWNER), ticket.id, TicketUpdate(assignee="me"))
 
         sent.assert_not_awaited()
+        assert service.assignment_notices == []
 
     async def test_handing_it_to_lia_tells_nobody(self) -> None:
         from unittest.mock import patch
@@ -504,6 +513,7 @@ class TestHandingATicketOver:
             await service.update(_user(OWNER), ticket.id, TicketUpdate(assignee="lia"))
 
         sent.assert_not_awaited()
+        assert service.assignment_notices == []
 
     async def test_a_notification_that_cannot_leave_never_undoes_the_assignment(self) -> None:
         """The board already holds it, and the person asked for it."""
@@ -522,6 +532,9 @@ class TestHandingATicketOver:
             ),
         ):
             await service.update(_user(OWNER), ticket.id, TicketUpdate(assignee_user_id=PEER))
+            assert (
+                await dispatch_assignment_notices(service.db, service.assignment_notices) is False
+            )
 
         assert ticket.assignee_user_id == PEER
 

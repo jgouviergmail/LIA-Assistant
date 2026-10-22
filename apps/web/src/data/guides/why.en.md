@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 6.4
-**Date**: 2026-10-19
-**Application**: LIA v3.3.0
+**Version**: 6.5
+**Date**: 2026-10-22
+**Application**: LIA v3.4.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -61,7 +61,7 @@ Every user has their own settings space, organized in two tabs. A search field s
 - **Image generation**: enable and configure AI image creation
 - **Personal MCP servers**: connect your own MCP servers to extend LIA's capabilities
 - **Appearance**: language, timezone, theme (5 palettes, light, dark or absolute black), font (9 choices), text size (14 to 20 px, without moving a panel), response display format (HTML cards, HTML, Markdown)
-- **My dashboard**: hide or reorder the 9 briefing cards — a hidden card is not even fetched anymore
+- **My dashboard**: hide or reorder the 11 briefing cards — a hidden card is not even fetched anymore
 - **Usage preferences**: choose your exchange rhythm — frequent, and LIA keeps every tool at hand so each ReAct turn re-reads the previous one from the provider's cache; occasional, and it picks the tools each question needs, at a steady cost
 - **Debug**: access the debug panel to inspect each exchange (if enabled by administrator)
 
@@ -72,6 +72,8 @@ Every user has their own settings space, organized in two tabs. A search field s
 - **Personal journals**: configure introspection extraction after each conversation and periodic consolidation review
 - **Interests**: define your favorite topics, configure notification frequency, time slots and sources (Perplexity, Brave, Wikipedia, AI reflection)
 - **Proactive notifications**: set frequency, time window and context sources (calendar, weather, tasks, emails, interests, memories, journals)
+- **Proactive discussions**: allow LIA to start a discussion, then choose its hours, a daily maximum, the allowed sources and sensitive topics — and see, correct or rebuild the context it keeps
+- **SMS**: create the token your phone uses, give or withdraw the assistant's access, search the archive, block a sender or erase a message
 - **Scheduled actions and reminders**: say the rhythm — every three days, every other Tuesday, the 2nd Tuesday of the month, every two hours between 9 and 5, until a date or N times — for an automation as much as for a reminder, which can now come back instead of ringing once. And read your week at a glance: every routine at its hour on its days, every cell coloured by what really happened
 - **Skills**: enable/disable expert competencies in a gallery with previews, create your own personal Skills, install one from an https URL (server-validated), or pick one from the public skills.sh library after reading it
 - **Knowledge Spaces**: upload your documents (PDF, Word, Excel, PowerPoint, EPUB, HTML and 15+ formats), sync a Google Drive folder or follow a Gmail label — automatic indexing and hybrid search. The conversations you label become documents you can question weeks later, and removing the label removes the document. A document LIA cannot read — a scanned PDF with no text layer — says so under its row, with the remedy. A Drive folder is synced with its sub-folders, and past a threshold the exact number of files about to be indexed is shown before anything starts
@@ -145,6 +147,7 @@ The cards also show where a third-party MCP result came from and which method pr
 - **Contacts**: search, create, modify contacts — via Google Contacts, Outlook Contacts or Apple Contacts
 - **Tasks**: manage your task lists — via Google Tasks or Microsoft To Do
 - **Files**: access Google Drive to search and read your documents, read the content of a spreadsheet or a document, and write into it after your confirmation (adding rows, updating a range, appending a note)
+- **SMS**: an iPhone Shortcuts automation relays the SMS your phone receives into a private, encrypted archive — search, sender names drawn from your contacts, deletion and export; recognised access codes are never stored, and LIA reads your messages only once you allow it separately
 - **Smart Home**: control your Philips Hue lighting — on/off, brightness, colors, scenes, room management
 
 ### 3.3. Web intelligence and environment
@@ -154,7 +157,7 @@ Wikipedia, page browsing, places, weather and air quality ask nothing of you: yo
 - **Web search**: multi-source search (Brave Search, Perplexity, Wikipedia) for comprehensive, sourced answers
 - **Weather**: current conditions and 5-day forecasts, with change detection (rain start/end, temperature drops, wind alerts)
 - **Air quality and pollen**: the air-quality index and in-season pollen types, attached to any weather answer — with the category the provider itself publishes, and your country's index when one exists
-- **Places and businesses**: nearby location search with details, hours, reviews
+- **Places and businesses**: nearby location search with details, hours, reviews; when an answer lists several, a Position card numbers them on one map, and selecting one shows its details and one priced route from where you are
 - **Routing**: multi-modal route calculation (car, walking, cycling, transit) with automatic geolocation
 - **Position on the move**: when your live position is unavailable (a mobile app left dormant), LIA uses your last remembered position — if you enabled it — rather than your home address, and always states that position's age instead of presenting it as current
 
@@ -185,6 +188,7 @@ LIA offers a complete voice mode:
 LIA doesn't just respond — it anticipates:
 
 - **Proactive notifications**: LIA cross-references your context sources (calendar, weather, tasks, emails, interests) and notifies you when something is genuinely useful — with a built-in anti-spam system (time window, pauses between two messages) and no daily quota: every pass is evaluated, and relevance decides, not a counter
+- **Discussions it opens**: once you allow it, LIA can start a personal conversation of its own accord — take an interest in a plan, encourage you, ask an open question. You choose its hours, a daily maximum, every source it may read and the sensitive topics it may consider; four reactions answer an opening in one click, the context it built stays visible and correctable, and every run counts in your usage within daily budgets
 - **Conversational initiative**: during an exchange, LIA proactively checks related information — if weather forecasts rain on Saturday, it checks your calendar to flag potential outdoor activities
 - **Interests**: LIA keeps what you actually care about, not what you asked once — asking a question is a task, not a taste, and it takes a stated passion, a practice, real prior knowledge or genuine digging for a subject to count. Themes rotate (never the same subject twice in a row), every notification includes clickable links to its sources, and a subject you refuse does not come back: the block is compared against every new subject, including under another name
 - **Work you hand over, and get back**: a ticket has a lifecycle, a holder and a result. Give one to LIA and it takes it in its own time, does it, comments what it found and returns the result for you to accept — and when it meets something it may not do alone, it asks on the ticket, showing exactly what it is about to do, rather than deciding for you or giving up
@@ -299,6 +303,8 @@ With LIA, **your persistent account data lives in your PostgreSQL**: conversatio
 
 The protection covers what comes **in**, too. Every day LIA reads text you did not write: an email body, an invitation description authored by its organiser, a web page, a place listing. Anyone can slip an instruction meant for the assistant inside them. Every piece of data now carries its provenance, and what comes from outside arrives labelled as **material to analyse, never as an order to follow** — with manipulation attempts spotted and named, across the six languages. Your content is never rewritten for that: an email stays what its author wrote. Rewriting would give the illusion of a guarantee that the next bypass would deny; naming what we see is more honest, and more useful.
 
+And at the door: an address that probes unknown routes or keeps failing to sign in is turned away for a while by every server process at once, while an ordinary error never counts against anyone.
+
 ### 5.2. Even a Raspberry Pi is enough
 
 LIA runs in production on a **Raspberry Pi 5** — a single-board computer costing around $80. 20+ specialized agents, a full observability stack, a psychological memory system, all on a tiny ARM server. Multi-architecture Docker images (amd64/arm64) enable deployment on any hardware: Synology NAS, VPS for a few dollars a month, enterprise server, or Kubernetes cluster.
@@ -395,7 +401,7 @@ The same requirement governs what LIA retains of your instructions: every lastin
 
 ### 6.8. A surface that describes the product is held to it
 
-Transparency has a failure mode nobody notices: a screen that quietly stops telling the truth. Nothing breaks, no test goes red, and the page that existed to be current becomes the least current in the application. So the capability map — the page answering _what can my assistant do for me?_ — is no longer maintained by hand: every capability the platform can switch on or off must have its declared place on it, and a capability that ships without that decision stops the application from starting. The same conviction, one notch further: what a screen says about your data must be **exact or absent**. A tally is the number the database returns, never a length that happens to be at hand; and while an answer is still on its way, or when it failed, the card says nothing rather than guessing. "Nothing set up yet" is a claim about your account — one worth being sure of before making it. The FAQ obeys the same rule: every feature a person can use has its section there — 497 questions, in six languages —, and a translated section the display order forgot fails the tests instead of staying invisible.
+Transparency has a failure mode nobody notices: a screen that quietly stops telling the truth. Nothing breaks, no test goes red, and the page that existed to be current becomes the least current in the application. So the capability map — the page answering _what can my assistant do for me?_ — is no longer maintained by hand: every capability the platform can switch on or off must have its declared place on it, and a capability that ships without that decision stops the application from starting. The same conviction, one notch further: what a screen says about your data must be **exact or absent**. A tally is the number the database returns, never a length that happens to be at hand; and while an answer is still on its way, or when it failed, the card says nothing rather than guessing. "Nothing set up yet" is a claim about your account — one worth being sure of before making it. The FAQ obeys the same rule: every feature a person can use has its section there — 498 questions, in six languages —, and a translated section the display order forgot fails the tests instead of staying invisible.
 
 Transparency also applies to the assistant's internal rules. A constraint the system enforces must be published to whoever it affects: when habit learning detects nothing, Settings display the threshold actually required — stricter on weekends, where observed days are fewer — instead of an unexplained silence. And when a setting tunes itself, like the threshold deciding that a journal note enters a reply, it does so inside strict bounds, one small step per day, with a kill switch and every adjustment counted: a learning system is only acceptable if it stays observable and stoppable.
 
@@ -538,7 +544,7 @@ Second, **what does run, runs in a sealed box**. A skill's code executes in a co
 
 The same demand applies to what LIA **asserts**. An answer must rest on data actually retrieved, never on the memory of an earlier phrasing; and when a piece of information was never obtained, calling it missing beats reconstructing something plausible. This is a design constraint rather than a matter of style: recently retrieved entities are explicitly re-injected into the response context, and inventing an entity attribute is forbidden at the prompt level. A plausible factual error costs more than an "I don't know".
 
-Visual consistency answers to the same standard. An action has the same shape everywhere or nowhere; a colour code the pointer must reveal is not a code, it is a secret; grey is reserved for what is inactive — a live state carries its colour. These rules are not tastes: each one is written down, tooled and guarded by a test, because the effort of reading belongs to the system, not to the person using it.
+Visual consistency answers to the same standard. An action has the same shape everywhere or nowhere; a colour code the pointer must reveal is not a code, it is a secret; grey is reserved for what is inactive — a live state carries its colour; one neutral line edges every panel and separates the sections inside it, never two panels. These rules are not tastes: each one is written down, tooled and guarded by a test, because the effort of reading belongs to the system, not to the person using it.
 
 ## 9. Standards, compliance and guarantees
 

@@ -857,24 +857,22 @@ export function InterestsSettings({ lng }: BaseSettingsProps) {
           topics and frequency without ever seeing what LIA sent. Folded
           CLOSED, and not fetched until opened — a list nobody looks at must
           not cost a request. */}
-      <div className="border-t pt-4">
-        <Disclosure
-          surface="nested"
-          icon={History}
-          title={t('interests.history.title')}
-          onOpenChange={setHistoryOpen}
-        >
-          <p className="mb-2 text-xs text-muted-foreground">{t('interests.history.description')}</p>
-          <InterestNotificationHistory
-            notifications={notificationHistory.notifications}
-            total={notificationHistory.total}
-            firstLoad={notificationHistory.firstLoad}
-            loading={notificationHistory.loading}
-            error={notificationHistory.error}
-            locale={intlLocale}
-          />
-        </Disclosure>
-      </div>
+      <Disclosure
+        surface="nested"
+        icon={History}
+        title={t('interests.history.title')}
+        onOpenChange={setHistoryOpen}
+      >
+        <p className="mb-2 text-xs text-muted-foreground">{t('interests.history.description')}</p>
+        <InterestNotificationHistory
+          notifications={notificationHistory.notifications}
+          total={notificationHistory.total}
+          firstLoad={notificationHistory.firstLoad}
+          loading={notificationHistory.loading}
+          error={notificationHistory.error}
+          locale={intlLocale}
+        />
+      </Disclosure>
     </div>
   );
 

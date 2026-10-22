@@ -28,7 +28,7 @@
   <a href="https://langchain-ai.github.io/langgraph/"><img src="https://img.shields.io/badge/LangGraph-1.2.14-FF6F00?style=flat-square" alt="LangGraph"></a>
   <a href="https://python.langchain.com/"><img src="https://img.shields.io/badge/LangChain-1.3.15-4B8BBE?style=flat-square" alt="LangChain"></a>
   <a href="#talk-to-it"><img src="https://img.shields.io/badge/i18n-6%20languages-E040FB?style=flat-square" alt="6 languages"></a>
-  <a href="docs/audit/README.md"><img src="https://img.shields.io/badge/360%C2%B0%20audit-8.3%2F10-2E7D5B?style=flat-square" alt="360° technical audit: 8.3/10 on the normalized 24-area grid — full public report"></a>
+  <a href="docs/audit/README.md"><img src="https://img.shields.io/badge/360%C2%B0%20audit-8.0%2F10-2E7D5B?style=flat-square" alt="360° technical audit: 8.0/10 on the normalized 24-area grid — full public report"></a>
   <a href="#license"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="License"></a>
   <a href="https://deepwiki.com/jgouviergmail/LIA-Assistant"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
 </p>
@@ -44,7 +44,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 3.3.0</strong> — <strong>Find, share and locate.</strong> Search complete meeting minutes, share disabled capability copies without credentials, see advisory email and appointment labels, and compare places on a Position card in every display format. Model settings have one authority, and the FAQ covers these workflows in six languages — 19 October 2026.
+  <strong>Version 3.4.0</strong> — <strong>LIA speaks first, your texts join in, places show the way.</strong> Personal discussions LIA may open when you allow it, a private archive of the SMS your phone relays, place details and a priced route on the Position card, and scan protection shared by every API worker — 22 October 2026.
 </p>
 
 ---
@@ -76,7 +76,7 @@ LIA is an open-source personal AI assistant in a web application you can host yo
 
 Its strength is the continuity between those activities. Memory, knowledge spaces, meeting records and **Relations**, its personal relationship view, make relevant context available for the next supported request. A preference you correct, a document you keep or a commitment you record can become useful again. Each feature contributes through its own sources, permissions and settings.
 
-LIA also helps between conversations: a daily briefing, a personal **Radio**, reminders, routines and proactive suggestions. You choose the sources and enabled features, and the time windows and channels for proactive help. Chat, rich cards, voice and Live sessions keep this assistance accessible in the same application.
+LIA also helps between conversations: a daily briefing, a personal **Radio**, reminders, routines, proactive suggestions and, when you allow it, a personal discussion it opens itself. You choose the sources and enabled features, and the time windows and channels for proactive help. Chat, rich cards, voice and Live sessions keep this assistance accessible in the same application.
 
 You can inspect sources, correct remembered information and review prepared drafts. Actions covered by approval flows ask for your decision before execution. Registers expose recorded consultations, action attempts and outcomes; usage and budgets are visible to users and operators.
 
@@ -95,14 +95,14 @@ These examples use the services and permissions enabled on your instance. Genera
 
 ### What LIA brings together
 
-| What matters in daily use                  | What LIA provides                                                                                                                                                               |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Relevant context, ready to reuse**       | Memory, knowledge, meeting records, saved answers and Relations support relevant requests from their authorized sources. You can inspect and correct what is kept.              |
-| **Help when you ask and between requests** | Conversation, daily briefing and personal Radio, alongside reminders, scheduled work, conditional routines and proactive suggestions with their own source and timing controls. |
-| **A clear next step**                      | Rich results, reviewable drafts, downloadable documents and compatible skills or MCP apps present information and controls in the appropriate form.                             |
-| **A choice of how to work**                | Pipeline builds and validates a plan before execution; ReAct explores iteratively from tool results. Chat and Live voice use documented provider and mode capabilities.         |
-| **One installation for several people**    | Separate accounts have their own connectors, memory and preferences. Accepted connections choose what to share and can exchange messages through their assistants.              |
-| **A system you can inspect and operate**   | Open code, a documented architecture, registers, model configuration, account and instance budgets, administration, Grafana dashboards and alert rules.                         |
+| What matters in daily use                  | What LIA provides                                                                                                                                                                                   |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Relevant context, ready to reuse**       | Memory, knowledge, meeting records, saved answers and Relations support relevant requests from their authorized sources. You can inspect and correct what is kept.                                  |
+| **Help when you ask and between requests** | Conversation, daily briefing and personal Radio, alongside reminders, scheduled work, conditional routines, proactive suggestions and opt-in discussions with their own source and timing controls. |
+| **A clear next step**                      | Rich results, reviewable drafts, downloadable documents and compatible skills or MCP apps present information and controls in the appropriate form.                                                 |
+| **A choice of how to work**                | Pipeline builds and validates a plan before execution; ReAct explores iteratively from tool results. Chat and Live voice use documented provider and mode capabilities.                             |
+| **One installation for several people**    | Separate accounts have their own connectors, memory and preferences. Accepted connections choose what to share and can exchange messages through their assistants.                                  |
+| **A system you can inspect and operate**   | Open code, a documented architecture, registers, model configuration, account and instance budgets, administration, Grafana dashboards and alert rules.                                             |
 
 Cloud models and compatible local models served through native Ollama can be configured for supported processing roles. Model capabilities, host resources and enabled external services determine the available features and where information is processed. Hosting and provider services may incur costs.
 
@@ -440,6 +440,7 @@ for projection and performance limits.
 - Google (OAuth 2.1 + PKCE), Apple iCloud (IMAP/SMTP, CalDAV, CardDAV) and Microsoft 365 (Graph API, personal and business tenants).
 - One active provider per category; activating one deactivates its competitor.
 - Google and Microsoft each offer one consent to connect or reconnect several services on the same verified account, and the connection alert offers it as soon as two services of one provider have expired. Each service can still be disconnected separately ([ADR-302](docs/architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md), [OAUTH](docs/technical/OAUTH.md)).
+- The SMS your phone receives, relayed by an iPhone Shortcuts automation into an encrypted personal archive — search, sender names from your contacts, erasure and export — with replay-safe receipts and recognised access codes kept out; the assistant reads them only under a separate consent ([ADR-357](docs/architecture/ADR-357-Phone-Ingestion-And-Personal-SMS-Archive.md), [SMS_INGESTION](docs/technical/SMS_INGESTION.md), [GUIDE_IPHONE_SHORTCUTS_SMS](docs/guides/GUIDE_IPHONE_SHORTCUTS_SMS.md)).
 
 #### E-mail, read whole and clean
 
@@ -456,7 +457,7 @@ for projection and performance limits.
 #### Documents, places and weather
 
 - Google Drive folders, sub-folders included, and a Gmail label as knowledge sources, synced incrementally, with the exact number of files stated before a large sync starts ([ADR-262](docs/architecture/ADR-262-Opt-In-Mail-Label-RAG-Source.md), [ADR-297](docs/architecture/ADR-297-Drive-Folder-Is-A-Tree-And-The-Count-Is-Exact.md)).
-- Google Maps places, routes and geocoding. A Position card precedes place cards in Cards, HTML and Markdown; interactive Maps starts on a priced click, with an address-list fallback ([ADR-352](docs/architecture/ADR-352-Position-Before-Places-In-Every-Display-Mode.md)).
+- Google Maps places, routes and geocoding. A Position card precedes place cards in Cards, HTML and Markdown; interactive Maps starts on a priced click, with an address-list fallback ([ADR-352](docs/architecture/ADR-352-Position-Before-Places-In-Every-Display-Mode.md)). Each place carries one number in the list and on its pin; selecting it shows the details the answer already gathered and one priced route — walking up to 2 km, otherwise driving — from your position, your last known one or home ([ADR-355](docs/architecture/ADR-355-Acquired-Place-Details-And-Accounted-Selected-Routes.md), [ADR-356](docs/architecture/ADR-356-Responsive-Position-Details-And-Shared-Place-Numbers.md)).
 - Weather with change detection.
 - A last-known-position cascade so every feature knows where you are, with the age of the fix stated ([ADR-219](docs/architecture/ADR-219-Derniere-Position-Connue-Generalisee.md)).
 
@@ -555,6 +556,11 @@ A ticket has a lifecycle, a holder and a result ([ADR-276](docs/architecture/ADR
 - LIA takes the initiative when it is worth it: calendar, mail, tasks, weather changes, interests, memories, habits and the workboard are aggregated, a cheap structured decision says whether to speak, at your local time, and a second pass writes it in your voice and language.
 - Each source has a switch that says whether it is connected, you set the window and the channels — there is no daily quota: every pass of the window reaches the decision, bounded by the cooldowns ([ADR-328](docs/architecture/ADR-328-Heartbeat-Without-A-Daily-Quota.md)) —, rate every notification, and every pass files what it read in your registers ([HEARTBEAT_AUTONOME](docs/technical/HEARTBEAT_AUTONOME.md), [GUIDE_HEARTBEAT](docs/guides/GUIDE_HEARTBEAT_PROACTIVE_NOTIFICATIONS.md)).
 
+#### Discussions it opens
+
+- Beyond telling you something, LIA may start a personal conversation when you allow it — off until you switch it on: your hours and daily maximum, each source and sensitive topic chosen, topics to avoid, and four reactions on every opening.
+- What LIA understood stays visible: every element of its context can be excluded, deleted, purged or rebuilt, and the last run says why it ended, what it read and what it cost. Each opening is filed as LIA's own act, every call counts under your quotas and three budgets, and an opening informed by an SMS or a sensitive topic stays private — a masked push, never an external channel ([ADR-358](docs/architecture/ADR-358-Independent-Proactive-Discussions-And-Native-Delivery.md), [ADR-359](docs/architecture/ADR-359-Longitudinal-Discussion-Context-And-User-Control.md), [ADR-360](docs/architecture/ADR-360-Bounded-Discussion-Research-And-Accounted-Abstention.md), [PROACTIVE_DISCUSSIONS](docs/technical/PROACTIVE_DISCUSSIONS.md)).
+
 #### Moments served to the minute
 
 - A periodic sweep cannot serve an instant, so a finished meeting or an awaited reply is kept as an anticipated moment, claimed under a lock, revalidated, and served under the full eligibility checker while bypassing only the deferrals.
@@ -592,7 +598,7 @@ The home page opens on the date and LIA's living face, then aggregates your sour
 
 #### Knowledge spaces
 
-- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive folder sync, a Gmail label as a source, and a system space that indexes the product's own help corpus so LIA can explain itself — drawn from the in-app FAQ, whose 497 questions cover every feature a person can use, in six languages.
+- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive folder sync, a Gmail label as a source, and a system space that indexes the product's own help corpus so LIA can explain itself — drawn from the in-app FAQ, whose 498 questions cover every feature a person can use, in six languages.
 - A document that cannot be indexed says why in your language — a scanned PDF without a text layer names its remedy.
 - Any indexed document, paused space or not, attaches to a chat message as a copy from the composer's « + » ([ADR-295](docs/architecture/ADR-295-Knowledge-Documents-As-Message-Attachments.md), [GUIDE_RAG_SPACES](docs/guides/GUIDE_RAG_SPACES.md), [ADR-055](docs/architecture/ADR-055-RAG-Spaces-Architecture.md), [ADR-058](docs/architecture/ADR-058-System-RAG-Spaces.md)).
 
@@ -648,6 +654,7 @@ The home page opens on the date and LIA's living face, then aggregates your sour
 
 - WebAuthn passkeys, a TOTP second factor with backup codes, step-up re-authentication on sensitive actions, device sessions with per-device revocation, server-side Redis sessions behind HTTP-only cookies ([ADR-143](docs/architecture/ADR-143-Strong-Authentication-Passkeys.md), [ADR-144](docs/architecture/ADR-144-Device-Sessions.md), [AUTHENTICATION](docs/technical/AUTHENTICATION.md)).
 - A federated sign-in proves an address, never a right — it can neither activate nor unblock an account ([ADR-002](docs/architecture/ADR-002-BFF-Pattern-Authentication.md)) — and every « who is calling? » reads one resolver ([ADR-213](docs/architecture/ADR-213-L-Identite-De-L-Appelant-Vient-D-Un-En-Tete-Qu-Il-Ne-Peut-Pas-Ecrire.md)).
+- A client that probes unknown routes or keeps failing to sign in is banned for a while by every API worker at once, ordinary errors never counted, and every « too many requests » names its client in the logs ([ADR-353](docs/architecture/ADR-353-API-HTTP-Scan-Bans-In-Shared-Redis.md), [ADR-354](docs/architecture/ADR-354-Canonical-Client-IP-In-Every-HTTP-429.md)).
 
 #### Your data, by construction
 
@@ -714,8 +721,8 @@ A 24-section panel embedded in the chat, organised into six groups; an empty sec
 
 ### Observability
 
-- **Prometheus**: 623 custom metrics (agents, LLM, infrastructure), labelled by route template — a name or a search in an address never becomes a series. A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric.
-- **Grafana**: 31 dashboards, including product-value and radio cockpits · **Loki**: structured JSON logs that keep facts, never people's words, shipped by Grafana Alloy ([ADR-317](docs/architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md)) · **Tempo**: distributed tracing, spans named by the route template · **Langfuse**: LLM tracing with prompt versions. The whole stack runs on supported versions, pinned by digest.
+- **Prometheus**: 627 custom metrics (agents, LLM, infrastructure), labelled by route template — a name or a search in an address never becomes a series. A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric.
+- **Grafana**: 32 dashboards, including product-value and radio cockpits · **Loki**: structured JSON logs that keep facts, never people's words, shipped by Grafana Alloy ([ADR-317](docs/architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md)) · **Tempo**: distributed tracing, spans named by the route template · **Langfuse**: LLM tracing with prompt versions. The whole stack runs on supported versions, pinned by digest.
 - **Linked signals, a pipeline that watches itself**: a log line opens its trace, a trace its logs and metrics, a latency point its exemplar; Loki, Alloy, Tempo and Grafana are scraped on closed keep-lists and `LogsNotDelivered` fires when lines go missing; every dashboard opens on seven days (logs and traces on four hours) behind one shared menu — [ADR-333](docs/architecture/ADR-333-Linked-Signals-And-A-Pipeline-That-Watches-Itself.md).
 - **Probes**: liveness (`GET /health`) split from readiness (`GET /ready`, 503 unless PostgreSQL **and** Redis answer) — [ADR-115](docs/architecture/ADR-115-Liveness-Readiness-Probes.md).
 - **Alerting**: a vital core (service, database and Redis down, disk, OOM, 5xx rate, SSE latency, backup failure, public-endpoint and TLS probes, chain self-monitoring) evaluated by Prometheus, emailed by a dedicated Alertmanager, unit-tested with `promtool`, every alert linking its runbook. The latency alert observes only turns a person waits for, and only over enough of them for a p95 to mean something; the operator's daily report opens on the alerts that fired, the incidents still open and the container restarts, each source named when it cannot be read — [ADR-119](docs/architecture/ADR-119-Alerting-Reactivation-Minimal-Core.md).
@@ -753,12 +760,12 @@ Nearly **100% of this codebase was written by an AI**, under human direction: a 
 engineering rulebook, blocking automated checks, systematic review, adversarial audits.
 The result is measured, not proclaimed:
 
-|                           |                                         |                                         |                                                                         |
-| ------------------------- | --------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
-| **55** functional domains | **967,000+** source lines (excl. tests) | **64,000+** inventoried automated tests | **351** ADRs                                                            |
-| **284** versions shipped  | **6 languages**, parity enforced in CI  | **623** Prometheus metrics              | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+|                           |                                           |                                         |                                                                         |
+| ------------------------- | ----------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
+| **58** functional domains | **1,003,000+** source lines (excl. tests) | **66,000+** inventoried automated tests | **359** ADRs                                                            |
+| **285** versions shipped  | **6 languages**, parity enforced in CI    | **627** Prometheus metrics              | [**8.0/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
-Source-line figure: 967,000+ physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-19). Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
+Source-line figure: 1,003,000+ physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-22). Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -925,8 +932,8 @@ apps/api/src/
 ├── domains/              # Bounded contexts (DDD); shared helpers stay separate
 │   ├── agents/           # The LangGraph graph: nodes (router, planner, react ×4, response…), tools, prompts, orchestration
 │   ├── connectors/       # Google, Apple and Microsoft clients behind one provider resolver
-│   ├── heartbeat/ moments/ scheduled_actions/ reminders/ habits/ interests/ briefing/       # initiative
-│   ├── memories/ journals/ rag_spaces/ meetings/ relations/ peers/ workboard/ attachments/  # what LIA keeps
+│   ├── heartbeat/ proactive_discussions/ moments/ scheduled_actions/ reminders/ habits/ interests/ briefing/  # initiative
+│   ├── memories/ journals/ rag_spaces/ meetings/ relations/ peers/ sms/ workboard/ attachments/               # what LIA keeps
 │   ├── auth/ users/ usage_limits/ capabilities/ feature_switches/ diagnostics/              # control
 │   └── voice/ skills/ plugins/ user_mcp/ telephony/ document_generation/ image_generation/ …
 └── infrastructure/       # Cross-cutting: cache and Redis key families, LLM factory and providers,
@@ -1012,10 +1019,10 @@ task test:e2e                      # Playwright + axe journeys (hermetic, mocked
 
 | Metric                  | Value                                                                                                                                                |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Backend tests           | 50,397 collected over `tests/`, across 3,292 files (`pytest --collect-only -q --no-cov`, 2026-10-18)                                                 |
-| Frontend tests (vitest) | 13,177 passing across 1,066 files (`task test:frontend:coverage`, 2026-10-18), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
+| Backend tests           | 52,293 collected over `tests/`, across 3,489 files (`pytest --collect-only -q --no-cov`, 2026-10-22)                                                 |
+| Frontend tests (vitest) | 13,919 passing across 1,117 files (`task test:frontend:coverage`, 2026-10-22), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
 | Coverage floor          | 78% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob                                               |
-| Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md)                                                        |
+| Technical audit         | **8.0/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md)                                                        |
 
 Tests are risk-driven and behavioural: a module never disables itself on a missing provider key, a test double that receives a coroutine owns it, and an unawaited coroutine or a post-summary warning is a failure ([GUIDE_TESTING](docs/guides/GUIDE_TESTING.md)).
 
@@ -1068,7 +1075,7 @@ Pre-push: secret scan           Security workflow (weekly)
 | Supply chain                                                                           | Hash-verified universal lockfiles and every build input pinned by digest, pip-audit on the full transitive tree, a weekly watch of each dependency's own advisories and end-of-life dates, a refresh that never moves a version backwards ([ADR-331](docs/architecture/ADR-331-Dependency-Watch-And-A-Refresh-That-Never-Goes-Back.md)), a CycloneDX SBOM per release                                                                     |
 | Untrusted code                                                                         | Skill scripts execute in a throwaway container — no Docker socket, no network, read-only filesystem, unprivileged uid, all capabilities dropped — and no sandbox means no execution, never a weaker fallback; a script the assistant writes, or a skill's command that names its hosts, reaches the web only through one egress proxy holding the keys and the allowlist ([ADR-298](docs/architecture/ADR-298-Sandbox-Egress-Toolbox.md)) |
 
-These references describe implemented controls, not a GDPR/AI Act legal opinion, OWASP or ISO certification, or a security-audit score. The [public 8.3/10 audit](docs/audit/README.md) measures 24 technical-quality areas against an ISO/IEC 25010:2023-inspired grid and explicitly excludes security.
+These references describe implemented controls, not a GDPR/AI Act legal opinion, OWASP or ISO certification, or a security-audit score. The [public 8.0/10 audit](docs/audit/README.md) measures 24 technical-quality areas against an ISO/IEC 25010:2023-inspired grid and explicitly excludes security.
 
 **Reporting a vulnerability** — do not open a GitHub issue. Write to **liamyassistant@gmail.com** with a description, the steps to reproduce and the potential impact; we answer within 48 hours. Policy and supported versions: [SECURITY.md](SECURITY.md).
 
@@ -1112,7 +1119,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 
 ### Architecture Decision Records
 
-351 ADR files (ADR-001 through ADR-357 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
+359 ADR files (ADR-001 through ADR-361 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
 
 - [ADR-070: ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md) — why two execution modes rather than one
 - [ADR-263: Execution Authority Chain and Effect Register](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) — how every act is claimed, closed and recorded

@@ -2,7 +2,7 @@
 
 Two non-blocking GET endpoints + one refresh:
 
-- GET  /briefing/cards     : 9-card bundle (no LLM, fast)
+- GET  /briefing/cards     : dashboard cards (no LLM, fast)
 - GET  /briefing/synthesis : LLM greeting + synthesis (reads cards from cache)
 - POST /briefing/refresh   : force-refresh selected sections, returns full payload
 
@@ -26,6 +26,7 @@ from src.core.config import settings
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_internal_error, raise_invalid_input
 from src.core.i18n import normalize_language
+from src.core.private_input_route import PrivateApplicationInputRoute
 from src.core.session_dependencies import get_current_active_session
 from src.domains.briefing.companion import CompanionEnvironment, project_weather
 from src.domains.briefing.preferences import (
@@ -42,7 +43,7 @@ from src.domains.briefing.service import BriefingService, build_briefing_windows
 from src.domains.users.models import User
 from src.domains.voice.text_readout import synthesize_user_text
 
-router = APIRouter(prefix="/briefing", tags=["briefing"])
+router = APIRouter(prefix="/briefing", tags=["briefing"], route_class=PrivateApplicationInputRoute)
 
 
 @router.get("/companion-context", response_model=CompanionEnvironment)
@@ -77,12 +78,12 @@ def _reject_hidden_sections(current_user: User, sections: list[str]) -> None:
 @router.get(
     "/cards",
     response_model=CardsResponse,
-    summary="Get the 9-card bundle for the Today dashboard (no LLM, fast)",
+    summary="Get the dashboard cards (no LLM, fast)",
 )
 async def get_briefing_cards(
     current_user: User = Depends(get_current_active_session),
 ) -> CardsResponse:
-    """Returns the 6 dashboard cards. Uses Redis cache when fresh.
+    """Returns the dashboard cards. Uses source caches where permitted.
 
     No LLM involved — this is the fast endpoint. Frontend calls this in
     parallel with /briefing/synthesis to render the page progressively.

@@ -30,18 +30,20 @@ CURRENT_CORE_LLM_TYPES: tuple[str, ...] = (
 )
 
 #: Audited derivation result — the questionnaire collects one key for each.
-#: Machine-derived 2026-08-06: the seed overrides EVERY qwen code default
-#: (planner/query_analyzer/query_agent/response/semantic_validator/
-#: react_agent → deepseek), and the 16 slots absent from the seed all
-#: default to openai — so no effective slot resolves qwen at all. Qwen
-#: stays an optional Admin-UI provider (its models remain in the pricing
-#: seed), never a required install key.
+#: The seed retargets the core pipeline's qwen defaults to deepseek.
+#: Dedicated discussion slots keep their independently configurable qwen
+#: defaults and are declared optional below: they never add a required key
+#: to the installer questionnaire. The guard derives this contract from
+#: effective seeded slots, so a provider change requires an explicit review.
 CURRENT_CORE_PROVIDER_IDS: tuple[str, ...] = ("deepseek", "openai")
 
 #: Seeded slots that stay degraded without their (optional) provider key —
 #: every seeded slot outside the core whose provider needs a key, held equal
 #: to the post-seed derivation by the anti-drift test.
 OPTIONAL_SEEDED_CAPABILITIES: dict[str, str] = {
+    "discussion_context": "qwen",
+    "discussion_decision": "qwen",
+    "discussion_message": "qwen",
     "vision_analysis": "gemini",
     "voice_tts": "elevenlabs",
     "voice_transcription": "elevenlabs",

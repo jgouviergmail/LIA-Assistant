@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-10-19
-**Compatibility**: LIA v3.3.0
+**Compatibility**: LIA v3.4.0
 
 ## Table of Contents
 
@@ -60,7 +60,7 @@ For ElevenLabs and Fish Audio speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` and `FISH
 | Voice providers | ElevenLabs (STT/TTS), Fish Audio (STT/TTS), Edge TTS (free), OpenAI (STT/TTS), Gemini TTS + local Whisper STT |
 | Configurable model and decision slots | 89, including 23 native JEV usages (admin registry, measured 2026-10-19) |
 | UI languages | 6 — fr, en, es, de, it, zh |
-| Prometheus metrics | 623 |
+| Prometheus metrics | 627 |
 | Grafana dashboards | 31 |
 | Built-in FAQ knowledge base | 496 questions in six languages; the English help corpus is indexed at startup |
 
@@ -876,6 +876,9 @@ Every subsystem below ships with working defaults; the values shown are the **pr
 | `IMAGE_GENERATION_ENABLED` | AI image generation | `true` |
 | `HEALTH_METRICS_ENABLED` | iPhone health metrics ingestion | `true` |
 | `HEARTBEAT_ENABLED` | Autonomous proactive notifications | `true` |
+| `PROACTIVE_DISCUSSIONS_ENABLED` | Personal discussions LIA may open, each person opting in; bounded by `DISCUSSION_RUN_BUDGET_USD`, `DISCUSSION_OWNER_DAILY_BUDGET_USD` and `DISCUSSION_INSTANCE_DAILY_BUDGET_USD` (ADR-358/359/360) | `true` |
+| `SMS_ENABLED` | Personal SMS archive fed by a phone token; assistant access stays a separate consent (ADR-357) | `true` |
+| `HTTP_SCAN_PROTECTION_ENABLED` | Temporary bans, shared by every API worker, for clients probing unknown routes or failing to sign in (ADR-353) | `true` |
 | `CHANNELS_ENABLED` | Multi-channel messaging (Telegram) | `true` |
 | `MCP_ENABLED` / `MCP_USER_ENABLED` / `MCP_REACT_ENABLED` | Admin MCP / per-user MCP / MCP ReAct loop | `true` |
 | `REACT_AGENT_ENABLED` | ReAct execution mode toggle | `true` |
@@ -1729,7 +1732,7 @@ In development the equivalent is `task db:seed:sql` (or `task db:reset`), which 
 
 ### Observability
 
-- [ ] Grafana up (http://localhost:3001) — 31 dashboards load
+- [ ] Grafana up (http://localhost:3001) — 32 dashboards load
 - [ ] Prometheus up (http://localhost:9090)
 - [ ] Langfuse up in dev (http://localhost:3002) if started via `task dev:langfuse` with `LANGFUSE_ENABLED=true`
 

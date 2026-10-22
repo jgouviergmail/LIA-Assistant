@@ -42,6 +42,8 @@ export function proactiveToastPresentation(metadata?: Record<string, unknown>): 
   message: string;
   className: string | undefined;
 } {
+  if (metadata?.type === 'proactive_discussion')
+    return { message: '💬 LIA', className: '!bg-primary/10 !border-primary/25' };
   const isPeer =
     typeof metadata?.type === 'string' && (metadata.type as string).startsWith('proactive_peer');
   const peerName = (metadata?.sender_name ?? metadata?.peer_name) as string | undefined;
@@ -152,6 +154,10 @@ export function useChatServerSync(options: UseChatServerSyncOptions): void {
 
   const handleProactiveNotification = useCallback(
     (content: string, _targetId: string, metadata?: Record<string, unknown>) => {
+      if (metadata?.sensitive_in_app_only === true) {
+        requestSync('notification');
+        return;
+      }
       if (metadata?.event === 'live_relay') {
         // The relayed turn of a DIRECT live session settled (ADR-301): its rows
         // and the rewritten closing card are in the thread.

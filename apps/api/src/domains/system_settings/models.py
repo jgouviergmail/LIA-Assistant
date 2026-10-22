@@ -80,6 +80,7 @@ class SystemSettingKey(str, enum.Enum):
     CAPABILITY_JOURNALS_ENABLED = "capability_journals_enabled"
     CAPABILITY_HABITS_ENABLED = "capability_habits_enabled"
     CAPABILITY_HEARTBEAT_ENABLED = "capability_heartbeat_enabled"
+    CAPABILITY_PROACTIVE_DISCUSSIONS_ENABLED = "capability_proactive_discussions_enabled"
     CAPABILITY_PEERS_ENABLED = "capability_peers_enabled"
     CAPABILITY_PSYCHE_ENABLED = "capability_psyche_enabled"
     CAPABILITY_CHANNELS_ENABLED = "capability_channels_enabled"

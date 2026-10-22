@@ -142,7 +142,7 @@ export function LocationSettings({ lng }: BaseSettingsProps) {
         </div>
 
         {/* Last-known location memory (generalized opt-in, cascade middle step) */}
-        <div className="space-y-3 pt-4 border-t border-border/50">
+        <div className="space-y-3 pt-4 border-t border-border">
           <div className="flex items-center gap-2">
             <History className="h-4 w-4 text-primary" />
             <Label className="text-sm text-muted-foreground">
@@ -153,7 +153,7 @@ export function LocationSettings({ lng }: BaseSettingsProps) {
         </div>
 
         {/* Home Location Settings */}
-        <div className="space-y-3 pt-4 border-t border-border/50">
+        <div className="space-y-3 pt-4 border-t border-border">
           <div className="flex items-center gap-2">
             <Home className="h-4 w-4 text-primary" />
             <Label className="text-sm text-muted-foreground">

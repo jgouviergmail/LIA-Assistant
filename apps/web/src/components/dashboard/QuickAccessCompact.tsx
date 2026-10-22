@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { HeadingRule } from '@/components/ui/heading-rule';
 import { cn } from '@/lib/utils';
 
 /**
@@ -53,6 +54,8 @@ export function QuickAccessCompact({ lng }: QuickAccessCompactProps) {
       >
         <LayoutGrid className="h-5 w-5 text-primary shrink-0" aria-hidden="true" />
         {t('dashboard.quick_access_compact.title')}
+        {/* The rubrique hairline every screen draws (owner request 2026-10-21). */}
+        <HeadingRule />
       </h2>
       <div className="grid grid-cols-1 overflow-hidden rounded-xl border bg-card shadow-sm sm:grid-cols-2 xl:grid-cols-5">
         <QuickAccessAction
@@ -126,7 +129,7 @@ function QuickAccessAction({ href, icon: Icon, label, sublabel, tone }: QuickAcc
     <Link
       href={href}
       className={cn(
-        'group flex min-w-0 min-h-14 items-center gap-3 border-border/40 px-4 py-3 transition-colors',
+        'group flex min-w-0 min-h-14 items-center gap-3 border-border px-4 py-3 transition-colors',
         // `ring-inset`: the bar clips its children, so an offset ring would be
         // cut off on the segment that touches the border.
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',

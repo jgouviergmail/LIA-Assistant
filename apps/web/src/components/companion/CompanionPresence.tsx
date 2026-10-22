@@ -36,6 +36,7 @@ import { fallbackLng } from '@/i18n/settings';
 const COUNTED_TYPES: ReadonlySet<NotificationType> = new Set<NotificationType>([
   'proactive_interest',
   'proactive_heartbeat',
+  'proactive_discussion',
   'reminder',
   'subagent_result',
   'scheduled_action',

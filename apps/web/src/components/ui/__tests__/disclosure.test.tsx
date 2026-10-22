@@ -176,3 +176,27 @@ describe('richer header content (meta, icon classes)', () => {
     expect(icon).toHaveClass('text-primary');
   });
 });
+
+describe('the chevron says THIS block is open, not an ancestor', () => {
+  it('keeps a folded block nested in an open one pointing down', async () => {
+    // `group-open:` matched any open ancestor `group`: a folded « why » panel
+    // inside the open « recent discussions » one showed an open chevron.
+    const { user } = renderWithProviders(
+      <Disclosure icon={Bell} title="Parent">
+        <Disclosure icon={Bell} title="Enfant">
+          <p>contenu</p>
+        </Disclosure>
+      </Disclosure>
+    );
+    const chevronOf = (title: string) =>
+      screen.getByText(title).closest('summary')?.querySelector('svg:last-child');
+
+    expect(chevronOf('Parent')).not.toHaveClass('rotate-180');
+    await user.click(screen.getByText('Parent'));
+    expect(chevronOf('Parent')).toHaveClass('rotate-180');
+    expect(chevronOf('Enfant')).not.toHaveClass('rotate-180');
+
+    await user.click(screen.getByText('Enfant'));
+    expect(chevronOf('Enfant')).toHaveClass('rotate-180');
+  });
+});

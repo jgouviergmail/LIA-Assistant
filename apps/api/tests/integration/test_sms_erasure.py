@@ -14,16 +14,86 @@ from tests.integration.test_sms_ingestion import authority, message
 pytestmark = pytest.mark.integration
 
 
+@pytest.mark.parametrize("scope", ["message", "sender", "day"])
+async def test_targeted_erasure_selects_the_entire_scope_and_preserves_other_messages(
+    db_session, test_user, scope
+):
+    from datetime import UTC, datetime, timedelta
+
+    from src.domains.sms.management_commands import erase_sms, prepare_sms_erasure
+    from src.domains.sms.management_schemas import SmsEraseRequest
+
+    actor = await authority(db_session, test_user)
+    day = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=2)
+    await SmsIngestionService(db_session).ingest(
+        actor,
+        [
+            message(
+                sender="Alice", date=(day + timedelta(hours=2)).isoformat(), body="First meeting"
+            ),
+            message(
+                sender="Alice", date=(day + timedelta(hours=3)).isoformat(), body="Second meeting"
+            ),
+            message(
+                sender="Alice", date=(day + timedelta(days=1, hours=2)).isoformat(), body="Next day"
+            ),
+            message(sender="Bob", date=(day + timedelta(hours=1)).isoformat(), body="Other person"),
+        ],
+    )
+    rows = list(
+        (
+            await db_session.scalars(
+                select(SmsMessage)
+                .where(SmsMessage.user_id == test_user.id)
+                .order_by(SmsMessage.received_at)
+            )
+        ).all()
+    )
+    assert len(rows) == 4
+    first = rows[1].id
+    request = (
+        SmsEraseRequest(message_ids=(first,))
+        if scope == "message"
+        else (
+            SmsEraseRequest(sender_id=first)
+            if scope == "sender"
+            else SmsEraseRequest(from_ts=day, to_ts=day + timedelta(days=1))
+        )
+    )
+    removed = (
+        {first}
+        if scope == "message"
+        else {row.id for row in rows[1:]} if scope == "sender" else {row.id for row in rows[:3]}
+    )
+    selection = await prepare_sms_erasure(db_session, test_user.id, request)
+    assert selection.count == len(removed)
+    receipt = PreferenceWriteReceipt()
+    await erase_sms(db_session, test_user.id, selection, receipt, check)
+    remaining = set(
+        (
+            await db_session.scalars(
+                select(SmsMessage.id).where(SmsMessage.user_id == test_user.id)
+            )
+        ).all()
+    )
+    assert receipt.committed and remaining == {row.id for row in rows} - removed
+
+
 async def check():
     return None
 
 
-async def test_erased_message_retry_cannot_resurrect_and_exports_are_revoked(db_session, test_user):
+@pytest.mark.parametrize("identified", [True, False], ids=["stable-event-id", "stable-payload"])
+async def test_erased_message_retry_cannot_resurrect_and_exports_are_revoked(
+    db_session, test_user, identified
+):
     from src.domains.sms.management_commands import erase_sms, prepare_sms_erasure
     from src.domains.sms.management_schemas import SmsEraseRequest
 
     actor = await authority(db_session, test_user)
     payload = message()
+    if not identified:
+        payload.pop("event_id")
     await SmsIngestionService(db_session).ingest(actor, [payload])
     db_session.add(
         AccountExportJob(user_id=test_user.id, status="done", file_path="/fictional.zip")

@@ -72,12 +72,12 @@ def _normalized(value: SQLColumnExpression[str | None]) -> ColumnElement[str]:
     )
 
 
-def minutes_search_predicate(query: str) -> ColumnElement[bool]:
+def minutes_search_predicate(query: str, *, include_location: bool = True) -> ColumnElement[bool]:
     """One contiguous literal phrase must match inside one allowed text field."""
     pattern = f"%{escape_like(normalize_minutes_query(query.strip()))}%"
-    predicates: list[ColumnElement[bool]] = [
-        _normalized(Meeting.location_label).like(pattern, escape=LIKE_ESCAPE)
-    ]
+    predicates: list[ColumnElement[bool]] = []
+    if include_location:
+        predicates.append(_normalized(Meeting.location_label).like(pattern, escape=LIKE_ESCAPE))
     for path in _TEXT_PATHS:
         values = (
             func.jsonb_path_query(

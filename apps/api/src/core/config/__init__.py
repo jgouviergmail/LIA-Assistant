@@ -68,6 +68,7 @@ from .observability import ObservabilitySettings
 from .open_loops import OpenLoopsSettings
 from .peers import PeersSettings
 from .plugins import PluginsSettings
+from .proactive_discussions import ProactiveDiscussionSettings
 from .product import ProductSettings
 from .psyche import PsycheSettings
 from .push import PushSettings
@@ -159,6 +160,7 @@ class Settings(
     MFASettings,
     AccountExportSettings,
     ProductSettings,
+    ProactiveDiscussionSettings,
     DemoSettings,
     PushSettings,
     PushRelaySettings,

@@ -217,7 +217,11 @@ test.describe('two chat deep links in a row', () => {
       timeout: 30_000,
     });
 
-    await page.getByRole('button', { name: 'Appeler' }).click();
+    // Every quick action is a `?draft=` prefill; the commitment one is offered
+    // on every relationship (the generic « call » left with the address-book
+    // actions on 2026-10-21, offered only on a number and a live telephony
+    // connector), and its prefill names the person.
+    await page.getByRole('button', { name: 'Engagement', exact: true }).click();
     await page.waitForURL(/\/dashboard\/chat/, { timeout: 30_000 });
 
     // The COMPOSER is the oracle, not the address bar: `?draft=` is consumed

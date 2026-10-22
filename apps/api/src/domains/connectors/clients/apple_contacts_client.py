@@ -26,6 +26,7 @@ from lxml import etree
 
 from src.core.config import settings
 from src.core.field_names import FIELD_CACHED_AT
+from src.core.read_budget import source_http_hooks
 from src.domains.connectors.clients.base_apple_client import BaseAppleClient
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.contact_directory import (
@@ -127,6 +128,7 @@ class AppleContactsClient(BaseAppleClient):
         """Get or create httpx client with Basic Auth."""
         if self._http_client is None:
             self._http_client = httpx.AsyncClient(
+                event_hooks=source_http_hooks(self.user_id),
                 auth=(self.credentials.apple_id, self.credentials.app_password),
                 timeout=settings.apple_connection_timeout,
                 follow_redirects=True,
@@ -272,13 +274,28 @@ class AppleContactsClient(BaseAppleClient):
             fields,
         )
 
-    async def list_email_directory(self, max_contacts: int) -> ContactDirectory:
+    async def list_email_directory(
+        self, max_contacts: int, *, cache_scope: str | None = None
+    ) -> ContactDirectory:
         """The whole address book, up to ``max_contacts`` (``clients/contact_directory``).
 
         iCloud is read whole anyway (``_get_all_contacts_cached``); the directory
         is its compact, stamped cut, cached like the two other providers' and
-        dropped by the same writes.
+        dropped by the same writes. A scoped read bypasses the iCloud book cache.
+
+        Args:
+            max_contacts: The caller's published cap.
+            cache_scope: An account and snapshot identity isolating this directory in
+                the shared cache from other accounts and older in-flight refreshes
+                (``cached_directory``); None for the shared entry.
+
+        Returns:
+            The persons (names, addresses, numbers), and whether the book was cut.
         """
+        if cache_scope is not None:
+            return await self._execute_with_retry(
+                "list_email_directory", self._list_email_directory_impl, max_contacts, cache_scope
+            )
         return await self._execute_with_retry(
             "list_email_directory", self._list_email_directory_impl, max_contacts
         )
@@ -483,15 +500,23 @@ class AppleContactsClient(BaseAppleClient):
             FIELD_CACHED_AT: cached_at,
         }
 
-    async def _list_email_directory_impl(self, max_contacts: int) -> ContactDirectory:
+    async def _list_email_directory_impl(
+        self, max_contacts: int, cache_scope: str | None = None
+    ) -> ContactDirectory:
         """The directory through the shared cache, read from the iCloud cache."""
         return await cached_directory(
-            self.user_id, self.connector_type.value, max_contacts, self._read_directory
+            self.user_id,
+            self.connector_type.value,
+            max_contacts,
+            lambda cap: self._read_directory(cap, use_cache=cache_scope is None),
+            cache_scope=cache_scope,
         )
 
-    async def _read_directory(self, max_contacts: int) -> tuple[list[dict[str, Any]], bool]:
+    async def _read_directory(
+        self, max_contacts: int, *, use_cache: bool = True
+    ) -> tuple[list[dict[str, Any]], bool]:
         """Cut the (cached) iCloud address book at the caller's cap."""
-        all_contacts, _from_cache, _cached_at = await self._get_all_contacts_cached(True)
+        all_contacts, _from_cache, _cached_at = await self._get_all_contacts_cached(use_cache)
         return all_contacts[:max_contacts], len(all_contacts) > max_contacts
 
     async def _list_connections_impl(

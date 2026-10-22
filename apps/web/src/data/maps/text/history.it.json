@@ -1853,10 +1853,50 @@
       "summary": "Posizione raggruppa i Google Places selezionati prima delle loro schede, anche in HTML e Markdown. La mappa interattiva aspetta un clic con costo visibile; l’elenco delle fonti resta utilizzabile se Maps non è disponibile.",
       "src": "b00abdd45dc8"
     },
+    "353": {
+      "title": "Bloccare temporaneamente le scansioni dell’API",
+      "summary": "L’API rileva sequenze di percorsi sconosciuti e credenziali rifiutate senza penalizzare i normali errori di sessione o di risorsa. Redis condivide un blocco temporaneo tra i processi; se la cache non funziona, le richieste passano e il problema resta visibile nelle metriche.",
+      "src": "c1a0e70c1bdf"
+    },
+    "354": {
+      "title": "Attribuire ogni risposta HTTP 429 all’indirizzo corretto",
+      "summary": "Ogni risposta 429 registra l’indirizzo del client risolto tramite la catena di proxy attendibili, il metodo e il percorso senza parametri di query. I normali log di accesso restano discreti e l’indirizzo non diventa mai un’etichetta di metrica.",
+      "src": "85e52e5c8500"
+    },
+    "355": {
+      "title": "Dettagli già acquisiti e un percorso contabilizzato verso il luogo scelto",
+      "summary": "La scheda riutilizza le informazioni già ottenute senza cercare di nuovo il luogo. Il percorso parte da una posizione del browser autorizzata, dall’ultima posizione recente e datata, oppure da casa: a piedi fino a 2 km inclusi, in auto oltre tale limite, con un solo ricalcolo se il percorso pedonale reale supera la soglia. I limiti di spesa restano applicati e ogni chiamata a pagamento viene registrata, anche se il percorso fallisce o viene annullato.",
+      "src": "a2a843ea6555"
+    },
+    "356": {
+      "title": "Una mappa leggibile con gli stessi numeri nell’elenco e sui segnaposto",
+      "summary": "La mappa attende un’attivazione esplicita senza riservare un grande spazio vuoto. Gli stessi dettagli si aprono in un popup sul computer e in una finestra di dialogo sul telefono, ciascuno con una sola area di scorrimento. L’elenco e i segnaposto condividono i numeri dell’ordine originale; un luogo senza coordinate conserva il suo numero e il suo collegamento senza spostare gli altri.",
+      "src": "a9ca854ccb92"
+    },
     "357": {
-      "title": "Acquisizione generica dal telefono e archivio SMS personale",
+      "title": "Acquisizione generica dal telefono e SMS personali",
       "summary": "Il telefono invia eventi rigorosi deduplicati per sorgente. Consensi indipendenti, esportazione, cancellazione, registri e notifiche rispettano la stessa autorizzazione.",
-      "src": "539b8b751150"
+      "src": "919024e5b2a5"
+    },
+    "358": {
+      "title": "Discussioni proattive indipendenti e distribuzione nativa",
+      "summary": "L'iniziativa personale resta distinta dagli avvisi, con una propria politica e pubblicazione atomica nella chat. L'architettura è approvata; il produttore deve ancora essere implementato prima dell'attivazione.",
+      "src": "52dd170f2804"
+    },
+    "359": {
+      "title": "Contesto longitudinale e controllo del suo utilizzo",
+      "summary": "Le osservazioni sostengono episodi e ricorrenze, con ritratto autonomo, cancellazione ed esclusioni reversibili persistenti. Le direttive limitano l'iniziativa; la base derivata è ancora da implementare.",
+      "src": "f3f770c17813"
+    },
+    "360": {
+      "title": "Ricerche limitate e astensione contabilizzata",
+      "summary": "Letture e chiamate ai modelli condividono limiti finiti e un budget riservato. Le spese restano contabilizzate anche in caso di rifiuto o annullamento; le protezioni finanziarie vanno implementate prima dell'attivazione.",
+      "src": "550da3421618"
+    },
+    "361": {
+      "title": "Una sonda in uscita che nomina il passaggio fallito e conferma l'interruzione",
+      "summary": "La sonda di connettività in uscita separa la risoluzione DNS dalla connessione e conferma una perdita su più tentativi distanziati. Un pacchetto DNS perso non apre più un incidente critico: un recupero o un rallentamento viene segnalato come degradato, e un'interruzione reale nomina il passaggio che è fallito.",
+      "src": "9cf5696d02f2"
     }
   }
 }

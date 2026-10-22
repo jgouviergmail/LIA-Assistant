@@ -6,10 +6,11 @@ from typing import Annotated
 from uuid import UUID
 
 from pydantic import Field, StrictInt, TypeAdapter
-from sqlalchemy import Result, func, literal, select, tuple_
+from sqlalchemy import Result, func, literal, or_, select, tuple_
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, defer
+from sqlalchemy.sql.elements import ColumnElement
 
 from src.core.exceptions import ResourceNotFoundError
 from src.domains.interests.models import UserInterest
@@ -25,6 +26,30 @@ class InterestManagementPage:
     matching_count: int
 
 
+def _conditions(
+    actor_id: UUID,
+    category: str | None,
+    status: str | None,
+    interest_id: UUID | None,
+    query: str | None,
+) -> list[ColumnElement[bool]]:
+    result = [UserInterest.user_id == actor_id]
+    if category is not None:
+        result.append(UserInterest.category == category)
+    if status is not None:
+        result.append(UserInterest.status == status)
+    if interest_id is not None:
+        result.append(UserInterest.id == interest_id)
+    if query is not None:
+        result.append(
+            or_(
+                UserInterest.topic.icontains(query, autoescape=True),
+                UserInterest.subject.icontains(query, autoescape=True),
+            )
+        )
+    return result
+
+
 async def read_interest_management_page(
     db: AsyncSession,
     actor_id: UUID,
@@ -34,6 +59,7 @@ async def read_interest_management_page(
     status: str | None = None,
     interest_id: UUID | None = None,
     after_id: UUID | None = None,
+    query: str | None = None,
 ) -> InterestManagementPage:
     categories = (
         select(UserInterest.category.label("key"), func.count().label("count"))
@@ -57,13 +83,7 @@ async def read_interest_management_page(
             func.jsonb_object_agg(statuses.c.key, statuses.c.count), literal({}, type_=JSONB)
         )
     ).scalar_subquery()
-    conditions = [UserInterest.user_id == actor_id]
-    if category is not None:
-        conditions.append(UserInterest.category == category)
-    if status is not None:
-        conditions.append(UserInterest.status == status)
-    if interest_id is not None:
-        conditions.append(UserInterest.id == interest_id)
+    conditions = _conditions(actor_id, category, status, interest_id, query)
     matching_count = (
         select(func.count()).select_from(UserInterest).where(*conditions).scalar_subquery()
     )

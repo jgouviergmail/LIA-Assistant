@@ -279,6 +279,11 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'heartbeat',
     declaredIn: 'components/settings/HeartbeatSettings.tsx',
   },
+  'proactive-discussions': {
+    tab: 'features',
+    accordionValue: 'proactive-discussions',
+    declaredIn: 'components/settings/ProactiveDiscussionSettings.tsx',
+  },
   'scheduled-actions': {
     tab: 'features',
     accordionValue: 'scheduled-actions',

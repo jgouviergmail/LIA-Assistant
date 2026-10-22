@@ -31,7 +31,7 @@ async def test_withdrawal_wins_before_assistant_publication(
         actor = await authority(seed, user)
         await SmsIngestionService(seed).ingest(actor, [message()])
 
-    async def detached_lookup(owner):
+    async def detached_lookup(owner, *, cache_scope=None):
         async with AsyncSession(async_engine, expire_on_commit=False) as manager:
             await manager.execute(text("SET LOCAL lock_timeout='150ms'"))
             user = await manager.scalar(select(User).where(User.id == owner).with_for_update())
@@ -40,7 +40,7 @@ async def test_withdrawal_wins_before_assistant_publication(
             await manager.commit()
         return IdentityBook()
 
-    monkeypatch.setattr("src.domains.sms.facade.load_identity_book", detached_lookup)
+    monkeypatch.setattr("src.domains.sms.identity_resolution.load_identity_book", detached_lookup)
     async with AsyncSession(async_engine, expire_on_commit=False) as reader:
         with pytest.raises(AuthorizationError):
             await SmsFacade(reader).list(committed_actor, SmsQuery(), assistant=True)
@@ -57,14 +57,14 @@ async def test_erasure_wins_before_a_prepared_page_is_published(
     async def check():
         return None
 
-    async def detached_lookup(owner):
+    async def detached_lookup(owner, *, cache_scope=None):
         async with AsyncSession(async_engine, expire_on_commit=False) as manager:
             await manager.execute(text("SET LOCAL lock_timeout='150ms'"))
             selected = await prepare_sms_erasure(manager, owner, SmsEraseRequest(all_messages=True))
             await erase_sms(manager, owner, selected, PreferenceWriteReceipt(), check)
         return IdentityBook()
 
-    monkeypatch.setattr("src.domains.sms.facade.load_identity_book", detached_lookup)
+    monkeypatch.setattr("src.domains.sms.identity_resolution.load_identity_book", detached_lookup)
     async with AsyncSession(async_engine, expire_on_commit=False) as reader:
         with pytest.raises(ResourceConflictError):
             await SmsFacade(reader).list(committed_actor, SmsQuery(), assistant=False)

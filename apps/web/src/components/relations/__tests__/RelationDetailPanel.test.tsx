@@ -16,6 +16,7 @@ import type {
   RelationPeerLink,
   RelationPeerMessage,
 } from '@/hooks/useRelations';
+import type { Connector } from '@/components/settings/connectors/types';
 
 const push = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
@@ -72,6 +73,22 @@ vi.mock('@/hooks/useRelations', async importOriginal => ({
   useOverviewScope,
 }));
 
+// The account's connectors decide whether a number is offered a call: an
+// ACTIVE telephony connector, or no call at all (owner request 2026-10-21).
+const connectors = vi.hoisted(() => ({ value: [] as Connector[] }));
+vi.mock('@/hooks/useApplicationConnectors', () => ({
+  useApplicationConnectors: () => ({ data: { connectors: connectors.value } }),
+}));
+
+function telephonyConnector(status: string): Connector {
+  return {
+    id: 'telephony-connector',
+    connector_type: 'elevenlabs_telephony',
+    status,
+    created_at: '2026-10-01T08:00:00Z',
+  };
+}
+
 import { settingsSectionHref } from '@/lib/settings-sections';
 import { RelationDetailPanel } from '../RelationDetailPanel';
 
@@ -87,6 +104,7 @@ function detail(over: Partial<RelationDetail> = {}): RelationDetail {
         direction: 'user_owes',
         due_hint: null,
         days_open: 4,
+        opened_at: '2026-07-21T09:00:00Z',
       },
     ],
     recent_calls: [
@@ -98,7 +116,7 @@ function detail(over: Partial<RelationDetail> = {}): RelationDetail {
         created_at: '2026-07-20T10:00:00Z',
       },
     ],
-    memories: [{ id: 'm1', content: 'Aime la randonnée' }],
+    memories: [{ id: 'm1', content: 'Aime la randonnée', created_at: '2026-07-18T08:30:00Z' }],
     open_loops_total: 1,
     recent_calls_total: 1,
     memories_total: 1,
@@ -155,6 +173,7 @@ beforeEach(() => {
   // `push` to observe call ORDER, and a cleared-but-not-reset mock would keep
   // running it for every later test.
   openChat.mockReset();
+  connectors.value = [];
   useRelationDetail.mockReset();
   closeCommitment.mockClear();
   updateCommitment.mockClear();
@@ -194,6 +213,80 @@ async function openSection(user: ReturnType<typeof renderPanel>['user'], titleKe
 }
 
 describe('RelationDetailPanel', () => {
+  it('links the recent call itself to its exact settings detail', async () => {
+    useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
+    const { user } = renderPanel();
+    await openSection(user, 'relations.section_calls');
+    const link = screen.getByRole('link', { name: /Anniversaire/ });
+    expect(link).toHaveAttribute('href', '/fr/dashboard/settings?section=telephony-calls&call=c1');
+    expect(link).toContainElement(screen.getByText('RAS'));
+  });
+
+  it('titles a call by when it happened, the objective below', async () => {
+    useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
+    const { user } = renderPanel();
+    await openSection(user, 'relations.section_calls');
+    const link = screen.getByRole('link', { name: /Anniversaire/ });
+    const [title, objective] = link.querySelectorAll('p');
+    // How long ago and the day, date and hour — both in bold — like a mail row.
+    expect(title.querySelectorAll('strong')).toHaveLength(2);
+    // LIA placed the call: the « sent » badge leads the line (owner request
+    // 2026-10-21), as on the relayed messages and the e-mails.
+    expect(title.firstElementChild).toHaveTextContent('relations.peer_message_sent');
+    expect(title).toHaveTextContent(/2026/);
+    expect(objective).toHaveTextContent('Anniversaire');
+  });
+
+  it('titles every dated row the same way, above its content, with no icon', async () => {
+    // Owner request 2026-10-21: one dated title per row — the mail rows' line
+    // — and no glyph leading any row. The section headings keep theirs.
+    useRelationDetail.mockReturnValue({
+      detail: detail({ peer_messages: [peerMessage()], peer_messages_total: 1 }),
+      loading: false,
+      error: false,
+    });
+    const { user } = renderPanel();
+
+    for (const [titleKey, content] of [
+      ['relations.section_open_loops', 'Rendre la perceuse'],
+      ['relations.section_memories', 'Aime la randonnée'],
+      ['relations.section_calls', 'Anniversaire'],
+      ['relations.section_peer_messages', 'Gérard vous fait dire qu’il sera en retard.'],
+    ] as const) {
+      await openSection(user, titleKey);
+      const row = screen.getByText(content).closest('li');
+      if (row === null) throw new Error(`${titleKey}: no row`);
+      const [when, moment] = row.querySelectorAll('strong');
+      expect(when).toBeDefined();
+      // The moment is the title, so it reads BEFORE what the row is about.
+      expect(moment).toHaveTextContent(/2026/);
+      expect(
+        moment.compareDocumentPosition(screen.getByText(content)) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      // A commitment's own action buttons keep their glyphs; nothing else does.
+      const glyphs = [...row.querySelectorAll('svg')].filter(icon => !icon.closest('button'));
+      expect(glyphs).toHaveLength(0);
+    }
+  });
+
+  it('dates a commitment by its title rather than a second age pill', async () => {
+    useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
+    const { user } = renderPanel();
+    await openSection(user, 'relations.section_open_loops');
+
+    const row = screen.getByText('Rendre la perceuse').closest('li');
+    expect(row).toHaveTextContent(/2026/);
+    expect(screen.queryByText(/relations\.days_open/)).toBeNull();
+  });
+
+  it('lists the items of a section as rows, not as panels inside it', async () => {
+    useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
+    const { user } = renderPanel();
+    await openSection(user, 'relations.section_memories');
+    const row = screen.getByText('Aime la randonnée').closest('li');
+    expect(row).not.toBeNull();
+    expect(row?.closest('ul')).toHaveAttribute('role', 'list');
+  });
   it('renders each populated section once opened', async () => {
     // Sections start FOLDED: the panel is an index the reader opens, so the
     // oracle opens them too rather than reading hidden text.
@@ -350,6 +443,7 @@ describe('RelationDetailPanel', () => {
         direction: 'user_owes',
         due_hint: null,
         days_open: index,
+        opened_at: '2026-07-21T09:00:00Z',
       }));
 
     it('shows the EXACT total, not the number of rendered rows', async () => {
@@ -495,11 +589,13 @@ describe('RelationDetailPanel — quick actions', () => {
     updateCommitment.mockClear();
   });
 
-  it('always offers to call and to track a commitment', () => {
+  it('always offers to track a commitment, and never a call without a number', () => {
+    // Owner request 2026-10-21: the generic « call » made no sense beside one
+    // « Appel LIA » per number of the contact card.
     useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
     renderPanel();
-    expect(screen.getByRole('button', { name: 'relations.action_call' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'relations.action_loop' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'relations.action_call' })).toBeNull();
   });
 
   it('offers to write only while the connection is live', () => {
@@ -525,7 +621,6 @@ describe('RelationDetailPanel — quick actions', () => {
 
   it.each([
     ['relations.action_message', true],
-    ['relations.action_call', false],
     ['relations.action_loop', false],
   ])('%s prefills the composer and never auto-sends', async (label, needsPeer) => {
     useRelationDetail.mockReturnValue({
@@ -541,6 +636,135 @@ describe('RelationDetailPanel — quick actions', () => {
     // ?intent= is AUTO-SENT (QW-24/ADR-173) — forbidden for anything that
     // reaches another human or places a call.
     expect(href).not.toContain('intent=');
+  });
+
+  it('offers one action per email, address and number of the contact card, each only prefilling', async () => {
+    // Owner request 2026-10-21: « Email … », « Itinéraire vers … », « Appel LIA … ».
+    connectors.value = [telephonyConnector('active')];
+    useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
+    useRelationContext.mockReturnValue({
+      context: {
+        ...providerContext(),
+        contact: section({
+          contact: {
+            display_name: 'Marie Client',
+            nickname: null,
+            organization: null,
+            occupation: null,
+            birthday: null,
+            biography: null,
+            emails: [
+              { value: 'marie@client.fr', label: null },
+              { value: 'marie@atelier.fr', label: null },
+            ],
+            phones: [{ value: '+33 6 00 00 00 00', label: null }],
+            addresses: [{ value: '1 rue du Test, Paris', label: null }],
+            relations: [],
+            links: [],
+            important_dates: [],
+            messaging: [],
+          },
+        }),
+      },
+      loading: false,
+      refreshing: [],
+      error: false,
+      refreshSections: vi.fn(),
+    });
+    const { user } = renderPanel();
+
+    const emails = screen.getAllByRole('button', { name: 'relations.action_email' });
+    const routes = screen.getAllByRole('button', { name: 'relations.action_route' });
+    const call = screen.getByRole('button', { name: 'relations.action_lia_call' });
+    expect(emails).toHaveLength(2);
+    expect(routes).toHaveLength(1);
+    // One column per kind, each sized to its widest button (`w-max`), every
+    // button stretched to it and every row the tallest one's height.
+    const emailColumn = emails[0].parentElement;
+    const routeColumn = routes[0].parentElement;
+    const callColumn = call.parentElement;
+    expect(new Set([emailColumn, routeColumn, callColumn]).size).toBe(3);
+    for (const column of [emailColumn, routeColumn, callColumn]) {
+      expect(column).toHaveClass('grid', 'w-max', 'max-w-full', 'auto-rows-fr');
+      expect(column?.parentElement).toBe(emailColumn?.parentElement);
+    }
+    expect(emails[1].parentElement).toBe(emailColumn);
+    for (const button of [...emails, ...routes, call]) expect(button).toHaveClass('w-full');
+    await user.click(call);
+
+    const href = openChat.mock.calls[0][0] as string;
+    expect(href.startsWith('/fr/dashboard/chat?draft=')).toBe(true);
+    // Calling someone never leaves on a click: the purpose is the person's to add.
+    expect(href).not.toContain('intent=');
+  });
+
+  it('opens a column only for a kind the card holds', () => {
+    useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
+    useRelationContext.mockReturnValue({
+      context: providerContext(),
+      loading: false,
+      refreshing: [],
+      error: false,
+      refreshSections: vi.fn(),
+    });
+    renderPanel();
+
+    // The provider fixture holds one email and nothing else: one column.
+    const email = screen.getByRole('button', { name: 'relations.action_email' });
+    expect(email.parentElement?.parentElement?.children).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'relations.action_route' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'relations.action_lia_call' })).toBeNull();
+  });
+
+  it.each([
+    ['no telephony connector', [] as Connector[]],
+    ['an inactive one', [telephonyConnector('inactive')]],
+  ])('offers no LIA call with %s, the rest of the card unchanged', (_case, held) => {
+    connectors.value = held;
+    useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
+    useRelationContext.mockReturnValue({
+      context: {
+        ...providerContext(),
+        contact: section({
+          contact: {
+            display_name: 'Marie Client',
+            nickname: null,
+            organization: null,
+            occupation: null,
+            birthday: null,
+            biography: null,
+            emails: [{ value: 'marie@client.fr', label: null }],
+            phones: [{ value: '+33 6 00 00 00 00', label: null }],
+            addresses: [],
+            relations: [],
+            links: [],
+            important_dates: [],
+            messaging: [],
+          },
+        }),
+      },
+      loading: false,
+      refreshing: [],
+      error: false,
+      refreshSections: vi.fn(),
+    });
+    renderPanel();
+
+    expect(screen.getByRole('button', { name: 'relations.action_email' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'relations.action_lia_call' })).toBeNull();
+  });
+
+  it('offers no address-book action while no contact card was read', () => {
+    useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
+    renderPanel();
+
+    for (const name of [
+      'relations.action_email',
+      'relations.action_route',
+      'relations.action_lia_call',
+    ]) {
+      expect(screen.queryByRole('button', { name })).toBeNull();
+    }
   });
 });
 
@@ -604,7 +828,20 @@ describe('RelationDetailPanel — LIA connection block', () => {
     });
     renderPanel();
     expect(screen.getByText('relations.peer_link_title')).toBeInTheDocument();
-    expect(screen.queryByText('relations.peer_link_since')).toBeNull();
+    expect(screen.queryByText(/relations\.peer_link_connected/)).toBeNull();
+  });
+
+  it('dates the connection: how long ago and when', () => {
+    useRelationDetail.mockReturnValue({
+      detail: detail({ is_peer: true, peer_link: link() }),
+      loading: false,
+      error: false,
+    });
+    renderPanel();
+    const since = screen.getByText(/relations\.peer_link_connected/);
+    // The moment itself, in bold — not only "3 d ago".
+    expect(since.querySelectorAll('strong')).toHaveLength(2);
+    expect(since).toHaveTextContent(/2026/);
   });
 });
 
@@ -878,7 +1115,15 @@ describe('a memory on the card leads to where memories live', () => {
     // no way to reach it was the gap: the text was a dead `<p>`, so correcting
     // or deleting it meant finding Settings, then the right section, by hand.
     useRelationDetail.mockReturnValue({
-      detail: detail({ memories: [{ id: 'mem-1', content: 'Préfère les réunions le matin' }] }),
+      detail: detail({
+        memories: [
+          {
+            id: 'mem-1',
+            content: 'Préfère les réunions le matin',
+            created_at: '2026-07-18T08:30:00Z',
+          },
+        ],
+      }),
       loading: false,
       error: false,
     });
@@ -895,7 +1140,15 @@ describe('a memory on the card leads to where memories live', () => {
     // memory would be false the moment it sits on page three. The honest
     // destination is the section that holds it.
     useRelationDetail.mockReturnValue({
-      detail: detail({ memories: [{ id: 'mem-1', content: 'Préfère les réunions le matin' }] }),
+      detail: detail({
+        memories: [
+          {
+            id: 'mem-1',
+            content: 'Préfère les réunions le matin',
+            created_at: '2026-07-18T08:30:00Z',
+          },
+        ],
+      }),
       loading: false,
       error: false,
     });

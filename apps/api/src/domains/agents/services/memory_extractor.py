@@ -76,6 +76,10 @@ from src.domains.agents.utils.extraction_guards import enforce_delete_cap
 from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
 from src.domains.llm_config.jev_registry import JevUsage
 from src.domains.memories.protection import automated_edit_refusal
+from src.domains.proactive_discussions.reply_receipts import (
+    acknowledge_completed_reply,
+    acknowledge_empty_reply,
+)
 from src.domains.shared.extraction_targets import find_last_user_message
 from src.domains.shared.provenance_capture import record_origin
 from src.domains.users.extraction_consent import ExtractionKind, snapshot_extraction_consent
@@ -449,6 +453,7 @@ async def extract_memories_background(
         actions = parse_extraction_result(result_content)
 
         if not actions:
+            await acknowledge_empty_reply(user_id, parent_run_id, result_content)
             if parent_run_id:
                 _cache_debug_result(
                     parent_run_id,
@@ -745,6 +750,9 @@ async def extract_memories_background(
                         continue
 
                 await db.commit()
+                await acknowledge_completed_reply(
+                    user_id, parent_run_id, len(actions), stored_memories_debug
+                )
         finally:
             clear_embedding_context()
 

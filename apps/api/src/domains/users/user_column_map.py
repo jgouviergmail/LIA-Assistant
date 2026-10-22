@@ -137,6 +137,7 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "journal_context_max_results": _PREFERENCE,
     "journal_last_consolidated_at": _PREFERENCE,
     "journal_last_cost_tokens_in": _PREFERENCE,
+    "journal_last_cost_tokens_cache": _PREFERENCE,
     "journal_last_cost_tokens_out": _PREFERENCE,
     "journal_last_cost_eur": _PREFERENCE,
     "journal_last_cost_at": _PREFERENCE,

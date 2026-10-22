@@ -59,6 +59,7 @@ import { HabitsSettings } from './HabitsSettings';
 import { HapticsSettings } from './HapticsSettings';
 import { HealthMetricsSettings } from './HealthMetricsSettings';
 import { HeartbeatSettings } from './HeartbeatSettings';
+import { ProactiveDiscussionSettings } from './ProactiveDiscussionSettings';
 import { GeneratedAssetsSettings } from './GeneratedAssetsSettings';
 import { ImageGenerationSettings } from './ImageGenerationSettings';
 import { InterestsSettings } from './InterestsSettings';
@@ -173,6 +174,7 @@ export const SETTINGS_SECTION_REGISTRY: Readonly<
 
   // ---- Features / Automation & Tracking
   heartbeat: { feature: 'heartbeat', render: lng => <HeartbeatSettings lng={lng} /> },
+  'proactive-discussions': { render: lng => <ProactiveDiscussionSettings lng={lng} /> },
   'scheduled-actions': {
     feature: 'scheduled-actions',
     render: lng => <ScheduledActionsSettings lng={lng} />,

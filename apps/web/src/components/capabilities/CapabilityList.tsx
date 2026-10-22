@@ -57,7 +57,7 @@ export function CapabilityList({ nodes, live, total, hrefOf }: CapabilityListPro
             <li key={node.key}>
               <Link
                 href={hrefOf(node.key)}
-                className="flex min-h-11 items-center gap-3 rounded-lg border border-border/50 bg-card px-3 py-2 transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex min-h-11 items-center gap-3 rounded-lg border border-border bg-card px-3 py-2 transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <span
                   className={cn(

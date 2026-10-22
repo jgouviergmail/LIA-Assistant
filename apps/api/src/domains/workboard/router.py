@@ -30,6 +30,7 @@ from src.core.time_utils import now_utc
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.users.models import User
+from src.domains.workboard.assignment_notifications import dispatch_committed_assignment_notices
 from src.domains.workboard.board_queries import BoardFilters
 from src.domains.workboard.schemas import (
     BoardPage,
@@ -260,9 +261,15 @@ async def update_ticket(
     Returns:
         The updated ticket.
     """
-    ticket = await WorkboardService(db).update(user, ticket_id, payload)
+    service = WorkboardService(db)
+    ticket = await service.update(user, ticket_id, payload)
     await db.commit()
-    return TicketRow.model_validate(ticket)
+    row = TicketRow.model_validate(ticket)
+    # After the commit, never under the fence: a handover's notice claims its
+    # act on a connection of its own, which waits for the accounts' rows the
+    # update held (production deadlock, 2026-10-21).
+    await dispatch_committed_assignment_notices(service.assignment_notices)
+    return row
 
 
 @router.post(
@@ -340,9 +347,14 @@ async def add_comment(
     Returns:
         The created comment.
     """
-    comment = await WorkboardService(db).comment(user, ticket_id, payload)
+    service = WorkboardService(db)
+    comment = await service.comment(user, ticket_id, payload)
     await db.commit()
-    return CommentRow.model_validate(comment)
+    row = CommentRow.model_validate(comment)
+    # A comment that answers a confirmation hands the ticket back: its notices
+    # leave after the commit, like an update's.
+    await dispatch_committed_assignment_notices(service.assignment_notices)
+    return row
 
 
 @router.delete(

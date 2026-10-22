@@ -235,7 +235,7 @@ export function AdminUsageLimitsSection({ lng }: AdminUsageLimitsSectionProps) {
               </tr>
             ) : (
               users.map(user => (
-                <tr key={user.user_id} className="border-b border-border/50 hover:bg-muted/30">
+                <tr key={user.user_id} className="border-b border-border hover:bg-muted/30">
                   <td className="py-2 pr-3 w-40">
                     <div className="font-medium truncate max-w-[10rem]" title={user.email}>
                       {user.email}

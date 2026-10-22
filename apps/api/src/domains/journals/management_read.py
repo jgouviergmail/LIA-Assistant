@@ -1,10 +1,12 @@
 """One SQL observation binds the public page and full filtered journal count."""
 
 from dataclasses import dataclass
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import func, literal, select, tuple_
+from sqlalchemy import func, literal, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from src.core.exceptions import ResourceNotFoundError
 from src.domains.journals.models import JournalEntry, JournalEntryStatus, JournalTheme
@@ -17,6 +19,30 @@ class JournalPage:
     total: int
 
 
+def _context_filters(
+    query: str | None,
+    entry_id: UUID | None,
+    recorded_start: datetime | None,
+    recorded_end: datetime | None,
+) -> list[ColumnElement[bool]]:
+    """Additive owner filters; default management pages keep their exact scope."""
+    filters: list[ColumnElement[bool]] = []
+    if query is not None:
+        filters.append(
+            or_(
+                JournalEntry.title.icontains(query, autoescape=True),
+                JournalEntry.content.icontains(query, autoescape=True),
+            )
+        )
+    if entry_id is not None:
+        filters.append(JournalEntry.id == entry_id)
+    if recorded_start is not None:
+        filters.append(JournalEntry.created_at >= recorded_start)
+    if recorded_end is not None:
+        filters.append(JournalEntry.created_at < recorded_end)
+    return filters
+
+
 async def read_journal_page(
     db: AsyncSession,
     actor_id: UUID,
@@ -25,6 +51,10 @@ async def read_journal_page(
     status: JournalEntryStatus | None,
     limit: int,
     after_id: UUID | None,
+    query: str | None = None,
+    entry_id: UUID | None = None,
+    recorded_start: datetime | None = None,
+    recorded_end: datetime | None = None,
 ) -> JournalPage:
     fields = tuple(JournalEntryResponse.model_fields)
     filters = [JournalEntry.user_id == actor_id]
@@ -32,6 +62,7 @@ async def read_journal_page(
         filters.append(JournalEntry.theme == theme.value)
     if status is not None:
         filters.append(JournalEntry.status == status.value)
+    filters.extend(_context_filters(query, entry_id, recorded_start, recorded_end))
     anchor = (
         select(JournalEntry.created_at)
         .where(*filters, JournalEntry.id == after_id)

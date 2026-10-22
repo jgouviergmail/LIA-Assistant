@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version** : 6.4
-**Date** : 2026-10-19
-**Application** : LIA v3.3.0
+**Version** : 6.5
+**Date** : 2026-10-22
+**Application** : LIA v3.4.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -61,7 +61,7 @@ Chaque utilisateur dispose de son propre espace de paramétrage, organisé en de
 - **Génération d'images** : active et configure la création d'images par IA
 - **Serveurs MCP personnels** : connecte tes propres serveurs MCP pour étendre les capacités de LIA
 - **Apparence** : langue, fuseau horaire, thème (5 palettes, mode clair, sombre ou noir absolu), police (9 choix), taille du texte (de 14 à 20 px, sans déplacer un panneau), format d'affichage des réponses (cartes HTML, HTML, Markdown)
-- **Mon dashboard** : masque ou réordonne les 9 cartes du briefing — une carte masquée n'est même plus récupérée
+- **Mon dashboard** : masque ou réordonne les 11 cartes du briefing — une carte masquée n'est même plus récupérée
 - **Préférences d'usage** : choisis ton rythme d'échanges — fréquents, et LIA garde tous ses outils sous la main pour que chaque tour du mode ReAct relise le précédent dans le cache du fournisseur ; ponctuels, et elle choisit les outils utiles à chaque question, pour un coût stable
 - **Debug** : accède au panneau de debug pour inspecter chaque échange (si activé par l'administrateur)
 
@@ -72,6 +72,8 @@ Chaque utilisateur dispose de son propre espace de paramétrage, organisé en de
 - **Journaux personnels** : configure l'extraction d'introspections après chaque conversation et la consolidation périodique
 - **Centres d'intérêt** : définis tes sujets favoris, configure la fréquence de notifications, les créneaux horaires et les sources (Perplexity, Brave, Wikipedia, réflexion IA)
 - **Notifications proactives** : règle la fréquence, la fenêtre horaire et les sources de contexte (calendrier, météo, tâches, emails, intérêts, mémoires, journaux)
+- **Discussions proactives** : autorise LIA à engager une discussion, puis choisis ses heures, un maximum par jour, les sources permises et les sujets sensibles — et consulte, corrige ou reconstruis le contexte qu’elle garde
+- **SMS** : crée le jeton qu’utilise ton téléphone, donne ou retire l’accès de l’assistant, cherche dans l’archive, bloque un expéditeur ou efface un message
 - **Actions planifiées et rappels** : dis le rythme — tous les trois jours, un mardi sur deux, le 2e mardi du mois, toutes les deux heures entre 9h et 17h, jusqu'à une date ou N fois — pour une automatisation comme pour un rappel, qui peut désormais revenir au lieu de ne sonner qu'une fois. Et lis ta semaine d'un coup d'œil : chaque routine à son heure sur ses jours, chaque cellule colorée par ce qui s'est réellement passé
 - **Skills** : active/désactive des compétences expertes dans une galerie avec aperçus, crée tes propres Skills personnels, installes-en une depuis une URL https (validée côté serveur), ou choisis-la dans la bibliothèque publique skills.sh après l'avoir lue
 - **Espaces de connaissances** : charge tes documents (PDF, Word, Excel, PowerPoint, EPUB, HTML et 15+ formats), synchronise un dossier Google Drive ou suis un libellé Gmail — indexation automatique et recherche hybride. Les fils que tu étiquettes deviennent des documents interrogeables des semaines plus tard, et retirer le libellé retire le document. Un document que LIA ne peut pas lire — un PDF scanné sans couche texte — le dit sous sa ligne, avec le remède. Un dossier Drive se synchronise avec ses sous-dossiers, et au-delà d'un seuil le nombre exact de fichiers qui vont être indexés s'affiche avant que rien ne démarre
@@ -145,6 +147,7 @@ Les cartes montrent aussi d’où vient un résultat MCP tiers et quelle méthod
 - **Contacts** : rechercher, créer, modifier des contacts — via Google Contacts, Outlook Contacts ou Apple Contacts
 - **Tâches** : gérer tes listes de tâches — via Google Tasks ou Microsoft To Do
 - **Fichiers** : accéder à Google Drive pour rechercher et lire tes documents, consulter le contenu d'un tableur ou d'un document, et y écrire après ta confirmation (ajout de lignes, mise à jour d'une plage, note en fin de document)
+- **SMS** : une automatisation Raccourcis de l’iPhone relaie les SMS reçus par ton téléphone dans une archive privée et chiffrée — recherche, noms des expéditeurs tirés de tes contacts, suppression et export ; les codes d’accès reconnus ne sont jamais conservés, et LIA ne lit tes messages qu’une fois que tu l’y autorises à part
 - **Maison connectée** : contrôler ton éclairage Philips Hue — allumer/éteindre, luminosité, couleurs, scènes, gestion par pièce
 
 ### 3.3. Intelligence web et environnement
@@ -154,7 +157,7 @@ Wikipédia, la navigation de pages, les lieux, la météo et la qualité de l'ai
 - **Recherche web** : recherche multi-sources (Brave Search, Perplexity, Wikipedia) pour des réponses complètes et sourcées
 - **Météo** : conditions actuelles et prévisions à 5 jours, avec détection de changements (début/fin de pluie, chute de température, alertes vent)
 - **Qualité de l'air et pollens** : indice de qualité de l'air et types de pollen en saison, joints à toute réponse météo — avec la catégorie publiée par le fournisseur lui-même, et l'indice de ton pays quand il existe
-- **Lieux et commerces** : recherche de lieux à proximité avec détails, horaires, avis
+- **Lieux et commerces** : recherche de lieux à proximité avec détails, horaires, avis ; quand une réponse en liste plusieurs, une carte Position les numérote sur un même plan, et en sélectionner un affiche ses détails et un itinéraire facturé depuis l’endroit où tu te trouves
 - **Itinéraires** : calcul d'itinéraires multi-modaux (voiture, marche, vélo, transports en commun) avec géolocalisation automatique
 - **Position en déplacement** : quand ta position en direct n'est pas disponible (application mobile restée en veille), LIA utilise ta dernière position mémorisée — si tu l'as activée — plutôt que ton adresse personnelle, et annonce toujours l'âge de cette position au lieu de la présenter comme courante
 
@@ -185,6 +188,7 @@ LIA propose un mode vocal complet :
 LIA ne se contente pas de répondre — elle anticipe :
 
 - **Notifications proactives** : LIA croise tes sources de contexte (calendrier, météo, tâches, emails, intérêts) et te notifie quand c'est genuinement utile — avec un système anti-spam intégré (fenêtre horaire, pauses entre deux messages) et sans quota quotidien : chaque passage est évalué, et c'est la pertinence qui décide, pas un compteur
+- **Des discussions qu’elle engage** : une fois que tu l’autorises, LIA peut engager d’elle-même une conversation personnelle — s’intéresser à un projet, t’encourager, te poser une question ouverte. Tu choisis ses heures, un maximum par jour, chaque source qu’elle peut lire et les sujets sensibles qu’elle peut prendre en compte ; quatre réactions répondent à une ouverture en un clic, le contexte qu’elle a construit reste visible et corrigeable, et chaque passage compte dans ta consommation, sous des budgets quotidiens
 - **Initiative conversationnelle** : pendant un échange, LIA vérifie proactivement les informations connexes — si la météo annonce de la pluie samedi, elle consulte ton calendrier pour signaler d'éventuelles activités en extérieur
 - **Centres d'intérêt** : LIA retient ce à quoi tu tiens vraiment, pas ce que tu as demandé une fois — poser une question est une tâche, pas un goût, et il faut une passion déclarée, une pratique, une connaissance ou un approfondissement réel pour qu'un sujet compte. Les thèmes alternent (jamais deux fois le même d'affilée), chaque notification cite ses sources, et un sujet que tu refuses ne revient pas : le blocage est comparé à tout nouveau sujet, y compris sous un autre nom
 - **Un travail qu'on confie, et qui revient** : un ticket a un cycle de vie, un porteur et un résultat. Confies-en un à LIA et elle le prend à son rythme, le fait, commente ce qu'elle a trouvé et te rend le résultat à accepter — et quand elle rencontre quelque chose qu'elle n'a pas le droit de faire seule, elle demande sur le ticket, en montrant exactement ce qu'elle s'apprête à faire, plutôt que de décider à ta place ou de renoncer
@@ -299,6 +303,8 @@ Avec LIA, **les données persistantes de ton compte vivent dans ton PostgreSQL**
 
 La protection vaut aussi pour ce qui **entre**. LIA lit tous les jours des textes que tu n’as pas écrits : le corps d'un e-mail, la description d'une invitation rédigée par son organisateur, une page web, la fiche d'un lieu. N'importe qui peut y glisser une consigne destinée à l'assistant. Chaque donnée porte désormais sa provenance, et ce qui vient de l'extérieur arrive étiqueté comme **matière à analyser, jamais comme ordre à suivre** — avec les tentatives de manipulation repérées et nommées, dans les six langues. Ton contenu n'est jamais réécrit pour autant : un e-mail reste ce que son auteur a écrit. Réécrire donnerait l'illusion d'une garantie que le contournement suivant démentirait ; nommer ce qu'on voit est plus honnête, et plus utile.
 
+Et à la porte : une adresse qui sonde des chemins inconnus ou enchaîne les connexions refusées est éconduite un temps par tous les processus du serveur à la fois, tandis qu’une erreur ordinaire ne compte jamais contre personne.
+
 ### 5.2. Même un Raspberry Pi suffit
 
 LIA tourne en production sur un **Raspberry Pi 5** — un ordinateur monocarte à 80 euros. 20+ agents spécialisés, une stack d'observabilité complète, un système de mémoire psychologique, le tout sur un micro-serveur ARM. Les images Docker multi-architecture (amd64/arm64) permettent le déploiement sur n'importe quel matériel : NAS Synology, VPS à quelques euros par mois, serveur d'entreprise, ou cluster Kubernetes.
@@ -395,7 +401,7 @@ La même exigence gouverne ce que LIA retient de tes consignes : chaque règle d
 
 ### 6.8. Une surface qui décrit le produit y est tenue
 
-La transparence a un mode de défaillance que personne ne remarque : un écran qui cesse discrètement de dire vrai. Rien ne casse, aucun test ne vire au rouge, et la page qui existait pour être à jour devient la moins à jour de l'application. La carte des capacités — celle qui répond _qu'est-ce que mon assistant sait faire pour moi ?_ — ne se maintient donc plus à la main : chaque capacité que la plateforme sait activer ou couper doit y avoir sa place déclarée, et une capacité livrée sans cette décision empêche l'application de démarrer. La même conviction, d'un cran plus loin : ce qu'un écran affirme de tes données doit être **exact ou absent**. Un décompte est le nombre que rend la base, jamais une longueur qui traînait à portée de main ; et tant que la réponse est en route, ou quand elle a échoué, la carte ne dit rien plutôt que de deviner. « Rien de configuré » est une affirmation sur ton compte — de celles dont il vaut mieux être sûr avant de les prononcer. La FAQ obéit à la même exigence : chaque fonction qu'une personne peut utiliser y a sa section — 497 questions, en six langues —, et une section traduite que l'ordre d'affichage oublierait fait échouer les tests au lieu de rester invisible.
+La transparence a un mode de défaillance que personne ne remarque : un écran qui cesse discrètement de dire vrai. Rien ne casse, aucun test ne vire au rouge, et la page qui existait pour être à jour devient la moins à jour de l'application. La carte des capacités — celle qui répond _qu'est-ce que mon assistant sait faire pour moi ?_ — ne se maintient donc plus à la main : chaque capacité que la plateforme sait activer ou couper doit y avoir sa place déclarée, et une capacité livrée sans cette décision empêche l'application de démarrer. La même conviction, d'un cran plus loin : ce qu'un écran affirme de tes données doit être **exact ou absent**. Un décompte est le nombre que rend la base, jamais une longueur qui traînait à portée de main ; et tant que la réponse est en route, ou quand elle a échoué, la carte ne dit rien plutôt que de deviner. « Rien de configuré » est une affirmation sur ton compte — de celles dont il vaut mieux être sûr avant de les prononcer. La FAQ obéit à la même exigence : chaque fonction qu'une personne peut utiliser y a sa section — 498 questions, en six langues —, et une section traduite que l'ordre d'affichage oublierait fait échouer les tests au lieu de rester invisible.
 
 La transparence vaut aussi pour les règles internes de l'assistant. Une contrainte que le système applique doit être publiée à qui la subit : quand l'apprentissage des habitudes ne détecte rien, les Réglages affichent le seuil réellement exigé — plus strict le week-end, où les jours observés sont moins nombreux — au lieu d'un silence inexpliqué. Et quand un réglage s'ajuste tout seul, comme le seuil qui décide qu'une note du journal entre dans une réponse, il le fait dans des bornes strictes, un petit pas par jour, avec un interrupteur d'arrêt et chaque ajustement compté : un système qui apprend n'est acceptable que s'il reste observable et débrayable.
 
@@ -538,7 +544,7 @@ Ensuite, **ce qui s'exécute s'exécute dans une boîte scellée**. Le code d'un
 
 Cette exigence vaut aussi pour ce que LIA **affirme**. Une réponse doit s’appuyer sur des données réellement récupérées, jamais sur le souvenir d’une formulation antérieure ; et lorsqu’une information n’a jamais été obtenue, la dire manquante vaut mieux que la reconstituer de façon plausible. C’est une contrainte de conception plutôt qu’une consigne de style : les entités récemment récupérées sont réinjectées explicitement dans le contexte de réponse, et l’invention d’un attribut d’entité est proscrite au niveau du prompt. Une erreur factuelle plausible coûte plus cher qu’un « je ne sais pas ».
 
-La cohérence visuelle relève de la même exigence. Une action a la même forme partout ou nulle part ; un code couleur que le pointeur doit révéler n’est pas un code, c’est un secret ; le gris est réservé à ce qui est inactif — un état vivant porte sa couleur. Ces règles ne sont pas des goûts : chacune est écrite, outillée et gardée par un test, parce que l’effort de lecture appartient au système, pas à la personne qui l’utilise.
+La cohérence visuelle relève de la même exigence. Une action a la même forme partout ou nulle part ; un code couleur que le pointeur doit révéler n’est pas un code, c’est un secret ; le gris est réservé à ce qui est inactif — un état vivant porte sa couleur ; un même trait neutre borde chaque panneau et sépare les rubriques qu’il contient, jamais deux panneaux. Ces règles ne sont pas des goûts : chacune est écrite, outillée et gardée par un test, parce que l’effort de lecture appartient au système, pas à la personne qui l’utilise.
 
 ## 9. Normes, conformité et garanties
 

@@ -30,7 +30,7 @@ import {
 
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Button } from '@/components/ui/button';
-import { UsageLine, meterFigures } from '@/components/workboard/UsageLine';
+import { UsageLine, meterFigures } from '@/components/ui/usage-line';
 import { useAppConfig } from '@/hooks/useAppConfig';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
@@ -65,7 +65,7 @@ function FigureTile({
     <Link
       href={href}
       className={cn(
-        'flex items-center gap-3 rounded-xl border border-border/60 bg-background p-3 transition-colors hover:bg-accent/40',
+        'flex items-center gap-3 rounded-xl border border-border bg-background p-3 transition-colors hover:bg-accent/40',
         FOCUS
       )}
     >
@@ -163,10 +163,10 @@ function Glance({ lng, summary }: { lng: BaseSettingsProps['lng']; summary: Boar
             value={summary.held_by_lia}
           />
           <FigureTile
-            href={boardHref(lng)}
+            href={boardHref(lng, { assignee: 'me' })}
             icon={UserCheck}
-            label={t('settings.workboard.tile_needs_me')}
-            value={summary.needs_me}
+            label={t('settings.workboard.tile_mine')}
+            value={summary.held_by_me}
           />
         </div>
       </div>
@@ -204,7 +204,7 @@ function Glance({ lng, summary }: { lng: BaseSettingsProps['lng']; summary: Boar
       />
 
       {showCost && (
-        <div className="rounded-xl border border-border/60 bg-background [--lia-field-background:var(--color-card)] p-3">
+        <div className="rounded-xl border border-border bg-background [--lia-field-background:var(--color-card)] p-3">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <h4 className="flex items-center gap-2 text-sm font-semibold">
               <Coins className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
@@ -214,8 +214,9 @@ function Glance({ lng, summary }: { lng: BaseSettingsProps['lng']; summary: Boar
               {t('settings.workboard.runs', { count: summary.runs_total })}
             </span>
           </div>
-          {/* Two decimals, as the conversation pill shows its total. */}
-          <UsageLine figures={meterFigures(summary)} cost={summary.cost_eur} decimals={2} />
+          {/* Six decimals, as a ticket's own cost: a board of tickets costs
+              cents, and two decimals turned a real spend into 0,00 €. */}
+          <UsageLine figures={meterFigures(summary)} cost={summary.cost_eur} decimals={6} />
         </div>
       )}
     </div>

@@ -42,6 +42,22 @@ class ReadScope(str, Enum):
 #: Module path → (scope, reason). Every reader outside the repository, and
 #: nothing else: the guard refuses an omission AND a stale entry.
 MESSAGE_READERS: Final[dict[str, tuple[ReadScope, str]]] = {
+    "src.domains.proactive_discussions.outbox_repository": (
+        ReadScope.VISIBLE_ONLY,
+        "delivers only the owner's visible assistant opening joined through its owner-bound outbox and logical discussion",
+    ),
+    "src.domains.proactive_discussions.replies": (
+        ReadScope.VISIBLE_ONLY,
+        "binds genuine visible human replies to the owner's archived discussion and acknowledges only matching extraction receipts",
+    ),
+    "src.domains.proactive_discussions.history": (
+        ReadScope.VISIBLE_ONLY,
+        "old assistant opening wording is read only after its complete current proof set was freshly permitted",
+    ),
+    "src.domains.proactive_discussions.openings": (
+        ReadScope.VISIBLE_ONLY,
+        "the owner's visible assistant openings and explicit feedback, with stable archived identities",
+    ),
     "src.domains.agents.services.card_composition_service": (
         ReadScope.VISIBLE_ONLY,
         "validates a message-owned composition target from an owned visible assistant answer; "

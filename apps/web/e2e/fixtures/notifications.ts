@@ -185,6 +185,8 @@ const ticket: TicketRow = {
   last_run_error: null,
   last_run_tokens_in: 10,
   last_run_tokens_out: 5,
+  last_run_tokens_cache: 1200,
+  last_run_google_requests: 0,
   last_run_cost_eur: 0.001,
   total_tokens_in: 10,
   total_tokens_out: 5,

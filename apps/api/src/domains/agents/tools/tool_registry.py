@@ -596,6 +596,7 @@ def _import_tool_modules() -> None:
         ),
         ("src.domains.agents.tools.application_layout_tools", "application_layout_tools"),
         ("src.domains.agents.tools.application_heartbeat_tools", "application_heartbeat_tools"),
+        ("src.domains.agents.tools.application_discussion_tools", "application_discussion_tools"),
         ("src.domains.agents.tools.application_location_tools", "application_location_tools"),
         ("src.domains.agents.tools.application_channel_tools", "application_channel_tools"),
         ("src.domains.agents.tools.application_connector_tools", "application_connector_tools"),

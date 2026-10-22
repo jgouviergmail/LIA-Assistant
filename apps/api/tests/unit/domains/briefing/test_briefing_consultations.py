@@ -32,8 +32,21 @@ from src.domains.agents.effects.treatments import (
     record_out_of_turn_consultation,
     treatment_collector,
 )
+from src.domains.briefing.constants import SECTION_NAMES
+from src.domains.briefing.schemas import CardsBundle, CardSection, CardStatus
 
 pytestmark = pytest.mark.unit
+
+
+def _cards_bundle() -> CardsBundle:
+    return CardsBundle(
+        **{
+            name: CardSection(
+                status=CardStatus.NOT_CONFIGURED, generated_at=datetime(2026, 10, 20, tzinfo=UTC)
+            )
+            for name in SECTION_NAMES
+        }
+    )
 
 
 class TestRecordingAConsultationWithoutATurn:
@@ -226,7 +239,7 @@ class TestTheBundleFilesItsOwnAct:
                 succeeded=True,
                 duration_ms=5,
             )
-            return "bundle"
+            return _cards_bundle()
 
         with (
             patch.object(BriefingService, "_gather_cards", _gather),
@@ -242,7 +255,7 @@ class TestTheBundleFilesItsOwnAct:
         ):
             result = await service.build_cards()
 
-        assert result == "bundle"
+        assert result == _cards_bundle()
         assert len(recorded) == 1, "a bundle that opened a source filed no act"
         assert recorded[0].route == "briefing_cards"
         assert recorded[0].source == "user"
@@ -264,7 +277,7 @@ class TestTheBundleFilesItsOwnAct:
         # An always-live SMS source is deliberately outside this cached-only scenario.
 
         async def _gather(_self: object, _force: object = None) -> object:
-            return "bundle"
+            return _cards_bundle()
 
         with (
             patch.object(BriefingService, "_gather_cards", _gather),
@@ -314,7 +327,7 @@ class TestTheBundleFilesItsOwnAct:
             # Long enough for the second caller to arrive while this runs,
             # which is the whole situation under test.
             await asyncio.sleep(0.05)
-            return "bundle"
+            return _cards_bundle()
 
         with (
             patch.object(BriefingService, "_gather_cards", _gather),
@@ -330,7 +343,7 @@ class TestTheBundleFilesItsOwnAct:
         ):
             bundles = await asyncio.gather(owner.build_cards(), joiner.build_cards())
 
-        assert bundles == ["bundle", "bundle"], "both callers must get the bundle"
+        assert bundles == [_cards_bundle(), _cards_bundle()], "both callers must get the bundle"
         assert len(recorded) == 1, (
             f"one page load filed {len(recorded)} acts — the register is counting callers, "
             "not reads"
@@ -356,7 +369,7 @@ class TestTheBundleFilesItsOwnAct:
                 succeeded=True,
                 duration_ms=5,
             )
-            return "bundle"
+            return _cards_bundle()
 
         with (
             patch.object(BriefingService, "_gather_cards", _gather),
@@ -370,7 +383,7 @@ class TestTheBundleFilesItsOwnAct:
                 AsyncMock(side_effect=RuntimeError("register down")),
             ),
         ):
-            assert await service.build_cards() == "bundle"
+            assert await service.build_cards() == _cards_bundle()
 
 
 class _NullRepository:

@@ -73,9 +73,11 @@ async def test_one_source_has_consistent_archive_tools_relations_home_delivery_a
     book = IdentityBook(
         contacts=(ContactIdentity("Alice", numbers=("+33612345678",)),), complete=True
     )
-    monkeypatch.setattr("src.domains.sms.facade.load_identity_book", AsyncMock(return_value=book))
     monkeypatch.setattr(
-        "src.domains.sms.relation_reader.load_identity_book", AsyncMock(return_value=book)
+        "src.domains.sms.identity_resolution.load_identity_book", AsyncMock(return_value=book)
+    )
+    monkeypatch.setattr(
+        "src.domains.sms.identity_resolution.load_relation_book", AsyncMock(return_value=book)
     )
     archive = await SmsFacade(db).list(user.id, SmsQuery(limit=2), assistant=False)
     assert archive.total == 1 and archive.items[0].display_name == "Alice"

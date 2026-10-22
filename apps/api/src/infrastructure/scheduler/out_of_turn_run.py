@@ -273,6 +273,8 @@ class RunResult:
         register: The register the answering model declared (ADR-253), read
             from the ``done`` chunk — a voice restitutes the answer in that
             manner; None when the annotation is off or the turn declared none.
+        error_code: Structured exception type or stream error code; never
+            derived from the human-readable failure message.
     """
 
     outcome: RunOutcome
@@ -282,6 +284,7 @@ class RunResult:
     refusals: list[tuple[str, str]] = field(default_factory=list)
     interrupt: TurnInterrupt | None = None
     register: str | None = None
+    error_code: str | None = None
 
 
 async def resolve_run_context(db: Any, user_id: UUID) -> RunContext | None:
@@ -459,6 +462,7 @@ async def _attempt_until_settled(request: StreamRequest) -> RunResult:
                 RunOutcome.FAILED,
                 attempt=attempt,
                 error=f"{type(fatal).__name__}: {fatal}",
+                error_code=type(fatal).__name__,
             )
 
         text, interrupt, failure = read.text, read.interrupt, read.failure
@@ -483,6 +487,7 @@ async def _attempt_until_settled(request: StreamRequest) -> RunResult:
                 attempt=attempt,
                 text=text,
                 error=failure.message or failure.code or "the run was refused",
+                error_code=failure.code or "stream_error",
             )
         # A refusal collected by the gate means the turn met something only the
         # person can allow — the answer is real, but the work is not finished.
@@ -498,6 +503,7 @@ async def _attempt_until_settled(request: StreamRequest) -> RunResult:
         RunOutcome.FAILED,
         attempt=attempt,
         error=_failure_message(last_error, request),
+        error_code=type(last_error).__name__ if last_error is not None else "no_result",
     )
 
 
@@ -539,6 +545,7 @@ async def _retry_or_settle(
             RunOutcome.FAILED,
             attempt=attempt,
             error=_failure_message(transient, request, attempts=attempt),
+            error_code=type(transient).__name__,
         )
     if request.retry_delay_seconds:
         await asyncio.sleep(request.retry_delay_seconds)
@@ -807,6 +814,7 @@ def _settled(
     error: str | None = None,
     interrupt: TurnInterrupt | None = None,
     register: str | None = None,
+    error_code: str | None = None,
 ) -> RunResult:
     """Build the result, carrying whatever the gate refused along the way.
 
@@ -818,6 +826,7 @@ def _settled(
         error: A typed message, on failure.
         interrupt: The question the turn stopped on, when it stopped on one.
         register: The register the answer was said in, when one was declared.
+        error_code: Structured exception type or stream error code.
 
     Returns:
         The result the caller settles its row from.
@@ -830,6 +839,7 @@ def _settled(
         refusals=list(request.origin.refusals) if request.origin is not None else [],
         interrupt=interrupt,
         register=register,
+        error_code=error_code,
     )
 
 

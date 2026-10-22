@@ -131,6 +131,40 @@ class TestExportCoverage:
         assert row["rule_revision"] == 4
         assert row["outcome"] == "contradiction"
 
+    def test_a_proactive_discussion_leaves_with_its_evidence(self) -> None:
+        """Every discussion record is portable (owner rule 2026-10-21).
+
+        The support links alone stay out — each item's exported ``proofs`` name
+        them — and the rows lose only the server's own tokens.
+        """
+        discussion = {name for name in TABLE_RULES if name.startswith("discussion_")}
+        assert discussion - set(exportable_tables()) == {"discussion_context_supports"}
+        owner = uuid4()
+        tokens = {
+            "discussion_runs": {"fence": 7, "state": "skipped", "reason": "decision_skip"},
+            "discussion_outbox": {"attempt_token": uuid4(), "state": "delivered"},
+            "discussion_preferences": {
+                "run_fence": 3,
+                "active_run_id": uuid4(),
+                "lease_until": None,
+                "enabled": True,
+            },
+            "discussion_context_states": {
+                "ready_context": {"signature": "s", "references": {}},
+                "rule_cache": {"denied": ["sms"], "abstain": False},
+            },
+        }
+        rows = {
+            name: _row_to_dict(name, SimpleNamespace(_mapping=values), owner)
+            for name, values in tokens.items()
+        }
+        assert rows["discussion_runs"] == {"state": "skipped", "reason": "decision_skip"}
+        assert rows["discussion_outbox"] == {"state": "delivered"}
+        assert rows["discussion_preferences"] == {"enabled": True}
+        assert rows["discussion_context_states"] == {
+            "rule_cache": {"denied": ["sms"], "abstain": False}
+        }
+
     def test_markdown_renderer_references_real_columns(self) -> None:
         """A renamed column must break the readable rendering loudly.
 

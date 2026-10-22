@@ -63,18 +63,23 @@ describe('the description under every choice', () => {
   });
 
   it('says what each personal source reads', async () => {
+    const onChange = vi.fn();
     const { user } = renderWithProviders(
       <RadioSourceFields
         lng="en"
-        options={radioOptions()}
+        options={radioOptions({ sources: ['health', 'sms'] })}
         preferences={radioPreferences()}
-        onChange={noop}
+        onChange={onChange}
       />
     );
     await user.click(screen.getByText('radio.settings.sources.title'));
     expect(
       screen.getByRole('switch', { name: 'radio.settings.source.health' })
     ).toHaveAccessibleDescription('radio.settings.source_hints.health');
+    const sms = screen.getByRole('switch', { name: 'radio.settings.source.sms' });
+    expect(sms).toHaveAccessibleDescription('radio.settings.source_hints.sms');
+    await user.click(sms);
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ disabled_sources: ['sms'] }));
   });
 
   it('says what each site holds for the listener, as the API counted it', () => {

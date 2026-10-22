@@ -63,6 +63,8 @@ class CalendarAccess:
 @asynccontextmanager
 async def open_active_calendar(
     user_id: UUID,
+    *,
+    fresh: bool = False,
 ) -> AsyncIterator[CalendarAccess | ClientUnavailable]:
     """Open the account's active calendar, and always close it again.
 
@@ -73,7 +75,12 @@ async def open_active_calendar(
         The open access, or the named reason it could not be opened. No
         database session is open while the caller reads the calendar.
     """
-    async with open_active_client("calendar", user_id, container=CALENDAR) as opened:
+    access = (
+        open_active_client("calendar", user_id, container=CALENDAR, fresh=True)
+        if fresh
+        else open_active_client("calendar", user_id, container=CALENDAR)
+    )
+    async with access as opened:
         if not isinstance(opened, ActiveClient):
             yield opened
             return

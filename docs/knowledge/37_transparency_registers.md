@@ -2,7 +2,7 @@
 
 ## What are the transparency registers, and where do I find them?
 
-They record, automatically, what LIA does for you. Open them from the **Registers** shortcut on the Home page (under **My shortcuts**), or from the **Action journal** button of the Activity page. The **Transparency registers** page has four tabs:
+They record, automatically, what LIA does for you. Open them from the **Registers** shortcut on the Home page (under **My shortcuts**), or from the **Action journal** button of the Alerts and Activity pages. The **Transparency registers** page has four tabs:
 • **Actions** — what LIA did on your behalf: an e-mail sent, an event created, a file deleted, a document generated, a notification sent
 • **Consultations** — what LIA looked at to answer you: your e-mails, your calendar, the weather…
 • **LIA's own initiative** — what it did and read without being asked

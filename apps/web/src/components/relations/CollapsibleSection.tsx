@@ -56,7 +56,7 @@ export function CollapsibleSection({
 
   return (
     <section>
-      <Card className={cn('border-border/50 p-4', className)}>
+      <Card className={cn('border-border p-4', className)}>
         <div className="flex items-center justify-between gap-1">
           <h3 className="min-w-0 flex-1 text-sm font-semibold text-foreground">
             <button
@@ -86,6 +86,46 @@ export function CollapsibleSection({
         </div>
       </Card>
     </section>
+  );
+}
+
+/**
+ * A section's items as plain rows split by a hairline — the rhythm of the
+ * Alerts timeline (owner request 2026-10-21): a nested card per item drew a
+ * panel inside a panel. A real list, so a screen reader counts the items.
+ */
+export function SectionRows({ children }: { children: React.ReactNode }) {
+  return (
+    <ul role="list" className="min-w-0">
+      {children}
+    </ul>
+  );
+}
+
+/**
+ * A row's title line: its markers, then WHEN (`RelationWhen`) — the mail rows'
+ * line, which every dated row of the card shares (owner request 2026-10-21).
+ * A flex line, so the 11px phrase sets its height rather than the inherited
+ * body text's strut. It owns the 6px gap to the content below, so no row
+ * restates it — the mail rows and the SMS keep the same 6px (owner request
+ * 2026-10-21: two pixels read as one cramped block).
+ */
+export function SectionRowTitle({ children }: { children: React.ReactNode }) {
+  return <p className="mb-1.5 flex flex-wrap items-baseline gap-2">{children}</p>;
+}
+
+/** One row of `SectionRows`; an interactive row passes its own padding. */
+export function SectionRow({
+  className,
+  children,
+}: {
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <li className={cn('min-w-0 border-b border-border py-3 last:border-b-0', className)}>
+      {children}
+    </li>
   );
 }
 

@@ -90,6 +90,11 @@ CLIENT_CALL_RECORDERS: Final[dict[str, str]] = {
 #: Touches a client without reading anyone's data. Each entry is an argument,
 #: never a convenience: it must say what the module does with the client.
 NOT_A_CAPABILITY_READ: Final[dict[str, str]] = {
+    "domains/sms/identity_resolution.py": (
+        "Imports only the contacts cache invalidator for an explicit SMS name refresh; "
+        "it opens no provider. Actual contact reads remain in sms/identity_directory.py, "
+        "recorded under sms_identity; persisted matches record no new consultation."
+    ),
     "domains/agents/api/service.py": (
         "The contacts cache WARM-UP: before a turn it lists the person's "
         "contacts into the Redis cache the contacts tools read, and hands them "

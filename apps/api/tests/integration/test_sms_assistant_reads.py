@@ -7,18 +7,18 @@ from src.core.exceptions import AuthorizationError, ResourceNotFoundError
 from src.domains.agents.sms.read_service import SmsToolReader
 from src.domains.agents.sms.schemas import SmsGetRequest, SmsListRequest, SmsSearchRequest
 from src.domains.agents.sms.snapshots import SmsSnapshotGuard
-from src.domains.sms import facade
+from src.domains.sms import identity_resolution as facade
 from src.domains.sms.identity import IdentityBook
 from src.domains.sms.ingestion import SmsIngestionService
 from src.domains.sms.models import SmsMessage
 from tests.integration.test_sms_ingestion import authority, message
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("sms_identity_session")]
 
 
 @pytest.fixture(autouse=True)
 def no_external_directory(monkeypatch):
-    async def empty(owner):
+    async def empty(owner, *, cache_scope=None):
         return IdentityBook()
 
     monkeypatch.setattr(facade, "load_identity_book", empty)

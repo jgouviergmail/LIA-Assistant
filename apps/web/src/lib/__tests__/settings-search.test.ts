@@ -129,7 +129,8 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // (ADR-345, 2026-10-14): the instance's Fish Audio voices — clone,
     // design, rename, delete.
     // 69: Mes SMS follows Meetings, gated by the SMS platform capability.
-    expect(TOKENS).toHaveLength(69);
+    // 70: personal proactive discussions retain their controls with production off.
+    expect(TOKENS).toHaveLength(70);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(
@@ -514,6 +515,53 @@ describe('the two MCP sections live with the other extensions', () => {
       'admin-mcp-servers',
       'mcp-servers',
     ]);
+  });
+});
+
+describe('renamed administration panes stay findable by their full name', () => {
+  // The v3.4.0 label pass shortened three administration titles (audit V14,
+  // AC-025): a natural query naming the pane in full must still land on it,
+  // first — not on a neighbour that merely shares a word.
+  const FIRST: ReadonlyArray<readonly [LocaleCode, string, SettingsSectionToken]> = [
+    ['fr', 'administration des utilisateurs', 'admin-users'],
+    ['fr', 'administration des limites', 'admin-usage-limits'],
+    ['en', 'user administration', 'admin-users'],
+    ['en', 'limits administration', 'admin-usage-limits'],
+    ['de', 'Benutzerverwaltung', 'admin-users'],
+    ['de', 'Limitverwaltung', 'admin-usage-limits'],
+    ['es', 'administración de usuarios', 'admin-users'],
+    ['es', 'administración de límites', 'admin-usage-limits'],
+    ['it', 'amministrazione utenti', 'admin-users'],
+    ['it', 'amministrazione dei limiti', 'admin-usage-limits'],
+  ];
+  // The person's own export answers « consumption export » just as well and
+  // comes first in page order: the administration export must be offered,
+  // not necessarily first.
+  const FOUND: ReadonlyArray<readonly [LocaleCode, string]> = [
+    ['fr', 'export des consommations'],
+    ['en', 'consumption export'],
+    ['es', 'exportación de consumo'],
+    ['it', 'esportazione consumi'],
+    ['zh', '消费数据导出'],
+  ];
+  const superuserIndex = (locale: LocaleCode) =>
+    buildSettingsSearchIndex(translatorFor(locale), { ...ALL_AVAILABLE, isSuperuser: true });
+
+  it.each(FIRST)('%s: « %s » lands on %s first', (locale, query, token) => {
+    expect(matchSettingsSections(superuserIndex(locale), query)[0]?.token).toBe(token);
+  });
+
+  it.each(FOUND)('%s: « %s » offers the administration export', (locale, query) => {
+    const tokens = matchSettingsSections(superuserIndex(locale), query).map(r => r.token);
+    expect(tokens).toContain('admin-consumption-export');
+  });
+
+  it('still never offers them to a regular account', () => {
+    const index = buildSettingsSearchIndex(translatorFor('fr'), ALL_AVAILABLE);
+    const tokens = matchSettingsSections(index, 'administration des utilisateurs').map(
+      result => result.token
+    );
+    expect(tokens).not.toContain('admin-users');
   });
 });
 

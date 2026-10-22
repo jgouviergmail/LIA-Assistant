@@ -4,9 +4,14 @@ import {
   type MapsLibrary,
   type MarkerLibrary,
   type MapsBoundsLiteral,
+  type MapsInfoWindow,
+  type MapsListener,
+  type MapsPolyline,
+  type MapsPinElement,
 } from './google-maps-sdk';
 import type { PlacePositionData } from './place-position-data';
-import type { MapPoint } from './route-map-data';
+import type { MapPoint, MapRoute } from './route-map-data';
+import { mapAccent } from './google-route-map';
 
 export async function loadPlaceMaps(key: string) {
   const maps = await loadMapsSdk(key);
@@ -19,7 +24,10 @@ export async function loadPlaceMaps(key: string) {
         timer = setTimeout(() => reject(new Error('Marker library unavailable')), 10000);
       }),
     ]);
-    if (typeof marker.AdvancedMarkerElement !== 'function')
+    if (
+      typeof marker.AdvancedMarkerElement !== 'function' ||
+      typeof marker.PinElement !== 'function'
+    )
       throw new Error('Marker library unavailable');
     return { maps, marker };
   } finally {
@@ -76,39 +84,109 @@ export function mountPlaceMap(
       mapTypeIds: ['roadmap', 'satellite', 'hybrid', 'terrain'],
     },
   });
-  const markers: { ref: string; marker: InstanceType<MarkerLibrary['AdvancedMarkerElement']> }[] =
-    [];
+  const markers: {
+    ref: string;
+    marker: InstanceType<MarkerLibrary['AdvancedMarkerElement']>;
+    visual: MapsPinElement;
+  }[] = [];
   const markerEvents = new AbortController();
+  let details: MapsInfoWindow | null = null;
+  let detailsCloseListener: MapsListener | null = null;
+  let onDetailsClose: (() => void) | undefined;
+  let route: MapRoute | null = null;
+  let routeLine: MapsPolyline | null = null;
+  let destroyed = false;
+  const observer = new MutationObserver(styleMap);
+  function clearDetails() {
+    onDetailsClose = undefined;
+    details?.close();
+    details?.setContent();
+    details?.setOptions({ headerContent: undefined });
+  }
   function clear() {
+    if (destroyed) return;
+    destroyed = true;
+    observer.disconnect();
+    detailsCloseListener?.remove();
+    detailsCloseListener = null;
+    clearDetails();
+    details = null;
+    routeLine?.setMap(null);
+    routeLine = null;
+    route = null;
     markerEvents.abort();
     markers.forEach(value => {
       value.marker.map = null;
+      value.marker.replaceChildren();
     });
     mapFailures.delete(onFailure);
     maps.event.clearInstanceListeners(map);
     element.replaceChildren();
   }
   function fit() {
+    if (destroyed) return;
     const points = located.flatMap(value => (value.position ? [value.position] : []));
+    points.push(...(route?.path ?? []));
     const bounds = minimalPlaceBounds(points);
     if (bounds.north === bounds.south && bounds.west === bounds.east)
       map.setOptions({ center: first, zoom: 14 });
     else map.fitBounds(new maps.LatLngBounds(bounds), 36);
   }
+  function pinColors() {
+    const theme = getComputedStyle(element);
+    const dark = document.documentElement.classList.contains('dark');
+    return {
+      background:
+        theme.getPropertyValue('--color-primary').trim() || (dark ? '#93c5fd' : '#2563eb'),
+      glyphColor:
+        theme.getPropertyValue('--color-primary-foreground').trim() ||
+        (dark ? '#0f172a' : '#ffffff'),
+      borderColor:
+        theme.getPropertyValue('--color-background').trim() || (dark ? '#0f172a' : '#ffffff'),
+    };
+  }
+  function styleMap() {
+    if (destroyed) return;
+    const colors = pinColors();
+    markers.forEach(({ visual }) => {
+      visual.background = colors.background;
+      visual.glyphColor = colors.glyphColor;
+      visual.borderColor = colors.borderColor;
+    });
+    if (!routeLine) return;
+    const dark = document.documentElement.classList.contains('dark');
+    routeLine.setOptions({
+      strokeColor: mapAccent(element, dark),
+      strokeOpacity: 1,
+      strokeWeight: 6,
+      zIndex: 2,
+    });
+  }
   try {
     onConstruct();
+    const colors = pinColors();
     located.forEach(place => {
+      const number = String(data.places.indexOf(place) + 1);
+      const visual = new marker.PinElement({ glyphText: number, ...colors });
+      visual.classList.add('lia-place-position__map-pin');
+      visual.dataset.placeNumber = number;
+      visual.setAttribute('aria-hidden', 'true');
       const pin = new marker.AdvancedMarkerElement({
         map,
         position: place.position,
-        title: `${data.places.indexOf(place) + 1}. ${place.label}`,
+        title: `${number}. ${place.label}`,
         gmpClickable: true,
         zIndex: 1,
       });
-      markers.push({ ref: place.ref, marker: pin });
+      markers.push({ ref: place.ref, marker: pin, visual });
+      pin.append(visual);
       pin.addEventListener('gmp-click', () => onSelect(place.ref), { signal: markerEvents.signal });
     });
     fit();
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class', 'data-oled', 'data-theme'],
+    });
     mapFailures.add(onFailure);
   } catch (error) {
     clear();
@@ -117,7 +195,44 @@ export function mountPlaceMap(
   return {
     fit,
     destroy: clear,
+    clearDetails,
+    showDetails(ref: string, content: HTMLElement, header?: HTMLElement, onClose?: () => void) {
+      if (destroyed || !maps.InfoWindow) return;
+      const anchor = markers.find(value => value.ref === ref)?.marker;
+      if (!anchor) return;
+      // Google applies maxWidth before open; its native body owns vertical scrolling.
+      if (!details) {
+        details = new maps.InfoWindow({ maxWidth: 440 });
+        detailsCloseListener = details.addListener('close', () => {
+          const callback = onDetailsClose;
+          onDetailsClose = undefined;
+          callback?.();
+        });
+      }
+      onDetailsClose = onClose;
+      const label = data.places.find(value => value.ref === ref)?.label ?? '';
+      details.setOptions({ ariaLabel: label, headerContent: header });
+      details.setContent(content);
+      details.open({ map, anchor, shouldFocus: false });
+    },
+    setRoute(next: MapRoute | null) {
+      if (destroyed) return;
+      route = next;
+      if (!next) {
+        routeLine?.setMap(null);
+        return;
+      }
+      if (routeLine) {
+        routeLine.setOptions({ path: next.path });
+        routeLine.setMap(map);
+      } else {
+        routeLine = new maps.Polyline({ map, path: next.path, geodesic: false });
+      }
+      styleMap();
+      fit();
+    },
     select(ref: string) {
+      if (destroyed) return;
       const place = located.find(value => value.ref === ref);
       if (!place?.position) return;
       markers.forEach(value => {

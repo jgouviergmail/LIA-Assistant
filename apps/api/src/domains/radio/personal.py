@@ -58,6 +58,7 @@ from src.domains.briefing.schemas import (
 from src.domains.radio.constants import FACT_KEY_MAX_CHARS, FACT_TEXT_MAX_CHARS
 from src.domains.radio.facts import FactKind, RadioFact, Sensitivity
 from src.domains.shared.commercial_content import is_commercial_content
+from src.domains.sms.summary import SmsSignal
 
 
 class PersonalSource(StrEnum):
@@ -70,6 +71,7 @@ class PersonalSource(StrEnum):
     TICKETS = "tickets"
     BIRTHDAYS = "birthdays"
     MAILS = "mails"
+    SMS = "sms"
     SENT_MAILS = "sent_mails"
     #: What LIA did for the listener today — the effect register (decision 41, lot 4b).
     ACTIONS = "actions"
@@ -128,6 +130,7 @@ MAX_PER_SOURCE: Final[dict[PersonalSource, int]] = {
     PersonalSource.TICKETS: 5,
     PersonalSource.BIRTHDAYS: 3,
     PersonalSource.MAILS: 5,
+    PersonalSource.SMS: 3,
     PersonalSource.SENT_MAILS: 5,
     PersonalSource.ACTIONS: 4,
     PersonalSource.WEATHER: 1,
@@ -150,6 +153,7 @@ class PersonalDraft(NamedTuple):
     key: str
     sensitivity: Sensitivity
     part: JournalPart | None = None
+    sms_source: SmsSignal | None = None
 
 
 def digest(*parts: str) -> str:
@@ -348,6 +352,7 @@ def personal_facts(
                     text=draft.text[:FACT_TEXT_MAX_CHARS],
                     key=draft.key[:FACT_KEY_MAX_CHARS],
                     sensitivity=draft.sensitivity,
+                    sms_source=draft.sms_source,
                 )
             )
     return PersonalFacts(

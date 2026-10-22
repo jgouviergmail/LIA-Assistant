@@ -33,7 +33,7 @@ logger = structlog.get_logger(__name__)
 _EVENT_SELECT_FIELDS = (
     "id,subject,bodyPreview,body,start,end,location,attendees,organizer,"
     "recurrence,isAllDay,isCancelled,showAs,webLink,createdDateTime,"
-    "lastModifiedDateTime,iCalUId"
+    "lastModifiedDateTime,iCalUId,seriesMasterId,type,originalStart,originalStartTimeZone"
 )
 
 _CALENDAR_SELECT_FIELDS = "id,name,color,isDefaultCalendar,canEdit"

@@ -165,11 +165,16 @@ for (const kind of ['skill', 'plugin', 'mcp'] as const) {
         .analyze();
       expect(accessibility.violations).toEqual([]);
       await dialog.getByRole('button', { name: 'Send and install', exact: true }).click();
+      // A complete installation closes the dialog and is announced instead:
+      // what was shared, with whom, and the state it has on the other side.
+      const shared = { skill: 'Skill', plugin: 'Plugin', mcp: 'MCP server' }[kind];
       await expect(
-        dialog.getByText('Installed for the recipient, initially disabled')
+        page.getByText(`${shared} “${name}” shared with Alice Example`, { exact: true })
+      ).toBeVisible();
+      await expect(
+        page.getByText('Installed for the recipient, initially disabled', { exact: true })
       ).toBeVisible();
       expect(requests[1]).toEqual({ expected_digest: 'a'.repeat(64) });
-      await dialog.getByRole('button', { name: 'Close', exact: true }).first().click();
       await expect(dialog).toHaveCount(0);
       expect(errors).toEqual([]);
     });

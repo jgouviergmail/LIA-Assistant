@@ -150,7 +150,7 @@ export function BookmarkCard({ lng, bookmark, onDeleted }: BookmarkCardProps) {
 
       <div
         className={cn(
-          'relative overflow-hidden rounded-lg border border-border/60 bg-card px-3 py-2 text-sm',
+          'relative overflow-hidden rounded-lg border border-border bg-card px-3 py-2 text-sm',
           foldable && !expanded && 'max-h-64'
         )}
       >

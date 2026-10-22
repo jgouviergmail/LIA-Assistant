@@ -20,6 +20,7 @@ from src.domains.agents.application.bookmark_delete import execute_bookmark_dele
 from src.domains.agents.application.bookmark_keep import execute_bookmark_keep
 from src.domains.agents.application.command_repository import claim_command, close_command
 from src.domains.agents.application.command_service import CommandRejected, validate_execution
+from src.domains.agents.application.discussion_commands import execute_discussion_action
 from src.domains.agents.application.document_delete import execute_document_deletion
 from src.domains.agents.application.document_move import execute_document_move
 from src.domains.agents.application.draft_models import ApplicationActionDraftContent
@@ -212,6 +213,10 @@ async def _apply_approved_action(
             "journal_entries.create": execute_journal_creation,
             "journal_entries.delete": execute_journal_removal,
             "journal_settings.update": execute_journal_settings,
+            "proactive_discussions.update": execute_discussion_action,
+            "discussion_context.use": execute_discussion_action,
+            "discussion_context.purge": execute_discussion_action,
+            "discussion_context.rebuild": execute_discussion_action,
             "psyche.reset": execute_psyche_reset,
             "sms_token.revoke": execute_sms_native_action,
             "sms_preferences.update": execute_sms_native_action,

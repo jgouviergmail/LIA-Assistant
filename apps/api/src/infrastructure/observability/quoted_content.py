@@ -13,7 +13,10 @@ is whatever the person wrote or the row held. Measured on the dev stack on
   argument $1: 'Jean Dupont' (…)``;
 * SQLAlchemy: ``[parameters: (…)]`` after the statement — the application's
   engine hides them (``hide_parameters``), another engine may not;
-* Pydantic: every error line carries ``input_value=<the input>``.
+* Pydantic: every error line carries ``input_value=<the input>``;
+* jsonschema (including MCP output validation): the header echoes the value,
+  and the ``Failed validating`` / ``On instance`` sections dump the schema
+  and rejected data. Even schema examples and instance paths can be personal.
 
 These texts reach a log line through ``error=str(e)`` and through tracebacks,
 whatever the call site. None of them is ours to reword, so each shape is
@@ -37,6 +40,7 @@ _MARKERS: tuple[str, ...] = (
     "[parameters: ",
     "query argument",
     "input_value=",
+    "Failed validating ",
     "invalid input",
     "out of range",
     "malformed",
@@ -76,6 +80,80 @@ _OUT_OF_RANGE = re.compile(r'(value )"[^\n]*"( is out of range for type)')
 # marker of the line (greedy, and `.` never crosses a line).
 _PYDANTIC_INPUT = re.compile(r"(input_value=).*(, input_type=[^,\]\n]*\])")
 
+# jsonschema's documented rendering has three parts: an error message (which
+# can quote the value), a schema dump and an instance dump. Only the validator
+# keyword and error class are bounded facts. Dynamic paths, schema examples
+# and defaults are data too. ExceptionGroup decorates every line with ``|``;
+# retain that margin and stop before its next exception or Python's chain.
+_JSONSCHEMA_ERROR = re.compile(
+    r"^(?P<margin>[ \t]*(?:\|[ \t]*)?)"
+    r"(?P<prefix>(?:[\w.]+(?:Error|Exception): )?)[^\n]*\n"
+    r"(?P=margin)\n(?P=margin)Failed validating '(?P<validator>[^'\n]+)' "
+    r"in (?:meta)?schema[^\n]*:\n.*?\n"
+    r"(?P=margin)\n(?P=margin)On (?P<source>instance|schema)[^\n]*:\n.*?"
+    r"(?=\n(?:[ \t]*\|[ \t]*)?\n?(?:The above exception was the direct cause"
+    r"|During handling of the above exception|Traceback \(most recent call last\):)"
+    r"|\n[ \t]*\+-|\Z)",
+    re.MULTILINE | re.DOTALL,
+)
+_JSONSCHEMA_VALIDATORS = frozenset(
+    {
+        "$ref",
+        "$dynamicRef",
+        "type",
+        "enum",
+        "const",
+        "required",
+        "properties",
+        "patternProperties",
+        "additionalProperties",
+        "unevaluatedProperties",
+        "propertyNames",
+        "dependentRequired",
+        "dependentSchemas",
+        "dependencies",
+        "items",
+        "prefixItems",
+        "additionalItems",
+        "unevaluatedItems",
+        "contains",
+        "minContains",
+        "maxContains",
+        "minItems",
+        "maxItems",
+        "uniqueItems",
+        "minimum",
+        "maximum",
+        "exclusiveMinimum",
+        "exclusiveMaximum",
+        "multipleOf",
+        "minLength",
+        "maxLength",
+        "pattern",
+        "format",
+        "anyOf",
+        "allOf",
+        "oneOf",
+        "not",
+        "if",
+        "then",
+        "else",
+    }
+)
+
+
+def _redact_jsonschema(match: re.Match[str]) -> str:
+    """Keep a validator's bounded facts and traceback decorations, never quoted paths."""
+    margin = match["margin"]
+    validator = match["validator"]
+    if validator not in _JSONSCHEMA_VALIDATORS:
+        validator = "custom"
+    return (
+        f"{margin}{match['prefix']}{_REDACTED}\n{margin}\n"
+        f"{margin}Failed validating '{validator}' in schema:\n{margin}    {_REDACTED}\n"
+        f"{margin}\n{margin}On {match['source']}:\n{margin}    {_REDACTED}"
+    )
+
 
 def redact_quoted_content(text: str) -> str:
     """Replace the data an error text quotes, keeping everything around it.
@@ -90,6 +168,7 @@ def redact_quoted_content(text: str) -> str:
     """
     if not any(marker in text for marker in _MARKERS):
         return text
+    text = _JSONSCHEMA_ERROR.sub(_redact_jsonschema, text)
     text = _SERVER_FIELD.sub(lambda match: f"{match['field']}:  {_REDACTED}", text)
     text = _SQLALCHEMY_PARAMETERS.sub(f"[parameters: {_REDACTED}]", text)
     text = _QUERY_ARGUMENT.sub(rf"\g<1>{_REDACTED}", text)

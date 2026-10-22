@@ -274,6 +274,8 @@ export interface WorkboardTicketItem {
  */
 export interface WorkboardPreviews {
   needs_me: WorkboardTicketItem[];
+  /** Absent in caches predating « my tickets ». */
+  held_by_me?: WorkboardTicketItem[];
   held_by_lia: WorkboardTicketItem[];
   held_by_peers: WorkboardTicketItem[];
   overdue: WorkboardTicketItem[];
@@ -282,6 +284,8 @@ export interface WorkboardPreviews {
 
 export interface WorkboardData {
   needs_me: number;
+  /** Open tickets the person holds; absent/null in caches predating this count. */
+  held_by_me?: number | null;
   held_by_lia: number;
   /** Exact peer-filter count; absent/null in caches predating this field. */
   held_by_peers?: number | null;
@@ -349,6 +353,16 @@ export interface BriefingWindows {
   weather_forecast_days: number;
 }
 
+export interface SmsCardItem {
+  id: string;
+  sender: string;
+  display_name: string;
+  received_at: string;
+  date_kind: string;
+  body_excerpt: string;
+  body_truncated: boolean;
+}
+
 export interface SmsData {
   timezone: string;
   total: number;
@@ -356,6 +370,8 @@ export interface SmsData {
   window_start: string;
   as_of: string;
   latest_at: string | null;
+  /** Absent on older metadata-only server bundles during a rolling upgrade. */
+  items?: SmsCardItem[];
 }
 
 export interface CardsBundle {

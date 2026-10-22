@@ -237,7 +237,10 @@ async def _update_user_last_cost(
             result_user = await db.execute(select(User).where(User.id == UUID(user_id)))
             user = result_user.scalar_one_or_none()
             if user:
-                user.journal_last_cost_tokens_in = tokens.prompt + tokens.cached
+                # The chat meter's vocabulary: IN excludes the cache reads,
+                # which are counted apart.
+                user.journal_last_cost_tokens_in = tokens.prompt
+                user.journal_last_cost_tokens_cache = tokens.cached
                 user.journal_last_cost_tokens_out = tokens.completion
                 user.journal_last_cost_eur = Decimal(str(cost_eur))
                 user.journal_last_cost_at = billed_at or datetime.now(UTC)

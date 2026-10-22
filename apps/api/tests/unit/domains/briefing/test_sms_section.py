@@ -46,8 +46,10 @@ async def test_cache_only_reader_cannot_reserve_old_sms_metadata():
     service._read_live_section.assert_awaited_once()
 
 
-def test_sms_card_payload_does_not_expose_message_bodies():
-    data = SmsData(
+def test_sms_metadata_projection_does_not_expose_message_bodies():
+    from src.domains.sms.summary import SmsSummary
+
+    data = SmsSummary(
         total=137,
         window_total=5,
         window_start=datetime.now(UTC),
@@ -183,7 +185,17 @@ async def test_real_sms_prompt_reads_are_filed_as_sms_consultations(monkeypatch)
     owner = uuid4()
     now = datetime.now(UTC)
     data = SmsData(total=2, window_total=1, window_start=now, as_of=now, latest_at=now)
-    signal = SmsSignal(**data.model_dump(), owner=owner, revision=1, stamp="stamp", messages=[])
+    signal = SmsSignal(
+        total=2,
+        window_total=1,
+        window_start=now,
+        as_of=now,
+        latest_at=now,
+        owner=owner,
+        revision=1,
+        stamp="stamp",
+        messages=[],
+    )
 
     async def read_signal(owner, *, include_bodies, on_read):
         on_read()

@@ -130,7 +130,13 @@ EVIDENCE_RECIPES: dict[str, EvidenceRecipe] = {
         EvidenceRecipe(
             "GlobalRateLimitDegraded",
             prom_queries=("dependency_up",),
-            logs=LogRecipe(events=("rate_limit_redis_error", "rate_limit_script_load_failed")),
+            logs=LogRecipe(
+                events=(
+                    "rate_limit_redis_error",
+                    "rate_limit_script_load_failed",
+                    "http_scan_check_failed",
+                )
+            ),
         ),
         # ---- host & containers ------------------------------------------
         EvidenceRecipe("DiskSpaceCritical", prom_queries=("disk_usage_percent",)),
@@ -281,8 +287,9 @@ EVIDENCE_RECIPES: dict[str, EvidenceRecipe] = {
         ),
         EvidenceRecipe(
             "platform_egress",
-            reason_for_none="the probe's own detail already names the unreachable "
-            "target; nothing in Prometheus or Loki sees further than the socket",
+            reason_for_none="the probe's own detail already names the failing phase "
+            "(name resolution or connect), its timings and its attempts (ADR-361); "
+            "nothing in Prometheus or Loki sees further than the socket",
         ),
         # ---- observability tier -----------------------------------------
         EvidenceRecipe("AlertmanagerDown", prom_queries=("dependency_up",)),

@@ -17,7 +17,7 @@ import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
-import { UsageLine, meterFigures, type Figure } from '@/components/workboard/UsageLine';
+import { UsageLine, meterFigures, type Figure } from '@/components/ui/usage-line';
 import { useAuth } from '@/hooks/useAuth';
 import { lifecycleTone } from '@/lib/status-tone';
 import { cn } from '@/lib/utils';
@@ -137,14 +137,7 @@ export function LastRunBlock({ ticket, locale }: { ticket: TicketRow; locale: st
       </div>
       {user?.tokens_display_enabled && runCost !== null && (
         // Six decimals, as a message's own line shows its cost.
-        <UsageLine
-          figures={[
-            ['🟠', 'IN', ticket.last_run_tokens_in ?? 0],
-            ['🟢', 'OUT', ticket.last_run_tokens_out ?? 0],
-          ]}
-          cost={runCost}
-          decimals={6}
-        />
+        <UsageLine figures={lastRunFigures(ticket)} cost={runCost} decimals={6} />
       )}
       {failure && (
         // The sentence, then the evidence under it — smaller and muted, so a
@@ -160,6 +153,26 @@ export function LastRunBlock({ ticket, locale }: { ticket: TicketRow; locale: st
       )}
     </Panel>
   );
+}
+
+/**
+ * The last run's figures in the meter's own order. A figure its ledger no
+ * longer states (a run settled before cache and Google were kept) is left
+ * out, never drawn as a zero nobody measured.
+ */
+function lastRunFigures(ticket: TicketRow): Figure[] {
+  const [tokensIn, tokensOut, cache, google] = meterFigures({
+    tokens_in: ticket.last_run_tokens_in ?? 0,
+    tokens_out: ticket.last_run_tokens_out ?? 0,
+    tokens_cache: ticket.last_run_tokens_cache ?? 0,
+    google_requests: ticket.last_run_google_requests ?? 0,
+  });
+  return [
+    tokensIn,
+    tokensOut,
+    ...(ticket.last_run_tokens_cache === null ? [] : [cache]),
+    ...(ticket.last_run_google_requests === null ? [] : [google]),
+  ];
 }
 
 /**
@@ -192,8 +205,9 @@ export function TicketUsageBlock({ ticket }: { ticket: TicketRow }) {
       title={t('workboard.detail.usage')}
       aside={t('workboard.detail.usage_runs', { count: ticket.run_count })}
     >
-      {/* Two decimals, as the conversation pill shows its total. */}
-      <UsageLine figures={figures} cost={ticket.total_cost_eur} decimals={2} />
+      {/* Six decimals, as each of its runs shows its own: a ticket costs
+          fractions of a cent, and at two its 0,002576 € read 0,00 €. */}
+      <UsageLine figures={figures} cost={ticket.total_cost_eur} decimals={6} />
     </Panel>
   );
 }

@@ -11,14 +11,21 @@ model »). Both take the auto-tool door, which works on every generation.
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import AsyncMock
 
+import anthropic
+import httpx
 import pytest
+from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import AIMessage
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr
+from structlog.testing import capture_logs
 
+from src.infrastructure.llm import structured_output
 from src.infrastructure.llm.structured_output import (
     StructuredOutputError,
     _get_native_structured_output,
+    get_structured_output_with_retry,
 )
 
 pytestmark = pytest.mark.unit
@@ -110,3 +117,71 @@ async def test_a_miss_on_a_model_that_refuses_the_forced_tool_never_tries_it() -
     with pytest.raises(StructuredOutputError):
         await _ask(llm)
     assert llm.doors == ["auto:auto"]
+
+
+@pytest.mark.parametrize("model", ["claude-opus-5-5", "claude-opus-5"])
+@pytest.mark.parametrize(
+    ("status", "retry_hint", "attempts"),
+    [
+        (400, None, 1),
+        (401, None, 1),
+        (403, None, 1),
+        (404, None, 1),
+        (413, None, 1),
+        (422, None, 1),
+        (408, None, 3),
+        (409, None, 3),
+        (425, None, 3),
+        (429, None, 3),
+        (503, None, 3),
+        (400, "true", 3),
+        (503, "false", 1),
+    ],
+)
+async def test_a_provider_refusal_keeps_its_cause_and_never_retries(
+    status: int, retry_hint: str | None, attempts: int, model: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A rejected budget or request cannot heal by resending the same request."""
+    calls: list[httpx.Request] = []
+
+    def refuse(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(
+            status,
+            headers={"x-should-retry": retry_hint} if retry_hint is not None else {},
+            json={
+                "type": "error",
+                "error": {
+                    "type": "invalid_request_error",
+                    "message": "max_tokens: 200000 exceeds the maximum allowed of 128000",
+                },
+            },
+        )
+
+    monkeypatch.setattr(structured_output, "enforce_usage_limit", AsyncMock())
+    async with httpx.AsyncClient(transport=httpx.MockTransport(refuse)) as http:
+        llm = ChatAnthropic(
+            model_name=model, anthropic_api_key=SecretStr("test"), max_tokens=200000, max_retries=0
+        )
+        async with anthropic.AsyncAnthropic(
+            api_key="test", http_client=http, max_retries=0, timeout=30.0
+        ) as sdk:
+            monkeypatch.setitem(llm.__dict__, "_async_client", sdk)
+            with capture_logs() as logs, pytest.raises(StructuredOutputError) as caught:
+                await get_structured_output_with_retry(
+                    llm=llm, messages=[], schema=_Answer, provider="anthropic", max_retries=3
+                )
+
+    assert len(calls) == attempts
+    retries = [entry for entry in logs if entry.get("event") == "structured_output_retry"]
+    assert [entry["attempt"] for entry in retries] == list(range(1, attempts))
+    exhausted = [
+        entry for entry in logs if entry.get("event") == "structured_output_all_retries_failed"
+    ]
+    assert len(exhausted) == (1 if attempts == 3 else 0)
+    if attempts == 1:
+        assert isinstance(caught.value, structured_output.StructuredOutputRefusedError)
+        assert caught.value.status_code == status
+        assert isinstance(caught.value.original_error, anthropic.APIStatusError)
+        assert caught.value.original_error.status_code == status
+        assert caught.value.__cause__ is caught.value.original_error

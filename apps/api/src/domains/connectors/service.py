@@ -33,6 +33,7 @@ from src.core.exceptions import (
 from src.core.field_names import FIELD_CONNECTOR_TYPE, FIELD_STATUS, FIELD_USER_ID
 from src.core.i18n import normalize_language
 from src.core.i18n_api_messages import APIMessages
+from src.core.read_budget import source_http_hooks
 from src.core.security import (
     # OAuth helpers moved to src.core.oauth module (v0.4.0 refactoring)
     decrypt_data,
@@ -523,9 +524,9 @@ class ConnectorService:
             token_type=token_response.token_type,
             expires_at=expires_at,
         )
-        from src.domains.connectors.legacy_email_binding import start_legacy_email_connection
+        from src.domains.connectors.legacy_oauth_binding import start_legacy_oauth_connection
 
-        credentials = start_legacy_email_connection(connector_type, credentials)
+        credentials = start_legacy_oauth_connection(connector_type, credentials)
         encrypted_credentials = encrypt_data(credentials.model_dump_json())
 
         logger.info(
@@ -733,9 +734,9 @@ class ConnectorService:
             )
 
         from src.core.card_composition import ensure_composition_account
-        from src.domains.connectors.legacy_email_binding import bind_legacy_email_account
+        from src.domains.connectors.legacy_oauth_binding import bind_legacy_oauth_account
 
-        credentials = bind_legacy_email_account(connector, credentials)
+        credentials = bind_legacy_oauth_account(connector, credentials)
         ensure_composition_account(user_id, connector_type.value, credentials.account_binding)
 
         # Provider failures belong outside the decryption handler: a temporary
@@ -1302,9 +1303,9 @@ class ConnectorService:
             return await OAuthGrantRuntime(self.db).credentials_for(connector)
 
         from src.core.card_composition import ensure_composition_account
-        from src.domains.connectors.legacy_email_binding import bind_legacy_email_account
+        from src.domains.connectors.legacy_oauth_binding import bind_legacy_oauth_account
 
-        credentials = bind_legacy_email_account(connector, credentials)
+        credentials = bind_legacy_oauth_account(connector, credentials)
         ensure_composition_account(
             connector.user_id, connector.connector_type.value, credentials.account_binding
         )
@@ -1348,7 +1349,9 @@ class ConnectorService:
         async def _refresh_token_with_retry() -> httpx.Response:
             """Refresh OAuth token with retry logic for network resilience."""
             async with httpx.AsyncClient(
-                timeout=settings.http_timeout_oauth, follow_redirects=False
+                event_hooks=source_http_hooks(connector.user_id),
+                timeout=settings.http_timeout_oauth,
+                follow_redirects=False,
             ) as client:
                 response = await client.post(token_url, data=refresh_data)
                 if response.status_code == 429 or response.status_code >= 500:

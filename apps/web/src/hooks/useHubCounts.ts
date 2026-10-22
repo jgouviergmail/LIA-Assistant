@@ -33,6 +33,8 @@ export interface HubCounts {
    * everything the account owns.
    */
   workboard: number;
+  /** Openings LIA started (ADR-358); absence supports older APIs. */
+  discussions?: number;
   /** null is a source failure; absence supports older APIs. */
   sms?: number | null;
 }
@@ -47,6 +49,12 @@ export interface UseHubCountsResult {
   error: Error | null;
   loading: boolean;
   refetch: () => Promise<void>;
+  /**
+   * The account the totals belong to — what a page-wide refresh signals.
+   * The totals re-read on the `sms` resource signal, so publishing it IS
+   * their refresh: calling `refetch` as well would race a second read.
+   */
+  ownerId: string | undefined;
 }
 
 export function useHubCounts(): UseHubCountsResult {
@@ -56,5 +64,5 @@ export function useHubCounts(): UseHubCountsResult {
   );
   useApplicationResourceSync(ownerId, 'sms', refetch);
 
-  return { counts: data, error, loading, refetch };
+  return { counts: data, error, loading, refetch, ownerId };
 }

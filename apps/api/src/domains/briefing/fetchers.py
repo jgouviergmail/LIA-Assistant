@@ -882,7 +882,7 @@ async def fetch_workboard(*, user_id: UUID) -> WorkboardData:
     """What on the person's workboard needs their attention.
 
     Exact aggregates over the whole board (ADR-185) — waiting on them, held by
-    LIA, held by peers, late, open — plus the first tickets waiting on them.
+    them, by LIA, by peers, late, open — plus the first tickets waiting on them.
     The workboard's own statements keep the card, board and hub in agreement
     on every figure. A local read: one session, closed before returning.
 
@@ -910,6 +910,7 @@ async def fetch_workboard(*, user_id: UUID) -> WorkboardData:
         )
     return WorkboardData(
         needs_me=figures.needs_me,
+        held_by_me=figures.held_by_me,
         held_by_lia=figures.held_by_lia,
         held_by_peers=figures.held_by_peers,
         overdue=figures.overdue,

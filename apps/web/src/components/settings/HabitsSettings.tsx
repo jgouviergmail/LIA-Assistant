@@ -396,7 +396,7 @@ function CandidateRow({ lng, candidate }: { lng: Language; candidate: HabitCandi
   const { t } = useTranslation(lng);
   const volumeReached = candidate.observed_days >= candidate.required_days;
   return (
-    <li className="flex flex-wrap items-center gap-2 rounded-lg border border-border/40 bg-card px-3 py-2">
+    <li className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
       <span className="min-w-0 flex-1 truncate text-sm font-medium">
         {domainsLabel(t, candidate.key)}
         {candidate.origin === 'seed' && (
@@ -435,7 +435,7 @@ function ClassRhythmLine({
 }) {
   const { t } = useTranslation(lng);
   return (
-    <div className="space-y-1 rounded-lg border border-border/40 bg-card p-3">
+    <div className="space-y-1 rounded-lg border border-border bg-card p-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium">{t(labelKey)}</span>
         {rhythm.verdict === 'windows' ? (
@@ -617,7 +617,7 @@ function HabitRow({
   const { t, i18n } = useTranslation(lng);
   const label = habitLabel(t, i18n.language, habit);
   return (
-    <li className="rounded-lg border border-border/40 bg-card px-3 py-2">
+    <li className="rounded-lg border border-border bg-card px-3 py-2">
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium" title={label}>

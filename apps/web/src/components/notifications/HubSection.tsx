@@ -98,7 +98,7 @@ export function HubSection({
       icon={icon}
       summaryRef={summaryRef}
       titleClassName="whitespace-normal break-words"
-      className="rounded-none border-x-0 border-t-0 border-b border-border/50 bg-transparent px-0 last:border-b-0 [&>summary]:min-h-16 [&>summary]:py-4"
+      className="rounded-none border-x-0 border-t-0 border-b border-border bg-transparent px-0 last:border-b-0 [&>summary]:min-h-16 [&>summary]:py-4"
       title={title}
       // The NUMBER only: `Disclosure` already wraps whatever it is
       // given in the house pill, and a second styled span nested one pill

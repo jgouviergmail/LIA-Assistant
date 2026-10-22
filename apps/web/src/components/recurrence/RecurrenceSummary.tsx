@@ -70,7 +70,7 @@ export function RecurrenceSummary({
   }, [occurrences, timezone, locale]);
 
   return (
-    <div className="space-y-1.5 rounded-lg border border-border/40 bg-muted/30 p-3 text-xs">
+    <div className="space-y-1.5 rounded-lg border border-border bg-muted/30 p-3 text-xs">
       {sentence && (
         <p
           className="flex items-center gap-1.5 font-medium text-foreground"

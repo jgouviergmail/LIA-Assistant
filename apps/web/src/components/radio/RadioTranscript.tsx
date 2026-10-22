@@ -62,7 +62,7 @@ export function RadioTranscript({
           aria-current={index === current ? 'true' : undefined}
           className={cn(
             'rounded-lg border px-3 py-2',
-            index === current ? 'border-primary/40 bg-primary/5' : 'border-border/60'
+            index === current ? 'border-primary/40 bg-primary/5' : 'border-border'
           )}
         >
           <p className="text-xs font-medium text-muted-foreground">

@@ -263,6 +263,12 @@
       "goal": "A question at the right moment beats a reminder at random.",
       "src": "118138594074"
     },
+    "f.discussions": {
+      "name": "Proactive discussions",
+      "role": "Opens a personal conversation of its own accord, once allowed, from a context you see, correct or rebuild, within your hours and under reserved budgets.",
+      "goal": "Invite a reply at the right moment, without deciding anything for you.",
+      "src": "3bc122a14666"
+    },
     "f.briefing": {
       "name": "Daily briefing",
       "role": "The home page: agenda, emails, weather, reminders and a summary, read only once per page load.",

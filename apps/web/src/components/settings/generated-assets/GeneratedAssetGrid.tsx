@@ -195,7 +195,7 @@ export function GeneratedAssetGrid({
               {!isImage && <AssetDocumentPreview key={asset.id} asset={asset} label={label} />}
 
               {isImage && (
-                <div className="overflow-hidden rounded-lg border border-border/60">
+                <div className="overflow-hidden rounded-lg border border-border">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     {...apiImageProps(`/api/v1/attachments/${asset.id}`)}

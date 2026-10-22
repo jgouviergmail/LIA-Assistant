@@ -20,6 +20,20 @@ export const smsProposalSchema = z
   })
   .strict();
 export type SmsProposal = z.infer<typeof smsProposalSchema>;
+/** A visible message click may only confirm that one immutable source row. */
+export const smsSingleEraseProposalSchema = smsProposalSchema.extend({
+  operation_id: z.literal('sms_messages.delete'),
+  before: z.object({
+    sms_messages_to_delete: z.object({
+      count: z.number().int().min(0).max(1),
+      all_messages: z.literal(false),
+      sender_id: z.null(),
+      from_ts: z.null(),
+      to_ts: z.null(),
+      message_ids: z.tuple([z.string().uuid()]),
+    }),
+  }),
+});
 export const smsCompletionSchema = z.object({
   outcome: z.object({
     success: z.literal(true),
@@ -28,11 +42,14 @@ export const smsCompletionSchema = z.object({
   }),
   secret: z.object({ token: z.string().startsWith('pi_') }).nullable(),
 });
-export interface SmsPreferences {
-  ingestion_enabled: boolean;
-  assistant_enabled: boolean;
-  push_enabled: boolean;
-}
+export const smsPreferencesSchema = z
+  .object({
+    ingestion_enabled: z.boolean(),
+    assistant_enabled: z.boolean(),
+    push_enabled: z.boolean(),
+  })
+  .strict();
+export type SmsPreferences = z.infer<typeof smsPreferencesSchema>;
 export interface SmsSettings {
   preferences: SmsPreferences;
   usage: {

@@ -1,6 +1,7 @@
 /**
  * Scenes of section 05 — "Day to day": customizable briefing grid, starter
- * checklist with its micro-celebration, empty-chat starters, PWA install.
+ * checklist with its micro-celebration, empty-chat starters, PWA install, and
+ * the notice that names an SMS's sender while the phone's stays content-free.
  * Timer-driven micro-demos; last phase = resting frame.
  */
 
@@ -1224,7 +1225,54 @@ function DocumentFirstPageScene({ active, labels }: SceneProps) {
   );
 }
 
+type NoticePhase = 'quiet' | 'arrived';
+const NOTICE_STEPS: readonly TimelineStep<NoticePhase>[] = [
+  { at: 0, state: 'quiet' },
+  { at: 900, state: 'arrived' },
+];
+
+/**
+ * A new SMS (ADR-357, amendment 2026-10-21): inside LIA the notice names the
+ * sender in bold and shows the text under it; the phone's own notification
+ * stays content-free.
+ */
+function SenderNoticeScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(NOTICE_STEPS, { active });
+  const arrived = phase === 'arrived';
+  return (
+    <div className={cn(STAGE, 'flex-row items-center justify-center gap-3')}>
+      <div className="relative h-24 w-36 overflow-hidden rounded-lg border border-border bg-background p-1.5">
+        <SkeletonLine w="w-2/3" />
+        <SkeletonLine w="mt-1.5 w-1/2" />
+        <div
+          className={cn(
+            'absolute inset-x-1.5 top-1.5 rounded-md border border-border bg-background px-2 py-1 shadow-sm transition-all duration-500 ease-out',
+            arrived ? 'translate-y-0 opacity-100' : '-translate-y-3 opacity-0'
+          )}
+        >
+          <span className="flex items-center gap-1 text-px-10 font-semibold text-foreground">
+            <MessageSquare className="h-3 w-3 shrink-0 text-primary" />
+            {labels.sender}
+          </span>
+          <span className="block truncate text-px-9 text-muted-foreground">{labels.message}</span>
+        </div>
+      </div>
+      <PhoneFrame>
+        <div
+          className={cn(
+            'rounded-md border border-border bg-muted/60 px-1 py-0.5 text-px-8 leading-tight text-muted-foreground transition-opacity duration-500',
+            arrived ? 'opacity-100' : 'opacity-0'
+          )}
+        >
+          {labels.new_sms}
+        </div>
+      </PhoneFrame>
+    </div>
+  );
+}
+
 export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
+  sender_notice: SenderNoticeScene,
   alerts_hub: AlertsHubScene,
   briefing_custom: BriefingCustomScene,
   card_actions: CardActionsScene,

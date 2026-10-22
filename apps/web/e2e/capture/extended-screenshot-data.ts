@@ -279,6 +279,7 @@ export const EXTENDED_JOURNAL_SETTINGS: JournalSettings = {
   size_info: { total_chars: journalChars, max_total_chars: 40000, usage_pct: journalChars / 400 },
   last_cost: {
     tokens_in: 4200,
+    tokens_cache: 1600,
     tokens_out: 680,
     cost_eur: 0.0042,
     timestamp: PROOF_TIME,
@@ -459,6 +460,8 @@ export const TICKETS: TicketRow[] = [
   last_run_error: null,
   last_run_tokens_in: 5200,
   last_run_tokens_out: 820,
+  last_run_tokens_cache: 1200,
+  last_run_google_requests: 0,
   last_run_cost_eur: 0.0084,
   total_tokens_in: 10400,
   total_tokens_out: 1640,

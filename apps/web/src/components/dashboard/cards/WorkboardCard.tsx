@@ -36,11 +36,13 @@ const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:rin
 /**
  * Workboard card (ADR-276 on the dashboard).
  *
- * What on the person's board needs them: five EXACT counts (ADR-185) — waiting
- * on them, held by LIA, held by peers, late, open — each a link into the board
- * narrowed to the set it counts, then two tickets from each set, each a
- * link to the ticket itself (legacy caches retain their received needs-me page). Read-only: the board owns the writes, and a second
- * place to move a ticket would be a second place to get the rights wrong.
+ * What is on the person's board: five EXACT counts (ADR-185) — what they hold
+ * (« my tickets », never a ticket LIA or a peer holds, late or not — owner
+ * request 2026-10-21), held by LIA, held by peers, late, open — each a link
+ * into the board narrowed to the set it counts, then two tickets from each
+ * set, each a link to the ticket itself. Read-only: the board owns the writes,
+ * and a second place to move a ticket would be a second place to get the
+ * rights wrong.
  *
  * Hidden (`not_configured`) when the instance switched the workboard off; the
  * empty state is a board with no open ticket at all.
@@ -80,16 +82,7 @@ interface Figure {
 function WorkboardContent({ data, lng }: { data: WorkboardData; lng: string }) {
   const { t } = useTranslation();
   const language: Language = isLanguage(lng) ? lng : fallbackLng;
-  // The « needs me » set has no board filter of its own (it spans a column
-  // AND a due date), so it opens the whole board, as the settings tile does.
   const figures: Figure[] = [
-    {
-      key: 'needs_me',
-      label: t('settings.workboard.tile_needs_me'),
-      value: data.needs_me,
-      href: boardHref(lng),
-      tone: 'text-primary',
-    },
     {
       key: 'held_by_lia',
       label: t('settings.workboard.tile_lia'),
@@ -112,21 +105,24 @@ function WorkboardContent({ data, lng }: { data: WorkboardData; lng: string }) {
   ];
   // Old cached bundles have no peer aggregate: absence cannot mean zero.
   if (data.held_by_peers != null) {
-    figures.splice(2, 0, {
+    figures.splice(1, 0, {
       key: 'held_by_peers',
       label: t('dashboard.briefing.cards.workboard.held_by_peers'),
       value: data.held_by_peers,
       href: boardHref(lng, { assignee: 'peer', status: OPEN_STATUSES }),
     });
   }
-  const more = data.needs_me - data.items.length;
-  const groups = data.previews ?? {
-    needs_me: data.items,
-    held_by_lia: [],
-    held_by_peers: [],
-    overdue: [],
-    open_total: [],
-  };
+  // Nor a « my tickets » count: a cache predating it shows no tile rather than
+  // a zero nobody counted. It leads — the person's own work first.
+  if (data.held_by_me != null) {
+    figures.unshift({
+      key: 'held_by_me',
+      label: t('settings.workboard.tile_mine'),
+      value: data.held_by_me,
+      href: boardHref(lng, { assignee: 'me', status: OPEN_STATUSES }),
+      tone: 'text-primary',
+    });
+  }
 
   return (
     <div className="@container flex flex-col gap-3">
@@ -142,7 +138,7 @@ function WorkboardContent({ data, lng }: { data: WorkboardData; lng: string }) {
             <Link
               href={figure.href}
               className={cn(
-                'flex min-h-11 h-full flex-col items-center justify-start rounded-lg border border-border/50 bg-background/60 [:where(html.dark[data-oled])_&]:bg-transparent px-1 py-1.5 text-center transition-colors hover:bg-muted/60',
+                'flex min-h-11 h-full flex-col items-center justify-start rounded-lg border border-border bg-background/60 [:where(html.dark[data-oled])_&]:bg-transparent px-1 py-1.5 text-center transition-colors hover:bg-muted/60',
                 FOCUS
               )}
             >
@@ -162,27 +158,11 @@ function WorkboardContent({ data, lng }: { data: WorkboardData; lng: string }) {
         ))}
       </ul>
 
-      <GroupedTickets
-        figures={figures}
-        groups={groups}
-        lng={lng}
-        maxItems={data.previews ? 2 : undefined}
-      />
+      {data.previews && <GroupedTickets figures={figures} groups={data.previews} lng={lng} />}
       {data.needs_me === 0 && (
         <p className="text-sm text-muted-foreground italic">
           {t('settings.workboard.nothing_waiting')}
         </p>
-      )}
-      {data.previews == null && more > 0 && (
-        <Link
-          href={boardHref(lng)}
-          className={cn(
-            'inline-flex min-h-10 items-center rounded-sm text-xs font-medium text-primary hover:underline',
-            FOCUS
-          )}
-        >
-          {t('dashboard.briefing.cards.workboard.more', { count: more })}
-        </Link>
       )}
     </div>
   );
@@ -192,17 +172,17 @@ function GroupedTickets({
   figures,
   groups,
   lng,
-  maxItems,
 }: {
   figures: Figure[];
   groups: WorkboardPreviews;
   lng: string;
-  maxItems?: number;
 }) {
   return (
-    <div className="space-y-3 border-t border-border/50 pt-4">
+    <div className="space-y-3 border-t border-border pt-4">
       {figures.map(figure => {
-        const tickets = groups[figure.key].slice(0, maxItems);
+        // At most two per set, as the server bounds them; a group a cached
+        // bundle predates reads empty.
+        const tickets = (groups[figure.key] ?? []).slice(0, 2);
         if (tickets.length === 0) return null;
         return (
           <section key={figure.key} className="space-y-1">
@@ -232,7 +212,7 @@ function TicketList({
   return (
     <ul aria-label={label}>
       {tickets.map(ticket => (
-        <li key={ticket.id} className="border-b border-border/50 py-1 last:border-0">
+        <li key={ticket.id} className="border-b border-border py-1 last:border-0">
           <Link
             href={`/${lng}/dashboard/workboard/${encodeURIComponent(ticket.id)}`}
             prefetch={false}

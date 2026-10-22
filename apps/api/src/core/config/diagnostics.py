@@ -18,7 +18,7 @@ Doctrine reminders (enforced elsewhere, decided here):
 
 from __future__ import annotations
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
@@ -40,6 +40,8 @@ from src.core.constants import (
     DIAGNOSTICS_DIAGNOSIS_BATCH_SIZE_DEFAULT,
     DIAGNOSTICS_DIAGNOSIS_DAILY_COST_CAP_USD_DEFAULT,
     DIAGNOSTICS_DIAGNOSIS_MAX_ACTIONS_DEFAULT,
+    DIAGNOSTICS_EGRESS_PROBE_ATTEMPTS_DEFAULT,
+    DIAGNOSTICS_EGRESS_PROBE_SLOW_SECONDS_DEFAULT,
     DIAGNOSTICS_EGRESS_PROBE_TIMEOUT_SECONDS_DEFAULT,
     DIAGNOSTICS_FAILURE_CONTEXT_MAX_ENTRIES_DEFAULT,
     DIAGNOSTICS_HTTP_TIMEOUT_SECONDS_DEFAULT,
@@ -104,6 +106,28 @@ class DiagnosticsSettings(BaseSettings):
         ge=0.1,
         le=30.0,
         description="Per-attempt timeout of the egress probe.",
+    )
+    diagnostics_egress_probe_attempts: int = Field(
+        default=DIAGNOSTICS_EGRESS_PROBE_ATTEMPTS_DEFAULT,
+        ge=1,
+        le=5,
+        description=(
+            "Attempts per tick before the egress probe declares the platform cut "
+            "off. Each attempt owns one timeout-long slot, so a loss must outlast "
+            "(attempts - 1) slots to be critical; a success after a failed attempt "
+            "is degraded."
+        ),
+    )
+    diagnostics_egress_probe_slow_seconds: float = Field(
+        default=DIAGNOSTICS_EGRESS_PROBE_SLOW_SECONDS_DEFAULT,
+        ge=0.01,
+        le=30.0,
+        description=(
+            "A successful attempt slower than this is degraded — typically a DNS "
+            "resolver that had to fail over to its next server. With a target "
+            "configured, it must stay below the per-attempt timeout (refused at "
+            "boot otherwise)."
+        ),
     )
 
     # ------------------------------------------------------------------
@@ -299,3 +323,32 @@ class DiagnosticsSettings(BaseSettings):
         le=100.0,
         description="Memory usage (%) above which the memory check is critical.",
     )
+
+    @model_validator(mode="after")
+    def egress_slow_threshold_below_attempt_budget(self) -> DiagnosticsSettings:
+        """Refuse a slow threshold no successful attempt could ever reach.
+
+        A success always lands inside its attempt's budget, so a threshold at or
+        above that budget would silence the degraded verdict for good: the
+        platform would read healthy through a whole day of resolver failovers.
+        Only a configured probe is held to it — without a target the check does
+        not exist, and its thresholds must not stop an instance from booting.
+
+        Returns:
+            The validated settings.
+
+        Raises:
+            ValueError: When a probe is configured and its slow threshold is not
+                below the per-attempt timeout.
+        """
+        if (
+            self.diagnostics_egress_probe_target.strip()
+            and self.diagnostics_egress_probe_slow_seconds
+            >= self.diagnostics_egress_probe_timeout_seconds
+        ):
+            raise ValueError(
+                "DIAGNOSTICS_EGRESS_PROBE_SLOW_SECONDS must be < "
+                "DIAGNOSTICS_EGRESS_PROBE_TIMEOUT_SECONDS: a success never outlasts its "
+                "attempt, so the degraded verdict could never fire"
+            )
+        return self

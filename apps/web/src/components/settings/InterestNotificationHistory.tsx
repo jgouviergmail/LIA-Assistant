@@ -62,7 +62,7 @@ export function InterestNotificationHistory({
   loading,
   error,
   locale,
-  presentation = 'cards',
+  presentation = 'panels',
 }: InterestNotificationHistoryProps) {
   const { t } = useTranslation();
 
@@ -102,7 +102,6 @@ export function InterestNotificationHistory({
     <NotificationHistoryList
       rows={rows}
       presentation={presentation}
-      metadataPosition={presentation === 'timeline' ? 'header' : 'footer'}
       firstLoad={firstLoad}
       loading={loading}
       error={error}

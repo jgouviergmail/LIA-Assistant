@@ -201,7 +201,7 @@ export function GeneratedAssetFiltersBar({
   return (
     <section
       aria-label={t('settings.generated_assets.filters.title')}
-      className="rounded-xl border border-border/50 bg-background p-3 [--lia-field-background:var(--color-card)]"
+      className="rounded-xl border border-border bg-background p-3 [--lia-field-background:var(--color-card)]"
     >
       {/* A title always carries an icon, in the theme colour. « Clear » belongs
           on the title's own line: at the end of a wrapping row of controls it

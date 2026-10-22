@@ -127,7 +127,7 @@ function HtmlPreview({ copy }: { copy: PreviewCopy }) {
         </p>
         <p className="text-muted-foreground">{copy.weather.location}</p>
       </section>
-      <section className="space-y-2 border-t border-border/60 pt-4">
+      <section className="space-y-2 border-t border-border pt-4">
         <h4 className="flex items-center gap-2 font-semibold">
           <CalendarDays className="size-4 shrink-0 text-primary" aria-hidden="true" />
           {copy.meeting.title}
@@ -246,7 +246,7 @@ export function ResponseDisplayPreview({
         <MessageCircle className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
         <p className="min-w-0">{t(`${prefix}.question`)}</p>
       </div>
-      <div className="min-w-0 rounded-xl border border-border/60 bg-card p-4 sm:p-5">
+      <div className="min-w-0 rounded-xl border border-border bg-card p-4 sm:p-5">
         <p className="mb-4 flex items-center gap-2 text-xs font-semibold text-primary">
           <span aria-hidden="true" className="size-1.5 rounded-full bg-primary" />
           LIA

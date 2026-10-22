@@ -79,11 +79,13 @@ GOOGLE_SPEND_ROADS: Final[dict[str, SpendRoad]] = {
     # built the URL when its signed run id is presented (``media_attribution``).
     "domains/connectors/media_proxy_router.py": SpendRoad.ACCOUNTED,
     "domains/connectors/map_load_metering.py": SpendRoad.ACCOUNTED,
+    "domains/connectors/place_route_service.py": SpendRoad.ACCOUNTED,
     # A meeting's place name, reverse-geocoded in the processing job.
     "domains/meetings/enrichment.py": SpendRoad.ACCOUNTED,
     # The person's own address, geocoded when they save it.
     "domains/users/geocoding.py": SpendRoad.ACCOUNTED,
     # --- Reached through a caller that accounts for it ----------------------
+    "domains/connectors/discussion_weather.py": SpendRoad.CALLER,
     "domains/briefing/fetchers.py": SpendRoad.CALLER,
     "domains/connectors/router.py": SpendRoad.CALLER,
     "domains/connectors/weather_provider.py": SpendRoad.CALLER,
@@ -96,6 +98,7 @@ GOOGLE_SPEND_ROADS: Final[dict[str, SpendRoad]] = {
 #: road: a caller nobody names is indistinguishable from a spend nobody records.
 #: A relay read from several surfaces names every one of them.
 CALLER_ROAD_ACCOUNTANTS: Final[dict[str, tuple[str, ...]]] = {
+    "domains/connectors/discussion_weather.py": ("infrastructure/proactive/discussion_runner.py",),
     # A condition routine's weather check reads through the fetchers too
     # (ADR-322): two billed Google Weather calls per check, dropped in silence
     # until the check opened the routine's own tracker.

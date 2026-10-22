@@ -53,4 +53,39 @@ describe('ScheduledActionsList', () => {
     expect(screen.queryByText('notifications_hub.next_run')).not.toBeInTheDocument();
     expect(screen.queryByText('notifications_hub.next_run_unknown')).not.toBeInTheDocument();
   });
+
+  it('says an enabled routine is enabled, in green, and a disabled one in grey', () => {
+    // Owner request 2026-10-21: both states are SAID. Only the exception used
+    // to be, so an active routine wore nothing a reader could scan for.
+    render(
+      <ScheduledActionsList
+        actions={[
+          row({ id: 'on', title: 'Morning brief' }),
+          row({ id: 'off', title: 'Evening digest', is_enabled: false }),
+        ]}
+        locale="en-GB"
+      />
+    );
+
+    const enabled = screen.getByText('notifications_hub.routine_enabled');
+    const disabled = screen.getByText('notifications_hub.routine_disabled');
+    expect(enabled.closest('li')).toHaveTextContent('Morning brief');
+    expect(disabled.closest('li')).toHaveTextContent('Evening digest');
+    // The tone table's own answers: success for a live state, the grey the
+    // owner rule reserves for an inactive one.
+    expect(enabled).toHaveClass('text-success');
+    expect(disabled).toHaveClass('bg-secondary');
+    expect(screen.getAllByText(/notifications_hub\.routine_(en|dis)abled/)).toHaveLength(2);
+  });
+
+  it('sets the title in bold and the schedule plain beneath it', () => {
+    // Owner request 2026-10-21: the name is what a reader scans for.
+    render(<ScheduledActionsList actions={[row()]} locale="en-GB" />);
+
+    expect(screen.getByText('Morning brief')).toHaveClass('font-semibold');
+    const schedule = screen.getByText('Every day at 08:00');
+    expect(schedule).not.toHaveClass('font-bold');
+    expect(schedule).not.toHaveClass('font-semibold');
+    expect(screen.getByText('notifications_hub.next_run')).not.toHaveClass('font-bold');
+  });
 });

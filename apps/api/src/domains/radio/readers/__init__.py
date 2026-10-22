@@ -30,6 +30,7 @@ from src.domains.radio.readers.sent_mail import read_sent_mail
 from src.domains.radio.readers.spaces import read_spaces
 from src.domains.radio.readers.tasks import read_tasks_ahead, read_tasks_done
 from src.domains.radio.readers.tickets import read_closed_tickets, read_tickets
+from src.domains.radio.sms_context import read_sms
 
 
 class SourceReader(Protocol):
@@ -70,6 +71,7 @@ async def _read_relations(user_id: UUID, *, now: datetime, tz: tzinfo) -> list[P
 OWN_READERS: Final[Mapping[PersonalSource, SourceReader]] = MappingProxyType(
     {
         PersonalSource.TICKETS: read_tickets,
+        PersonalSource.SMS: read_sms,
         PersonalSource.MEETINGS: read_meetings,
         PersonalSource.NOTIFICATIONS: read_notifications,
         PersonalSource.RELATIONS: _read_relations,

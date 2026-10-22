@@ -25,6 +25,7 @@ from src.domains.radio.constants import (
     SOURCE_LABEL_MAX_CHARS,
 )
 from src.domains.radio.formats import FORMAT_SPECS, Material, RadioFormat
+from src.domains.sms.summary import SmsSignal
 
 
 class FactKind(StrEnum):
@@ -40,6 +41,7 @@ class FactKind(StrEnum):
     COMMITMENT = "commitment"
     TICKET = "ticket"
     EMAIL = "email"
+    SMS = "sms"
     RELATION = "relation"
     BOOKMARK = "bookmark"
     NOTIFICATION = "notification"
@@ -113,6 +115,7 @@ class RadioFact(BaseModel):
     )
     sensitivity: Sensitivity = Field(description="Who may voice it.")
     source: SourceRef | None = Field(default=None, description="Where it comes from.")
+    sms_source: SmsSignal | None = Field(default=None, exclude=True)
     returning: bool = Field(
         default=False,
         description="A story the listener already heard, an angle programme comes back to.",

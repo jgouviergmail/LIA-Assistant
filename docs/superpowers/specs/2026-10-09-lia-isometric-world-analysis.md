@@ -6,6 +6,8 @@ Release-scope decision: the owner has accepted the [smaller V1 and its generic f
 
 Current source-backed refinements: the [global architecture and game-quality review](2026-10-09-lia-isometric-world-global-review.md) governs translation attempt ownership, quota limitations, socket authentication, movement/camera behavior and measurable qualification where initial wording below was less precise. Its additional scenarios extend the director matrix from 72 to 96 requirements; these are not 96 passed implementation tests.
 
+Visual-reference update, 2026-10-20: the owner selected [MalinosLand as the visual base and a source of game concepts](2026-10-20-lia-world-malinosland-reference.md). That addendum governs appearance and the revised engine investigation: Phaser is assessed first for selective reuse, with Pixi remaining an alternative rather than a previously settled choice. Accepted V1 scope and LIA authority/privacy/cost contracts remain in force; earlier generated visuals are illustrative studies.
+
 This dossier answers the owner's request for a systemic analysis before business implementation. Work was performed inline, without subagents. No application code, dependency, migration, environment configuration or Git history was changed for this analysis. Isolated characterization scripts and concept artwork were subsequently produced; their narrowly scoped runtime probes are recorded separately.
 
 ## 1. Decision summary and evidence boundary

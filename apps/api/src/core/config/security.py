@@ -25,6 +25,12 @@ from src.core.constants import (
     HSTS_MAX_AGE_SECONDS_DEFAULT,
     HTTP_LOG_EXCLUDE_PATHS_DEFAULT,
     HTTP_LOG_LEVEL_DEFAULT,
+    HTTP_SCAN_AUTH_FAILURE_LIMIT_DEFAULT,
+    HTTP_SCAN_AUTH_WINDOW_SECONDS_DEFAULT,
+    HTTP_SCAN_BAN_SECONDS_DEFAULT,
+    HTTP_SCAN_NOT_FOUND_LIMIT_DEFAULT,
+    HTTP_SCAN_REDIS_TIMEOUT_SECONDS_DEFAULT,
+    HTTP_SCAN_WINDOW_SECONDS_DEFAULT,
     JWT_ALGORITHM_DEFAULT,
     LOG_LEVEL_DEFAULT,
     MAX_REQUEST_BODY_BYTES_DEFAULT,
@@ -125,6 +131,37 @@ class SecuritySettings(BaseSettings):
             "a real session — one measured at 67 req/min on a single page — so it "
             "never fires on legitimate use."
         ),
+    )
+
+    http_scan_protection_enabled: bool = Field(
+        default=True, description="Temporarily block API route scans and credential brute force"
+    )
+    http_scan_window_seconds: int = Field(
+        default=HTTP_SCAN_WINDOW_SECONDS_DEFAULT, ge=1, description="Unknown-route scan window"
+    )
+    http_scan_not_found_limit: int = Field(
+        default=HTTP_SCAN_NOT_FOUND_LIMIT_DEFAULT,
+        ge=2,
+        description="Distinct unknown paths returning 404 before a temporary IP ban",
+    )
+    http_scan_auth_window_seconds: int = Field(
+        default=HTTP_SCAN_AUTH_WINDOW_SECONDS_DEFAULT,
+        ge=1,
+        description="Credential rejection window (longer than login throttling)",
+    )
+    http_scan_auth_failure_limit: int = Field(
+        default=HTTP_SCAN_AUTH_FAILURE_LIMIT_DEFAULT,
+        ge=2,
+        description="401 credential attempts before a temporary IP ban; session 401s excluded",
+    )
+    http_scan_ban_seconds: int = Field(
+        default=HTTP_SCAN_BAN_SECONDS_DEFAULT, ge=1, description="Fixed HTTP scan IP ban lifetime"
+    )
+    http_scan_redis_timeout_seconds: float = Field(
+        default=HTTP_SCAN_REDIS_TIMEOUT_SECONDS_DEFAULT,
+        gt=0,
+        le=1,
+        description="Maximum Redis wait per scan check; fail open on error or timeout",
     )
 
     max_request_body_bytes: int = Field(

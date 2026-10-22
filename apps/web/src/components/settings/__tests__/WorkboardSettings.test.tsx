@@ -41,6 +41,7 @@ function summary(overrides: Partial<BoardSummary> = {}): BoardSummary {
     },
     overdue: 2,
     held_by_lia: 1,
+    held_by_me: 3,
     needs_me: 2,
     owned: 5,
     max_tickets: 200,
@@ -89,7 +90,12 @@ describe('WorkboardSettings', () => {
       'href',
       '/fr/dashboard/workboard?assignee=lia'
     );
-    expect(tile('settings.workboard.tile_needs_me')).toHaveTextContent('2');
+    // « My tickets »: what the person holds, never the « needs me » set (2).
+    expect(tile('settings.workboard.tile_mine')).toHaveAttribute(
+      'href',
+      '/fr/dashboard/workboard?assignee=me'
+    );
+    expect(tile('settings.workboard.tile_mine')).toHaveTextContent('3');
   });
 
   it('lists the columns with their exact counts, the conditional one only when it holds something', () => {

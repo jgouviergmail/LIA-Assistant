@@ -134,7 +134,7 @@ async def check_url_threat(url: str) -> WebRiskVerdict:
     except Exception as exc:
         # Fail-open: availability must not gate browsing — but never claim
         # the URL was checked (absence of exception is not proof).
-        logger.warning("web_risk_check_failed", error=str(exc))
+        logger.warning("web_risk_check_failed", error_type=type(exc).__name__)
         web_risk_checks_total.labels(outcome="error").inc()
         return WebRiskVerdict(blocked=False, checked=False)
 

@@ -10,7 +10,7 @@ Pour renouveler un jeton du même téléphone, réutilise sa source d’ingestio
 
 Trois choix restent indépendants :
 
-- Réception : autoriser l’archivage envoyé par le téléphone.
+- Réception : autoriser l’enregistrement des SMS transmis par le téléphone.
 - Assistant : autoriser les lectures nécessaires aux réponses et synthèses ; cet accès commence désactivé.
 - Push de réception : recevoir une notification générique dès l’arrivée d’un nouveau SMS accepté, à toute heure.
 
@@ -78,7 +78,9 @@ Un raccourci élémentaire ne garantit pas une reprise persistante après fermet
 
 Les secrets d’accès reconnus — OTP, mots de passe, récupération et liens de connexion/réinitialisation identifiables — sont exclus avant stockage, tout comme les expéditeurs bloqués. C’est une détection déterministe limitée : elle ne reconnaît pas toute information privée. Les autres SMS médicaux ou bancaires ne sont pas automatiquement exclus.
 
-L’archive est conservée jusqu’à suppression manuelle. Depuis Mes SMS, les actions de blocage/effacement sont confirmées ; un blocage concerne les arrivées suivantes et n’efface pas silencieusement l’historique.
+Les SMS restent dans LIA jusqu’à leur suppression manuelle. Dans le détail d’un SMS, la poubelle en bas à droite le supprime directement, sans fenêtre de confirmation. Les suppressions d’un expéditeur, d’un jour, d’une période ou de tous les messages, ainsi que le blocage d’un expéditeur, conservent leur confirmation. Un blocage concerne les arrivées suivantes et n’efface pas l’historique.
+
+Un SMS supprimé n’est pas recréé par le renvoi du même événement : une trace technique sans son contenu conserve la décision de réception. Il faut réutiliser le même identifiant d’événement et le même contenu pour les tentatives suivantes. Sans identifiant, le contenu complet, y compris la date, doit rester identique. Un nouvel identifiant, une autre source ou une date modifiée sans identifiant peut être interprété comme un nouveau SMS.
 
 L’export des données personnelles contient les SMS lisibles. Un effacement invalide les exports encore hébergés ; il ne rappelle pas une copie téléchargée, une ancienne discussion ni une connaissance gardée séparément à partir de cette discussion. Les reçus techniques sans texte empêchent les reprises de recréer un ancien événement de la même source.
 

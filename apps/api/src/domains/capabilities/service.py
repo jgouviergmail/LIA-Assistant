@@ -241,6 +241,7 @@ COUNTED_NODES: tuple[_CountedNode, ...] = (
 SWITCH_NODE_KEYS: tuple[str, ...] = (
     "voice",
     "proactivity",
+    "proactive_discussions",
     "personality",
     "images",
     "documents",
@@ -283,6 +284,7 @@ PLATFORM_CAPABILITY_NODES: dict[PlatformCapability, str] = {
     PlatformCapability.JOURNALS: "journals",
     PlatformCapability.HABITS: "habits",
     PlatformCapability.HEARTBEAT: "proactivity",
+    PlatformCapability.PROACTIVE_DISCUSSIONS: "proactive_discussions",
     PlatformCapability.PEERS: "peers",
     PlatformCapability.PSYCHE: "personality",
     PlatformCapability.CHANNELS: "channels",
@@ -734,6 +736,33 @@ async def resolve_capabilities(user: User) -> list[CapabilityProbe]:
     return [
         *probes,
         *_from_user(user, disabled),
+        await _discussion_probe(user_id, disabled),
         await _live_probe(user_id, disabled),
         await _avatar_probe(user_id, disabled),
     ]
+
+
+async def _discussion_probe(
+    owner: UUID, disabled: frozenset[PlatformCapability]
+) -> CapabilityProbe:
+    available = _offers(PlatformCapability.PROACTIVE_DISCUSSIONS, None, disabled)
+    if not available:
+        return CapabilityProbe("proactive_discussions", available=False, active=False)
+    try:
+        model = _import("proactive_discussions.models", "DiscussionPreference")
+        async with get_db_context() as db:
+            enabled = bool(await db.scalar(select(model.enabled).where(model.user_id == owner)))
+    except Exception as exc:
+        logger.debug(
+            "capability_probe_failed", node="proactive_discussions", error_type=type(exc).__name__
+        )
+        enabled = False
+    funded = all(
+        value is not None
+        for value in (
+            settings.discussion_owner_daily_budget_usd,
+            settings.discussion_instance_daily_budget_usd,
+            settings.discussion_run_budget_usd,
+        )
+    )
+    return CapabilityProbe("proactive_discussions", available=True, active=enabled and funded)

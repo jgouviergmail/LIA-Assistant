@@ -383,7 +383,7 @@ apps/api/src/
 │   │   │   └── schemas.py
 │   │   ├── prompts/             # Versioned prompts (consolidated to v1)
 │   │   │   ├── prompt_loader.py # LRU cached loader
-│   │   │   └── v1/              # 26 prompts (consolidated)
+│   │   │   └── v1/              # 202 prompt files (consolidated)
 │   │   │       └── fewshot/     # Dynamic few-shot examples (16 files)
 │   │   └── utils/               # Domain utilities
 │   │       ├── hitl_store.py
@@ -408,6 +408,9 @@ apps/api/src/
 │   ├── bookmarks/               # Kept answers — a copy, not a pointer (ADR-282)
 │   ├── plugins/                 # Agent Plugins client (agent-plugins.org, ADR-225) — portable packages
 │   ├── skills/                  # Skills system (agentskills.io) — SKILL.md files, cache, LLM activation
+│   ├── ingestion/               # Phone ingestion: write-only tokens, replay receipts, per-destination outbox (ADR-357)
+│   ├── sms/                     # Personal SMS archive: encrypted, assistant consent apart, sender identities (ADR-357)
+│   ├── proactive_discussions/   # Discussions LIA opens: policy, longitudinal context, reserved budgets (ADR-358/359/360)
 │   └── user_mcp/                # Per-user MCP server management (CRUD, DDD, LLM description)
 │
 └── infrastructure/              # Cross-cutting infrastructure
@@ -416,7 +419,8 @@ apps/api/src/
     │   ├── session_store.py     # SessionStore (BFF)
     │   └── invalidation.py      # Cross-worker cache invalidation via Redis Pub/Sub (ADR-063)
     ├── rate_limiting/           # ⭐ Distributed rate limiting (Phase 2.4)
-    │   └── redis_limiter.py     #    RedisRateLimiter (sliding window, Lua scripts)
+    │   ├── redis_limiter.py     #    RedisRateLimiter (sliding window, Lua scripts)
+    │   └── http_scan.py         #    Scan bans shared by every worker (ADR-353)
     ├── llm/                     # LLM infrastructure
     │   ├── factory.py           # LLM factory with multi-provider
     │   ├── providers/

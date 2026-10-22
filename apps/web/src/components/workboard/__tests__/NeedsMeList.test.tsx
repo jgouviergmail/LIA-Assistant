@@ -38,6 +38,8 @@ function ticket(overrides: Partial<TicketRow> & { id: string }): TicketRow {
     last_run_error: null,
     last_run_tokens_in: null,
     last_run_tokens_out: null,
+    last_run_tokens_cache: null,
+    last_run_google_requests: null,
     last_run_cost_eur: null,
     created_at: '2026-09-09T10:00:00Z',
     execution_mode: 'react',
@@ -80,7 +82,9 @@ describe('the rows', () => {
       />
     );
 
-    expect(screen.getByText('workboard.card.overdue')).toBeInTheDocument();
+    // The late ticket's badge names its due date; the other states its own.
+    expect(screen.getByText('workboard.card.overdue_due')).toBeInTheDocument();
+    expect(screen.queryByText('workboard.card.overdue')).not.toBeInTheDocument();
     expect(screen.getByText('workboard.card.due')).toBeInTheDocument();
   });
 

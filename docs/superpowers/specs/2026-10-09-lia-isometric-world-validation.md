@@ -6,6 +6,8 @@ This report complements the [functional and technical analysis](2026-10-09-lia-i
 
 Subsequent authority: the [global architecture and game-quality review](2026-10-09-lia-isometric-world-global-review.md) preserves these historical observations but corrects translation deduplication/quota assumptions and specifies first-frame socket authentication, game mechanics, integration lifetimes and fresh scoped checks. The accepted V1 now resolves first-release grouping; future guest/shared-manipulation requirements remain deferred.
 
+Visual-reference update, 2026-10-20: the owner selected [MalinosLand's appearance and useful game concepts](2026-10-20-lia-world-malinosland-reference.md). It now guides visual acceptance; the generated gallery below remains a historical concept study. This update does not recertify the dated probes or claim that the upstream game supplies LIA's authority/privacy/translation implementation.
+
 The [five-view visual gallery](assets/2026-10-09-lia-world/index.html), [exact image prompts](assets/2026-10-09-lia-world/prompts.json), [measurement record](assets/2026-10-09-lia-world/evidence/observations.json) and [reproduction notes](assets/2026-10-09-lia-world/evidence/README.md) make the result reviewable. All images contain illustrative data; displayed prices and token counts are not measured provider prices.
 
 ## 1. Conclusion and confirmed owner scope

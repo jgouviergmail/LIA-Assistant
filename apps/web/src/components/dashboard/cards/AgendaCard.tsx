@@ -138,7 +138,7 @@ function AgendaContent({
       {groups.map(group => (
         <div key={group.key} className="space-y-4">
           {group.label && (
-            <h4 className="flex items-center gap-2 border-b border-border/50 pb-2 text-sm font-medium text-foreground">
+            <h4 className="flex items-center gap-2 border-b border-border pb-2 text-sm font-medium text-foreground">
               <CalendarDays
                 className="size-4 shrink-0 text-violet-700 dark:text-violet-300"
                 aria-hidden="true"

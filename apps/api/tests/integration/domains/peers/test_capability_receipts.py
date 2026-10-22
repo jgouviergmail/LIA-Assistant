@@ -169,7 +169,7 @@ async def test_independent_workers_cannot_both_claim_the_same_transfer(
     async_engine: AsyncEngine,
     committed_user_ids: list[UUID],
 ) -> None:
-    maker = async_sessionmaker(async_engine, expire_on_commit=False)
+    maker = async_sessionmaker(async_engine, expire_on_commit=False, autoflush=False)
     async with maker() as db:
         receipt = await transfer(db)
         assert receipt.sender_id is not None

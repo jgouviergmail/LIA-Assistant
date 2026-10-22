@@ -765,7 +765,9 @@ ${scan.summary}`
     }
     expect(await collapsed.count()).toBe(0);
     await expect(page.getByText(/sera en retard/)).toBeVisible();
-    await expect(page.getByText(/Lilas Blancs/)).toBeVisible();
+    // The contact card's address is a map link, and the address-book action
+    // above it (« Directions to … ») repeats the same words: name the link.
+    await expect(page.getByRole('link', { name: /Lilas Blancs/ })).toBeVisible();
     await assertNoHorizontalScroll(page);
   });
 
@@ -775,7 +777,7 @@ ${scan.summary}`
     mockApi,
   }, testInfo) => {
     // The dashboard grew a results block (four tiles), a Consumption
-    // disclosure and a visible avatar picker. The four-up tile row is exactly
+    // rubrique and a visible avatar picker. The four-up tile row is exactly
     // the kind of grid that reflows badly: at 320 px it must be one column,
     // not four 70 px columns pushed off the side.
     await authenticate();
@@ -815,20 +817,10 @@ ${scan.summary}`
     ).toBeVisible();
     await assertNoHorizontalScroll(page);
 
-    // Consumption arrives OPEN: measure the widest figures before folding,
-    // then exercise both states so the reflow scan cannot miss those figures.
-    // The <summary> element itself: `getByText` could land on an inner node,
-    // and `getByRole('button')` depends on how the engine maps a disclosure
-    // triangle — neither is a stable handle on the thing that toggles.
-    const consumption = page.locator('details').filter({
-      has: page.locator('summary', { hasText: 'Consumption' }),
-    });
-    await expect(consumption).toHaveAttribute('open', '');
-    await consumption.locator('summary').click();
-    await expect(consumption).not.toHaveAttribute('open');
-    await assertNoHorizontalScroll(page);
-    await consumption.locator('summary').click();
-    await expect(consumption).toHaveAttribute('open', '');
+    // Consumption is a rubrique of the home page, never folded (owner request
+    // 2026-10-21): its widest figures are always laid out, so one measure
+    // taken once the section is drawn covers them.
+    await expect(page.getByRole('region', { name: 'Consumption', exact: true })).toBeVisible();
     await assertNoHorizontalScroll(page);
 
     const { blocking, summary } = await scanPage(page, testInfo, '/dashboard@320');

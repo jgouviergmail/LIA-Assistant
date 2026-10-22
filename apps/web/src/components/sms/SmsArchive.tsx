@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useState } from 'react';
-import { MessageSquareText } from 'lucide-react';
+import { MessageSquareText, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { useSmsArchive } from '@/hooks/useSmsArchive';
@@ -9,9 +9,11 @@ import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
 import { Button } from '@/components/ui/button';
 import { SectionHeader } from '@/components/ui/section-header';
 import { SmsSearchForm } from './SmsSearchForm';
+import { SmsIdentityRefresh } from './SmsIdentityRefresh';
 import { SmsArchiveResults, SmsArchivePager } from './SmsArchiveResults';
 import type { SmsQuery, SmsSenderPage } from '@/types/sms';
 import type { Language } from '@/i18n/settings';
+import { cn } from '@/lib/utils';
 interface Props {
   lng: Language;
   heading?: boolean;
@@ -46,7 +48,7 @@ function AccountSmsArchive({ lng, heading = true, limit = 20 }: Props) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const timezone = user?.timezone || 'Europe/Paris';
-  const [mode, setMode] = useState<'day' | 'sender'>('day');
+  const [mode, setMode] = useState<'day' | 'sender'>('sender');
   const [filters, setFilters] = useState<SmsQuery>({});
   const [trail, setTrail] = useState<string[]>([]);
   const cursor = trail.at(-1);
@@ -61,13 +63,23 @@ function AccountSmsArchive({ lng, heading = true, limit = 20 }: Props) {
     undefined,
     { params: { limit, cursor } }
   );
-  const { refetch, setData } = senders;
+  const { refetch, acceptData } = senders;
+  // Re-read in place: the senders in view stay until the first page lands —
+  // emptied first, the list unmounted under the reader, closed every open
+  // sender and dropped the focus a deletion meant to restore (owner rule
+  // 2026-10-21). Back to the first page: a cursor is bound to the revision.
   const refreshSenders = useCallback(async () => {
     if (queryMessages) return;
-    setData(undefined);
     setTrail([]);
-    if (!cursor) await refetch();
-  }, [queryMessages, setData, refetch, cursor]);
+    if (cursor) return;
+    try {
+      await refetch();
+    } catch (error) {
+      // A reread that failed cannot vouch for the list it was replacing.
+      acceptData(undefined);
+      throw error;
+    }
+  }, [queryMessages, refetch, acceptData, cursor]);
   useApplicationResourceSync(user?.id, 'sms', refreshSenders);
   const { current, loading, ...content } = archiveProjection(queryMessages, list, senders);
   const changeFilters = (query: SmsQuery) => {
@@ -107,13 +119,18 @@ function AccountSmsArchive({ lng, heading = true, limit = 20 }: Props) {
           </Button>
         ))}
         <Button
-          variant="ghost"
+          variant="outline"
           onClick={() => {
             void (queryMessages ? list.refresh() : refreshSenders()).catch(() => {});
           }}
         >
+          <RefreshCw
+            className={cn('h-4 w-4', loading && 'motion-safe:animate-spin')}
+            aria-hidden="true"
+          />
           {t('common.refresh')}
         </Button>
+        <SmsIdentityRefresh />
       </div>
       <SmsArchiveResults {...content} mode={mode} loading={loading} lng={lng} timezone={timezone} />
       <SmsArchivePager

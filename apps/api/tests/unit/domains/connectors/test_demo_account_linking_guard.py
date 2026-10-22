@@ -126,6 +126,7 @@ READ_ONLY_ROUTES: dict[str, str] = {
     # Maps uses an instance browser key, never links a visitor's provider account.
     "/connectors/google-maps/load-admissions": "admits a priced display load under existing account limits",
     "/connectors/google-maps/load-reports": "records one's admitted display load, no connector or OAuth grant",
+    "/connectors/google-maps/place-route": "computes a priced route for a selected place, without linking any provider account",
     # Seeing what exists, and that it is unconfigured, IS the demonstration.
     "/connectors": "lists the visitor's connectors — empty on a demonstrator",
     "/connectors/types": "the catalogue of connector types, no credential involved",

@@ -345,6 +345,14 @@
       "deps": ["f.calendar", "f.meetings", "f.notifications", "f.heartbeat"]
     },
     {
+      "id": "f.discussions",
+      "group": "g.initiative",
+      "icon": "message-circle-heart",
+      "domains": ["proactive_discussions"],
+      "surfaces": ["/dashboard/settings", "/dashboard/chat", "/dashboard/notifications"],
+      "deps": ["f.memory", "f.journals", "f.calendar", "f.mail", "f.sms", "f.habits", "f.interests", "f.notifications", "f.costs", "f.chat"]
+    },
+    {
       "id": "f.briefing",
       "group": "g.initiative",
       "icon": "sunrise",

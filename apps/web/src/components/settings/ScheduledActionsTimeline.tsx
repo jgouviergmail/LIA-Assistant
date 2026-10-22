@@ -363,7 +363,7 @@ export const ScheduledActionsTimeline = memo(function ScheduledActionsTimeline({
                 <tr key={hour}>
                   <th
                     scope="row"
-                    className="h-7 border-t border-border/40 pr-1.5 text-right align-top text-px-10 font-normal leading-7 tabular-nums text-muted-foreground"
+                    className="h-7 border-t border-border pr-1.5 text-right align-top text-px-10 font-normal leading-7 tabular-nums text-muted-foreground"
                   >
                     {String(hour).padStart(2, '0')}
                   </th>
@@ -373,7 +373,7 @@ export const ScheduledActionsTimeline = memo(function ScheduledActionsTimeline({
                       <td
                         key={day}
                         className={cn(
-                          'h-7 border-l border-t border-border/40 p-0.5 align-top',
+                          'h-7 border-l border-t border-border p-0.5 align-top',
                           day === today && 'bg-primary/5'
                         )}
                       >

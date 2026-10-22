@@ -1,7 +1,25 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { renderWithProviders, screen, userEvent, waitFor } from '@/__tests__/test-utils';
+import { ApiError } from '@/lib/api-client';
 import { CapabilityTransferDialog } from '../CapabilityTransferDialog';
 import type { CapabilitySelection, CapabilityTransfer } from '@/lib/capability-sharing';
+
+// A `t` that shows its interpolation, so the popup is seen naming what was
+// shared with whom; one identity, as react-i18next memoizes it.
+const i18n = vi.hoisted(() => ({
+  t: (key: string, options?: Record<string, unknown>) =>
+    options
+      ? `${key}(${Object.entries(options)
+          .map(([name, value]) => `${name}=${String(value)}`)
+          .join(',')})`
+      : key,
+  i18n: { language: 'fr' },
+}));
+vi.mock('react-i18next', () => ({ useTranslation: () => i18n }));
+const { toast } = vi.hoisted(() => ({
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
+}));
+vi.mock('sonner', () => ({ toast }));
 
 const mocks = vi.hoisted(() => ({
   post: vi.fn(),
@@ -64,8 +82,9 @@ it('requires an explicit recipient, previews the inventory, then sends the bound
     .mockResolvedValueOnce(
       receipt({ status: 'installed', transferred_at: '2026-10-18T12:00:01Z' })
     );
+  const onClose = vi.fn();
   const user = userEvent.setup();
-  renderWithProviders(<CapabilityTransferDialog source={source} onClose={vi.fn()} />);
+  renderWithProviders(<CapabilityTransferDialog source={source} onClose={onClose} />);
   expect(screen.getByRole('button', { name: 'settings.capability_share.preview' })).toBeDisabled();
   await user.click(screen.getByRole('radio', { name: 'Alice' }));
   await user.click(screen.getByRole('button', { name: 'settings.capability_share.preview' }));
@@ -77,6 +96,38 @@ it('requires an explicit recipient, previews the inventory, then sends the bound
   await screen.findByText('settings.capability_share.status.installed');
   expect(screen.getByRole('region', { name: 'Example' })).toHaveFocus();
   expect(mocks.post.mock.calls[1][1]).toEqual({ expected_digest: receipt().digest });
+  // The confirmation popup says what was shared with whom, then the dialog closes.
+  expect(toast.success).toHaveBeenCalledWith(
+    'settings.capability_share.sent.skill(name=Example,recipient=Alice)',
+    { description: 'settings.capability_share.status.installed' }
+  );
+  expect(onClose).toHaveBeenCalledOnce();
+  expect(toast.error).not.toHaveBeenCalled();
+});
+
+it('announces a refused send in a popup and keeps the dialog open to retry', async () => {
+  mocks.post
+    .mockResolvedValueOnce(receipt())
+    .mockRejectedValueOnce(
+      new ApiError('Too Many Requests', 429, { detail: 'peers_capability_quota_reached' })
+    );
+  mocks.get.mockRejectedValueOnce(new ApiError('Not Found', 404));
+  const onClose = vi.fn();
+  const user = userEvent.setup();
+  renderWithProviders(<CapabilityTransferDialog source={source} onClose={onClose} />);
+  await user.click(screen.getByRole('radio', { name: 'Alice' }));
+  await user.click(screen.getByRole('button', { name: 'settings.capability_share.preview' }));
+  await user.click(await screen.findByRole('button', { name: 'settings.capability_share.send' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'settings.capability_share.errors.quota'
+  );
+  expect(toast.error).toHaveBeenCalledWith(
+    'settings.capability_share.not_sent(name=Example,recipient=Alice)',
+    { description: 'settings.capability_share.errors.quota' }
+  );
+  expect(toast.success).not.toHaveBeenCalled();
+  expect(onClose).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'settings.capability_share.send' })).toBeVisible();
 });
 
 it('shows each partial component and retries the same receipt rather than preparing another copy', async () => {
@@ -106,16 +157,24 @@ it('shows each partial component and retries the same receipt rather than prepar
     .mockResolvedValueOnce(
       receipt({ status: 'installed', transferred_at: '2026-10-18T12:00:01Z' })
     );
+  const onClose = vi.fn();
   const user = userEvent.setup();
-  renderWithProviders(<CapabilityTransferDialog source={source} onClose={vi.fn()} />);
+  renderWithProviders(<CapabilityTransferDialog source={source} onClose={onClose} />);
   await user.click(screen.getByRole('radio', { name: 'Alice' }));
   await user.click(screen.getByRole('button', { name: 'settings.capability_share.preview' }));
   await user.click(await screen.findByRole('button', { name: 'settings.capability_share.send' }));
   expect(await screen.findByText('missing')).toBeInTheDocument();
+  expect(toast.warning).toHaveBeenCalledWith(
+    'settings.capability_share.incomplete(name=Example,recipient=Alice)',
+    { description: 'settings.capability_share.status.partial' }
+  );
+  expect(onClose).not.toHaveBeenCalled();
   await user.click(screen.getByRole('button', { name: 'settings.capability_share.retry' }));
   await screen.findByText('settings.capability_share.status.installed');
   expect(mocks.post.mock.calls[1][0]).toBe(mocks.post.mock.calls[2][0]);
   expect(mocks.post.mock.calls.filter(([path]) => path.endsWith('/preview'))).toHaveLength(1);
+  expect(toast.success).toHaveBeenCalledOnce();
+  expect(onClose).toHaveBeenCalledOnce();
 });
 
 it('distinguishes failed recipient loading from a genuine empty list', async () => {
@@ -125,11 +184,11 @@ it('distinguishes failed recipient loading from a genuine empty list', async () 
     <CapabilityTransferDialog source={source} onClose={vi.fn()} />
   );
   expect(screen.getByRole('alert')).toHaveTextContent('settings.peers.recipients.load_error');
-  expect(screen.queryByText('settings.peers.recipients.no_connection')).not.toBeInTheDocument();
+  expect(screen.queryByText(/^settings\.peers\.recipients\.no_connection/)).not.toBeInTheDocument();
   mocks.recipients.error = null;
   rerender(<CapabilityTransferDialog source={source} onClose={vi.fn()} />);
   await waitFor(() =>
-    expect(screen.getByText('settings.peers.recipients.no_connection')).toBeInTheDocument()
+    expect(screen.getByText(/^settings\.peers\.recipients\.no_connection/)).toBeInTheDocument()
   );
 });
 

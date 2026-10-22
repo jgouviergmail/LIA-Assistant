@@ -185,6 +185,9 @@ LLMType = Literal[
     # Previously special types (now unified via LLM_DEFAULTS)
     "heartbeat_decision",  # Heartbeat: decide whether to send proactive notification
     "heartbeat_message",  # Heartbeat: generate proactive message
+    "discussion_context",
+    "discussion_decision",
+    "discussion_message",
     "mcp_app_react_agent",  # MCP App: ReAct agent for MCP servers with interactive widgets
     "mcp_description",  # MCP: LLM-based domain description auto-generation
     "memory_extraction",  # Memory: extract facts from conversations

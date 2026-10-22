@@ -112,7 +112,7 @@ export function PeerConnectionCard({
   const calendarSelectId = `peers-share-calendar-${connection.id}`;
 
   return (
-    <Card surface="primary" variant="flat" className="border-border/60">
+    <Card surface="primary" variant="flat" className="border-border">
       <Accordion type="single" collapsible>
         {confirmDialog}
         <AccordionItem value={connection.id} className="border-0">
@@ -149,7 +149,7 @@ export function PeerConnectionCard({
                 aria-label={t('settings.peers.shares.their_named_title', {
                   name: connection.peer_display_name,
                 })}
-                className="min-w-0 space-y-4 rounded-xl border border-border/50 bg-primary/5 p-4"
+                className="min-w-0 space-y-4 rounded-xl border border-border bg-primary/5 p-4"
               >
                 <p className="flex items-start gap-2 text-sm font-semibold">
                   <ArrowDownLeft
@@ -191,7 +191,7 @@ export function PeerConnectionCard({
                 variant="flat"
                 role="region"
                 aria-label={t('settings.peers.shares.my_title')}
-                className="min-w-0 space-y-4 border-border/50 p-4"
+                className="min-w-0 space-y-4 border-border p-4"
               >
                 <p className="flex items-start gap-2 text-sm font-semibold">
                   <ArrowUpRight
@@ -247,7 +247,7 @@ export function PeerConnectionCard({
             </div>
 
             {/* Connection-level actions follow the consent information, with confirmation. */}
-            <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-4">
+            <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
               <Button
                 type="button"
                 size="sm"

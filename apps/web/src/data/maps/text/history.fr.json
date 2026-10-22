@@ -1483,9 +1483,41 @@
       "title": "L'expérience de LIA s'apprend sur des preuves, jamais sur sa propre note",
       "summary": "L'ancienne auto-efficacité ne bougeait que sur l'auto-évaluation de LIA, un seul échange suffisait à faire une force ou une faiblesse, et seule la réponse finale la lisait. Sept domaines gardent désormais deux axes séparés : ce qu'un tour a vérifiablement accompli, et l'utilité que la personne a exprimée par 👍/👎. À partir de cinq observations, LIA peut vérifier un point, poser une question ou nommer une limite — sans changer ni modèle, ni outil, ni budget."
     },
+    "353": {
+      "title": "Bloquer temporairement les scans de l’API",
+      "summary": "L’API repère les chemins inexistants explorés en série et les échecs de connexion, en épargnant les erreurs normales de session ou de ressource. Redis partage un bannissement temporaire entre les workers ; une panne du cache laisse passer les requêtes et reste visible dans les métriques."
+    },
+    "354": {
+      "title": "Attribuer chaque refus HTTP 429 à la bonne adresse",
+      "summary": "Chaque réponse 429 conserve dans les journaux l’adresse du client issue de la chaîne de confiance, la méthode et le chemin sans paramètres. Les accès ordinaires restent discrets, et l’adresse ne devient jamais une étiquette de métrique."
+    },
+    "355": {
+      "title": "Les détails acquis et un trajet comptabilisé pour le lieu choisi",
+      "summary": "La fiche réutilise les informations déjà obtenues sans rechercher le lieu une seconde fois. Le trajet part de la position navigateur autorisée, de la dernière position fraîche et datée, ou du domicile : marche jusqu’à 2 km inclus, voiture au-delà, avec un seul recalcul si le trajet à pied réel dépasse la limite. Les plafonds restent appliqués et chaque appel payé est enregistré, même si le trajet échoue ou est annulé."
+    },
+    "356": {
+      "title": "Une carte lisible, avec les mêmes numéros dans la liste et sur les repères",
+      "summary": "La carte attend une activation explicite sans réserver un grand espace vide. Les mêmes détails s’ouvrent dans une popup sur ordinateur et un dialogue sur téléphone, chacun avec un seul défilement. La liste et les repères partagent les numéros de l’ordre initial ; un lieu sans coordonnées garde son numéro et son lien sans décaler les autres."
+    },
     "357": {
-      "title": "Ingestion générique et archive SMS personnelle",
+      "title": "Ingestion générique et SMS personnels",
       "summary": "Le téléphone envoie des événements stricts, dédupliqués par source. Les consentements sont indépendants ; exports, effacements, registres et notifications respectent la même autorité."
+    },
+    "358": {
+      "title": "Discussions proactives indépendantes et diffusion native",
+      "summary": "Une initiative personnelle distincte des alertes, avec politique dédiée et publication atomique dans le chat. Architecture approuvée ; le producteur reste à implémenter avant activation."
+    },
+    "359": {
+      "title": "Contexte longitudinal et contrôle de son utilisation",
+      "summary": "Des observations soutiennent épisodes et récurrences, avec portrait autonome, purge et exclusions réversibles persistantes. Les directives encadrent l'initiative ; la base dérivée reste à implémenter."
+    },
+    "360": {
+      "title": "Recherches bornées et abstention comptabilisée",
+      "summary": "Les lectures et appels modèles partagent une enveloppe finie et un budget réservé. Les dépenses restent comptées sur refus ou annulation ; les gardes financiers restent à implémenter avant activation."
+    },
+    "361": {
+      "title": "Une sonde de sortie qui nomme l'étape fautive et confirme la coupure",
+      "summary": "La sonde de connectivité sortante sépare la résolution DNS de la connexion et confirme une perte sur plusieurs essais espacés. Un paquet DNS perdu n'ouvre plus d'incident critique : une reprise ou une lenteur est signalée comme dégradée, et une vraie coupure nomme l'étape qui a échoué."
     }
   }
 }

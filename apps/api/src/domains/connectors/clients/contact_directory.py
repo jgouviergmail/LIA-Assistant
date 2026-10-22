@@ -121,7 +121,12 @@ def compact_person(person: Any) -> dict[str, Any]:
 
 
 async def cached_directory(
-    user_id: UUID, provider: str, max_contacts: int, read: DirectoryReader
+    user_id: UUID,
+    provider: str,
+    max_contacts: int,
+    read: DirectoryReader,
+    *,
+    cache_scope: str | None = None,
 ) -> ContactDirectory:
     """The directory from the cache, or read from the provider and cached.
 
@@ -134,10 +139,14 @@ async def cached_directory(
             providers never serves the previous book.
         max_contacts: The caller's cap — part of the key too.
         read: The provider read.
+        cache_scope: Optional account/snapshot identity; isolates a caller's
+            directory from other accounts and in-flight older refreshes.
 
     Returns:
         The directory, and whether it came from the cache.
     """
+    if cache_scope is not None:
+        provider = f"{provider}:{cache_scope}"
     cache: ContactsCache | None
     try:
         cache = ContactsCache(await get_redis_cache())

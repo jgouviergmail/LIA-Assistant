@@ -386,6 +386,30 @@ describe('ProviderEventsSection', () => {
     );
     expect(screen.getAllByText('relations.event_upcoming')).toHaveLength(1);
   });
+
+  it('titles a meeting like a mail row — its markers and when, above what it is', async () => {
+    // Owner request 2026-10-21: every dated row of the card opens on the same
+    // line. The meeting used to trail its slot after its own summary.
+    const { user } = renderWithProviders(
+      <ProviderEventsSection
+        section={section({ status: 'ok', events: [event()] })}
+        windowDays={90}
+        busy={false}
+        onRefresh={vi.fn()}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: /relations.section_events/ }));
+
+    const summary = screen.getByText('Réunion');
+    const row = summary.closest('li');
+    if (row === null) throw new Error('no row');
+    const [title, body] = row.querySelectorAll('p');
+    expect(title).toHaveTextContent('relations.event_upcoming');
+    expect(title).toHaveTextContent(/\d{2}:\d{2}\s*–\s*\d{2}:\d{2}/);
+    expect(title.querySelectorAll('strong')).toHaveLength(2);
+    expect(body).toContainElement(summary);
+    expect(title).not.toContainElement(summary);
+  });
 });
 
 describe('the one sentence unusable sections may say', () => {

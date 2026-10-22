@@ -9,13 +9,14 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.dependencies import get_db
-from src.core.exceptions import raise_invalid_webhook_signature
+from src.core.exceptions import raise_invalid_webhook_signature, raise_not_found_or_unauthorized
 from src.core.i18n import normalize_language
 from src.core.security.utils import encrypt_data
 from src.core.session_dependencies import get_current_active_session
@@ -192,6 +193,24 @@ async def list_calls(
     calls = await TelephonyRepository(db).list_recent_for_user(user.id, limit=limit)
     logger.info("telephony_calls_listed", user_id=str(user.id), count=len(calls))
     return await project_call_history(db, user.id, calls)
+
+
+@router.get(
+    "/calls/{call_id}",
+    response_model=TelephonyCallSummary,
+    summary="Read one of the current user's calls",
+)
+async def get_call(
+    call_id: UUID,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> TelephonyCallSummary:
+    """Resolve a relationship link even beyond the recent page, without phone secrets."""
+    call = await TelephonyRepository(db).get_for_user(user.id, call_id)
+    if call is None:
+        raise_not_found_or_unauthorized("phone_call")
+    (projected,) = await project_call_history(db, user.id, [call])
+    return projected
 
 
 # ---------------------------------------------------------------------------

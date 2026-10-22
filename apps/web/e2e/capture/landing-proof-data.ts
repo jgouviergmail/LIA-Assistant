@@ -96,11 +96,11 @@ export const PROOF_RELATIONS = {
 export const PROOF_RELATION = {
   display_name: 'Morgan Demo', identity_confidence: 'exact',
   open_loops: [
-    { id: 'proof-loop-date', subject: 'Confirm the supplier delivery date', direction: 'user_owes', due_hint: 'Before the 10:00 review today', days_open: 3 },
-    { id: 'proof-loop-checklist', subject: 'Morgan will send the launch checklist', direction: 'waiting_on_other', due_hint: '12 October · 09:45', days_open: 3 },
+    { id: 'proof-loop-date', subject: 'Confirm the supplier delivery date', direction: 'user_owes', due_hint: 'Before the 10:00 review today', days_open: 3, opened_at: '2026-10-09T15:10:00Z' },
+    { id: 'proof-loop-checklist', subject: 'Morgan will send the launch checklist', direction: 'waiting_on_other', due_hint: '12 October · 09:45', days_open: 3, opened_at: '2026-10-09T15:20:00Z' },
   ], open_loops_total: 2,
   recent_calls: [{ id: 'proof-call', objective: 'Align on the Atlas launch', outcome: 'objective_met', summary: 'Scope agreed. Supplier date still needs confirmation.', created_at: '2026-10-09T15:00:00Z' }], recent_calls_total: 1,
-  memories: [{ id: 'proof-relation-memory', content: 'Morgan prefers a short written recap before project reviews.' }], memories_total: 1,
+  memories: [{ id: 'proof-relation-memory', content: 'Morgan prefers a short written recap before project reviews.', created_at: '2026-10-05T16:00:00Z' }], memories_total: 1,
   peer_messages: [{ id: 'proof-peer-message', direction: 'received', content: 'I will bring the updated checklist to Monday’s review.', occurred_at: '2026-10-09T16:00:00Z' }], peer_messages_total: 1,
   peer_link: { connected_since: '2026-09-01T10:00:00Z', shared_by_me: [{ domain: 'calendar', level: 'availability' }], shared_with_me: [{ domain: 'task', level: 'titles' }] },
   is_favorite: true, is_peer: true, merged_from: [],

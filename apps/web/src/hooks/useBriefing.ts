@@ -42,6 +42,12 @@ const ENDPOINT_SYNTHESIS = '/briefing/synthesis';
 const ENDPOINT_REFRESH = '/briefing/refresh';
 const ENDPOINT_REFRESH_CARDS = '/briefing/refresh-cards';
 
+function visibleCards(cards: CardsBundle | undefined, hideSms: boolean): CardsBundle | undefined {
+  const sms = cards?.sms;
+  if (!hideSms || !cards || !sms?.data) return cards;
+  return { ...cards, sms: { ...sms, data: { ...sms.data, items: [] } } };
+}
+
 export function useBriefing(): UseBriefingResult {
   const cardsQuery = useApplicationAccountQuery<CardsResponse>(
     ENDPOINT_CARDS,
@@ -53,6 +59,7 @@ export function useBriefing(): UseBriefingResult {
   );
   const { ownerId, lifetime, isCurrent, acceptData: acceptCards } = cardsQuery;
   const { acceptData: acceptText, refetch: rereadText } = synthesisQuery;
+  const [smsBarrier, setSmsBarrier] = useState({ lifetime, closed: false });
   const [refreshing, setRefreshing] = useState({ lifetime, sections: new Set<RefreshScope>() });
   const pending = useRef({ lifetime, sections: new Set<RefreshScope>() });
   const [refreshFailure, setRefreshFailure] = useState({ lifetime, error: null as Error | null });
@@ -115,10 +122,11 @@ export function useBriefing(): UseBriefingResult {
       } satisfies RefreshRequest);
       if (current()) {
         acceptCards(fresh);
+        setSmsBarrier({ lifetime, closed: false });
         dirty.clear();
       }
     },
-    [acceptCards]
+    [acceptCards, lifetime]
   );
 
   const invalidateSection = useCallback(
@@ -163,6 +171,7 @@ export function useBriefing(): UseBriefingResult {
       // Cancel a current GET and supersede any paid manual refresh in flight.
       // The next text generation remains an explicit user action.
       textRevision.current += 1;
+      setSmsBarrier({ lifetime, closed: true });
       acceptText(undefined);
       void invalidateSection('sms');
     });
@@ -170,7 +179,7 @@ export function useBriefing(): UseBriefingResult {
       reminders();
       sms();
     };
-  }, [ownerId, invalidateSection, acceptText]);
+  }, [ownerId, lifetime, invalidateSection, acceptText]);
 
   const refetchSection = useCallback(
     async (section: RefreshScope) => {
@@ -204,7 +213,10 @@ export function useBriefing(): UseBriefingResult {
             // held during an initial GET failure. Keep dirty until its forced drain.
             if (current() || (isCurrent() && waitingForCards.current)) {
               acceptCards({ cards: fresh.cards, windows: fresh.windows });
-              if (current()) dirty.clear();
+              if (current()) {
+                dirty.clear();
+                setSmsBarrier({ lifetime, closed: false });
+              }
             }
             // A cards-only mutation did not replace this paid text generation.
             // Keep its original generated_at/usage unless a newer text read won.
@@ -261,7 +273,10 @@ export function useBriefing(): UseBriefingResult {
   ]);
 
   return {
-    cards: cardsQuery.data?.cards,
+    cards: visibleCards(
+      cardsQuery.data?.cards,
+      smsBarrier.lifetime === lifetime && smsBarrier.closed
+    ),
     windows: cardsQuery.data?.windows,
     text: synthesisQuery.data,
     loading: cardsQuery.loading || synthesisQuery.loading,

@@ -130,6 +130,9 @@ class TestTheSettleQuotesItsRun:
         assert stored.run_count == 1
         assert stored.last_run_outcome == RunOutcome.SUCCESS.value
         assert stored.last_run_tokens_in == 1200
+        # The last run keeps the chat meter's five figures, like the total.
+        assert stored.last_run_tokens_cache == 64
+        assert stored.last_run_google_requests == 2
         assert stored.last_run_cost_eur == Decimal("0.004200")
         # The run's figures are ADDED to the ticket's own totals, by column
         # arithmetic in this very transaction — a read-modify-write in Python

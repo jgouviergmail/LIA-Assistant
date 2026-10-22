@@ -1,0 +1,96 @@
+# LIA world: MalinosLand reference adoption and reusable concepts
+
+Date: 2026-10-20. Status: owner-selected visual base; source-backed concept and integration assessment, not a business implementation or performance qualification. Work remains strictly inline, without subagents.
+
+## 1. Decision and precedence
+
+The owner selected [MalinosLand](https://github.com/Rogue06/MalinosLand) as the visual base and explicitly requested inspiration from its concepts while retaining the principles previously agreed for LIA. This is a concrete design input, not a request to replace LIA with that application. Preserve the [accepted V1](2026-10-09-lia-isometric-world-v1-scope.md) and the authority/privacy/cost contracts in the [global review](2026-10-09-lia-isometric-world-global-review.md).
+
+MalinosLand is now the visual acceptance reference ahead of the earlier generated concepts. Retain its readable volumetric silhouettes, open dollhouse interiors, restrained face shading, recognizable props, warm materials, clear walking space and human-scale social setting. Apply LIA's identity, localized DOM controls and masculine BIP. More detail must preserve that clarity. Earlier concept images remain illustrative studies, not a competing requirement for a more elaborate rendering style.
+
+The world remains larger than the viewport, with follow/free camera, zoom, pan, recenter and the LIA minimap in the upper right. Do not copy the reference's bottom-left minimap or compress all places onto one screen. A thematic building is a physical place, not a separate multiplayer shard.
+
+## 2. Evidence and inspected scope
+
+Inspected upstream main at commit [53e2987718c46b10f3f28c21c92cbcaa9e9abb84](https://github.com/Rogue06/MalinosLand/commit/53e2987718c46b10f3f28c21c92cbcaa9e9abb84). Text sources and three official screenshots were read through the GitHub connector. The [evidence manifest](assets/2026-10-20-malinosland-reference/evidence.json) records exact files, blob identities and limits.
+
+The inspected screenshots are the [world overview](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/docs/images/hub-vue-ensemble.jpg), [coworking view](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/docs/images/coworking.jpg) and [seated lounge view](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/docs/images/salon-assis-cafe.jpg). They establish a visible reference, not live frame rate, mobile behavior or correctness of a remote session.
+
+Key source findings:
+
+| Inspected source | Observation | Consequence for LIA |
+|---|---|---|
+| [Package manifest](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/package.json), [game creation](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/game/createGame.ts) | Phaser game with Preact/Vite shell, resolution/quality controls and low-power rendering preference | Phaser becomes a serious first candidate for the representative slice; keep LIA's existing React/Next shell |
+| [Primitive builder](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/game/art/iso3d.ts), [textures](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/game/textures.ts), [renderer](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/game/WorldRenderer.ts) | Projected geometric primitives are drawn into 2D canvas textures, cached/packed into atlases; floors are chunked and seating uses separate foreground layers | The volumetric appearance is compatible with our 2.5D direction. No real-time mesh-per-voxel architecture is required |
+| [Player controller](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/world/PlayerController.ts), [scene](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/game/scenes/WorldScene.ts) | Render-independent movement/action intent, approach-before-use, camera follow, keyboard/click/pinch and scene cleanup | Reuse reviewed ideas/components through narrow contracts; preserve LIA's stronger input, owner-lifetime and reconciliation requirements |
+| [World design](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/docs/WORLD_DESIGN.md), [object catalogue](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/content/catalog.ts) | Versioned map data, prop footprints/anchors, named interactions, approach/reachability validation | Useful basis for authored content contracts and semantic map tests; replace hardcoded prose with localized labels and trusted LIA function IDs |
+| [Server world](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/server/src/WorldRoom.ts), [hub](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/server/src/hub.ts), [transport](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/multiplayer/ServerTransport.ts) | Cloudflare Durable Object, Supabase-related authority, room routing, global/local chat, movement-position messages and bounds/speed checks | These are different application contracts. They do not prove LIA server collision/proximity authority, per-account admission, private projections or paid translation |
+
+No upstream dependencies were installed, no game code was imported, no live account/world was joined and no paid model was called. Browser entry points failed; screenshot inspection succeeded directly through the GitHub image API. No live gameplay/device/performance test is claimed. The October 9 tests remain dated evidence for existing LIA bricks, not fresh certification of today's integration.
+
+## 3. Concepts to adopt, adapt or defer
+
+These are design choices proposed from the reference within the accepted scope. They do not silently add public chat, visits, voice or a rewards economy.
+
+| Concept and source | LIA adaptation | Release treatment |
+|---|---|---|
+| Recognizable social hub and themed corners ([world design](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/docs/WORLD_DESIGN.md)) | Five-to-six spacious authored places with clear landmarks and grouped real LIA stations; identify places through geometry/icons as well as translated labels | V1 composition basis; original map, not an exact copy of its floor plan |
+| Approach an object, then use it ([controller](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/world/PlayerController.ts)) | Click/tap identifies a valid approach anchor, walks there and exposes a contextual action; manual input cancels the path. Opening a private panel is distinct from executing its operation | V1 interaction grammar; actual mutations/paid acts retain LIA authority and confirmation |
+| Seating, coffee and closed-set gestures ([game design](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/docs/GAME_DESIGN.md)) | A small set of cosmetic social poses/gestures gives people something pleasant to do together; rate limit, mute and reduced-motion behavior apply. A seated pose is not evidence of account availability | Small optional polish budget, not a blocking seat-reservation subsystem or new chat audience |
+| Optional discovery objectives ([quests](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/content/quests.ts)) | Short dismissible introduction to moving, zooming, finding one's home and opening a feature. No requirement to send a message, disclose data or spend tokens to finish | V1 onboarding; progress belongs to world preferences, not assistant memory/habits |
+| Friendly guide and contextual hints ([scene](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/game/scenes/WorldScene.ts)) | BIP supplies deterministic localized help and useful nearby affordances; an explicit private assistant request enters the ordinary LIA path | V1; greeting/patrol/tips never create ambient model calls |
+| Avatar presets and an in-world mirror ([game design](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/docs/GAME_DESIGN.md)) | Bounded appearance choices and optional mirror entry share the same owner editor as the HUD; avoid two sources of profile truth or automatic inference of sensitive traits | Retain accepted small cosmetic catalogue; broader wardrobe later |
+| Birds, plants and small environmental reactions ([ambient life](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/game/life/AmbientLife.ts)) | Few deterministic local effects near the camera, with quality/reduced-motion caps. Time/weather follow the owner's authorized context and do not alter shared collision | V1 restrained atmosphere; richer ambient routines later |
+| Customizable homes and scalable expansion ([world design](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/docs/WORLD_DESIGN.md)) | Owner-only home, bounded source motifs and anchored placements. Versioned content/chunk loading can expand the map without exposing private geometry | V1 home; timed visits, floors and broader expansion remain later lots |
+| Discoverable details/easter eggs ([secrets](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/content/secrets.ts)) | A few innocuous authored surprises may reward exploration; never reveal another account's memory or create a requirement for essential access | Optional later content; no competitive score, currency or token-spend reward |
+| Visible roadmap/feedback station ([catalogue](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/content/catalog.ts)) | May expose existing help/version information through a real panel; no invented issue submission, external message or nonfunctional promise | Reuse current help first; new feedback workflow deferred |
+
+Keep discovery intrinsically pleasant: coherent places, short feedback, recognizable actions and voluntary social contact. Optional objectives never gate ordinary features. The HUD/DOM path remains a direct alternative to walking. Do not adopt the reference's global/proximity chat as an implicit replacement for LIA's explicitly scoped translated direct messages; private assistant text never appears in a public bubble.
+
+## 4. Technical adoption strategy
+
+Three alternatives were assessed:
+
+| Alternative | Benefit | Cost/risk | Decision |
+|---|---|---|---|
+| Import the entire application/fork as an embedded site | Fast reproduction of its existing scene | Duplicate Preact/Vite/auth/storage/server lifecycle, incompatible authority/social semantics, commercial licensing assumptions | Rejected for LIA integration |
+| Selectively adapt art/content/navigation components and assess Phaser inside the LIA shell | Closest path to the chosen appearance, less invention of art and game primitives | Requires licence/provenance review, strict boundaries, cold-start and real-device proof | Preferred first investigation/prototype path |
+| Reproduce the approved visual grammar through independently authored assets on the chosen renderer | Preserves flexibility when reuse is unsuitable | More art/integration work; must be judged against the same reference | Fallback, not a return to an unrelated visual direction |
+
+Phaser is now the first engine candidate to examine for a representative integration because the selected reference already uses it. The former Pixi-first preference was provisional; it must not cause an unnecessary full port before evidence exists. Final selection remains conditional on rights, browser compatibility, package/CSP/build impact, resource ownership and actual modest-device performance. Do not ship multiple game engines as a hedge. Engine-neutral identities/maps/projections do not require an engine-neutral abstraction for every draw call.
+
+Keep Next/React and existing LIA providers. Mount one client-only lazy world runtime in an owned container; do not bootstrap another app root, auth stack, Supabase connection, Cloudflare Worker or localStorage account. Size it from its actual container/visible viewport, not window dimensions alone. Port UI intentions to localized existing primitives. Avoid importing the large WorldScene wholesale into a new god-component: separate renderer, input/camera, world model, network and station bindings.
+
+Retain server-authoritative collision/proximity, one world owner with fencing, account-based capacity five and FIFO waiting. Client-sent final positions with bounds/speed checks do not replace the agreed intent/sequence/reconciliation contract. Rendering chunks, home visibility and map transitions must not introduce independent attendance pools or multiplayer shards. The first-frame world ticket, private projection boundary, receipt/attempt accounting and current block/session checks remain unchanged.
+
+Use procedural shape/material descriptions as a content production option. Compare bounded lazy client generation with reproducible pre-exported atlases for the initial static kit; measure cold CPU work, decode/upload, memory and input responsiveness. Do not equate no downloaded pictures with no cost: code size, CPU rasterization, canvases and GPU textures all consume resources. Cache by trusted asset/version/quality, keep private personalization out of global caches, and release intermediate canvases/obsolete resources. Derived assets retain applicable upstream licensing obligations even if rendered through another engine.
+
+## 5. Current LIA integration and licensing checks
+
+Fresh local reads confirm the shared [desktop/mobile destination registry](../../../apps/web/src/lib/dashboard-nav.ts) and [account lifetime hook](../../../apps/web/src/hooks/useApplicationAccountLifetime.ts). No Phaser/Pixi dependency is declared in the current [web manifest](../../../apps/web/package.json). Adding either engine is future implementation, with the existing dependency-lock and Taskfile gates. This pass does not recertify every domain contract from the October 9 source snapshot; dependent lots must recheck the changed current source.
+
+The current [output-cap rule](../../../apps/api/src/infrastructure/llm/output_cap.py) also applies to the future translation slot: use resolved model/output capability and the shared client door. Do not copy a fixed budget from the game or bypass current quota, reasoning, accounting and prompt registries.
+
+Upstream declares AGPL-3.0-only in its [manifest](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/package.json) and [licence](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/LICENSE); its [art policy](https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/docs/ART_DIRECTION.md) explicitly covers generated graphics. LIA's [licence](../../../LICENSE), [web manifest](../../../apps/web/package.json) and [third-party notices](../../../NOTICE.md) show an AGPL open-source route and a separate commercial offer.
+
+Consequently direct reuse must retain origin, notices, exact upstream version and applicable source obligations. Do not relabel upstream files as AGPL-or-later or assume that LIA can sublicense another author's code/art commercially. A proprietary/commercial exception requires the necessary rights; if that route is required without such rights, use independently authored implementation/assets. This is a concrete reuse dependency, not a blocker to adopting the visual/concept reference. No third-party product code or graphic asset was copied into LIA by this review.
+
+## 6. Acceptance additions within the existing lots
+
+Apply these oracles within F0-F8 rather than starting another platform programme:
+
+1. Freeze the upstream source/rights inventory and current LIA integration snapshot. Record each proposed reuse as adapt, rewrite or omit; retain provenance and a maintainable local patch policy rather than automatically following upstream main.
+2. Produce one representative place with an avatar, BIP, seats/props, contextual feature entry and the approved camera/HUD composition. Compare it to the inspected reference at normal play zoom; readability and space matter as much as surface detail.
+3. Demonstrate cold/warm modest-device loading, touch/keyboard focus, pinch/pan cancellation, initial generation/upload and 30-minute thermal/resource behavior. Preserve the existing frame/input/asset/Pi objectives; add no claimed measurement from screenshots.
+4. Validate map schema/version, unique IDs, footprints, reachable spawn/interaction anchors and all open place routes. Compare client/server geometry, reject forged object/function IDs and test old layouts when the kit changes.
+5. Prove multi-account privacy and five-account capacity with the real LIA authority. Test the sixth account waiting, duplicate tabs, owner switch, revocation, source deletion, socket restart and translated-message outcomes. No browser-local demo or unrelated upstream test substitutes for this.
+6. Verify optional onboarding/gestures/ambient life are bounded, translated, accessible, independently dismissible and model-free. No script may post socially, mutate personal data or trigger a paid LIA act on behalf of completing a discovery objective.
+7. Verify world entry/exit and late asynchronous asset completion preserve drafts and current media/session owners. Renderer cleanup must handle account change, context loss and repeated route transitions without duplicate loops/listeners.
+
+The earlier dates were provisional assisted-work objectives. This reference reduces uncertainty about the desired look and offers reusable building blocks; it does not yet justify a numeric schedule reduction. Re-estimate after the representative integration, rights decision and minimum-device measurements.
+
+## 7. Review outcome and verification boundary
+
+The approved visual direction is now concrete, and several game concepts fit LIA well. The preferred approach is selective adaptation under existing LIA authority, with Phaser assessed early and a deliberately bounded content kit. No previously agreed privacy, language, cost, responsive, capacity or evolution requirement is relaxed.
+
+Source inspection and three screenshot inspections are complete. This documentation-only update adds no business feature, dependency, migration or model call. The scoped check across the five design documents validates 160 local references with no missing target or trailing whitespace; all 19 reviewed source entries and three screenshot entries have recorded blob identities. task lint:docs:preview exits successfully, with zero broken living links, stale living paths, living orphans or quoted-fact drift, and current living maps. The six map findings recorded on October 9 are historical, not current blockers; this review did not repair them. No upstream test pass, live gameplay pass or renewed October 9 runtime certification is implied.

@@ -52,6 +52,12 @@ logger = structlog.get_logger(__name__)
 #: rather than colon-separated because it becomes an i18n key segment.
 NOTIFICATION_CAPABILITY: str = "proactive_notification"
 
+#: The capability a discussion LIA opened is recorded under (ADR-358): the message
+#: its publication posts in the person's conversation. Measured 2026-10-21: every
+#: opening was published and delivered while « Actions menées d'elle-même » held
+#: none of them — its consultations were filed, the act itself was not.
+DISCUSSION_CAPABILITY: str = "proactive_discussion"
+
 #: What the notification path claims. ``reversible`` is the honest policy: the
 #: person can dismiss it and the archived message can be deleted, but it HAS
 #: reached them — which is why it is not ``read`` and not ``artefact``.
@@ -68,10 +74,11 @@ USER_ACTION_POLICY: str = "confirm"
 
 @dataclass
 class ProactiveEffect:
-    """A claimed notification, waiting to be told how it went.
+    """A claimed act of LIA's own, waiting to be told how it went.
 
     Attributes:
-        delivered: Set by the caller from the dispatch's explicit result.
+        delivered: Set by the caller from the act's explicit result (a dispatch
+            that reached a channel, an opening committed to the conversation).
             Left False, the row closes as a failure — the safe direction: an
             action that may not have reached anyone must not read as done.
     """
@@ -104,8 +111,53 @@ async def proactive_notification_effect(
         The effect, whose ``delivered`` the caller sets from the dispatch.
     """
     effect = ProactiveEffect()
-    ticket = await _claim(
-        user_id=user_id, run_id=run_id, task_type=task_type, occurrence=occurrence
+    ticket = await _claim_proactive(
+        user_id=user_id,
+        run_id=run_id,
+        capability=NOTIFICATION_CAPABILITY,
+        # One claim per sweep AND per thing said: a retry of the same run
+        # must not add a second « LIA notified you » to the person's
+        # register — and the second thing a run says must not be lost as a
+        # retry of the first. Measured 2026-09-09: a followed ticket's
+        # « finished » was dispatched, and its row was lost to the claim
+        # « started » had taken under the run.
+        idempotency_key=_idempotency_key(run_id, occurrence),
+        arguments={"kind": task_type},
+    )
+    try:
+        yield effect
+    finally:
+        if ticket is not None:
+            await _close(ticket, delivered=effect.delivered)
+
+
+@asynccontextmanager
+async def proactive_discussion_effect(
+    *, user_id: uuid.UUID, run_id: str
+) -> AsyncIterator[ProactiveEffect]:
+    """Claim the opening of a discussion, then close the row from its publication.
+
+    The act is the message the publication posts in the person's conversation: it
+    is there whatever a push does afterwards, so the row settles from the
+    publication's commit, never from the delivery. One run opens at most one
+    discussion, so the run names the act.
+
+    Args:
+        user_id: The account the discussion is opened with.
+        run_id: The run that decided it, shared with its consultations and its
+            decision row so the three registers join.
+
+    Yields:
+        The effect, whose ``delivered`` the caller sets once the opening is
+        committed.
+    """
+    effect = ProactiveEffect()
+    ticket = await _claim_proactive(
+        user_id=user_id,
+        run_id=run_id,
+        capability=DISCUSSION_CAPABILITY,
+        idempotency_key=f"{run_id}:discussion",
+        arguments={},
     )
     try:
         yield effect
@@ -132,20 +184,26 @@ def _idempotency_key(run_id: str, occurrence: str | None) -> str:
     return base if occurrence is None else f"{base}:{occurrence}"
 
 
-async def _claim(
-    *, user_id: uuid.UUID, run_id: str, task_type: str, occurrence: str | None
+async def _claim_proactive(
+    *,
+    user_id: uuid.UUID,
+    run_id: str,
+    capability: str,
+    idempotency_key: str,
+    arguments: dict[str, Any],
 ) -> object | None:
-    """Take the right to notify, in its own committed transaction.
+    """Take the right to act of LIA's own initiative, in its own committed transaction.
 
     Args:
-        user_id: Who is being notified.
-        run_id: The sweep's correlation key.
-        task_type: Which sweep decided to write.
-        occurrence: Which of the run's notifications this is, or None.
+        user_id: Whose register it lands in.
+        run_id: The run's correlation key.
+        capability: The bounded name the act is recorded under.
+        idempotency_key: What makes a retry the same row.
+        arguments: Bounded values the label reads.
 
     Returns:
-        The claim ticket, or None when the ledger could not take it — the
-        notification then goes out unrecorded rather than not at all.
+        The claim ticket, or None when the ledger could not take it — the act
+        then happens unrecorded rather than not at all.
     """
     try:
         from src.domains.agents.effects.models import EffectSource
@@ -154,21 +212,15 @@ async def _claim(
             user_id=user_id,
             run_id=run_id,
             source=EffectSource.PROACTIVE.value,
-            capability=NOTIFICATION_CAPABILITY,
+            capability=capability,
             policy=NOTIFICATION_POLICY,
-            # One claim per sweep AND per thing said: a retry of the same run
-            # must not add a second « LIA notified you » to the person's
-            # register — and the second thing a run says must not be lost as a
-            # retry of the first. Measured 2026-09-09: a followed ticket's
-            # « finished » was dispatched, and its row was lost to the claim
-            # « started » had taken under the run.
-            idempotency_key=_idempotency_key(run_id, occurrence),
-            arguments={"kind": task_type},
+            idempotency_key=idempotency_key,
+            arguments=arguments,
         )
-    except Exception as exc:  # noqa: BLE001 - the register never costs a notification
+    except Exception as exc:  # noqa: BLE001 - the register never costs the act
         logger.warning(
             "proactive_effect_not_claimed",
-            task_type=task_type,
+            capability=capability,
             error_type=type(exc).__name__,
         )
         return None

@@ -51,6 +51,7 @@ def detail(**over: object) -> RelationDetail:
                 direction="user_owes",
                 due_hint=NOW if index == 2 else None,
                 days_open=index,
+                opened_at=NOW,
             )
             for index in range(8)
         ],
@@ -65,7 +66,7 @@ def detail(**over: object) -> RelationDetail:
             )
         ],
         "recent_calls_total": 1,
-        "memories": [RelationMemory(id="m1", content="Aime la randonnée")],
+        "memories": [RelationMemory(id="m1", content="Aime la randonnée", created_at=NOW)],
         "memories_total": 1,
         "peer_messages": [
             RelationPeerMessage(id="p1", direction="received", content="Salut", occurred_at=NOW),

@@ -57,7 +57,7 @@ export function MeetingMinutesCard({ lng, metadata, showCosts = false }: Meeting
   const unknown = t('meetings.detail.cost_unknown');
 
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-3 rounded-md border border-border/60 bg-background/60 p-3">
+    <div className="mt-3 flex flex-wrap items-center gap-3 rounded-md border border-border bg-background/60 p-3">
       <ClipboardList className="h-5 w-5 text-primary" aria-hidden="true" />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium">{t('meetings.card.title')}</p>

@@ -103,7 +103,7 @@ function HealthMetricRow({ item }: { item: HealthSummaryItem }) {
 
       {/* Vertical separator — auto column ensures consistent X position across rows */}
       <div
-        className="h-px w-12 bg-border/50 @min-[20rem]:h-full @min-[20rem]:w-px @min-[20rem]:self-stretch"
+        className="h-px w-12 bg-border @min-[20rem]:h-full @min-[20rem]:w-px @min-[20rem]:self-stretch"
         aria-hidden="true"
       />
 

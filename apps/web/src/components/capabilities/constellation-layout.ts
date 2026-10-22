@@ -31,6 +31,7 @@ export const CAPABILITY_ORDER: readonly { key: string; ring: 'inner' | 'outer' }
   { key: 'personality', ring: 'inner' },
   { key: 'voice', ring: 'inner' },
   { key: 'proactivity', ring: 'inner' },
+  { key: 'proactive_discussions', ring: 'inner' },
   // What the assistant PRODUCES sits on the inner ring with the rest of what
   // it is: images (v1.25) and documents (v1.30.8) are reached in the flow of a
   // conversation, not configured on the side.

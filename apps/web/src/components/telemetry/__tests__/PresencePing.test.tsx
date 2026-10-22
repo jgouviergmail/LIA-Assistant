@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PresencePing } from '@/components/telemetry/PresencePing';
 
 const postMock = vi.fn();
-const authState = { user: null as null | { id: string }, isLoading: false };
+const authState = { user: null as null | { id: string; is_active: boolean }, isLoading: false };
 
 vi.mock('@/lib/api-client', () => ({
   default: { post: (...args: unknown[]) => postMock(...args) },
@@ -27,7 +27,7 @@ describe('PresencePing', () => {
   beforeEach(() => {
     postMock.mockReset();
     postMock.mockResolvedValue(undefined);
-    authState.user = { id: 'u1' };
+    authState.user = { id: 'u1', is_active: true };
     authState.isLoading = false;
     setVisibility('visible');
     vi.useFakeTimers();
@@ -48,10 +48,32 @@ describe('PresencePing', () => {
     authState.user = null;
     render(<PresencePing />);
     expect(postMock).not.toHaveBeenCalled();
-    authState.user = { id: 'u1' };
+    authState.user = { id: 'u1', is_active: true };
     authState.isLoading = true;
     render(<PresencePing />);
     expect(postMock).not.toHaveBeenCalled();
+  });
+
+  it('never pings for an inactive account, including on focus', () => {
+    authState.user = { id: 'u1', is_active: false };
+    render(<PresencePing />);
+    act(() => {
+      window.dispatchEvent(new Event('focus'));
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(postMock).not.toHaveBeenCalled();
+  });
+
+  it('removes active listeners when the account becomes inactive', () => {
+    const { rerender } = render(<PresencePing />);
+    expect(postMock).toHaveBeenCalledTimes(1);
+    authState.user = { id: 'u1', is_active: false };
+    rerender(<PresencePing />);
+    act(() => {
+      vi.setSystemTime(new Date('2026-09-03T13:00:00Z'));
+      window.dispatchEvent(new Event('focus'));
+    });
+    expect(postMock).toHaveBeenCalledTimes(1);
   });
 
   it('never pings while the document is hidden', () => {

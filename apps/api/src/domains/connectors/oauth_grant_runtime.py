@@ -14,6 +14,7 @@ from src.core.config import settings
 from src.core.constants import OAUTH_TOKEN_REFRESH_MARGIN_SECONDS
 from src.core.exceptions import ConnectorTokenExpiredError, raise_invalid_input
 from src.core.i18n_api_messages import APIMessages
+from src.core.read_budget import current_read_owner, source_http_hooks
 from src.core.security import decrypt_data, encrypt_data
 from src.domains.connectors.models import Connector, ConnectorStatus, OAuthGrant
 from src.domains.connectors.oauth_bulk import scopes_cover_connector
@@ -62,7 +63,9 @@ def _refresh_config(provider: str) -> tuple[str, str, str]:
 )
 async def _post_refresh(url: str, data: dict[str, str]) -> httpx.Response:
     async with httpx.AsyncClient(
-        timeout=settings.http_timeout_oauth, follow_redirects=False
+        event_hooks=source_http_hooks(current_read_owner()),
+        timeout=settings.http_timeout_oauth,
+        follow_redirects=False,
     ) as client:
         response = await client.post(url, data=data)
         if response.status_code == 429 or response.status_code >= 500:

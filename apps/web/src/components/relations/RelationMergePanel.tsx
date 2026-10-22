@@ -79,7 +79,7 @@ export function RelationMergePanel({
       role="group"
       aria-label={t('relations.merge_title')}
       aria-busy={busy}
-      className="rounded-xl border border-border/60 bg-card p-4"
+      className="rounded-xl border border-border bg-card p-4"
     >
       <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
         <Link2 className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />

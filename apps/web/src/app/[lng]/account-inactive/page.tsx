@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Info, MailWarning } from 'lucide-react';
-import { proxiedImageProps } from '@/lib/utils/api-resource-url';
 
 /**
  * Page displayed when a user logs in with a deactivated account.
@@ -109,21 +108,11 @@ export default function AccountInactivePage() {
         {/* User information */}
         <div className="bg-muted/50 rounded-lg p-4 md:p-5 mb-6 md:mb-8">
           <div className="flex items-center justify-center gap-4">
-            {user.picture_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                {...proxiedImageProps(user.picture_url)}
-                alt={user.full_name || user.email}
-                className="h-12 w-12 md:h-16 md:w-16 rounded-full object-cover ring-2 ring-border"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <div className="h-12 w-12 md:h-16 md:w-16 rounded-full bg-primary/10 flex items-center justify-center ring-2 ring-border">
-                <span className="text-primary text-lg md:text-2xl font-semibold">
-                  {user.full_name?.[0]?.toUpperCase() || user.email[0].toUpperCase()}
-                </span>
-              </div>
-            )}
+            <div className="h-12 w-12 md:h-16 md:w-16 rounded-full bg-primary/10 flex items-center justify-center ring-2 ring-border">
+              <span className="text-primary text-lg md:text-2xl font-semibold">
+                {user.full_name?.[0]?.toUpperCase() || user.email[0].toUpperCase()}
+              </span>
+            </div>
             <div className="flex flex-col">
               {user.full_name && (
                 <span className="text-sm md:text-lg font-medium text-foreground">

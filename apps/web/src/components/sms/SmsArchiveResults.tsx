@@ -42,13 +42,15 @@ export function SmsArchiveResults({
         </p>
       )}
       {current?.total === 0 && (
-        <p className="rounded-lg border p-5 text-sm text-muted-foreground">{t('sms.empty')}</p>
+        <p className="rounded-lg border bg-card p-5 text-sm text-muted-foreground">
+          {t('sms.empty')}
+        </p>
       )}
       {messages &&
         (mode === 'sender' ? (
           <SmsSearchGroups messages={messages.items} lng={lng} timezone={timezone} />
         ) : (
-          <SmsMessageList messages={messages.items} lng={lng} timezone={timezone} />
+          <SmsMessageList messages={messages.items} lng={lng} timezone={timezone} eraseDays />
         ))}
       {senders && <SmsSenderThreads senders={senders.items} lng={lng} timezone={timezone} />}
     </>

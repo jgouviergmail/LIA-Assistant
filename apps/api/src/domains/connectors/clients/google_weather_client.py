@@ -33,6 +33,7 @@ from src.core.constants import (
 )
 from src.core.exceptions import ConnectorAPIError, ExternalServiceError
 from src.core.i18n import resolve_language
+from src.core.read_budget import source_http_hooks
 from src.core.time_utils import parse_rfc3339
 from src.domains.connectors.clients.google_api_tracker import track_google_api_call
 from src.domains.connectors.clients.google_geocoding_helpers import (
@@ -231,6 +232,7 @@ class GoogleWeatherClient:
         query = {**params, "key": self.api_key}
         async with httpx.AsyncClient(
             timeout=float(settings.http_timeout_weather),
+            event_hooks=source_http_hooks(self.user_id),
             limits=httpx.Limits(
                 max_keepalive_connections=HTTP_MAX_KEEPALIVE_CONNECTIONS,
                 max_connections=HTTP_MAX_CONNECTIONS,

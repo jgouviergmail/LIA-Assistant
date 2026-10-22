@@ -77,6 +77,14 @@ from src.domains.agents.registry.catalogue import (
     get_tool_category,
     manifest_allows_mode,
 )
+from src.domains.agents.telephony.live_specs import (
+    NATIVE_LOOKUPS,
+    LiveToolSpec,
+)
+from src.domains.agents.telephony.live_specs import (
+    NATIVE_PARAMETERS as _NATIVE_PARAMETERS,
+)
+from src.domains.agents.telephony.sms_output import read_sms_voice
 from src.domains.agents.telephony.voice_projection import compact_items
 from src.domains.agents.tools.connector_requirements import unconnected_tools_of
 from src.domains.agents.tools.react_tool_wrapper import extract_data_block
@@ -189,45 +197,6 @@ class VoiceToolHost:
         )
 
 
-@dataclass(frozen=True)
-class LiveToolSpec:
-    """One tool the voice agent may call during an owner call.
-
-    Attributes:
-        name: The registry (and catalogue) name of the tool, or the native
-            lookup's own name.
-        domain: The domain the tool reads (the register's vocabulary) — what
-            the person's switches decide on.
-        section: The ``phone_call`` surface section its consultation files
-            under.
-        parameters: The manifest parameters exposed to the voice agent, in
-            order; empty for a native lookup, whose parameters are declared
-            in :data:`_NATIVE_PARAMETERS`.
-        native: True for a lookup the catalogue has no tool for.
-    """
-
-    name: str
-    domain: str
-    section: str
-    parameters: tuple[str, ...]
-    native: bool = False
-
-
-#: The lookups the catalogue has no tool for. The chat injects the person's
-#: memories itself (``memory_injection``); on the phone the agent asks.
-NATIVE_LOOKUPS: Final[tuple[LiveToolSpec, ...]] = (
-    LiveToolSpec("recall_memories", "context", "memories", (), True),
-)
-_NATIVE_PARAMETERS: Final[dict[str, tuple[LiveToolParameter, ...]]] = {
-    "recall_memories": (
-        LiveToolParameter(
-            name="query",
-            type="string",
-            description="What the person is asking about, in a few words.",
-            required=True,
-        ),
-    ),
-}
 #: The derived list, filled at boot by the completeness guard and lazily by
 #: the first reader; tests set it directly.
 _SPECS: tuple[LiveToolSpec, ...] | None = None
@@ -613,7 +582,9 @@ async def available_live_tools(
     return tuple(
         spec
         for spec in live_tool_specs()
-        if spec.name not in hidden and spec.domain not in disabled_domains
+        if spec.name not in hidden
+        and spec.domain not in disabled_domains
+        and (spec.domain != "sms" or settings.sms_enabled)
     )
 
 
@@ -816,8 +787,13 @@ async def _recall_memories(user_id: UUID, args: dict[str, str]) -> str:
     return "\n".join(line for line in str(profile or "").splitlines() if line.strip())
 
 
+async def _sms_for_voice(user_id: UUID, args: dict[str, str]) -> str:
+    return _project(await read_sms_voice(user_id, args), "list_sms_tool", result_lines())
+
+
 _NATIVE_RUNNERS: Final[dict[str, Callable[[UUID, dict[str, str]], Any]]] = {
     "recall_memories": _recall_memories,
+    "list_sms_tool": _sms_for_voice,
 }
 
 

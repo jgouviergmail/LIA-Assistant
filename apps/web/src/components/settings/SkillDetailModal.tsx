@@ -99,7 +99,7 @@ export function SkillDetailModal({
         {/* Preview — only assets/preview.png is served; fallback icon. */}
         {previewFailed ? (
           <div
-            className="flex h-32 items-center justify-center rounded-md border border-border/40 bg-muted/20"
+            className="flex h-32 items-center justify-center rounded-md border border-border bg-muted/20"
             data-testid="skill-preview-fallback"
           >
             <Blocks className="h-10 w-10 text-muted-foreground/40" aria-hidden />
@@ -109,7 +109,7 @@ export function SkillDetailModal({
           <img
             src={skillPreviewUrl(skill.name)}
             alt={t('settings.skills.gallery.preview_alt', { name: skill.name })}
-            className="max-h-48 w-full rounded-md border border-border/40 object-contain bg-muted/10"
+            className="max-h-48 w-full rounded-md border border-border object-contain bg-muted/10"
             crossOrigin="use-credentials"
             onError={() => setPreviewFailedFor(skill.name)}
           />
@@ -155,7 +155,7 @@ export function SkillDetailModal({
           </Button>
         )}
 
-        <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/40">
+        <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
           <div className="flex items-center gap-1">
             <Button
               variant="ghost"

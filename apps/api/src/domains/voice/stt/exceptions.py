@@ -23,6 +23,8 @@ class STTProviderError(Exception):
     - ``provider_rate_limited``: HTTP 429 from the provider; ``retry_after``
       may carry the seconds suggested by the ``Retry-After`` header.
     - ``provider_http_error``: any other 4xx/5xx response.
+    - ``provider_audio_too_short``: the audio is below the provider's minimum;
+      resending the same recording to that provider cannot fix it.
     - ``provider_invalid_response``: 200 OK but the body did not match the
       expected schema.
     """

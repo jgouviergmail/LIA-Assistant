@@ -5,7 +5,8 @@
  *
  * Two distinct bands — « Favoris » then everyone else — so a long address
  * book stays scannable; each card carries an initials avatar (stable tint),
- * colored signal pills instead of gray text, an optional peers badge, and a
+ * its name on one line, signal pills in one tone at its foot (an optional
+ * peers badge among them), and a
  * star that toggles WITHOUT opening the card. The star is a SIBLING button
  * overlaid on the card (a button inside a button is invalid HTML and a
  * keyboard trap).
@@ -29,6 +30,7 @@ import { timeAgoLabel } from '@/lib/briefing-utils';
 import { RelationAvatar } from '@/components/relations/RelationAvatar';
 import type { RelationSummary } from '@/hooks/useRelations';
 import { EmptyState } from '@/components/ui/empty-state';
+import { HeadingRule } from '@/components/ui/heading-rule';
 
 /** Show the toolbar once the list stops fitting one glance. */
 const FILTER_THRESHOLD = 9;
@@ -85,18 +87,23 @@ function RelationCard({
 
   return (
     <li className="relative">
+      {/* A column: the person on top, the counts at its foot on the right
+          (owner request 2026-10-21), whatever the neighbour cards hold. */}
       <button
         type="button"
         onClick={() => onOpen(relation.display_name)}
-        className="flex w-full flex-wrap items-center gap-3 rounded-xl border border-border/50 bg-card p-4 pr-14 text-left transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex h-full w-full flex-col gap-3 rounded-xl border border-border bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <div className="flex min-w-0 flex-1 basis-32 items-center gap-3">
+        {/* The right gutter keeps the name clear of the overlaid star. */}
+        <div className="flex w-full min-w-0 items-center gap-3 pr-10">
           <RelationAvatar name={relation.display_name} />
           <div className="min-w-0 flex-1">
-            <span className="flex items-center gap-1.5">
-              <span className="break-words font-semibold text-foreground">
-                {relation.display_name}
-              </span>
+            {/* One line, always: a long name is cut, and stated whole on hover. */}
+            <span
+              className="block truncate font-semibold text-foreground"
+              title={relation.display_name}
+            >
+              {relation.display_name}
             </span>
             {relation.last_interaction_at ? (
               <span className="flex flex-wrap items-center gap-1.5">
@@ -159,12 +166,15 @@ function Band({
 }) {
   return (
     <section>
+      {/* A rubrique heading draws the same hairline on every screen (owner
+          request 2026-10-21) — the settings groups', the timelines'. */}
       <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
         <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
         {title}
         <span className="rounded-full bg-muted px-2 py-px text-px-11 font-medium tabular-nums text-muted-foreground">
           {count}
         </span>
+        <HeadingRule />
       </h2>
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" role="list">
         {children}
@@ -194,7 +204,7 @@ function FilterChip({
         'inline-flex max-w-full items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         active
           ? 'border-primary/40 bg-primary/10 text-primary'
-          : 'border-border/60 text-muted-foreground hover:bg-muted/60'
+          : 'border-border text-muted-foreground hover:bg-muted/60'
       )}
     >
       <Icon className="h-3 w-3" aria-hidden="true" />
@@ -230,8 +240,10 @@ function Toolbar({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="relative w-full max-w-xs sm:w-auto sm:flex-1">
+    // The search on its own line, the ordering and the filters under it
+    // (owner request 2026-10-21).
+    <div className="space-y-2">
+      <div className="relative w-full max-w-md">
         <Search
           className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
           aria-hidden="true"
@@ -245,30 +257,32 @@ function Toolbar({
           className="h-11 w-full rounded-full border border-border bg-background pl-8 pr-3 text-base focus:outline-none focus:ring-1 focus:ring-ring sm:h-9 sm:text-sm"
         />
       </div>
-      <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        {t('relations.sort_label')}
-        <select
-          value={sort}
-          onChange={event => onSort(event.target.value as SortMode)}
-          className="h-9 rounded-lg border border-border bg-background px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
-          <option value="recent">{t('relations.sort_recent')}</option>
-          <option value="name">{t('relations.sort_name')}</option>
-          <option value="volume">{t('relations.sort_volume')}</option>
-        </select>
-      </label>
-      <FilterChip
-        active={onlyPeers}
-        label={t('relations.only_peers')}
-        icon={Handshake}
-        onToggle={onTogglePeers}
-      />
-      <FilterChip
-        active={onlyDormant}
-        label={t('relations.only_dormant')}
-        icon={Moon}
-        onToggle={onToggleDormant}
-      />
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          {t('relations.sort_label')}
+          <select
+            value={sort}
+            onChange={event => onSort(event.target.value as SortMode)}
+            className="h-9 rounded-lg border border-border bg-background px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="recent">{t('relations.sort_recent')}</option>
+            <option value="name">{t('relations.sort_name')}</option>
+            <option value="volume">{t('relations.sort_volume')}</option>
+          </select>
+        </label>
+        <FilterChip
+          active={onlyPeers}
+          label={t('relations.only_peers')}
+          icon={Handshake}
+          onToggle={onTogglePeers}
+        />
+        <FilterChip
+          active={onlyDormant}
+          label={t('relations.only_dormant')}
+          icon={Moon}
+          onToggle={onToggleDormant}
+        />
+      </div>
     </div>
   );
 }

@@ -93,3 +93,35 @@ def test_removal_identity_never_projects_credentials_or_arbitrary_metadata() -> 
     result = commands.connector_removal_snapshot(saved).model_dump_json()
     assert "reader@example.test" in result
     assert "private-token" not in result and "private_key" not in result and "secret" not in result
+
+
+@pytest.mark.parametrize(
+    ("kind", "expected"),
+    [
+        (ConnectorType.GOOGLE_GMAIL, ("emails",)),
+        (ConnectorType.GMAIL, ("emails",)),
+        (ConnectorType.APPLE_CALENDAR, ("calendar",)),
+        (ConnectorType.MICROSOFT_CONTACTS, ("contacts",)),
+        (ConnectorType.GOOGLE_TASKS, ("tasks",)),
+        (ConnectorType.OPENWEATHERMAP, ("weather",)),
+        (ConnectorType.PHILIPS_HUE, ()),
+    ],
+)
+def test_a_removed_connection_forgets_the_discussion_sources_it_served(
+    kind: ConnectorType, expected: tuple[str, ...]
+) -> None:
+    commands = import_module("src.domains.connectors.removal_commands")
+
+    assert tuple(source.value for source in commands.discussion_sources_of(kind)) == expected
+
+
+def test_every_connector_backed_discussion_source_names_a_real_category() -> None:
+    from src.domains.connectors.models import CONNECTOR_FUNCTIONAL_CATEGORIES
+    from src.domains.shared.discussion_catalogue import SOURCE_REGISTRY
+
+    declared = {
+        definition.connector_category
+        for definition in SOURCE_REGISTRY.values()
+        if definition.connector_category is not None
+    }
+    assert declared <= set(CONNECTOR_FUNCTIONAL_CATEGORIES)

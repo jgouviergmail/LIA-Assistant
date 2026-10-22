@@ -79,6 +79,32 @@ function response(id: string | null = 'saved'): BriefingResponse {
 }
 
 const cards = response();
+function smsResponse(
+  body = 'WITHDRAWN_PRIVATE_SMS',
+  id = '10000000-0000-4000-8000-000000000001'
+): BriefingResponse {
+  const initial = response();
+  initial.cards.sms = section({
+    timezone: 'Europe/Paris',
+    total: 1,
+    window_total: 1,
+    window_start: '2026-10-19T08:00:00Z',
+    as_of: '2026-10-20T08:00:00Z',
+    latest_at: null,
+    items: [
+      {
+        id,
+        sender: 'Alice',
+        display_name: 'Alice',
+        received_at: '2026-10-20T07:00:00Z',
+        date_kind: 'received',
+        body_excerpt: body,
+        body_truncated: false,
+      },
+    ],
+  });
+  return initial;
+}
 beforeEach(() => {
   vi.resetAllMocks();
   useAuth.mockReturnValue({ user: { id: 'one' } });
@@ -96,6 +122,49 @@ async function ready() {
 }
 
 describe('briefing reads and recovery', () => {
+  it('withdraws SMS previews immediately and keeps them hidden when source rereading fails', async () => {
+    const initial = smsResponse();
+    get.mockImplementation((path: string) =>
+      Promise.resolve(
+        path.endsWith('/cards')
+          ? initial
+          : { greeting: initial.greeting, synthesis: initial.synthesis }
+      )
+    );
+    const pendingRead = Promise.withResolvers<BriefingResponse>();
+    post.mockReturnValue(pendingRead.promise);
+    const { result } = renderHook(() => useBriefing());
+    await waitFor(() => expect(result.current.cards?.sms?.data?.items).toHaveLength(1));
+    act(() => publishApplicationResources('one', new Set(['sms'])));
+    expect(result.current.cards?.sms?.data?.items).toEqual([]);
+    expect(result.current.cards?.for_you).toEqual(initial.cards.for_you);
+    await act(async () => pendingRead.reject(new Error('offline')));
+    await waitFor(() => expect(result.current.error).toBeTruthy());
+    expect(result.current.cards?.sms?.data?.items).toEqual([]);
+  });
+
+  it('masks a stale first-load response until the post-event SMS read completes', async () => {
+    const first = Promise.withResolvers<BriefingResponse>();
+    const fresh = Promise.withResolvers<BriefingResponse>();
+    get.mockImplementation((path: string) =>
+      path.endsWith('/cards')
+        ? first.promise
+        : Promise.resolve({ greeting: cards.greeting, synthesis: cards.synthesis })
+    );
+    post.mockReturnValue(fresh.promise);
+    const { result } = renderHook(() => useBriefing());
+    act(() => publishApplicationResources('one', new Set(['sms'])));
+    await act(async () => first.resolve(smsResponse()));
+    await waitFor(() => expect(post).toHaveBeenCalledOnce());
+    expect(result.current.cards?.sms?.data?.items).toEqual([]);
+    await act(async () =>
+      fresh.resolve(smsResponse('FRESH_SMS', '10000000-0000-4000-8000-000000000002'))
+    );
+    await waitFor(() =>
+      expect(result.current.cards?.sms?.data?.items?.[0].body_excerpt).toBe('FRESH_SMS')
+    );
+  });
+
   it('rereads only SMS on a matching account event without regenerating paid text', async () => {
     const { result } = await ready();
     const previous = result.current.text;

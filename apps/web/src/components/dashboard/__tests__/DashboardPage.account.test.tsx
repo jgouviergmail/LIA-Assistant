@@ -230,9 +230,7 @@ describe('DashboardPage consumption ownership', () => {
     await respond(reads(LIMITS)[0], limits(13));
     const table = screen.getByRole('table');
     const radio = screen.getByRole('textbox', { name: 'Radio station' });
-    const disclosure = screen.getByRole('group');
     fireEvent.change(radio, { target: { value: 'Jazz' } });
-    disclosure.removeAttribute('open');
 
     rerender(page(owner));
     await act(async () => {});
@@ -242,7 +240,6 @@ describe('DashboardPage consumption ownership', () => {
     expect(radioMounts).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('textbox', { name: 'Radio station' })).toBe(radio);
     expect(radio).toHaveValue('Jazz');
-    expect(disclosure).not.toHaveAttribute('open');
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(60_000);
@@ -257,8 +254,6 @@ describe('DashboardPage consumption ownership', () => {
     expect(radioMounts).toHaveBeenCalledTimes(1);
     expect(reads(STATISTICS)).toHaveLength(3);
     expect(reads(LIMITS)).toHaveLength(2);
-    expect(disclosure).not.toHaveAttribute('open');
-    disclosure.setAttribute('open', '');
     expectMessages('102', '1 002');
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '14');
   });

@@ -141,6 +141,10 @@ from src.domains.connectors.map_load_router import map_load_router  # noqa: E402
 
 router.include_router(map_load_router)
 
+from src.domains.connectors.place_route_router import place_route_router  # noqa: E402
+
+router.include_router(place_route_router)
+
 from src.domains.connectors.oauth_bulk_router import bulk_oauth_router  # noqa: E402
 
 router.include_router(bulk_oauth_router)

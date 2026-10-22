@@ -4,9 +4,10 @@
 # Read-only host checks, then delegation to the Python wizard:
 #   PYTHONDONTWRITEBYTECODE=1 python3 -B -m scripts.install "$@"
 #
-# The bytecode scan runs BEFORE the first Python command and is fail-closed:
-# a release bundle never ships .pyc/.pyo/__pycache__, and -B keeps the
-# integrity check itself from mutating the canonical tree on resume.
+# The bytecode scan runs BEFORE the wizard's first import and is fail-closed
+# (the version checks above it run inline Python that imports nothing from
+# the bundle): a release bundle never ships .pyc/.pyo/__pycache__, and -B
+# keeps the integrity check itself from mutating the canonical tree on resume.
 set -eu
 
 say() { printf '%s\n' "$*" >&2; }
@@ -30,10 +31,18 @@ docker compose version >/dev/null 2>&1 || die "docker compose v2 is required"
 compose_version="$(docker compose version --short 2>/dev/null || echo 0)"
 # LAN port lists use the Compose `!override` tag (>= 2.24.4).
 python3 - "$compose_version" <<'PYEOF' || die "docker compose >= 2.24.4 is required (got $compose_version)"
+import re
 import sys
-parts = (sys.argv[1].lstrip("v").split(".") + ["0", "0"])[:3]
+
+# Accept distro revisions and repack/build metadata, but not upstream prereleases.
+match = re.fullmatch(
+    r"v?([0-9]+)\.([0-9]+)\.([0-9]+)"
+    r"(?:-[0-9][0-9A-Za-z.+~]*)?"
+    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?",
+    sys.argv[1].strip(),
+)
 try:
-    ok = tuple(int(p) for p in parts) >= (2, 24, 4)
+    ok = match is not None and tuple(int(p) for p in match.groups()) >= (2, 24, 4)
 except ValueError:
     ok = False
 sys.exit(0 if ok else 1)

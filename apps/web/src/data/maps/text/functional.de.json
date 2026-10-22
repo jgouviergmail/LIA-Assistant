@@ -263,6 +263,12 @@
       "goal": "Eine Frage im richtigen Moment ist mehr wert als eine Erinnerung aufs Geratewohl.",
       "src": "118138594074"
     },
+    "f.discussions": {
+      "name": "Proaktive Gespräche",
+      "role": "Beginnt von sich aus ein persönliches Gespräch, sobald erlaubt, aus einem Kontext, den du siehst, korrigierst oder neu aufbaust, in deinen Zeiten und unter reservierten Budgets.",
+      "goal": "Zur richtigen Zeit zur Antwort einladen, ohne etwas für dich zu entscheiden.",
+      "src": "3bc122a14666"
+    },
     "f.briefing": {
       "name": "Tages-Briefing",
       "role": "Die Startseite: Kalender, E-Mails, Wetter, Erinnerungen und eine Zusammenfassung, einmal pro Seitenaufruf gelesen.",

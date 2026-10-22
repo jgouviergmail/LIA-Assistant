@@ -20,6 +20,23 @@ describe('bounded marker library loading', () => {
     await expect(loadPlaceMaps('public')).rejects.toThrow('Marker library unavailable');
     expect(map.Map).not.toHaveBeenCalled();
   });
+  it('refuses a marker library without numbered pins before map construction or billing', async () => {
+    vi.mocked(loadMapsSdk).mockResolvedValue({
+      ...map,
+      importLibrary: vi.fn().mockResolvedValue({ AdvancedMarkerElement: vi.fn() }),
+    });
+    await expect(loadPlaceMaps('public')).rejects.toThrow('Marker library unavailable');
+    expect(map.Map).not.toHaveBeenCalled();
+  });
+  it('loads markers and pins from one existing marker-library import without constructing a map', async () => {
+    const marker = { AdvancedMarkerElement: vi.fn(), PinElement: vi.fn() };
+    const importLibrary = vi.fn().mockResolvedValue(marker);
+    vi.mocked(loadMapsSdk).mockResolvedValue({ ...map, importLibrary });
+    expect(await loadPlaceMaps('public')).toEqual({ maps: { ...map, importLibrary }, marker });
+    expect(importLibrary).toHaveBeenCalledExactlyOnceWith('marker');
+    expect(loadMapsSdk).toHaveBeenCalledExactlyOnceWith('public');
+    expect(map.Map).not.toHaveBeenCalled();
+  });
   it('bounds an offline marker-library request without constructing or billing', async () => {
     vi.useFakeTimers();
     vi.mocked(loadMapsSdk).mockResolvedValue({

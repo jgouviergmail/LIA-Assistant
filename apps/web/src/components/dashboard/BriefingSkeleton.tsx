@@ -40,7 +40,7 @@ export function CardsGridSkeleton() {
       {Array.from({ length: 6 }).map((_, i) => (
         <div
           key={i}
-          className="relative overflow-hidden rounded-2xl border border-border/50 bg-card p-5 sm:p-6 space-y-4 h-[420px] sm:h-[470px]"
+          className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 sm:p-6 space-y-4 h-[420px] sm:h-[470px]"
         >
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-muted/60 animate-pulse" />

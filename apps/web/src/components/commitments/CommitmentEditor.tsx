@@ -95,7 +95,7 @@ export function CommitmentEditor({
           onChange={event => setDraftSubject(event.target.value)}
           maxLength={500}
           autoFocus
-          className="rounded-md border border-border/60 bg-background px-2 py-1 text-sm"
+          className="rounded-md border border-border bg-background px-2 py-1 text-sm"
         />
       </label>
       <div className="flex flex-wrap items-end gap-2">
@@ -108,7 +108,7 @@ export function CommitmentEditor({
             aria-label={t('settings.open_loops.edit_due_label')}
             value={draftDue}
             onChange={event => setDraftDue(event.target.value)}
-            className="rounded-md border border-border/60 bg-background px-2 py-1 text-sm"
+            className="rounded-md border border-border bg-background px-2 py-1 text-sm"
           />
         </label>
         <div className="ml-auto flex items-center gap-1">
@@ -117,7 +117,7 @@ export function CommitmentEditor({
             aria-disabled={blocked}
             aria-label={t('settings.open_loops.edit_save')}
             title={t('settings.open_loops.edit_save')}
-            className={`rounded-md border border-border/40 p-1.5 ${
+            className={`rounded-md border border-border p-1.5 ${
               blocked ? 'opacity-40' : 'hover:bg-background hover:text-primary'
             }`}
           >
@@ -128,7 +128,7 @@ export function CommitmentEditor({
             onClick={onCancel}
             aria-label={t('common.cancel')}
             title={t('common.cancel')}
-            className="rounded-md border border-border/40 p-1.5 hover:bg-background"
+            className="rounded-md border border-border p-1.5 hover:bg-background"
           >
             <X className="h-3.5 w-3.5" aria-hidden />
           </button>

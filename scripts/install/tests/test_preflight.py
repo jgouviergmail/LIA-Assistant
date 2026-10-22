@@ -116,7 +116,16 @@ def test_a_symlinked_manifest_is_never_followed(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     ("version", "ok"),
-    [("2.24.3", False), ("2.24.4", True), ("2.30.1", True), ("2.9.9", False)],
+    [
+        ("2.24.3", False),
+        ("2.24.3-1", False),
+        ("2.24.4", True),
+        ("2.26.1-4", True),
+        ("v2.26.1", True),
+        ("2.40.3+ds1-0ubuntu1", True),
+        ("2.30.1", True),
+        ("2.9.9", False),
+    ],
 )
 def test_compose_version_gate(version: str, ok: bool) -> None:
     if ok:
@@ -125,3 +134,21 @@ def test_compose_version_gate(version: str, ok: bool) -> None:
         with pytest.raises(PreflightError) as excinfo:
             check_compose_version(version)
         assert str(excinfo.value) == "compose_version_too_old"
+
+
+@pytest.mark.parametrize(
+    "version",
+    [
+        "",
+        "invalid",
+        "2.24.4-rc.1",
+        "2.40.3-rc.1",
+        "2.26.1~rc1",
+        "2.26.1junk",
+        "2.26.1.4",
+        "vv2.26.1",
+    ],
+)
+def test_compose_version_gate_rejects_invalid_or_prereleases(version: str) -> None:
+    with pytest.raises(PreflightError, match="^compose_version_unparsable$"):
+        check_compose_version(version)

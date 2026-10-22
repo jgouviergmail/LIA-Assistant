@@ -100,6 +100,10 @@ true, and none of it the cause. Three decisions follow:
    `ok` would claim a measurement nobody took, `unknown` would cap every default
    install at `degraded`. `InProcessCheck.enabled_setting` states this
    declaratively and the boot assert refuses a gate no settings field backs.
+   *Amended by [ADR-361](ADR-361-Egress-Probe-Names-The-Failing-Step-And-Confirms-A-Cut.md)
+   (2026-10-22): a name resolution then a connect, named apart, and a loss
+   confirmed over paced attempts — a slow or recovered success is degraded, never
+   paged.*
 2. **Every check declares its unit**, and the API publishes it. The panel used
    to infer the suffix from the check id with `%` as fallback — so this
    millisecond probe would have rendered as a percentage. ADR-184's rule, one

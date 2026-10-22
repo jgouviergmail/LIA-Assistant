@@ -1,6 +1,16 @@
 """Separate archive ingestion, assistant consent and immediate-push policy."""
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, StrictBool, ValidationError
+
+
+class SmsPreferenceUpdate(BaseModel):
+    """One explicit browser toggle; never replace another tab's preferences."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    field: Literal["ingestion_enabled", "assistant_enabled", "push_enabled"]
+    value: StrictBool
 
 
 class SmsPreferences(BaseModel):

@@ -87,6 +87,17 @@ RENDERED_BY: dict[str, tuple[str, ...]] = {
         "domains/bookmarks/portrait_source.py",
         "domains/journals/portrait_builder.py",
     ),
+    # Loaded once by ``shared/discussion_lines.evidence_lines``; each discussion
+    # source adapter renders its own evidence frame and usage nuance (ADR-284).
+    "discussion_evidence_lines": (
+        "domains/connectors/discussion_projections.py",
+        "domains/habits/discussion_projection.py",
+        "domains/interests/discussion_source.py",
+        "domains/meetings/discussion_source.py",
+        "domains/open_loops/discussion_source.py",
+        "domains/reminders/discussion_source.py",
+        "domains/sms/discussion_source.py",
+    ),
     # Loaded by the agents-side wrapper, rendered by the diagnostics builder.
     "runtime_failures_directive": ("domains/diagnostics/failure_context.py",),
     # Both are the ``prompt_name`` of a ``ReactSubAgentRunner``, which formats.

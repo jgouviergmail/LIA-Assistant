@@ -1,10 +1,12 @@
 """One source snapshot supplies a bounded page and complete owned commitment count."""
 
 from dataclasses import dataclass
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import func, literal, select, tuple_
+from sqlalchemy import func, literal, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from src.core.exceptions import ResourceNotFoundError
 from src.domains.open_loops.models import OpenLoop, OpenLoopStatus
@@ -17,6 +19,31 @@ class OpenLoopPage:
     total: int
 
 
+def _context_filters(
+    query: str | None,
+    loop_id: UUID | None,
+    start: datetime | None,
+    end: datetime | None,
+    future: bool,
+) -> list[ColumnElement[bool]]:
+    result: list[ColumnElement[bool]] = []
+    if query is not None:
+        result.append(
+            or_(
+                OpenLoop.subject.icontains(query, autoescape=True),
+                OpenLoop.counterparty.icontains(query, autoescape=True),
+            )
+        )
+    if loop_id is not None:
+        result.append(OpenLoop.id == loop_id)
+    column = OpenLoop.due_hint if future else OpenLoop.created_at
+    if start is not None:
+        result.append(column >= start)
+    if end is not None:
+        result.append(column < end)
+    return result
+
+
 async def read_open_loop_page(
     db: AsyncSession,
     actor_id: UUID,
@@ -24,10 +51,16 @@ async def read_open_loop_page(
     status: OpenLoopStatus | None,
     limit: int,
     after_id: UUID | None,
+    query: str | None = None,
+    loop_id: UUID | None = None,
+    start: datetime | None = None,
+    end: datetime | None = None,
+    future: bool = False,
 ) -> OpenLoopPage:
     fields = tuple(OpenLoopResponse.model_fields)
     owned = (OpenLoop.user_id == actor_id,)
     filtered = (*owned, OpenLoop.status == status.value) if status is not None else owned
+    filtered = (*filtered, *_context_filters(query, loop_id, start, end, future))
     anchor = select(OpenLoop.created_at).where(*owned, OpenLoop.id == after_id).scalar_subquery()
     selection = select(*(getattr(OpenLoop, name) for name in fields)).where(*filtered)
     if after_id is not None:

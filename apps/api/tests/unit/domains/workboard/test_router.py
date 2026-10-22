@@ -76,6 +76,8 @@ def _row(**overrides: Any) -> Any:
         "last_run_error": None,
         "last_run_tokens_in": None,
         "last_run_tokens_out": None,
+        "last_run_tokens_cache": None,
+        "last_run_google_requests": None,
         "last_run_cost_eur": None,
         "execution_mode": "react",
         "total_tokens_in": 0,
@@ -237,10 +239,56 @@ class TestWrites:
         db = AsyncMock()
         with _service() as service_cls:
             service_cls.return_value.update = AsyncMock(return_value=_row())
+            service_cls.return_value.assignment_notices = []
             await update_ticket(
                 ticket_id=uuid.uuid4(), payload=TicketUpdate(priority="high"), user=_user(), db=db
             )
         db.commit.assert_awaited_once()
+
+    @pytest.mark.parametrize("route", ["update", "comment"])
+    async def test_a_handover_notice_leaves_only_after_the_commit(self, route: str) -> None:
+        """Sent under the mutation fence, a notice's own claim waited for the
+        accounts' rows the request held: production deadlock, 2026-10-21."""
+        order: list[str] = []
+        db = AsyncMock()
+        db.commit.side_effect = lambda: order.append("commit")
+        notices = [SimpleNamespace(recipient_id=uuid.uuid4())]
+
+        async def dispatched(collected: list[Any]) -> bool:
+            assert collected is notices
+            order.append("dispatch")
+            return True
+
+        comment = SimpleNamespace(
+            id=uuid.uuid4(),
+            author_kind="user",
+            author_user_id=uuid.uuid4(),
+            body="OK",
+            run_id=None,
+            created_at=datetime.now(UTC),
+        )
+        with (
+            _service() as service_cls,
+            patch(
+                "src.domains.workboard.router.dispatch_committed_assignment_notices",
+                side_effect=dispatched,
+            ),
+        ):
+            service_cls.return_value.update = AsyncMock(return_value=_row())
+            service_cls.return_value.comment = AsyncMock(return_value=comment)
+            service_cls.return_value.assignment_notices = notices
+            if route == "update":
+                await update_ticket(
+                    ticket_id=uuid.uuid4(),
+                    payload=TicketUpdate(assignee_user_id=uuid.uuid4()),
+                    user=_user(),
+                    db=db,
+                )
+            else:
+                await add_comment(
+                    ticket_id=uuid.uuid4(), payload=CommentCreate(body="OK"), user=_user(), db=db
+                )
+        assert order == ["commit", "dispatch"]
 
     async def test_move_commits_and_returns_the_moved_row(self) -> None:
         db = AsyncMock()
@@ -274,6 +322,7 @@ class TestWrites:
         )
         with _service() as service_cls:
             service_cls.return_value.comment = AsyncMock(return_value=comment)
+            service_cls.return_value.assignment_notices = []
             await add_comment(
                 ticket_id=uuid.uuid4(), payload=CommentCreate(body="Noted."), user=_user(), db=db
             )
@@ -360,6 +409,7 @@ class TestSummary:
             counts_by_status={"todo": 4, "done": 1},
             overdue=1,
             held_by_lia=2,
+            held_by_me=3,
             needs_me=1,
             owned=4,
             max_tickets=200,

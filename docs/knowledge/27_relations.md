@@ -68,11 +68,29 @@ one, always closes it: that is a note *about* the relationship, not one of its
 contents. The address-book details themselves read as three groups: how to reach
 the person, which dates matter, and who they are tied to.
 
-## Can I act on what a relationship card shows me?
-Yes, in three ways:
+Inside each section the items are plain rows split by a line. Except on the
+contact card, every row is titled like an email: **how long ago** and **when** —
+the day, the date and the time, both in bold — with no icon in front, and what
+the row is about on the line below. A commitment is dated by when it was noted,
+a memory by when it was kept, a call, a relayed message, an SMS or an email by
+when it happened; an upcoming meeting reads "in 3 d" rather than a past it does
+not have. A call, a message, an SMS or an email opens on its direction: **Sent**
+in blue (every call LIA placed), **Received** in green (every SMS your phone
+relayed). The address-book details carry no line between them.
 
-• **The quick actions** — write a message, call, follow a commitment — prepare
-  the request in the composer; nothing is sent without you.
+## Can I act on what a relationship card shows me?
+Yes, in four ways:
+
+• **The quick actions** — write a message, follow a commitment — prepare the
+  request in the composer; nothing is sent without you.
+• **The address book's actions** — one button per email (**Email …**), postal
+  address (**Directions to …**) and, while your telephony connector is active,
+  number (**LIA call …**), one column per kind, every button of a column as wide
+  as its widest — prepare the request too: you add the subject or the purpose.
+  A call is offered on a number only; there is no longer a call button that
+  leaves LIA to find the number. On the contact card itself, an email opens your
+  mail app, a number places a real call from your device and an address opens in
+  Google Maps.
 • **A memory** shown on the card is a link into the long-term memory section,
   where you can correct or delete it. The link leads to the section, not to the
   row: the list is paginated and filterable, so promising to land on that exact

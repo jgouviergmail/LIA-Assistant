@@ -1,9 +1,10 @@
 'use client';
 
-import { CheckCircle2, ChevronDown, ListTodo, Sparkles, Zap } from 'lucide-react';
+import { CheckCircle2, ListTodo, Sparkles, Zap } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+import { HeadingRule } from '@/components/ui/heading-rule';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { PersonalResults } from '@/hooks/usePersonalResults';
 
@@ -64,12 +65,12 @@ export function ResultsSummary({ results, firstLoad, error, locale }: ResultsSum
 
   if (!results.measured) {
     return (
-      <details className="group/results" open>
+      <section aria-labelledby={RESULTS_HEADING_ID}>
         <SectionHeading />
         <p className="mt-3 text-sm italic text-muted-foreground">
           {t('dashboard.results.not_measured')}
         </p>
-      </details>
+      </section>
     );
   }
 
@@ -83,7 +84,7 @@ export function ResultsSummary({ results, firstLoad, error, locale }: ResultsSum
   const cycleLabel = formatCycleStart(results.cycle_start, locale);
 
   return (
-    <details className="group/results" open>
+    <section aria-labelledby={RESULTS_HEADING_ID}>
       <SectionHeading />
       {cycleLabel && (
         <p className="mt-3 text-xs text-muted-foreground">
@@ -111,23 +112,29 @@ export function ResultsSummary({ results, firstLoad, error, locale }: ResultsSum
           </DashboardTile>
         ))}
       </div>
-    </details>
+    </section>
   );
 }
 
+const RESULTS_HEADING_ID = 'dashboard-results-heading';
+
+/**
+ * A rubrique of the home page, never folded (owner request 2026-10-21): the
+ * heading runs on into the hairline every page-level rubrique draws.
+ */
 function SectionHeading() {
   const { t } = useTranslation();
   return (
-    <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+    <div className="flex min-h-11 items-center gap-2 py-2">
       <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-      <h2 className="min-w-0 flex-1 text-base font-semibold tracking-tight text-foreground sm:text-lg">
+      <h2
+        id={RESULTS_HEADING_ID}
+        className="min-w-0 text-base font-semibold tracking-tight text-foreground sm:text-lg"
+      >
         {t('dashboard.results.title')}
       </h2>
-      <ChevronDown
-        className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open/results:rotate-180 motion-reduce:transition-none"
-        aria-hidden="true"
-      />
-    </summary>
+      <HeadingRule />
+    </div>
   );
 }
 

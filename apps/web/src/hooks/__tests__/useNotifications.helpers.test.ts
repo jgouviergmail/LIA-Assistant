@@ -10,6 +10,7 @@ import { describe, it, expect, vi } from 'vitest';
 import type { MessagePayload } from 'firebase/messaging';
 
 import {
+  buildNotificationFromSse,
   routeNotification,
   buildNotificationFromFcm,
   type Notification,
@@ -185,5 +186,40 @@ describe('buildNotificationFromFcm', () => {
     );
     expect(sched.metadata).toEqual({ type: 'scheduled_action', action_id: 'a1', title: 'Run' });
     expect(buildNotificationFromFcm(fcm({ type: 'reminder' })).metadata).toBeUndefined();
+  });
+});
+
+describe('proactive discussion transport', () => {
+  it('accepts the archived discussion notification and routes its stable identity', () => {
+    const received = buildNotificationFromSse({
+      type: 'proactive_discussion',
+      target_id: 'opening',
+      content: 'Bonjour',
+      metadata: {
+        type: 'proactive_discussion',
+        message_id: 'archived-row',
+        sensitive_in_app_only: true,
+      },
+    });
+    const h = handlers();
+    routeNotification(received, h);
+    expect(received.id).toBe('opening');
+    expect(h.onProactiveNotification).toHaveBeenCalledWith('Bonjour', 'opening', received.metadata);
+  });
+  it('keeps the privacy and archive identity on the FCM half', () => {
+    const received = buildNotificationFromFcm(
+      fcm({
+        type: 'proactive_discussion',
+        target_id: 'opening',
+        message_id: 'archived-row',
+        sensitive_in_app_only: 'true',
+        feedback_enabled: 'false',
+      })
+    );
+    expect(received.metadata).toMatchObject({
+      message_id: 'archived-row',
+      sensitive_in_app_only: true,
+      feedback_enabled: false,
+    });
   });
 });

@@ -7,7 +7,7 @@ All custom middleware is implemented as pure ASGI (F28): the historical
 streams per request and re-wrapped every SSE chunk, a systematic overhead on
 all requests. Pure ASGI runs in the caller's task (contextvars behave
 naturally) and is transparent for streaming responses. Execution order:
-RequestID → RequestLanguage → SecurityHeaders → Logging → RateLimit →
+RequestID → RequestLanguage → SecurityHeaders → Logging → CORS → ScanProtection → RateLimit →
 BodySizeLimit → ErrorHandler → routes.
 """
 
@@ -32,6 +32,7 @@ from src.core.constants import (
     RATE_LIMIT_GLOBAL_EXEMPT_PATHS,
     RATE_LIMIT_GLOBAL_WINDOW_SECONDS,
 )
+from src.core.http_scan import ScanProtectionMiddleware
 from src.core.i18n import language_from_header, language_scope
 from src.core.i18n_api_messages import APIMessages
 from src.core.native_client import NATIVE_CLIENT_HEADER
@@ -226,6 +227,7 @@ class RateLimitMiddleware:
             "global_rate_limit_exceeded",
             path=path,
             method=scope.get("method", ""),
+            client_ip=resolve_client_ip(scope),
             max_calls=self.max_calls,
             window_seconds=self.window_seconds,
         )
@@ -599,16 +601,7 @@ class LoggingMiddleware:
             )
 
         async def send_with_completion_log(message: Message) -> None:
-            if message["type"] == "http.response.start" and should_log:
-                duration_ms = (time.time() - start_time) * 1000
-                log_method = getattr(logger, log_level.lower(), logger.debug)
-                log_method(
-                    "request_completed",
-                    path=path,
-                    method=method,
-                    status_code=message["status"],
-                    duration_ms=round(duration_ms, 2),
-                )
+            self._log_response_start(message, scope, start_time, should_log, log_level, resolved_ip)
             await send(message)
 
         try:
@@ -625,6 +618,34 @@ class LoggingMiddleware:
                 exc_info=True,
             )
             raise
+
+    @staticmethod
+    def _log_response_start(
+        message: Message,
+        scope: Scope,
+        start_time: float,
+        should_log: bool,
+        log_level: str,
+        client_ip: str,
+    ) -> None:
+        """Keep 429 attribution visible without promoting ordinary access logs."""
+        if message["type"] != "http.response.start":
+            return
+        throttled = message["status"] == 429
+        if not should_log and not throttled:
+            return
+        log_method = (
+            logger.warning if throttled else getattr(logger, log_level.lower(), logger.debug)
+        )
+        client_fields = {"client_ip": client_ip} if throttled else {}
+        log_method(
+            "request_completed",
+            path=scope.get("path", ""),
+            method=scope.get("method", ""),
+            status_code=message["status"],
+            duration_ms=round((time.time() - start_time) * 1000, 2),
+            **client_fields,
+        )
 
 
 class ErrorHandlerMiddleware:
@@ -685,6 +706,13 @@ def setup_middleware(app: FastAPI) -> None:
     Args:
         app: FastAPI application instance
     """
+    # Added in reverse execution order. CORS wraps refusals from all admission
+    # guards, so an allowed browser origin can read their 429/413 responses.
+    app.add_middleware(ErrorHandlerMiddleware)
+    app.add_middleware(BodySizeLimitMiddleware)
+    app.add_middleware(RateLimitMiddleware)
+    app.add_middleware(ScanProtectionMiddleware)
+
     # CORS middleware with restricted methods and headers (security hardening)
     app.add_middleware(
         CORSMiddleware,
@@ -707,12 +735,12 @@ def setup_middleware(app: FastAPI) -> None:
             APPLICATION_DEVICE_HEADER,
         ],
         # A bounded CSV preview must withhold a cut record across API origins.
-        expose_headers=["X-Request-ID", "X-Preview-Truncated"],
+        expose_headers=["X-Request-ID", "X-Preview-Truncated", "Retry-After"],
     )
 
     # Custom middleware (order matters - applied in reverse: the LAST added runs
     # FIRST). Effective order: RequestID → RequestLanguage → SecurityHeaders →
-    # Logging → RateLimit → BodySizeLimit → ErrorHandler → routes.
+    # Logging → CORS → ScanProtection → RateLimit → BodySizeLimit → ErrorHandler → routes.
     #
     # RequestLanguage runs right under RequestID so every layer below — a 429,
     # a 413, an error page — writes in the language the request declared
@@ -728,9 +756,6 @@ def setup_middleware(app: FastAPI) -> None:
     # refused before we spend anything reading its body, which is the cheaper
     # rejection of the two. Both stay under Logging so every refusal is
     # observable.
-    app.add_middleware(ErrorHandlerMiddleware)
-    app.add_middleware(BodySizeLimitMiddleware)
-    app.add_middleware(RateLimitMiddleware)
     app.add_middleware(LoggingMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestLanguageMiddleware)

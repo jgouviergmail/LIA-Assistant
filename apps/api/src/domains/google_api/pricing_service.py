@@ -90,6 +90,11 @@ class GoogleApiPricingService:
         await publish_cache_invalidation(CACHE_NAME_GOOGLE_API_PRICING)
 
     @classmethod
+    def has_tariff(cls, api_name: str, endpoint: str) -> bool:
+        """Whether a bounded discretionary caller can distinguish free from unknown."""
+        return f"{api_name}:{endpoint}" in cls._pricing_cache
+
+    @classmethod
     def get_cost_per_request(
         cls,
         api_name: str,

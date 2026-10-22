@@ -111,7 +111,7 @@ export function FontSizeSettings({ lng }: FontSizeSettingsProps) {
               </p>
             </div>
             <div className="flex justify-end">
-              <div className="max-w-[85%] rounded-xl rounded-tr-none border border-border/20 bg-card px-4 py-3 text-foreground shadow-sm">
+              <div className="max-w-[85%] rounded-xl rounded-tr-none border border-border bg-card px-4 py-3 text-foreground shadow-sm">
                 <p className="text-[0.875em] leading-normal">
                   {t('settings.font_size.preview_answer')}
                 </p>

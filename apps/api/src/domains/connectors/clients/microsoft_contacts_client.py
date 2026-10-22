@@ -177,17 +177,26 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
             FIELD_CACHED_AT: None,
         }
 
-    async def list_email_directory(self, max_contacts: int) -> ContactDirectory:
+    async def list_email_directory(
+        self, max_contacts: int, *, cache_scope: str | None = None
+    ) -> ContactDirectory:
         """The whole address book, up to ``max_contacts`` (``clients/contact_directory``).
 
         Args:
             max_contacts: The caller's published cap.
+            cache_scope: An account and snapshot identity isolating this directory in
+                the shared cache from other accounts and older in-flight refreshes
+                (``cached_directory``); None for the shared entry.
 
         Returns:
             The persons (names, addresses, numbers), and whether the book was cut.
         """
         return await cached_directory(
-            self.user_id, self.connector_type.value, max_contacts, self._read_directory
+            self.user_id,
+            self.connector_type.value,
+            max_contacts,
+            self._read_directory,
+            cache_scope=cache_scope,
         )
 
     async def _read_directory(self, max_contacts: int) -> tuple[list[dict[str, Any]], bool]:

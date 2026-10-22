@@ -70,7 +70,9 @@ from src.infrastructure.observability.metrics_mcp import mcp_catalogue_cache_tot
 logger = structlog.get_logger(__name__)
 
 
-def _surface_root_cause(exc: Exception, *, log_event: str, **log_fields: object) -> NoReturn:
+def _surface_root_cause(
+    exc: Exception, *, log_event: str, diagnostic_only: bool = False, **log_fields: object
+) -> NoReturn:
     """Re-raise the most useful exception out of an anyio failure.
 
     The MCP SDK's Streamable HTTP transport uses anyio TaskGroups: a sub-task
@@ -81,6 +83,9 @@ def _surface_root_cause(exc: Exception, *, log_event: str, **log_fields: object)
       :class:`MCPModernOnlyServerError` with an actionable message.
     - A single nested root cause is logged and re-raised directly.
     - Anything else propagates unchanged.
+
+    Tool calls have an operation-level diagnostic in their adapter, so their
+    transport-unwinding details stay at DEBUG (``diagnostic_only``).
     """
     root = unwrap_exception_group(exc)
     refusal = quota_error(root, settings.mcp_rate_limit_window)
@@ -89,10 +94,12 @@ def _surface_root_cause(exc: Exception, *, log_event: str, **log_fields: object)
     if isinstance(root, MCPToolExecutionError):
         raise root from exc
     if is_modern_only_rejection(root):
-        logger.warning(log_event, modern_only_server=True, **log_fields)
+        log_refusal = logger.debug if diagnostic_only else logger.warning
+        log_refusal(log_event, modern_only_server=True, **log_fields)
         raise MCPModernOnlyServerError() from exc
     if root is not exc and isinstance(root, Exception):
-        logger.error(
+        log_failure = logger.debug if diagnostic_only else logger.error
+        log_failure(
             log_event,
             root_error_type=type(root).__name__,
             root_error=str(root),
@@ -653,6 +660,7 @@ class UserMCPClientPool:
             _surface_root_cause(
                 exc,
                 log_event="mcp_ephemeral_call_failed",
+                diagnostic_only=True,
                 tool_name=tool_name,
                 url=url,
             )

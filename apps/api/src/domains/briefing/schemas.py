@@ -29,7 +29,7 @@ from src.domains.briefing.constants import SECTION_NAMES
 # it too and briefing→heartbeat→briefing would cycle). Re-exported here to
 # keep the historical briefing import surface stable.
 from src.domains.connectors.birthdays import BirthdayItem as BirthdayItem
-from src.domains.sms.summary import SmsSummary as SmsData
+from src.domains.sms.summary import SmsCardData as SmsData
 
 # =============================================================================
 # Enums
@@ -424,6 +424,8 @@ class WorkboardPreviews(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     needs_me: list[WorkboardTicketItem] = Field(..., max_length=2)
+    # Empty in caches predating « my tickets »; its count says so (None).
+    held_by_me: list[WorkboardTicketItem] = Field(default_factory=list, max_length=2)
     held_by_lia: list[WorkboardTicketItem] = Field(..., max_length=2)
     held_by_peers: list[WorkboardTicketItem] = Field(..., max_length=2)
     overdue: list[WorkboardTicketItem] = Field(..., max_length=2)
@@ -440,6 +442,11 @@ class WorkboardData(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     needs_me: int = Field(..., ge=0, description="Tickets waiting on the person, or late.")
+    held_by_me: int | None = Field(
+        default=None,
+        ge=0,
+        description="Open tickets the person holds. None for caches predating this count.",
+    )
     held_by_lia: int = Field(..., ge=0, description="Open tickets LIA holds.")
     held_by_peers: int | None = Field(
         default=None,

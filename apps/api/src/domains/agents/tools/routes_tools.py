@@ -76,6 +76,7 @@ from src.domains.connectors.clients.google_routes_client import (
     GoogleRoutesClient,
     RoutingPreference,
     TravelMode,
+    default_travel_mode,
 )
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.cache.routes_cache import RoutesCache
@@ -165,17 +166,7 @@ def _parse_travel_mode(mode_str: str | None, distance_km: float | None = None) -
         TravelMode enum value
     """
     if not mode_str:
-        # Apply distance-based default rule
-        threshold = settings.routes_walk_threshold_km
-        if distance_km is not None and distance_km < threshold:
-            logger.debug(
-                "travel_mode_default_walk",
-                distance_km=distance_km,
-                threshold_km=threshold,
-                reason=f"distance < {threshold}km",
-            )
-            return TravelMode.WALK
-        return TravelMode.DRIVE
+        return default_travel_mode(distance_km)
 
     mode_lower = mode_str.lower().strip()
 

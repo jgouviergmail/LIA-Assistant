@@ -40,6 +40,11 @@ class TelephonyRepository(BaseRepository[PhoneCall]):
         """Fetch a call by its id (our ``call_id`` reconciliation key)."""
         return await self.db.get(PhoneCall, call_id)
 
+    async def get_for_user(self, user_id: UUID, call_id: UUID) -> PhoneCall | None:
+        """Read one historical call without crossing the owner's boundary."""
+        statement = select(PhoneCall).where(PhoneCall.user_id == user_id, PhoneCall.id == call_id)
+        return (await self.db.scalars(statement)).first()
+
     async def get_active_for_user(self, user_id: UUID) -> PhoneCall | None:
         """Return the user's in-flight call (dialing/in_progress), if any."""
         stmt = select(PhoneCall).where(

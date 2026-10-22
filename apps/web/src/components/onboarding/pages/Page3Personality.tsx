@@ -36,7 +36,7 @@ export function Page3Personality({ lng }: Page3PersonalityProps) {
         {/* Personality examples */}
         <div className="space-y-2 text-left max-w-md md:max-w-2xl lg:max-w-3xl mx-auto">
           {PERSONALITY_EXAMPLES.map(key => (
-            <div key={key} className="px-4 py-2 rounded-lg bg-muted/50 text-sm">
+            <div key={key} className="rounded-lg border bg-muted/50 px-4 py-2 text-sm">
               {t(`onboarding.page3.examples.${key}`)}
             </div>
           ))}

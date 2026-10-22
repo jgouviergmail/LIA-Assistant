@@ -78,6 +78,7 @@ export const relationsData: MockRoute[] = [
           direction: 'user_owes',
           due_hint: null,
           days_open: 4,
+          opened_at: '2026-07-21T09:00:00Z',
         },
       ],
       recent_calls: [
@@ -89,7 +90,9 @@ export const relationsData: MockRoute[] = [
           created_at: '2026-07-25T10:00:00Z',
         },
       ],
-      memories: [{ id: 'm1', content: 'Aime la randonnée en montagne.' }],
+      memories: [
+        { id: 'm1', content: 'Aime la randonnée en montagne.', created_at: '2026-07-18T08:30:00Z' },
+      ],
       open_loops_total: 1,
       recent_calls_total: 1,
       memories_total: 1,
@@ -222,5 +225,12 @@ export const relationsData: MockRoute[] = [
       unavailable: ['events'],
       can_rebuild: true,
     },
+  },
+  {
+    // The address-book actions read the account's connectors: a call is
+    // offered only on a number and an ACTIVE telephony connector (owner
+    // request 2026-10-21). None here, so the card offers no call.
+    url: /\/api\/v1\/connectors\?fresh=true$/,
+    json: { connectors: [] },
   },
 ];

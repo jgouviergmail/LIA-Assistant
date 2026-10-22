@@ -32,9 +32,13 @@ import {
   CollapsibleSection,
   RefreshButton,
   SectionBadge,
+  SectionRow,
+  SectionRowTitle,
+  SectionRows,
 } from '@/components/relations/CollapsibleSection';
 import { ContactCardBody } from '@/components/relations/ContactCardBody';
-import { chatIntentHref, dateTimeRangeLabel, timeAgoLabel } from '@/lib/briefing-utils';
+import { RelationWhen } from '@/components/relations/RelationWhen';
+import { chatIntentHref } from '@/lib/briefing-utils';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
 import type {
   ContactCard,
@@ -56,6 +60,21 @@ export function hasPayload(section: ContextSection | undefined): boolean {
     section.status === 'ok' &&
     (section.contact !== null || section.emails.length > 0 || section.events.length > 0)
   );
+}
+
+/** The address-book card a contact section shows — null when it shows none. */
+function shownContactCard(section: ContextSection | undefined): ContactCard | null {
+  return hasPayload(section) && section?.contact ? section.contact : null;
+}
+
+/**
+ * The address-book card the sheet shows, read from the whole context.
+ *
+ * The contact section and the quick actions below the debrief read the SAME
+ * condition: an action never offers a value the sheet does not display.
+ */
+export function contactCardOf(context: RelationContext | null | undefined): ContactCard | null {
+  return shownContactCard(context?.contact);
 }
 
 /**
@@ -85,8 +104,8 @@ export function ProviderContactSection({
   onRefresh: () => void;
 }) {
   const { t, i18n } = useTranslation();
-  if (!hasPayload(section) || !section?.contact) return null;
-  const card: ContactCard = section.contact;
+  const card = shownContactCard(section);
+  if (!card) return null;
 
   return (
     <CollapsibleSection
@@ -124,9 +143,8 @@ export function ProviderEmailsSection({
   busy: boolean;
   onRefresh: () => void;
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [selected, setSelected] = useState<string[]>([]);
-  const absolute = (iso: string | null) => dateTimeRangeLabel(i18n.language, iso);
 
   if (!hasPayload(section)) return null;
   const emails: ExchangedEmail[] = section?.emails ?? [];
@@ -161,70 +179,66 @@ export function ProviderEmailsSection({
         <RefreshButton label={t('relations.refresh_section')} busy={busy} onRefresh={onRefresh} />
       }
     >
-      {emails.map(email => {
-        const received = email.direction === 'received';
-        const inputId = `relation-email-${email.id}`;
-        // Every child sits DIRECTLY under the label. Nesting the text two
-        // levels down leaves the checkbox unnamed for a screen reader (the
-        // a11y ratchet refuses it, rightly) — and a wrapping flex row keeps
-        // the whole line clickable, which is what the depth was buying.
-        return (
-          <label
-            key={email.id}
-            htmlFor={inputId}
-            className="flex min-h-11 cursor-pointer flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-md border-l-2 border-primary/40 py-2 pl-3 hover:bg-muted/40"
-          >
-            <input
-              id={inputId}
-              type="checkbox"
-              checked={selected.includes(email.id)}
-              onChange={() => toggle(email.id)}
-              // Named by its SUBJECT, not by the whole row: a screen reader
-              // then announces "select « Devis chantier »" instead of reading
-              // the direction and the date back before the useful part.
-              aria-label={t('relations.emails_select', { subject: email.subject })}
-              className="h-4 w-4 shrink-0 accent-primary"
-            />
-            {/* One tone per direction — sent and received were both primary
-                blue, so nothing but the wording separated them while
-                scanning. */}
-            <Badge variant={directionTone(email.direction)} size="sm">
-              {received ? t('relations.peer_message_received') : t('relations.peer_message_sent')}
-            </Badge>
-            {email.occurred_at && (
-              <span className="text-px-11 text-muted-foreground">
-                {timeAgoLabel(t, email.occurred_at)}
-              </span>
-            )}
-            {/* The relative label says how long ago; this says WHEN — the one
-                a reader needs before replying. Full `text-muted-foreground`,
-                never a diluted `/80`: at 11px the faded pair measures 3.51:1,
-                under the 4.5:1 AA floor (axe, production bundle) — the same
-                trap already closed on the relayed-message placeholder. */}
-            {absolute(email.occurred_at) && (
-              <span className="text-px-11 tabular-nums text-muted-foreground">
-                {absolute(email.occurred_at)}
-              </span>
-            )}
-            {/* The SUBJECT is the row's own title and sat at the same weight
-                as its excerpt. Emphasised rather than badged: a tag around a
-                whole subject line would wrap into a coloured block, and this
-                one has to stay readable at any length. */}
-            <span className="w-full text-sm font-semibold text-foreground">{email.subject}</span>
-            <ClassificationBadges value={email.classification} />
-            {/* The subject alone rarely says what an exchange was about
-                ("Re: Re: point"). Two lines at most: the excerpt informs the
-                row, it must not become it. Full `text-muted-foreground` — the
-                diluted variants fall under the 4.5:1 AA floor at this size,
-                the trap already closed on the timestamps above. */}
-            {email.excerpt && (
-              <span className="line-clamp-2 w-full text-xs leading-relaxed text-muted-foreground">
-                {email.excerpt}
-              </span>
-            )}
-          </label>
-        );
-      })}
+      <SectionRows>
+        {emails.map(email => {
+          const received = email.direction === 'received';
+          const inputId = `relation-email-${email.id}`;
+          // Every child sits DIRECTLY under the label. Nesting the text two
+          // levels down leaves the checkbox unnamed for a screen reader (the
+          // a11y ratchet refuses it, rightly) — and a wrapping flex row keeps
+          // the whole line clickable, which is what the depth was buying.
+          return (
+            <SectionRow key={email.id} className="py-1.5">
+              <label
+                htmlFor={inputId}
+                className="-mx-2 flex min-h-11 min-w-0 cursor-pointer flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-md px-2 py-1.5 [overflow-wrap:anywhere] hover:bg-muted/40"
+              >
+                <input
+                  id={inputId}
+                  type="checkbox"
+                  checked={selected.includes(email.id)}
+                  onChange={() => toggle(email.id)}
+                  // Named by its SUBJECT, not by the whole row: a screen reader
+                  // then announces "select « Devis chantier »" instead of reading
+                  // the direction and the date back before the useful part.
+                  aria-label={t('relations.emails_select', { subject: email.subject })}
+                  className="h-4 w-4 shrink-0 accent-primary"
+                />
+                {/* One tone per direction — sent and received were both primary
+                  blue, so nothing but the wording separated them while
+                  scanning. */}
+                <Badge variant={directionTone(email.direction)} size="sm">
+                  {received
+                    ? t('relations.peer_message_received')
+                    : t('relations.peer_message_sent')}
+                </Badge>
+                {/* How long ago AND when — the second is the one a reader needs
+                  before replying. The line every dated row of the card now
+                  shares; the phrase carries its own AA-safe look. */}
+                <RelationWhen start={email.occurred_at} />
+                {/* The SUBJECT is the row's own title and sat at the same weight
+                  as its excerpt. Emphasised rather than badged: a tag around a
+                  whole subject line would wrap into a coloured block, and this
+                  one has to stay readable at any length. */}
+                <span className="mt-1 w-full text-sm font-semibold text-foreground">
+                  {email.subject}
+                </span>
+                <ClassificationBadges value={email.classification} />
+                {/* The subject alone rarely says what an exchange was about
+                  ("Re: Re: point"). Two lines at most: the excerpt informs the
+                  row, it must not become it. Full `text-muted-foreground` — the
+                  diluted variants fall under the 4.5:1 AA floor at this size,
+                  the trap already closed on the timestamps above. */}
+                {email.excerpt && (
+                  <span className="line-clamp-2 w-full text-xs leading-relaxed text-muted-foreground">
+                    {email.excerpt}
+                  </span>
+                )}
+              </label>
+            </SectionRow>
+          );
+        })}
+      </SectionRows>
 
       {selectedHere.length > 0 && (
         <button
@@ -245,23 +259,17 @@ export function ProviderEmailsSection({
   );
 }
 
-/** One meeting row — the role is TEXT, never a colour alone. */
+/**
+ * One meeting row — the role is TEXT, never a colour alone.
+ *
+ * Titled like a mail row (owner request 2026-10-21): its markers, then WHEN,
+ * on the line above what the meeting is.
+ */
 function EventRow({ event, showRole }: { event: SharedEvent; showRole: boolean }) {
-  const { t, i18n } = useTranslation();
-  const slot = dateTimeRangeLabel(i18n.language, event.starts_at, event.ends_at);
+  const { t } = useTranslation();
   return (
-    <div className="border-l-2 border-sky-500/40 pl-3">
-      <p className="flex flex-wrap items-baseline gap-2 text-sm text-foreground/90">
-        {event.summary}
-        <ClassificationBadges value={event.classification} />
-        {event.starts_at && (
-          <span className="text-px-11 text-muted-foreground">
-            {timeAgoLabel(t, event.starts_at)}
-          </span>
-        )}
-        {/* A meeting is a SLOT: the reader needs the day and both hours to
-            know whether they can be there, not only how far off it is. */}
-        {slot && <span className="text-px-11 tabular-nums text-muted-foreground">{slot}</span>}
+    <SectionRow className="[overflow-wrap:anywhere]">
+      <SectionRowTitle>
         {showRole && (
           // The house badge rather than a grey inline span: a role is a fact
           // about the meeting, and it sat next to an "upcoming" pill that was
@@ -278,8 +286,16 @@ function EventRow({ event, showRole }: { event: SharedEvent; showRole: boolean }
             {t('relations.event_upcoming')}
           </Badge>
         )}
+        {/* A meeting is a SLOT: the reader needs the day and both hours to
+            know whether they can be there, not only how far off it is — and
+            an upcoming one reads "in 3 d", never a past it does not have. */}
+        <RelationWhen start={event.starts_at} end={event.ends_at} />
+      </SectionRowTitle>
+      <p className="flex flex-wrap items-baseline gap-2 text-sm text-foreground/90">
+        {event.summary}
+        <ClassificationBadges value={event.classification} />
       </p>
-    </div>
+    </SectionRow>
   );
 }
 
@@ -310,9 +326,11 @@ export function ProviderEventsSection({
         <RefreshButton label={t('relations.refresh_section')} busy={busy} onRefresh={onRefresh} />
       }
     >
-      {events.map(event => (
-        <EventRow key={event.id} event={event} showRole={showRole} />
-      ))}
+      <SectionRows>
+        {events.map(event => (
+          <EventRow key={event.id} event={event} showRole={showRole} />
+        ))}
+      </SectionRows>
       <p className="text-px-11 text-muted-foreground">
         {t('relations.events_window', { count: windowDays })}
       </p>

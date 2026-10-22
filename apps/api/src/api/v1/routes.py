@@ -56,6 +56,7 @@ from src.domains.llm_config.speech_guard import install_speech_guard
 from src.domains.memories.router import router as memories_router
 from src.domains.notifications.router import router as notifications_router
 from src.domains.personalities.router import router as personalities_router
+from src.domains.proactive_discussions.router import router as proactive_discussions_router
 from src.domains.product.public_demo_link import router as public_demo_link_router
 from src.domains.product.public_demo_link_admin import (
     router as public_demo_link_admin_router,
@@ -121,6 +122,9 @@ api_router.include_router(reminders_router)
 api_router.include_router(capabilities_router)
 api_router.include_router(memories_router)
 api_router.include_router(interests_router)
+
+# Personal records and controls remain available with background production switched off.
+api_router.include_router(proactive_discussions_router)
 # Same prefix, separate module: the history is an audit surface, and
 # `interests/router.py` sits at its frozen size ceiling (ADR doctrine: extract,
 # never bump the cap).

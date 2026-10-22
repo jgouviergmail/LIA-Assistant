@@ -1853,10 +1853,50 @@
       "summary": "Posición agrupa los Google Places seleccionados antes de sus tarjetas, también en HTML y Markdown. El mapa interactivo espera un clic con coste visible; la lista de fuentes sigue accesible si Maps falla.",
       "src": "b00abdd45dc8"
     },
+    "353": {
+      "title": "Bloquear temporalmente los escaneos de la API",
+      "summary": "La API detecta recorridos de rutas desconocidas y credenciales rechazadas sin penalizar los errores normales de sesión o de recursos. Redis comparte un bloqueo temporal entre los procesos; si falla la caché, las solicitudes pasan y la degradación sigue visible en las métricas.",
+      "src": "c1a0e70c1bdf"
+    },
+    "354": {
+      "title": "Atribuir cada respuesta HTTP 429 a la dirección correcta",
+      "summary": "Cada respuesta 429 registra la dirección del cliente resuelta mediante la cadena de proxies de confianza, el método y la ruta sin parámetros de consulta. Los registros de acceso ordinarios siguen siendo discretos y la dirección nunca se convierte en una etiqueta de métrica.",
+      "src": "85e52e5c8500"
+    },
+    "355": {
+      "title": "Detalles ya obtenidos y una ruta contabilizada al lugar elegido",
+      "summary": "La ficha reutiliza la información ya obtenida sin volver a buscar el lugar. La ruta parte de una posición autorizada del navegador, de la última posición reciente y fechada, o del domicilio: a pie hasta 2 km incluidos, en coche por encima, con un único recálculo si la ruta real a pie supera el límite. Los límites de gasto siguen vigentes y cada llamada de pago queda registrada, aunque la ruta falle o se cancele.",
+      "src": "a2a843ea6555"
+    },
+    "356": {
+      "title": "Un mapa legible con los mismos números en la lista y los marcadores",
+      "summary": "El mapa espera una activación explícita sin reservar un gran espacio vacío. Los mismos detalles se abren en una ventana emergente en ordenador y en un diálogo en teléfono, cada uno con una sola zona de desplazamiento. La lista y los marcadores comparten los números del orden original; un lugar sin coordenadas conserva su número y su enlace sin desplazar a los demás.",
+      "src": "a9ca854ccb92"
+    },
     "357": {
-      "title": "Ingesta genérica del teléfono y archivo SMS personal",
+      "title": "Ingesta genérica del teléfono y SMS personales",
       "summary": "El teléfono envía eventos estrictos deduplicados por origen. Consentimientos independientes, exportación, borrado, registros y notificaciones respetan la misma autorización.",
-      "src": "539b8b751150"
+      "src": "919024e5b2a5"
+    },
+    "358": {
+      "title": "Conversaciones proactivas independientes y difusión nativa",
+      "summary": "La iniciativa personal se separa de las alertas, con política propia y publicación atómica en el chat. La arquitectura está aprobada; falta implementar el productor antes de activarlo.",
+      "src": "52dd170f2804"
+    },
+    "359": {
+      "title": "Contexto longitudinal y control de su uso",
+      "summary": "Las observaciones sustentan episodios y patrones recurrentes, con retrato autónomo, purga y exclusiones reversibles persistentes. Las directrices limitan la iniciativa; falta implementar la base derivada.",
+      "src": "f3f770c17813"
+    },
+    "360": {
+      "title": "Investigación acotada y abstención contabilizada",
+      "summary": "Las lecturas y llamadas a modelos comparten límites finitos y presupuesto reservado. Los gastos se contabilizan incluso al rechazar o cancelar; faltan las protecciones financieras antes de activar la función.",
+      "src": "550da3421618"
+    },
+    "361": {
+      "title": "Una sonda de salida que nombra el paso fallido y confirma el corte",
+      "summary": "La sonda de conectividad saliente separa la resolución DNS de la conexión y confirma una pérdida en varios intentos espaciados. Un paquete DNS perdido ya no abre un incidente crítico: una recuperación o una lentitud se señala como degradada, y un corte real nombra el paso que falló.",
+      "src": "9cf5696d02f2"
     }
   }
 }

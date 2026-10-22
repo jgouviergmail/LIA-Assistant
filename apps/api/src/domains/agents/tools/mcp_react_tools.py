@@ -109,6 +109,12 @@ class _MCPReActWrapper(BaseTool):
         """Keep the original MCP aliases through the ReAct wrapper as well."""
         return self._inner.tool_call_schema
 
+    def _to_args_and_kwargs(
+        self, tool_input: str | dict[str, Any], tool_call_id: str | None
+    ) -> tuple[tuple[str, ...], dict[str, Any]]:
+        """Use the adapter's wire projection, preserving aliases and dynamic keys."""
+        return self._inner._to_args_and_kwargs(tool_input, tool_call_id)
+
     async def _arun(self, **kwargs: Any) -> str:
         """Execute the inner MCP tool and return string result.
 
@@ -142,7 +148,12 @@ class _MCPReActWrapper(BaseTool):
                             error_msg = str(inner)
                     else:
                         error_msg = str(sub)
-            logger.warning(
+            # The user adapter already recorded this failed operation. Keep
+            # wrapper unwinding available without multiplying retained errors.
+            log_failure = (
+                logger.debug if isinstance(self._inner, UserMCPToolAdapter) else logger.warning
+            )
+            log_failure(
                 "mcp_react_wrapper_tool_error",
                 tool_name=self.name,
                 error=error_msg,

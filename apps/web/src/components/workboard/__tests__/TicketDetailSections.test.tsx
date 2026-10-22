@@ -15,6 +15,7 @@ import {
   CommentsBlock,
   HistoryBlock,
   LastRunBlock,
+  TicketUsageBlock,
 } from '@/components/workboard/TicketDetailSections';
 import type { CommentRow, EventRow, TicketRow } from '@/types/workboard';
 
@@ -196,6 +197,8 @@ describe('LastRunBlock', () => {
       last_run_error: null,
       last_run_tokens_in: 1840,
       last_run_tokens_out: 260,
+      last_run_tokens_cache: 1200,
+      last_run_google_requests: 0,
       last_run_cost_eur: 0.012,
       created_at: '2026-09-09T10:00:00Z',
       execution_mode: 'react',
@@ -288,5 +291,37 @@ describe('LastRunBlock', () => {
     );
 
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it("states the run's cache and Google figures, as the ticket's total does", () => {
+    // Owner report 2026-10-21: the total beside it showed CACHE and GOOGLE,
+    // the last run showed neither.
+    renderWithProviders(<LastRunBlock ticket={ticket()} locale="fr" />);
+
+    expect(screen.getByText(/1 200 CACHE|1,200 CACHE/)).toBeInTheDocument();
+    expect(screen.getByText(/0 GOOGLE/)).toBeInTheDocument();
+  });
+
+  it("leaves out a figure the run's ledger no longer states, never a zero", () => {
+    renderWithProviders(
+      <LastRunBlock
+        ticket={ticket({ last_run_tokens_cache: null, last_run_google_requests: null })}
+        locale="fr"
+      />
+    );
+
+    expect(screen.getByText(/260 OUT/)).toBeInTheDocument();
+    expect(screen.queryByText(/CACHE/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/GOOGLE/)).not.toBeInTheDocument();
+  });
+
+  it("states the ticket's cost to the cent of a cent, never a free-looking 0,00 €", () => {
+    // Owner report 2026-10-21: 0,002576 € was drawn at two decimals.
+    renderWithProviders(
+      <TicketUsageBlock ticket={ticket({ total_cost_eur: 0.002576, total_tokens_cache: 8832 })} />
+    );
+
+    expect(screen.getByText(/0,002576|0\.002576/)).toBeInTheDocument();
+    expect(screen.queryByText(/^0,00 €$|^€0\.00$/)).not.toBeInTheDocument();
   });
 });

@@ -28,9 +28,9 @@ SMS_REQUEST_MODELS: dict[str, type[BaseModel]] = {
 }
 _DESCRIPTIONS = {
     "sms_token.create": "Prepare exact approval to create an iPhone SMS ingestion token. Authenticated originating browser required. Approval only hands off; the browser continues once and alone receives the secret. Never ask for or expose a secret in chat. Lost acknowledgement cannot replay secret delivery; inspect public token metadata and revoke before a separate creation.",
-    "sms_token.revoke": "Prepare exact approval to revoke one owned SMS ingestion token identified by its public UUID. Stops that credential and cancels pending deliveries if no active source credential remains. Existing archived SMS remain.",
+    "sms_token.revoke": "Prepare exact approval to revoke one owned SMS ingestion token identified by its public UUID. Stops that credential and cancels pending deliveries if no active source credential remains. Existing SMS remain in LIA.",
     "sms_preferences.update": "Prepare exact approval for the three independent SMS preferences: ingestion, assistant access, immediate push at any hour. Assistant access defaults off. Disabling assistant access fences future reads and invalidates derived contexts; existing chat and explicit memories have their own retention.",
-    "sms_sender_block.update": "Prepare exact approval to block or unblock one literal SMS sender. Blocks future ingestion before content retention. Existing archive remains. Never infer an identifier from a display name; use the raw sender.",
+    "sms_sender_block.update": "Prepare exact approval to block or unblock one literal SMS sender. Blocks future ingestion before content retention. Existing SMS remain in LIA. Never infer an identifier from a display name; use the raw sender.",
     "sms_messages.delete": "Prepare exact approval to erase an explicit SMS scope: all, sender UUID, aware date interval or up to 100 message UUIDs. No free-text erasure. Preview fixes count and immutable source snapshot. Removes content/index, cancels pending deliveries, invalidates hosted exports and derived contexts. Downloaded exports and previous chat copies cannot be recalled.",
 }
 

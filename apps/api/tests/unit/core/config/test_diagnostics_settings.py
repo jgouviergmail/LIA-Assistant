@@ -27,6 +27,9 @@ _ENV_VARS = (
     "DIAGNOSTICS_WEBHOOK_SECRET",
     "DIAGNOSTICS_FAILURE_CONTEXT_MAX_ENTRIES",
     "DIAGNOSTICS_ADVISOR_CACHE_TTL_SECONDS",
+    "DIAGNOSTICS_EGRESS_PROBE_TIMEOUT_SECONDS",
+    "DIAGNOSTICS_EGRESS_PROBE_ATTEMPTS",
+    "DIAGNOSTICS_EGRESS_PROBE_SLOW_SECONDS",
 )
 
 
@@ -97,6 +100,41 @@ class TestDiagnosticsSettings:
         ]
         for warn, crit in pairs:
             assert warn < crit
+
+    def test_egress_probe_attempts_are_bounded(self, clean_env: None) -> None:
+        """Zero attempts would measure nothing; past five a failing tick outlasts reason."""
+        lowest = DiagnosticsSettings(diagnostics_egress_probe_attempts=1)
+        assert lowest.diagnostics_egress_probe_attempts == 1
+        with pytest.raises(ValidationError, match="greater than or equal"):
+            DiagnosticsSettings(diagnostics_egress_probe_attempts=0)
+        with pytest.raises(ValidationError, match="less than or equal"):
+            DiagnosticsSettings(diagnostics_egress_probe_attempts=6)
+
+    def test_egress_slow_threshold_must_stay_below_the_attempt_budget(
+        self, clean_env: None
+    ) -> None:
+        """A threshold no success can reach would silence the degraded verdict for good."""
+        accepted = DiagnosticsSettings(
+            diagnostics_egress_probe_target="egress.test:443",
+            diagnostics_egress_probe_slow_seconds=2.0,
+            diagnostics_egress_probe_timeout_seconds=5.0,
+        )
+        assert accepted.diagnostics_egress_probe_slow_seconds == pytest.approx(2.0)
+        with pytest.raises(ValidationError, match="DIAGNOSTICS_EGRESS_PROBE_SLOW_SECONDS"):
+            DiagnosticsSettings(
+                diagnostics_egress_probe_target="egress.test:443",
+                diagnostics_egress_probe_slow_seconds=5.0,
+                diagnostics_egress_probe_timeout_seconds=5.0,
+            )
+
+    def test_an_unconfigured_probe_never_blocks_the_boot(self, clean_env: None) -> None:
+        """No target, no check: its thresholds decide nothing, so they refuse nothing."""
+        settings = DiagnosticsSettings(
+            diagnostics_egress_probe_target="",
+            diagnostics_egress_probe_slow_seconds=5.0,
+            diagnostics_egress_probe_timeout_seconds=1.0,
+        )
+        assert settings.diagnostics_egress_probe_timeout_seconds == pytest.approx(1.0)
 
     def test_composed_settings_expose_diagnostics_fields(self, clean_env: None) -> None:
         """DiagnosticsSettings must be in the Settings MRO (config composition rule)."""

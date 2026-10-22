@@ -1853,10 +1853,50 @@
       "summary": "Position bündelt ausgewählte Google Places vor ihren einzelnen Karten, auch in HTML und Markdown. Die interaktive Karte startet erst per Klick mit Kostenanzeige; bei Ausfall bleibt die Quellenliste nutzbar.",
       "src": "b00abdd45dc8"
     },
+    "353": {
+      "title": "API-Scans vorübergehend blockieren",
+      "summary": "Die API erkennt Serien unbekannter Pfade und abgewiesene Anmeldedaten, ohne normale Sitzungs- oder Ressourcenfehler zu bestrafen. Redis teilt eine zeitweilige Sperre zwischen den Workern; bei einem Cache-Ausfall werden Anfragen zugelassen und die Störung bleibt in den Metriken sichtbar.",
+      "src": "c1a0e70c1bdf"
+    },
+    "354": {
+      "title": "Jede HTTP-429-Antwort der richtigen Adresse zuordnen",
+      "summary": "Jede 429-Antwort protokolliert die über die vertrauenswürdige Proxy-Kette ermittelte Client-Adresse, die Methode und den Pfad ohne Abfrageparameter. Gewöhnliche Zugriffsprotokolle bleiben zurückhaltend, und die Adresse wird nie zu einem Metrik-Label.",
+      "src": "85e52e5c8500"
+    },
+    "355": {
+      "title": "Bereits geladene Ortsdetails und eine abgerechnete Route zum gewählten Ort",
+      "summary": "Die Ortsansicht verwendet bereits erhaltene Informationen, ohne den Ort erneut zu suchen. Die Route beginnt an einer freigegebenen Browserposition, einer frischen letzten Position mit Zeitangabe oder am Wohnort: zu Fuß bis einschließlich 2 km, darüber mit dem Auto, mit einer einzigen Neuberechnung, wenn die tatsächliche Fußstrecke die Grenze überschreitet. Die Ausgabenlimits gelten weiterhin und jeder kostenpflichtige Aufruf wird erfasst, auch bei Fehlern oder Abbruch.",
+      "src": "a2a843ea6555"
+    },
+    "356": {
+      "title": "Eine lesbare Karte mit denselben Nummern in Liste und Markierungen",
+      "summary": "Die Karte wartet auf eine ausdrückliche Aktivierung, ohne eine große leere Fläche vorzuhalten. Dieselben Details öffnen sich am Computer in einem Popup und am Telefon in einem Dialog, jeweils mit nur einem Scrollbereich. Liste und Markierungen teilen die Nummern der ursprünglichen Reihenfolge; ein Ort ohne Koordinaten behält seine Nummer und seinen Link, ohne die anderen zu verschieben.",
+      "src": "a9ca854ccb92"
+    },
     "357": {
-      "title": "Generischer Telefon-Eingang und persönliches SMS-Archiv",
+      "title": "Generischer Telefon-Eingang und persönliche SMS",
       "summary": "Das Telefon sendet strikt validierte Ereignisse mit Deduplizierung pro Quelle. Unabhängige Einwilligungen, Export, Löschung, Register und Benachrichtigungen beachten dieselben Berechtigungen.",
-      "src": "539b8b751150"
+      "src": "919024e5b2a5"
+    },
+    "358": {
+      "title": "Unabhängige proaktive Gespräche und native Zustellung",
+      "summary": "Persönliche Initiative bleibt von Hinweisen getrennt, mit eigener Richtlinie und atomarer Veröffentlichung im Chat. Die Architektur ist beschlossen; der Erzeuger muss vor der Aktivierung noch implementiert werden.",
+      "src": "52dd170f2804"
+    },
+    "359": {
+      "title": "Verlaufskontext und Kontrolle seiner Nutzung",
+      "summary": "Beobachtungen stützen Episoden und wiederkehrende Muster, mit eigenständigem Porträt, Löschung und dauerhaft umkehrbaren Ausschlüssen. Anweisungen begrenzen die Initiative; der abgeleitete Speicher ist noch zu implementieren.",
+      "src": "f3f770c17813"
+    },
+    "360": {
+      "title": "Begrenzte Recherche und erfasste Zurückhaltung",
+      "summary": "Lesezugriffe und Modellaufrufe teilen feste Grenzen und ein reserviertes Budget. Kosten bleiben auch bei Ablehnung oder Abbruch erfasst; finanzielle Schutzmechanismen sind vor der Aktivierung noch zu implementieren.",
+      "src": "550da3421618"
+    },
+    "361": {
+      "title": "Eine Ausgangssonde, die den fehlerhaften Schritt benennt und einen Ausfall bestätigt",
+      "summary": "Die Sonde für ausgehende Verbindungen trennt die DNS-Auflösung vom Verbindungsaufbau und bestätigt einen Verlust über mehrere zeitlich verteilte Versuche. Ein verlorenes DNS-Paket öffnet keinen kritischen Vorfall mehr: Eine Wiederherstellung oder eine Verlangsamung wird als beeinträchtigt gemeldet, und ein echter Ausfall benennt den Schritt, der fehlgeschlagen ist.",
+      "src": "9cf5696d02f2"
     }
   }
 }

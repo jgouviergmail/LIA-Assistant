@@ -71,7 +71,7 @@ import {
   FileOutput,
   UserCheck,
   Filter,
-  HeartHandshake,
+  MessageCircleHeart,
   History,
   Sunrise,
   PhoneCall,
@@ -133,7 +133,7 @@ export const featureIcons = {
   security: Lock,
   hitl: UserCheck,
   semanticLeakDefense: Filter,
-  healthMetrics: HeartHandshake,
+  healthMetrics: Smartphone,
   llm: Cpu,
   i18n: Languages,
   observability: Activity,
@@ -150,6 +150,7 @@ export const featureIcons = {
   multichannel: Radio,
   heartbeatAutonome: HeartPulse,
   anticipatedMoments: Hourglass,
+  proactiveDiscussions: MessageCircleHeart,
   webFetch: Globe2,
   geolocation: MapPin,
   knowledgeEnrichment: Newspaper,
@@ -228,6 +229,8 @@ export const featureKeys = [
   'heartbeatAutonome',
   // v1.44.2, ADR-281: the heartbeat is periodic, a moment is an instant.
   'anticipatedMoments',
+  // v3.4.0, ADR-358/359/360: a notification tells, a discussion invites a reply.
+  'proactiveDiscussions',
   'webFetch',
   // Wired at v1.30.0 alongside ADR-219: the card existed in the six locales
   // since the dual-source days and was part of the pre-featureKeys curation;

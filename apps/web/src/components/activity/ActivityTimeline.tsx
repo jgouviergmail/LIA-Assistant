@@ -15,7 +15,6 @@
  */
 
 import { useMemo } from 'react';
-import Link from 'next/link';
 import {
   AlertTriangle,
   Bell,
@@ -23,20 +22,21 @@ import {
   CalendarClock,
   CheckCircle2,
   CircleDot,
-  ClipboardList,
   History,
-  RefreshCw,
   Repeat,
   Sparkles,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+import { AlertsViewActions } from '@/components/notifications/AlertsViewActions';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { HeadingRule } from '@/components/ui/heading-rule';
 import { LoadingAnnouncement } from '@/components/ui/loading-announcement';
+import { SectionHeader } from '@/components/ui/section-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useActivityTimeline } from '@/hooks/useActivityTimeline';
 import { getIntlLocale, type Language } from '@/i18n/settings';
@@ -108,36 +108,25 @@ export function ActivityTimeline({ lng }: ActivityTimelineProps) {
 
   return (
     <section className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="flex items-center gap-2 text-2xl font-bold">
-            <History className="h-6 w-6 text-primary" aria-hidden="true" />
-            {t('activity.title')}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t('activity.subtitle', { days: windowDays ?? 30 })}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {/* ADR-263: the timeline tells the STORY of LIA's proactive work; the
-              journal is the RECORD of what its capabilities actually did. A
-              reader asking "what did LIA do?" arrives here, so the record is
-              reachable from here rather than from a second entry point. */}
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/${lng}/dashboard/actions`}>
-              <ClipboardList className="h-4 w-4" aria-hidden="true" />
-              {t('effects.journal.title')}
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm" onClick={refetch} disabled={firstLoad}>
-            <RefreshCw
-              className={loading && !firstLoad ? 'h-4 w-4 animate-spin' : 'h-4 w-4'}
-              aria-hidden="true"
-            />
-            {t('activity.refresh')}
-          </Button>
-        </div>
-      </header>
+      {/* The alerts hub's own header: the way back to its two registers —
+          received and to follow up — sits exactly where the hub's "Activity
+          timeline" button sits, with the journal and the refresh beside it
+          (owner request 2026-10-21). */}
+      <SectionHeader
+        title={t('activity.title')}
+        icon={History}
+        level={1}
+        description={t('activity.subtitle', { days: windowDays ?? 30 })}
+        actions={
+          <AlertsViewActions
+            lng={lng}
+            view="activity"
+            switchable
+            busy={loading}
+            onRefresh={refetch}
+          />
+        }
+      />
 
       {error && events === undefined ? (
         <Alert variant="error">
@@ -193,8 +182,11 @@ export function ActivityTimeline({ lng }: ActivityTimelineProps) {
             <div className="space-y-6">
               {groups.map(group => (
                 <div key={group.day}>
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {/* A day is a rubrique: its heading runs on into the hairline
+                      every screen draws after one (owner request 2026-10-21). */}
+                  <p className="mb-2 flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     {group.day}
+                    <HeadingRule />
                   </p>
                   <ul className="space-y-2">
                     {group.items.map(item => (

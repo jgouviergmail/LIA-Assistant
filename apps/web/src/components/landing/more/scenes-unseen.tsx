@@ -3,9 +3,9 @@
  * widgets that travel across devices, per-response cost transparency, the
  * pricing grid reviewed field by field before it is written, the acts LIA
  * files under her own initiative, a habit paused once and paused everywhere, and
- * the accessibility care (focus ring travelling on Tab), and the reflow that
- * keeps a narrow screen readable. Timer-driven micro-demos; last phase =
- * resting frame.
+ * the accessibility care (focus ring travelling on Tab), the reflow that keeps
+ * a narrow screen readable, and the one neutral line every panel shares.
+ * Timer-driven micro-demos; last phase = resting frame.
  */
 
 'use client';
@@ -1469,7 +1469,57 @@ function ButtonStaysItselfScene({ active, labels }: SceneProps) {
   );
 }
 
+type LinePhase = 'mixed' | 'one';
+const LINE_STEPS: readonly TimelineStep<LinePhase>[] = [
+  { at: 0, state: 'mixed' },
+  { at: 1300, state: 'one' },
+];
+
+/**
+ * One neutral line (owner rule 2026-10-21): first, panels edged at assorted
+ * strengths and a rule drawn between two panels; then every edge takes the one
+ * `border` token, and the only rule left separates two sections INSIDE a panel.
+ */
+function OneLineScene({ active }: SceneProps) {
+  const phase = useLoopedTimeline(LINE_STEPS, { active });
+  const one = phase === 'one';
+  return (
+    <div className={cn(STAGE, 'justify-center gap-1.5')}>
+      <div
+        className={cn(
+          'w-3/4 rounded-lg border bg-background px-2 py-1.5 transition-colors duration-700',
+          one ? 'border-border' : 'border-foreground/40'
+        )}
+      >
+        <SkeletonLine w="w-1/2" />
+        <div
+          className={cn(
+            'my-1.5 h-px transition-colors duration-700',
+            one ? 'bg-border' : 'bg-transparent'
+          )}
+        />
+        <SkeletonLine w="w-2/3" />
+      </div>
+      <div
+        className={cn(
+          'h-px w-3/4 bg-foreground/30 transition-opacity duration-700',
+          one ? 'opacity-0' : 'opacity-100'
+        )}
+      />
+      <div
+        className={cn(
+          'w-3/4 rounded-lg border bg-background px-2 py-1.5 transition-colors duration-700',
+          one ? 'border-border' : 'border-foreground/10'
+        )}
+      >
+        <SkeletonLine w="w-3/5" />
+      </div>
+    </div>
+  );
+}
+
 export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
+  one_line: OneLineScene,
   activity_timeline: ActivityTimelineScene,
   own_initiative: OwnInitiativeScene,
   claim_before_effect: ClaimBeforeEffectScene,

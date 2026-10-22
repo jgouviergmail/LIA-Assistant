@@ -17,12 +17,12 @@ from src.domains.agents.sms.catalogue_manifests import SMS_AGENT_MANIFEST
 from src.domains.agents.tools import sms_tools
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.react_tool_wrapper import ReactToolWrapper
-from src.domains.sms import facade
+from src.domains.sms import identity_resolution as facade
 from src.domains.sms.identity import IdentityBook
 from src.domains.sms.ingestion import SmsIngestionService
 from tests.integration.test_sms_ingestion import authority, message
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("sms_identity_session")]
 
 
 @pytest.mark.parametrize("mode", ["pipeline", "react"])
@@ -40,7 +40,7 @@ async def test_real_sms_tool_entry_projection_context_and_withdrawal(
     async def context():
         yield db_session
 
-    async def directory(owner):
+    async def directory(owner, *, cache_scope=None):
         return IdentityBook()
 
     monkeypatch.setattr(sms_tools, "get_db_context", context)

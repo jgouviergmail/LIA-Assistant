@@ -8,6 +8,8 @@ from unittest.mock import patch
 import aiohttp
 import edge_tts
 import pytest
+from multidict import CIMultiDict, CIMultiDictProxy
+from yarl import URL
 
 from src.domains.voice.client import EdgeTTSClient
 from src.domains.voice.exceptions import TTSProviderError
@@ -53,3 +55,28 @@ async def test_the_code_is_read_from_the_exception_type(error: Exception, code: 
         await EdgeTTSClient().synthesize(text="bonjour", voice_name="fr-FR-DeniseNeural")
     assert caught.value.code == code
     assert caught.value.transient  # every one of these may pass on a second attempt
+
+
+@pytest.mark.parametrize(
+    ("status", "transient"), [(0, True), (403, False), (429, True), (503, True)]
+)
+async def test_a_websocket_refusal_keeps_the_status_that_decides_retry(
+    status: int, transient: bool
+) -> None:
+    error = aiohttp.WSServerHandshakeError(
+        aiohttp.RequestInfo(
+            URL("https://example.test/tts"), "GET", CIMultiDictProxy(CIMultiDict())
+        ),
+        (),
+        status=status,
+        message="handshake refused",
+    )
+    with (
+        patch("src.domains.voice.client.edge_tts.Communicate", failing_with(error)),
+        pytest.raises(TTSProviderError) as caught,
+    ):
+        await EdgeTTSClient().synthesize(text="bonjour", voice_name="fr-FR-DeniseNeural")
+
+    assert isinstance(caught.value.details, dict)
+    assert caught.value.details["status_code"] == (status or None)
+    assert caught.value.transient is transient

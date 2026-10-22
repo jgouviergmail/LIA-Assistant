@@ -1,3 +1,4 @@
+import { HeadingRule } from '@/components/ui/heading-rule';
 import { cn } from '@/lib/utils';
 
 interface SettingsGroupLabelProps {
@@ -22,7 +23,7 @@ export function SettingsGroupLabel({ label, icon: Icon, className }: SettingsGro
       <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
         {label}
       </h2>
-      <div className="flex-1 border-t border-border/50" aria-hidden="true" />
+      <HeadingRule />
     </div>
   );
 }

@@ -45,6 +45,7 @@ from typing import Final
 import structlog
 
 from src.domains.shared.consultation_sink import record_consultation
+from src.domains.shared.discussion_catalogue import SOURCE_REGISTRY
 from src.domains.shared.phone_domains import PHONE_DOMAINS
 
 logger = structlog.get_logger(__name__)
@@ -109,6 +110,20 @@ class ConsultationSurface:
 #: Keys match ``user_data_readers.CONSULTATION_RECORDERS`` exactly; the guard
 #: refuses a surface declared in one and absent from the other.
 CONSULTATION_SURFACES: Final[Mapping[str, ConsultationSurface]] = {
+    "proactive_discussions": ConsultationSurface(
+        key="proactive_discussions",
+        prefix="discussion:",
+        source="proactive",
+        domains={key.value: definition.domain for key, definition in SOURCE_REGISTRY.items()},
+    ),
+    # A rebuild the person asked for reads the same sources at THEIR request, so its
+    # rows carry their authorship, like its spend (ADR-359 amendment 2026-10-21).
+    "proactive_discussion_rebuild": ConsultationSurface(
+        key="proactive_discussion_rebuild",
+        prefix="discussion_rebuild:",
+        source="user",
+        domains={key.value: definition.domain for key, definition in SOURCE_REGISTRY.items()},
+    ),
     # The briefing answers a REQUEST: nothing schedules it — verified on the
     # call graph 2026-09-07, it is reached only from ``GET /briefing/*`` and
     # from chat suggestions. Filing it as an initiative would credit LIA with
@@ -296,6 +311,7 @@ CONSULTATION_SURFACES: Final[Mapping[str, ConsultationSurface]] = {
         prefix="radio:",
         source="user",
         domains={
+            "sms": "sms",
             "news": "web_search",
             "tickets": "ticket",
             "meetings": "document",

@@ -296,7 +296,12 @@ def test_relation_projections_keep_content_and_deadlines_chainable(
         memories=[],
         open_loops=[
             RelationOpenLoop(
-                id="loop-1", subject="Review", direction="user_owes", due_hint=_WHEN, days_open=2
+                id="loop-1",
+                subject="Review",
+                direction="user_owes",
+                due_hint=_WHEN,
+                days_open=2,
+                opened_at=_WHEN,
             )
         ],
         recent_calls=[

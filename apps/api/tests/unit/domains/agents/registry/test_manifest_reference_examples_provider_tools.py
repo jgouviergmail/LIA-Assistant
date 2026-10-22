@@ -389,6 +389,7 @@ def _relation_detail() -> RelationDetail:
                 direction="user_owes",
                 due_hint=None,
                 days_open=3,
+                opened_at=datetime(2026, 7, 29, 18, 30, tzinfo=UTC),
             )
         ],
         open_loops_total=1,

@@ -73,9 +73,11 @@ function Shell({
     <section
       aria-busy={busy || undefined}
       aria-labelledby={titleId}
-      className="rounded-xl border border-border/50 bg-card p-4"
+      className="rounded-xl border border-border bg-card p-4"
     >
-      <div className="flex items-center justify-between gap-2">
+      {/* The panel's title is separated from its body by the line the Alerts
+          registers draw (owner request 2026-10-21). */}
+      <div className="flex items-center justify-between gap-2 border-b border-border pb-3">
         <h3
           id={titleId}
           className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground"
@@ -149,10 +151,14 @@ const NOTICE_KEY: Record<string, string> = {
   false: 'relations.debrief_absent',
 };
 
-/** One titled block of the synthesis — the meeting-report shape, reused. */
+/**
+ * One titled block of the synthesis — the meeting-report shape, reused. Each
+ * opens on a line: a rubrique is separated the way every screen separates one
+ * (owner request 2026-10-21).
+ */
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div>
+    <div className="border-t border-border pt-3">
       <h4 className="text-sm font-semibold text-foreground">{title}</h4>
       <div className="mt-1">{children}</div>
     </div>
@@ -241,7 +247,7 @@ function DebriefFoot({
   const written = debrief ? formatWritten(debrief.generated_at, lng) : null;
   const gaps = debrief?.unavailable.length ?? 0;
   return (
-    <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-border/40 pt-2">
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-border pt-2">
       <p className="flex min-w-0 flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
         <span>
           {written && t('relations.debrief_written_at', { when: written })}
@@ -390,7 +396,7 @@ export function RelationDebriefSection({
   return (
     <Shell busy={building} action={action} foot={foot}>
       {view.refreshFailed && (
-        <p className="mb-3 flex items-start gap-2 rounded-md bg-muted/60 p-2 text-xs text-muted-foreground">
+        <p className="mb-3 flex items-start gap-2 rounded-md border bg-muted/60 p-2 text-xs text-muted-foreground">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           {t('relations.debrief_refresh_failed')}
         </p>

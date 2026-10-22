@@ -55,6 +55,7 @@ def _ticket(**over: object) -> SimpleNamespace:
 def _figures(
     *,
     needs_me: int = 0,
+    held_by_me: int = 0,
     held_by_lia: int = 0,
     held_by_peers: int = 0,
     overdue: int = 0,
@@ -64,6 +65,7 @@ def _figures(
     """The shape of ``AttentionFigures``, with duck-typed tickets."""
     return SimpleNamespace(
         needs_me=needs_me,
+        held_by_me=held_by_me,
         held_by_lia=held_by_lia,
         held_by_peers=held_by_peers,
         overdue=overdue,
@@ -71,6 +73,7 @@ def _figures(
         needs_me_first=first or [],
         previews={
             "needs_me": (first or [])[:2],
+            "held_by_me": [],
             "held_by_lia": [],
             "held_by_peers": [],
             "overdue": [],
@@ -101,6 +104,7 @@ class TestFetchWorkboard:
         read = AsyncMock(
             return_value=_figures(
                 needs_me=7,
+                held_by_me=5,
                 held_by_lia=2,
                 held_by_peers=9,
                 overdue=4,
@@ -120,11 +124,12 @@ class TestFetchWorkboard:
 
         assert (
             data.needs_me,
+            data.held_by_me,
             data.held_by_lia,
             data.held_by_peers,
             data.overdue,
             data.open_total,
-        ) == (7, 2, 9, 4, 12)
+        ) == (7, 5, 2, 9, 4, 12)
         assert [item.title for item in data.items] == ["Pay the invoice", "Answer LIA"]
         assert [item.overdue for item in data.items] == [True, False]
         assert data.items[0].id == str(late.id)
@@ -236,10 +241,32 @@ class TestGroupedPreviewContract:
             {"needs_me": 0, "held_by_lia": 0, "overdue": 0, "open_total": 0, **preview_field}
         )
         assert data.model_dump()["previews"] is None
+        assert data.held_by_me is None
+
+    def test_a_cache_predating_my_tickets_claims_no_count_of_them(self) -> None:
+        # Grouped previews cached before « my tickets » existed: the group reads
+        # empty and its count reads unknown — the card shows no tile rather than
+        # a zero nobody counted.
+        groups = {
+            key: [] for key in ("needs_me", "held_by_lia", "held_by_peers", "overdue", "open_total")
+        }
+        data = WorkboardData.model_validate(
+            {"needs_me": 0, "held_by_lia": 0, "overdue": 0, "open_total": 0, "previews": groups}
+        )
+        assert data.held_by_me is None
+        assert data.previews is not None and data.previews.held_by_me == []
 
     def test_known_empty_groups_survive_the_section_cache(self) -> None:
         groups = {
-            key: [] for key in ("needs_me", "held_by_lia", "held_by_peers", "overdue", "open_total")
+            key: []
+            for key in (
+                "needs_me",
+                "held_by_me",
+                "held_by_lia",
+                "held_by_peers",
+                "overdue",
+                "open_total",
+            )
         }
         data = WorkboardData.model_validate(
             {"needs_me": 0, "held_by_lia": 0, "overdue": 0, "open_total": 0, "previews": groups}

@@ -198,5 +198,4 @@ describe('PersonalitySettings', () => {
     );
     expect(mocks.success).not.toHaveBeenCalled();
   });
-
 });

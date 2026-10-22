@@ -1,21 +1,39 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
+import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
 import { SmsMessageCard } from './SmsMessageList';
 import type { SmsMessage } from '@/types/sms';
 import type { Language } from '@/i18n/settings';
 export function SmsFocusedMessage({ messageId, lng }: { messageId: string; lng: Language }) {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { data, error } = useApplicationAccountQuery<SmsMessage>(
+  const { data, error, refetch } = useApplicationAccountQuery<SmsMessage>(
     `/sms/${encodeURIComponent(messageId)}`,
     'SmsFocusedMessage'
   );
+  // Re-read in place: the message stays on screen until the answer lands.
+  const refresh = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
+  useApplicationResourceSync(user?.id, 'sms', refresh);
   const focus = useRef<HTMLDivElement>(null);
+  const focused = useRef(false);
+  const initialFocus = useRef<Element | null>(null);
   useEffect(() => {
-    if (data) focus.current?.focus();
+    initialFocus.current = document.activeElement;
+  }, []);
+  useEffect(() => {
+    if (data && !focused.current) {
+      focused.current = true;
+      if (
+        document.activeElement === document.body ||
+        document.activeElement === initialFocus.current
+      )
+        focus.current?.focus();
+    }
   }, [data]);
   if (error)
     return (

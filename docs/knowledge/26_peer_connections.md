@@ -4,8 +4,9 @@
 
 Use **Share with a connection** on your own settings card, choose an accepted
 peer and confirm the preview. They receive their own copy, installed disabled,
-with a badge naming you and the sharing time. They can edit, activate or delete
-it independently. Credentials stay private: the recipient supplies their own.
+with a badge naming you and the sharing time, and LIA tells them in their chat
+who shared which kind of capability and its title. They can edit, activate or
+delete it independently. Credentials stay private: the recipient supplies their own.
 Once enabled, a shared skill has the same execution capabilities as one the
 recipient authored, under their connector permissions and ordinary approvals.
 See [the implementation contract](../technical/PEER_CAPABILITY_TRANSFERS.md).
@@ -64,3 +65,5 @@ A copy of the image, filed in their own gallery as if they had generated it, wit
 ## How do I send a skill, MCP server or plugin to a connection?
 
 Use **Share** on its settings card, choose an accepted connection, review the package and confirm. The recipient receives an independent copy, **disabled by default**, with the sender and sharing date/time. Credentials and permissions do not transfer. They can edit, configure, activate or delete it through the usual controls. Once enabled, a received skill has the same execution capabilities as one they created, so review it before activation. Later changes at the sender do not update the copy.
+
+A notice confirms the share once the copy is installed — or says why it did not complete, and the dialog stays open to retry. LIA tells the recipient in their chat who shared which skill, MCP server or plugin with them, and its title.

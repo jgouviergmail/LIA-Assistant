@@ -11,6 +11,7 @@ from typing import Any
 import structlog
 
 from src.core.field_names import FIELD_DISPLAY_ONLY
+from src.domains.connectors.clients.normalizers.calendar_occurrence import graph_occurrence_fields
 from src.domains.connectors.clients.normalizers.microsoft_recurrence import (
     graph_recurrence_snapshot,
 )
@@ -113,6 +114,7 @@ def normalize_graph_event(event: dict[str, Any]) -> dict[str, Any]:
     if schedule := graph_recurrence_snapshot(event.get("recurrence")):
         normalized["recurrence_pattern"] = schedule
     normalized.update(_teams_conference_fields(event))
+    normalized.update(graph_occurrence_fields(event))
 
     return normalized
 

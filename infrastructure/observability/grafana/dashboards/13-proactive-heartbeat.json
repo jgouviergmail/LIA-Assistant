@@ -1941,6 +1941,47 @@
         }
       },
       "description": "What the decision did with the missed-routine candidate it was shown. Only a DECLARED offer (habit_offered=true, rule 24) charges the offer budget; a HABITS label without the declaration is observed here and never charged. A sustained label_only share means the model ignores the rule (ADR-214 amendment c)."
+    },
+    {
+      "id": 59,
+      "title": "Proactive discussion runs by outcome (24h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 97
+      },
+      "targets": [
+        {
+          "expr": "sum by (kind, outcome) (increase(proactive_discussion_runs_total[24h])) or vector(0)",
+          "legendFormat": "{{kind}} · {{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Every run of the proactive discussions producer (ADR-358), an opening run or a rebuild the person asked for. completed published (or rebuilt); skipped abstained or deferred on a backoff; failed and error need a look; controls_over_budget means the person's rules or recent replies cannot be read whole, so the run defers (ADR-359) until the reply guards lapse or memory acknowledges them."
     }
   ]
 }

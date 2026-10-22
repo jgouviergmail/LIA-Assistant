@@ -115,7 +115,10 @@ export interface JournalListResponse {
  * Journal cost info from last background intervention.
  */
 export interface JournalCostInfo {
+  /** Input tokens, cache reads excluded — the chat meter's IN. */
   tokens_in: number | null;
+  /** Input tokens the provider served from its prompt cache — the meter's CACHE. */
+  tokens_cache: number | null;
   tokens_out: number | null;
   cost_eur: number | null;
   timestamp: string | null;

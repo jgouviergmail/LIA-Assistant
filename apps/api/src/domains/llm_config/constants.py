@@ -1542,6 +1542,29 @@ LLM_TYPES_REGISTRY["sms_agent"] = LLMTypeMetadata(
 )
 LLM_DEFAULTS["sms_agent"] = LLM_DEFAULTS["health_agent"].model_copy(deep=True)
 
+# Independent discussion stages reuse native model defaults, never runtime heartbeat overrides.
+for _discussion_slot, _discussion_name, _discussion_capabilities, _discussion_output in (
+    ("discussion_context", "Discussion Context", ["structured_output"], 1200),
+    ("discussion_decision", "Discussion Decision", ["structured_output"], 600),
+    ("discussion_message", "Discussion Message", [], 250),
+):
+    LLM_TYPES_REGISTRY[_discussion_slot] = LLMTypeMetadata(
+        llm_type=_discussion_slot,
+        display_name=_discussion_name,
+        category=CATEGORY_BACKGROUND,
+        description_key=f"settings.admin.llmConfig.types.{_discussion_slot}",
+        required_capabilities=_discussion_capabilities,
+        power_tier=POWER_TIER_HIGH,
+    )
+    LLM_DEFAULTS[_discussion_slot] = LLM_DEFAULTS["heartbeat_decision"].model_copy(
+        deep=True,
+        update={
+            "max_tokens": _discussion_output,
+            "temperature": 0.7 if _discussion_slot == "discussion_message" else 0.3,
+            "reasoning_effort": ReasoningIntent(level="none"),
+        },
+    )
+
 assert set(LLM_TYPES_REGISTRY.keys()) == set(LLM_DEFAULTS.keys()), (
     f"LLM_TYPES_REGISTRY and LLM_DEFAULTS keys mismatch: "
     f"registry_only={set(LLM_TYPES_REGISTRY.keys()) - set(LLM_DEFAULTS.keys())}, "

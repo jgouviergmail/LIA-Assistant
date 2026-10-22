@@ -1,4 +1,4 @@
-"""Exact metadata for home; separately authorized, bounded model evidence."""
+"""Separate live metadata, personal dashboard previews and authorized model evidence."""
 
 import json
 from collections.abc import Callable
@@ -16,6 +16,7 @@ from src.core.exceptions import AuthorizationError, ResourceConflictError
 from src.core.external_content import wrap_external_content
 from src.core.time_utils import resolve_user_timezone
 from src.core.token_budget import count_external_tokens
+from src.domains.sms.constants import SMS_CARD_EXCERPT_CHARS
 from src.domains.sms.facade import SmsFacade
 from src.domains.sms.models import SmsMessage
 from src.domains.sms.read_schemas import SmsQuery
@@ -29,13 +30,42 @@ class SmsSummary(BaseModel):
     timezone: str = Field(
         default="UTC", description="Account display timezone captured with the snapshot."
     )
-    total: int = Field(ge=0, description="Exact retained archive count; never unread count.")
+    total: int = Field(ge=0, description="Exact retained SMS count; never unread count.")
     window_total: int = Field(
         ge=0, description="Source timestamps inside the published half-open window."
     )
     window_start: datetime = Field(description="UTC lower bound included in window_total.")
     as_of: datetime = Field(description="UTC upper bound excluded from window_total.")
-    latest_at: datetime | None = Field(description="Latest received timestamp in the archive.")
+    latest_at: datetime | None = Field(description="Latest received SMS timestamp in LIA.")
+
+
+class SmsCardItem(BaseModel):
+    """A bounded personal display preview; never implicit assistant evidence."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    id: UUID
+    sender: str
+    display_name: str
+    received_at: datetime
+    date_kind: str
+    body_excerpt: str = Field(max_length=SMS_CARD_EXCERPT_CHARS)
+    body_truncated: bool
+
+
+class SmsCardProof(BaseModel):
+    """What the SMS card was read at: owner, extraction revision and source stamp."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    owner: UUID
+    revision: int
+    stamp: str
+
+
+class SmsCardData(SmsSummary):
+    """The SMS card: the summary, its latest messages and the proof of its read."""
+
+    items: list[SmsCardItem] = Field(default_factory=list, max_length=50)
+    proof: SmsCardProof | None = Field(default=None, exclude=True)
 
 
 class SmsExcerpt(BaseModel):
@@ -43,7 +73,7 @@ class SmsExcerpt(BaseModel):
     id: UUID = Field(description="Source SMS identifier.")
     sender: str = Field(description="Literal source sender, bounded for model context.")
     display_name: str = Field(
-        description="Contacts, then relations, then literal sender; same resolver as the archive."
+        description="Contacts, then relations, then literal sender; shared SMS identity resolver."
     )
     identity_source: Literal["contact", "relation", "raw"] = Field(
         description="How the display name was resolved."
@@ -60,7 +90,7 @@ class SmsSignal(SmsSummary):
     )
     owner: UUID = Field(description="Account owning this ephemeral source snapshot.")
     revision: int = Field(description="Withdrawal/erase revision.")
-    stamp: str = Field(description="Archive count/creation stamp for publication freshness.")
+    stamp: str = Field(description="SMS count/creation stamp for publication freshness.")
     messages: list[SmsExcerpt] = Field(default_factory=list, description="Bounded source excerpts.")
 
 
@@ -95,6 +125,64 @@ async def read_sms_summary(owner: UUID) -> SmsSummary:
         return await _summary(
             db, owner, datetime.now(UTC), timezone=resolve_user_timezone(actor).key
         )
+
+
+async def read_sms_card(owner: UUID) -> SmsCardData:
+    """Read the latest archive items for the person, independently of model consent."""
+    async with get_db_context() as db:
+        actor = await require_read(db, owner)
+        await db.execute(
+            select(func.set_config("statement_timeout", str(settings.sms_search_timeout_ms), True))
+        )
+        snapshot = await _summary(
+            db, owner, datetime.now(UTC), timezone=resolve_user_timezone(actor).key
+        )
+        stamp = await source_stamp(db, owner)
+        revision = actor.extraction_revision or 0
+        page = await SmsFacade(db).list(
+            owner, SmsQuery(limit=settings.briefing_max_sms_items), assistant=False
+        )
+        await db.execute(
+            select(func.set_config("statement_timeout", str(settings.sms_search_timeout_ms), True))
+        )
+        if await source_stamp(db, owner) != stamp:
+            raise ResourceConflictError("sms", detail={"error_code": "STALE_STATE"})
+        return SmsCardData(
+            **snapshot.model_dump(),
+            proof=SmsCardProof(owner=owner, revision=revision, stamp=stamp),
+            items=[
+                SmsCardItem(
+                    id=item.id,
+                    sender=item.sender,
+                    display_name=item.display_name,
+                    received_at=item.received_at,
+                    date_kind=item.date_kind,
+                    body_excerpt=item.body[:SMS_CARD_EXCERPT_CHARS],
+                    body_truncated=len(item.body) > SMS_CARD_EXCERPT_CHARS,
+                )
+                for item in page.items
+            ],
+        )
+
+
+async def sms_card_current(card: SmsCardData) -> bool:
+    """Revalidate after other dashboard sources finish; proof never leaves the server."""
+    proof = card.proof
+    if proof is None:
+        return not card.items
+    try:
+        async with get_db_context() as db:
+            actor = await require_read(db, proof.owner)
+            await db.execute(
+                select(
+                    func.set_config("statement_timeout", str(settings.sms_search_timeout_ms), True)
+                )
+            )
+            return (actor.extraction_revision or 0) == proof.revision and await source_stamp(
+                db, proof.owner
+            ) == proof.stamp
+    except AuthorizationError, SQLAlchemyError, OSError, TimeoutError:
+        return False
 
 
 async def read_sms_signal(

@@ -14,6 +14,8 @@ from src.core.session_dependencies import get_current_active_session
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.sms.facade import SmsFacade
+from src.domains.sms.identity_resolution import refresh_sender_identities
+from src.domains.sms.management_commands import set_sms_preference
 from src.domains.sms.management_read_schemas import (
     SmsManagementPageQuery,
     SmsSenderBlockPage,
@@ -21,6 +23,7 @@ from src.domains.sms.management_read_schemas import (
     SmsTokenPage,
 )
 from src.domains.sms.management_reads import SmsManagementReader
+from src.domains.sms.preferences import SmsPreferences, SmsPreferenceUpdate
 from src.domains.sms.read_schemas import SmsPage, SmsQuery, SmsSenderPage, SmsView
 from src.domains.users.models import User
 
@@ -88,6 +91,16 @@ async def sms_tokens(
     return await SmsManagementReader(db).tokens(actor.id, query)
 
 
+@router.patch("/preferences", response_model=SmsPreferences)
+async def update_sms_setting(
+    change: SmsPreferenceUpdate,
+    actor: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> SmsPreferences:
+    """Change one SMS setting; the person's own click is the confirmation."""
+    return await set_sms_preference(db, actor.id, change)
+
+
 @router.get("/blocked-senders", response_model=SmsSenderBlockPage)
 async def sms_blocked_senders(
     response: Response,
@@ -97,6 +110,16 @@ async def sms_blocked_senders(
 ) -> SmsSenderBlockPage:
     response.headers["Cache-Control"] = "no-store"
     return await SmsManagementReader(db).blocks(actor.id, query)
+
+
+@router.post("/identities/refresh", status_code=204, response_class=Response)
+async def refresh_sms_identities(
+    actor: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Forget the senders' contact matches so they resolve again; no SMS is touched."""
+    await refresh_sender_identities(db, actor.id)
+    return Response(status_code=204, headers={"Cache-Control": "no-store"})
 
 
 @router.get("/{message_id}", response_model=SmsView)

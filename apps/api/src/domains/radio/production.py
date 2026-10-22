@@ -48,13 +48,14 @@ import structlog
 
 from src.core.exceptions import MaxRetriesExceededError
 from src.domains.radio.aired import HeardLine
-from src.domains.radio.audio import AudioAssemblyError, LineAudio, assemble_segment
+from src.domains.radio.audio import AssembledAudio, AudioAssemblyError, LineAudio, assemble_segment
 from src.domains.radio.cast import Cast
 from src.domains.radio.constants import TTS_RATE_LIMIT_BASE_WAIT_SECONDS
 from src.domains.radio.delivery import RenderedDelivery, StylePhrases, delivery_kwargs
 from src.domains.radio.facts import FactPack, SourceRef
 from src.domains.radio.formats import JournalEdition, RadioFormat, RadioRole
 from src.domains.radio.script import ScriptDraft, ScriptPart
+from src.domains.radio.sms_context import sms_pack_current
 from src.domains.radio.takes import TakeLine, plan_takes
 from src.domains.radio.verification import (
     Refusal,
@@ -211,6 +212,7 @@ class ProductionOutcome(StrEnum):
     CHECK_FAILED = "check_failed"
     VOICE_FAILED = "voice_failed"
     MIX_FAILED = "mix_failed"
+    SOURCE_WITHDRAWN = "source_withdrawn"
 
 
 @dataclass(frozen=True, slots=True)
@@ -683,6 +685,18 @@ def _refused(verified: VerificationResult) -> ProductionResult:
     )
 
 
+def _subject_intro_kept(
+    written: ScriptDraft, draft: ScriptDraft, verified: VerificationResult
+) -> bool:
+    """A repaired subject announcement must survive verification in the first intro."""
+    if draft is written:
+        return True
+    if not verified.lines:
+        return False
+    intro = verified.lines[0]
+    return intro.part is ScriptPart.INTRO and verified.title.casefold() in intro.text.casefold()
+
+
 async def produce_segment(
     request: WritingRequest,
     out: Path,
@@ -711,59 +725,35 @@ async def produce_segment(
     Returns:
         The segment, or the outcome saying why there is none.
     """
+    if not await sms_pack_current(request.pack):
+        return ProductionResult(ProductionOutcome.SOURCE_WITHDRAWN)
     written = await writer.write(request)
+    if not await sms_pack_current(request.pack):
+        return ProductionResult(ProductionOutcome.SOURCE_WITHDRAWN)
     if written is None:
         return ProductionResult(ProductionOutcome.WRITER_REFUSED)
     draft = announce_subject(written, request.pack)
     verified = await _checked_script(draft, request, limits=limits, checker=checker)
     if isinstance(verified, ProductionResult):
         return verified
-    if draft is not written and (
-        not verified.lines
-        or verified.lines[0].part is not ScriptPart.INTRO
-        or verified.title.casefold() not in verified.lines[0].text.casefold()
-    ):
+    if not await sms_pack_current(request.pack):
+        return ProductionResult(ProductionOutcome.SOURCE_WITHDRAWN)
+    if not _subject_intro_kept(written, draft, verified):
         return ProductionResult(
             ProductionOutcome.SCRIPT_REFUSED,
             refusal=Refusal.SUBJECT_NOT_ANNOUNCED,
             dropped=tuple(violation for _, violation in verified.dropped),
         )
 
-    files = _SegmentFiles.beside(out, len(verified.lines), mix_audio_format(engine.client))
     speech = [_speech(line, engine) for line in verified.lines]
-    takes = _takes(verified.lines, speech, engine=engine, cast=cast, limits=limits)
-    voicing = _Voicing(
-        engine=engine,
-        cast=cast,
-        ledger=ledger,
-        limits=limits,
-        gate=asyncio.Semaphore(max(1, limits.tts_concurrency)),
-        cooldown=_Cooldown(),
+    audio = await _voice_audio(
+        verified.lines, speech, out, engine=engine, cast=cast, ledger=ledger, limits=limits
     )
-    # ``return`` is not allowed inside ``except*``: the failure is kept there
-    # and answered after it. Anything but a provider failure is a defect and
-    # propagates (the line and take files are removed on the way out all the same).
-    voice_failure: BaseExceptionGroup[TTSProviderError] | None = None
-    try:
-        try:
-            async with asyncio.TaskGroup() as group:
-                tasks = [
-                    group.create_task(voicing.take(take, verified.lines, speech, files))
-                    for take in takes
-                ]
-        except* TTSProviderError as errors:
-            voice_failure = errors
-        if voice_failure is not None:
-            return ProductionResult(
-                ProductionOutcome.VOICE_FAILED, error_code=_first_code(voice_failure)
-            )
-        voiced = [line_audio for task in tasks for line_audio in task.result()]
-        try:
-            audio = await assemble_segment(voiced, out, timeout_s=limits.mix_timeout_s)
-        except AudioAssemblyError:
-            return ProductionResult(ProductionOutcome.MIX_FAILED)
-    finally:
-        await asyncio.to_thread(_remove, [*files.lines, *files.takes])
+    if isinstance(audio, ProductionResult):
+        return audio
+    if not await sms_pack_current(request.pack):
+        await asyncio.to_thread(_remove, [out])
+        return ProductionResult(ProductionOutcome.SOURCE_WITHDRAWN)
 
     unrendered = _counted_unrendered(speech)
     return ProductionResult(
@@ -781,6 +771,52 @@ async def produce_segment(
             for line, offset in zip(verified.lines, audio.line_offsets_s, strict=True)
         ),
     )
+
+
+async def _voice_audio(
+    lines: Sequence[VerifiedLine],
+    speech: Sequence[_Speech],
+    out: Path,
+    *,
+    engine: VoiceEngine,
+    cast: Cast,
+    ledger: TtsLedger,
+    limits: ProductionLimits,
+) -> AssembledAudio | ProductionResult:
+    """Own the bounded voice tasks and all temporary take/line files through mixing."""
+    files = _SegmentFiles.beside(out, len(lines), mix_audio_format(engine.client))
+    takes = _takes(lines, speech, engine=engine, cast=cast, limits=limits)
+    voicing = _Voicing(
+        engine=engine,
+        cast=cast,
+        ledger=ledger,
+        limits=limits,
+        gate=asyncio.Semaphore(max(1, limits.tts_concurrency)),
+        cooldown=_Cooldown(),
+    )
+    # ``return`` is not allowed inside ``except*``: the failure is kept there
+    # and answered after it. Anything but a provider failure is a defect and
+    # propagates (the line and take files are removed on the way out all the same).
+    voice_failure: BaseExceptionGroup[TTSProviderError] | None = None
+    try:
+        try:
+            async with asyncio.TaskGroup() as group:
+                tasks = [
+                    group.create_task(voicing.take(take, lines, speech, files)) for take in takes
+                ]
+        except* TTSProviderError as errors:
+            voice_failure = errors
+        if voice_failure is not None:
+            return ProductionResult(
+                ProductionOutcome.VOICE_FAILED, error_code=_first_code(voice_failure)
+            )
+        voiced = [line_audio for task in tasks for line_audio in task.result()]
+        try:
+            return await assemble_segment(voiced, out, timeout_s=limits.mix_timeout_s)
+        except AudioAssemblyError:
+            return ProductionResult(ProductionOutcome.MIX_FAILED)
+    finally:
+        await asyncio.to_thread(_remove, [*files.lines, *files.takes])
 
 
 __all__ = [

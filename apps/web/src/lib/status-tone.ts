@@ -176,6 +176,10 @@ const LIFECYCLE: Record<string, BadgeTone> = {
   // incident).
   paused: NEUTRAL,
   blocked: NEUTRAL,
+  // A proactive discussion (ADR-358): the person answered it, or set it aside
+  // (a decision, never an incident). « pending » and « expired » are above.
+  engaged: 'success',
+  dismissed: NEUTRAL,
 };
 
 /**

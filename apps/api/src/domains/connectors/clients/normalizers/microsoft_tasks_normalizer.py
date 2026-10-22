@@ -86,6 +86,7 @@ def normalize_graph_task(task: dict[str, Any]) -> dict[str, Any]:
         "status": google_status,
         "due": due,
         "completed": completed,
+        **({"recurrence_pattern": task["recurrence"]} if task.get("recurrence") else {}),
         "updated": updated,
         "selfLink": "",
         "parent": "",  # Microsoft To Do has no subtask hierarchy

@@ -31,10 +31,15 @@ pytestmark = pytest.mark.unit
 
 @pytest.fixture(autouse=True)
 def _reset() -> Generator[None]:
+    overrides = LLMConfigOverrideCache._overrides
+    LLMConfigOverrideCache._overrides = {
+        "response": {"provider": "ollama", "model": "local-test-model"}
+    }
     LLMConfigOverrideCache._ollama_refreshed_url = None
     LLMConfigOverrideCache._ollama_refreshed_at = 0.0
     ModelCapabilitiesCache.reset()
     yield
+    LLMConfigOverrideCache._overrides = overrides
     LLMConfigOverrideCache._ollama_refreshed_url = None
     LLMConfigOverrideCache._ollama_refreshed_at = 0.0
     ModelCapabilitiesCache.reset()
@@ -72,6 +77,43 @@ async def test_no_configured_url_means_no_network_at_all() -> None:
     with _url(None), _refresh() as refresh:
         await LLMConfigOverrideCache._refresh_ollama_capabilities()
     refresh.assert_not_awaited()
+
+
+async def test_an_unused_address_does_not_discover_on_config_reload() -> None:
+    LLMConfigOverrideCache._overrides = {}
+    with _url("http://h:11434"), _refresh() as refresh:
+        await LLMConfigOverrideCache._refresh_ollama_capabilities()
+    refresh.assert_not_awaited()
+
+
+async def test_enabling_an_ollama_slot_discovers_an_unchanged_unused_address() -> None:
+    LLMConfigOverrideCache._overrides = {}
+    with _url("http://h:11434"), _refresh() as refresh:
+        await LLMConfigOverrideCache._refresh_ollama_capabilities()
+        refresh.assert_not_awaited()
+        LLMConfigOverrideCache._overrides = {
+            "response": {"provider": "ollama", "model": "local-test-model"}
+        }
+        await LLMConfigOverrideCache._refresh_ollama_capabilities()
+    refresh.assert_awaited_once()
+
+
+async def test_an_unused_address_keeps_explicit_admin_discovery() -> None:
+    LLMConfigOverrideCache._overrides = {}
+    _publish()
+    with _url("http://h:11434"), _refresh() as refresh:
+        await LLMConfigOverrideCache._refresh_ollama_capabilities()
+    refresh.assert_not_awaited()
+    assert ModelCapabilitiesCache.has_discovered("ollama")
+
+
+async def test_removing_an_unused_address_clears_explicit_admin_discovery() -> None:
+    LLMConfigOverrideCache._overrides = {}
+    _publish()
+    with _url(None), _refresh() as refresh:
+        await LLMConfigOverrideCache._refresh_ollama_capabilities()
+    refresh.assert_not_awaited()
+    assert not ModelCapabilitiesCache.has_discovered("ollama")
 
 
 async def test_the_first_reload_with_an_address_discovers() -> None:

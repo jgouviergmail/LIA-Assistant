@@ -68,9 +68,9 @@ class TestTheStatements:
 
 class TestReadBoardSummary:
     async def test_it_composes_the_figures_as_the_rows_give_them(self) -> None:
-        # The four scalar reads, in the order the function issues them, then
-        # the one owned-totals row.
-        scalars = iter([3, 2, 1])
+        # The scalar reads, in the order the function issues them, then the
+        # one owned-totals row.
+        scalars = iter([3, 2, 4, 1])
         totals_row = (7, 12, 1000, 250, 400, 5, Decimal("0.4200"))
 
         async def execute(_stmt: object) -> MagicMock:
@@ -95,7 +95,12 @@ class TestReadBoardSummary:
         figures = await read_board_summary(repo, USER, NOW)
 
         assert figures.counts_by_status == {"todo": 4, "done": 1}
-        assert (figures.overdue, figures.held_by_lia, figures.needs_me) == (3, 2, 1)
+        assert (
+            figures.overdue,
+            figures.held_by_lia,
+            figures.held_by_me,
+            figures.needs_me,
+        ) == (3, 2, 4, 1)
         assert figures.owned == 7
         assert figures.runs_total == 12
         assert (figures.tokens_in, figures.tokens_out, figures.tokens_cache) == (1000, 250, 400)

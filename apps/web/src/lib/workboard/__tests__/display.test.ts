@@ -52,6 +52,8 @@ function ticket(overrides: Partial<TicketRow> = {}): TicketRow {
     last_run_error: null,
     last_run_tokens_in: null,
     last_run_tokens_out: null,
+    last_run_tokens_cache: null,
+    last_run_google_requests: null,
     last_run_cost_eur: null,
     created_at: '2026-09-09T10:00:00Z',
     execution_mode: 'react',

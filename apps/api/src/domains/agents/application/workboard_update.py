@@ -32,7 +32,7 @@ from src.domains.users.preference_cas import PreferenceWriteReceipt
 from src.domains.workboard.answers import Answer
 from src.domains.workboard.assignment_notifications import (
     AssignmentNotice,
-    dispatch_assignment_notices,
+    dispatch_committed_assignment_notices,
 )
 from src.domains.workboard.models import WorkboardTicket, WorkboardTicketEvent
 from src.domains.workboard.mutation_fence import lock_mutation_ticket
@@ -44,7 +44,6 @@ from src.domains.workboard.mutation_preview import (
 )
 from src.domains.workboard.schemas import TicketRow
 from src.domains.workboard.service import WorkboardService
-from src.infrastructure.database.session import get_db_context
 
 _CHANGE_CLOCKS = {"updated_at", "status_changed_at"}
 
@@ -314,12 +313,8 @@ async def _verify_update(
 async def _notify_update(notices: list[AssignmentNotice], public: dict[str, JsonValue]) -> None:
     if not notices:
         return
-    try:
-        async with get_db_context() as db:
-            delivered = await dispatch_assignment_notices(db, notices)
-        public["notification_status"] = "delivered" if delivered else "failed"
-    except Exception:
-        public["notification_status"] = "failed"
+    delivered = await dispatch_committed_assignment_notices(notices)
+    public["notification_status"] = "delivered" if delivered else "failed"
 
 
 async def execute_workboard_update(

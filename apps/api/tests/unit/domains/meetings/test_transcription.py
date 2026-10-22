@@ -262,6 +262,7 @@ async def test_remote_silence_is_a_permanent_failure(remote: dict[str, Any]) -> 
     [
         ("invalid_api_key", False),
         ("provider_file_too_large", False),
+        ("provider_audio_too_short", False),
         ("provider_rate_limited", True),
     ],
 )

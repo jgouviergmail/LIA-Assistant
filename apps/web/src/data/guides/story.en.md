@@ -2,9 +2,9 @@
 
 > Field report — a complete system, from design to production.
 
-**Version**: 2.4
-**Date**: 2026-10-19
-**Application**: LIA v3.3.0
+**Version**: 2.5
+**Date**: 2026-10-22
+**Application**: LIA v3.4.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -13,23 +13,25 @@
 
 LIA is a complete multi-agent AI assistant — business connectors, voice, memory, user-to-user connections, six languages — designed, built and continuously operated in production, as a personal project.
 
-Nearly all of the code was written by an AI, under human direction: a written engineering rulebook, blocking automated checks, systematic review, recurring audits. The result is measured: **8.3/10** on a technical audit across 24 areas. The repository is open source; the audit's conclusions — strengths and weaknesses alike — are owned and summarized in this document.
+Nearly all of the code was written by an AI, under human direction: a written engineering rulebook, blocking automated checks, systematic review, recurring audits. The result is measured: **8.0/10** on a technical audit across 24 areas. The repository is open source; the audit's conclusions — strengths and weaknesses alike — are owned and summarized in this document.
 
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
-| Source lines (excluding tests) — 55 functional domains | **967,000+** |
-| Inventoried automated tests; suites selected for commits and releases | **64,000+** |
-| Documented architecture decisions (ADR) | **351** |
-| Versions shipped at a steady pace | **284** |
+| Source lines (excluding tests) — 58 functional domains | **1,003,000+** |
+| Inventoried automated tests; suites selected for commits and releases | **66,000+** |
+| Documented architecture decisions (ADR) | **359** |
+| Versions shipped at a steady pace | **285** |
 | Languages, parity checked automatically | **6** |
-| Technical audit across 24 areas | **8.3/10** |
+| Technical audit across 24 areas | **8.0/10** |
 
 Conviction from experience: AI-assisted development can be industrialized today. The limiting factor is not the tool — it is the management framework you give it.
 
 That discipline applies inside the product too. A small model decision can help select a route or format, but LIA constrains its choices, measures its cost and retains the authority to check and confirm the result. Optional native decisions extend that method without turning a model's confidence into permission.
 
 Useful assistance also depends on continuity: finding a decision inside complete meeting minutes, passing a reusable capability to someone you trust, or seeing suggested places together. Each convenience keeps a boundary visible. A shared capability starts disabled without its sender’s credentials; a model’s email assessment remains a clue, never proof of safety; opening an interactive map remains your choice with its cost shown.
+
+Taking the initiative follows the same rule. LIA may open a personal discussion of its own accord, but only within the hours, sources and topics the person allowed, with its reasons, its context and its cost on display — and four reactions to answer it. The SMS a phone relays join a private archive the assistant reads only under a separate consent, and a place selected on a map gives its details and a route that is billed once and counted.
 
 ## 2. The approach
 
@@ -68,7 +70,7 @@ The project is now run with several development agents in parallel — each on i
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 351 documented:
+Three structural decisions, among the 359 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Self-hosting gives you control of the server; account data is stored on the instance and connector credentials are encrypted. The remote services you choose still receive the data needed for their part of a request.
 
@@ -80,7 +82,7 @@ Three structural decisions, among the 351 documented:
 
 A system flown on instruments:
 
-- **Observability**: thirty-one dashboards — application health, service commitments, AI costs, agent behavior, infrastructure. More than 600 metrics; centralized structured logs; end-to-end distributed tracing — logs, metrics and traces keep facts only, never people's words or names. Some forty written operating procedures — diagnosis, remediation, restoration. And the assistant reads that telemetry itself: a periodic self-check, an incident memory diagnosed against those very procedures, and answers that route around a known outage. And a diagnosis shows the evidence it was written from. And the instruments reach the processes themselves: each API worker publishes what it holds in memory, so a container total can be read process by process. And an instrument measures what it names: the latency alert counts only the turns a person waits for, and the host's daily report opens on what the supervision recorded rather than on a snapshot.
+- **Observability**: thirty-two dashboards — application health, service commitments, AI costs, agent behavior, infrastructure. More than 600 metrics; centralized structured logs; end-to-end distributed tracing — logs, metrics and traces keep facts only, never people's words or names. Some forty written operating procedures — diagnosis, remediation, restoration. And the assistant reads that telemetry itself: a periodic self-check, an incident memory diagnosed against those very procedures, and answers that route around a known outage. And a diagnosis shows the evidence it was written from. And the instruments reach the processes themselves: each API worker publishes what it holds in memory, so a container total can be read process by process. And an instrument measures what it names: the latency alert counts only the turns a person waits for, and the host's daily report opens on what the supervision recorded rather than on a snapshot.
 - **Delivery**: containerized deployment, automated schema migrations, images published for two hardware architectures (amd64/arm64).
 - **Supply chain**: every building block of the server pinned by its digest and inventoried with every version; a weekly watch reads the security advisories each dependency publishes — including those no public database relays — and an update waits out a cooling-off period, never moving backwards; every version is installed on blank machines before it is published.
 - **Costs**: frugal infrastructure by choice — about €150 of hardware, zero licenses, open-source building blocks sized to actual needs.
@@ -94,19 +96,20 @@ A visible presence must remain a controlled choice: the experimental Simli avata
 
 ## 6. The proof
 
-The level claimed in this document comes from a complete technical audit: 24 areas scored, every finding verified in the code and cross-checked to eliminate false positives. The audit applies the project's own method — conducted with AI tooling, in an adversarial posture, every conclusion anchored in cross-checked evidence. July 2026 assessment: **8.3/10**, with a profile openly acknowledged. The full report — scorecard, method, open findings and the protocol to reproduce it — is public: [full audit report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
+The level claimed in this document comes from a complete technical audit: 24 areas scored, every finding verified in the code and cross-checked to eliminate false positives. The audit applies the project's own method — conducted with AI tooling, in an adversarial posture, every conclusion anchored in cross-checked evidence. October 2026 assessment: **8.0/10** (7.3 in August), with a profile openly acknowledged. The full report — scorecard, method, open findings and the protocol to reproduce it — is public: [full audit report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
 
 **Confirmed strengths:**
 
-- Solid data layer: complete referential integrity, migrations without breakage, controlled concurrent access.
-- Complete observability and quality tooling, genuinely used day to day.
-- Decision traceability and delivery discipline sustained over the entire duration.
+- Reproducible configuration and dependencies: lockfiles consumed by the production builds, models downloaded against their fingerprints.
+- Shared contracts and declarative registries: adding an agent, a tool or a language follows documented paths, and the version surfaces are generated.
+- Documentation held true by gates: decisions, maps and quoted figures are checked against their sources on every change.
+- Delivery that runs what a developer runs: a thin CI on the same tasks, hermetic installation and delivery tests, migrations replayed from an empty database.
 
 **What remains to be done — known, planned:**
 
-- Backups: encryption and off-site copies — the daily automation itself is in production and verified.
-- Alerting: recalibrating the historical alert thresholds — the critical core is active and proven end to end, e-mail included.
-- Continuing the decomposition of the densest components, now driven by measurement (complexity, coupling) — the backend's main monoliths are done.
+- Durable states that tell the truth: a document reprocessed after a takeover must stay with its current owner, and a call notification must only count as delivered on an explicit success.
+- Alerting: assemble and test every advertised combination of notification channels, routing included.
+- Absolute structural debt — dense central functions, domains that depend on each other, typing exemptions — reduced batch by batch, driven by measurement.
 
 The action plan is organized in waves, each with measurable exit criteria. That is how this project reports on itself: not a proclaimed level, a measured one — gaps included.
 
@@ -127,4 +130,4 @@ What this experience changes in a management practice:
 - **Between blanket prohibition and blind trust, there is a governable path.** Graded human control can be specified, tested and audited; it is the approach regulatory requirements are converging on, and it is operational today.
 - **A leader who practices arbitrates better.** Build or buy, acceptable debt or not, credible vendor promise or not — these decisions gain accuracy when you have worked the material yourself. This project is a way of maintaining that proximity to the field.
 
-*Personal project, carried out outside any professional activity. Technical assessment from the July 2026 audit, with findings cross-checked. Structural counts follow the repository; source lines were measured again on 2026-10-16. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Personal project, carried out outside any professional activity. Technical assessment from the July 2026 audit, with findings cross-checked. Structural counts follow the repository; source lines were measured again on 2026-10-22. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

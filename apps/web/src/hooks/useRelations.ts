@@ -31,6 +31,8 @@ export interface RelationOpenLoop {
   direction: string;
   due_hint: string | null;
   days_open: number;
+  /** When the commitment was recorded (ISO 8601 UTC) — the card titles it with it. */
+  opened_at: string;
 }
 
 export interface RelationCall {
@@ -44,6 +46,8 @@ export interface RelationCall {
 export interface RelationMemory {
   id: string;
   content: string;
+  /** When the memory was kept (ISO 8601 UTC) — the card titles it with it. */
+  created_at: string;
 }
 
 /** Direction of a relayed message, relative to the CRM's owner. */

@@ -76,7 +76,7 @@ export function HeartbeatHistory({
   loading,
   error,
   locale,
-  presentation = 'cards',
+  presentation = 'panels',
 }: HeartbeatHistoryProps) {
   const { t } = useTranslation();
 
@@ -125,7 +125,6 @@ export function HeartbeatHistory({
     <NotificationHistoryList
       rows={rows}
       presentation={presentation}
-      metadataPosition={presentation === 'timeline' ? 'header' : 'footer'}
       firstLoad={firstLoad}
       loading={loading}
       error={error}

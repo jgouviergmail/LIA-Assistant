@@ -105,6 +105,65 @@ describe('NotificationsHub', () => {
     expect(refetch).toHaveBeenCalledOnce();
     expect(fetched()).toEqual([]);
   });
+  it('heads the page like the activity timeline: switch, journal, refresh', () => {
+    // Owner request 2026-10-21: the two views share one header.
+    flags({ activity_timeline_enabled: true });
+    renderWithProviders(<NotificationsHub lng="fr" />);
+
+    const timeline = screen.getByRole('link', { name: 'activity.hub_cta' });
+    expect(timeline).toHaveAttribute('href', '/fr/dashboard/activity');
+    const journal = screen.getByRole('link', { name: 'effects.journal.title' });
+    expect(journal).toHaveAttribute('href', '/fr/dashboard/actions');
+    const refresh = screen.getByRole('button', { name: 'common.refresh' });
+    for (const control of [timeline, journal, refresh]) expect(control).toHaveClass('min-h-11');
+  });
+
+  it('keeps the journal and the refresh when the timeline is not served', () => {
+    renderWithProviders(<NotificationsHub lng="fr" />);
+
+    expect(screen.queryByRole('link', { name: 'activity.hub_cta' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'effects.journal.title' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'common.refresh' })).toBeInTheDocument();
+  });
+
+  it('re-reads the totals and every open section in one press', async () => {
+    // One spy per PATH: a paged section's endpoint carries its page in the query.
+    const reads: Record<string, ReturnType<typeof vi.fn>> = {};
+    const readOf = (endpoint: string) => (reads[endpoint.split('?')[0]] ??= vi.fn());
+    useApiQuery.mockImplementation((endpoint: string) => ({
+      data: endpoint === '/notifications/hub-counts' ? { reminders: 1 } : undefined,
+      loading: false,
+      error: null,
+      refetch: readOf(endpoint),
+    }));
+    const { user } = renderWithProviders(<NotificationsHub lng="fr" />);
+    await user.click(screen.getByText('notifications_hub.sections.reminders.title'));
+
+    await user.click(screen.getByRole('button', { name: 'common.refresh' }));
+
+    // The totals follow the application signal the press publishes, so they
+    // are read ONCE — never a second read racing it.
+    await waitFor(() => expect(readOf('/notifications/hub-counts')).toHaveBeenCalledOnce());
+    expect(readOf('/reminders')).toHaveBeenCalledOnce();
+  });
+
+  it('ignores the refresh while the totals are still being read', async () => {
+    const counts = vi.fn();
+    useApiQuery.mockImplementation((endpoint: string) => ({
+      data: undefined,
+      loading: endpoint === '/notifications/hub-counts',
+      error: null,
+      refetch: endpoint === '/notifications/hub-counts' ? counts : vi.fn(),
+    }));
+    const { user } = renderWithProviders(<NotificationsHub lng="fr" />);
+    const refresh = screen.getByRole('button', { name: 'common.refresh' });
+
+    await user.click(refresh);
+
+    expect(counts).not.toHaveBeenCalled();
+    expect(refresh).toHaveAttribute('aria-disabled', 'true');
+  });
+
   it('shows the five sections folded, and fetches no PAGE', () => {
     renderWithProviders(<NotificationsHub lng="fr" />);
 

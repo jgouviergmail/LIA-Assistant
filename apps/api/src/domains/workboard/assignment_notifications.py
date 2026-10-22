@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from uuid import UUID
 
+import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.i18n import normalize_language
@@ -19,6 +20,9 @@ from src.domains.workboard.notifications import (
     recipients_for,
     ticket_url,
 )
+from src.infrastructure.database.session import get_db_context
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -80,3 +84,34 @@ async def dispatch_assignment_notices(db: AsyncSession, notices: list[Assignment
         )
         delivered = delivered and reported
     return delivered
+
+
+async def dispatch_committed_assignment_notices(notices: list[AssignmentNotice]) -> bool:
+    """Send the notices of a mutation that has COMMITTED, on a short session of their own.
+
+    Never inside the mutation's transaction. The mutation fence holds the
+    accounts' ``users`` rows FOR UPDATE (ADR-335), and a notice claims its act in
+    ``agent_effects`` on a connection of its own (ADR-263), whose foreign key
+    needs a share lock on the recipient's row: sent under the fence, the request
+    waited for a claim that waited for the request, and every later write of the
+    account queued behind them (production, 2026-10-21).
+
+    Args:
+        notices: What the committed mutation collected.
+
+    Returns:
+        True when every notice was delivered, or none was due; False otherwise.
+        The assignment is committed either way: a notice never undoes it.
+    """
+    if not notices:
+        return True
+    try:
+        async with get_db_context() as db:
+            return await dispatch_assignment_notices(db, notices)
+    except Exception as exc:  # noqa: BLE001 — the committed assignment stands without its notice
+        logger.warning(
+            "workboard_assignment_notices_failed",
+            count=len(notices),
+            error_type=type(exc).__name__,
+        )
+        return False

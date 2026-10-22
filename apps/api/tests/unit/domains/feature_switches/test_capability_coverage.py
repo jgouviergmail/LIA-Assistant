@@ -60,6 +60,7 @@ EXPECTED_CAPABILITIES: frozenset[str] = frozenset(
         "journals",
         "habits",
         "heartbeat",
+        "proactive_discussions",
         "peers",
         "psyche",
         "channels",

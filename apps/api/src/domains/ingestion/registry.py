@@ -27,7 +27,10 @@ _POLICIES = MappingProxyType(
             "health:write", HEALTH_METRICS_TOKEN_PREFIX, frozenset({"date_start", "date_end"})
         ),
         IngestionResource.SMS: IngestionPolicy(
-            "sms:write", "pi_", managed_tokens=True, keyed_state_tables=("sms_sender_blocks",)
+            "sms:write",
+            "pi_",
+            managed_tokens=True,
+            keyed_state_tables=("sms_sender_blocks", "sms_sender_identities"),
         ),
     }
 )

@@ -48,6 +48,7 @@ const DETAIL = {
       direction: 'user_owes',
       due_hint: null,
       days_open: 4,
+      opened_at: '2026-07-21T09:00:00Z',
     },
   ],
   recent_calls: [
@@ -59,7 +60,9 @@ const DETAIL = {
       created_at: '2026-07-25T10:00:00Z',
     },
   ],
-  memories: [{ id: 'm1', content: 'Aime la randonnée en montagne.' }],
+  memories: [
+    { id: 'm1', content: 'Aime la randonnée en montagne.', created_at: '2026-07-18T08:30:00Z' },
+  ],
   open_loops_total: 1,
   recent_calls_total: 1,
   memories_total: 1,
@@ -378,10 +381,12 @@ test.describe('relations CRM (N-09)', () => {
 
     await openSection(page, 'Fiche contact');
     await expect(page.getByText('Menuiserie Dupont')).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText('gerard@example.com')).toBeVisible();
-    await openSection(page, 'Emails échangés');
+    // The card's own address is a mail link; the address-book action above it
+    // repeats the same words, so the link is what names the card's entry.
+    await expect(page.getByRole('link', { name: 'gerard@example.com' })).toBeVisible();
+    await openSection(page, 'Emails');
     await expect(page.getByText('Devis pour la terrasse')).toBeVisible();
-    await openSection(page, 'Rendez-vous partagés');
+    await openSection(page, 'Rendez-vous');
     await expect(page.getByText('Visite du chantier')).toBeVisible();
     await expect(page.getByText('À venir')).toBeVisible();
 
@@ -414,8 +419,8 @@ test.describe('relations CRM (N-09)', () => {
     expect(rank('Fiche contact')).toBeLessThan(rank('Engagements'));
     expect(rank('Engagements')).toBeLessThan(rank('Souvenirs'));
     expect(rank('Souvenirs')).toBeLessThan(rank('Appels récents'));
-    expect(rank('Appels récents')).toBeLessThan(rank('Emails échangés'));
-    expect(rank('Emails échangés')).toBeLessThan(rank('Rendez-vous partagés'));
+    expect(rank('Appels récents')).toBeLessThan(rank('Emails'));
+    expect(rank('Emails')).toBeLessThan(rank('Rendez-vous'));
 
     // FOLD: closed by default, opens on demand, and says so to assistive tech.
     const contactToggle = page.getByRole('button', { name: /Fiche contact/ });
@@ -428,14 +433,14 @@ test.describe('relations CRM (N-09)', () => {
     // MEETINGS: the role is words, not a colour. Scoped to the section: the
     // scope selector above offers "Organisateur" as a checkbox too, and an
     // unscoped text match would now be ambiguous.
-    await openSection(page, 'Rendez-vous partagés');
+    await openSection(page, 'Rendez-vous');
     const meetings = page
-      .getByRole('button', { name: /Rendez-vous partagés/ })
+      .getByRole('button', { name: /Rendez-vous/ })
       .locator('xpath=ancestor::section[1]');
     await expect(meetings.getByText('Organisateur')).toBeVisible();
 
     // SELECTION → chat: an auto-sent intent, never a draft.
-    await openSection(page, 'Emails échangés');
+    await openSection(page, 'Emails');
     await page.getByRole('checkbox', { name: /Devis pour la terrasse/ }).check();
     await page.getByRole('button', { name: /Résumer/ }).click();
     await page.waitForURL(/\/dashboard\/chat\?intent=/, { timeout: 30_000 });
@@ -521,7 +526,7 @@ test.describe('relations CRM (N-09)', () => {
     await expect(page.getByRole('heading', { name: 'Fiche contact' })).toBeVisible({
       timeout: 30_000,
     });
-    await openSection(page, 'Emails échangés');
+    await openSection(page, 'Emails');
     expect(await tooSmall(), 'controls under 44 CSS px on the 360° card').toEqual([]);
 
     // And the page still must not scroll sideways.

@@ -149,7 +149,7 @@ function FollowMark({ following }: { following: boolean }) {
         'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
         following
           ? 'border-primary/30 bg-primary/10 text-primary'
-          : 'border-border/60 text-muted-foreground'
+          : 'border-border text-muted-foreground'
       )}
     >
       {following ? (
@@ -347,7 +347,7 @@ export function TicketCard({
       data-testid="ticket-card"
       data-ticket-id={ticket.id}
       className={cn(
-        'relative rounded-lg border border-l-4 border-border/60 bg-card/80 p-3 shadow-sm',
+        'relative rounded-lg border border-l-4 border-border bg-card/80 p-3 shadow-sm',
         'focus-within:ring-2 focus-within:ring-ring',
         // The edge RANKS the priority — the only place it is said in colour.
         priorityAccent(ticket.priority),

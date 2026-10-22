@@ -34,13 +34,12 @@ function makeProps(over: Partial<React.ComponentProps<typeof ResultsSummary>> = 
 }
 
 describe('ResultsSummary — outcomes first', () => {
-  it('starts open and keeps all four aggregates behind a native disclosure', () => {
-    renderWithProviders(<ResultsSummary {...makeProps()} />);
-    const details = screen.getByRole('group');
-    expect(details).toHaveAttribute('open');
+  it('is a rubrique of its own, never folded, its heading naming the region', () => {
+    // Owner request 2026-10-21: no fold, the heading runs into a hairline.
+    const { container } = renderWithProviders(<ResultsSummary {...makeProps()} />);
+    expect(container.querySelector('details')).toBeNull();
+    expect(screen.getByRole('region', { name: 'dashboard.results.title' })).toBeVisible();
     expect(screen.getByText('12')).toBeVisible();
-    details.removeAttribute('open');
-    expect(screen.getByText('12')).not.toBeVisible();
   });
 
   it('states each achievement with its own figure', () => {

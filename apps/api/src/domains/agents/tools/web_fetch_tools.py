@@ -251,7 +251,7 @@ def _html_to_markdown(html: str, extract_mode: str) -> tuple[str, str]:
                     )
 
         if should_fallback:
-            logger.warning(
+            logger.info(
                 "readability_fallback_to_full",
                 article_length=len(article_html),
                 reason=fallback_reason,

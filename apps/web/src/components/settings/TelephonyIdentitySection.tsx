@@ -263,7 +263,7 @@ function VerificationPanel(props: VerificationPanelProps) {
   const { lng, identity } = props;
   const { t } = useTranslation(lng);
   return (
-    <div className="rounded-lg border border-border/60 bg-background [--lia-field-background:var(--color-card)] p-3 space-y-2">
+    <div className="rounded-lg border border-border bg-background [--lia-field-background:var(--color-card)] p-3 space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium">
           {t('settings.telephony.identity.verification_title')}
@@ -352,10 +352,9 @@ function DomainsPanel({
   rows.sort((a, b) => a.label.localeCompare(b.label, lng));
 
   return (
-    <fieldset className="space-y-2 rounded-lg border bg-background p-3">
-      <legend className="px-1 text-sm font-medium">
-        {t('settings.telephony.identity.domains_title')}
-      </legend>
+    <fieldset className="min-w-0 space-y-2 rounded-lg border bg-background p-3">
+      <legend className="sr-only">{t('settings.telephony.identity.domains_title')}</legend>
+      <h3 className="text-sm font-medium">{t('settings.telephony.identity.domains_title')}</h3>
       <p className="text-xs text-muted-foreground">
         {t('settings.telephony.identity.domains_help')}
       </p>

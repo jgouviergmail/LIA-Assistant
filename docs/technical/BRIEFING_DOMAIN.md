@@ -56,6 +56,7 @@ documented in [ADR-294](../architecture/ADR-294-A-Face-That-Never-Plays-The-Same
 | `BRIEFING_MAX_AGENDA_ITEMS` | 10 | 1–50 | Max events on the agenda card (within the lookahead window) |
 | `BRIEFING_AGENDA_LOOKAHEAD_HOURS` | 24 | 1–168 | Forward window (h) scanned for agenda events |
 | `BRIEFING_MAX_MAILS_ITEMS` | 5 | 1–50 | Max emails on the mails card |
+| `BRIEFING_MAX_SMS_ITEMS` | [source default](../../apps/api/src/core/constants.py) | 1–50 | Latest retained SMS previews on the personal card; separate from consent-gated model evidence |
 | `BRIEFING_MAX_BIRTHDAYS_ITEMS` | 5 | 1–50 | Max upcoming birthdays |
 | `BRIEFING_MAX_BIRTHDAYS_HORIZON_DAYS` | 14 | 1–365 | Forward window (days) for upcoming birthdays |
 | `BRIEFING_MAX_REMINDERS_ITEMS` | 5 | 1–50 | Max pending reminders |
@@ -350,14 +351,17 @@ listed in `INSTANCE_GATED_SECTIONS` and the hint never names it.
 statements (`workboard/summary_queries.read_attention`: the visibility
 predicate, the board filters and the « needs me » set), so the card, the board
 and the notifications hub cannot disagree about a figure. Exact aggregates
-over OPEN tickets (ADR-185) — waiting on the person, held by LIA, held by peers,
-late, open — each a link into the board narrowed to the very set it counts
-(`?assignee=lia&status=…`, `?assignee=peer&status=…`, `?overdue=1`, the open columns);
-the peer count uses the board’s existing assignee filter, independently of the
-LIA count. Older cached bundles without this aggregate omit its tile rather
-than display an invented zero. Then the first
-`BRIEFING_MAX_WORKBOARD_ITEMS` tickets of the « needs me » set, each a link to
-`/dashboard/workboard/<id>`, with « and N more » computed from the exact count.
+over OPEN tickets (ADR-185) — held by the person (« my tickets », first: never a
+ticket LIA or a peer holds, late or not — owner request 2026-10-21), held by LIA,
+held by peers, late, open — each a link into the board narrowed to the very set
+it counts (`?assignee=me&status=…`, `?assignee=lia&status=…`,
+`?assignee=peer&status=…`, `?overdue=1`, the open columns); each holder count
+uses the board’s existing assignee filter, independently of the others. Older
+cached bundles without an aggregate omit its tile rather than display an
+invented zero. Then the first two tickets of each set, each a link to
+`/dashboard/workboard/<id>`; a bundle without grouped previews lists none. The
+« needs me » set (waiting on the person, or late on their board) keeps its
+count — the « nothing waits » line — and stays the notifications hub's.
 A board with no open ticket is the empty state; an open board that needs
 nothing says so in one line. Its consultation reads as the `ticket` domain, as
 the heartbeat's reading of the same board does. The greeting and synthesis do

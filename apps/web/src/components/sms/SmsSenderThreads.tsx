@@ -6,6 +6,7 @@ import { useSmsArchive } from '@/hooks/useSmsArchive';
 import { Button } from '@/components/ui/button';
 import { Disclosure } from '@/components/ui/disclosure';
 import { SmsMessageList } from './SmsMessageList';
+import { SmsEraseButton } from './SmsErasure';
 import type { SmsMessage, SmsSender } from '@/types/sms';
 import type { Language } from '@/i18n/settings';
 
@@ -24,13 +25,25 @@ function SenderMessages({
   const list = useSmsArchive({ sender_id: sender.id, cursor, limit: 20 }, true, resetCursor);
   return (
     <div className="space-y-3 py-3" aria-busy={list.loading}>
+      <SmsEraseButton
+        kind="sender"
+        target={sender.display_name}
+        scope={() => ({ sender_id: sender.id })}
+      />
       {list.loading && !list.data && <p role="status">{t('common.loading')}</p>}
       {list.error && (
         <p role="alert" className="text-sm text-destructive">
           {t('sms.unavailable')}
         </p>
       )}
-      {list.data && <SmsMessageList messages={list.data.items} lng={lng} timezone={timezone} />}
+      {list.data && (
+        <SmsMessageList
+          messages={list.data.items}
+          lng={lng}
+          timezone={timezone}
+          surface="background"
+        />
+      )}
       <div className="flex flex-wrap gap-2">
         {cursor && (
           <Button variant="outline" onClick={() => setCursor(undefined)}>
@@ -100,7 +113,14 @@ export function SmsSearchGroups({
           defaultOpen
         >
           <div className="py-3">
-            <SmsMessageList messages={items} lng={lng} timezone={timezone} />
+            {items[0] && (
+              <SmsEraseButton
+                kind="sender"
+                target={sender}
+                scope={() => ({ sender_id: items[0].id })}
+              />
+            )}
+            <SmsMessageList messages={items} lng={lng} timezone={timezone} surface="background" />
           </div>
         </Disclosure>
       ))}

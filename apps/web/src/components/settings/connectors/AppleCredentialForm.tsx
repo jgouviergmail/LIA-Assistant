@@ -103,7 +103,7 @@ export function AppleCredentialForm({
       </p>
 
       {/* Security notice */}
-      <div className="flex items-start gap-2 p-3 bg-background rounded-md">
+      <div className="flex items-start gap-2 rounded-md border bg-background p-3">
         <Shield className="h-4 w-4 mt-0.5 text-green-600" />
         <div className="text-xs text-muted-foreground space-y-1">
           <p>{t('settings.connectors.apple.two_fa_required')}</p>

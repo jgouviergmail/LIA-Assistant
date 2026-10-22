@@ -212,7 +212,7 @@ export function RelationScopeSection({
           }
           // 16px on mobile: anything smaller makes iOS Safari zoom the page in
           // on focus and never zoom back out.
-          className="w-20 rounded-md border border-border/60 bg-background px-2 py-1.5 text-base sm:text-sm"
+          className="w-20 rounded-md border border-border bg-background px-2 py-1.5 text-base sm:text-sm"
         />
       </label>
 

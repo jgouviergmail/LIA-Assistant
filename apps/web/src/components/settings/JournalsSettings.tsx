@@ -57,6 +57,7 @@ import { apiEndpointUrl } from '@/lib/api-client';
 import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import { PortraitCard } from '@/components/settings/PortraitCard';
+import { JournalLastCost } from '@/components/settings/JournalLastCost';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SectionToolbar } from '@/components/settings/SectionToolbar';
 import { Disclosure } from '@/components/ui/disclosure';
@@ -470,294 +471,247 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
             {/* Configuration, folded (owner arbitration 2026-08-05): two
                 toggles, a gauge and four numeric dials are TUNING, not
                 reading — the reader came for the portrait and the entries. */}
-            <div className="border-t pt-4">
-              <Disclosure
-                surface="nested"
-                icon={Settings2}
-                title={t('journals.configuration', 'Configuration')}
-              >
-                <div className="space-y-5 pt-1">
-                  {/* Consolidation Toggle — the cost warning lives IN the row it
-                warns about (it used to float as an orphan badge between two
-                toggles, glued back with a -mt-3 hack). */}
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="consolidation-enabled" className="text-sm">
-                        {t('journals.consolidation', 'Periodic consolidation')}
-                      </Label>
-                      <p className="text-xs text-muted-foreground">
-                        {t(
-                          'journals.consolidationDescription',
-                          'Assistant periodically reviews and organizes its notes'
-                        )}
-                      </p>
-                      <p className="flex items-center gap-1 text-xs text-warning">
-                        <AlertTriangle className="h-3 w-3" aria-hidden="true" />
-                        {t('journals.higherCost', 'Higher cost')}
-                      </p>
+            <Disclosure
+              surface="nested"
+              icon={Settings2}
+              title={t('journals.configuration', 'Configuration')}
+            >
+              <div className="space-y-5 pt-1">
+                {/* Consolidation Toggle — the cost warning lives IN the row it
+              warns about (it used to float as an orphan badge between two
+              toggles, glued back with a -mt-3 hack). */}
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="consolidation-enabled" className="text-sm">
+                      {t('journals.consolidation', 'Periodic consolidation')}
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {t(
+                        'journals.consolidationDescription',
+                        'Assistant periodically reviews and organizes its notes'
+                      )}
+                    </p>
+                    <p className="flex items-center gap-1 text-xs text-warning">
+                      <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                      {t('journals.higherCost', 'Higher cost')}
+                    </p>
+                  </div>
+                  <Switch
+                    id="consolidation-enabled"
+                    checked={journalSettings?.journal_consolidation_enabled ?? true}
+                    onCheckedChange={v => handleToggle('journal_consolidation_enabled', v)}
+                    disabled={isUpdatingSettings}
+                  />
+                </div>
+
+                {/* History Analysis Toggle */}
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="history-enabled" className="text-sm">
+                      {t('journals.historyAnalysis', 'Analyze conversation history')}
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {t(
+                        'journals.historyDescription',
+                        'Consolidation also reviews recent conversations'
+                      )}
+                    </p>
+                  </div>
+                  <Switch
+                    id="history-enabled"
+                    checked={journalSettings?.journal_consolidation_with_history ?? false}
+                    onCheckedChange={v => handleToggle('journal_consolidation_with_history', v)}
+                    disabled={isUpdatingSettings}
+                  />
+                </div>
+
+                {/* Size Gauge */}
+                {sizeInfo && (
+                  <div className="space-y-2 rounded-lg border bg-card p-3">
+                    <div className="flex flex-col sm:flex-row sm:justify-between text-sm gap-0.5">
+                      <span className="text-muted-foreground">
+                        {t('journals.sizeUsage', 'Size usage')}
+                      </span>
+                      <span className="font-mono text-xs">
+                        {sizeInfo.total_chars.toLocaleString()} /{' '}
+                        {sizeInfo.max_total_chars.toLocaleString()}
+                        <span className="text-muted-foreground ml-1">({sizeInfo.usage_pct}%)</span>
+                      </span>
                     </div>
-                    <Switch
-                      id="consolidation-enabled"
-                      checked={journalSettings?.journal_consolidation_enabled ?? true}
-                      onCheckedChange={v => handleToggle('journal_consolidation_enabled', v)}
+                    <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          sizeInfo.usage_pct > 80 ? 'bg-warning' : 'bg-primary'
+                        }`}
+                        style={{ width: `${Math.min(sizeInfo.usage_pct, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Numeric Settings — every cell is the ExportCard shape (ADR-207:
+              a grid aligns its actions): label and hint at the top, the
+              input pushed to the cell's bottom with `mt-auto`, so the four
+              boxes sit on the same line whatever the hint's length. The old
+              cells mixed space-y-3 and space-y-1.5 and let the longest hint
+              push its input out of line with its neighbour. */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Max Total Chars */}
+                  <div className="flex flex-col gap-3">
+                    <Label className="text-sm" htmlFor="journal-max-total-chars">
+                      {t('journals.maxTotalChars', 'Max journal size')}
+                    </Label>
+                    <p
+                      id="journal-max-total-chars-hint"
+                      className="text-px-11 text-muted-foreground"
+                    >
+                      {t('journals.maxTotalCharsDescription', 'Cannot be set below current usage.')}
+                    </p>
+                    <Input
+                      id="journal-max-total-chars"
+                      aria-describedby="journal-max-total-chars-hint"
+                      type="number"
+                      min={sizeInfo?.total_chars ?? 5000}
+                      max={200000}
+                      step={5000}
+                      value={localMaxTotalChars}
+                      onChange={e => setLocalMaxTotalChars(parseInt(e.target.value) || 0)}
+                      onBlur={() =>
+                        handleNumericSave(
+                          'journal_max_total_chars',
+                          localMaxTotalChars,
+                          setLocalMaxTotalChars,
+                          journalSettings!.journal_max_total_chars
+                        )
+                      }
+                      className="mt-auto w-full font-mono text-sm"
                       disabled={isUpdatingSettings}
                     />
                   </div>
 
-                  {/* History Analysis Toggle */}
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="history-enabled" className="text-sm">
-                        {t('journals.historyAnalysis', 'Analyze conversation history')}
-                      </Label>
-                      <p className="text-xs text-muted-foreground">
-                        {t(
-                          'journals.historyDescription',
-                          'Consolidation also reviews recent conversations'
-                        )}
-                      </p>
-                    </div>
-                    <Switch
-                      id="history-enabled"
-                      checked={journalSettings?.journal_consolidation_with_history ?? false}
-                      onCheckedChange={v => handleToggle('journal_consolidation_with_history', v)}
+                  {/* Context Max Chars */}
+                  <div className="flex flex-col gap-3">
+                    <Label className="text-sm" htmlFor="journal-context-max-chars">
+                      {t('journals.contextMaxChars', 'Prompt injection budget')}
+                    </Label>
+                    <p
+                      id="journal-context-max-chars-hint"
+                      className="text-px-11 text-muted-foreground"
+                    >
+                      {t(
+                        'journals.contextMaxCharsDescription',
+                        'Max characters injected into prompts'
+                      )}
+                    </p>
+                    <Input
+                      id="journal-context-max-chars"
+                      aria-describedby="journal-context-max-chars-hint"
+                      type="number"
+                      min={200}
+                      max={10000}
+                      step={100}
+                      value={localContextMaxChars}
+                      onChange={e => setLocalContextMaxChars(parseInt(e.target.value) || 0)}
+                      onBlur={() =>
+                        handleNumericSave(
+                          'journal_context_max_chars',
+                          localContextMaxChars,
+                          setLocalContextMaxChars,
+                          journalSettings!.journal_context_max_chars
+                        )
+                      }
+                      className="mt-auto w-full font-mono text-sm"
                       disabled={isUpdatingSettings}
                     />
                   </div>
 
-                  {/* Size Gauge */}
-                  {sizeInfo && (
-                    <div className="space-y-2 rounded-lg border bg-card p-3">
-                      <div className="flex flex-col sm:flex-row sm:justify-between text-sm gap-0.5">
-                        <span className="text-muted-foreground">
-                          {t('journals.sizeUsage', 'Size usage')}
-                        </span>
-                        <span className="font-mono text-xs">
-                          {sizeInfo.total_chars.toLocaleString()} /{' '}
-                          {sizeInfo.max_total_chars.toLocaleString()}
-                          <span className="text-muted-foreground ml-1">
-                            ({sizeInfo.usage_pct}%)
-                          </span>
-                        </span>
-                      </div>
-                      <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            sizeInfo.usage_pct > 80 ? 'bg-warning' : 'bg-primary'
-                          }`}
-                          style={{ width: `${Math.min(sizeInfo.usage_pct, 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Numeric Settings — every cell is the ExportCard shape (ADR-207:
-                a grid aligns its actions): label and hint at the top, the
-                input pushed to the cell's bottom with `mt-auto`, so the four
-                boxes sit on the same line whatever the hint's length. The old
-                cells mixed space-y-3 and space-y-1.5 and let the longest hint
-                push its input out of line with its neighbour. */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Max Total Chars */}
-                    <div className="flex flex-col gap-3">
-                      <Label className="text-sm" htmlFor="journal-max-total-chars">
-                        {t('journals.maxTotalChars', 'Max journal size')}
-                      </Label>
-                      <p
-                        id="journal-max-total-chars-hint"
-                        className="text-px-11 text-muted-foreground"
-                      >
-                        {t(
-                          'journals.maxTotalCharsDescription',
-                          'Cannot be set below current usage.'
-                        )}
-                      </p>
-                      <Input
-                        id="journal-max-total-chars"
-                        aria-describedby="journal-max-total-chars-hint"
-                        type="number"
-                        min={sizeInfo?.total_chars ?? 5000}
-                        max={200000}
-                        step={5000}
-                        value={localMaxTotalChars}
-                        onChange={e => setLocalMaxTotalChars(parseInt(e.target.value) || 0)}
-                        onBlur={() =>
-                          handleNumericSave(
-                            'journal_max_total_chars',
-                            localMaxTotalChars,
-                            setLocalMaxTotalChars,
-                            journalSettings!.journal_max_total_chars
-                          )
-                        }
-                        className="mt-auto w-full font-mono text-sm"
-                        disabled={isUpdatingSettings}
-                      />
-                    </div>
-
-                    {/* Context Max Chars */}
-                    <div className="flex flex-col gap-3">
-                      <Label className="text-sm" htmlFor="journal-context-max-chars">
-                        {t('journals.contextMaxChars', 'Prompt injection budget')}
-                      </Label>
-                      <p
-                        id="journal-context-max-chars-hint"
-                        className="text-px-11 text-muted-foreground"
-                      >
-                        {t(
-                          'journals.contextMaxCharsDescription',
-                          'Max characters injected into prompts'
-                        )}
-                      </p>
-                      <Input
-                        id="journal-context-max-chars"
-                        aria-describedby="journal-context-max-chars-hint"
-                        type="number"
-                        min={200}
-                        max={10000}
-                        step={100}
-                        value={localContextMaxChars}
-                        onChange={e => setLocalContextMaxChars(parseInt(e.target.value) || 0)}
-                        onBlur={() =>
-                          handleNumericSave(
-                            'journal_context_max_chars',
-                            localContextMaxChars,
-                            setLocalContextMaxChars,
-                            journalSettings!.journal_context_max_chars
-                          )
-                        }
-                        className="mt-auto w-full font-mono text-sm"
-                        disabled={isUpdatingSettings}
-                      />
-                    </div>
-
-                    {/* Max Entry Chars */}
-                    <div className="flex flex-col gap-3">
-                      <Label className="text-sm" htmlFor="journal-max-entry-chars">
-                        {t('journals.maxEntryChars', 'Max entry size')}
-                      </Label>
-                      <p
-                        id="journal-max-entry-chars-hint"
-                        className="text-px-11 text-muted-foreground"
-                      >
-                        {t(
-                          'journals.maxEntryCharsDescription',
-                          'Max characters per individual entry.'
-                        )}
-                      </p>
-                      <Input
-                        id="journal-max-entry-chars"
-                        aria-describedby="journal-max-entry-chars-hint"
-                        type="number"
-                        min={100}
-                        max={5000}
-                        step={100}
-                        value={localMaxEntryChars}
-                        onChange={e => setLocalMaxEntryChars(parseInt(e.target.value) || 0)}
-                        onBlur={() =>
-                          handleNumericSave(
-                            'journal_max_entry_chars',
-                            localMaxEntryChars,
-                            setLocalMaxEntryChars,
-                            journalSettings!.journal_max_entry_chars
-                          )
-                        }
-                        className="mt-auto w-full font-mono text-sm"
-                        disabled={isUpdatingSettings}
-                      />
-                    </div>
-
-                    {/* Context Max Results */}
-                    <div className="flex flex-col gap-3">
-                      <Label className="text-sm" htmlFor="journal-context-max-results">
-                        {t('journals.contextMaxResults', 'Max search results')}
-                      </Label>
-                      <p
-                        id="journal-context-max-results-hint"
-                        className="text-px-11 text-muted-foreground"
-                      >
-                        {t(
-                          'journals.contextMaxResultsDescription',
-                          'Max entries for context injection'
-                        )}
-                      </p>
-                      <Input
-                        id="journal-context-max-results"
-                        aria-describedby="journal-context-max-results-hint"
-                        type="number"
-                        min={1}
-                        max={30}
-                        step={1}
-                        value={localContextMaxResults}
-                        onChange={e => setLocalContextMaxResults(parseInt(e.target.value) || 0)}
-                        onBlur={() =>
-                          handleNumericSave(
-                            'journal_context_max_results',
-                            localContextMaxResults,
-                            setLocalContextMaxResults,
-                            journalSettings!.journal_context_max_results
-                          )
-                        }
-                        className="mt-auto w-full font-mono text-sm"
-                        disabled={isUpdatingSettings}
-                      />
-                    </div>
+                  {/* Max Entry Chars */}
+                  <div className="flex flex-col gap-3">
+                    <Label className="text-sm" htmlFor="journal-max-entry-chars">
+                      {t('journals.maxEntryChars', 'Max entry size')}
+                    </Label>
+                    <p
+                      id="journal-max-entry-chars-hint"
+                      className="text-px-11 text-muted-foreground"
+                    >
+                      {t(
+                        'journals.maxEntryCharsDescription',
+                        'Max characters per individual entry.'
+                      )}
+                    </p>
+                    <Input
+                      id="journal-max-entry-chars"
+                      aria-describedby="journal-max-entry-chars-hint"
+                      type="number"
+                      min={100}
+                      max={5000}
+                      step={100}
+                      value={localMaxEntryChars}
+                      onChange={e => setLocalMaxEntryChars(parseInt(e.target.value) || 0)}
+                      onBlur={() =>
+                        handleNumericSave(
+                          'journal_max_entry_chars',
+                          localMaxEntryChars,
+                          setLocalMaxEntryChars,
+                          journalSettings!.journal_max_entry_chars
+                        )
+                      }
+                      className="mt-auto w-full font-mono text-sm"
+                      disabled={isUpdatingSettings}
+                    />
                   </div>
-                </div>
-              </Disclosure>
-            </div>
 
-            {/* Last Cost Info */}
-            {lastCost?.timestamp && (
-              <div className="rounded-lg border bg-background p-3 text-xs text-muted-foreground">
-                {/* Desktop: single row */}
-                <div className="hidden sm:flex items-center gap-1.5">
-                  <Settings2 className="h-3.5 w-3.5 shrink-0" />
-                  <span>{t('journals.lastCost', 'Last intervention')}:</span>
-                  <span>
-                    {lastCost.source === 'extraction'
-                      ? SOURCE_EMOJI.conversation
-                      : SOURCE_EMOJI.consolidation}
-                  </span>
-                  <span className="font-mono">
-                    {lastCost.tokens_in ?? 0} in / {lastCost.tokens_out ?? 0} out
-                  </span>
-                  {lastCost.cost_eur != null && (
-                    <span className="font-mono">{Number(lastCost.cost_eur).toFixed(4)} EUR</span>
-                  )}
-                  <span className="ml-auto">
-                    {new Date(lastCost.timestamp).toLocaleDateString()}
-                  </span>
-                </div>
-                {/* Mobile: each element on its own line */}
-                <div className="flex sm:hidden flex-col gap-1">
-                  <div className="flex items-center gap-1.5">
-                    <Settings2 className="h-3.5 w-3.5 shrink-0" />
-                    <span>{t('journals.lastCost', 'Last intervention')}</span>
-                  </div>
-                  <div className="pl-5 flex items-center gap-1.5">
-                    <span>{t('journals.lastCostSource', 'Source')}:</span>
-                    <span>
-                      {lastCost.source === 'extraction'
-                        ? SOURCE_EMOJI.conversation
-                        : SOURCE_EMOJI.consolidation}{' '}
-                      {lastCost.source}
-                    </span>
-                  </div>
-                  <div className="pl-5">
-                    <span className="font-mono">
-                      {lastCost.tokens_in ?? 0} in / {lastCost.tokens_out ?? 0} out
-                    </span>
-                  </div>
-                  {lastCost.cost_eur != null && (
-                    <div className="pl-5">
-                      <span className="font-mono">{Number(lastCost.cost_eur).toFixed(4)} EUR</span>
-                    </div>
-                  )}
-                  <div className="pl-5">
-                    <span>{new Date(lastCost.timestamp).toLocaleDateString()}</span>
+                  {/* Context Max Results */}
+                  <div className="flex flex-col gap-3">
+                    <Label className="text-sm" htmlFor="journal-context-max-results">
+                      {t('journals.contextMaxResults', 'Max search results')}
+                    </Label>
+                    <p
+                      id="journal-context-max-results-hint"
+                      className="text-px-11 text-muted-foreground"
+                    >
+                      {t(
+                        'journals.contextMaxResultsDescription',
+                        'Max entries for context injection'
+                      )}
+                    </p>
+                    <Input
+                      id="journal-context-max-results"
+                      aria-describedby="journal-context-max-results-hint"
+                      type="number"
+                      min={1}
+                      max={30}
+                      step={1}
+                      value={localContextMaxResults}
+                      onChange={e => setLocalContextMaxResults(parseInt(e.target.value) || 0)}
+                      onBlur={() =>
+                        handleNumericSave(
+                          'journal_context_max_results',
+                          localContextMaxResults,
+                          setLocalContextMaxResults,
+                          journalSettings!.journal_context_max_results
+                        )
+                      }
+                      className="mt-auto w-full font-mono text-sm"
+                      disabled={isUpdatingSettings}
+                    />
                   </div>
                 </div>
               </div>
+            </Disclosure>
+
+            {/* Last intervention — the Context panel's own line (owner request
+                2026-10-21). */}
+            {lastCost && (
+              <JournalLastCost
+                lng={lng}
+                cost={lastCost}
+                emoji={
+                  lastCost.source === 'extraction'
+                    ? SOURCE_EMOJI.conversation
+                    : SOURCE_EMOJI.consolidation
+                }
+              />
             )}
 
             {/* Group toggle (the never-used filter was removed on owner
@@ -1402,7 +1356,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                       .filter(Boolean),
                   })
                 }
-                placeholder="keyword1, keyword2, keyword3"
+                placeholder={t('journals.searchHintsPlaceholder', 'keyword1, keyword2, keyword3')}
                 maxLength={500}
               />
             </div>

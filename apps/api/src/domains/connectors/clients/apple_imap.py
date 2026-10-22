@@ -28,6 +28,8 @@ from imap_tools.errors import MailboxDeleteError, MailboxExpungeError
 from imap_tools.utils import check_command_status
 
 from src.core.config import settings
+from src.core.read_budget import current_read_owner
+from src.domains.connectors.clients.bounded_imap import BoundedMailBox
 from src.domains.connectors.clients.mail_folders import MailFolder, find_mail_folder
 from src.domains.connectors.clients.mailbox_drafts import (
     MailboxDraftNotFoundError,
@@ -101,7 +103,10 @@ class _Session(Protocol):
 
 def open_imap_mailbox(factory: Callable[..., MailBox]) -> MailBox:
     """Authenticate only after certificate/hostname validation, with a bounded socket."""
-    return factory(
+    selected = (
+        BoundedMailBox if current_read_owner() is not None and factory is MailBox else factory
+    )
+    return selected(
         settings.apple_imap_host,
         settings.apple_imap_port,
         ssl_context=ssl.create_default_context(),

@@ -43,6 +43,16 @@ class TestBriefingSettings:
         assert s.briefing_max_agenda_items == 25
         assert s.briefing_agenda_lookahead_hours == 72
 
+    def test_sms_limit_is_env_overridable_and_bounded(self, monkeypatch):
+        monkeypatch.delenv("BRIEFING_MAX_SMS_ITEMS", raising=False)
+        assert BriefingSettings().briefing_max_sms_items == 10
+        monkeypatch.setenv("BRIEFING_MAX_SMS_ITEMS", "3")
+        assert BriefingSettings().briefing_max_sms_items == 3
+        for value in ("0", "51", "invalid"):
+            monkeypatch.setenv("BRIEFING_MAX_SMS_ITEMS", value)
+            with pytest.raises(ValidationError):
+                BriefingSettings()
+
     def test_out_of_range_rejected(self):
         with pytest.raises(ValidationError):
             BriefingSettings(briefing_max_agenda_items=999)  # le=50

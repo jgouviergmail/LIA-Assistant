@@ -33,8 +33,13 @@ async def test_real_sms_agent_builds_and_invokes_its_own_slot_without_provider_c
     _captured_prompts.clear()
 
 
-def test_sms_adds_no_implicit_phone_read_or_extra_collection_decision_call():
-    assert "sms" not in PHONE_DOMAINS
+def test_explicit_phone_sms_does_not_enable_collection_decision_calls():
+    from src.domains.agents.telephony.live_specs import NATIVE_LOOKUPS
+
+    assert "sms" in PHONE_DOMAINS
+    sms_lookups = [spec for spec in NATIVE_LOOKUPS if spec.domain == "sms"]
+    assert len(sms_lookups) == 1
+    assert sms_lookups[0].name == "list_sms_tool" and sms_lookups[0].native
     item = RegistryItem(
         id="sms_" + uuid4().hex,
         type=RegistryItemType.SMS,

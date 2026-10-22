@@ -11,7 +11,7 @@ from src.domains.sms.ingestion import SmsIngestionService
 from src.main import app
 from tests.integration.test_sms_ingestion import authority, message
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("sms_identity_session")]
 
 
 async def test_personal_search_and_detail_are_readable_without_assistant_consent(
@@ -39,6 +39,31 @@ async def test_ingestion_token_cannot_read_personal_archive(async_client):
         "/api/v1/sms/search", json={}, headers={"Authorization": "Bearer pi_test"}
     )
     assert response.status_code == 401
+
+
+async def test_explicit_name_refresh_is_session_only_and_requires_no_assistant_consent(
+    async_client, db_session, test_user, monkeypatch
+):
+    from src.domains.sms.identity_store import read_resolutions
+
+    await authority(db_session, test_user)
+    await db_session.commit()
+    before, _ = await read_resolutions(test_user.id, ("12345",), 0, False)
+    invalidate = AsyncMock()
+    monkeypatch.setattr("src.domains.sms.identity_resolution.invalidate_contacts_cache", invalidate)
+    app.dependency_overrides[get_current_active_session] = lambda: test_user
+    try:
+        response = await async_client.post("/api/v1/sms/identities/refresh")
+        assert response.status_code == 204 and response.headers["cache-control"] == "no-store"
+        after, _ = await read_resolutions(test_user.id, ("12345",), 0, False)
+        assert after.generation != before.generation
+        invalidate.assert_awaited_once_with(test_user.id)
+    finally:
+        app.dependency_overrides.pop(get_current_active_session, None)
+    denied = await async_client.post(
+        "/api/v1/sms/identities/refresh", headers={"Authorization": "Bearer pi_test"}
+    )
+    assert denied.status_code == 401
 
 
 @pytest.mark.parametrize("provider", ["google_contacts", "apple_contacts", "microsoft_contacts"])

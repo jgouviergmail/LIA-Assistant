@@ -91,7 +91,7 @@ export function CallDebrief({ debrief, lng = 'fr', actionable = false }: CallDeb
   if (!hasContent(debrief)) return null;
 
   return (
-    <div className="mt-2 min-w-0 space-y-4 rounded-lg border border-border/40 bg-background p-3">
+    <div className="mt-2 min-w-0 space-y-4 rounded-lg border border-border bg-background p-3">
       <DebriefList
         icon={ClipboardList}
         titleKey="settings.telephony.debrief.key_points"
@@ -123,7 +123,7 @@ export function CallDebrief({ debrief, lng = 'fr', actionable = false }: CallDeb
             <PenLine className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
             {t('settings.telephony.debrief.draft')}
           </p>
-          <p className="mt-1 rounded-md border border-border/30 bg-card p-2 text-sm italic text-foreground/80 [overflow-wrap:anywhere]">
+          <p className="mt-1 rounded-md border border-border bg-card p-2 text-sm italic text-foreground/80 [overflow-wrap:anywhere]">
             {debrief.follow_up_draft}
           </p>
         </div>
@@ -174,7 +174,7 @@ export function CallDebriefActions({
     return null;
 
   return (
-    <div className="space-y-2 border-t border-border/50 pt-3">
+    <div className="space-y-2 border-t border-border pt-3">
       <FollowUpDrafts
         items={debrief.follow_up_tasks}
         intentKey="settings.telephony.debrief.intent_task"

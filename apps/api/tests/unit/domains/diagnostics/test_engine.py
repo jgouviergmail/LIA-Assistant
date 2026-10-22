@@ -7,7 +7,13 @@ in dev while this subsystem was designed.
 
 from __future__ import annotations
 
+import asyncio
+import itertools
 import math
+import socket
+import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
 import pytest
@@ -16,6 +22,9 @@ from src.domains.diagnostics import engine as engine_module
 from src.domains.diagnostics.checks import PROM_CHECKS, CheckStatus
 from src.domains.diagnostics.engine import run_self_check
 from src.infrastructure.telemetry.models import PromResult, PromSample
+
+#: One entry of the event loop resolver's answer: family, type, proto, name, address.
+_AddrInfo = tuple[int, int, int, str, tuple[str, int] | tuple[str, int, int, int]]
 
 
 class _FakePromClient:
@@ -36,9 +45,89 @@ class _FakePromClient:
         )
 
 
+class _ScriptedResolver:
+    """Stands in for the event loop's resolver, one scripted outcome per call.
+
+    An outcome is an address the resolver answers, an ``OSError`` it raises, or
+    ``None`` for a query never answered — a datagram lost upstream. The last
+    outcome repeats. Every call records the host, the port and the monotonic
+    instant it was made, so a test can assert what reached the resolver and how
+    the attempts were paced.
+    """
+
+    def __init__(self, *outcomes: str | OSError | None, delay: float = 0.0) -> None:
+        self._outcomes = list(outcomes)
+        self._delay = delay
+        self.calls: list[tuple[str, int, float]] = []
+
+    async def getaddrinfo(
+        self,
+        host: str,
+        port: int,
+        *,
+        family: int = 0,
+        type: int = 0,
+        proto: int = 0,
+        flags: int = 0,
+    ) -> list[_AddrInfo]:
+        self.calls.append((host, port, time.monotonic()))
+        outcome = self._outcomes.pop(0) if len(self._outcomes) > 1 else self._outcomes[0]
+        if outcome is None:
+            await asyncio.sleep(3600)
+            raise TimeoutError("never answered")
+        if isinstance(outcome, OSError):
+            raise outcome
+        if self._delay:
+            await asyncio.sleep(self._delay)
+        if ":" in outcome:
+            return [
+                (socket.AF_INET6, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", (outcome, port, 0, 0))
+            ]
+        return [(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", (outcome, port))]
+
+    def install(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Answer the running loop's resolutions, the only resolver the probe uses."""
+        monkeypatch.setattr(asyncio.get_running_loop(), "getaddrinfo", self.getaddrinfo)
+
+
+@asynccontextmanager
+async def _listener() -> AsyncIterator[int]:
+    """A real TCP listener on the IPv4 loopback; yields its port."""
+    server = await asyncio.start_server(lambda _r, w: w.close(), "127.0.0.1", 0)
+    try:
+        yield server.sockets[0].getsockname()[1]
+    finally:
+        server.close()
+        await server.wait_closed()
+
+
+def _configure_egress(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    target: str,
+    timeout: float,
+    attempts: int = 3,
+    slow: float | None = None,
+) -> None:
+    """Point the probe at ``target`` with explicit budgets, never the ambient ``.env``."""
+    from src.core.config import settings
+
+    monkeypatch.setattr(settings, "diagnostics_egress_probe_target", target)
+    monkeypatch.setattr(settings, "diagnostics_egress_probe_timeout_seconds", timeout)
+    monkeypatch.setattr(settings, "diagnostics_egress_probe_attempts", attempts)
+    monkeypatch.setattr(
+        settings, "diagnostics_egress_probe_slow_seconds", timeout / 2 if slow is None else slow
+    )
+
+
 @pytest.fixture
 def healthy_probes(monkeypatch: pytest.MonkeyPatch) -> None:
-    """All in-process probes report healthy."""
+    """All in-process probes report healthy.
+
+    The egress probe included: the Taskfile injects the root ``.env``, whose
+    target is a real host, so a run through ``task`` would otherwise open a real
+    connection and let a slow resolver decide these verdicts.
+    """
 
     async def ok_probe() -> tuple[CheckStatus, float | None, str]:
         return CheckStatus.OK, None, ""
@@ -48,6 +137,7 @@ def healthy_probes(monkeypatch: pytest.MonkeyPatch) -> None:
         "_probe_redis",
         "_probe_circuit_breakers",
         "_probe_scheduler_tick",
+        "_probe_platform_egress",
     ):
         monkeypatch.setattr(engine_module, probe_name, ok_probe)
 
@@ -177,12 +267,16 @@ class TestProbeCoverageIsAsserted:
 
 @pytest.mark.unit
 class TestPlatformEgressProbe:
-    """The check the 2026-08-28 outage asked for.
+    """The check the 2026-08-28 outage asked for, taught to tell a hiccup from a cut.
 
     ``net.ipv4.ip_forward`` fell to 0 on the host and every container lost
     outbound routing. The platform could only describe the CONSEQUENCE — 100 %
-    LLM failures, two open circuit breakers — never the cause. One bounded TCP
-    connect per tick names it.
+    LLM failures, two open circuit breakers — never the cause. The probe names
+    it, and since ADR-361 it names WHICH step failed and confirms a loss over
+    paced attempts: measured on production, Docker's resolver needs 4 s to fail
+    over to its next DNS server, so one datagram lost twice used to consume the
+    whole single attempt and page the administrator for a platform that was
+    never cut off.
     """
 
     async def test_absent_when_no_target_is_configured(
@@ -201,49 +295,157 @@ class TestPlatformEgressProbe:
 
         assert "platform_egress" not in {result.check_id for result in snapshot.results}
 
-    async def test_present_and_ok_when_the_target_accepts(
+    async def test_present_when_a_target_is_configured(
         self, monkeypatch: pytest.MonkeyPatch, healthy_probes: None
     ) -> None:
-        """Measured against a real listener — no mock of the boundary under test."""
-        import asyncio
-
+        """Configured, the check runs on every tick: the gate decides, not the probe."""
         from src.core.config import settings
 
-        server = await asyncio.start_server(lambda _r, w: w.close(), "127.0.0.1", 0)
-        port = server.sockets[0].getsockname()[1]
-        try:
-            monkeypatch.setattr(
-                settings, "diagnostics_egress_probe_target", f"127.0.0.1:{port}", raising=False
-            )
-            snapshot = await run_self_check(prom_client=_FakePromClient(value=0.0))
-            status, value, detail = await engine_module._probe_platform_egress()
-        finally:
-            server.close()
-            await server.wait_closed()
+        monkeypatch.setattr(settings, "diagnostics_egress_probe_target", "egress.test:443")
+
+        snapshot = await run_self_check(prom_client=_FakePromClient(value=0.0))
 
         assert "platform_egress" in {result.check_id for result in snapshot.results}
+
+    async def test_ok_through_the_real_resolver_and_a_real_listener(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """No double at all: the loop's own resolver, a real socket, a literal target."""
+        async with _listener() as port:
+            target = f"127.0.0.1:{port}"
+            _configure_egress(monkeypatch, target=target, timeout=10.0)
+            status, value, detail = await engine_module._probe_platform_egress()
+
         assert status is CheckStatus.OK
-        assert detail == f"127.0.0.1:{port}"
+        assert detail == target
         assert value is not None and value >= 0.0
+
+    async def test_one_prompt_attempt_is_ok_and_ends_the_probe(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A clean first attempt is the healthy case: OK, the target as detail, no retry."""
+        resolver = _ScriptedResolver("127.0.0.1")
+        async with _listener() as port:
+            target = f"egress.test:{port}"
+            _configure_egress(monkeypatch, target=target, timeout=10.0)
+            resolver.install(monkeypatch)
+            status, value, detail = await engine_module._probe_platform_egress()
+
+        assert status is CheckStatus.OK
+        assert detail == target
+        assert value is not None
+        assert len(resolver.calls) == 1
+
+    async def test_a_resolver_that_never_answers_is_named_as_a_resolution_timeout(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Every query lost upstream: the connection itself was never attempted.
+
+        Measured 2026-10-20: the incident read « api.openai.com:443 unreachable
+        (TimeoutError) » and pointed at the provider while Docker's resolver was
+        still failing over between DNS servers.
+        """
+        resolver = _ScriptedResolver(None)
+        _configure_egress(monkeypatch, target="egress.test:443", timeout=0.05, attempts=2)
+        resolver.install(monkeypatch)
+
+        status, value, detail = await engine_module._probe_platform_egress()
+
+        assert status is CheckStatus.CRITICAL
+        assert value is None
+        assert "egress.test:443" in detail
+        assert "name resolution timed out" in detail
+        assert len(resolver.calls) == 2
+
+    async def test_a_resolution_error_is_named_by_its_class_never_its_message(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """An error message can carry hosts; the class name is the bounded fact."""
+        resolver = _ScriptedResolver(socket.gaierror(-3, "Temporary failure resolving a host"))
+        _configure_egress(monkeypatch, target="egress.test:443", timeout=0.05, attempts=1)
+        resolver.install(monkeypatch)
+
+        status, _value, detail = await engine_module._probe_platform_egress()
+
+        assert status is CheckStatus.CRITICAL
+        assert "name resolution failed (gaierror)" in detail
+        assert "Temporary failure" not in detail
+
+    async def test_a_connection_that_never_completes_is_named_as_a_connect_timeout(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The 2026-08-28 shape: the name resolves, the packets never leave."""
+
+        async def _never_connects(*_args: object, **_kwargs: object) -> tuple[object, object]:
+            await asyncio.sleep(3600)
+            raise AssertionError("never reached")
+
+        _configure_egress(monkeypatch, target="egress.test:443", timeout=0.05, attempts=1)
+        _ScriptedResolver("192.0.2.1").install(monkeypatch)
+        monkeypatch.setattr(asyncio, "open_connection", _never_connects)
+
+        status, _value, detail = await engine_module._probe_platform_egress()
+
+        assert status is CheckStatus.CRITICAL
+        assert "connect timed out" in detail
 
     async def test_critical_when_the_target_never_answers(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """TEST-NET-1 (RFC 5737) is routable nowhere: timeout or unreachable."""
-        from src.core.config import settings
-
-        monkeypatch.setattr(
-            settings, "diagnostics_egress_probe_target", "192.0.2.1:443", raising=False
-        )
-        monkeypatch.setattr(
-            settings, "diagnostics_egress_probe_timeout_seconds", 0.2, raising=False
-        )
+        """TEST-NET-1 (RFC 5737) is routable nowhere: a real connect times out or is refused."""
+        _configure_egress(monkeypatch, target="192.0.2.1:443", timeout=0.2, attempts=1)
 
         status, value, detail = await engine_module._probe_platform_egress()
 
         assert status is CheckStatus.CRITICAL
         assert value is None
         assert "192.0.2.1:443" in detail
+        assert "connect" in detail, "a literal resolves locally: the connect is what failed"
+
+    async def test_a_loss_shorter_than_the_attempts_is_degraded_not_critical(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """One query lost, the next one answered: the platform reached out, not cleanly."""
+        resolver = _ScriptedResolver(None, "127.0.0.1")
+        async with _listener() as port:
+            _configure_egress(monkeypatch, target=f"egress.test:{port}", timeout=0.5, attempts=3)
+            resolver.install(monkeypatch)
+            status, value, detail = await engine_module._probe_platform_egress()
+
+        assert status is CheckStatus.DEGRADED
+        assert value is not None
+        assert "name resolution timed out" in detail
+        assert len(resolver.calls) == 2, "a success must end the attempts"
+
+    async def test_a_slow_success_is_degraded(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A resolver failover answered in 4 s used to read OK beside a 14 ms normal."""
+        resolver = _ScriptedResolver("127.0.0.1", delay=0.1)
+        async with _listener() as port:
+            _configure_egress(monkeypatch, target=f"egress.test:{port}", timeout=5.0, slow=0.05)
+            resolver.install(monkeypatch)
+            status, value, detail = await engine_module._probe_platform_egress()
+
+        assert status is CheckStatus.DEGRADED
+        assert value is not None and value >= 100.0
+        assert "slow" in detail and "name resolution" in detail
+        assert len(resolver.calls) == 1
+
+    async def test_failed_attempts_are_paced_one_per_budget_and_capped(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A fast failure waits out its slot, so the attempts cover a real window."""
+        resolver = _ScriptedResolver(socket.gaierror(-3, "lookup failed"))
+        _configure_egress(monkeypatch, target="egress.test:443", timeout=0.1, attempts=3)
+        resolver.install(monkeypatch)
+
+        status, _value, detail = await engine_module._probe_platform_egress()
+
+        assert status is CheckStatus.CRITICAL
+        assert len(resolver.calls) == 3
+        instants = [instant for _host, _port, instant in resolver.calls]
+        gaps = [later - earlier for earlier, later in itertools.pairwise(instants)]
+        assert all(gap >= 0.09 for gap in gaps), gaps
+        assert "after 3 attempts" in detail
 
     @pytest.mark.parametrize(
         "target",
@@ -273,9 +475,6 @@ class TestPlatformEgressProbe:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """A shown number is the measured number: connect time, not connect+close."""
-        import asyncio
-
-        from src.core.config import settings
 
         class _SlowClosingWriter:
             def close(self) -> None:
@@ -287,9 +486,8 @@ class TestPlatformEgressProbe:
         async def _instant_connect(*_args: object, **_kwargs: object) -> tuple[object, object]:
             return object(), _SlowClosingWriter()
 
-        monkeypatch.setattr(
-            settings, "diagnostics_egress_probe_target", "example.test:443", raising=False
-        )
+        _configure_egress(monkeypatch, target="example.test:443", timeout=10.0)
+        _ScriptedResolver("192.0.2.10").install(monkeypatch)
         monkeypatch.setattr(asyncio, "open_connection", _instant_connect)
 
         status, value, _detail = await engine_module._probe_platform_egress()
@@ -299,19 +497,13 @@ class TestPlatformEgressProbe:
 
     async def test_an_ipv6_literal_is_understood(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """`[::1]:port` is the standard spelling; getaddrinfo refuses the brackets."""
-        import asyncio
-
-        from src.core.config import settings
-
         try:
             server = await asyncio.start_server(lambda _r, w: w.close(), "::1", 0)
         except OSError:  # pragma: no cover - host without IPv6 loopback
             pytest.skip("no IPv6 loopback on this host")
         port = server.sockets[0].getsockname()[1]
         try:
-            monkeypatch.setattr(
-                settings, "diagnostics_egress_probe_target", f"[::1]:{port}", raising=False
-            )
+            _configure_egress(monkeypatch, target=f"[::1]:{port}", timeout=10.0)
             status, _value, detail = await engine_module._probe_platform_egress()
         finally:
             server.close()
@@ -366,12 +558,6 @@ class TestIpv6BracketStripping:
         expected_host: str,
         expected_port: int,
     ) -> None:
-        import asyncio
-
-        from src.core.config import settings
-
-        seen: dict[str, object] = {}
-
         class _Writer:
             def close(self) -> None:
                 return None
@@ -379,14 +565,17 @@ class TestIpv6BracketStripping:
             async def wait_closed(self) -> None:
                 return None
 
-        async def _capture(host: str, port: int, **_kwargs: object) -> tuple[object, object]:
-            seen["host"], seen["port"] = host, port
+        async def _instant_connect(*_args: object, **_kwargs: object) -> tuple[object, object]:
             return object(), _Writer()
 
-        monkeypatch.setattr(settings, "diagnostics_egress_probe_target", target, raising=False)
-        monkeypatch.setattr(asyncio, "open_connection", _capture)
+        resolver = _ScriptedResolver("127.0.0.1")
+        _configure_egress(monkeypatch, target=target, timeout=10.0)
+        resolver.install(monkeypatch)
+        monkeypatch.setattr(asyncio, "open_connection", _instant_connect)
 
         status, _value, _detail = await engine_module._probe_platform_egress()
 
         assert status is CheckStatus.OK
-        assert seen == {"host": expected_host, "port": expected_port}
+        assert [(host, port) for host, port, _instant in resolver.calls] == [
+            (expected_host, expected_port)
+        ]

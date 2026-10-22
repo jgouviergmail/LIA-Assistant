@@ -1,7 +1,7 @@
 {
-  "version": "3.3.0",
-  "releaseDate": "2026-10-19",
-  "releases": 284,
+  "version": "3.4.0",
+  "releaseDate": "2026-10-22",
+  "releases": 285,
   "milestones": [
     {
       "version": "1.0.0",
@@ -238,10 +238,14 @@
     {
       "version": "3.3.0",
       "date": "2026-10-19"
+    },
+    {
+      "version": "3.4.0",
+      "date": "2026-10-22"
     }
   ],
-  "domains": 57,
-  "infra": 53,
+  "domains": 58,
+  "infra": 54,
   "adrFiles": {
     "1": "ADR-001-LangGraph-Orchestration.md",
     "2": "ADR-002-BFF-Pattern-Authentication.md",
@@ -593,6 +597,14 @@
     "350": "ADR-350-Peer-Capability-Copies-Without-Credentials.md",
     "351": "ADR-351-Advisory-Source-Annotations-Shared-With-The-Answer.md",
     "352": "ADR-352-Position-Before-Places-In-Every-Display-Mode.md",
-    "357": "ADR-357-Phone-Ingestion-And-Personal-SMS-Archive.md"
+    "353": "ADR-353-API-HTTP-Scan-Bans-In-Shared-Redis.md",
+    "354": "ADR-354-Canonical-Client-IP-In-Every-HTTP-429.md",
+    "355": "ADR-355-Acquired-Place-Details-And-Accounted-Selected-Routes.md",
+    "356": "ADR-356-Responsive-Position-Details-And-Shared-Place-Numbers.md",
+    "357": "ADR-357-Phone-Ingestion-And-Personal-SMS-Archive.md",
+    "358": "ADR-358-Independent-Proactive-Discussions-And-Native-Delivery.md",
+    "359": "ADR-359-Longitudinal-Discussion-Context-And-User-Control.md",
+    "360": "ADR-360-Bounded-Discussion-Research-And-Accounted-Abstention.md",
+    "361": "ADR-361-Egress-Probe-Names-The-Failing-Step-And-Confirms-A-Cut.md"
   }
 }

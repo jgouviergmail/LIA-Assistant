@@ -120,7 +120,7 @@ class LLMConfigOverrideCache:
 
     @classmethod
     async def _refresh_ollama_capabilities(cls) -> None:
-        """Publish the Ollama server's models to the capabilities cache, if configured.
+        """Refresh Ollama capabilities when an effective slot uses its server.
 
         Runs when the ADDRESS changed, never on every config reload: this is
         network I/O on a path an admin triggers by saving ANY slot. An address
@@ -133,10 +133,26 @@ class LLMConfigOverrideCache:
 
         Never raises: an observability concern must not fail a config reload.
         """
+        from src.domains.llm_config.constants import LLM_DEFAULTS
         from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
         from src.infrastructure.llm.providers.ollama_urls import resolve_ollama_url
 
         url = resolve_ollama_url()
+        if not url:
+            # Explicit admin discovery may exist before any slot has used it.
+            # Removing its address always invalidates that layer.
+            if ModelCapabilitiesCache.has_discovered("ollama"):
+                ModelCapabilitiesCache.merge_discovered("ollama", {})
+            cls._ollama_refreshed_url = None
+            cls._ollama_refreshed_at = 0.0
+            return
+        if not any(
+            cls._overrides.get(slot, {}).get("provider", default.provider) == "ollama"
+            for slot, default in LLM_DEFAULTS.items()
+        ):
+            # A saved address alone must not make every worker wait for an
+            # unused server. Explicit admin model discovery remains available.
+            return
         now = time.monotonic()
         if url == cls._ollama_refreshed_url and (
             ModelCapabilitiesCache.has_discovered("ollama")
@@ -145,11 +161,6 @@ class LLMConfigOverrideCache:
             return
         cls._ollama_refreshed_url = url
         cls._ollama_refreshed_at = now
-        if not url:
-            # Ollama was removed: drop what its server had declared, so no tag
-            # keeps a profile the runtime would still believe.
-            ModelCapabilitiesCache.merge_discovered("ollama", {})
-            return
         try:
             from src.infrastructure.llm.providers.ollama_discovery import (
                 refresh_ollama_capabilities,

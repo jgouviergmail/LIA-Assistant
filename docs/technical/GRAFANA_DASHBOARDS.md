@@ -2,7 +2,7 @@
 
 **Document de reference technique - Observabilite Production avec Grafana**
 
-> **Version 4.9** | 2026-10-03 (panel counts re-measured 2026-10-17) | 31 dashboards, 841 panels (rows excluded)
+> **Version 5.0** | 2026-10-22 (panel counts re-measured 2026-10-22) | 32 dashboards, 847 panels (rows excluded)
 
 ---
 
@@ -23,7 +23,7 @@
 
 ### Objectifs
 
-Les **31 dashboards Grafana** fournissent une observabilite complete pour :
+Les **32 dashboards Grafana** fournissent une observabilite complete pour :
 
 1. **Monitoring production** : Sante applicative, SLOs, performance HTTP, ressources infrastructure
 2. **Agent debugging** : Pipeline d'orchestration LangGraph, router, planner, outils, HITL
@@ -137,7 +137,7 @@ Dans le fichier de provisioning, un `$` litteral s'ecrit `$$` (sinon `$__tags` e
 | 01 | Application Overview | `01-app-overview` | lia, overview, health || 24 | Sante globale, performance requetes, pipeline agent, infra, resume couts LLM |
 | 02 | SLO Tracking | `02-slo-tracking` | lia, slo, reliability || 17 | SLOs API, SLOs agents, SLOs providers LLM, SLOs DB et business |
 | 03 | Infrastructure & Resources | `03-infra-resources` | lia, infra, docker, raspberry-pi || 26 | Systeme hote (RPi), ressources conteneurs, PostgreSQL, Redis |
-| 04 | HTTP & API Performance | `04-http-api` | lia, http, api, latency || 17 | Trafic, latence, erreurs, rate limiting |
+| 04 | HTTP & API Performance | `04-http-api` | lia, http, api, latency || 20 | Trafic, latence, erreurs, rate limiting, bannissements anti-scan partagés (ADR-353) |
 | 05 | LLM Tokens & Cost | `05-llm-tokens-cost` | lia, llm, tokens, cost || 62 | Headlines couts, ventilation, consommation tokens, efficacite, suivi par utilisateur (Loki), performance API LLM, cache LLM et economies, pricing, metriques cumulees, embeddings (issues, regulateur, refus fournisseur par raison), completude comptable des familles payees par la plateforme (appels Google Maps non comptabilises, attendu 0) |
 | 06 | Logs, Traces & Correlations | `06-logs-traces` | lia, logs, traces, debug || 17 | Logs, traces, correlation metrique-log, vue correlee, jobs background, recherche |
 | 07 | Agent Orchestration Pipeline | `07-agents-pipeline` | lia, agents, langgraph, orchestration || 66 | Router, planner et orchestrateur, execution nodes agent, execution outils, contexte et etat, SSE streaming, background runs (ADR-117), couche semantique (ADR-120/121), echecs d'outils RETOURNES par outil (ADR-303), pipeline step failures by typed code (ADR-346), tool results reaching the answer — corrected failure verdicts and data blocks not read whole (ADR-347) |
@@ -146,7 +146,7 @@ Dans le fichier de provisioning, un `$` litteral s'ecrit `$$` (sinon `$__tags` e
 | 10 | OAuth, Connectors & MCP | `10-oauth-connectors-mcp` | lia, oauth, connectors, mcp || 50 | Flux OAuth, performance OAuth, sante connecteurs, APIs Google, serveurs MCP, formes de requetes contacts/email |
 | 11 | Voice & WebSocket | `11-voice-websocket` | lia, voice, tts, stt, websocket || 25 | TTS (including socket sessions answered over HTTP, ADR-345), streaming audio, STT, WebSocket |
 | 12 | Channels / Telegram | `12-channels` | lia, channels, telegram || 13 | Flux messages, bindings et securite, fonctionnalites canal |
-| 13 | Proactive & Heartbeat | `13-proactive-heartbeat` | lia, proactive, heartbeat || 38 | Vue d'ensemble taches, notifications et couts, eligibilite et feedback, presence en lecture et reveils push (ADR-214/261), moments anticipes (ADR-281), ce que le job nocturne des habitudes a appris (ADR-214 c), reveils push mis en file ET servis (ADR-304) |
+| 13 | Proactive & Heartbeat | `13-proactive-heartbeat` | lia, proactive, heartbeat || 39 | Vue d'ensemble taches, notifications et couts, eligibilite et feedback, presence en lecture et reveils push (ADR-214/261), moments anticipes (ADR-281), ce que le job nocturne des habitudes a appris (ADR-214 c), reveils push mis en file ET servis (ADR-304) |
 | 14 | Data Registry & Checkpoints | `14-registry-checkpoints` | lia, registry, checkpoints || 26 | Data registry, moteur de requetes, checkpoints LangGraph, recherche hybride, sante repository |
 | 15 | LangGraph Framework Deep Dive | `15-langgraph-deep` | lia, langgraph, framework || 35 | Execution graphe, gestion d'etat, latence par etage (TTFT), integration Langfuse (repliee, requiert LANGFUSE_ENABLED) |
 | 16 | Recording Rules & Alerts Health | `16-meta-health` | lia, meta, operational || 40 | Sante des recording rules, sante des alertes, validation et securite, integrite du registre d'outils, auto-diagnostic (verdicts, incidents, duree du tick, cout LLM, sources de preuves lues), pipeline d'observabilite (Alloy, Loki, Tempo, Prometheus) |
@@ -165,13 +165,14 @@ Dans le fichier de provisioning, un `$` litteral s'ecrit `$$` (sinon `$__tags` e
 | 29 | Workboard | `29-workboard` | lia, workboard, adr-276 | 13 | Ce que LIA fait du tableau (tickets aboutis, rendus, echecs, runs ecartes faute de quota ou conversation occupee, duree et issues des runs), notifications du tableau dans le chat, poids des transcriptions cachees (ADR-276) |
 | 30 | Live | `30-live` | lia, live, voice | 16 | Sessions Live par issue, sessions actives, cles frappees et refusees, duree des sessions, echanges vocaux archives, prolongations, echantillons de voix, echanges d'offre WebRTC, consultations et relais des sessions directes (ADR-299, ADR-300, ADR-301) |
 | 31 | Radio | `31-radio` | lia, radio, voice | 18 | Radio personnelle : departs et refus par code, fins de session par raison, segments par format et par issue, dialogue takes by outcome (ADR-345), livraison que la voix n'a pas pu rendre par dimension (decision 45), duree de production (p50/p95), boucles cassees, redaction (tics par issue, age du dernier tic, flux lus, sujets classes et purges, textes integraux), recherches de sites, audio orphelin balaye (ADR-324) |
+| — | Phone ingestion - SMS | `phone-ingestion-sms` | lia, ingestion, sms | 2 | Issues de livraison validées par destination et ancienneté du dernier balayage terminé de la file d'envoi du téléphone (ADR-357) |
 
 ---
 
 ## Lecture par tiers (audience)
 
 Le catalogue ci-dessus est ordonne par numero ; celui-ci l'est par **qui ouvre
-quoi**. Les deux vues portent sur les memes 31 dashboards — elles vivent dans ce
+quoi**. Les deux vues portent sur les memes 32 dashboards — elles vivent dans ce
 document, et non dans un second fichier, parce que la version enveloppe qui les
 separait a derive quatre fois du catalogue qu'elle resumait (elle annoncait
 encore 25 dashboards apres l'ajout du 26).
@@ -180,7 +181,7 @@ encore 25 dashboards apres l'ajout du 26).
 |------|----------|------------|----------|
 | 1 — Vue d'ensemble | Tous | 01, 02 | Sante globale, SLOs, budget d'erreurs |
 | 2 — Plateforme | Ops / Dev | 03, 04, 05, 06 | Infra, HTTP, couts LLM, logs/traces |
-| 3 — Fonctionnalites | Feature Dev | 07-13, 18-25, 27, 29-31 | Agents, HITL, conversations, OAuth/MCP, voix, canaux, proactif, RAG, sub-agents, ReAct/browser, sante, compaction, journaux, telephonie, briefing, reunions, tableau de tickets, mode Live, radio |
+| 3 — Fonctionnalites | Feature Dev | 07-13, 18-25, 27, 29-31, SMS | Agents, HITL, conversations, OAuth/MCP, voix, canaux, proactif, RAG, sub-agents, ReAct/browser, sante, compaction, journaux, telephonie, briefing, reunions, tableau de tickets, mode Live, radio |
 | 4 — Avance | SRE | 14, 15, 16, 28 | Registry/checkpoints, LangGraph deep (latence par etage TTFT), sante des recording rules et du registre d'outils, registres de transparence et scellement |
 | 5 — Analytics / Produit | Product | 17, 26 | Engagement et geolocalisation ; cockpit produit ADR-178 (North Star, activation, retention) |
 
@@ -206,11 +207,13 @@ Metriques systeme orientees Raspberry Pi (ARM64) : charge CPU hote, memoire, esp
 
 > **Memoire par worker API (ADR-283)** : dans la ligne « Container Resources », deux panneaux lisent ce que chaque processus worker tient — `lia_worker_memory_bytes{kind="anon"}` (le tas, une serie par worker vivant, lue par le worker dans son propre `/proc/self/status`) et `voice_stt_recognizers_loaded` (les modeles whisper residents, ~0,8 Go chacun). cAdvisor ne voit que le conteneur ; c'est ici qu'on lit QUEL worker a charge quoi. L'alerte `ApiWorkerMemoryHigh` porte sur la premiere.
 
-### 04 - HTTP & API Performance (17 panels)
+### 04 - HTTP & API Performance (20 panels)
 
 Trafic HTTP detaille : requetes/s par endpoint, distribution latence (p50/p95/p99), taux d'erreur par code HTTP, metriques de rate limiting. Complement du dashboard 01 pour le diagnostic precis des problemes de performance API.
 
 > **Labels `endpoint` bornes (v1.21.1)** : les labels des metriques HTTP (`http_requests_total`, `http_request_duration_seconds`) utilisent desormais le **template de route** matche (`/api/v1/journals/{entry_id}`) et non plus le chemin brut avec UUID ; les requetes non routees (404, scans de bots) sont regroupees sous `unmatched`, et la gauge `http_requests_in_progress`, etiquetee avant le routage, prend le template que le routage choisira (la regle et les expressions de FastAPI, `unmatched` sinon) : son ancien repli `{id}` laissait passer les noms (`/relations/{name}`) et chaque chemin de scan (revue du lot 9, 2026-10-02). Cardinalite bornee par construction. **Toute requete Grafana qui filtrait sur des chemins exacts contenant des identifiants doit etre adaptee aux templates.**
+
+> **Bannissements anti-scan (ADR-353)** : trois panneaux en fin de tableau lisent les nouveaux bannissements par raison (`http_scan_bans_total{reason}`), les requêtes refusées pendant un bannissement (`http_scan_blocked_total`) et les gardes HTTP qui laissent passer faute de Redis (`http_scan_degraded_total{operation}`, `http_rate_limit_degraded_total`) — une panne du cache se voit, elle ne bloque personne.
 
 ### 05 - LLM Tokens & Cost (62 panels)
 
@@ -252,9 +255,9 @@ TTS : requetes et latence p95 par voix, taux et types d'erreurs, et les sessions
 
 Flux de messages Telegram (entrants/sortants, types), bindings utilisateur-canal (OTP, etat), securite (rate limiting, tentatives invalides), fonctionnalites canal (voix, HITL clavier, formatage).
 
-### 13 - Proactive & Heartbeat (38 panels)
+### 13 - Proactive & Heartbeat (39 panels)
 
-Taches proactives (selections, generations, envois), notifications heartbeat (volume, cout LLM de la decision + redaction), eligibilite (fenetres horaires, quotas, cooldowns, dedup), feedback utilisateur. Sections repliees : presence en lecture et reveils push (ADR-214/261) ; moments anticipes (ADR-281) ; **ce que le job nocturne des habitudes a appris** (ADR-214 c) — utilisateurs profiles, duree p95 du job, fenetres rejetees par raison, lignes miroir et habitudes recurrentes synchronisees par action (`user_habits_synced_total`, `recurring_habits_synced_total`), blocs ambiants, ticks ecartes et echappees du rythme par balayage et par raison (`heartbeat_ticks_deferred_total{task_type, reason}`, `heartbeat_rhythm_escapes_total{task_type, reason}`), offres de routine declarees ou seulement etiquetees (`heartbeat_habit_offers_total{outcome}`) — tous avec `or vector(0)`, un compteur qui n'a jamais tire n'expose aucune serie. Les reveils push MIS EN FILE (`push_wakes_enqueued_total{provider}`) sont traces a cote de ceux SERVIS (`push_wakes_total`) : des reveils en file et aucun servi sur la fenetre `ALERT_CORE_PUSH_WAKE_STALL_WINDOW` declenchent l'alerte noyau `PushWakeSweepStalled` (ADR-304, runbook dedie).
+Taches proactives (selections, generations, envois), notifications heartbeat (volume, cout LLM de la decision + redaction), eligibilite (fenetres horaires, quotas, cooldowns, dedup), feedback utilisateur. Sections repliees : presence en lecture et reveils push (ADR-214/261) ; moments anticipes (ADR-281) ; **ce que le job nocturne des habitudes a appris** (ADR-214 c) — utilisateurs profiles, duree p95 du job, fenetres rejetees par raison, lignes miroir et habitudes recurrentes synchronisees par action (`user_habits_synced_total`, `recurring_habits_synced_total`), blocs ambiants, ticks ecartes et echappees du rythme par balayage et par raison (`heartbeat_ticks_deferred_total{task_type, reason}`, `heartbeat_rhythm_escapes_total{task_type, reason}`), offres de routine declarees ou seulement etiquetees (`heartbeat_habit_offers_total{outcome}`) — tous avec `or vector(0)`, un compteur qui n'a jamais tire n'expose aucune serie. Les reveils push MIS EN FILE (`push_wakes_enqueued_total{provider}`) sont traces a cote de ceux SERVIS (`push_wakes_total`) : des reveils en file et aucun servi sur la fenetre `ALERT_CORE_PUSH_WAKE_STALL_WINDOW` declenchent l'alerte noyau `PushWakeSweepStalled` (ADR-304, runbook dedie). Un dernier panneau compte les passages des **discussions proactives** par issue sur 24 h (ADR-358).
 
 ### 14 - Data Registry & Checkpoints (26 panels)
 
@@ -347,6 +350,12 @@ Le mode Live (ADR-299, ADR-300, ADR-301) : sessions terminees par issue, session
 ### 31 - Radio (18 panels)
 
 La radio personnelle (ADR-324), en trois lignes. **Sessions** : departs qui ont pris leur place et departs refuses par code (`radio_session_starts_total{outcome}` — `radio_instance_full`, `radio_no_voice`, `radio_voice_unavailable`), fins de session par raison (`radio_sessions_ended_total{reason}` : un worker qui s'arrete ne termine rien), boucles cassees par un defaut (`radio_loop_failures_total`, attendu 0). **Production** : segments par issue et par format (`radio_segments_total{format, outcome}` — `produced`, `nothing_to_say`, les refus du redacteur et du verificateur, `voice_failed`, `mix_failed`, `error`) et duree de production d'un segment diffuse (p50/p95, `radio_segment_production_seconds`) : un p95 tres au-dessus des reglages `RADIO_STAGE_*` veut dire qu'un auditeur attend. Prises de dialogue par issue (`radio_dialogue_takes_total{outcome}` — `voiced`, `unplaced`, `failed`, ADR-345) : une prise que le flux horodate n'a pas su placer, ou qui a echoue, est redite ligne par ligne. Livraison que la voix n'a pas pu rendre, par dimension (`radio_delivery_unrendered_total{dimension}` — `energy`, `pace`, `tone`, `reaction`, ADR-324 decision 45) : un compteur regulier nomme ce que le moteur configure ne sait pas faire (Edge n'a pas de ton, OpenAI qu'une vitesse, ElevenLabs pas de rythme), pas une panne ; une reaction n'est proposee qu'a une voix qui la joue. **Redaction** : tics par issue (`completed`, `cut`, `failed`, `off`), age du dernier tic mene a son terme (`radio_newsroom_last_run_timestamp_seconds`, que lit l'alerte noyau `RadioNewsroomStalled`), flux lus ou en echec, sujets classes et purges, textes integraux, recherches de sites par issue, repertoires audio orphelins balayes (attendu 0). Tous les compteurs lisent `or vector(0)` : un compteur qui n'a jamais tire n'expose aucune serie.
+
+**Datasource** : Prometheus.
+
+### Phone ingestion - SMS (2 panels)
+
+La file d'envoi de l'ingestion téléphone (ADR-357) : issues de livraison validées par destination (`ingestion_delivery_outcomes_total{destination, outcome}`) et secondes écoulées depuis le dernier balayage mené à son terme (`time() - max(ingestion_delivery_sweep_timestamp_seconds)`). Un âge qui grandit sans retomber dit que les notifications de SMS ne partent plus, avant qu'une personne ne s'en aperçoive.
 
 **Datasource** : Prometheus.
 
@@ -558,7 +567,7 @@ docker compose restart grafana
 
 ---
 
-**Version** : 4.9
-**Date** : 2026-10-03
+**Version** : 5.0
+**Date** : 2026-10-22
 **Auteur** : Equipe LIA
-**Statut** : Production (31 dashboards ; panels comptés dans l'en-tête)
+**Statut** : Production (32 dashboards ; panels comptés dans l'en-tête)

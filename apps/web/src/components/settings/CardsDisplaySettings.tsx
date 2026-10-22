@@ -90,7 +90,7 @@ function DisplaySettingsContent({
                   'aria-disabled:cursor-not-allowed',
                   currentMode === value
                     ? 'border-primary/40 bg-primary/10 text-foreground'
-                    : 'border-border/60 bg-background hover:border-primary/40 hover:bg-primary/5'
+                    : 'border-border bg-background hover:border-primary/40 hover:bg-primary/5'
                 )}
               >
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/8 text-primary">
@@ -116,7 +116,7 @@ function DisplaySettingsContent({
           </fieldset>
           <section
             aria-label={t('settings.preferences.display_mode.preview.title')}
-            className="min-w-0 space-y-4 rounded-2xl border border-border/60 bg-background p-4 sm:p-5"
+            className="min-w-0 space-y-4 rounded-2xl border border-border bg-background p-4 sm:p-5"
           >
             <p className="break-words text-sm leading-relaxed text-muted-foreground">
               {t(`settings.preferences.display_mode.modes.${currentMode}.description`)}

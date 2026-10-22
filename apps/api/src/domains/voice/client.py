@@ -216,7 +216,14 @@ class EdgeTTSClient:
             raise TTSProviderError(
                 code=code,
                 message=f"Edge TTS failure: {e}",
-                details={"exception_type": type(e).__name__},
+                details={
+                    "exception_type": type(e).__name__,
+                    "status_code": (
+                        e.status
+                        if isinstance(e, aiohttp.ClientResponseError) and e.status
+                        else None
+                    ),
+                },
             ) from e
 
     async def close(self) -> None:

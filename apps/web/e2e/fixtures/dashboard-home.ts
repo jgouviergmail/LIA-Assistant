@@ -66,7 +66,7 @@ export function homeItemName(section: keyof typeof HOME_CAPS, index: number): st
 
 /** Aggregate sets are exact counts; their two received titles are only previews. */
 export const HOME_WORKBOARD_GROUPS = [
-  { key: 'needs_me', labelKey: 'settings.workboard.tile_needs_me', count: 9 },
+  { key: 'held_by_me', labelKey: 'settings.workboard.tile_mine', count: 9 },
   { key: 'held_by_lia', labelKey: 'settings.workboard.tile_lia', count: 4 },
   {
     key: 'held_by_peers',
@@ -246,7 +246,8 @@ export function homeBriefing(): BriefingResponse {
         })),
       }),
       workboard: section({
-        needs_me: 9,
+        needs_me: 11,
+        held_by_me: 9,
         held_by_lia: 4,
         held_by_peers: 7,
         overdue: 3,
@@ -259,7 +260,9 @@ export function homeBriefing(): BriefingResponse {
           overdue: false,
         })),
         previews: {
-          needs_me: workboardPreview('needs_me'),
+          // Sent for the hub; the card shows no « needs me » set.
+          needs_me: [],
+          held_by_me: workboardPreview('held_by_me'),
           held_by_lia: workboardPreview('held_by_lia'),
           held_by_peers: workboardPreview('held_by_peers'),
           overdue: workboardPreview('overdue'),

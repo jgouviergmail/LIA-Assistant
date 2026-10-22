@@ -67,14 +67,12 @@ describe('ChannelSettings — unbound', () => {
   it('removes an already displayed OTP when the account changes', async () => {
     useChannelBindings.mockReturnValue(
       hook({
-        generateOtp: vi
-          .fn()
-          .mockResolvedValue({
-            code: '123456',
-            expires_in_seconds: 300,
-            bot_username: 'LIABot',
-            channel_type: 'telegram',
-          }),
+        generateOtp: vi.fn().mockResolvedValue({
+          code: '123456',
+          expires_in_seconds: 300,
+          bot_username: 'LIABot',
+          channel_type: 'telegram',
+        }),
       })
     );
     const { user, rerender } = renderChannels();

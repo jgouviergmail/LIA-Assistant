@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
 from src.domains.reminders.models import Reminder, ReminderStatus
+from src.domains.reminders.queries import pending_reminders
 
 logger = structlog.get_logger(__name__)
 
@@ -57,9 +58,7 @@ class ReminderRepository(BaseRepository[Reminder]):
             The page, soonest first.
         """
         stmt = (
-            select(Reminder)
-            .where(Reminder.user_id == user_id)
-            .where(Reminder.status == ReminderStatus.PENDING.value)
+            pending_reminders(user_id)
             .order_by(Reminder.trigger_at.asc(), Reminder.id.asc())
             .limit(limit)
             .offset(offset)
@@ -73,12 +72,7 @@ class ReminderRepository(BaseRepository[Reminder]):
         """Owned pending rows in stable id order, with one look-ahead row."""
         if not 1 <= limit <= 50:
             raise ValueError("Invalid reminder page limit")
-        statement = (
-            select(Reminder)
-            .where(Reminder.user_id == user_id, Reminder.status == ReminderStatus.PENDING.value)
-            .order_by(Reminder.id.asc())
-            .limit(limit + 1)
-        )
+        statement = pending_reminders(user_id).order_by(Reminder.id.asc()).limit(limit + 1)
         if after_id is not None:
             statement = statement.where(Reminder.id > after_id)
         return list((await self.db.execute(statement)).scalars().all())
@@ -96,12 +90,7 @@ class ReminderRepository(BaseRepository[Reminder]):
         Returns:
             Exact number of pending reminders.
         """
-        stmt = (
-            select(func.count())
-            .select_from(Reminder)
-            .where(Reminder.user_id == user_id)
-            .where(Reminder.status == ReminderStatus.PENDING.value)
-        )
+        stmt = select(func.count()).select_from(pending_reminders(user_id).subquery())
         return int((await self.db.execute(stmt)).scalar() or 0)
 
     async def get_all_for_user(

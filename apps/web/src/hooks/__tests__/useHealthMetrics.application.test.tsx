@@ -54,14 +54,17 @@ describe('health management follows the active account', () => {
     expect(result.current.tokens).toEqual([]);
   });
 
-  it('hides old values while a confirmed erasure reread fails', async () => {
+  it('re-reads in place, and withdraws old values when the reread fails', async () => {
     const { result } = renderHook(() => useHealthMetrics());
     await waitFor(() => expect(result.current.aggregate?.averages.heart_rate_avg).toBe(80));
     get.mockRejectedValue(new Error('offline'));
     act(() => publishApplicationResources('one', new Set(['health_metrics'])));
-    expect(result.current.aggregate).toBeUndefined();
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.aggregate).toBeUndefined();
+    // In place while it re-reads: a refresh is never a visible reload (owner
+    // rule 2026-10-21) ...
+    expect(result.current.aggregate?.averages.heart_rate_avg).toBe(80);
+    // ... but a reread that failed cannot vouch for them: an erasure may be
+    // the very change it was reading.
+    await waitFor(() => expect(result.current.aggregate).toBeUndefined());
   });
 
   it('hides the previous owner while the new account reads remain pending', async () => {

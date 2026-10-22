@@ -12,6 +12,8 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
 }));
 vi.mock('@/lib/google-place-map', () => ({ loadPlaceMaps: vi.fn(), mountPlaceMap: vi.fn() }));
+const viewport = vi.hoisted(() => ({ narrow: false }));
+vi.mock('@/hooks/useMediaQuery', () => ({ useMediaQuery: () => viewport.narrow }));
 vi.mock('@/lib/route-map-metering', async original => ({
   ...(await original<typeof import('@/lib/route-map-metering')>()),
   reportRouteMapLoad: vi.fn(),
@@ -86,8 +88,21 @@ function viewTree(owner = 'a', content = html, config: AppConfig | null = seed) 
     </AuthContext.Provider>
   );
 }
-const controller = { select: vi.fn(), fit: vi.fn(), destroy: vi.fn() };
+const controller = {
+  select: vi.fn(),
+  fit: vi.fn(),
+  destroy: vi.fn(),
+  showDetails: vi.fn(
+    (_ref: string, content: HTMLElement, header?: HTMLElement, _onClose?: () => void) => {
+      document.body.append(content);
+      if (header) document.body.append(header);
+    }
+  ),
+  clearDetails: vi.fn(),
+  setRoute: vi.fn(),
+};
 beforeEach(() => {
+  viewport.narrow = false;
   vi.clearAllMocks();
   vi.mocked(loadPlaceMaps).mockResolvedValue({
     maps: {
@@ -97,7 +112,7 @@ beforeEach(() => {
       MapTypeControlStyle: { DROPDOWN_MENU: 1 },
       event: { clearInstanceListeners: vi.fn() },
     },
-    marker: { AdvancedMarkerElement: vi.fn() },
+    marker: { AdvancedMarkerElement: vi.fn(), PinElement: vi.fn() },
   });
   vi.mocked(mountPlaceMap).mockImplementation(
     (_maps, _marker, _element, _data, _id, _select, _failure, construct) => {
@@ -113,12 +128,120 @@ beforeEach(() => {
   });
 });
 describe('Position from sanitized archived HTML', () => {
+  it('uses a wide phone dialog, returns focus on dismissal and keeps the existing map', async () => {
+    viewport.narrow = true;
+    vi.mocked(apiClient.post).mockImplementation(async endpoint =>
+      endpoint === '/connectors/google-maps/place-route'
+        ? {
+            origin_source: 'home',
+            origin_as_of: null,
+            travel_mode: 'WALK',
+            polyline: '??_ibE_ibE',
+            distance_meters: 1200,
+            duration_seconds: 780,
+          }
+        : { api_key: 'public', map_id: 'configured', load_token: 'grant-one' }
+    );
+    const view = renderWithProviders(viewTree());
+    await view.user.click(
+      await screen.findByRole('button', { name: 'chat.position_map.activate' })
+    );
+    const choice = await screen.findByRole('button', { name: 'East' });
+    await view.user.click(choice);
+    const dialog = await screen.findByRole('dialog', { name: 'East' });
+    expect(within(dialog).getAllByRole('heading', { name: 'East' })).toHaveLength(1);
+    expect(within(dialog).getByRole('heading', { name: 'East' })).toHaveFocus();
+    expect(await within(dialog).findByText(/chat\.position_map\.route_from_home/)).toBeVisible();
+    expect(controller.showDetails).not.toHaveBeenCalled();
+    await view.user.click(within(dialog).getByRole('button', { name: 'common.close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'East' })).toBeNull());
+    expect(choice).toHaveFocus();
+    await view.user.click(choice);
+    expect(await screen.findByRole('dialog', { name: 'East' })).toBeVisible();
+    expect(
+      vi.mocked(apiClient.post).mock.calls.filter(([url]) => url.endsWith('/place-route'))
+    ).toHaveLength(1);
+    expect(mountPlaceMap).toHaveBeenCalledOnce();
+    expect(reportRouteMapLoad).toHaveBeenCalledOnce();
+  });
+
+  it('moves the same selected place between phone and desktop without another route request', async () => {
+    viewport.narrow = true;
+    const view = renderWithProviders(viewTree());
+    await view.user.click(
+      await screen.findByRole('button', { name: 'chat.position_map.activate' })
+    );
+    const choice = await screen.findByRole('button', { name: 'East' });
+    await view.user.click(choice);
+    expect(await screen.findByRole('dialog', { name: 'East' })).toBeVisible();
+    const requests = vi.mocked(apiClient.post).mock.calls.length;
+    viewport.narrow = false;
+    view.rerender(viewTree());
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'East' })).toBeNull());
+    expect(controller.showDetails).toHaveBeenCalledOnce();
+    screen.getByRole('button', { name: 'chat.position_map.route_refresh' }).focus();
+    viewport.narrow = true;
+    view.rerender(viewTree());
+    expect(await screen.findByRole('dialog', { name: 'East' })).toBeVisible();
+    expect(apiClient.post).toHaveBeenCalledTimes(requests);
+    expect(mountPlaceMap).toHaveBeenCalledOnce();
+    await view.user.click(screen.getByRole('button', { name: 'common.close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'East' })).toBeNull());
+    expect(choice).toHaveFocus();
+  });
+
+  it('does not reopen a natively dismissed desktop place when the viewport becomes a phone', async () => {
+    const view = renderWithProviders(viewTree());
+    await view.user.click(
+      await screen.findByRole('button', { name: 'chat.position_map.activate' })
+    );
+    await view.user.click(await screen.findByRole('button', { name: 'East' }));
+    expect(controller.showDetails).toHaveBeenCalledOnce();
+    act(() => controller.showDetails.mock.calls[0][3]?.());
+    viewport.narrow = true;
+    view.rerender(viewTree());
+    expect(screen.queryByRole('dialog', { name: 'East' })).toBeNull();
+  });
+
+  it('opens the selected place and draws its route on the already loaded map', async () => {
+    vi.mocked(apiClient.post).mockImplementation(async endpoint =>
+      endpoint === '/connectors/google-maps/place-route'
+        ? {
+            origin_source: 'home',
+            origin_as_of: null,
+            travel_mode: 'WALK',
+            polyline: '??_ibE_ibE',
+            distance_meters: 0,
+            duration_seconds: 0,
+          }
+        : { api_key: 'public', map_id: 'configured', load_token: 'grant-one' }
+    );
+    const { user: visitor } = renderWithProviders(viewTree());
+    await visitor.click(await screen.findByRole('button', { name: 'chat.position_map.activate' }));
+    await visitor.click(await screen.findByRole('button', { name: 'East' }));
+
+    expect(await screen.findByRole('heading', { name: 'East' })).toBeVisible();
+    expect(await screen.findByText(/chat\.position_map\.route_from_home/)).toBeVisible();
+    await waitFor(() =>
+      expect(controller.setRoute).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          distance_meters: 0,
+          duration_seconds: 0,
+        })
+      )
+    );
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/connectors/google-maps/place-route',
+      { destination: { lat: 0, lng: 179.9 } },
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+    expect(mountPlaceMap).toHaveBeenCalledOnce();
+    expect(reportRouteMapLoad).toHaveBeenCalledOnce();
+  });
+
   it('preserves the actual backend header and host through Markdown parsing', async () => {
     const reference: { html: string } = JSON.parse(
-      readFileSync(
-        '../api/tests/unit/domains/agents/display/evolution_card_reference.json',
-        'utf8'
-      )
+      readFileSync('../api/tests/unit/domains/agents/display/evolution_card_reference.json', 'utf8')
     );
     const view = renderWithProviders(viewTree('a', reference.html));
     expect(await screen.findByText('Position', { exact: true })).toBeVisible();
@@ -143,6 +266,41 @@ describe('Position from sanitized archived HTML', () => {
     );
     expect(apiClient.post).not.toHaveBeenCalled();
   });
+  it('preserves international phone and website data through the markdown pipeline', async () => {
+    const enriched = JSON.stringify({
+      version: 2,
+      unlocated_count: 0,
+      omitted_count: 0,
+      places: [
+        {
+          ref: 'east',
+          label: 'East',
+          url: 'https://www.google.com/maps/place/?q=east',
+          position: { lat: 0, lng: 179.9 },
+          details: {
+            address: null,
+            rating: null,
+            reviews_count: null,
+            opening_hours: [],
+            phone: '+33102030405',
+            website: 'https://east.example.test/?phone=+33102030405',
+          },
+        },
+      ],
+    });
+    const content = `<div class="lia-place-position" data-place-position="${enriched.replaceAll('"', '&quot;')}">SOURCE_LIST</div>`;
+    renderWithProviders(viewTree('a', content));
+    fireEvent.click(await screen.findByRole('button', { name: 'chat.position_map.activate' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'East' }));
+    expect(await screen.findByRole('link', { name: '+33102030405' })).toHaveAttribute(
+      'href',
+      'tel:+33102030405'
+    );
+    expect(screen.getByRole('link', { name: 'chat.position_map.website' })).toHaveAttribute(
+      'href',
+      'https://east.example.test/?phone=+33102030405'
+    );
+  });
   it('retains the source list and reports no load if native Map construction throws', async () => {
     vi.mocked(mountPlaceMap).mockImplementation(() => {
       throw new Error('Map refused');
@@ -151,6 +309,7 @@ describe('Position from sanitized archived HTML', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'chat.position_map.activate' }));
     await screen.findByRole('alert');
     expect(screen.getByRole('link', { name: 'East' })).toBeVisible();
+    expect(screen.getByRole('region', { hidden: true })).not.toBeVisible();
     expect(reportRouteMapLoad).not.toHaveBeenCalled();
   });
   it('renders an automatic offer and list without any admission, SDK or bill before click', async () => {
@@ -158,13 +317,37 @@ describe('Position from sanitized archived HTML', () => {
     await screen.findByRole('button', { name: 'chat.position_map.activate' });
     expect(screen.getByRole('link', { name: 'East' })).toBeVisible();
     expect(screen.getByText('Unlocated')).toBeVisible();
+    expect(screen.getByRole('region', { hidden: true })).not.toBeVisible();
+    expect(screen.queryByText('chat.position_map.preview')).not.toBeVisible();
     expect(apiClient.post).not.toHaveBeenCalled();
     expect(loadPlaceMaps).not.toHaveBeenCalled();
     expect(reportRouteMapLoad).not.toHaveBeenCalled();
   });
-  it('loads only after explicit costed activation and reports construction once', async () => {
+  it('expands only during explicit activation and keeps the canvas measurable for construction', async () => {
+    let admit!: (value: { api_key: string; map_id: string; load_token: string }) => void;
+    vi.mocked(apiClient.post).mockReturnValue(
+      new Promise(resolve => {
+        admit = resolve;
+      })
+    );
     renderWithProviders(viewTree());
-    fireEvent.click(await screen.findByRole('button', { name: 'chat.position_map.activate' }));
+    const activate = await screen.findByRole('button', { name: 'chat.position_map.activate' });
+    activate.focus();
+    fireEvent.click(activate);
+    expect(screen.getByRole('region', { hidden: true })).toBeVisible();
+    expect(activate).toHaveFocus();
+    await act(async () => {
+      admit({ api_key: 'public', map_id: 'configured', load_token: 'grant-one' });
+    });
+    expect(await screen.findByRole('region', { name: 'chat.position_map.map' })).toBeVisible();
+    expect(mountPlaceMap).toHaveBeenCalledOnce();
+    expect(activate).toHaveFocus();
+  });
+  it('loads only after explicit costed activation and reports construction once', async () => {
+    const view = renderWithProviders(viewTree());
+    await view.user.click(
+      await screen.findByRole('button', { name: 'chat.position_map.activate' })
+    );
     await waitFor(() => expect(mountPlaceMap).toHaveBeenCalledOnce());
     expect(apiClient.post).toHaveBeenCalledWith(
       '/connectors/google-maps/load-admissions?purpose=places',
@@ -173,7 +356,7 @@ describe('Position from sanitized archived HTML', () => {
     );
     expect(reportRouteMapLoad).toHaveBeenCalledWith('grant-one');
     expect(controller.select).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'East' }));
+    await view.user.click(screen.getByRole('button', { name: 'East' }));
     expect(controller.select).toHaveBeenCalledWith('place_a');
   });
   it('does not mount or bill a late SDK result after an account switch', async () => {
@@ -197,7 +380,7 @@ describe('Position from sanitized archived HTML', () => {
           MapTypeControlStyle: { DROPDOWN_MENU: 1 },
           event: { clearInstanceListeners: vi.fn() },
         },
-        marker: { AdvancedMarkerElement: vi.fn() },
+        marker: { AdvancedMarkerElement: vi.fn(), PinElement: vi.fn() },
       });
     });
     expect(mountPlaceMap).not.toHaveBeenCalled();

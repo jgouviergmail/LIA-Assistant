@@ -246,7 +246,7 @@ export function AssistantAvatar({
       <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-50 pointer-events-none">
         <div className="bg-popover/95 backdrop-blur-sm border border-border rounded-lg shadow-lg text-xs whitespace-nowrap min-w-[180px]">
           {/* Header: Relationship stage */}
-          <div className="px-3 pt-2 pb-1.5 border-b border-border/30">
+          <div className="px-3 pt-2 pb-1.5 border-b border-border">
             <div className="flex items-center justify-between gap-3">
               <span className="text-muted-foreground text-px-10 uppercase tracking-wider">
                 {t('psyche.relationshipStage', 'Relationship')}
@@ -261,7 +261,7 @@ export function AssistantAvatar({
           </div>
 
           {/* Mood + PAD */}
-          <div className="px-3 py-1.5 border-b border-border/30">
+          <div className="px-3 py-1.5 border-b border-border">
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground text-px-10 uppercase tracking-wider w-12 shrink-0">
                 {t('psyche.tooltip.mood', 'Mood')}
@@ -290,7 +290,7 @@ export function AssistantAvatar({
 
           {/* Emotions with mini intensity bars */}
           {emotions.length > 0 && (
-            <div className="px-3 py-1.5 border-b border-border/30">
+            <div className="px-3 py-1.5 border-b border-border">
               <div className="text-muted-foreground text-px-10 uppercase tracking-wider mb-1">
                 {emotions.length === 1
                   ? t('psyche.tooltip.emotion', 'Emotion')

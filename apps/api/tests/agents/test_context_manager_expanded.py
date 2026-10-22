@@ -1263,6 +1263,19 @@ class TestListActiveDomainsConcurrency:
 
         store = AsyncMock()
         store.aget = AsyncMock(side_effect=slow_aget)
+        # The context read gate resolves each domain's definition and fails closed on an
+        # unknown one, so the scanned domains are real registrations (no read guard).
+        for domain in domains:
+            ContextTypeRegistry.register(
+                ContextTypeDefinition(
+                    domain=domain,
+                    agent_name=f"{domain}_agent",
+                    primary_id_field="id",
+                    display_name_field="name",
+                    reference_fields=["name"],
+                    icon="📦",
+                )
+            )
 
         with patch.object(ContextTypeRegistry, "list_all", return_value=domains):
             loop = asyncio.get_running_loop()

@@ -220,7 +220,7 @@ export function VoiceModeSettings({ lng }: BaseSettingsProps) {
         </div>
 
         {remoteDisabled && (
-          <div className="flex items-start gap-2 rounded-md bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
+          <div className="flex items-start gap-2 rounded-md border border-amber-500/20 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
             <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
             <span>{t('settings.voice_mode.stt_remote_unavailable_warning')}</span>
           </div>

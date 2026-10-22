@@ -46,6 +46,7 @@ from src.domains.conversations.sync_signal import (
     arm_after_archive,
     arm_conversation_signal,
 )
+from src.infrastructure.discussion_invalidation import invalidate_conversation_discussions
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -234,6 +235,8 @@ class ConversationService:
             - All messages are deleted (cascade from conversation_messages)
             - Audit log created for compliance and debugging
         """
+        # Fence autonomous openings before acquiring or changing conversation rows.
+        await invalidate_conversation_discussions(db, user_id)
         # Get active conversation
         conversation = await self.get_active_conversation(user_id, db)
 

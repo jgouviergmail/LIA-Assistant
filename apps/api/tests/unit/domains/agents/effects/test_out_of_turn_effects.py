@@ -22,8 +22,10 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from src.domains.agents.effects.out_of_turn_effects import (
+    DISCUSSION_CAPABILITY,
     NOTIFICATION_CAPABILITY,
     NOTIFICATION_POLICY,
+    proactive_discussion_effect,
     proactive_notification_effect,
 )
 
@@ -209,6 +211,57 @@ class TestTheRowIsClosedFromAnExplicitResult:
         assert close.await_args.kwargs["outcome"].succeeded is False
 
 
+class TestADiscussionLIAOpenedIsAnAction:
+    """Measured 2026-10-21: every opening was published while « Actions menées
+    d'elle-même » held none — the run's consultations were filed, its act was not."""
+
+    async def test_the_opening_is_claimed_as_LIA_s_own_act_under_its_run(self) -> None:
+        claim, close = _ledger()
+        order: list[str] = []
+        claim.side_effect = lambda _r: order.append("claim") or _Ticket()
+        with (
+            patch("src.domains.agents.effects.runtime._LEDGER.claim", claim),
+            patch("src.domains.agents.effects.runtime._LEDGER.close", close),
+        ):
+            async with proactive_discussion_effect(
+                user_id=uuid.uuid4(), run_id="discussion-run-1"
+            ) as effect:
+                order.append("commit")
+                effect.delivered = True
+
+        assert order == ["claim", "commit"]
+        request = claim.await_args.args[0]
+        assert request.source == "proactive", "the initiative tab filters on this value"
+        assert request.tool_name == DISCUSSION_CAPABILITY
+        assert (request.run_id, request.thread_id) == ("discussion-run-1", "discussion-run-1")
+        assert request.idempotency_key == "discussion-run-1:discussion"
+        assert request.label == {
+            "i18n_key": f"effects.labels.{DISCUSSION_CAPABILITY}",
+            "values": {},
+        }
+        assert close.await_args.kwargs["outcome"].succeeded is True
+
+    async def test_a_publication_that_raised_closes_as_a_failure(self) -> None:
+        claim, close = _ledger()
+        with (
+            patch("src.domains.agents.effects.runtime._LEDGER.claim", claim),
+            patch("src.domains.agents.effects.runtime._LEDGER.close", close),
+            pytest.raises(RuntimeError),
+        ):
+            async with proactive_discussion_effect(user_id=uuid.uuid4(), run_id="discussion-run-2"):
+                raise RuntimeError("stale claim")
+
+        assert close.await_args.kwargs["outcome"].succeeded is False
+
+    async def test_a_ledger_that_cannot_claim_lets_the_opening_through(self) -> None:
+        claim = AsyncMock(side_effect=RuntimeError("ledger down"))
+        with patch("src.domains.agents.effects.runtime._LEDGER.claim", claim):
+            async with proactive_discussion_effect(
+                user_id=uuid.uuid4(), run_id="discussion-run-3"
+            ) as effect:
+                effect.delivered = True
+
+
 class TestTheRegisterNeverCostsTheNotification:
     """Observing must never break the observed."""
 
@@ -260,6 +313,13 @@ class TestTheWordingExistsWhereverItIsRead:
             wording = bundle["effects"]["labels"].get(NOTIFICATION_CAPABILITY)
             assert wording, f"no wording in {language}"
             assert "{{kind}}" in wording, f"{language} drops the sweep that decided"
+            assert bundle["effects"]["labels"].get(DISCUSSION_CAPABILITY), f"web: {language}"
+
+    def test_the_discussion_label_is_worded_for_the_exports_too(self) -> None:
+        from src.core.i18n_effects import EFFECT_LABELS
+
+        for language, table in EFFECT_LABELS.items():
+            assert table.get(f"effects.labels.{DISCUSSION_CAPABILITY}"), f"export: {language}"
 
     def test_every_clicked_act_is_worded_in_all_six_languages_on_both_sides(self) -> None:
         """The page reads the web bundle, the exports read ``core.i18n_effects``."""

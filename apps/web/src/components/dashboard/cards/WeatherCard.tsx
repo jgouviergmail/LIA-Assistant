@@ -132,7 +132,7 @@ function WeatherContent({ data }: { data: WeatherData }) {
       </div>
       {/* 5-day forecast strip */}
       {data.daily_forecast.length > 0 && (
-        <div className="w-full pt-2 border-t border-border/30">
+        <div className="w-full pt-2 border-t border-border">
           <DailyForecastStrip days={data.daily_forecast} />
         </div>
       )}

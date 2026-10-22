@@ -77,6 +77,33 @@ export function timeAgoLabel(
   }
 }
 
+/** An instant placed against now: behind, ahead, or within the minute. */
+export interface RelativeTense {
+  tense: 'past' | 'future' | 'now';
+  /** The distance, in the same coarse buckets as `computeTimeAgo`. */
+  bucket: TimeAgoBucket;
+}
+
+/**
+ * Whether an instant lies behind or ahead of now, and how far.
+ *
+ * `computeTimeAgo` clamps the future to zero — right for "updated X ago",
+ * wrong for a meeting next week, which would read "just now". This keeps the
+ * same buckets and says which side of now the instant sits on.
+ *
+ * @param iso - ISO 8601 UTC timestamp.
+ * @param now - Injectable clock for tests.
+ * @returns The tense and its distance, or null when nothing is parseable.
+ */
+export function relativeTense(iso: string, now: Date = new Date()): RelativeTense | null {
+  const ts = new Date(iso).getTime();
+  if (Number.isNaN(ts)) return null;
+  const ahead = ts > now.getTime();
+  const bucket = ahead ? computeTimeAgo(now.toISOString(), new Date(ts)) : computeTimeAgo(iso, now);
+  if (bucket.kind === 'just_now') return { tense: 'now', bucket };
+  return { tense: ahead ? 'future' : 'past', bucket };
+}
+
 /**
  * Absolute date (and time slot) for an item the reader may need to place.
  *
@@ -95,12 +122,14 @@ export function timeAgoLabel(
  * @param locale - BCP-47 locale (the i18n language).
  * @param startIso - ISO 8601 UTC start.
  * @param endIso - ISO 8601 UTC end, when the source has one.
+ * @param options - `weekday` names the day too ("mardi 5 août 2026").
  * @returns The localized label, or null when nothing is parseable.
  */
 export function dateTimeRangeLabel(
   locale: string,
   startIso: string | null,
-  endIso: string | null = null
+  endIso: string | null = null,
+  options: { weekday?: boolean } = {}
 ): string | null {
   if (!startIso) return null;
   const start = new Date(startIso);
@@ -109,6 +138,7 @@ export function dateTimeRangeLabel(
   const hasEnd = end !== null && !Number.isNaN(end.getTime());
 
   const date = new Intl.DateTimeFormat(locale, {
+    ...(options.weekday ? { weekday: 'long' as const } : {}),
     day: 'numeric',
     month: 'short',
     year: 'numeric',

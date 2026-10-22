@@ -117,7 +117,7 @@ function ConsumptionTableRow({ row }: { row: ConsumptionRow }) {
   const Icon = row.icon;
   const format = row.currency ? (value: number) => formatEuro(value, 2) : formatNumber;
   return (
-    <tr className={cn(Icon && 'border-t border-border/50', row.emphasis && 'bg-primary/5')}>
+    <tr className={cn(Icon && 'border-t border-border', row.emphasis && 'bg-primary/5')}>
       <th
         scope="row"
         className={cn(

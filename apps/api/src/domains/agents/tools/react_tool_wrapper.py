@@ -34,6 +34,8 @@ import structlog
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, PrivateAttr
 
+from src.infrastructure.mcp.gated_tool import EffectGatedMCPTool
+
 logger = structlog.get_logger(__name__)
 
 
@@ -480,6 +482,14 @@ class ReactToolWrapper(BaseTool):
         """Retain the wrapped tool's schema, including MCP argument aliases."""
         return self._original_tool.tool_call_schema
 
+    def _to_args_and_kwargs(
+        self, tool_input: str | dict[str, Any], tool_call_id: str | None
+    ) -> tuple[tuple[str, ...], dict[str, Any]]:
+        """Keep MCP wire names through this wrapper's LangChain invocation."""
+        if isinstance(self._original_tool, EffectGatedMCPTool):
+            return self._original_tool._to_args_and_kwargs(tool_input, tool_call_id)
+        return super()._to_args_and_kwargs(tool_input, tool_call_id)
+
     @property
     def hitl_required(self) -> bool:
         """Whether this tool requires HITL approval."""
@@ -488,9 +498,10 @@ class ReactToolWrapper(BaseTool):
     async def _arun(self, **kwargs: Any) -> str:
         """Execute the original tool and return string result.
 
-        Note: In the actual ReAct flow, react_execute_tools_node calls
-        wrapper._original_tool.coroutine() + wrapper._process_result() directly
-        to inject ToolRuntime properly. This _arun() method is kept because
+        Note: In the actual ReAct flow, invoke_with_settlement validates and
+        invokes its coroutine with the injected ToolRuntime in the same task,
+        preserving ContextVar side channels. The node then
+        calls wrapper._process_result(). This _arun() method is kept because
         LangChain's bind_tools() requires BaseTool subclasses to implement it,
         and it serves as a fallback path without ToolRuntime injection.
 

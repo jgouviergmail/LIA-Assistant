@@ -507,6 +507,7 @@ class TestAQuestionIsReadFromTheStream:
         assert result.outcome is RunOutcome.FAILED
         assert result.attempts == 2
         assert result.error and "ConnectionError" in result.error
+        assert result.error_code == "ConnectionError"
 
     async def test_a_non_transient_failure_is_not_retried(self) -> None:
         service = MagicMock()
@@ -526,6 +527,7 @@ class TestAQuestionIsReadFromTheStream:
             result = await stream_instruction(_request(max_attempts=3))
         assert result.outcome is RunOutcome.FAILED
         assert len(calls) == 1
+        assert result.error_code == "ValueError"
 
     async def test_a_timeout_settles_as_failed_and_names_the_bound(self) -> None:
         service = MagicMock()
@@ -542,6 +544,7 @@ class TestAQuestionIsReadFromTheStream:
             result = await stream_instruction(_request(timeout_seconds=0, max_attempts=1))
         assert result.outcome is RunOutcome.FAILED
         assert result.error and "timed out" in result.error
+        assert result.error_code == "TimeoutError"
 
 
 class TestTheOriginTravelsWithTheTurn:
@@ -676,6 +679,7 @@ class TestTheStreamsOwnRefusalIsRead:
             result = await stream_instruction(_request())
         assert result.outcome is RunOutcome.QUOTA_BLOCKED
         assert result.outcome is not RunOutcome.SUCCESS
+        assert result.error_code == "instance_budget_exhausted"
 
     async def test_a_per_account_ceiling_is_the_same_verdict(self) -> None:
         service = _service_yielding(

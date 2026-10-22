@@ -193,3 +193,13 @@ describe('proactiveToastPresentation', () => {
     expect(proactiveToastPresentation(undefined).message).toBe('💡 Info');
   });
 });
+
+it('a sensitive discussion syncs its archive without exposing its content in a toast', () => {
+  renderHook(() => useChatServerSync(options()));
+  handlers().onProactiveNotification?.('PRIVATE FIXTURE', 'opening', {
+    type: 'proactive_discussion',
+    sensitive_in_app_only: true,
+  });
+  expect(requestSync).toHaveBeenCalledWith('notification');
+  expect(JSON.stringify(toast.info.mock.calls)).not.toContain('PRIVATE FIXTURE');
+});

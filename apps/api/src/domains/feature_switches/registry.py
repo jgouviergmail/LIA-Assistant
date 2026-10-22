@@ -86,6 +86,7 @@ class PlatformCapability(str, Enum):
     JOURNALS = "journals"
     HABITS = "habits"
     HEARTBEAT = "heartbeat"
+    PROACTIVE_DISCUSSIONS = "proactive_discussions"
     PEERS = "peers"
     PSYCHE = "psyche"
     CHANNELS = "channels"
@@ -326,6 +327,13 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
         family="knowledge",
         env_flag="habits_enabled",
         setting_key=SystemSettingKey.CAPABILITY_HABITS_ENABLED,
+        service_enforced=True,
+    ),
+    PlatformCapability.PROACTIVE_DISCUSSIONS: CapabilitySpec(
+        capability=PlatformCapability.PROACTIVE_DISCUSSIONS,
+        family="work",
+        env_flag="proactive_discussions_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_PROACTIVE_DISCUSSIONS_ENABLED,
         service_enforced=True,
     ),
     PlatformCapability.HEARTBEAT: CapabilitySpec(

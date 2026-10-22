@@ -44,6 +44,7 @@ from src.core.exceptions import (
     ValidationError,
 )
 from src.core.i18n_api_messages import APIMessages
+from src.core.read_budget import source_http_hooks
 from src.domains.connectors.schemas import ConnectorCredentials
 from src.domains.connectors.session_scope import connector_unit_of_work, owns_session
 from src.infrastructure.cache.redis import get_redis_session
@@ -133,6 +134,7 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
         """
         if self._http_client is None:
             self._http_client = httpx.AsyncClient(
+                event_hooks=source_http_hooks(self.user_id),
                 timeout=settings.http_timeout_external_api,
                 limits=httpx.Limits(
                     max_keepalive_connections=HTTP_MAX_KEEPALIVE_CONNECTIONS,

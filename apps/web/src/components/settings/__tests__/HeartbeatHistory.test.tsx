@@ -249,7 +249,7 @@ describe('HeartbeatHistory — what woke the decision (ADR-261)', () => {
 });
 
 describe('HeartbeatHistory — presentation keeps the delivered words', () => {
-  it.each(['cards', 'timeline'] as const)(
+  it.each(['panels', 'timeline'] as const)(
     'keeps the complete message, source and verdict as inert text in %s presentation',
     presentation => {
       const content = `${'Une information complète à conserver. '.repeat(20)}\n<img src=x onerror="alert(1)"> Dernière ligne.`;
@@ -325,7 +325,9 @@ describe('HeartbeatHistory — canonical sources and timeline reading order', ()
     expect(screen.queryByText('heartbeat.history.source_NEWSOURCE')).not.toBeInTheDocument();
   });
 
-  it('keeps the date and priority together, then source and verdict before the delivered text in the hub', () => {
+  it('titles the hub row by its date, the priority leading the line of source and verdict below it', () => {
+    // Owner request 2026-10-21: the badge is the first element of the line
+    // under the date, not the date's neighbour.
     renderWithProviders(
       <HeartbeatHistory
         {...makeProps({
@@ -337,23 +339,53 @@ describe('HeartbeatHistory — canonical sources and timeline reading order', ()
 
     const row = screen.getByRole('listitem');
     const date = row.querySelector('time');
+    if (date === null) throw new Error('the row has no date');
     const priority = within(row).getByText('heartbeat.history.priority_medium');
     const source = within(row).getByText('heartbeat.history.source_CURRENT_WEATHER');
     const verdict = within(row).getByText('heartbeat.history.feedback_thumbs_down');
     const message = within(row).getByText('Il pleuvra cet après-midi, prends un parapluie.');
 
-    expect(date?.parentElement).toContainElement(priority);
+    // The date stands alone on its line; the priority opens the next one.
+    expect(date.parentElement).not.toContainElement(priority);
+    const metaLine = source.parentElement?.parentElement;
+    if (!metaLine) throw new Error('the source has no line');
+    expect(metaLine).toContainElement(priority);
+    expect(metaLine.firstElementChild).toContainElement(priority);
+    expect(date.compareDocumentPosition(priority) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(source.compareDocumentPosition(verdict) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(
       verdict.compareDocumentPosition(message) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
   });
 
-  it('retains the existing settings order when the timeline presentation is not requested', () => {
-    renderWithProviders(<HeartbeatHistory {...makeProps()} />);
+  it('frames each settings row as its own panel, read in the hub order', () => {
+    // Owner request 2026-10-21: one sub-panel per notification, no rule
+    // between two — and the same reading order as the hub's rows.
+    renderWithProviders(
+      <HeartbeatHistory
+        {...makeProps({
+          notifications: [
+            notification({ id: 'n-1' }),
+            notification({ id: 'n-2', content: 'Deuxième notification.' }),
+          ],
+        })}
+      />
+    );
 
-    const source = screen.getByText('heartbeat.history.source_CURRENT_WEATHER');
-    const message = screen.getByText('Il pleuvra cet après-midi, prends un parapluie.');
-    expect(message.compareDocumentPosition(source) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const rows = screen.getAllByRole('listitem');
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(row).toHaveClass('rounded-lg', 'border', 'bg-card');
+      expect(row).not.toHaveClass('border-b');
+    }
+    const [first] = rows;
+    const date = first.querySelector('time');
+    if (date === null) throw new Error('the row has no date');
+    const priority = within(first).getByText('heartbeat.history.priority_medium');
+    const source = within(first).getByText('heartbeat.history.source_CURRENT_WEATHER');
+    const message = within(first).getByText('Il pleuvra cet après-midi, prends un parapluie.');
+    expect(date.parentElement).not.toContainElement(priority);
+    expect(date.compareDocumentPosition(priority) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(source.compareDocumentPosition(message) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

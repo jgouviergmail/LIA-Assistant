@@ -147,7 +147,7 @@ export function EyesStyleSettings({ lng }: EyesStyleSettingsProps) {
                     aria-describedby={descriptionId}
                     aria-current={isSelected ? 'true' : undefined}
                     className={cn(
-                      'flex min-w-0 flex-col gap-3 rounded-xl border border-border/60 p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none sm:p-4',
+                      'flex min-w-0 flex-col gap-3 rounded-xl border border-border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none sm:p-4',
                       isSelected ? 'bg-primary/10' : 'bg-background hover:bg-primary/5'
                     )}
                   >

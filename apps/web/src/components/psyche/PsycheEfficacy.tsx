@@ -80,7 +80,7 @@ export function PsycheEfficacy({
       icon={ShieldCheck}
       title={t('psyche.education.drives.efficacy_title')}
       titleClassName="whitespace-normal text-base font-semibold"
-      className="border-border/70 px-4 sm:px-6"
+      className="border-border px-4 sm:px-6"
     >
       <div className="space-y-4 pt-2">
         {profile ? (
@@ -155,7 +155,7 @@ function DomainEvidence({
   return (
     <section
       aria-label={title}
-      className="min-w-0 rounded-lg border border-border/60 bg-card px-3 py-3 sm:px-4"
+      className="min-w-0 rounded-lg border border-border bg-card px-3 py-3 sm:px-4"
     >
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
         <h4 className="flex min-w-0 items-center gap-2 text-sm font-semibold">
@@ -202,7 +202,7 @@ function DomainEvidence({
         </div>
       )}
       {date && (
-        <p className="mt-3 border-t border-border/40 pt-2 text-xs text-muted-foreground">
+        <p className="mt-3 border-t border-border pt-2 text-xs text-muted-foreground">
           {t('psyche.efficacy.lastObserved', { date })}
         </p>
       )}

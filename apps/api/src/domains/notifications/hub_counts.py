@@ -36,6 +36,7 @@ from sqlalchemy import func, select
 
 from src.core.config import settings
 from src.core.exceptions import AuthorizationError
+from src.domains.proactive_discussions.openings import count_openings
 from src.domains.sms.models import SmsMessage
 from src.domains.sms.reads import require_read
 from src.infrastructure.database.session import get_db_context
@@ -63,6 +64,9 @@ class HubCounts:
         workboard: Tickets that NEED the reader — a run stopped and waiting for
             them, or something late on their board (ADR-276). A to-decide set
             like the two above, never a tally of everything they own.
+        discussions: Proactive discussion openings still shown in the
+            conversation (ADR-358), from the history page's own filter.
+        sms: Retained SMS, None when the source is unavailable.
     """
 
     peer_messages: int
@@ -72,6 +76,7 @@ class HubCounts:
     scheduled: int
     offers: int
     workboard: int
+    discussions: int = 0
     sms: int | None = None
 
 
@@ -192,6 +197,16 @@ async def _workboard(user_id: UUID) -> int:
         return await WorkboardRepository(db).count_needs_me(user_id, now_utc())
 
 
+async def _discussions(user_id: UUID) -> int:
+    """Openings LIA started — counted whether or not the producer runs today.
+
+    The history stays readable with the producer off (ADR-358), so its badge
+    does too; the section itself follows the capability switch client-side.
+    """
+    async with get_db_context() as db:
+        return await count_openings(db, user_id)
+
+
 async def _offers(user_id: UUID) -> int:
     """Open missed-routine offers — 0 without a query when heartbeat is off."""
     if not settings.heartbeat_enabled:
@@ -230,10 +245,13 @@ async def resolve_hub_counts(user: User) -> HubCounts:
             _safe_count("scheduled", _scheduled(user_id)),
             _safe_count("offers", _offers(user_id)),
             _safe_count("workboard", _workboard(user_id)),
+            _safe_count("discussions", _discussions(user_id)),
         ),
         _safe_sms(user_id),
     )
-    peer_messages, proactive, interests, reminders, scheduled, offers, workboard = counts
+    peer_messages, proactive, interests, reminders, scheduled, offers, workboard, discussions = (
+        counts
+    )
     return HubCounts(
         peer_messages=peer_messages,
         proactive=proactive,
@@ -242,5 +260,6 @@ async def resolve_hub_counts(user: User) -> HubCounts:
         scheduled=scheduled,
         offers=offers,
         workboard=workboard,
+        discussions=discussions,
         sms=sms,
     )

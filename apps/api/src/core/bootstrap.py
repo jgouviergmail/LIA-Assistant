@@ -64,12 +64,16 @@ def validate_llm_configuration() -> None:
     )
 
 
-def validate_llm_defaults_against_matrix() -> None:
-    """Sanity check: every LLM_DEFAULTS entry asks its model for a level it offers.
+def validate_llm_defaults_against_matrix(*, effective: bool = False) -> None:
+    """Check shipped defaults, or the effective slots of a running deployment.
 
-    Fail-fast at boot on any drift — typically a future ``LLM_DEFAULTS`` edit
-    that moves a slot to a model whose ladder does not carry the level it
-    already declared.
+    With ``effective=False`` it audits ``LLM_DEFAULTS`` — typically a future edit
+    that moves a slot to a model whose ladder does not carry the level it already
+    declared. Startup passes ``effective=True`` and audits each slot as the
+    deployment runs it (administrator overrides may legitimately replace defaults
+    absent from this catalogue); it LOGS a refusal and boots anyway
+    (``startup/caches.py``), since one misconfigured slot must not turn into an
+    outage of every other one.
 
     Reuses the same ``validate_reasoning_effort`` the admin write path calls,
     so its tests cover the boot-time path too. Since ADR-245 that function
@@ -78,16 +82,22 @@ def validate_llm_defaults_against_matrix() -> None:
     translator also uses; the catalogue's ``reasoning_widget`` column is not
     consulted by either.
 
+    Args:
+        effective: Audit the slots as configured (overrides applied) rather than
+            the shipped defaults.
+
     Raises:
-        RuntimeError: When an ``LLM_DEFAULTS`` entry declares a reasoning level
-        its model does not offer, or a token budget its family cannot express.
+        RuntimeError: When an audited slot names a model absent from the catalogue,
+            declares a reasoning level its model does not offer, or a token budget
+            its family cannot express.
 
     Note:
         Must be called AFTER ``ModelCapabilitiesCache.load_from_db()`` so the
-        cache is populated. Called from ``main.py`` lifespan startup.
+        cache is populated.
     """
     from fastapi import HTTPException
 
+    from src.core.llm_config_helper import get_llm_config_for_agent
     from src.domains.llm.models import LLMModelKindEnum
     from src.domains.llm_config.constants import LLM_DEFAULTS, LLM_TYPES_REGISTRY
     from src.domains.llm_config.reasoning_validation import (
@@ -103,7 +113,7 @@ def validate_llm_defaults_against_matrix() -> None:
         )
 
     errors: list[str] = []
-    for llm_type, cfg in LLM_DEFAULTS.items():
+    for llm_type, default in LLM_DEFAULTS.items():
         # Skip LLM types whose required_kind != "chat" (image_generation uses
         # image_generation_pricing, not llm_models). The reasoning matrix
         # check only applies to chat-kind LLM types.
@@ -111,6 +121,7 @@ def validate_llm_defaults_against_matrix() -> None:
         if metadata is not None and metadata.required_kind != LLMModelKindEnum.chat:
             continue
 
+        cfg = get_llm_config_for_agent(settings, llm_type) if effective else default
         caps = ModelCapabilitiesCache.get(cfg.model)
         if caps is None:
             errors.append(
@@ -132,15 +143,20 @@ def validate_llm_defaults_against_matrix() -> None:
             errors.append(f"  - {llm_type} (model={cfg.model}): {detail.get('msg', detail)}")
 
     if errors:
+        source = "Effective LLM configuration" if effective else "LLM_DEFAULTS"
+        remedy = (
+            "Review Settings > Administration > LLM Configuration and the active catalogue."
+            if effective
+            else "Update LLM_DEFAULTS to match the matrix in llm_pricing_seed.sql / llm_models."
+        )
         raise RuntimeError(
-            "LLM_DEFAULTS contains entries incompatible with the model "
-            "catalogue:\n" + "\n".join(errors) + "\n"
-            "Update LLM_DEFAULTS in apps/api/src/domains/llm_config/constants.py "
-            "to match the matrix in llm_pricing_seed.sql / llm_models."
+            f"{source} contains entries incompatible with the model catalogue:\n"
+            + "\n".join(errors)
+            + f"\n{remedy}"
         )
 
     logger.info(
-        "llm_defaults_matrix_validated",
+        "llm_effective_matrix_validated" if effective else "llm_defaults_matrix_validated",
         total_types=len(LLM_DEFAULTS),
     )
 

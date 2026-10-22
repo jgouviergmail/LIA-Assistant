@@ -654,7 +654,11 @@ class TestAnyToolMayAsk:
             seen.append(question_settleable())
             return UnifiedToolOutput(success=True, message="ran")
 
-        wrapper = SimpleNamespace(_original_tool=SimpleNamespace(coroutine=_probe))
+        wrapper = SimpleNamespace(
+            _original_tool=StructuredTool.from_function(
+                coroutine=_probe, name="probe_tool", description="test"
+            )
+        )
         result = await mod.invoke_with_settlement(
             wrapper, {"purpose": "p"}, timeout=5, state={}, tool_name="probe_tool"
         )

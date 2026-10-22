@@ -30,6 +30,22 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel
 
 
+def parse_mcp_wire_arguments(
+    schema: type[BaseModel] | dict[str, Any] | None, tool_input: str | dict[str, Any]
+) -> dict[str, Any]:
+    """Validate wire names without merging model fields with dynamic arguments.
+
+    A Python alias cannot satisfy a missing server field or overwrite a valid
+    extra bearing the same name. Serialize the two under their wire names once.
+    """
+    if not isinstance(tool_input, dict):
+        raise ValueError("MCP tool arguments must be an object")
+    if isinstance(schema, type) and issubclass(schema, BaseModel):
+        model = schema.model_validate(tool_input, by_alias=True, by_name=False)
+        return model.model_dump(by_alias=True, exclude_unset=True)
+    return dict(tool_input)
+
+
 class EffectGatedMCPTool:
     """Mixin installing the effect gate inside an MCP adapter's own call path.
 
@@ -64,6 +80,17 @@ class EffectGatedMCPTool:
         else:
             declared = schema or {"type": "object", "properties": {}}
         return {**declared, "description": self.description}
+
+    def _to_args_and_kwargs(
+        self, tool_input: str | dict[str, Any], tool_call_id: str | None
+    ) -> tuple[tuple[str, ...], dict[str, Any]]:
+        """Deliver validated wire kwargs, including extras, to every MCP door.
+
+        BaseTool treats every zero-field model as a no-argument tool and skips
+        validation, and its Python-name projection merges alias collisions.
+        MCP keeps its declared wire fields and dynamic arguments intact.
+        """
+        return (), parse_mcp_wire_arguments(self.args_schema, tool_input)
 
     async def _call_server(self, **kwargs: Any) -> Any:
         """Talk to the MCP server. Implemented by each adapter."""
@@ -112,13 +139,6 @@ class EffectGatedMCPTool:
             Whatever the gate returns: the server's result, a confirmation
             draft, a refusal, or the record of an effect already performed.
         """
-        # LangChain validates aliases but passes Python field names to _arun.
-        # Restore the server's names BEFORE the effect gate sees the arguments.
-        schema = self.args_schema
-        if isinstance(schema, type) and issubclass(schema, BaseModel):
-            fields = schema.model_fields
-            kwargs = {
-                (fields[key].alias or key) if key in fields else key: value
-                for key, value in kwargs.items()
-            }
+        # Framework parsers already deliver wire kwargs. Remapping here would
+        # mistake a valid dynamic key for a model's internal Python alias.
         return await self._effect_gated_call()(**kwargs)

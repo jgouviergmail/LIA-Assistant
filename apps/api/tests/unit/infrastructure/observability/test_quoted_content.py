@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import pytest
 
+from src.infrastructure.observability.pii_filter import add_pii_filter
 from src.infrastructure.observability.quoted_content import redact_quoted_content
 
 pytestmark = pytest.mark.unit
@@ -187,3 +188,96 @@ class TestTheStructureSurvives:
     )
     def test_text_without_a_quotation_is_returned_unchanged(self, text: str) -> None:
         assert redact_quoted_content(text) == text
+
+
+class TestJsonSchemaRefusedPayload:
+    """MCP's validator includes both the refused instance and its schema in str(e)."""
+
+    @staticmethod
+    def _error() -> Exception:
+        from jsonschema import Draft202012Validator
+
+        schema = {
+            "type": "object",
+            "properties": {"results": {"type": "array"}},
+            "required": ["results"],
+            "examples": [{"owner": "Synthetic Private Person"}],
+        }
+        (error,) = Draft202012Validator(schema).iter_errors(
+            {"owner": "Synthetic Private Person", "location": [12.345678, 23.456789]}
+        )
+        return error
+
+    @pytest.mark.parametrize("field", ["error", "root_error", "exception"])
+    @pytest.mark.parametrize("level", ["info", "warning", "error", "critical"])
+    def test_quoted_schema_and_instance_are_withheld(self, field: str, level: str) -> None:
+        text = str(self._error())
+        result = add_pii_filter(None, level, {"event": "synthetic_failure", field: text})
+
+        assert "Synthetic Private Person" not in result[field]
+        assert "12.345678" not in result[field]
+        assert "23.456789" not in result[field]
+        assert "required" in result[field]
+        assert "On instance" in result[field]
+
+    def test_an_instance_echo_in_the_error_header_is_withheld(self) -> None:
+        from jsonschema import Draft202012Validator
+
+        (error,) = Draft202012Validator({"type": "integer"}).iter_errors("Synthetic Private Person")
+        redacted = redact_quoted_content(str(error))
+
+        assert "Synthetic Private Person" not in redacted
+        assert "type" in redacted
+        assert "[REDACTED]" in redacted
+
+    def test_chained_traceback_keeps_the_frames_after_the_instance(self) -> None:
+        import traceback
+
+        try:
+            try:
+                raise self._error()
+            except Exception as exc:
+                raise RuntimeError("synthetic wrapper") from exc
+        except RuntimeError as exc:
+            rendered = "".join(traceback.format_exception(exc))
+
+        redacted = redact_quoted_content(rendered)
+
+        assert "Synthetic Private Person" not in redacted
+        assert "12.345678" not in redacted
+        assert "The above exception was the direct cause" in redacted
+        assert "RuntimeError: synthetic wrapper" in redacted
+        assert "test_chained_traceback_keeps_the_frames_after_the_instance" in redacted
+
+    def test_debug_keeps_the_validation_details(self) -> None:
+        text = str(self._error())
+        result = add_pii_filter(None, "debug", {"event": "synthetic_failure", "error": text})
+
+        assert result["error"] == text
+
+    def test_dynamic_property_names_are_not_treated_as_schema_metadata(self) -> None:
+        from jsonschema import Draft202012Validator
+
+        (error,) = Draft202012Validator({"additionalProperties": {"type": "integer"}}).iter_errors(
+            {"Synthetic Private Person": "private input"}
+        )
+
+        redacted = redact_quoted_content(str(error))
+
+        assert "Synthetic Private Person" not in redacted
+        assert "private input" not in redacted
+        assert "type" in redacted
+
+    def test_exception_group_decoration_cannot_bypass_the_redaction(self) -> None:
+        import traceback
+
+        rendered = "".join(
+            traceback.format_exception(ExceptionGroup("synthetic transport", [self._error()]))
+        )
+
+        redacted = redact_quoted_content(rendered)
+
+        assert "Synthetic Private Person" not in redacted
+        assert "12.345678" not in redacted
+        assert "ValidationError" in redacted
+        assert "ExceptionGroup" in redacted

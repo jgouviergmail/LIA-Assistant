@@ -141,6 +141,29 @@ describe('useCapabilityTransfer', () => {
     expect(mocks.post).toHaveBeenCalledTimes(1);
   });
 
+  it('settles a send to its receipt, to its failure, or to nothing once discarded', async () => {
+    const installed = receipt({ status: 'installed', transferred_at: '2026-10-18T12:00:01Z' });
+    const refused = new Error('quota');
+    mocks.post.mockResolvedValueOnce(receipt()).mockResolvedValueOnce(installed);
+    mocks.get.mockRejectedValue(new Error('unreadable'));
+    const { result } = renderHook(() => useCapabilityTransfer(source));
+    await act(() => result.current.prepare('peer'));
+    const preview = result.current.preview;
+    if (!preview) throw new Error('missing preview');
+    expect(await act(() => result.current.send(preview))).toEqual({ receipt: installed });
+
+    act(() => result.current.reset());
+    mocks.post.mockReset().mockResolvedValueOnce(receipt()).mockRejectedValueOnce(refused);
+    await act(() => result.current.prepare('peer'));
+    const second = result.current.preview;
+    if (!second) throw new Error('missing preview');
+    expect(await act(() => result.current.send(second))).toEqual({ error: refused });
+    expect(result.current.error).toBe(refused);
+
+    act(() => result.current.reset());
+    expect(await act(() => result.current.send(second))).toBeNull();
+  });
+
   it('invalidates a retained send when the person discards its preview', async () => {
     mocks.post.mockResolvedValue(receipt());
     const { result } = renderHook(() => useCapabilityTransfer(source));

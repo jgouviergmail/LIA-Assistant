@@ -18,6 +18,7 @@ PERSONAL_SETTINGS_SECTION_TOKENS = frozenset(
         "haptics",
         "health-metrics",
         "heartbeat",
+        "proactive-discussions",
         "image-generation",
         "interests",
         "journals",

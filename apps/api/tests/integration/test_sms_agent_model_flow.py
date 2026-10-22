@@ -59,11 +59,11 @@ async def test_actual_sms_tool_node_supplies_literal_body_to_domain_model(
     async def session():
         yield db_session
 
-    async def book(_):
+    async def book(_, *, cache_scope=None):
         return IdentityBook(complete=True)
 
     monkeypatch.setattr("src.domains.agents.tools.sms_tools.get_db_context", session)
-    monkeypatch.setattr("src.domains.sms.facade.load_identity_book", book)
+    monkeypatch.setattr("src.domains.sms.identity_resolution.load_identity_book", book)
     context = LiaRuntimeContext(
         user_id=test_user.id,
         thread_id=str(uuid4()),

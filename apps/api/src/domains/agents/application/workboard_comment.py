@@ -26,6 +26,7 @@ from src.domains.agents.effects.digest import payload_digest
 from src.domains.users.models import User
 from src.domains.users.preference_cas import PreferenceWriteReceipt
 from src.domains.workboard.answers import Answer
+from src.domains.workboard.assignment_notifications import dispatch_committed_assignment_notices
 from src.domains.workboard.comment_fence import lock_comment_ticket
 from src.domains.workboard.models import WorkboardComment, WorkboardTicket
 from src.domains.workboard.schemas import CommentCreate
@@ -131,7 +132,8 @@ async def execute_workboard_comment(
     if await _comment_selection(db, actor_id, expected.request) != expected:
         raise ResourceConflictError("workboard_comment", detail={"error_code": "STALE_STATE"})
     before = await _raw_ticket(db, expected.request.ticket_id)
-    posted = await WorkboardService(db).comment(
+    service = WorkboardService(db)
+    posted = await service.comment(
         actor,
         expected.request.ticket_id,
         CommentCreate(body=expected.request.body),
@@ -149,6 +151,9 @@ async def execute_workboard_comment(
     receipt.values = {
         "workboard_comment": {**expected.public_scope(after=True), "comment_id": str(actual.id)}
     }
+    # An answer hands the ticket back: its notices leave after the commit,
+    # never under the comment fence.
+    await dispatch_committed_assignment_notices(service.assignment_notices)
 
 
 async def _raw_ticket(db: AsyncSession, identity: UUID) -> dict[str, object]:

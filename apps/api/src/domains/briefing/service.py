@@ -36,6 +36,7 @@ from src.domains.briefing.cache_keys import (
     section_cache_key,
 )
 from src.domains.briefing.cache_state import classify_cache_state
+from src.domains.briefing.cached_cards import cached_cards_bundle, published_cards_bundle
 from src.domains.briefing.card_content import _has_content as _has_content
 from src.domains.briefing.classification import expire_cached_annotations
 from src.domains.briefing.constants import (
@@ -95,7 +96,7 @@ from src.domains.briefing.schemas import (
 )
 from src.domains.briefing.selected_cards import SectionPlan as _SectionPlan
 from src.domains.briefing.selected_cards import selected_cards_bundle
-from src.domains.briefing.sms_context import fetch_sms
+from src.domains.briefing.sms_context import fetch_sms, revalidate_sms_card
 from src.domains.shared.consultation_sink import consultation_collector
 from src.domains.shared.consultation_surfaces import record_surface_consultations
 from src.infrastructure.cache.redis import get_redis_cache
@@ -258,7 +259,7 @@ class BriefingService:
         ).inc()
         if read_something:
             await self._record_cards_turn()
-        return flight.value
+        return await revalidate_sms_card(flight.value)
 
     async def _gather_once_per_deployment(self, force: frozenset[str]) -> CardsBundle:
         """Gather the bundle once across WORKERS, not merely once per process.
@@ -321,8 +322,7 @@ class BriefingService:
         section — reminders included, which is why that section needed a TTL of
         its own.
         """
-        bundle, missing = await self._read_cached_bundle()
-        return None if missing else bundle
+        return await published_cards_bundle(self._read_section_cache)
 
     def _flight_key(self, force: frozenset[str]) -> tuple[object, ...]:
         """What makes two bundle builds the same work.
@@ -382,7 +382,9 @@ class BriefingService:
                 error_type=type(exc).__name__,
             )
 
-    def _build_plan(self, force: frozenset[str]) -> tuple[_SectionPlan, ...]:
+    def _build_plan(
+        self, force: frozenset[str], *, sms_previews: bool = False
+    ) -> tuple[_SectionPlan, ...]:
         """How each section of the grid is obtained for this build.
 
         One declaration, read by everything downstream: the gather, the
@@ -453,7 +455,11 @@ class BriefingService:
                 forced(SECTION_HEALTH),
             ),
             _SectionPlan(
-                SECTION_SMS, lambda: fetch_sms(user_id=self.user.id), 0, True, cache_eligible=False
+                SECTION_SMS,
+                lambda: fetch_sms(user_id=self.user.id, include_messages=sms_previews),
+                0,
+                True,
+                cache_eligible=False,
             ),
             _SectionPlan(
                 SECTION_FOR_YOU,
@@ -506,7 +512,7 @@ class BriefingService:
         # Fetch every section in parallel — each independently failable.
         # Each fetcher acquires its own DB session (SQLAlchemy AsyncSession is
         # not safe for concurrent use, see fetchers.py module docstring).
-        plans = self._build_plan(force)
+        plans = self._build_plan(force, sms_previews=True)
         results = await asyncio.gather(
             *(
                 self._section(plan.name, plan.fetcher, ttl=plan.ttl, force=plan.force)
@@ -621,6 +627,8 @@ class BriefingService:
         # cache (which may already be stale for sections we just refreshed)
         # and doesn't trigger its inline-rebuild safety net.
         text = await self.build_text(cards=cards)
+        # Text generation may outlive an erasure after the cards' first check.
+        cards = await revalidate_sms_card(cards)
         return BriefingResponse(
             greeting=text.greeting,
             synthesis=text.synthesis,
@@ -910,42 +918,16 @@ class BriefingService:
         return await selected_cards_bundle(plans, self._section, on_read)
 
     async def _read_cached_bundle(
-        self, *, include_sms: bool = True
+        self, *, include_sms: bool = True, sms_previews: bool = False
     ) -> tuple[CardsBundle, frozenset[str]]:
-        """Read the bundle from cache, and say which sections were absent.
+        """Read permitted sections and distinguish a cold bundle from a quiet day."""
+        return await cached_cards_bundle(
+            self._read_section_cache, include_sms=include_sms, sms_previews=sms_previews
+        )
 
-        The absence is the useful half: it is what tells a caller whether the
-        bundle has been BUILT recently, which is a different question from
-        whether it is INTERESTING. Conflating the two is what made a quiet
-        dashboard indistinguishable from a cold cache, and had ``/synthesis``
-        rebuild everything on every single call for anyone whose day happened
-        to be empty.
-
-        A hidden section is never fetched, so its absence is not a gap. A
-        section that FAILED is not written either (an error must retry, not
-        stick), so a failing connector does read as absent — the honest
-        consequence is one extra gather, which on a page load costs nothing
-        because it is coalesced with the one ``/cards`` is already running.
-
-        Returns:
-            The bundle, and the names of the visible sections the cache had no
-            entry for.
-        """
-        now = datetime.now(UTC)
-        names = tuple(name for name in SECTION_NAMES if include_sms or name != SECTION_SMS)
-        results = await asyncio.gather(*(self._read_section_cache(name) for name in names))
-        by_name = dict(zip(names, results, strict=True))
-        if not include_sms:
-            by_name[SECTION_SMS] = CardSection(status=CardStatus.HIDDEN, generated_at=now)
-        missing = frozenset(name for name, section in by_name.items() if section is None)
-
-        def _or_placeholder(name: str) -> CardSection:
-            return by_name[name] or CardSection(status=CardStatus.NOT_CONFIGURED, generated_at=now)
-
-        bundle = CardsBundle(**{name: _or_placeholder(name) for name in SECTION_NAMES})
-        return bundle, missing
-
-    async def _read_section_cache(self, name: str) -> CardSection | None:
+    async def _read_section_cache(
+        self, name: str, *, include_messages: bool = False
+    ) -> CardSection | None:
         """Per-section cache read honoring hidden preferences (UXR B4).
 
         Args:
@@ -959,7 +941,10 @@ class BriefingService:
             return CardSection(status=CardStatus.HIDDEN, generated_at=datetime.now(UTC))
         if name == SECTION_SMS:
             return await self._read_live_section(
-                name, lambda: fetch_sms(user_id=self.user.id), record=True, on_read=None
+                name,
+                lambda: fetch_sms(user_id=self.user.id, include_messages=include_messages),
+                record=True,
+                on_read=None,
             )
         return await self._read_cache(self._cache_key(name))
 

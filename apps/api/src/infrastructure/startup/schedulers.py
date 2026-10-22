@@ -70,6 +70,7 @@ from src.infrastructure.scheduler.token_refresh import refresh_expiring_tokens
 from src.infrastructure.scheduler.unverified_account_cleanup import (
     cleanup_unverified_accounts,
 )
+from src.infrastructure.startup.scheduler_discussions import register_discussion_jobs
 from src.infrastructure.startup.scheduler_ingestion import register_ingestion_jobs
 from src.infrastructure.startup.scheduler_jitter import jitter_seconds_for
 from src.infrastructure.startup.scheduler_ledger import register_ledger_jobs
@@ -731,6 +732,7 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
         # Push and durable ingestion sweeps.
         register_push_jobs(scheduler)
         register_ingestion_jobs(scheduler)
+        register_discussion_jobs(scheduler)
 
         # The ledger notary (ADR-263 lot 5).
         register_ledger_jobs(scheduler)

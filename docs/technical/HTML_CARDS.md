@@ -19,8 +19,52 @@ follows the app theme; changing theme does not reconstruct a paid map. Missing
 configuration or SDK/network failure preserves the source list. Configuration
 does not itself establish that a real Cloud key/restriction/map ID is valid.
 Markers use the [quarterly SDK's DOM `gmp-click` contract](https://developers.google.com/maps/documentation/javascript/reference/3.65/advanced-markers)
-and abort their listeners on cleanup. The [map color scheme is initialization-only](https://developers.google.com/maps/documentation/javascript/reference/map#MapOptions.colorScheme),
+and abort their listeners on cleanup. Compact coloured list badges and native
+`PinElement.glyphText` pins share each place's original one-based number. Unlocated
+places keep their number and link, leaving gaps in the map's numbering rather than
+shifting the correspondence. Pin colours follow the application's theme without
+replacing the markers. The [map color scheme is initialization-only](https://developers.google.com/maps/documentation/javascript/reference/map#MapOptions.colorScheme),
 so theme changes never silently construct another paid map.
+
+Before activation the map stage stays collapsed, leaving the source list and
+cost-disclosed activation control visible. Selecting a located place then opens
+one React-rendered place presentation for the existing map. The bounded versioned
+projection carries only already acquired address, rating, review count, phone,
+website and weekday opening hours; old projections without these facts still work.
+Missing facts stay absent and opening the window makes no extra Places request.
+Phone formatting runs on sanitized text nodes, preserving the original dialable
+number and every URL or opaque widget attribute.
+
+An explicit selection computes its route through the authenticated
+`POST /connectors/google-maps/place-route` endpoint. The browser reads a position
+only when the application opt-in and an already granted browser permission both
+allow it, without prompting. The server reuses the implicit-location cascade:
+browser position, fresh opted-in last-known position, then home. A last-known
+origin is identified with its capture time in the account timezone. The existing
+Routes client supplies the geometry, and the window shows distance and duration
+while one removable polyline displays the route. The selected-place policy in
+[place_route_service.py](../../apps/api/src/domains/connectors/place_route_service.py)
+chooses walking or driving and corrects a walking result beyond its distance
+boundary once. The first paid result is durably recorded before the correction's
+spend and pricing checks; both requests keep their actual SKU. Other route tools
+retain their existing defaults. The endpoint applies platform and user spend
+gates and persists its own Google API usage through cancellation.
+No origin or a calculation failure leaves the place information available with
+an explicit retry control. Superseded selections are cancelled and late replies
+ignored; a bounded account-local cache avoids repeating a recently computed
+origin/destination pair. Refresh deliberately bypasses that cache. Neither the
+home address nor route results are added to archived place HTML.
+The place presentation puts identity and route metrics before contact actions and
+opening hours. On desktop, the wider anchored window uses the SDK's
+[native header content](https://developers.google.com/maps/documentation/javascript/reference/info-window#InfoWindowOptions.headerContent)
+for its React-rendered title alongside the native close control; only its body
+scrolls. On a phone, the shared application dialog presents the same facts in a
+wide panel at the bottom of the viewport, with a fixed close control and one
+scrollable body, including the title so long names and enlarged text cannot
+consume all available reading space. It respects the safe area, focuses the title on arrival
+and returns focus on dismissal. Moving between the two layouts changes the
+presentation without constructing another paid map or requesting another route.
+The details themselves keep their natural height, with no nested scroll region.
 
 Email/appointment cards display the same accepted native advisory labels used
 by the assistant. Unknown labels stay absent; phishing has stable red ground
@@ -192,7 +236,7 @@ A composition affordance is server-selected and tied to the assistant answer tha
 
 The frontend stores draft text and its composition context together for the current account. A pending retry retains its original immutable target. Replacing an existing composition requires the established explicit confirmation. Reply/forward/deletion or reminder adjustment prepares a request/draft; it does not send or execute automatically. Email deletion prepares the existing confirmation draft and moves the selected message to trash only after approval. Previously archived reply/forward grants retain those actions without gaining deletion. HITL, modification, resume and provider refresh/retry paths recheck the same binding. Disconnected or changed accounts cannot silently act through another connection. Gmail cache namespaces follow the verified account identity. Sources without a sufficient structural account/mailbox binding do not offer the action.
 
-Grouped OAuth connections use their verified grant. Existing Gmail/Outlook connections with per-service credentials use [legacy_email_binding.py](../../apps/api/src/domains/connectors/legacy_email_binding.py): an opaque HMAC-derived UUID scoped to the user, provider, connector row and authenticated connection generation. The generation remains inside encrypted credentials across access/refresh token rotation. Every successful new consent creates a fresh generation, even when the provider reuses its refresh token. Reads of existing credentials require no reconnect or database migration, and card projections carry no token or generation seed. Sources without a refresh credential remain unavailable. Previously archived answers without action metadata cannot acquire a target from their HTML.
+Grouped OAuth connections use their verified grant. Existing connections with per-service credentials — every OAuth type, mailboxes, calendars, address books and task lists alike — use [legacy_oauth_binding.py](../../apps/api/src/domains/connectors/legacy_oauth_binding.py): an opaque HMAC-derived UUID scoped to the user, provider, connector row and authenticated connection generation. The generation remains inside encrypted credentials across access/refresh token rotation. Every successful new consent creates a fresh generation, even when the provider reuses its refresh token. Reads of existing credentials require no reconnect or database migration, and card projections carry no token or generation seed. Sources without a refresh credential remain unavailable. Previously archived answers without action metadata cannot acquire a target from their HTML.
 
 The model sees the versioned [composition directive](../../apps/api/src/domains/agents/prompts/v1/card_composition_context.txt) with the verified target and provider, not an arbitrary instruction extracted from card HTML. Private transport metadata does not become user prose or persist as a future instruction.
 
@@ -223,4 +267,10 @@ Automated checks support the delivery; they do not replace the owner's visual ac
 - [Google People organizations](https://developers.google.com/people/api/rest/v1/people#Organization)
 - [Hue API](https://developers.meethue.com/)
 
-The Position ordering and activation decision is recorded in [ADR-352](../architecture/ADR-352-Position-Before-Places-In-Every-Display-Mode.md). Initial guided installations may supply the paired browser key and production Cloud map ID privately; later environment edits preserve the same configuration contract.
+The Position ordering and activation decision is recorded in [ADR-352](../architecture/ADR-352-Position-Before-Places-In-Every-Display-Mode.md).
+[ADR-355](../architecture/ADR-355-Acquired-Place-Details-And-Accounted-Selected-Routes.md)
+records acquired facts, origin selection and accounted routes;
+[ADR-356](../architecture/ADR-356-Responsive-Position-Details-And-Shared-Place-Numbers.md)
+records responsive presentation and shared place numbers. Initial guided
+installations may supply the paired browser key and production Cloud map ID
+privately; later environment edits preserve the same configuration contract.

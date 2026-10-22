@@ -3,8 +3,9 @@
  * return-to-bottom button, the per-bubble action row, share/export, an image
  * shared with a connection, the
  * one-draft-at-a-time review, the network question a script asks before going
- * out, and the execution-trace backstage. Timer-driven micro-demos; last phase
- * = resting frame.
+ * out, the four reactions under a discussion LIA opened, and the
+ * execution-trace backstage. Timer-driven micro-demos; last phase = resting
+ * frame.
  */
 
 'use client';
@@ -17,6 +18,7 @@ import {
   BookmarkCheck,
   Check,
   ChevronRight,
+  CirclePause,
   Copy,
   Download,
   FileText,
@@ -25,6 +27,7 @@ import {
   Image as ImageIcon,
   Languages,
   Mail,
+  MessageCircleHeart,
   PenLine,
   Reply,
   Search,
@@ -1229,7 +1232,65 @@ function CardComposeScene({ active, labels }: SceneProps) {
   );
 }
 
+type ReactionPhase = 'opening' | 'chips' | 'tap' | 'heard';
+const REACTION_STEPS: readonly TimelineStep<ReactionPhase>[] = [
+  { at: 0, state: 'opening' },
+  { at: 800, state: 'chips' },
+  { at: 1700, state: 'tap' },
+  { at: 2500, state: 'heard' },
+];
+
+/** The four reactions an opening offers, in the order the chat draws them. */
+const REACTION_LABELS = ['thanks', 'not_now', 'avoid', 'wrong'] as const;
+
+/**
+ * A proactive discussion's opening (ADR-358) and the four reactions under it.
+ * « Not now » is pressed, and the pause it buys is stated rather than implied.
+ */
+function DiscussionReactionsScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(REACTION_STEPS, { active });
+  const pressed = phase === 'tap' || phase === 'heard';
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center gap-1.5')}>
+      <MiniBubble side="assistant" className="w-3/4 space-y-1">
+        <span className="flex items-center gap-1.5">
+          <MessageCircleHeart className="h-3 w-3 shrink-0 text-primary" />
+          <SkeletonLine w="w-full" />
+        </span>
+        <SkeletonLine w="w-4/5" />
+      </MiniBubble>
+      <div
+        className={cn(
+          'flex flex-wrap gap-1 transition-opacity duration-500',
+          phase === 'opening' ? 'opacity-0' : 'opacity-100'
+        )}
+      >
+        {REACTION_LABELS.map(key => (
+          <MiniChip
+            key={key}
+            pressed={pressed && key === 'not_now'}
+            className="px-2 py-0.5 text-px-9"
+          >
+            {labels[key]}
+          </MiniChip>
+        ))}
+      </div>
+      <MiniToast
+        icon={CirclePause}
+        tone="info"
+        className={cn(
+          'self-start transition-opacity duration-500',
+          phase === 'heard' ? 'opacity-100' : 'opacity-0'
+        )}
+      >
+        {labels.heard}
+      </MiniToast>
+    </div>
+  );
+}
+
 export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
+  discussion_reactions: DiscussionReactionsScene,
   card_details: CardDetailsScene,
   card_compose: CardComposeScene,
   voice_follows_answer: VoiceFollowsAnswerScene,

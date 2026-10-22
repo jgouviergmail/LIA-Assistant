@@ -88,21 +88,40 @@ def _call(preference=MeetingSttEnginePreference.AUTO):
     )
 
 
-async def test_a_refused_key_hands_over_to_the_next_engine(chain: dict[str, Any]) -> None:
+@pytest.mark.parametrize("code", ["invalid_api_key", "provider_audio_too_short"])
+async def test_a_permanent_vendor_refusal_hands_over_to_the_next_engine(
+    chain: dict[str, Any], code: str
+) -> None:
     chain["order"] = [
         MeetingSttProvider.ELEVENLABS,
         MeetingSttProvider.OPENAI,
         MeetingSttProvider.LOCAL,
     ]
     chain["behaviour"] = {
-        MeetingSttProvider.ELEVENLABS: TranscriptionError(
-            "invalid_api_key", "refused", transient=False
-        ),
+        MeetingSttProvider.ELEVENLABS: TranscriptionError(code, "refused", transient=False),
         MeetingSttProvider.OPENAI: _outcome(MeetingSttProvider.OPENAI),
     }
     outcome = await _call()
     assert outcome.provider is MeetingSttProvider.OPENAI
     assert chain["resolved"] == [MeetingSttProvider.ELEVENLABS, MeetingSttProvider.OPENAI]
+
+
+async def test_too_short_audio_without_another_engine_fails_without_retry(
+    chain: dict[str, Any],
+) -> None:
+    chain["order"] = [MeetingSttProvider.ELEVENLABS]
+    chain["behaviour"] = {
+        MeetingSttProvider.ELEVENLABS: TranscriptionError(
+            "provider_audio_too_short", "record a longer clip", transient=False
+        ),
+    }
+
+    with pytest.raises(TranscriptionError) as caught:
+        await _call()
+
+    assert caught.value.code == "provider_audio_too_short"
+    assert caught.value.transient is False
+    assert chain["resolved"] == [MeetingSttProvider.ELEVENLABS]
 
 
 async def test_a_transient_fault_is_raised_at_once_for_the_retry_budget(

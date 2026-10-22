@@ -14,7 +14,7 @@ from typing import Any
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
-from src.core.constants import LIVE_TURN_MESSAGE_TYPE
+from src.core.constants import LIVE_TURN_MESSAGE_TYPE, PROACTIVE_DISCUSSION_MESSAGE_TYPE
 
 
 def out_of_graph_message(row: Any) -> BaseMessage:
@@ -34,6 +34,16 @@ def out_of_graph_message(row: Any) -> BaseMessage:
     if row.message_metadata and isinstance(row.message_metadata, dict):
         metadata_type = str(row.message_metadata.get("type", "proactive"))
     original_created_at = row.created_at.isoformat() if row.created_at else None
+    if metadata_type == PROACTIVE_DISCUSSION_MESSAGE_TYPE:
+        return AIMessage(
+            id=str(row.id),
+            content=row.content,
+            additional_kwargs={
+                "proactive_discussion": True,
+                "discussion_id": row.message_metadata.get("discussion_id"),
+                "original_created_at": original_created_at,
+            },
+        )
     if metadata_type == LIVE_TURN_MESSAGE_TYPE:
         kwargs = {"live_turn": True, "original_created_at": original_created_at}
         if row.role == "user":

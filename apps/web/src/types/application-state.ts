@@ -12,6 +12,7 @@ const applicationResource = z.enum([
   'chat_shortcuts',
   'locations',
   'heartbeat',
+  'proactive_discussions',
   'channels',
   'connector_preferences',
   'shared_mcp_preferences',

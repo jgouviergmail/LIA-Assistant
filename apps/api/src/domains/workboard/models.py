@@ -231,6 +231,16 @@ class WorkboardTicket(BaseModel):
         nullable=True,
         comment="Completion tokens the last run spent.",
     )
+    last_run_tokens_cache: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Cached prompt tokens the last run read.",
+    )
+    last_run_google_requests: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Google API requests the last run made.",
+    )
     last_run_cost_eur: Mapped[Decimal | None] = mapped_column(
         Numeric(10, 6),
         nullable=True,

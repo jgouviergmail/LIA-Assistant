@@ -5,7 +5,6 @@
  * from partial pages. Decisions precede both registers. */
 
 import { useRef, useState, type ReactNode } from 'react';
-import Link from 'next/link';
 import {
   Bell,
   CalendarClock,
@@ -20,6 +19,8 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { SmsHubSection } from '@/components/sms/SmsHubSection';
+import { AlertsViewActions } from '@/components/notifications/AlertsViewActions';
+import { DiscussionsHubSection } from '@/components/notifications/DiscussionsHubSection';
 import { HeartbeatHistory } from '@/components/settings/HeartbeatHistory';
 import { InterestNotificationHistory } from '@/components/settings/InterestNotificationHistory';
 import { HubSection, type HubSectionProps } from '@/components/notifications/HubSection';
@@ -35,11 +36,18 @@ import { useAppConfig } from '@/hooks/useAppConfig';
 import { useHubCounts, type HubCounts } from '@/hooks/useHubCounts';
 import { usePagedSection, type PagedSection } from '@/hooks/usePagedSection';
 import { getIntlLocale, type Language } from '@/i18n/settings';
+import { publishApplicationResources, type ApplicationResource } from '@/lib/application-resources';
 import type { HeartbeatNotification } from '@/hooks/useHeartbeatHistory';
 import type { InterestNotification } from '@/hooks/useInterestNotificationHistory';
 import type { PendingReminder } from '@/components/notifications/PendingRemindersList';
 import type { RelayedMessage } from '@/components/notifications/RelayedMessagesList';
 import type { ScheduledActionRow } from '@/components/notifications/ScheduledActionsList';
+
+/** The resources whose readers on this page re-read on the application signal. */
+const SIGNALLED_RESOURCES: ReadonlySet<ApplicationResource> = new Set<ApplicationResource>([
+  'sms',
+  'proactive_discussions',
+]);
 
 /**
  * The section queries, and the fold state that gates them.
@@ -57,6 +65,7 @@ function useHubSections() {
     error: countsError,
     loading: countsLoading,
     refetch: retryCounts,
+    ownerId,
   } = useHubCounts();
 
   // One open-state per section: `Disclosure` unmounts its children
@@ -138,12 +147,26 @@ function useHubSections() {
   });
   const workboardEnabled = Boolean(config?.features?.workboard_enabled);
 
+  // One press re-reads what the page shows. Every OPEN section restarts its
+  // query (a folded one has none to restart). The totals, the SMS archive and
+  // the discussion openings re-read on the application's resource signal —
+  // the one a write elsewhere sends — so one publication refreshes all three
+  // without a second read racing it.
+  const refreshAll = () => {
+    for (const section of [offers, peers, proactive, interests, reminders, scheduled, workboard]) {
+      section.refetch();
+    }
+    if (ownerId) publishApplicationResources(ownerId, SIGNALLED_RESOURCES);
+    else void retryCounts();
+  };
+
   return {
     config,
     counts,
     countsError,
     countsLoading,
     retryCounts,
+    refreshAll,
     track,
     offers,
     peers,
@@ -264,16 +287,16 @@ function NotificationRegister({
   return (
     <section
       aria-labelledby={id}
-      className={`min-w-0 rounded-2xl border border-border/60 bg-card p-4 sm:p-5 ${className ?? ''}`}
+      className={`min-w-0 rounded-2xl border border-border bg-card p-4 sm:p-5 ${className ?? ''}`}
     >
       <SectionHeader
         id={id}
         title={title}
         icon={icon}
         level={2}
-        className="border-b border-border/60 pb-4"
+        className="border-b border-border pb-4"
       />
-      <div className="divide-y divide-border/50">{children}</div>
+      <div className="divide-y divide-border">{children}</div>
     </section>
   );
 }
@@ -347,16 +370,13 @@ export function NotificationsHub({ lng }: { lng: Language }) {
         level={1}
         description={t('notifications_hub.subtitle')}
         actions={
-          <>
-            {config?.features?.activity_timeline_enabled && (
-              <Button asChild size="sm" className="min-h-11 w-full sm:w-auto">
-                <Link href={`/${lng}/dashboard/activity`}>
-                  <History className="h-4 w-4" aria-hidden="true" />
-                  {t('activity.hub_cta')}
-                </Link>
-              </Button>
-            )}
-          </>
+          <AlertsViewActions
+            lng={lng}
+            view="hub"
+            switchable={Boolean(config?.features?.activity_timeline_enabled)}
+            busy={sections.countsLoading}
+            onRefresh={sections.refreshAll}
+          />
         }
       />
 
@@ -417,6 +437,7 @@ export function NotificationsHub({ lng }: { lng: Language }) {
           className="lg:col-start-1 lg:row-start-1"
         >
           <DeliveredNotifications sections={sections} locale={locale} />
+          <DiscussionsHubSection total={counts?.discussions} locale={locale} />
           <SmsHubSection lng={lng} total={counts?.sms} />
         </NotificationRegister>
       </div>

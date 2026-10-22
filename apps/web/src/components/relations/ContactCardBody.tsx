@@ -42,8 +42,55 @@ import { cn } from '@/lib/utils';
 import { partialDateLabel } from '@/lib/briefing-utils';
 import type { ContactCard, ContactValue } from '@/hooks/useRelations';
 
-/** Only these two schemes are turned into a link — `javascript:` never is. */
+/** Only these two schemes are turned into a web link — `javascript:` never is. */
 const SAFE_LINK = /^https?:\/\//i;
+
+/** A mailbox the mail client can be handed: one `@`, no space, a dotted domain
+ * whose labels are letters, digits and dashes in any script (`bücher.de`). */
+const MAILBOX = /^([^\s@]+)@([\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+)$/u;
+
+/** A row's destination; `external` opens a new tab, a call or a mail never does. */
+interface ContactLink {
+  href: string;
+  external: boolean;
+}
+
+/**
+ * Where a contact value leads (owner request 2026-10-21): an e-mail opens the
+ * mail client, a phone number places a REAL call (never through LIA), an
+ * address opens Google Maps in a new tab. Built from the provider's data, so
+ * each builder accepts only a value it can encode whole and answers nothing
+ * otherwise — the row then stays plain text rather than a broken link.
+ */
+const contactLinks = {
+  email(value: string): ContactLink | undefined {
+    const match = MAILBOX.exec(value.trim());
+    if (!match) return undefined;
+    // The local part is encoded: a `?` or `&` in it must never start headers.
+    return { href: `mailto:${encodeURIComponent(match[1])}@${match[2]}`, external: false };
+  },
+  phone(value: string): ContactLink | undefined {
+    // Spaces, dots, dashes, slashes and parentheses are layout, and the `(0)`
+    // of an international number is a trunk prefix nobody dials after the
+    // country code. Anything else — an extension, a vanity letter — cannot be
+    // dialled whole, and a wrong number is worse than plain text.
+    const trimmed = value.trim();
+    const withoutTrunk = trimmed.startsWith('+') ? trimmed.replace(/\(0\)/g, '') : trimmed;
+    const dialable = withoutTrunk.replace(/[\s./()-]/g, '');
+    return /^\+?\d{3,}$/.test(dialable) ? { href: `tel:${dialable}`, external: false } : undefined;
+  },
+  address(value: string): ContactLink | undefined {
+    const query = value.trim();
+    if (!query) return undefined;
+    return {
+      href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`,
+      external: true,
+    };
+  },
+  web(value: string): ContactLink | undefined {
+    return SAFE_LINK.test(value) ? { href: value, external: true } : undefined;
+  },
+};
 
 /**
  * Localize a provider label, keeping the provider's own word as a fallback.
@@ -66,26 +113,27 @@ function ContactValueRow({
   icon: Icon,
   value,
   label,
-  href,
+  link,
 }: {
   icon: LucideIcon;
   value: string;
   label: string | null;
-  href?: string;
+  link?: ContactLink;
 }) {
   return (
-    <p className="flex flex-wrap items-center gap-2 px-3 py-2 text-sm text-foreground/90">
+    // Standard line spacing: the padding belonged to the rules that once
+    // separated the rows (owner request 2026-10-21).
+    <p className="flex flex-wrap items-center gap-2 text-sm text-foreground/90">
       <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
       {/* `break-words`, NOT `break-all`: the same row now carries mailboxes and
           URLs (one long unbreakable token, which must be split or it pushes the
           card off a 320 px screen) AND postal addresses and people's names,
           which `break-all` would chop mid-word — "12 rue des Li/las". This
           wraps on spaces first and only splits a token that cannot fit alone. */}
-      {href ? (
+      {link ? (
         <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
+          href={link.href}
+          {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
           className="min-w-0 break-words underline decoration-dotted underline-offset-2 hover:text-foreground"
         >
           {value}
@@ -112,12 +160,13 @@ function ContactBlock({
   icon,
   values,
   format,
-  linkify = false,
+  link,
 }: {
   icon: LucideIcon;
   values: ContactValue[];
   format?: (value: string) => string;
-  linkify?: boolean;
+  /** Where a value leads, read from its RAW provider form; absent, plain text. */
+  link?: (value: string) => ContactLink | undefined;
 }) {
   const translate = useLabel();
   if (values.length === 0) return null;
@@ -131,7 +180,7 @@ function ContactBlock({
           icon={icon}
           value={format ? format(entry.value) : entry.value}
           label={translate(entry.label)}
-          href={linkify && SAFE_LINK.test(entry.value) ? entry.value : undefined}
+          link={link?.(entry.value)}
         />
       ))}
     </>
@@ -202,13 +251,14 @@ export function ContactCardBody({ card, locale }: { card: ContactCard; locale: s
       <CardIdentity card={card} />
       {/* Grouped rather than piled: an address book answers three different
           questions — how do I reach them, which dates matter, who and what are
-          they tied to. One flat stack of rows made the reader scan for the
-          boundary between them; a bordered group per question shows it. */}
+          they tied to. Each group keeps one icon tone, which shows the boundary
+          without a line or a panel inside the section (owner request
+          2026-10-21: no separator on the contact sheet). */}
       {/* Reach: the primary accent — these are the actions of the card. */}
       <ContactGroup show={hasReach} tone="[&_svg]:text-primary">
-        <ContactBlock icon={AtSign} values={card.emails} />
-        <ContactBlock icon={Phone} values={card.phones} />
-        <ContactBlock icon={MapPin} values={card.addresses} />
+        <ContactBlock icon={AtSign} values={card.emails} link={contactLinks.email} />
+        <ContactBlock icon={Phone} values={card.phones} link={contactLinks.phone} />
+        <ContactBlock icon={MapPin} values={card.addresses} link={contactLinks.address} />
       </ContactGroup>
       {/* Dates: warm, and distinct from both neighbours. */}
       <ContactGroup show={hasDates} tone="[&_svg]:text-warning">
@@ -224,11 +274,11 @@ export function ContactCardBody({ card, locale }: { card: ContactCard; locale: s
       {/* Ties: people and links — the third question the card answers. */}
       <ContactGroup show={hasTies} tone="[&_svg]:text-success">
         <ContactBlock icon={Users} values={card.relations} />
-        <ContactBlock icon={Link2} values={card.links} linkify />
+        <ContactBlock icon={Link2} values={card.links} link={contactLinks.web} />
         <ContactBlock icon={MessageCircle} values={card.messaging} />
       </ContactGroup>
       {card.biography && (
-        <p className="flex gap-2 rounded-lg border-l-2 border-border/60 bg-background px-3 py-2 text-sm italic text-muted-foreground">
+        <p className="flex gap-2 border-l-2 border-border py-1 pl-3 text-sm italic text-muted-foreground">
           <Quote className="mt-1 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           <span className="whitespace-pre-line">{card.biography}</span>
         </p>
@@ -241,10 +291,12 @@ export function ContactCardBody({ card, locale }: { card: ContactCard; locale: s
 }
 
 /**
- * One themed group of contact rows.
+ * One themed group of contact rows: no panel inside the section and no line
+ * between rows (owner requests 2026-10-21) — the group's icon tone and the
+ * gap are the boundary.
  *
  * `show` is computed by the caller from the SAME lists it renders: a group whose
- * blocks all return null would otherwise draw an empty bordered box.
+ * blocks all return null would otherwise draw an empty divider.
  */
 function ContactGroup({
   show,
@@ -270,14 +322,5 @@ function ContactGroup({
   children: React.ReactNode;
 }) {
   if (!show) return null;
-  return (
-    <div
-      className={cn(
-        'divide-y divide-border/40 overflow-hidden rounded-lg border border-border/40 bg-background',
-        tone
-      )}
-    >
-      {children}
-    </div>
-  );
+  return <div className={cn('space-y-1', tone)}>{children}</div>;
 }

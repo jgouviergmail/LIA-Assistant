@@ -59,7 +59,10 @@ import {
   type ModelPricingFormData,
   type TimeSlotFormRow,
 } from '@/components/settings/admin-llm-pricing-helpers';
-import { useCatalogueInvalidator } from '@/lib/catalogue-invalidation-context';
+import {
+  useCatalogueInvalidationListener,
+  useCatalogueInvalidator,
+} from '@/lib/catalogue-invalidation-context';
 import { Trans } from 'react-i18next';
 import { useTranslation } from '@/i18n/client';
 import { useConfirm } from '@/components/ui/use-confirm';
@@ -263,6 +266,10 @@ export default function AdminLLMPricingSection({ lng }: BaseSettingsProps) {
   );
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [catalogueStatus, setCatalogueStatus] = useState<CatalogueStatus | null>(null);
+  const [catalogueRevision, setCatalogueRevision] = useState(0);
+  useCatalogueInvalidationListener('model_capabilities', () => {
+    setCatalogueRevision(revision => revision + 1);
+  });
 
   const fetchModels = useCallback(
     async (signal?: AbortSignal) => {
@@ -315,18 +322,22 @@ export default function AdminLLMPricingSection({ lng }: BaseSettingsProps) {
   }, [fetchModels]);
 
   // The registry verdict is a diagnostic ABOUT the catalogue, not part of it:
-  // it is fetched once, never blocks the table, and a failure leaves the panel
-  // unrendered rather than the section broken.
+  // it follows successful catalogue mutations, never blocks the table, and a
+  // failure leaves the panel unrendered rather than showing stale counters.
   useEffect(() => {
     const controller = new AbortController();
     apiClient
       .get<CatalogueStatus>('/admin/llm/catalogue-status', { signal: controller.signal })
-      .then(setCatalogueStatus)
-      .catch(() => setCatalogueStatus(null));
+      .then(status => {
+        if (!controller.signal.aborted) setCatalogueStatus(status);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setCatalogueStatus(null);
+      });
     return () => {
       controller.abort();
     };
-  }, []);
+  }, [catalogueRevision]);
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);

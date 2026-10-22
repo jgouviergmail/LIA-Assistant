@@ -100,7 +100,11 @@ NOTHING_TO_SAY: Final[str] = "nothing_to_say"
 PRODUCTION_ERROR: Final[str] = "error"
 #: The outcomes where the station chose not to air — never a failure (decision 33).
 NOTHING_AIRED_OUTCOMES: Final[frozenset[str]] = frozenset(
-    {NOTHING_TO_SAY, ProductionOutcome.SCRIPT_REFUSED.value}
+    {
+        NOTHING_TO_SAY,
+        ProductionOutcome.SCRIPT_REFUSED.value,
+        ProductionOutcome.SOURCE_WITHDRAWN.value,
+    }
 )
 
 

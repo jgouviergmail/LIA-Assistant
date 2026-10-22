@@ -18,6 +18,8 @@ interface State {
 }
 const INITIAL: State = { preview: null, outcome: null, pending: false, error: null };
 type Result = { type: 'preview' | 'outcome'; value: CapabilityTransfer };
+/** What one current operation settled on: its receipt, or the failure it reported. */
+export type TransferSettlement = { receipt: CapabilityTransfer } | { error: Error };
 interface Scoped<T> {
   scope: object;
   value: T;
@@ -113,15 +115,18 @@ export function useCapabilityTransfer(source: CapabilitySelection) {
     },
     [current, scope]
   );
+  /** Resolves to null when the operation was refused, superseded or abandoned. */
   const run = useCallback(
-    async (perform: (signal: AbortSignal) => Promise<Result>) => {
-      if (!current() || operation.current) return;
+    async (
+      perform: (signal: AbortSignal) => Promise<Result>
+    ): Promise<TransferSettlement | null> => {
+      if (!current() || operation.current) return null;
       const pending: Operation = { scope, token: Symbol(), controller: new AbortController() };
       operation.current = pending;
       accept({ pending: true, error: null });
       try {
         const result = await perform(pending.controller.signal);
-        if (!current() || operation.current?.token !== pending.token) return;
+        if (!current() || operation.current?.token !== pending.token) return null;
         if (result.type === 'preview') {
           previewRef.current = { scope, value: result.value };
           outcomeRef.current = null;
@@ -130,14 +135,18 @@ export function useCapabilityTransfer(source: CapabilitySelection) {
           outcomeRef.current = { scope, value: result.value };
           accept({ outcome: result.value });
         }
+        return { receipt: result.value };
       } catch (error) {
         if (
           current() &&
           operation.current?.token === pending.token &&
           !pending.controller.signal.aborted
         ) {
-          accept({ error: error instanceof Error ? error : new Error('capability_share.failed') });
+          const failure = error instanceof Error ? error : new Error('capability_share.failed');
+          accept({ error: failure });
+          return { error: failure };
         }
+        return null;
       } finally {
         if (operation.current?.token === pending.token) {
           operation.current = null;
@@ -183,12 +192,13 @@ export function useCapabilityTransfer(source: CapabilitySelection) {
       previewRef.current.value.digest === preview.digest,
     [current, scope]
   );
+  /** The confirmed send; its settlement lets the caller announce the result. */
   const send = useCallback(
-    async (preview: CapabilityTransfer) => {
-      if (!matches(preview)) return;
+    async (preview: CapabilityTransfer): Promise<TransferSettlement | null> => {
+      if (!matches(preview)) return null;
       const status = outcomeRef.current?.scope === scope ? outcomeRef.current.value.status : null;
-      if (status && ['installed', 'installing', 'cancelled'].includes(status)) return;
-      await run(async signal => ({
+      if (status && ['installed', 'installing', 'cancelled'].includes(status)) return null;
+      return run(async signal => ({
         type: 'outcome',
         value: await confirmedReceipt(source, preview, signal),
       }));

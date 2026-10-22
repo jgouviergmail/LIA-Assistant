@@ -74,21 +74,25 @@ async def test_exact_peer_count_uses_visible_open_outbound_set_in_one_holder_rea
 
     assert figures.held_by_peers == 2 * copies
     assert figures.held_by_lia == 3 * copies
+    # « My tickets »: what a human — me — holds, inbound included; never a
+    # ticket LIA or a peer holds, late or not.
+    assert figures.held_by_me == 3 * copies
     assert figures.needs_me == 2 * copies
     assert figures.overdue == copies
     assert figures.open_total == 7 * copies
     assert figures.needs_me_first == []
-    # Both holder aggregates share the original holder query; increasing the
-    # number of tickets never adds SQL reads; the fourth read is the bounded preview.
+    # The three holder aggregates share the original holder query; increasing
+    # the number of tickets never adds SQL reads; the fourth read is the bounded
+    # preview.
     assert len(statements) == 4
-    assert statements[1].count("count(*)") == 2
+    assert statements[1].count("count(*)") == 3
     assert " LIMIT " not in statements[1]
 
 
 async def test_no_peer_ticket_returns_an_exact_zero() -> None:
     db = AsyncMock()
     result = MagicMock()
-    result.one.return_value = (0, 0)
+    result.one.return_value = (0, 0, 0)
     result.scalar.return_value = 0
     db.execute.return_value = result
     repo = WorkboardRepository(db)
@@ -98,4 +102,5 @@ async def test_no_peer_ticket_returns_an_exact_zero() -> None:
     figures = await read_attention(repo, uuid4(), datetime.now(UTC), limit=2)
 
     assert figures.held_by_peers == 0
+    assert figures.held_by_me == 0
     assert figures.open_total == 0

@@ -91,7 +91,9 @@
         "infrastructure/caddy",
         "apps/web/src/lib/csp.ts",
         "apps/api/src/infrastructure/rate_limiting",
-        "apps/api/src/infrastructure/security"
+        "apps/api/src/infrastructure/security",
+        "apps/api/src/core/http_scan.py",
+        "apps/api/src/core/client_ip.py"
       ],
       "infra": ["rate_limiting", "security"],
       "deps": ["t.redis"]
@@ -463,11 +465,13 @@
       "icon": "heart-pulse",
       "paths": [
         "apps/api/src/infrastructure/proactive",
+        "apps/api/src/infrastructure/discussion_invalidation.py",
         "apps/api/src/domains/heartbeat",
-        "apps/api/src/domains/moments"
+        "apps/api/src/domains/moments",
+        "apps/api/src/domains/proactive_discussions"
       ],
-      "domains": ["heartbeat", "moments"],
-      "infra": ["proactive"],
+      "domains": ["heartbeat", "moments", "proactive_discussions"],
+      "infra": ["proactive", "discussion_invalidation"],
       "deps": ["t.scheduler", "t.llmfactory", "t.push", "t.registers"]
     },
     {
@@ -584,7 +588,8 @@
       "paths": [
         "apps/api/src/infrastructure/observability/logging.py",
         "infrastructure/observability/loki",
-        "infrastructure/observability/promtail"
+        "infrastructure/observability/promtail",
+        "apps/api/src/core/middleware.py"
       ],
       "deps": []
     },

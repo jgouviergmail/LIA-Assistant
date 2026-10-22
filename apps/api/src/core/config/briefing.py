@@ -32,6 +32,7 @@ from src.core.constants import (
     BRIEFING_MAX_MAILS_ITEMS_DEFAULT,
     BRIEFING_MAX_OPEN_LOOPS_ITEMS_DEFAULT,
     BRIEFING_MAX_REMINDERS_ITEMS_DEFAULT,
+    BRIEFING_MAX_SMS_ITEMS_DEFAULT,
     BRIEFING_MAX_TASKS_ITEMS_DEFAULT,
     BRIEFING_MAX_WORKBOARD_ITEMS_DEFAULT,
     BRIEFING_TASKS_HORIZON_DAYS_DEFAULT,
@@ -65,6 +66,12 @@ class BriefingSettings(BaseSettings):
         ge=1,
         le=50,
         description=f"Maximum emails shown on the mails card. Default {BRIEFING_MAX_MAILS_ITEMS_DEFAULT}.",
+    )
+    briefing_max_sms_items: int = Field(
+        default=BRIEFING_MAX_SMS_ITEMS_DEFAULT,
+        ge=1,
+        le=50,
+        description="Maximum recent SMS shown on the dashboard card.",
     )
     briefing_max_birthdays_items: int = Field(
         default=BRIEFING_MAX_BIRTHDAYS_ITEMS_DEFAULT,

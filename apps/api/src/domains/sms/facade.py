@@ -5,9 +5,9 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.exceptions import ResourceConflictError
-from src.domains.sms.identity import IdentityBook
-from src.domains.sms.identity_directory import load_identity_book
+from src.domains.sms.identity import IdentityBook, SenderIdentity
+from src.domains.sms.identity_resolution import resolve_senders
+from src.domains.sms.identity_store import validate_resolutions
 from src.domains.sms.read_schemas import SmsPage, SmsQuery, SmsSenderPage, SmsSenderView, SmsView
 from src.domains.sms.reads import SmsReadService, require_read
 
@@ -15,7 +15,19 @@ _View = TypeVar("_View", SmsView, SmsSenderView)
 
 
 def resolve_view(item: _View, book: IdentityBook) -> _View:
-    identity = book.resolve(item.sender)
+    return resolved_view(item, book.resolve(item.sender))
+
+
+def resolved_view(item: _View, identity: SenderIdentity) -> _View:
+    """Return an SMS view carrying the sender identity it resolved to.
+
+    Args:
+        item: The SMS view.
+        identity: The resolved sender identity.
+
+    Returns:
+        The view with its display name, identity source, state and relation key.
+    """
     return item.model_copy(
         update={
             "display_name": identity.display_name,
@@ -31,13 +43,13 @@ class SmsFacade:
         self.db = db
         self.reader = SmsReadService(db)
 
-    async def _book(self, owner: UUID, revision: int, *, assistant: bool) -> IdentityBook:
+    async def _identities(
+        self, owner: UUID, senders: list[str], revision: int, *, assistant: bool
+    ) -> dict[str, SenderIdentity]:
         await self.db.commit()
-        book = await load_identity_book(owner)
-        actor = await require_read(self.db, owner, assistant=assistant)
-        if (actor.extraction_revision or 0) != revision:
-            raise ResourceConflictError("sms", detail={"error_code": "STALE_STATE"})
-        return book
+        resolved = await resolve_senders(owner, senders, revision=revision, assistant=assistant)
+        await validate_resolutions(self.db, resolved.scope, assistant=assistant)
+        return resolved.identities
 
     async def list(
         self, owner: UUID, query: SmsQuery, *, assistant: bool, unmentioned_only: bool = False
@@ -46,9 +58,13 @@ class SmsFacade:
             owner, query, assistant=assistant, unmentioned_only=unmentioned_only
         )
         if page.items:
-            book = await self._book(owner, page.revision, assistant=assistant)
+            identities = await self._identities(
+                owner, [item.sender for item in page.items], page.revision, assistant=assistant
+            )
             page = page.model_copy(
-                update={"items": [resolve_view(item, book) for item in page.items]}
+                update={
+                    "items": [resolved_view(item, identities[item.sender]) for item in page.items]
+                }
             )
         return page
 
@@ -56,16 +72,20 @@ class SmsFacade:
         item = await self.reader.get(owner, message_id, assistant=assistant)
         actor = await require_read(self.db, owner, assistant=assistant)
         revision = actor.extraction_revision or 0
-        book = await self._book(owner, revision, assistant=assistant)
-        return resolve_view(item, book)
+        identities = await self._identities(owner, [item.sender], revision, assistant=assistant)
+        return resolved_view(item, identities[item.sender])
 
     async def senders(
         self, owner: UUID, *, assistant: bool, limit: int = 20, cursor: str | None = None
     ) -> SmsSenderPage:
         page = await self.reader.senders(owner, assistant=assistant, limit=limit, cursor=cursor)
         if page.items:
-            book = await self._book(owner, page.revision, assistant=assistant)
+            identities = await self._identities(
+                owner, [item.sender for item in page.items], page.revision, assistant=assistant
+            )
             page = page.model_copy(
-                update={"items": [resolve_view(item, book) for item in page.items]}
+                update={
+                    "items": [resolved_view(item, identities[item.sender]) for item in page.items]
+                }
             )
         return page

@@ -158,7 +158,7 @@ export function RefusalSwitches({
           <div
             key={item}
             className={cn(
-              'flex items-center gap-3 rounded-lg border border-border/40 bg-card/40 px-3 py-2',
+              'flex items-center gap-3 rounded-lg border border-border bg-card/40 px-3 py-2',
               'transition-colors',
               state.permitted ? 'text-foreground' : 'text-muted-foreground'
             )}

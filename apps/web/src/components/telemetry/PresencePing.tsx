@@ -7,7 +7,7 @@
  * document becomes visible again and on window focus, throttled client-side
  * so a busy tab sends at most one ping per throttle window. NEVER from a
  * background poll — an open tab on a second screen is not a presence — and
- * only for an authenticated user. The server banks at most one activity hour
+ * only for an active authenticated user. The server banks at most one activity hour
  * per local hour, so a lost or duplicated ping costs nothing. Silent on any
  * failure: presence is learning material, never a user-facing feature.
  */
@@ -28,7 +28,7 @@ function throttleMs(): number {
 export function PresencePing(): null {
   const { user, isLoading } = useAuth();
   const lastSentAt = useRef(0);
-  const authenticated = !isLoading && user !== null;
+  const authenticated = !isLoading && user?.is_active === true;
 
   useEffect(() => {
     if (!authenticated) return undefined;

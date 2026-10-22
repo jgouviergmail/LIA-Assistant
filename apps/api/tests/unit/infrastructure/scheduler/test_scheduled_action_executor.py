@@ -26,9 +26,11 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 
 from src.core.config import settings
+from src.core.exceptions import ResourceNotFoundError
 from src.core.recurrence import DailyTimes, RecurrenceSpec, TimeOfDay
 from src.domains.scheduled_actions.models import ScheduledRunOutcome
 from src.domains.users.schemas import UserProfile
+from src.infrastructure.scheduler.out_of_turn_run import RunOutcome, RunResult
 from src.infrastructure.scheduler.scheduled_action_executor import execute_single_action
 
 #: The harness routine is due at 06:00Z (08:00 Paris); the tick starts 5 s later.
@@ -78,6 +80,7 @@ class _Env:
     run_repo: MagicMock
     calls: list[str]
     conversation_id: uuid.UUID
+    user_service: MagicMock
 
 
 @contextmanager
@@ -153,6 +156,7 @@ def _executor_env(
     repo.mark_execution_failure = AsyncMock()
     repo.reschedule = AsyncMock()
     repo.lock_reserved = AsyncMock(return_value=action)
+    repo.disable_for_unavailable_owner = AsyncMock(return_value=True)
 
     async def _record(**_kwargs: Any) -> str:
         calls.append("record")
@@ -258,6 +262,7 @@ def _executor_env(
             run_repo=run_repo,
             calls=calls,
             conversation_id=conversation_id,
+            user_service=user_service,
         )
 
 
@@ -268,6 +273,41 @@ def _sse_payload(env: _Env) -> dict[str, Any]:
     env.redis.publish.assert_awaited_once()
     _channel, raw = env.redis.publish.await_args.args
     return json.loads(raw)
+
+
+@pytest.mark.asyncio
+async def test_unavailable_owner_settles_its_reservation_without_running():
+    with _executor_env(chunks=[]) as env:
+        token = uuid.uuid4()
+        env.user_service.get_user_by_id.side_effect = ResourceNotFoundError("user")
+        result = await execute_single_action(env.action_id, env.user_id, execution_token=token)
+    assert result == ""
+    env.repo.disable_for_unavailable_owner.assert_awaited_once_with(
+        env.action_id, env.user_id, token
+    )
+    env.agent_service.stream_chat_response.assert_not_called()
+    env.run_repo.record.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "message", ["Execution timed out after 30s", "MisleadingType: private prose"]
+)
+async def test_failure_log_uses_the_structured_code_without_parsing_prose(message: str) -> None:
+    result = RunResult(
+        outcome=RunOutcome.FAILED, attempts=1, error=message, error_code="TimeoutError"
+    )
+    with (
+        _executor_env(chunks=[]) as env,
+        patch("src.infrastructure.scheduler.scheduled_action_executor.logger") as log,
+        patch(
+            "src.infrastructure.scheduler.scheduled_action_executor.stream_instruction",
+            AsyncMock(return_value=result),
+        ),
+    ):
+        await execute_single_action(env.action_id, env.user_id)
+    assert log.warning.call_args.kwargs["error_type"] == "TimeoutError"
+    assert message not in str(log.warning.call_args)
 
 
 @pytest.mark.asyncio

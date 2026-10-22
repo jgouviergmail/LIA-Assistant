@@ -2,7 +2,7 @@
 
 **Severity**: warning
 **Component**: api
-**Impact**: The API is serving requests with **no global rate limit applied**. Nothing is broken for users; the abuse ceiling is simply absent until Redis is reachable again.
+**Impact**: Redis-backed HTTP abuse protection is failing open: the global request ceiling, existing scan-ban lookup, or recording new scan failures cannot complete. Requests remain available, but the affected guard is weakened until Redis operations recover.
 **SLA Impact**: No — this is a security-posture alert, not an availability one.
 
 ---
@@ -13,14 +13,18 @@
 
 **Prometheus Expression**:
 ```promql
-sum(rate(http_rate_limit_degraded_total[5m])) > 0.01
+(
+  (sum(rate(http_rate_limit_degraded_total[5m])) or vector(0))
+  +
+  (sum(rate(http_scan_degraded_total[5m])) or vector(0))
+) > 0.01
 ```
 
 **Firing Duration**: `for: 5m`
 
 **Labels**: `severity: warning`, `component: api`, `tier: core`
 
-**Threshold**: `ALERT_CORE_RATE_LIMIT_DEGRADED_RPS` in `infrastructure/observability/prometheus/thresholds/{env}.env`. It is deliberately not `> 0`: an isolated Redis timeout admits one request unchecked, which is not an incident. 0.01 req/s sustained over five minutes is roughly three unprotected requests — a degradation.
+**Threshold**: `ALERT_CORE_RATE_LIMIT_DEGRADED_RPS` in `infrastructure/observability/prometheus/thresholds/{env}.env`. It is deliberately not `> 0`: an isolated Redis timeout admits one request unchecked, which is not an incident. The threshold applies to failed guard operations per second, not unique requests: the global limiter and scan guard can fail on the same request. It and the five-minute firing duration remain unchanged.
 
 ---
 
@@ -29,6 +33,10 @@ sum(rate(http_rate_limit_degraded_total[5m])) > 0.01
 `RateLimitMiddleware` (SEC-016) **fails open**: when it cannot reach Redis, the request is admitted rather than refused. On a single-instance deployment the alternative is worse — failing closed would turn a cache outage into a total outage, a self-inflicted denial of service.
 
 That trade-off is only defensible while the unprotected window is *visible*. Every increment of `http_rate_limit_degraded_total` is one request that crossed the API with no ceiling applied. This alert is the honesty mechanism attached to the policy; without it, the API could run unprotected indefinitely and nothing would say so.
+
+The HTTP scan guard also fails open when its bounded Redis operation times out or fails. `http_scan_degraded_total{operation="check"}` counts failed lookups of existing bans; `operation="record"` counts qualifying scan/authentication failures whose strike or ban result could not be confirmed. A timeout may occur after Redis applied the operation; it does not prove the write was absent. Recording may fail while existing bans are still enforced. Conversely, the scan guard's short deadline may be exceeded while the global limiter still completes, so monitoring the global limiter alone misses that degradation.
+
+Both sides of the expression default to zero only when their series is absent; either guard can therefore trigger the alert on its own. Their failed operations are added. The alert name is retained for routing and diagnosis continuity.
 
 **Distinct from `RedisDown`**: that alert fires when redis-exporter reports Redis gone. This one fires when the API *cannot use* Redis — which also covers a saturated connection pool, a network partition, or an authentication failure while Redis is perfectly up. Seeing this alert without `RedisDown` is informative in itself.
 
@@ -46,6 +54,30 @@ Nothing. Requests succeed normally — that is precisely the risk.
   docker logs --tail 200 lia-api-prod 2>&1 | grep global_rate_limit_check_failed
   ```
 - Frequently accompanied by `redis_rate_limit_errors_total` rising (the shared limiter behind this middleware).
+
+---
+
+### Identify the affected scan operation
+
+In dashboard **04 — HTTP & API Performance → Rate Limiting & Scan Protection**, compare **HTTP Guards Failing Open** with **New HTTP Scan Bans** and **HTTP Scan Requests Blocked**. Ban/block activity is enforcement, not degradation; `operation="check"` and `operation="record"` explain which Redis step is failing.
+
+```promql
+sum by (operation) (rate(http_scan_degraded_total[5m]))
+```
+
+Read only the relevant recent API events; they contain the operation and exception type, without credentials:
+
+```bash
+docker logs --since 15m --tail 500 lia-api-prod 2>&1 | grep -E 'http_scan_check_failed|global_rate_limit_check_failed'
+```
+
+Inspect only the non-secret scan configuration when comparing deadlines with observed Redis latency:
+
+```bash
+docker exec lia-api-prod python -c 'import os; keys=("HTTP_SCAN_PROTECTION_ENABLED","HTTP_SCAN_REDIS_TIMEOUT_SECONDS","HTTP_SCAN_BAN_SECONDS"); print({key: os.environ.get(key) for key in keys})'
+```
+
+A null value means the variable is absent and uses the application's declared default. Do not clear Redis or delete ban/session keys as a diagnostic step: that discards active protection and authentication state without fixing latency, connectivity or pool exhaustion.
 
 ---
 
@@ -95,7 +127,8 @@ topk(5, sum by (country) (rate(http_requests_by_country_total[5m])))
 Cloudflare rate limiting at the edge is the mitigation of last resort while Redis is repaired.
 
 ### Post-Recovery Verification
-- `rate(http_rate_limit_degraded_total[5m])` returns to 0; the alert resolves (`[RESOLVED]` email arrives).
+- Both `rate(http_rate_limit_degraded_total[5m])` and `rate(http_scan_degraded_total[5m])` return to 0; the alert resolves (`[RESOLVED]` email arrives).
+- Confirm `check` and `record` stop producing `http_scan_check_failed` events. Existing bans expire at their original deadline; observing another blocked request must not extend a ban.
 - A burst above `RATE_LIMIT_GLOBAL_PER_MINUTE` now answers 429 with a `Retry-After` header.
 
 ---

@@ -6,6 +6,8 @@ This addendum answers the owner's questions about execution with Codex in ultra 
 
 Implementation refinements and current evidence are consolidated in the [global architecture and game-quality review](2026-10-09-lia-isometric-world-global-review.md). That review governs strict owned translation attempts, existing quota limitations, first-frame world authentication, movement/camera/input mechanics, shell resource ownership and measurable quality gates without enlarging the accepted scope.
 
+Visual-reference decision, 2026-10-20: use [MalinosLand's appearance and reviewed game concepts as the base](2026-10-20-lia-world-malinosland-reference.md), preserving the accepted V1 below. Selective reuse/Phaser integration is assessed before choosing a final renderer; optional discovery/social polish does not reinstate deferred features or create token-spend rewards.
+
 ## 1. Meaning of the previous estimate
 
 The complete analysis's engineering/art ranges describe an indicative conventional specialist effort, not measured Codex execution throughput or a forecast of how long an agent turn takes. Translating those person-days directly into a Codex-assisted calendar forecast was too imprecise. No measured acceleration factor exists for this extension.

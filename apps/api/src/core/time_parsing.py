@@ -99,6 +99,13 @@ def parse_datetime(dt_input: str | int | datetime | None) -> datetime | None:
                 return datetime.fromtimestamp(dt_input, tz=UTC)
 
         if isinstance(dt_input, str):
+            # Python accepts an arbitrary separator in ISO datetimes: a
+            # 13-digit Gmail millisecond value can therefore become a date in
+            # the 1700s. Keep the existing eight-digit ISO calendar-date form,
+            # but give every other digit-only string the timestamp convention.
+            if dt_input.isdigit() and len(dt_input) != 8:
+                return parse_datetime(int(dt_input))
+
             # Handle 'Z' suffix (UTC)
             normalized = dt_input.replace("Z", "+00:00")
 
@@ -126,11 +133,7 @@ def parse_datetime(dt_input: str | int | datetime | None) -> datetime | None:
 
             # Try as numeric string (milliseconds)
             if dt_input.isdigit():
-                ts = int(dt_input)
-                if ts > 1_000_000_000_000:
-                    return datetime.fromtimestamp(ts / 1000, tz=UTC)
-                else:
-                    return datetime.fromtimestamp(ts, tz=UTC)
+                return parse_datetime(int(dt_input))
 
     except Exception as e:
         logger.warning(

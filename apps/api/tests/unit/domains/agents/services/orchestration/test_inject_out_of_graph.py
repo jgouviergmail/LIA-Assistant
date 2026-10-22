@@ -59,3 +59,24 @@ async def test_a_proactive_row_keeps_its_shape() -> None:
     messages = await _inject([_row("assistant", "news", "proactive_interest")])
     assert isinstance(messages[0], AIMessage)
     assert "live_turn" not in messages[0].additional_kwargs
+
+
+async def test_a_discussion_is_a_stable_assistant_opening_and_keeps_reply_extraction_context():
+    from src.domains.agents.services.memory_extraction_context import format_messages_for_extraction
+
+    row = _row(
+        "assistant",
+        "Would you like to talk about the fictional appointment?",
+        "proactive_discussion",
+    )
+    row.id = uuid.uuid4()
+    row.message_metadata["discussion_id"] = str(uuid.uuid4())
+    messages = await _inject([row])
+    opening = messages[0]
+    assert isinstance(opening, AIMessage) and opening.id == str(row.id)
+    assert opening.additional_kwargs.get("proactive_discussion") is True
+    assert not opening.additional_kwargs.get("proactive_notification")
+    formatted = format_messages_for_extraction(
+        [opening, HumanMessage(content="Do not bring it up again.")]
+    )
+    assert "fictional appointment" in formatted and "Do not bring it up again" in formatted

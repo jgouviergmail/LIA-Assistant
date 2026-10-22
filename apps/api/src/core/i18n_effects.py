@@ -58,6 +58,7 @@ def render_effect_heading(language: str) -> str:
 EFFECT_LABELS: dict[str, dict[str, str]] = {
     "fr": {
         "effects.labels.proactive_notification": "Notification envoyée ({kind})",
+        "effects.labels.proactive_discussion": "Discussion engagée",
         "effects.labels.sms_notification": "Notification SMS",
         "effects.labels.peer_image_share": "Image partagée avec une connexion",
         "effects.labels.peer_capability_share": "Partage d’une ressource avec une connexion",
@@ -126,6 +127,7 @@ EFFECT_LABELS: dict[str, dict[str, str]] = {
     },
     "en": {
         "effects.labels.proactive_notification": "Notification sent ({kind})",
+        "effects.labels.proactive_discussion": "Discussion started",
         "effects.labels.sms_notification": "SMS notification",
         "effects.labels.peer_image_share": "Shared an image with a connection",
         "effects.labels.peer_capability_share": "Shared a capability with a connection",
@@ -194,6 +196,7 @@ EFFECT_LABELS: dict[str, dict[str, str]] = {
     },
     "de": {
         "effects.labels.proactive_notification": "Benachrichtigung gesendet ({kind})",
+        "effects.labels.proactive_discussion": "Gespräch begonnen",
         "effects.labels.sms_notification": "SMS-Benachrichtigung",
         "effects.labels.peer_image_share": "Bild mit einer Verbindung geteilt",
         "effects.labels.peer_capability_share": "Erweiterung mit einer Verbindung geteilt",
@@ -262,6 +265,7 @@ EFFECT_LABELS: dict[str, dict[str, str]] = {
     },
     "es": {
         "effects.labels.proactive_notification": "Notificación enviada ({kind})",
+        "effects.labels.proactive_discussion": "Conversación iniciada",
         "effects.labels.sms_notification": "Notificación SMS",
         "effects.labels.peer_image_share": "Imagen compartida con una conexión",
         "effects.labels.peer_capability_share": "Recurso compartido con una conexión",
@@ -330,6 +334,7 @@ EFFECT_LABELS: dict[str, dict[str, str]] = {
     },
     "it": {
         "effects.labels.proactive_notification": "Notifica inviata ({kind})",
+        "effects.labels.proactive_discussion": "Conversazione avviata",
         "effects.labels.sms_notification": "Notifica SMS",
         "effects.labels.peer_image_share": "Immagine condivisa con una connessione",
         "effects.labels.peer_capability_share": "Risorsa condivisa con una connessione",
@@ -398,6 +403,7 @@ EFFECT_LABELS: dict[str, dict[str, str]] = {
     },
     "zh-CN": {
         "effects.labels.proactive_notification": "已发送通知（{kind}）",
+        "effects.labels.proactive_discussion": "已发起对话",
         "effects.labels.sms_notification": "短信通知",
         "effects.labels.peer_image_share": "与互联用户分享了一张图片",
         "effects.labels.peer_capability_share": "与互联用户分享扩展",

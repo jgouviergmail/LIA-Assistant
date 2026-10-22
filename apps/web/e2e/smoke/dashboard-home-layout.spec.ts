@@ -302,23 +302,22 @@ async function assertHomeCardPalette(
   radio: Locator
 ) {
   const main = page.getByRole('main');
+  // Both home rubriques are sections named by their heading, never folded
+  // (owner request 2026-10-21): their tiles are the children of their grids.
   const results = main
-    .locator('details')
-    .filter({
-      has: page.getByRole('heading', {
-        name: translated(locale, 'dashboard.results.title'),
-        exact: true,
-      }),
-    })
-    .locator(':scope > div > div');
+    .getByRole('region', { name: translated(locale, 'dashboard.results.title'), exact: true })
+    .locator(':scope > div.grid > div');
   await expect(results).toHaveCount(4);
   const consumption = main.getByRole('table', {
     name: translated(locale, 'dashboard.statistics.consumption_title'),
     exact: true,
   });
-  const limits = consumption
-    .locator('xpath=ancestor::details[1]')
-    .locator(':scope > div > div:last-child > div');
+  const limits = main
+    .getByRole('region', {
+      name: translated(locale, 'dashboard.statistics.consumption_title'),
+      exact: true,
+    })
+    .locator(':scope > div.space-y-4 > div:last-child > div');
   const frames = [
     ...HOME_ORDER.map(name => briefingCard(page, name, locale)),
     hero,
@@ -984,26 +983,13 @@ for (const sample of [
       'the welcome remains compact at the chosen text size'
     ).toBeLessThan(((sample.width < 640 ? 650 : 470) * sample.font) / 16);
     for (const title of ['dashboard.results.title', 'dashboard.statistics.consumption_title']) {
-      const details = main.locator('details').filter({
-        has: page.getByRole('heading', { name: translated(sample.locale, title), exact: true }),
-      });
-      await expect(details, 'home sections are initially expanded').toHaveAttribute('open', '');
-      const summary = details.locator(':scope > summary');
-      await expect(summary).toHaveAccessibleName(translated(sample.locale, title));
-      await expect(
-        summary.getByRole('heading', {
-          level: 2,
-          name: translated(sample.locale, title),
-          exact: true,
-        })
-      ).toBeVisible();
-      await summary.focus();
-      await summary.press('Enter');
-      await expect(details).not.toHaveAttribute('open', '');
-      await expect(summary).toBeFocused();
-      await summary.press('Enter');
-      await expect(details).toHaveAttribute('open', '');
-      await expect(summary).toBeFocused();
+      // A rubrique of the home page, never folded (owner request 2026-10-21):
+      // a region named by its own level-2 heading, with nothing to toggle.
+      const name = translated(sample.locale, title);
+      const region = main.getByRole('region', { name, exact: true });
+      await expect(region, 'home rubriques are always laid out').toBeVisible();
+      await expect(region.getByRole('heading', { level: 2, name, exact: true })).toBeVisible();
+      await expect(region.locator('details, summary')).toHaveCount(0);
     }
 
     await assertHeaderGeometry(page, sample.locale, sample.width);
@@ -1397,7 +1383,7 @@ test('the civil date follows the account zone when the browser resumes on its ne
 });
 
 for (const cache of ['absent', 'null'] as const) {
-  test(`a legacy workboard cache (${cache} previews) retains every received ticket without invented groups`, async ({
+  test(`a legacy workboard cache (${cache} previews) shows its counts and invents no ticket group`, async ({
     page,
     authenticate,
     mockApi,
@@ -1412,31 +1398,21 @@ for (const cache of ['absent', 'null'] as const) {
     await mockApi(homeRoutes(user, payload));
     await readyHome(page, 'fr');
     const card = briefingCard(page, 'workboard', 'fr');
-    const list = card.getByRole('list', {
-      name: translated('fr', 'settings.workboard.tile_needs_me'),
-      exact: true,
-    });
-    await expect(list.getByRole('listitem')).toHaveCount(HOME_CAPS.workboard);
-    for (let index = 0; index < HOME_CAPS.workboard; index += 1) {
-      const ticket = list.getByRole('link').nth(index);
-      await expect(ticket).toContainText(homeItemName('workboard', index));
-      await expect(ticket).toHaveAttribute('href', `/fr/dashboard/workboard/ticket-${index}`);
-    }
-    await expect(card.getByRole('heading', { level: 4 })).toHaveCount(1);
+    // The counts stay; no set is drawn from a page that is not every set.
     await expect(
-      card.getByRole('heading', {
-        level: 4,
-        name: translated('fr', 'settings.workboard.tile_needs_me'),
-        exact: true,
-      })
+      card.getByRole('list', { name: translated('fr', 'settings.workboard.glance') })
     ).toBeVisible();
-    for (const group of HOME_WORKBOARD_GROUPS.slice(1)) {
+    await expect(card.getByRole('heading', { level: 4 })).toHaveCount(0);
+    for (const group of HOME_WORKBOARD_GROUPS) {
       await expect(
         card.getByRole('list', { name: translated('fr', group.labelKey), exact: true })
       ).toHaveCount(0);
     }
-    await list.getByRole('link').last().scrollIntoViewIfNeeded();
-    await expect(list.getByRole('link').last()).toBeInViewport({ ratio: 0.99 });
+    for (let index = 0; index < HOME_CAPS.workboard; index += 1) {
+      await expect(card.getByText(homeItemName('workboard', index), { exact: true })).toHaveCount(
+        0
+      );
+    }
     await expectNoOverflow(page, `legacy workboard ${cache} previews 320px`);
   });
 }

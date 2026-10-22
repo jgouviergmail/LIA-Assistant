@@ -5,6 +5,177 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.0] - 2026-10-22
+
+**LIA speaks first, your texts join in, places show the way.**
+Personal discussions LIA may open when you allow it, a private archive of the
+SMS your phone relays, place details and a priced route on the Position card,
+and scan protection shared by every API worker.
+
+### Added
+
+- 💬 **Proactive discussions** (ADR-358, ADR-359, ADR-360). Off until the person
+  switches on *Allow LIA to start a discussion*, LIA may open a personal
+  conversation of its own accord — an interest in a plan, encouragement, an open
+  question — separate from notifications, which tell rather than invite a reply.
+  The person sets the hours (across midnight if needed), a daily maximum, a
+  pause, each allowed source, the sensitive topics and the topics to avoid; an
+  opening offers four reactions (*Thanks, this resonates*, *Not now*, *Do not
+  bring up this topic*, *This context is incorrect*). The derived context is
+  visible: each element with its period and last reading can be allowed or not,
+  deleted, purged or rebuilt, and the panel states the last rebuild, the last
+  update and the last run — why it ended, what it read and interpreted, what it
+  cost — with one plain sentence when a limit stops LIA. An archive, a logical
+  opening and an outbox intent are published atomically, then delivered
+  natively; human turns, approvals and alerts keep priority. Every model call
+  and paid read is counted on the account under its quotas, within per-run,
+  per-account-day and instance-day budgets; an opening informed by an SMS or a
+  sensitive topic stays private (masked push, never an external channel), and
+  each opening is an action of LIA's own initiative in the registers. The
+  capability has its own switch; operator bounds are `DISCUSSION_*` settings.
+- 📱 **Your SMS, relayed by your phone** (ADR-357). A write-only token per phone
+  and an iPhone Shortcuts automation post each SMS to
+  `POST /api/v1/ingest/message`; stable receipts tell stored, duplicate,
+  conflict and invalid apart, item by item in a batch. **Settings › SMS** keeps
+  an encrypted personal archive — search, sender threads, names resolved from
+  your contacts, erasure — and recognised access secrets never reach storage.
+  Assistant access is a separate consent, off by default; the chat,
+  relationships, proactivity, the Radio and a phone call read bounded evidence
+  under it. Immediate push stays content-free, the in-app notice names the
+  sender, the Home card counts exactly and the personal export includes the
+  readable SMS. Health ingestion keeps its contract.
+- 🗺️ **Place details and a route on the Position card** (ADR-355, ADR-356). Each
+  place carries one number, the same in the list and on its pin. Selecting it
+  shows the details the answer already gathered — address, rating and reviews,
+  phone, website, opening hours — with no new search, and one route: walking up
+  to 2 km, otherwise driving, corrected once when the actual walk is longer,
+  from the browser position when it is already allowed, else the dated last
+  known location, else home. Each paid call is filed once under the existing
+  pricing and quotas, refusals and cancellations included; desktop popups and
+  phone dialogs show the same facts.
+- 📇 **Address-book actions on a relationship card.** One button per email
+  (*Email …*), postal address (*Directions to …*) and — when the telephony
+  connector is active — number (*LIA call …*) prepares the request in the chat.
+  On the contact card, an email opens the mail app, a whole number calls from
+  the device and an address opens Google Maps.
+- 🎫 **"My tickets" on the Home Workboard card** counts the tickets you hold; a
+  ticket's last run keeps its cache and Google figures, and ticket costs show
+  six decimals.
+- 🧾 **The journal's last intervention** reads in the chat meter's vocabulary
+  (IN, OUT, CACHE, GOOGLE, €), cached tokens stored apart.
+
+### Changed
+
+- 🧭 **Alerts and Activity share one header**: *Activity timeline* or *Received
+  / To follow up*, *Action journal* and *Refresh*, which re-reads the counts and
+  every open section. Proactive discussions and *My SMS* join the Alerts hub.
+- 🎨 **One neutral line** draws panel borders and separators on the signed-in
+  screens (guarded), panels alternate their backgrounds, page headings carry a
+  rule, and a line separates sections inside a panel — never two panels.
+- 🏷️ Shorter settings labels (*Proactive notifications*, *Memory*, *Limits
+  admin*…); relationship rows are titled like an email — how long ago and when —
+  and open on their direction, *Sent* or *Received*.
+- 🤝 A capability shared with a connection is announced in the recipient's chat
+  with the sender's name, and the share dialog confirms, warns or explains.
+- 🔄 SMS pages and health data refresh in place, without a visible reload.
+- 📦 The personal export includes the proactive-discussion records
+  (observations, states, runs, deliveries, forget markers), internal tokens
+  removed.
+
+### Security
+
+- 🛡️ **Scanners are banned across workers** (ADR-353). Distinct unknown-route
+  404s and rejected login or MFA credentials from one client earn a temporary
+  ban held in Redis and shared by every API worker; ordinary resource and
+  session errors never count. Internal callers, exact health probes and
+  `OPTIONS` stay admissible, and a Redis failure lets traffic through while the
+  metrics, the degradation alert and the diagnostics say so (`HTTP_SCAN_*`).
+- 🧭 **Every HTTP 429 names its client** (ADR-354): one WARNING completion event
+  carries the canonical client IP, method, query-free path, status and duration
+  — a retained log field, never a metric label.
+- 🔐 **Three dependency advisories closed as manifest floors** (ADR-331):
+  certifi ≥ 2026.10.18 (GHSA-6q48-6c7w-9gw2, the distrusted emSign roots),
+  langgraph-checkpoint-postgres 3.1.3 with langgraph-checkpoint 4.3.0
+  (GHSA-6hmw-9432-67qq, a dotted namespace label could reach another store
+  namespace — LIA's labels never carry a dot) and setuptools ≥ 84.1.0 in the
+  wake-word toolbox (GHSA-xmj3-9gf7-h52w).
+
+### Fixed
+
+- 🔒 **Handing a ticket to a connection no longer freezes the account.** Since
+  v3.0.0 the assignment notice was sent inside the transaction that holds the
+  account row, and the notice's own claim waited for it. Notices are now
+  collected and dispatched after the commit through one door (AST guard), proven
+  by a PostgreSQL lock-order test that fails on the old code.
+- 🩺 **The egress probe names the failing step and confirms a cut** (ADR-361):
+  resolution then connection, paced attempts, a slow or recovered probe is
+  degraded and never paged — one lost DNS datagram no longer reads « platform
+  cut off » (`DIAGNOSTICS_EGRESS_PROBE_*`).
+- 🧯 **Every received alert records its incident again.** The open-incident
+  upsert bound its partial-index predicate as a parameter, which a generic plan
+  cannot match; the predicate is now one literal shared by model and repository.
+- 🧩 A skill shared by a connection installs on its first receipt (the
+  recipient's state is flushed before registration hooks read it).
+- 🧪 ReAct validates tool arguments against their schema before running them; a
+  deterministic provider 400 is no longer retried; too-short audio and a vendor
+  403 keep their permanent classification; numeric millisecond timestamps are no
+  longer read as ISO dates; quoted JSON-schema instance data leaves no log above
+  DEBUG; LLM callbacks name the model they know.
+- ⏱️ Startup reports a successful cache load as such and audits the effective
+  LLM slots, logging a refusal rather than failing every slot; Ollama discovery
+  runs only when a slot needs it; a routine whose owner is unavailable settles
+  without running; a timeout keeps its typed outcome.
+- 🙈 An inactive account sends no presence or profile-image request; a
+  successful readability recovery and a valid medium-confidence routing log at
+  their level.
+- 🏠 The Home SMS card shows previews only in a complete bundle, re-checked
+  against an erasure.
+- 🔤 The journal search placeholder is translated in six languages (English only
+  since v1.9.3), a misplaced SMS key no longer shows raw, and a disclosure's
+  chevron follows its own block.
+- ⌨️ **Deleting a sender's or a day's SMS keeps the keyboard in place** (audit
+  V14, AC-024): the erase button records where the focus returns for every
+  scope, not only a single message, so once the refresh removes the group the
+  focus lands on the archive's own disclosure — never on a control the person
+  chose meanwhile.
+- 🔎 **Renamed administration panes stay findable by their full name** (audit
+  V14, AC-025): the shortened titles (users, limits, usage export) keep their
+  former names as search keywords in all six languages.
+
+### Tests
+
+- 🧪 PostgreSQL proofs for the screen hand-over lock order, the open-incident
+  upsert under a generic plan, the discussion context retention and the new
+  migrations; the discussion tick, revalidation and reservations are covered
+  under injected clocks and concurrency.
+- 🛡️ New guards: one assignment-notice door, the neutral line colour, refresh in
+  place, i18n key placement; Playwright journeys for proactive discussions and
+  their chat actions, the SMS archive, settings, Alerts, Home and relationships,
+  and the Position details.
+- 🎭 Browser journeys realigned on the interactions this release decided (audit
+  V14, AC-021) without weakening their oracles: always-open Home rubriques,
+  address-book actions beside the contact card, a share confirmed by its toast,
+  two discussion-context panels, an SMS sender leading its words, call rows
+  titled like mail, the badge measured by its pill; the Position layout is read
+  in one frame. The fixtures now answer the connectors read a relationship makes.
+
+### Documentation
+
+- 📚 ADR-353 to ADR-361, `PROACTIVE_DISCUSSIONS.md`, the SMS ingestion,
+  qualification and iPhone Shortcuts guides, the FAQ and its knowledge corpus in
+  six languages, public presentations, settings search and the living maps.
+- 📏 Public counters re-measured at the source: 1,003,000+ source lines, 58
+  backend domains, 66,000+ inventoried tests (52,293 backend, 13,919 frontend),
+  32 Grafana dashboards (847 panels), 327 catalogue tools, 93 model slots, 202
+  prompt files; the proactive sources are fourteen and the Home page holds eleven
+  cards since the SMS joined them. The Story page description no longer quotes
+  the test and ADR counts of an earlier release.
+- 🧭 **Technical audit V14 published**: 8.0/10 over 24 normalized areas
+  (192/240, security out of scope), its 16 worksites — 3 major — published with
+  it. The public report, README, Story and How guides, FAQ and knowledge corpus
+  carry it, and the history now lists V12 (8.3) and V13 (7.3), which had not
+  reached the public surfaces.
+
 ## [3.3.0] - 2026-10-19
 
 **Find, share and locate.**

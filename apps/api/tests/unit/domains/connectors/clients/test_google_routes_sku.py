@@ -23,12 +23,54 @@ from src.domains.connectors.clients.google_routes_client import (
     ROUTES_SKU_SUFFIXES,
     GoogleRoutesClient,
     TravelMode,
+    default_travel_mode,
+    route_request_features,
     routes_sku_suffix,
 )
 
 pytestmark = pytest.mark.unit
 
 _DRIVE = {"travelMode": "DRIVE", "routingPreference": "TRAFFIC_AWARE"}
+
+
+@pytest.mark.parametrize("mode", [TravelMode.DRIVE, TravelMode.WALK, TravelMode.BICYCLE])
+@pytest.mark.parametrize("avoid_tolls", [False, True])
+async def test_preflight_features_are_the_features_sent_by_the_client(
+    monkeypatch, mode, avoid_tolls
+):
+    from unittest.mock import AsyncMock, MagicMock
+
+    import httpx
+
+    monkeypatch.setattr(settings, "google_api_key", "test-key")
+    client = GoogleRoutesClient()
+    http = MagicMock(is_closed=False)
+    http.post = AsyncMock(return_value=httpx.Response(200, json={"routes": []}))
+    client._client = http
+    expected = route_request_features(mode, avoid_tolls=avoid_tolls)
+    with patch(
+        "src.domains.connectors.clients.google_routes_client.track_google_api_call"
+    ) as track:
+        await client.compute_route("A", "B", travel_mode=mode, avoid_tolls=avoid_tolls)
+    sent = http.post.call_args.kwargs["json"]
+    assert {key: sent[key] for key in expected} == expected
+    assert routes_sku_suffix(sent) == routes_sku_suffix(expected)
+    track.assert_called_once_with(
+        "routes", "/directions/v2:computeRoutes" + routes_sku_suffix(expected), cached=False
+    )
+
+
+def test_default_mode_is_shared_at_the_configured_boundary(monkeypatch):
+    from src.domains.agents.tools.routes_tools import _parse_travel_mode
+
+    monkeypatch.setattr(settings, "routes_walk_threshold_km", 1.25)
+    for distance, expected in [
+        (None, TravelMode.DRIVE),
+        (1.249, TravelMode.WALK),
+        (1.25, TravelMode.DRIVE),
+    ]:
+        assert default_travel_mode(distance) is expected
+        assert _parse_travel_mode(None, distance) is expected
 
 
 @pytest.mark.parametrize(

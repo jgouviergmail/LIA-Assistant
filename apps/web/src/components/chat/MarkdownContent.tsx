@@ -12,6 +12,7 @@ import rehypeMathInText from '@/lib/rehype-math-in-text';
 import rehypeSearchHighlight from '@/lib/rehype-search-highlight';
 import rehypeTableLabels from '@/lib/rehype-table-labels';
 import rehypeContactPhotos from '@/lib/rehype-contact-photos';
+import rehypePhoneText from '@/lib/rehype-phone-text';
 import { useTranslation } from 'react-i18next';
 import { cn, GOOGLE_IMAGE_DOMAINS, proxyGoogleImageUrl } from '@/lib/utils';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
@@ -19,7 +20,6 @@ import { PlacePhotoWrapper } from './markdown-place-photo';
 import { MarkdownCardImage } from './markdown-card-image';
 import { MarkdownCardDetails } from './markdown-card-details';
 import { ReasoningScroll } from '@/components/chat/ReasoningScroll';
-import { formatPhonesInText } from '@/lib/format';
 import { useMarkdownImageLoad } from './use-markdown-image-load';
 import { apiImageProps } from '@/lib/utils/api-resource-url';
 import { codeBlockOf } from '@/lib/markdown-code-block';
@@ -406,6 +406,9 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
         // written back once the math step ran, before KaTeX renders.
         rehypeRestoreDollars,
         rehypeKatex,
+        // Visible text only: formatting the raw HTML corrupts tel: links and
+        // the opaque JSON attributes read by native widgets such as Position.
+        rehypePhoneText,
         // Names every body cell after its column, for the stacked-card layout
         // of an overflowing table on a narrow screen (B2). After KaTeX, so a
         // formula in a header reads as its source; before the search marks.
@@ -443,12 +446,6 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
       [sanitizedContent]
     );
 
-    // Format phone numbers in content (French: 06.12.34.56.78, others: national format)
-    const formattedContent = useMemo(
-      () => formatPhonesInText(mathNormalizedContent),
-      [mathNormalizedContent]
-    );
-
     return (
       <div className={cn('markdown-content text-px-13 mobile:text-sm leading-relaxed', className)}>
         <ReactMarkdown
@@ -469,7 +466,8 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
           // by design: the math steps read already-sanitized text and emit
           // fixed-class spans, rehypeTableLabels only writes attribute VALUES
           // (a column's name, a role) computed from that text, contact-photo
-          // repair only adds a fixed class to an existing image, and the search
+          // repair only adds a fixed class to an existing image, phone formatting
+          // only rewrites text values, and the search
           // marks wrap it in a fixed-class <mark>.
           rehypePlugins={rehypePlugins}
           // Custom URL transform to allow tel: and mailto: protocols
@@ -785,7 +783,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
             },
           }}
         >
-          {formattedContent}
+          {mathNormalizedContent}
         </ReactMarkdown>
       </div>
     );

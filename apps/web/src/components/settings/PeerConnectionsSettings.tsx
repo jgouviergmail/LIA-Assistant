@@ -128,7 +128,7 @@ function OwnedPeerConnectionsSettings({ lng }: BaseSettingsProps) {
   // user mid-search — losing their typed query, their results and their
   // keyboard focus. Refreshes are announced with aria-busy instead.
   const commandClass =
-    'rounded-[var(--lia-radius-lg)] border border-border/60 px-4 [&>summary]:min-h-11';
+    'rounded-[var(--lia-radius-lg)] border border-border px-4 [&>summary]:min-h-11';
   const content =
     (error || retrying) && !hasCompleteData ? null : initialLoading ? (
       <div className="space-y-4" aria-busy="true">
@@ -196,7 +196,7 @@ function OwnedPeerConnectionsSettings({ lng }: BaseSettingsProps) {
           surface="nested"
           variant="flat"
           role="region"
-          className="space-y-4 border-border/60 p-4 sm:p-5"
+          className="space-y-4 border-border p-4 sm:p-5"
           aria-labelledby="peers-search-title"
         >
           <h4 id="peers-search-title" className="flex items-center gap-2 font-semibold">
@@ -221,7 +221,7 @@ function OwnedPeerConnectionsSettings({ lng }: BaseSettingsProps) {
           titleClassName="whitespace-normal break-words"
           badge={requests.length}
           badgeClassName="bg-primary/10 text-primary"
-          className="rounded-2xl border-border/60 px-4 [&>summary]:min-h-12 sm:px-5"
+          className="rounded-2xl border-border px-4 [&>summary]:min-h-12 sm:px-5"
         >
           <PeerRequestsBlock
             lng={lng}
@@ -242,7 +242,7 @@ function OwnedPeerConnectionsSettings({ lng }: BaseSettingsProps) {
           surface="nested"
           variant="flat"
           role="region"
-          className="space-y-3 border-border/60 p-4 sm:p-5"
+          className="space-y-3 border-border p-4 sm:p-5"
           aria-labelledby="peers-connections-title"
         >
           <h4

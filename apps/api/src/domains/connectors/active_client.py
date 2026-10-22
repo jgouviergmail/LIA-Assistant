@@ -34,6 +34,7 @@ from src.domains.connectors.preferences.owner_defaults import (
     OwnerContainer,
     read_owner_container_name,
 )
+from src.domains.connectors.provider_authority import resolve_active_connector_fresh
 from src.domains.connectors.provider_resolver import resolve_active_connector
 from src.domains.connectors.service import ConnectorService
 from src.domains.connectors.session_scope import DetachedConnectorService
@@ -73,7 +74,7 @@ class _Opening:
 
 @asynccontextmanager
 async def open_active_client(
-    category: str, user_id: UUID, *, container: OwnerContainer | None = None
+    category: str, user_id: UUID, *, container: OwnerContainer | None = None, fresh: bool = False
 ) -> AsyncIterator[ActiveClient | ClientUnavailable]:
     """Open the account's active client for ``category``, and always close it.
 
@@ -88,7 +89,11 @@ async def open_active_client(
     """
     connectors = DetachedConnectorService()
     async with connectors.unit_of_work() as service:
-        opening = await _read_opening(service, category, user_id, container)
+        opening = await (
+            _read_opening(service, category, user_id, container, fresh=True)
+            if fresh
+            else _read_opening(service, category, user_id, container)
+        )
     if isinstance(opening, ClientUnavailable):
         yield opening
         return
@@ -114,9 +119,15 @@ async def _read_opening(
     category: str,
     user_id: UUID,
     container: OwnerContainer | None,
+    *,
+    fresh: bool = False,
 ) -> _Opening | ClientUnavailable:
     """Everything the door reads, in the one session it holds."""
-    connector_type = await resolve_active_connector(user_id, category, service)
+    connector_type = await (
+        resolve_active_connector_fresh(user_id, category, service)
+        if fresh
+        else resolve_active_connector(user_id, category, service)
+    )
     if connector_type is None:
         return ClientUnavailable.NO_CONNECTOR
     credentials: Any = (

@@ -17,3 +17,5 @@ tqdm==4.70.1
 # Security floor on a purely transitive package (ADR-331: a fix lives in its manifest,
 # never in a lockfile alone).
 filelock>=4.2.1  # GHSA-v4x8-3wr5-3wq8 (high) and thirteen more advisories fixed in 4.2.1, pulled by torch
+certifi>=2026.10.18  # GHSA-6q48-6c7w-9gw2 (critical, distrusted emSign roots removed), pulled by requests
+setuptools>=84.1.0  # GHSA-xmj3-9gf7-h52w (low, Windows path escape via namespace_packages.txt), pulled by torch

@@ -2,9 +2,9 @@
 
 > Resoconto di esperienza — un sistema completo, dalla progettazione alla produzione.
 
-**Versione**: 2.4
-**Data**: 2026-10-19
-**Applicazione**: LIA v3.3.0
+**Versione**: 2.5
+**Data**: 2026-10-22
+**Applicazione**: LIA v3.4.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -13,23 +13,25 @@
 
 LIA è un assistente IA multi-agente completo — connettori di business, voce, memoria, connessioni tra utenti, sei lingue — progettato, sviluppato e gestito in produzione in modo continuativo, come progetto personale.
 
-La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: un referenziale di ingegneria scritto, controlli automatici bloccanti, revisione sistematica, audit ricorrenti. Il risultato è misurato: **8,3/10** all'audit tecnico su 24 perimetri. Il repository è open source; le conclusioni dell'audit — punti di forza come debolezze — sono assunte e riassunte in questo documento.
+La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: un referenziale di ingegneria scritto, controlli automatici bloccanti, revisione sistematica, audit ricorrenti. Il risultato è misurato: **8,0/10** all'audit tecnico su 24 perimetri. Il repository è open source; le conclusioni dell'audit — punti di forza come debolezze — sono assunte e riassunte in questo documento.
 
 | Indicatore | Valore |
 | --- | --- |
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
-| Righe di codice sorgente (esclusi i test) — 55 domini funzionali | **967.000+** |
-| Test automatizzati inventariati; suite adeguate a commit e rilascio | **64.000+** |
-| Decisioni di architettura documentate (ADR) | **351** |
-| Versioni rilasciate a ritmo regolare | **284** |
+| Righe di codice sorgente (esclusi i test) — 58 domini funzionali | **1.003.000+** |
+| Test automatizzati inventariati; suite adeguate a commit e rilascio | **66.000+** |
+| Decisioni di architettura documentate (ADR) | **359** |
+| Versioni rilasciate a ritmo regolare | **285** |
 | Lingue, parità verificata automaticamente | **6** |
-| Audit tecnico su 24 perimetri | **8,3/10** |
+| Audit tecnico su 24 perimetri | **8,0/10** |
 
 Convinzione maturata con l'esperienza: lo sviluppo assistito dall'IA è industrializzabile già oggi. Il fattore limitante non è lo strumento — è il quadro di direzione che gli si dà.
 
 La stessa disciplina vale nel prodotto. Una piccola decisione del modello può aiutare a scegliere un percorso o un formato, ma LIA delimita le opzioni, misura il costo e mantiene l'autorità di verificare e confermare il risultato. Le decisioni native facoltative estendono il metodo senza trasformare la fiducia nel modello in un permesso.
 
 L’utilità dipende anche dalla continuità: ritrovare una decisione in un verbale completo, trasmettere una capacità riutilizzabile a una persona fidata o situare insieme i luoghi proposti. Ogni comodità mantiene un confine visibile. Una capacità condivisa arriva disattivata e senza credenziali del mittente; la valutazione di un’email resta un indizio, mai una prova di sicurezza; aprire una mappa interattiva rimane una tua scelta con costo visibile.
+
+Prendere l’iniziativa segue la stessa regola. LIA può avviare di sua iniziativa una conversazione personale, ma solo negli orari, nelle fonti e negli argomenti che la persona ha consentito, con motivi, contesto e costo in vista — e quattro reazioni per rispondere. Gli SMS inoltrati da un telefono entrano in un archivio privato che l’assistente legge solo con un consenso distinto, e un luogo scelto su una mappa offre i suoi dettagli e un percorso fatturato una sola volta e conteggiato.
 
 ## 2. L'approccio
 
@@ -68,7 +70,7 @@ Il progetto è ora condotto con più agenti di sviluppo in parallelo — ciascun
 
 ## 4. Gli arbitraggi
 
-Tre decisioni strutturanti, tra le 351 documentate:
+Tre decisioni strutturanti, tra le 359 documentate:
 
 **Sovranità e reversibilità — nessuna dipendenza irreversibile dal fornitore.** I modelli IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelli locali via Ollama) stanno dietro un'astrazione unica: ogni utilizzo può cambiare fornitore per configurazione, con confronto dei costi. Stesso principio sul lato business: Google, Apple e Microsoft sono intercambiabili per categoria funzionale. L'auto-hosting ti dà il controllo del server; i dati dell'account risiedono nell'istanza e le credenziali dei connettori sono cifrate. I servizi remoti che scegli ricevono comunque i dati necessari per la loro parte della richiesta.
 
@@ -80,7 +82,7 @@ Tre decisioni strutturanti, tra le 351 documentate:
 
 Un sistema che si pilota con gli strumenti:
 
-- **Osservabilità**: trentuno dashboard — salute applicativa, impegni di servizio, costi IA, comportamento degli agenti, infrastruttura. Più di 600 metriche; log strutturati centralizzati; tracciamento distribuito end-to-end — log, metriche e tracce conservano solo fatti, mai le parole né i nomi delle persone. Una quarantina di procedure operative scritte — diagnosi, rimediazione, ripristino. E l'assistente legge da sé questa telemetria: autocontrollo periodico, una memoria di incidenti diagnosticati proprio su quelle procedure, risposte che aggirano un guasto noto. E una diagnosi mostra le prove da cui è nata. E gli strumenti arrivano fino ai processi: ogni worker dell'API pubblica ciò che trattiene in memoria, così un totale di container si legge processo per processo. E uno strumento misura ciò che nomina: l'allarme di latenza conta solo i turni che una persona attende, e il rapporto quotidiano dell'host si apre su ciò che la supervisione ha registrato invece che su un'istantanea.
+- **Osservabilità**: trentadue dashboard — salute applicativa, impegni di servizio, costi IA, comportamento degli agenti, infrastruttura. Più di 600 metriche; log strutturati centralizzati; tracciamento distribuito end-to-end — log, metriche e tracce conservano solo fatti, mai le parole né i nomi delle persone. Una quarantina di procedure operative scritte — diagnosi, rimediazione, ripristino. E l'assistente legge da sé questa telemetria: autocontrollo periodico, una memoria di incidenti diagnosticati proprio su quelle procedure, risposte che aggirano un guasto noto. E una diagnosi mostra le prove da cui è nata. E gli strumenti arrivano fino ai processi: ogni worker dell'API pubblica ciò che trattiene in memoria, così un totale di container si legge processo per processo. E uno strumento misura ciò che nomina: l'allarme di latenza conta solo i turni che una persona attende, e il rapporto quotidiano dell'host si apre su ciò che la supervisione ha registrato invece che su un'istantanea.
 - **Consegna**: deployment containerizzato, migrazioni di schema automatizzate, immagini pubblicate per due architetture hardware (amd64/arm64).
 - **Catena di fornitura**: ogni componente del server fissato dalla sua impronta e inventariato a ogni versione; una sorveglianza settimanale legge gli avvisi di sicurezza che ogni dipendenza pubblica — compresi quelli che nessuna banca dati pubblica riprende — e un aggiornamento attende un periodo di prudenza, senza mai tornare indietro; ogni versione viene installata su macchine vergini prima di essere pubblicata.
 - **Costi**: infrastruttura frugale per scelta — circa 150 € di hardware, zero licenze, componenti open source dimensionati sul bisogno reale.
@@ -94,19 +96,20 @@ Una presenza visibile deve restare una scelta controllabile: l’avatar Simli sp
 
 ## 6. La prova
 
-Il livello annunciato in questo documento risulta da un audit tecnico completo: 24 perimetri valutati, ogni rilievo verificato nel codice e contro-verificato per eliminare i falsi positivi. L'audit applica il metodo del progetto stesso — condotto con strumenti IA, in postura contraddittoria, ogni conclusione ancorata a una prova contro-verificata. Valutazione di luglio 2026: **8,3/10**, con un profilo assunto apertamente. Il rapporto completo — griglia di valutazione, metodo, rilievi aperti e il protocollo per riprodurlo — è pubblico: [rapporto di audit completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
+Il livello annunciato in questo documento risulta da un audit tecnico completo: 24 perimetri valutati, ogni rilievo verificato nel codice e contro-verificato per eliminare i falsi positivi. L'audit applica il metodo del progetto stesso — condotto con strumenti IA, in postura contraddittoria, ogni conclusione ancorata a una prova contro-verificata. Valutazione di ottobre 2026: **8,0/10** (7,3 ad agosto), con un profilo assunto apertamente. Il rapporto completo — griglia di valutazione, metodo, rilievi aperti e il protocollo per riprodurlo — è pubblico: [rapporto di audit completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
 
 **Punti di forza confermati:**
 
-- Strato dati solido: integrità referenziale completa, migrazioni senza rotture, accessi concorrenti controllati.
-- Osservabilità e strumenti di qualità completi, e realmente utilizzati quotidianamente.
-- Tracciabilità delle decisioni e disciplina di rilascio mantenute per tutta la durata.
+- Configurazione e dipendenze riproducibili: lockfile usati dai build di produzione, modelli scaricati verificandone le impronte.
+- Contratti condivisi e registri dichiarativi: aggiungere un agente, uno strumento o una lingua segue percorsi documentati, e le superfici di versione sono generate.
+- Una documentazione mantenuta vera dai controlli: decisioni, mappe e cifre citate sono verificate contro le loro fonti a ogni modifica.
+- Un rilascio che esegue ciò che esegue uno sviluppatore: una CI snella sugli stessi task, installazione e rilascio testati in modo ermetico, migrazioni ripetute da un database vuoto.
 
 **Ciò che resta da fare — noto, pianificato:**
 
-- Backup: cifratura e copie off-site — l'automazione quotidiana è già in produzione e verificata.
-- Allerte: ricalibrazione delle soglie del parco storico — il nucleo critico è attivo e provato end-to-end, e-mail compresa.
-- Prosecuzione della scomposizione dei componenti più densi, ormai guidata dalla misura (complessità, accoppiamento) — i principali monoliti del backend sono trattati.
+- Stati durevoli che dicono il vero: un documento rielaborato dopo un subentro deve restare al suo proprietario attuale, e una notifica di chiamata deve contare come consegnata solo dopo un successo esplicito.
+- Allerte: comporre e testare ogni combinazione annunciata di canali di notifica, instradamento compreso.
+- Il debito strutturale assoluto — funzioni centrali dense, domini interdipendenti, eccezioni di tipizzazione — ridotto lotto per lotto, guidato dalla misura.
 
 Il piano d'azione è organizzato in ondate, ciascuna con criteri di uscita misurabili. È il modo di rendere conto di questo progetto: non un livello proclamato, un livello misurato — scarti compresi.
 
@@ -127,4 +130,4 @@ Ciò che questa esperienza cambia in una pratica di direzione:
 - **Tra il divieto generale e la fiducia cieca, esiste una via governabile.** Il controllo umano graduato si specifica, si testa e si audita; è l'approccio che le esigenze regolamentari stanno delineando, ed è operativo fin da ora.
 - **Un dirigente che pratica arbitra meglio.** Fare o far fare, debito accettabile o no, promessa del fornitore credibile o no — queste decisioni guadagnano in giustezza quando si è messa alla prova la materia. Questo progetto è un modo di mantenere questa vicinanza al terreno.
 
-*Progetto personale, condotto al di fuori di ogni attività professionale. Valutazione tecnica dall’audit di luglio 2026, con rilievi contro-verificati. I conteggi strutturali seguono il repository; le righe di codice sorgente sono state rimisurate il 2026-10-16. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Progetto personale, condotto al di fuori di ogni attività professionale. Valutazione tecnica dall’audit di luglio 2026, con rilievi contro-verificati. I conteggi strutturali seguono il repository; le righe di codice sorgente sono state rimisurate il 2026-10-22. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

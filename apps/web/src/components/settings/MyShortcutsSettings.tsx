@@ -57,7 +57,7 @@ function SectionRow({
           'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-colors',
           checked
             ? 'border-primary/40 bg-primary/5'
-            : 'border-border/40 bg-background hover:bg-accent/40',
+            : 'border-border bg-background hover:bg-accent/40',
           blocked && 'cursor-not-allowed opacity-60'
         )}
       >
@@ -119,9 +119,7 @@ export function MyShortcutsSettings({ lng }: BaseSettingsProps) {
             cap it says why the other boxes are not takeable. */}
         <p id="shortcuts-limit" className="text-sm">
           {atCap && (
-            <span className="text-destructive">
-              {t('settings.my_shortcuts.limit_reached')}
-            </span>
+            <span className="text-destructive">{t('settings.my_shortcuts.limit_reached')}</span>
           )}
         </p>
         {shortcuts.length === 0 && (

@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 import structlog
-from sqlalchemy import Boolean, delete, func, literal, literal_column, select, update
+from sqlalchemy import Boolean, delete, func, literal, literal_column, select, text, update
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql.dml import ReturningInsert
@@ -22,6 +22,7 @@ from sqlalchemy.sql.elements import ColumnElement, Label
 
 from src.core.repository import BaseRepository
 from src.domains.diagnostics.models import (
+    INCIDENT_OPEN_SQL,
     INCIDENT_SOURCE_ALERT,
     INCIDENT_STATUS_OPEN,
     INCIDENT_STATUS_RESOLVED,
@@ -97,7 +98,7 @@ def build_open_or_touch_stmt(
     )
     stmt = stmt.on_conflict_do_update(
         index_elements=[Incident.correlation_key],
-        index_where=Incident.status == INCIDENT_STATUS_OPEN,
+        index_where=text(INCIDENT_OPEN_SQL),
         set_={
             "last_seen_at": now,
             "severity": severity,

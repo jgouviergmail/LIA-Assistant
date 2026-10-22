@@ -255,6 +255,14 @@ FIELD_HEART_RATE = "heart_rate"
 FIELD_STEPS = "steps"
 
 # ============================================================
+# PROACTIVE DISCUSSIONS (ADR-358)
+# ============================================================
+# The pause an opening's "not now" reaction promises, written into its message
+# when it is published and applied by the reaction: the label states exactly
+# what the click does, whatever the setting became since.
+FIELD_DISCUSSION_PAUSE_HOURS = "discussion_pause_hours"
+
+# ============================================================
 # FIELD GROUPS (for validation, serialization)
 # ============================================================
 
@@ -434,6 +442,8 @@ __all__ = [
     # Health Metrics
     "FIELD_HEART_RATE",
     "FIELD_STEPS",
+    # Proactive discussions
+    "FIELD_DISCUSSION_PAUSE_HOURS",
     # Helpers
     "is_identity_field",
     "is_token_field",

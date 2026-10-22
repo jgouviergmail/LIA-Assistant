@@ -7,7 +7,8 @@
  *  - emptiness on a whole page carries a way out (the proactivity settings);
  *  - a failed source is STATED (partial-data warning), never silent;
  *  - counts come from the exact totals, and a truncated pool says so;
- *  - events group under local day headings, newest first.
+ *  - events group under local day headings, newest first;
+ *  - the way back to the hub's received / to-follow registers is always there.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -120,6 +121,56 @@ describe('ActivityTimeline', () => {
     renderWithProviders(<ActivityTimeline lng="fr" />);
 
     expect(screen.getByText('activity.partial_warning')).toBeInTheDocument();
+  });
+
+  it('leads back to the hub registers the timeline was opened from', () => {
+    for (const state of [{ events: [event()] }, { events: undefined, firstLoad: true }]) {
+      hookState(state);
+
+      const { unmount } = renderWithProviders(<ActivityTimeline lng="fr" />);
+
+      expect(screen.getByRole('link', { name: 'activity.hub_back' })).toHaveAttribute(
+        'href',
+        '/fr/dashboard/notifications'
+      );
+      unmount();
+    }
+  });
+
+  it('keeps the journal and a refresh beside the way back, like the hub', async () => {
+    // Owner request 2026-10-21: the two views share one header — the switch,
+    // then the actions journal and a refresh, at one height.
+    const refetch = vi.fn();
+    hookState({ events: [event()], refetch });
+
+    const { user } = renderWithProviders(<ActivityTimeline lng="fr" />);
+
+    expect(screen.getByRole('heading', { level: 1, name: 'activity.title' })).toBeInTheDocument();
+    const journal = screen.getByRole('link', { name: 'effects.journal.title' });
+    expect(journal).toHaveAttribute('href', '/fr/dashboard/actions');
+    const refresh = screen.getByRole('button', { name: 'common.refresh' });
+    for (const control of [
+      screen.getByRole('link', { name: 'activity.hub_back' }),
+      journal,
+      refresh,
+    ]) {
+      expect(control).toHaveClass('min-h-11');
+    }
+    await user.click(refresh);
+    expect(refetch).toHaveBeenCalledOnce();
+  });
+
+  it('refuses a second read while one is in flight, without a disabled control', async () => {
+    const refetch = vi.fn();
+    hookState({ events: undefined, firstLoad: true, loading: true, refetch });
+
+    const { user } = renderWithProviders(<ActivityTimeline lng="fr" />);
+    const refresh = screen.getByRole('button', { name: 'common.refresh' });
+    await user.click(refresh);
+
+    expect(refetch).not.toHaveBeenCalled();
+    expect(refresh).toHaveAttribute('aria-disabled', 'true');
+    expect(refresh).not.toBeDisabled();
   });
 
   it('offers the proactivity settings as the way out of an empty page', () => {

@@ -176,6 +176,13 @@ PromptName = Literal[
     # Heartbeat autonome (proactive notifications)
     "heartbeat_decision_prompt",
     "heartbeat_message_prompt",
+    "discussion_context_prompt",
+    "discussion_decision_prompt",
+    "discussion_message_prompt",
+    "discussion_rules_prompt",
+    "discussion_control_lines",
+    # The source adapters' evidence frames and usage nuances (ADR-284)
+    "discussion_evidence_lines",
     # The FRESH line a push-driven wake opens its decision context with (ADR-261)
     "heartbeat_wake_fresh_prompt",
     "moment_fresh_prompt",

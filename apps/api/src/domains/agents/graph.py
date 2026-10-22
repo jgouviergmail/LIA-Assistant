@@ -153,7 +153,7 @@ def route_from_router(state: MessagesState) -> str:
         )
     elif confidence >= settings.router_confidence_medium:
         tier = "medium"
-        logger.warning(
+        logger.info(
             "router_medium_confidence",
             intention=intention,
             confidence=confidence,

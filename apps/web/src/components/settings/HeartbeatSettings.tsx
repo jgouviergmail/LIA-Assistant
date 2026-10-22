@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Clock, History, Radar, SlidersHorizontal } from 'lucide-react';
-import { SmsPushSettings } from '@/components/sms/SmsPushSettings';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useTranslation } from '@/i18n/client';
@@ -157,30 +156,28 @@ export function HeartbeatSettings({ lng }: BaseSettingsProps) {
               wall on a panel where the reader came to change one thing. The
               badge carries how many are refused, so the fold still says
               whether anything was silenced. */}
-          <div className="border-t pt-4">
-            <Disclosure
-              surface="nested"
-              icon={SlidersHorizontal}
-              title={t('heartbeat.sources_permission_title')}
-              badge={
-                (settings.disabled_sources ?? []).length > 0
-                  ? (settings.disabled_sources ?? []).length
-                  : undefined
-              }
-            >
-              <p className="mb-2 text-xs text-muted-foreground">
-                {t('heartbeat.sources_permission_description')}
-              </p>
-              <HeartbeatSourceSwitches
-                allSources={settings.all_sources ?? []}
-                disabledSources={settings.disabled_sources ?? []}
-                availableSources={settings.available_sources ?? []}
-                sourceDependencies={settings.source_dependencies}
-                updating={updating}
-                onChange={handleSourcesChange}
-              />
-            </Disclosure>
-          </div>
+          <Disclosure
+            surface="nested"
+            icon={SlidersHorizontal}
+            title={t('heartbeat.sources_permission_title')}
+            badge={
+              (settings.disabled_sources ?? []).length > 0
+                ? (settings.disabled_sources ?? []).length
+                : undefined
+            }
+          >
+            <p className="mb-2 text-xs text-muted-foreground">
+              {t('heartbeat.sources_permission_description')}
+            </p>
+            <HeartbeatSourceSwitches
+              allSources={settings.all_sources ?? []}
+              disabledSources={settings.disabled_sources ?? []}
+              availableSources={settings.available_sources ?? []}
+              sourceDependencies={settings.source_dependencies}
+              updating={updating}
+              onChange={handleSourcesChange}
+            />
+          </Disclosure>
 
           <MomentKindsSection
             allKinds={settings.all_moment_kinds ?? []}
@@ -190,27 +187,24 @@ export function HeartbeatSettings({ lng }: BaseSettingsProps) {
             onChange={handleMomentKindsChange}
           />
 
-          <div className="border-t pt-4">
-            <Disclosure
-              surface="nested"
-              icon={History}
-              title={t('heartbeat.history.title')}
-              onOpenChange={setHistoryOpen}
-            >
-              <p className="mb-2 text-xs text-muted-foreground">
-                {t('heartbeat.history.description')}
-              </p>
-              <HeartbeatHistory
-                presentation="timeline"
-                notifications={history.notifications}
-                total={history.total}
-                firstLoad={history.firstLoad}
-                loading={history.loading}
-                error={history.error}
-                locale={intlLocale}
-              />
-            </Disclosure>
-          </div>
+          <Disclosure
+            surface="nested"
+            icon={History}
+            title={t('heartbeat.history.title')}
+            onOpenChange={setHistoryOpen}
+          >
+            <p className="mb-2 text-xs text-muted-foreground">
+              {t('heartbeat.history.description')}
+            </p>
+            <HeartbeatHistory
+              notifications={history.notifications}
+              total={history.total}
+              firstLoad={history.firstLoad}
+              loading={history.loading}
+              error={history.error}
+              locale={intlLocale}
+            />
+          </Disclosure>
         </div>
       )}
     </div>
@@ -224,9 +218,6 @@ export function HeartbeatSettings({ lng }: BaseSettingsProps) {
       icon={Radar}
     >
       {content}
-      <div className="mt-5">
-        <SmsPushSettings lng={lng} />
-      </div>
     </SettingsSection>
   );
 }

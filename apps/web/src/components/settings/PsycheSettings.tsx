@@ -185,10 +185,10 @@ function OwnedPsycheSettings({
                   summary={
                     <Disclosure
                       surface="primary"
-                      className="border-border/60 px-3"
+                      className="border-border px-3"
                       icon={Sparkles}
                       title={t('psyche.presentation.point')}
-                      titleClassName="text-base font-semibold whitespace-normal"
+                      titleClassName="whitespace-normal"
                       defaultOpen
                       onOpenChange={setSummaryOpen}
                     >
@@ -249,9 +249,9 @@ function PsychePanel({
   return (
     <Card surface="nested" variant="flat" className="min-w-0 px-3 sm:px-4">
       <AccordionItem value={value} className="min-w-0 border-0">
-        <AccordionTrigger className="gap-3 py-4 text-left text-base font-semibold hover:no-underline">
+        <AccordionTrigger className="gap-3 py-3 text-left text-sm font-medium hover:no-underline">
           <span className="flex min-w-0 items-center gap-2">
-            <Icon className="size-5 shrink-0 text-primary" aria-hidden="true" />
+            <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
             <span className="min-w-0 [overflow-wrap:anywhere]">{title}</span>
           </span>
         </AccordionTrigger>
@@ -305,7 +305,7 @@ function PsychePreferences({
         const key = field === 'psyche_sensitivity' ? 'sensitivity' : 'stability';
         const value = draft[field] ?? settings[field];
         return (
-          <div key={field} className="space-y-3 border-t border-border/50 pt-4">
+          <div key={field} className="space-y-3 border-t border-border pt-4">
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm font-medium">{t(`psyche.${key}`)}</span>
               <span className="shrink-0 text-sm tabular-nums text-primary">{value}%</span>

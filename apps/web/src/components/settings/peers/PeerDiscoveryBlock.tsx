@@ -138,7 +138,7 @@ export function PeerDiscoveryBlock({
             {results.map(match => (
               <li
                 key={match.peer_id}
-                className="space-y-3 rounded-xl border border-border/50 bg-card p-3"
+                className="space-y-3 rounded-xl border border-border bg-card p-3"
               >
                 <div className="min-w-0">
                   <p className="break-words text-sm font-medium">{match.display_name}</p>

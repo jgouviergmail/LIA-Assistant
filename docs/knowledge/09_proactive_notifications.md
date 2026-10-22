@@ -4,7 +4,7 @@
 Proactive notifications allow LIA to **take the initiative** to contact you with useful information:
 
 **🧠 How it works:**
-• LIA continuously analyzes thirteen data sources (calendar, weather, emails, tasks, interests, memories, journals, health signals, birthdays, open loops, departure, habits, workboard)
+• LIA continuously analyzes fourteen data sources (calendar, weather, emails, tasks, interests, memories, journals, health signals, SMS, birthdays, open loops, departure, habits, workboard)
 • An LLM **intelligently decides** whether there's something useful to tell you
 • The message is rewritten with your **personality** and in your **language**, at your local time
 • LIA's inner emotional state subtly shapes the **tone** of notifications (warmth, energy, rhythm) — but is **never projected onto you**
@@ -20,7 +20,7 @@ LIA only sends a notification when it is **genuinely useful** — quality over q
 
 ## How do I enable proactive notifications?
 
-In **Settings › Features › Notifications**, switch on **Enable proactive notifications**.
+In **Settings › Features › Proactive notifications**, switch on **Enable proactive notifications**.
 
 **📝 Then, in the same panel:**
 • **Notification time window**: your own start and end hours (9 AM to 10 PM by default) — separate from the hours of your interest notifications
@@ -32,7 +32,7 @@ Weather while you travel is set under **Settings › Preferences › Location**.
 **💡 Delivery:** notifications reach your devices once **Push Notifications** are on (Settings › Preferences), and Telegram if you linked it — no separate switch per feature. Every message is also kept in the conversation, so you will find it at your next visit either way.
 
 ## What data sources are used?
-LIA aggregates **thirteen sources** in parallel to decide whether to notify you. Each has its own switch, and the settings panel says for each one whether it is connected:
+LIA aggregates **fourteen sources** in parallel to decide whether to notify you. Each has its own switch, and the settings panel says for each one whether it is connected:
 
 **📅 Calendar** — upcoming events (next few hours); needs an active calendar connector (Google, Apple or Microsoft)
 
@@ -52,6 +52,8 @@ LIA aggregates **thirteen sources** in parallel to decide whether to notify you.
 • In addition to the dynamic-query entries, the **brief of the compiled user-model portrait** (two or three sentences) is injected so the notification voice is aligned with the same nuanced model of you that drives the conversation
 
 **❤️ Health signals** — when health metrics are enabled for your account
+
+**💬 My SMS** — recent messages your phone relayed that LIA has not mentioned yet; needs the assistant's access to your SMS
 
 **🎂 Birthdays** — from your Google contacts
 
@@ -115,7 +117,7 @@ Your feedback helps LIA improve:
   after a reload — a notification is rated once
 
 **📜 History:**
-• In **Settings › Features › Notifications**, the **Recent notifications** block
+• In **Settings › Features › Proactive notifications**, the **Recent notifications** block
   lists the last ten you received: date, the message itself, the sources used, the priority, and the
   verdict you already gave
 • The block is folded by default and loads nothing until you open it
@@ -124,7 +126,7 @@ Your feedback helps LIA improve:
 **⚙️ Adjustment:**
 • If you receive too many notifications, narrow your notification window
 • If a source is not relevant, switch it off in **Notification topics** —
-  thirteen switches, one per source. You keep the service connected and the tool
+  fourteen switches, one per source. You keep the service connected and the tool
   you ask with: being connected to a service and being interrupted by it are
   two separate decisions
 • Everything is on by default, and a switch that cannot produce anything says
@@ -189,7 +191,7 @@ Both are the same answer as a 👍 or a 👎 on the notification: they teach LIA
 
 ## How can I see what LIA has been doing in the background?
 
-Open the **Activity** page — with the **Activity timeline** button of the **Alerts** page, or **See everything LIA did** on the **For you** card of the Home page. It tells the story of LIA's own work over the last days (the period is shown under the title):
+Open the **Activity** page — with the **Activity timeline** button of the **Alerts** page, or **See everything LIA did** on the **For you** card of the Home page. Its **Received / To follow up** button brings you back to the **Alerts** page; it sits under the title, where the Alerts page places **Activity timeline**, next to **Action journal** and **Refresh**. It tells the story of LIA's own work over the last days (the period is shown under the title):
 • proactive notifications and interest discoveries
 • journal notes LIA wrote from your conversations
 • habits it detected
@@ -222,7 +224,7 @@ Yes, with **anticipated moments**: shortly after an important meeting ends, LIA 
 • back-to-back meetings earn one question, at the end of the block
 • your notification window still applies, and LIA holds back if you were just chatting or it notified you a moment ago
 
-**Where to control it:** **Settings › Features › Notifications** › **Anticipated moments**, shown once proactive notifications are on. Each kind has its own switch (**After a meeting** needs a connected calendar), and your administrator can switch the whole capability off.
+**Where to control it:** **Settings › Features › Proactive notifications** › **Anticipated moments**, shown once proactive notifications are on. Each kind has its own switch (**After a meeting** needs a connected calendar), and your administrator can switch the whole capability off.
 
 ## Can LIA offer to run a request I usually make and forgot today?
 Yes, once it has learned the habit. When a request you make regularly — say your e-mail review every weekday around 8:30 — has not been made by the time its usual slot passes, the next proactive pass may offer to run it, naming it: "shall I run your usual e-mail review?"
@@ -238,3 +240,22 @@ Yes, once it has learned the habit. When a request you make regularly — say yo
 
 ## What does a proactive pass write in my registers?
 Every proactive pass files what it consulted — the sources it aggregated and the calendar check that decides whether you are in a meeting — under its own run in the **Registers** (the **Consultations** list and the **LIA's own initiative** tab), exactly as a conversation turn does. A source answered from cache was not opened and is not filed; a source that failed to answer is filed as failed rather than read as silence. Interest notifications stand aside during a meeting and respect your learned rhythm like the heartbeat does, and a wake triggered by a new mail skips the rhythm but never a meeting.
+
+## What are proactive discussions?
+A **proactive discussion** is a personal conversation LIA starts with you of its own accord — taking an interest in a plan, encouraging you, asking an open question — at a good moment. It is separate from notifications: a notification tells you something, a discussion invites a reply.
+
+**Where to turn it on:** **Settings › Features › Proactive discussions**, off until you switch on **Allow LIA to start a discussion**. There you choose:
+• your **discussion hours** (the window may cross midnight) and a **maximum per day**, or no limit; **Pause** stops them for as many hours as the button states (24 by default; your administrator sets the length)
+• the **allowed data**: each source is its own switch, a new source stays off, and a source LIA cannot reach is never read
+• the **sensitive topics** (health, personal relationships, finances, grief, intimacy), which LIA may take into account on top of the source's permission: all of them are allowed by default unless your administrator chose otherwise, and you untick any LIA must never use (an account that had already chosen keeps its choice)
+• the **Topics to avoid** you asked for, which you can allow again
+
+**What LIA understood:** two folded panels. **Context data** lists every element LIA keeps, with the period it covers and when it was last read; the filters above it apply as soon as you change them (the search once you stop typing). Switch **Allow** off on one (it becomes **Not usable**, and its known related evidence is excluded too), **Delete** it, or purge everything. **Context** is where the work stands: **Rebuild context** reads every source you allow again and interprets every element it can afford, not just enough to speak; it says it is running and the page updates itself when it ends. Automatic runs also update the context as your sources change: the panel says when the context was **last rebuilt** and **last updated**, then shows the **last run** — an automatic run or a rebuild you asked for —, **why it ended** (for instance nothing new to interpret, or nothing justified a discussion), **what it read and interpreted** — sources read, facts read, admitted and interpreted, calls, usable items, counts only — and **what that run cost**. No spending amount is shown: when a limit stops LIA — your daily limit, your usage quota, the instance's daily budget, or a run limit set too low by your administrator — one plain sentence at the top of the panel says which, and when it renews.
+
+**When LIA writes:** the opening appears in the conversation. Answer it, ignore it, or use one of four reactions: **Thanks, this resonates**, **Not now** (pauses for the hours the button states), **Do not bring up this topic**, **This context is incorrect**. A recent proactive notification or interest alert no longer holds a discussion back (your administrator can restore a gap), and two openings stay at least 30 minutes apart by default. **Alerts › Proactive discussions** keeps the history, each opening marked open, answered, set aside or lapsed; in the settings, **Recent discussions** lists them too, each dated in bold, and **Why this opening?** shows the reason and the sources recorded when it began.
+
+**Privacy:** an opening informed by your SMS, or touching a sensitive topic, stays private — its push notification is masked and it is never sent to your external channels such as Telegram.
+
+**Cost:** every model call and every paid read of a discussion or a rebuild is counted on your account like a conversation turn, and your usage quotas apply to it: a run your quota refuses reads nothing and says so. It also stays within the spending limits your administrator sets per run, per account per day and for the whole instance per day. Without those limits nothing starts, and your administrator can switch the feature off.
+
+**In the registers:** each discussion LIA opens is listed under **LIA's own initiative › Actions taken on its own** (« Discussion started »), and the sources its run read under **Sources consulted on its own**; a rebuild you asked for is filed as your request.

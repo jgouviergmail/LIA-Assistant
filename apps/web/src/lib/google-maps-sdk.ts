@@ -17,22 +17,51 @@ export interface MapsBoundsLiteral {
   west: number;
   east: number;
 }
-export interface MapsMarker extends Pick<EventTarget, 'addEventListener' | 'removeEventListener'> {
+export interface MapsMarker extends Pick<
+  HTMLElement,
+  'addEventListener' | 'removeEventListener' | 'append' | 'replaceChildren'
+> {
   map: MapsMap | null;
   zIndex?: number;
 }
+export interface MapsPinElementOptions {
+  glyphText?: string;
+  background?: string;
+  borderColor?: string;
+  glyphColor?: string;
+}
+export interface MapsPinElement extends HTMLElement {
+  glyphText?: string;
+  background?: string;
+  borderColor?: string;
+  glyphColor?: string;
+}
 export interface MarkerLibrary {
   AdvancedMarkerElement: new (options: Record<string, unknown>) => MapsMarker;
+  PinElement: new (options: MapsPinElementOptions) => MapsPinElement;
 }
 export interface MapsPolyline {
   setMap(map: MapsMap | null): void;
   setOptions(options: Record<string, unknown>): void;
   addListener(event: 'click', callback: () => void): MapsListener;
 }
+export interface MapsInfoWindowOptions {
+  ariaLabel?: string;
+  maxWidth?: number;
+  headerContent?: HTMLElement;
+}
+export interface MapsInfoWindow {
+  setContent(content?: HTMLElement): void;
+  setOptions(options: MapsInfoWindowOptions): void;
+  open(options: { map: MapsMap; anchor: MapsMarker; shouldFocus: boolean }): void;
+  close(): void;
+  addListener(event: 'close', callback: () => void): MapsListener;
+}
 export interface MapsLibrary {
   readonly MapTypeControlStyle: { readonly DROPDOWN_MENU: number };
   Map: new (element: HTMLElement, options: Record<string, unknown>) => MapsMap;
   Polyline: new (options: Record<string, unknown>) => MapsPolyline;
+  InfoWindow?: new (options?: MapsInfoWindowOptions) => MapsInfoWindow;
   LatLngBounds: new (bounds?: MapsBoundsLiteral) => MapsBounds;
   importLibrary?: (library: 'marker') => Promise<MarkerLibrary>;
   event: { clearInstanceListeners(instance: MapsMap): void };

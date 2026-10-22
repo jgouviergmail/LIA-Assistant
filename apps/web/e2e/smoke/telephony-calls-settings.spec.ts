@@ -12,6 +12,8 @@ import {
 } from '../fixtures';
 import { scanPage } from '../a11y/scan';
 import { expectNoOverflow, prepareTheme } from './overflow-report';
+import { relationsData } from '../fixtures/relations';
+import { relationReadEndpoint } from '../../src/lib/relations-routing';
 
 // Calls retain the existing browser-local civil time, independently of account timezone.
 const ACCOUNT_ZONE = 'Europe/Paris';
@@ -507,3 +509,77 @@ test('390px OLED20px: active polling retains open details and focus through503 t
   const audit = await scanPage(page, info, 'recent-calls-mobile-oled-large-text');
   expect(audit.blocking, audit.summary).toHaveLength(0);
 });
+
+for (const width of [390, 1280]) {
+  test(`a relation opens its exact older call at ${width}px`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }, info) => {
+    await page.setViewportSize({ width, height: 900 });
+    await authenticate({ language: 'fr', timezone: ACCOUNT_ZONE });
+    const older = call({
+      id: '00000000-0000-4000-8000-000000000099',
+      callee_display: 'Gérard Dupont',
+      objective: 'Confirmer notre ancien rendez-vous',
+      summary: 'Compte rendu ancien sélectionné.',
+      created_at: '2026-01-01T09:00:00Z',
+      completed_at: '2026-01-01T09:05:00Z',
+      debrief: null,
+      structured_data: null,
+      usage: null,
+    });
+    await mockApi([
+      ...relationsData,
+      {
+        url: '**/api/v1' + relationReadEndpoint('Gérard Dupont'),
+        json: {
+          display_name: 'Gérard Dupont',
+          identity_confidence: 'exact',
+          open_loops: [],
+          open_loops_total: 0,
+          recent_calls: [older],
+          recent_calls_total: 1,
+          memories: [],
+          memories_total: 0,
+          peer_messages: [],
+          peer_messages_total: 0,
+          peer_link: null,
+          is_favorite: false,
+          is_peer: false,
+        },
+      },
+      { url: CALLS_ROUTE, json: recentCalls() },
+      { url: '**/api/v1/telephony/calls/' + older.id, json: older },
+    ]);
+    await page.goto('/fr/dashboard/relations');
+    await page
+      .getByRole('main')
+      .getByRole('button')
+      .filter({ hasText: 'Gérard Dupont' })
+      .first()
+      .click();
+    await page.getByRole('button', { name: /Appels récents/ }).click();
+    const link = page.getByRole('link', { name: new RegExp(older.objective) });
+    await expect(link).toHaveAttribute(
+      'href',
+      '/fr/dashboard/settings?section=telephony-calls&call=' + older.id
+    );
+    // Titled like a mail row (owner request 2026-10-21): the direction badge
+    // leads — LIA placed the call, so it is « sent » — and no icon leads a line.
+    await expect(link.getByText('Envoyé', { exact: true })).toBeVisible();
+    await expect(link.getByText(older.summary!, { exact: true })).toBeVisible();
+    await expect(link.locator('svg')).toHaveCount(0);
+    await link.focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(new RegExp('section=telephony-calls&call=' + older.id));
+    await expect(section(page).getByText(older.summary!, { exact: true })).toBeVisible();
+    await expect(summary(page, older)).toBeFocused();
+    await expect(row(page, older)).toHaveAttribute('open');
+    await expect(section(page).locator('summary')).toHaveCount(11);
+    await expectNoOverflow(page, 'exact old call');
+    const audit = await scanPage(page, info, `exact-call-${width}`);
+    expect(audit.blocking, audit.summary).toEqual([]);
+    await capture(page, info, `relation-call-${width}`);
+  });
+}

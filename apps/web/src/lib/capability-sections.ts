@@ -34,6 +34,7 @@ export const CAPABILITY_SECTION: Readonly<Record<string, SettingsSectionToken>> 
   personality: 'personality',
   voice: 'voice-mode',
   proactivity: 'heartbeat',
+  proactive_discussions: 'proactive-discussions',
   images: 'image-generation',
   interests: 'interests',
   routines: 'scheduled-actions',

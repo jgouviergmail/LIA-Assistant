@@ -351,14 +351,24 @@ async def discover_ollama_models() -> list[OllamaModelInfo]:
         logger.info("ollama_discovery_success", count=len(models), base_url=base_url)
         return models
 
-    except httpx.TimeoutException:
-        logger.warning("ollama_discovery_timeout", base_url=base_url)
+    except httpx.TimeoutException as exc:
+        logger.warning("ollama_discovery_timeout", base_url=base_url, error_type=type(exc).__name__)
         return []
     except httpx.HTTPError as exc:
-        logger.warning("ollama_discovery_http_error", base_url=base_url, error=str(exc))
+        logger.warning(
+            "ollama_discovery_http_error",
+            base_url=base_url,
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
         return []
     except (KeyError, ValueError, TypeError) as exc:
-        logger.warning("ollama_discovery_parse_error", base_url=base_url, error=str(exc))
+        logger.warning(
+            "ollama_discovery_parse_error",
+            base_url=base_url,
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
         return []
 
 

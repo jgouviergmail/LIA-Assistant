@@ -218,6 +218,9 @@ class TestTheMapCoversWhatTheProductShips:
         probes["avatar"] = asyncio.run(
             svc._avatar_probe(uuid4(), frozenset({PlatformCapability.AVATAR}))
         )
+        probes["proactive_discussions"] = asyncio.run(
+            svc._discussion_probe(uuid4(), frozenset({PlatformCapability.PROACTIVE_DISCUSSIONS}))
+        )
 
         assert {key: probes[key].detail for key in SWITCH_NODE_KEYS} == dict.fromkeys(
             SWITCH_NODE_KEYS, None

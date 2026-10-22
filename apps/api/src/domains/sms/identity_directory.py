@@ -66,7 +66,18 @@ def project_directory(directory: ContactDirectory) -> tuple[tuple[ContactIdentit
     return tuple(contacts), complete
 
 
-async def load_identity_book(owner: UUID) -> IdentityBook:
+async def load_relation_book(owner: UUID) -> IdentityBook:
+    """Build the local identity book: declared relations, aliases and known names.
+
+    A failure is logged and yields an empty book, so a sender stays unresolved
+    rather than wrongly named.
+
+    Args:
+        owner: The account.
+
+    Returns:
+        The relations' names and their resolver.
+    """
     # Local metadata is the same canonical resolver the Relations view uses.
     try:
         async with get_db_context() as db:
@@ -92,22 +103,50 @@ async def load_identity_book(owner: UUID) -> IdentityBook:
     except Exception as error:
         logger.warning("sms_relation_identity_unavailable", error_type=type(error).__name__)
         resolver, names = IdentityResolver.from_pairs([]), {}
-    directory = await _directory(owner)
+    return IdentityBook(relations=names, resolver=resolver)
+
+
+async def load_identity_book(owner: UUID) -> IdentityBook:
+    """Build the full identity book: contacts first, then the local relations.
+
+    Args:
+        owner: The account.
+
+    Returns:
+        The identity book.
+    """
+    local = await load_relation_book(owner)
+    contacts = await load_contact_book(owner)
+    return IdentityBook(
+        contacts=contacts.contacts,
+        complete=contacts.complete,
+        relations=local.relations,
+        resolver=local.resolver,
+    )
+
+
+async def load_contact_book(owner: UUID, *, cache_scope: str | None = None) -> IdentityBook:
+    """Contact-derived identities only; local alias edits never become stale snapshots."""
+    directory = await _directory(owner, cache_scope=cache_scope)
     if directory is None:
-        return IdentityBook(relations=names, resolver=resolver)
+        return IdentityBook()
     contacts, complete = project_directory(directory)
-    return IdentityBook(contacts=contacts, complete=complete, relations=names, resolver=resolver)
+    return IdentityBook(contacts=contacts, complete=complete)
 
 
-async def _directory(owner: UUID) -> ContactDirectory | None:
+async def _directory(owner: UUID, *, cache_scope: str | None = None) -> ContactDirectory | None:
     started = perf_counter()
     try:
         async with asyncio.timeout(settings.sms_identity_timeout_seconds):
-            async with open_active_client("contacts", owner) as opened:
+            async with open_active_client("contacts", owner, fresh=True) as opened:
                 if not isinstance(opened, ActiveClient):
                     return None
-                directory: ContactDirectory = await opened.client.list_email_directory(
-                    settings.sms_directory_max_contacts
+                directory: ContactDirectory = (
+                    await opened.client.list_email_directory(settings.sms_directory_max_contacts)
+                    if cache_scope is None
+                    else await opened.client.list_email_directory(
+                        settings.sms_directory_max_contacts, cache_scope=cache_scope
+                    )
                 )
     except Exception as error:
         logger.warning("sms_contact_identity_unavailable", error_type=type(error).__name__)

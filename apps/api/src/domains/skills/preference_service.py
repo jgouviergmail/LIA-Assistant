@@ -296,6 +296,9 @@ class SkillPreferenceService:
                 is_active=True,
             )
             self.db.add(state)
+            # Import hooks read the personal state before commit. Sessions
+            # disable autoflush, so publish it in this transaction first.
+            await self.db.flush()
             logger.info("user_skill_imported", skill_name=name, user_id=str(owner_id))
 
         return skill

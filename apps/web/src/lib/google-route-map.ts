@@ -116,7 +116,7 @@ export function mountRouteMap(
   };
 }
 
-function mapAccent(element: HTMLElement, dark: boolean): string {
+export function mapAccent(element: HTMLElement, dark: boolean): string {
   // Maps accepts CSS3 colors; convert the application's OKLCH token to sRGB.
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 1;

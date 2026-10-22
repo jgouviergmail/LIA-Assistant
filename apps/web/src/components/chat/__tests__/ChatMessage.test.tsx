@@ -813,3 +813,15 @@ describe('ChatMessage — a message said on the phone (phone as a channel)', () 
     expect(screen.queryByLabelText('chat.phone_call_badge')).not.toBeInTheDocument();
   });
 });
+
+it('a personal discussion uses the conversational tint while alerts keep their existing tint', () => {
+  renderMessage(
+    makeMessage({
+      content: 'Envie de parler de ta journée ?',
+      metadata: { type: 'proactive_discussion' },
+    })
+  );
+  const bubble = screen.getByText('Envie de parler de ta journée ?').closest('.message-bubble');
+  expect(bubble).toHaveClass('bg-primary/10');
+  expect(bubble).not.toHaveClass('bg-destructive/10');
+});

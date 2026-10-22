@@ -4,6 +4,8 @@ Date: 2026-10-09. Status: inline re-audit of the accepted V1, with revised imple
 
 This review consolidates the [accepted V1](2026-10-09-lia-isometric-world-v1-scope.md), [complete future target](2026-10-09-lia-isometric-world-analysis.md) and [previous characterization](2026-10-09-lia-isometric-world-validation.md). It governs the refinements below where earlier wording was stronger or less precise. The first-release scope is preserved: one world, five admitted accounts, five-to-six grouped places, owner homes, bounded anchored editing, direct translated text, private LIA functions/BIP, desktop and touch. Visits, shared furniture dragging, human voice and ten-account qualification remain later lots.
 
+Subsequent visual/engine refinement, 2026-10-20: the [MalinosLand reference addendum](2026-10-20-lia-world-malinosland-reference.md) records the owner's chosen appearance, reusable concepts, selective-adaptation strategy and upstream licensing boundary. Phaser is now assessed as a first engine candidate; the earlier sentence avoiding a Phaser import was provisional reasoning before that concrete reference existed. The authority, isolation and quality contracts below remain unchanged, and this October 9 evidence is not a fresh current-runtime pass.
+
 Evidence snapshot: current branch codex/lia-application-tools, HEAD 39152fad2f26d23ecd21121a43c3eac1056edd70, extensively modified/untracked working tree. These sources are not a released baseline. The current instructions in CLAUDE.md and apps/web/CLAUDE.md were rechecked, along with relevant local memory routing. Existing code was inspected directly; historical guidance was not used as present-state proof. No subagent was used.
 
 ## 1. Executive verdict and material corrections

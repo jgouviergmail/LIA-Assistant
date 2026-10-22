@@ -86,6 +86,19 @@ def test_constructor_rejects_empty_api_key():
     assert exc.value.code == "elevenlabs_api_key_missing"
 
 
+def test_too_short_audio_keeps_a_permanent_vendor_classification() -> None:
+    response = httpx.Response(
+        400,
+        json={"detail": {"status": "audio_too_short", "message": "private audio details"}},
+    )
+    with pytest.raises(STTProviderError) as caught:
+        ElevenLabsSttService._raise_for_status(response)
+
+    assert caught.value.code == "provider_audio_too_short"
+    assert caught.value.details == {"status_code": 400, "vendor_code": "audio_too_short"}
+    assert "private audio details" not in caught.value.message
+
+
 # ----------------------------------------------------------------------
 # Successful transcription
 # ----------------------------------------------------------------------

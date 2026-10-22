@@ -163,6 +163,14 @@ describe('lifecycleTone', () => {
     expect(lifecycleTone('claimed')).toBe('info');
   });
 
+  it('tells an answered discussion from one set aside or lapsed', () => {
+    expect(lifecycleTone('pending')).toBe('info');
+    expect(lifecycleTone('engaged')).toBe('success');
+    // Set aside or lapsed: inactive, never an alarm.
+    expect(lifecycleTone('dismissed')).toBe('secondary');
+    expect(lifecycleTone('expired')).toBe('secondary');
+  });
+
   it('gives the seven workboard columns a tone, and never grey to a live one', () => {
     // Four of the seven were unknown to this table (ADR-276) and fell to the
     // neutral fallback — so « à faire », « en attente » and « en validation »,

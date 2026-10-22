@@ -19,6 +19,7 @@ from src.domains.agents.application.connection_schemas import (
     ConnectorConnectionUnlinkPatch,
 )
 from src.domains.agents.application.connector_schemas import ConnectorPreferenceField
+from src.domains.agents.application.discussion_schemas import DiscussionActionField
 from src.domains.agents.application.document_delete_schemas import DocumentDeleteField
 from src.domains.agents.application.document_move_schemas import DocumentMoveField
 from src.domains.agents.application.document_upload_schemas import DocumentUploadField
@@ -167,6 +168,7 @@ class ApplicationStateChange(BaseModel):
         | JournalCreationField
         | JournalUpdateField
         | PsycheResetField
+        | DiscussionActionField
         | SmsActionField
         | HealthTokenField
         | HealthRemovalField
@@ -259,6 +261,7 @@ class ApplicationStateChange(BaseModel):
         + len(JournalCreationField)
         + len(JournalUpdateField)
         + len(PsycheResetField)
+        + len(DiscussionActionField)
         + len(SmsActionField)
         + len(HealthTokenField)
         + len(HealthRemovalField)
@@ -471,6 +474,7 @@ def publish_preference_change(
                 *JournalCreationField,
                 *JournalUpdateField,
                 *PsycheResetField,
+                *DiscussionActionField,
                 *SmsActionField,
                 *HealthTokenField,
                 *HealthRemovalField,

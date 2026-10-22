@@ -81,6 +81,38 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
         )
         return result.scalar_one_or_none() is not None
 
+    async def disable_for_unavailable_owner(
+        self, action_id: UUID, user_id: UUID, token: UUID | None
+    ) -> bool:
+        """Release this tick only while its owner remains unavailable.
+
+        The account may have been reactivated and the reservation replaced
+        since the caller read them. One conditional write checks both without
+        replacing any concurrently edited instruction, clock or run counters.
+        """
+        available_owner = (
+            select(User.id)
+            .where(User.id == user_id, User.is_active.is_(True), User.deleted_at.is_(None))
+            .exists()
+        )
+        result: Result[tuple[UUID]] = await self.db.execute(
+            update(ScheduledAction)
+            .where(
+                ScheduledAction.id == action_id,
+                ScheduledAction.user_id == user_id,
+                ScheduledAction.status == ScheduledActionStatus.EXECUTING.value,
+                ScheduledAction.execution_token == token,
+                ~available_owner,
+            )
+            .values(
+                status=ScheduledActionStatus.ACTIVE.value,
+                is_enabled=False,
+                execution_token=None,
+            )
+            .returning(ScheduledAction.id)
+        )
+        return result.scalar_one_or_none() is not None
+
     async def page_for_user(
         self, user_id: UUID, *, after_id: UUID | None, limit: int
     ) -> list[ScheduledAction]:

@@ -7,6 +7,7 @@ from src.domains.agents.application.bookmark_delete_spec import BOOKMARK_DELETE_
 from src.domains.agents.application.bookmark_download_spec import BOOKMARK_DOWNLOAD_OPERATION
 from src.domains.agents.application.bookmark_keep_spec import BOOKMARK_KEEP_OPERATION
 from src.domains.agents.application.bookmark_read_spec import BOOKMARK_READ_OPERATION
+from src.domains.agents.application.discussion_specs import DISCUSSION_OPERATIONS
 from src.domains.agents.application.document_archive_spec import DOCUMENT_ARCHIVE_OPERATION
 from src.domains.agents.application.document_delete_spec import DOCUMENT_DELETE_OPERATION
 from src.domains.agents.application.document_download_spec import DOCUMENT_DOWNLOAD_OPERATION
@@ -199,6 +200,7 @@ from src.domains.agents.application.workboard_read_spec import WORKBOARD_UI_READ
 from src.domains.agents.application.workboard_update_spec import WORKBOARD_UPDATE_OPERATION
 
 NATIVE_OPERATIONS = (
+    *DISCUSSION_OPERATIONS,
     *SMS_NATIVE_OPERATIONS,
     RECORDING_DEVICE_OPERATION,
     RECORDING_DEVICE_READ_OPERATION,

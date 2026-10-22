@@ -195,6 +195,22 @@ describe('ChatMessage — attachment URLs reach the API, not the frontend', () =
     );
   });
 
+  it('leaves a clear gap between a browser screenshot and the answer under it', () => {
+    // Owner request 2026-10-21: the caption ran straight into the first line.
+    renderMessage(
+      makeMessage({
+        content: 'Voici ce que la page affiche.',
+        browserScreenshot: { url: '/api/v1/attachments/s1', alt: 'Browser screenshot' },
+      })
+    );
+    const frame = screen.getByAltText('Browser screenshot').closest('div.mt-3');
+    if (!frame) throw new Error('the screenshot has no frame');
+    expect(frame).toHaveClass('mb-6');
+    const answer = screen.getByText('Voici ce que la page affiche.');
+    expect(frame).not.toContainElement(answer);
+    expect(frame.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('keeps the relative path when no API origin is configured', () => {
     vi.stubEnv('NEXT_PUBLIC_API_URL', '');
     renderMessage(makeMessage({ generatedDocuments: [csvDocument] }));

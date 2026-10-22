@@ -71,23 +71,23 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
               </p>
 
               {/* 5-layer diagram */}
-              <div className="bg-background rounded-lg p-3 font-mono text-px-10 space-y-1">
-                <div className="border border-border/50 rounded bg-card px-2 py-1 text-center">
+              <div className="space-y-1 rounded-lg border bg-background p-3 font-mono text-px-10">
+                <div className="border border-border rounded bg-card px-2 py-1 text-center">
                   {t(
                     'psyche.education.overview.layer5',
                     'Layer 5 — Drives & Self-Efficacy (per session)'
                   )}
                 </div>
-                <div className="border border-border/50 rounded bg-card px-2 py-1 text-center">
+                <div className="border border-border rounded bg-card px-2 py-1 text-center">
                   {t('psyche.education.overview.layer4', 'Layer 4 — Relationship (weeks/months)')}
                 </div>
-                <div className="border border-border/50 rounded bg-card px-2 py-1 text-center">
+                <div className="border border-border rounded bg-card px-2 py-1 text-center">
                   {t('psyche.education.overview.layer3', 'Layer 3 — 22 Emotions (minutes)')}
                 </div>
-                <div className="border border-border/50 rounded bg-card px-2 py-1 text-center">
+                <div className="border border-border rounded bg-card px-2 py-1 text-center">
                   {t('psyche.education.overview.layer2', 'Layer 2 — Mood in PAD space (hours)')}
                 </div>
-                <div className="border border-border/50 rounded px-2 py-1 text-center bg-primary/10">
+                <div className="border border-border rounded px-2 py-1 text-center bg-primary/10">
                   {t(
                     'psyche.education.overview.layer1',
                     'Layer 1 — Personality / Big Five (permanent)'
@@ -127,7 +127,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
               <div className="overflow-x-auto">
                 <table className="w-full text-px-10 border-collapse">
                   <thead>
-                    <tr className="border-b border-border/30">
+                    <tr className="border-b border-border">
                       <th className="text-left py-1 pr-2 font-medium text-foreground">
                         {t('psyche.education.traits.trait', 'Trait')}
                       </th>
@@ -139,7 +139,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border/20">
+                  <tbody className="divide-y divide-border">
                     <tr>
                       <td className="py-1.5 pr-2 font-medium">
                         {t('psyche.education.traits.neuroticism', 'Neuroticism')}
@@ -240,7 +240,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
 
               {/* PAD axes explanation */}
               <div className="grid grid-cols-3 gap-2">
-                <div className="bg-sky-500/10 rounded-md p-2 text-center">
+                <div className="rounded-md border border-sky-500/20 bg-sky-500/10 p-2 text-center">
                   <div className="font-bold text-sky-500 text-sm">P</div>
                   <div className="text-px-10">
                     {t('psyche.education.mood.pleasure', 'Pleasure')}
@@ -252,7 +252,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
                     +1 = {t('psyche.education.mood.pleasure_pos', 'happy')}
                   </div>
                 </div>
-                <div className="bg-amber-500/10 rounded-md p-2 text-center">
+                <div className="rounded-md border border-amber-500/20 bg-amber-500/10 p-2 text-center">
                   <div className="font-bold text-amber-500 text-sm">A</div>
                   <div className="text-px-10">{t('psyche.education.mood.arousal', 'Arousal')}</div>
                   <div className="text-px-9 mt-1">
@@ -262,7 +262,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
                     +1 = {t('psyche.education.mood.arousal_pos', 'energized')}
                   </div>
                 </div>
-                <div className="bg-violet-500/10 rounded-md p-2 text-center">
+                <div className="rounded-md border border-violet-500/20 bg-violet-500/10 p-2 text-center">
                   <div className="font-bold text-violet-500 text-sm">D</div>
                   <div className="text-px-10">
                     {t('psyche.education.mood.dominance', 'Dominance')}
@@ -283,7 +283,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
               <div className="overflow-x-auto">
                 <table className="w-full text-px-10 border-collapse">
                   <thead>
-                    <tr className="border-b border-border/30">
+                    <tr className="border-b border-border">
                       <th className="text-left py-1 pr-2 font-medium text-foreground">
                         {t('psyche.education.mood.col_mood', 'Mood')}
                       </th>
@@ -293,7 +293,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border/20">
+                  <tbody className="divide-y divide-border">
                     {(
                       [
                         ['serene', '+P −A +D'],
@@ -403,7 +403,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
               <div className="overflow-x-auto">
                 <table className="w-full text-px-10 border-collapse">
                   <thead>
-                    <tr className="border-b border-border/30">
+                    <tr className="border-b border-border">
                       <th className="text-left py-1 pr-2 font-medium text-foreground">
                         {t('psyche.education.emotions.col_emotion', 'Emotion')}
                       </th>
@@ -416,7 +416,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border/20">
+                  <tbody className="divide-y divide-border">
                     {(
                       [
                         ['joy', 'positive', '+P +A +D'],
@@ -551,7 +551,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
               <div className="flex items-center gap-1 text-px-10 font-mono overflow-x-auto py-1">
                 {['ORIENTATION', 'EXPLORATORY', 'AFFECTIVE', 'STABLE'].map((stage, i) => (
                   <React.Fragment key={stage}>
-                    <div className="bg-background rounded-md px-2 py-1 whitespace-nowrap text-center">
+                    <div className="whitespace-nowrap rounded-md border bg-background px-2 py-1 text-center">
                       <div className="font-medium text-foreground">
                         {t(`psyche.stages.${stage}`, stage)}
                       </div>
@@ -655,7 +655,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
               <div className="overflow-x-auto">
                 <table className="w-full text-px-10 border-collapse">
                   <thead>
-                    <tr className="border-b border-border/30">
+                    <tr className="border-b border-border">
                       <th className="text-left py-1 pr-2 font-medium text-foreground">
                         {t('psyche.education.drives.col_drive', 'Drive')}
                       </th>
@@ -667,7 +667,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border/20">
+                  <tbody className="divide-y divide-border">
                     <tr>
                       <td className="py-1.5 pr-2 font-medium">
                         {t('psyche.curiosityDrive', 'Curiosity')}
@@ -748,7 +748,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
           <AccordionContent>
             <div className="space-y-3 text-xs text-muted-foreground leading-relaxed">
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-background rounded-lg p-2.5">
+                <div className="rounded-lg border bg-background p-2.5">
                   <div className="font-medium text-foreground text-px-11 mb-1">
                     {t('psyche.sensitivity', 'Expressiveness')}
                   </div>
@@ -776,7 +776,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
                     </li>
                   </ul>
                 </div>
-                <div className="bg-background rounded-lg p-2.5">
+                <div className="rounded-lg border bg-background p-2.5">
                   <div className="font-medium text-foreground text-px-11 mb-1">
                     {t('psyche.stability', 'Mood Stability')}
                   </div>

@@ -114,7 +114,7 @@ export function OpenOffersList({ offers, locale, decisions }: OpenOffersListProp
       {offers.map(offer => (
         <li
           key={offer.id}
-          className="min-w-0 space-y-3 border-t border-border/50 py-4 first:border-t-0 first:pt-0"
+          className="min-w-0 space-y-3 border-t border-border py-4 first:border-t-0 first:pt-0"
         >
           <div className="min-w-0 flex-1">
             <p className="break-words whitespace-pre-line text-sm leading-relaxed text-foreground/90">

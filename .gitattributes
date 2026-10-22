@@ -88,6 +88,9 @@ Caddyfile text eol=lf
 docker-compose*.yml text eol=lf
 .dockerignore text eol=lf
 
+# Dependency manifests compiled into the *.txt locks (uv pip compile inputs)
+*.in text eol=lf
+
 # Markdown & Documentation
 *.md text eol=lf
 *.txt text eol=lf

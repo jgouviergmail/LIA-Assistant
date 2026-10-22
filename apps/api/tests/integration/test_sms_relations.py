@@ -44,14 +44,16 @@ async def test_relation_counts_all_senders_once_and_details_only_matching_identi
         resolver=IdentityResolver.from_pairs([("papa", "alice")]),
     )
     directory = AsyncMock(return_value=book)
-    monkeypatch.setattr("src.domains.sms.relation_reader.load_identity_book", directory)
+    monkeypatch.setattr("src.domains.sms.identity_resolution.load_identity_book", directory)
+    local = AsyncMock(return_value=book)
+    monkeypatch.setattr("src.domains.sms.identity_resolution.load_relation_book", local)
     reader = SmsRelationReader()
     page = await reader.read(test_user.id, person="Alice", limit=2, assistant=False)
     assert page.available and page.total == 5 and len(page.messages) == 2
     assert sum(item.count for item in page.activities) == 6
     assert all(item.body != "Autre personne" for item in page.messages)
     assert directory.await_count == 1
-    directory.return_value = IdentityBook(contacts=book.contacts, complete=True)
+    local.return_value = IdentityBook(complete=True)
     unmerged = await reader.read(test_user.id, person="Alice", limit=2, assistant=False)
     assert unmerged.total == 4 and sum(item.count for item in unmerged.activities) == 6
 
@@ -69,7 +71,7 @@ async def test_new_sms_and_withdrawal_refuse_old_relation_evidence(sms_actor_ses
     await db_session.commit()
     await SmsIngestionService(db_session).ingest(principal, [message(sender="Alice", body="Avant")])
     monkeypatch.setattr(
-        "src.domains.sms.relation_reader.load_identity_book",
+        "src.domains.sms.identity_resolution.load_identity_book",
         AsyncMock(return_value=IdentityBook(complete=True)),
     )
     reader = SmsRelationReader()
@@ -98,7 +100,7 @@ async def test_directory_budget_never_turns_capped_senders_into_exact_totals(
     )
     monkeypatch.setattr(settings, "sms_directory_max_contacts", 1)
     directory = AsyncMock()
-    monkeypatch.setattr("src.domains.sms.relation_reader.load_identity_book", directory)
+    monkeypatch.setattr("src.domains.sms.identity_resolution.load_identity_book", directory)
     with pytest.raises(ResourceConflictError):
         await SmsRelationReader().read(actor.id)
     directory.assert_not_awaited()
@@ -148,5 +150,5 @@ async def test_relation_resolution_budget_refuses_instead_of_truncating(monkeypa
     )
     with pytest.raises(ResourceConflictError):
         await SmsRelationReader._resolve(
-            [("hash", encrypt_data("Alice"), 137, None)], IdentityBook(complete=True), None
+            [("hash", encrypt_data("Alice"), 137, None)], IdentityBook(complete=True), {}, None
         )

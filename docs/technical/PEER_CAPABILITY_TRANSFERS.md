@@ -6,6 +6,13 @@ recipient receives an independent owned copy, durably **disabled** before the
 first successful commit. Its settings badge names the sender and sharing time.
 The existing editor, activation, credentials and deletion controls manage it.
 
+The confirmed send ends on a popup for the sender: what was shared with whom
+when the copy is installed (the dialog then closes), why it did not complete
+otherwise (the dialog stays open on its state and retry). The recipient's chat
+line names the sender, the kind (skill, MCP server or plugin) and the title —
+the sender as the badge would show them, so an account gone since reads "a
+user" ([wording](../../apps/api/src/core/i18n_capability_sharing.py)).
+
 The implementation is in [the peers domain](../../apps/api/src/domains/peers/capability_flow.py).
 The closed [contracts](../../apps/api/src/domains/peers/capability_contracts.py)
 define preview, receipt, installation and recoverable partial states. The

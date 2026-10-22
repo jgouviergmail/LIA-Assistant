@@ -48,7 +48,7 @@ def test_cross_origin_document_preview_exposes_truncation_without_extra_metadata
         value.strip().lower()
         for value in response.headers["access-control-expose-headers"].split(",")
     }
-    assert exposed == {"x-request-id", "x-preview-truncated"}
+    assert exposed == {"x-request-id", "x-preview-truncated", "retry-after"}
 
 
 def _make_app(*middleware_classes: type) -> FastAPI:

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { CalendarDays, type LucideIcon } from 'lucide-react';
+import { HeadingRule } from '@/components/ui/heading-rule';
 import { cn } from '@/lib/utils';
 
 interface TimelineGroupProps {
@@ -42,9 +43,7 @@ export function TimelineGroup({
           <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
           {heading}
         </Heading>
-        {presentation === 'period' && (
-          <span className="h-px min-w-3 flex-1 bg-border/60" aria-hidden="true" />
-        )}
+        {presentation === 'period' && <HeadingRule />}
       </div>
       {children}
     </section>
@@ -57,10 +56,21 @@ interface TimelineDayGroupProps extends Pick<
 > {
   dayNumber: string | null;
   month: string | null;
+  /**
+   * The frame's ground. A day framed inside a card-coloured panel (an SMS
+   * sender's fold) takes the page's background so the two still alternate.
+   */
+  surface?: 'card' | 'background';
 }
 
 /** Shared civil-day marker and collection frame for meetings and recent calls. */
-export function TimelineDayGroup({ dayNumber, month, children, ...props }: TimelineDayGroupProps) {
+export function TimelineDayGroup({
+  dayNumber,
+  month,
+  surface = 'card',
+  children,
+  ...props
+}: TimelineDayGroupProps) {
   return (
     <TimelineGroup
       {...props}
@@ -79,7 +89,12 @@ export function TimelineDayGroup({ dayNumber, month, children, ...props }: Timel
         )
       }
     >
-      <div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
+      <div
+        className={cn(
+          'overflow-hidden rounded-xl border border-border shadow-sm',
+          surface === 'card' ? 'bg-card' : 'bg-background'
+        )}
+      >
         {children}
       </div>
     </TimelineGroup>

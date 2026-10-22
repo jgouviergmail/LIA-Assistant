@@ -16,6 +16,7 @@ from src.core.constants import (
     AGENT_PLUGINS_PLUGIN_SCHEMA_ID,
 )
 from src.core.exceptions import ValidationError
+from src.core.security.utils import encrypt_data
 from src.domains.peers import capability_flow, capability_sources
 from src.domains.peers.capability_contracts import (
     CapabilityKind,
@@ -44,7 +45,7 @@ async def test_skill_is_disabled_at_first_commit_and_retry_preserves_recipient_e
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    maker = async_sessionmaker(async_engine, expire_on_commit=False)
+    maker = async_sessionmaker(async_engine, expire_on_commit=False, autoflush=False)
 
     @asynccontextmanager
     async def sessions() -> AsyncIterator[AsyncSession]:
@@ -93,8 +94,27 @@ async def test_skill_is_disabled_at_first_commit_and_retry_preserves_recipient_e
     )
     preview = await capability_flow.preview_capability(sender.id, request)
     assert preview.status is TransferStatus.PREPARING
+    original_commit = skill_import.commit_skill_import
+    first_commits: list[UUID] = []
+
+    async def observe_first_commit(session: AsyncSession) -> None:
+        await original_commit(session)
+        async with sessions() as observer:
+            copied = (
+                await observer.execute(select(Skill).where(Skill.owner_id == recipient.id))
+            ).scalar_one()
+            state = (
+                await observer.execute(
+                    select(UserSkillState).where(UserSkillState.skill_id == copied.id)
+                )
+            ).scalar_one()
+            assert not state.is_active
+            first_commits.append(copied.id)
+
+    monkeypatch.setattr(skill_import, "commit_skill_import", observe_first_commit)
     receipt = await capability_flow.send_capability(sender.id, preview.id, preview.digest)
     assert receipt.status is TransferStatus.INSTALLED
+    assert len(first_commits) == 1
     async with sessions() as db:
         copy = (await db.execute(select(Skill).where(Skill.owner_id == recipient.id))).scalar_one()
         state = (
@@ -138,7 +158,7 @@ async def test_plugin_retains_sanitized_files_and_first_components_are_disabled(
     monkeypatch: pytest.MonkeyPatch,
     interruption: str,
 ) -> None:
-    maker = async_sessionmaker(async_engine, expire_on_commit=False)
+    maker = async_sessionmaker(async_engine, expire_on_commit=False, autoflush=False)
 
     @asynccontextmanager
     async def sessions() -> AsyncIterator[AsyncSession]:
@@ -198,6 +218,8 @@ async def test_plugin_retains_sanitized_files_and_first_components_are_disabled(
                 plugin_id=plugin.id,
                 url="https://live.example.test/api",
                 auth_type="bearer",
+                credentials_encrypted=encrypt_data(json.dumps({"token": "sender-secret-token"})),
+                hitl_required=False,
                 domain_description="Current endpoint",
             )
         )

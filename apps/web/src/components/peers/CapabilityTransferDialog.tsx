@@ -2,7 +2,9 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { FileMinus, Files, Send } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
@@ -14,7 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useCapabilityRecipients } from '@/hooks/useCapabilityRecipients';
-import { useCapabilityTransfer } from '@/hooks/useCapabilityTransfer';
+import { useCapabilityTransfer, type TransferSettlement } from '@/hooks/useCapabilityTransfer';
 import { peersErrorCode } from '@/components/settings/peers/peers-error-messages';
 import type { CapabilitySelection, CapabilityTransfer } from '@/lib/capability-sharing';
 import { PeerRecipientList } from './PeerRecipientList';
@@ -28,6 +30,50 @@ const ERROR_KEYS: Record<string, string> = {
   peers_capability_recipient_changed: 'recipient_changed',
   peers_capability_not_shareable: 'not_shareable',
 };
+
+function errorKey(error: Error | null): string {
+  const code = peersErrorCode(error);
+  return `settings.capability_share.errors.${(code && ERROR_KEYS[code]) || 'generic'}`;
+}
+
+/**
+ * The popup a confirmed send ends on: what was shared with whom, or why it did
+ * not complete. Only a complete installation closes the dialog — anything else
+ * leaves its state and its retry in view.
+ *
+ * @returns Whether the share is complete.
+ */
+function announceSend(
+  t: TFunction,
+  settled: TransferSettlement,
+  shared: { name: string; recipient: string }
+): boolean {
+  if ('error' in settled) {
+    toast.error(t('settings.capability_share.not_sent', shared), {
+      description: t(errorKey(settled.error)),
+    });
+    return false;
+  }
+  const { receipt } = settled;
+  const status = t(`settings.capability_share.status.${receipt.status}`);
+  switch (receipt.status) {
+    case 'installed':
+      toast.success(t(`settings.capability_share.sent.${receipt.kind}`, shared), {
+        description: status,
+      });
+      return true;
+    case 'partial':
+      toast.warning(t('settings.capability_share.incomplete', shared), { description: status });
+      return false;
+    case 'failed':
+    case 'cancelled':
+      toast.error(t('settings.capability_share.not_sent', shared), { description: status });
+      return false;
+    default:
+      toast.info(status);
+      return false;
+  }
+}
 
 function Inventory({ preview }: { preview: CapabilityTransfer }) {
   const { t } = useTranslation();
@@ -131,9 +177,11 @@ function TransferReview({ preview, outcome }: Pick<TransferController, 'preview'
 function ConfirmationActions({
   transfer,
   preview,
+  onSend,
 }: {
   transfer: TransferController;
   preview: CapabilityTransfer;
+  onSend: (preview: CapabilityTransfer) => void;
 }) {
   const { t } = useTranslation();
   const { outcome, pending } = transfer;
@@ -154,7 +202,7 @@ function ConfirmationActions({
         </Button>
       )}
       {sendable && (
-        <Button isLoading={pending} onClick={() => void transfer.send(preview)}>
+        <Button isLoading={pending} onClick={() => onSend(preview)}>
           {t(`settings.capability_share.${retry ? 'retry' : 'send'}`)}
         </Button>
       )}
@@ -166,10 +214,12 @@ function TransferButtons({
   transfer,
   selected,
   onClose,
+  onSend,
 }: {
   transfer: TransferController;
   selected: string | null;
   onClose: () => void;
+  onSend: (preview: CapabilityTransfer) => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -178,7 +228,7 @@ function TransferButtons({
         {t('common.close')}
       </Button>
       {transfer.preview ? (
-        <ConfirmationActions transfer={transfer} preview={transfer.preview} />
+        <ConfirmationActions transfer={transfer} preview={transfer.preview} onSend={onSend} />
       ) : (
         <Button
           disabled={!selected}
@@ -206,8 +256,17 @@ export function CapabilityTransferDialog({
   const transfer = useCapabilityTransfer(source);
   const [connection, setConnection] = useState<string | null>(null);
   const group = useId();
-  const selected = peers.recipients.some(peer => peer.id === connection) ? connection : null;
-  const code = peersErrorCode(transfer.error);
+  const recipient = peers.recipients.find(peer => peer.id === connection);
+  const selected = recipient ? connection : null;
+  const send = async (preview: CapabilityTransfer) => {
+    const settled = await transfer.send(preview);
+    if (!settled) return;
+    const shared = {
+      name: preview.name,
+      recipient: recipient?.peer_display_name || t('settings.capability_share.unknown_sender'),
+    };
+    if (announceSend(t, settled, shared)) onClose();
+  };
   return (
     <Dialog
       open
@@ -245,7 +304,7 @@ export function CapabilityTransferDialog({
         <TransferReview preview={transfer.preview} outcome={transfer.outcome} />
         {transfer.error && (
           <p role="alert" className="text-sm text-destructive">
-            {t(`settings.capability_share.errors.${(code && ERROR_KEYS[code]) || 'generic'}`)}
+            {t(errorKey(transfer.error))}
           </p>
         )}
         {transfer.pending && transfer.preview && (
@@ -253,7 +312,12 @@ export function CapabilityTransferDialog({
             {t('settings.capability_share.pending_notice')}
           </p>
         )}
-        <TransferButtons transfer={transfer} selected={selected} onClose={onClose} />
+        <TransferButtons
+          transfer={transfer}
+          selected={selected}
+          onClose={onClose}
+          onSend={preview => void send(preview)}
+        />
       </DialogContent>
     </Dialog>
   );

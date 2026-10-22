@@ -120,8 +120,9 @@ async def test_assignment_notification_is_after_commit_and_owns_its_session(
             yield session
             await session.commit()
 
+    # The after-commit door every caller shares owns the notices' session.
     monkeypatch.setattr(
-        "src.domains.agents.application.workboard_update.get_db_context", own_session
+        "src.domains.workboard.assignment_notifications.get_db_context", own_session
     )
 
     async def sink(*, db, **values):
@@ -157,7 +158,7 @@ async def test_assignment_notification_is_after_commit_and_owns_its_session(
                     return await source_dispatch(db, notices)
 
                 monkeypatch.setattr(
-                    "src.domains.agents.application.workboard_update.dispatch_assignment_notices",
+                    "src.domains.workboard.assignment_notifications.dispatch_assignment_notices",
                     revoke_before_dispatch,
                 )
             receipt = PreferenceWriteReceipt()

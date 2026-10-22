@@ -19,6 +19,7 @@ import { HeroLiaCard } from './HeroLiaCard';
 import { PortraitHint } from './PortraitHint';
 import { StarterChecklistCard } from './StarterChecklistCard';
 import { InstallHint } from '@/components/pwa/InstallHint';
+import { HeadingRule } from '@/components/ui/heading-rule';
 import { QuickAccessCompact } from './QuickAccessCompact';
 import { RefreshAllButton } from './RefreshAllButton';
 import { CustomizeBriefingButton } from './CustomizeBriefingButton';
@@ -227,6 +228,9 @@ export function TodayBriefing({
             <Sunrise className="h-5 w-5 text-primary shrink-0" aria-hidden="true" />
             {t('dashboard.briefing.section_title')}
           </h2>
+          {/* The rubrique hairline every screen draws (owner request
+              2026-10-21), between the heading and its own controls. */}
+          <HeadingRule />
           <div className="flex items-center gap-1">
             {/* UX P10: the grid is customizable (UXR Lot 5) — say it HERE. */}
             <CustomizeBriefingButton lng={lng} />

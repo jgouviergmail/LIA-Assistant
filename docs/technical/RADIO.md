@@ -224,7 +224,7 @@ a partnership or a reduction is advertising.
 ## The listener's material
 
 Two parts, decided by the source (`personal.py`): the **day** (appointments,
-reminders, tasks, commitments, tickets, birthdays, unread mail, the weather)
+reminders, tasks, commitments, tickets, birthdays, unread mail, received SMS, the weather)
 and the **corner** (health, meetings, notifications, people gone quiet,
 knowledge spaces, kept answers, the conversation under way).
 
@@ -269,13 +269,30 @@ surface gained the sections `agenda`, `tasks`, `mails`, `sent_mails`, `reminders
   Cache hits (including empty days) open nothing. Live reads are recorded once per
   source under the radio session, together with the other parts' reads; a failed
   section never voices its stale payload. Costs stay on the session's tracker.
-- The seven others are read by `readers/` (one table, `OWN_READERS`, asserted
+- The other sources are read by `readers/` (one table, `OWN_READERS`, asserted
   complete at import), concurrently, each on its own short session (ADR-304);
   what they opened is recorded on the radio's consultation surface.
 - A source the listener switched off is never read; in company only the
   weather is. Setting the journal's frequency to `off` also prevents all
   personal journal reads, while keeping weather for the opening and the
   independently configured notification flashes.
+
+**SMS** is a separately switchable personal source, read directly from the
+[consented archive](SMS_INGESTION.md), independently of dashboard previews. Its
+bounded excerpts retain timestamp provenance and unknown phone read status; they
+are sensitive external facts in the journal's day material. The source uses the
+existing SMS context budget and the receiving writer/verifier windows, with its
+fact bound declared in `personal.MAX_PER_SOURCE`. It opens no source in company,
+with SMS disabled or with the personal journal off. Private proactive SMS
+notification copies remain excluded from the notifications reader.
+
+The [SMS reader](../../apps/api/src/domains/radio/sms_context.py) attaches private
+source proofs that are excluded from serialized facts. Model and production
+boundaries revalidate them, including after awaited writing, verification and
+audio production. A withdrawn source returns `source_withdrawn`, treated as
+`NothingAired` without charging the station's failure counter; already incurred
+model/speech usage remains accounted for. Previously delivered audio follows the
+existing Radio retention contract and cannot be recalled from a listener's device.
 
 **Taste** (`readers/taste.py`, `prompting.ListenerTaste`): active interests and
 remembered preferences reach the WRITER as context, never as facts — shown

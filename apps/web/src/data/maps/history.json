@@ -2611,11 +2611,67 @@
       "technical": ["t.response", "t.connclients", "t.pricing"]
     },
     {
+      "adr": 353,
+      "date": "2026-10-19",
+      "theme": "security",
+      "functional": ["f.security"],
+      "technical": ["t.edge", "t.fastapi", "t.redis", "t.metrics", "t.alerts"]
+    },
+    {
+      "adr": 354,
+      "date": "2026-10-19",
+      "theme": "reliability",
+      "functional": ["f.security", "f.diagnostics"],
+      "technical": ["t.edge", "t.logs", "t.dashboards"]
+    },
+    {
+      "adr": 355,
+      "date": "2026-10-19",
+      "theme": "connectors",
+      "functional": ["f.places", "f.chat"],
+      "technical": ["t.fastapi", "t.response", "t.connclients", "t.pricing"]
+    },
+    {
+      "adr": 356,
+      "date": "2026-10-19",
+      "theme": "experience",
+      "functional": ["f.places", "f.chat"],
+      "technical": ["t.web", "t.response", "t.connclients"]
+    },
+    {
       "adr": 357,
       "date": "2026-10-20",
       "theme": "connectors",
       "functional": ["f.sms", "f.relations", "f.heartbeat", "f.notifications"],
       "technical": ["t.phone_ingestion", "t.proactive", "t.registers"]
+    },
+    {
+      "adr": 358,
+      "date": "2026-10-20",
+      "theme": "proactive",
+      "functional": ["f.chat", "f.heartbeat", "f.notifications"],
+      "technical": ["t.proactive", "t.postgres", "t.push"]
+    },
+    {
+      "adr": 359,
+      "date": "2026-10-20",
+      "theme": "memory",
+      "functional": ["f.memory", "f.journals", "f.privacy"],
+      "technical": ["t.proactive", "t.postgres", "t.registers"]
+    },
+    {
+      "adr": 360,
+      "date": "2026-10-20",
+      "theme": "models",
+      "functional": ["f.costs", "f.llmconfig", "f.chat"],
+      "technical": ["t.proactive", "t.llmfactory", "t.pricing"]
+    },
+    {
+      "adr": 361,
+      "date": "2026-10-22",
+      "theme": "reliability",
+      "functional": ["f.diagnostics"],
+      "technical": ["t.selfdiag"]
     }
   ]
 }

@@ -1853,10 +1853,50 @@
       "summary": "One Position card groups selected Google Places before their individual cards, including in HTML and Markdown. The interactive map starts only after a click with its cost shown; a source list remains usable if Maps is unavailable.",
       "src": "b00abdd45dc8"
     },
+    "353": {
+      "title": "Temporarily block API scans",
+      "summary": "The API detects sweeps of unknown paths and rejected credentials while leaving normal session and resource errors alone. Redis shares a temporary ban across workers; a cache failure lets requests through and remains visible in metrics.",
+      "src": "c1a0e70c1bdf"
+    },
+    "354": {
+      "title": "Attribute every HTTP 429 to the right address",
+      "summary": "Every 429 response records the client address resolved through the trusted proxy chain, the method and the path without query parameters. Ordinary access logs stay quiet, and the address never becomes a metric label.",
+      "src": "85e52e5c8500"
+    },
+    "355": {
+      "title": "Acquired details and an accounted route to the selected place",
+      "summary": "The place panel reuses information already obtained without searching for the place again. The route starts from a permitted browser position, a fresh and dated last-known position, or home: walking up to 2 km inclusive, driving above it, with one recalculation if the actual walking route exceeds the limit. Spending limits still apply and every paid call is recorded, even if the route fails or is cancelled.",
+      "src": "a2a843ea6555"
+    },
+    "356": {
+      "title": "A readable map with matching numbers in the list and on pins",
+      "summary": "The map waits for explicit activation without reserving a large empty space. The same details open in a desktop popup or a phone dialog, each with a single scrolling region. The list and pins share the numbers from the original order; a place without coordinates keeps its number and link without shifting the others.",
+      "src": "a9ca854ccb92"
+    },
     "357": {
-      "title": "Generic phone ingestion and a personal SMS archive",
+      "title": "Generic phone ingestion and personal SMS",
       "summary": "The phone submits strict events deduplicated per source. Independent consents, exports, erasure, registers and notifications share the same authority.",
-      "src": "539b8b751150"
+      "src": "919024e5b2a5"
+    },
+    "358": {
+      "title": "Independent proactive discussions and native delivery",
+      "summary": "Personal initiative is separate from alerts, with its own policy and atomic chat publication. The architecture is approved; the producer still needs implementation before activation.",
+      "src": "52dd170f2804"
+    },
+    "359": {
+      "title": "Longitudinal context and control over its use",
+      "summary": "Observations support episodes and recurring patterns, with an independent portrait, purge and persistent reversible exclusions. Directives constrain initiative; the derived store still needs implementation.",
+      "src": "f3f770c17813"
+    },
+    "360": {
+      "title": "Bounded research and accounted abstention",
+      "summary": "Reads and model calls share a finite envelope and reserved budget. Spending remains accounted on refusal or cancellation; financial guards still need implementation before activation.",
+      "src": "550da3421618"
+    },
+    "361": {
+      "title": "An egress probe that names the failing step and confirms a cut",
+      "summary": "The outbound-connectivity probe separates name resolution from the connection and confirms a loss over several paced attempts. A lost DNS packet no longer opens a critical incident: a recovery or a slowdown is reported as degraded, and a real cut names the step that failed.",
+      "src": "9cf5696d02f2"
     }
   }
 }

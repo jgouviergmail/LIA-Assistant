@@ -55,11 +55,61 @@ it('aborts superseded reads and rejects late results from the old filter or acco
   expect(result.current.data).toBeNull();
   await act(async () => {});
 });
-it('invalidates visible data immediately after an owner-bound SMS source change', async () => {
-  post.mockResolvedValueOnce(page).mockImplementationOnce(() => new Promise(() => {}));
+it('keeps the page in view while a source change re-reads it, then replaces it', async () => {
+  // Owner rule 2026-10-21: a refresh is never a visible reload. Emptied first,
+  // the archive unmounted under the reader and dropped the focus a deletion
+  // meant to restore; an erased SMS still leaves the view, when the fresh
+  // page lands.
+  const fresh = Promise.withResolvers<SmsPage>();
+  post.mockResolvedValueOnce(page).mockReturnValueOnce(fresh.promise);
   const { result } = renderHook(() => useSmsArchive({}));
   await waitFor(() => expect(result.current.data?.total).toBe(8));
   act(() => publishApplicationResources('owner', new Set(['sms'])));
-  expect(result.current.data).toBeNull();
+  expect(result.current.data?.total).toBe(8);
   await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+  expect(result.current.loading).toBe(true);
+  await act(async () => fresh.resolve({ ...page, total: 7 }));
+  await waitFor(() => expect(result.current.data?.total).toBe(7));
+});
+
+it('withdraws the page in view when its reread fails', async () => {
+  // A failed reread cannot vouch for what is on screen: an erasure may be the
+  // very change it was reading, so the erased SMS must not stay displayed.
+  post.mockResolvedValueOnce(page).mockRejectedValueOnce(new Error('offline'));
+  const { result } = renderHook(() => useSmsArchive({}));
+  await waitFor(() => expect(result.current.data?.total).toBe(8));
+  act(() => publishApplicationResources('owner', new Set(['sms'])));
+  await waitFor(() => expect(result.current.error).not.toBeNull());
+  expect(result.current.data).toBeNull();
+});
+
+it('keeps the page a failed page turn was leaving', async () => {
+  // Only a re-read after a change withdraws what it was replacing; a page turn
+  // that failed changes nothing about the page the reader was on.
+  post.mockResolvedValueOnce(page).mockRejectedValueOnce(new Error('offline'));
+  const { result, rerender } = renderHook(
+    ({ cursor }) => useSmsArchive({ cursor }, true, undefined, true),
+    { initialProps: { cursor: undefined as string | undefined } }
+  );
+  await waitFor(() => expect(result.current.data).toEqual(page));
+  rerender({ cursor: 'opaque' });
+  await waitFor(() => expect(result.current.error).not.toBeNull());
+  expect(result.current.data).toEqual(page);
+});
+
+it('retains only a previous page of the same private query when explicitly requested', async () => {
+  post.mockResolvedValueOnce(page).mockImplementation(() => new Promise(() => {}));
+  const { result, rerender } = renderHook(
+    ({ query, cursor }) => useSmsArchive({ query, cursor }, true, undefined, true),
+    {
+      initialProps: { query: 'one', cursor: undefined as string | undefined },
+    }
+  );
+  await waitFor(() => expect(result.current.data).toEqual(page));
+  rerender({ query: 'one', cursor: 'opaque' });
+  expect(result.current.data).toEqual(page);
+  expect(result.current.loading).toBe(true);
+  rerender({ query: 'two', cursor: undefined });
+  expect(result.current.data).toBeNull();
+  await act(async () => {});
 });

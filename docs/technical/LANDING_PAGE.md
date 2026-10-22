@@ -49,7 +49,9 @@ Principes non negociables :
 - **Zero survente** : chaque phrase mappe une fonctionnalite livree ; pas de superlatifs invérifiables ; la beta et les
   abonnements a venir sont affiches (l'honnetete est le positionnement).
 - **Regle d'or des chiffres** : toute statistique publique vit dans `constants.ts` (`LANDING_STATS`), source canonique
-  documentee. Le score d'audit affiche vit dans `landing.transparency.p2_t` (×6) — a mettre a jour avec `auditScore`.
+  documentee. Le score d'audit (`auditScore`) n'est affiche par aucune bande de la landing ; les textes qui le
+  citent (README, guides story/how, reponse FAQ `getting_started.q7`, `story.meta.description` ×6) le suivent,
+  selon le pipeline de `docs/audit/AUDIT_PROTOCOL.md` §5.
 - **Registre** : la landing tutoie (6 langues, transcreation — jamais de traduction litterale des titres a la voix du produit).
   Depuis ADR-181 le tutoiement couvre **tout** l'espace public, y compris les guides markdown (`why/how/story`) et les
   formes polies de l'allemand (`Sie`), de l'espagnol (`usted`) et du chinois (`您`).

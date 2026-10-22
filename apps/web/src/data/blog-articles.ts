@@ -209,7 +209,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'security',
     icon: 'Lock',
     date: '2026-03-16',
-    readTime: 6,
+    readTime: 9,
     tags: ['security', 'defense-in-depth', 'rate-limiting', 'encryption'],
   },
   {
@@ -217,7 +217,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'security',
     icon: 'Eye',
     date: '2026-03-05',
-    readTime: 4,
+    readTime: 5,
     tags: ['privacy', 'gdpr', 'data-protection', 'pii', 'encryption'],
   },
 

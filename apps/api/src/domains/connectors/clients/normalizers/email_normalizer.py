@@ -10,7 +10,7 @@ marker. It fabricates no Gmail ``payload`` tree.
 
 import re
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, Final
 
 import structlog
@@ -295,7 +295,7 @@ def _imap_criterion(
     elif operator in ("after", "before"):
         # NOT (on or after a day) is before it, and the other way round.
         side = "date_gte" if (operator == "after") != negated else "date_lt"
-        criteria[side] = _parse_date(value)
+        criteria[side] = _parse_date(value, upper=side == "date_lt")
     elif operator in ("is", "label") and value.lower() in _IMAP_STATES:
         key, wanted = _IMAP_STATES[value.lower()]
         criteria[key] = wanted != negated
@@ -319,8 +319,28 @@ def convert_imap_query(gmail_query: str) -> tuple[Any, str | None]:
     return parsed.criteria, parsed.folder
 
 
-def _parse_date(date_str: str) -> date | None:
-    """Parse date from Gmail query format (YYYY/MM/DD or YYYY-MM-DD)."""
+def _parse_date(date_str: str, *, upper: bool = False) -> date | None:
+    """Parse a Gmail query bound: YYYY/MM/DD, YYYY-MM-DD, or an instant in epoch seconds.
+
+    IMAP searches whole days, so an instant widens to the day that holds it: a
+    lower bound keeps its day, an upper bound includes it. The result is a
+    superset of the window, never a silent loss of its edges.
+
+    Args:
+        date_str: The operator's value.
+        upper: Whether the bound is exclusive and above the window (``BEFORE``).
+
+    Returns:
+        The day bound, or None when the value is not a date.
+    """
+    if date_str.isdigit():
+        try:
+            instant = datetime.fromtimestamp(int(date_str), tz=UTC)
+        except OverflowError, OSError, ValueError:
+            logger.warning("imap_query_invalid_date", date_length=len(date_str))
+            return None
+        day = instant.date()
+        return day + timedelta(days=1) if upper and instant.time() != time.min else day
     for fmt in ("%Y/%m/%d", "%Y-%m-%d"):
         try:
             return datetime.strptime(date_str, fmt).date()

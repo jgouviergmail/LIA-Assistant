@@ -58,7 +58,14 @@ function settings(): JournalSettings {
     journal_max_entry_chars: 500,
     journal_context_max_results: 5,
     size_info: { total_chars: 29, max_total_chars: 50000, usage_pct: 0.058 },
-    last_cost: { tokens_in: null, tokens_out: null, cost_eur: null, timestamp: null, source: null },
+    last_cost: {
+      tokens_in: null,
+      tokens_cache: null,
+      tokens_out: null,
+      cost_eur: null,
+      timestamp: null,
+      source: null,
+    },
   };
 }
 let currentSettings: JournalSettings;

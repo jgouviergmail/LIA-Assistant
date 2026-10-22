@@ -263,6 +263,12 @@
       "goal": "Una pregunta en el momento oportuno vale más que un recordatorio al azar.",
       "src": "118138594074"
     },
+    "f.discussions": {
+      "name": "Conversaciones proactivas",
+      "role": "Inicia por su cuenta una conversación personal, una vez permitida, a partir de un contexto que ves, corriges o reconstruyes, dentro de tus horas y con presupuestos reservados.",
+      "goal": "Invitar a responder en el momento oportuno, sin decidir nada por ti.",
+      "src": "3bc122a14666"
+    },
     "f.briefing": {
       "name": "Briefing del día",
       "role": "La página de inicio: agenda, correos, el tiempo, recordatorios y una síntesis, leídos una sola vez por carga.",

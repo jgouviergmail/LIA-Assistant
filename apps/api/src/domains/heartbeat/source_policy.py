@@ -38,7 +38,8 @@ from src.domains.sms.preferences import SmsPreferences
 
 #: Every source a heartbeat notification can be *about*.
 #:
-#: These are the eleven the aggregator fetches on the user's behalf. The other
+#: These are the fourteen the aggregator fetches on the user's behalf, its
+#: second pass's memories, journals and departure advice included. The other
 #: names it handles (``activity`` and the three anti-redundancy windows) are
 #: NOT sources: they tell the decision what was already sent. Gating them would
 #: make the assistant repeat itself, not interrupt less — so they are absent

@@ -308,7 +308,7 @@ export function MinutesPanel(props: MinutesPanelProps) {
   const { lng, meeting, report, draft, onDraftChange } = props;
   const { t } = useTranslation(lng);
   return (
-    <section className="space-y-4 rounded-lg border border-border/60 bg-card p-4">
+    <section className="space-y-4 rounded-lg border border-border bg-card p-4">
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="flex items-center gap-2 text-base font-semibold">
           <FileText className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -344,7 +344,7 @@ export function MinutesPanel(props: MinutesPanelProps) {
 function TranscriptList({ lng, turns }: { lng: Language; turns: TranscriptTurn[] }) {
   const { t } = useTranslation(lng);
   return (
-    <ol className="max-h-96 space-y-2 overflow-y-auto rounded-md border border-border/60 bg-background p-3 text-sm">
+    <ol className="max-h-96 space-y-2 overflow-y-auto rounded-md border border-border bg-background p-3 text-sm">
       {turns.map((turn, index) => (
         <li key={`${turn.start}-${index}`} className="grid grid-cols-[3.5rem_4rem_1fr] gap-2">
           <span className="tabular-nums text-muted-foreground">{formatElapsed(turn.start)}</span>
@@ -374,7 +374,7 @@ export function TranscriptPanel({
 }) {
   const { t } = useTranslation(lng);
   return (
-    <section className="space-y-3 rounded-lg border border-border/60 bg-card p-4">
+    <section className="space-y-3 rounded-lg border border-border bg-card p-4">
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-base font-semibold">{t('meetings.detail.transcript_title')}</h2>
         {meeting.has_transcript && (

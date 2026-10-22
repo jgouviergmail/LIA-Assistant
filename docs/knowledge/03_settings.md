@@ -36,7 +36,7 @@ If you travel, LIA will offer to update your timezone when it detects a mismatch
 
 ## How do I manage my stored memories?
 
-You control your memories from **Settings › Long-term Memory**: read, edit, pin, export or delete them individually or in bulk.
+You control your memories from **Settings › Memory**: read, edit, pin, export or delete them individually or in bulk.
 
 **📌 Pinning:** a pinned memory is protected from automatic edits and cleanup. New **standing instructions** — how LIA should work for you — are pinned as soon as they are stored. You may edit them, unpin them or delete them yourself. Even when unpinned, an instruction is protected from automatic deletion; an automatic correction must preserve a successor.
 
@@ -78,7 +78,7 @@ LIA understands **references to your loved ones** through its memory:
 3. During a query, LIA automatically resolves "*my brother*" to "*John Smith*"
 
 **✏️ Customize relationships:**
-You can create or modify these associations in **Settings > Long-term Memory**.
+You can create or modify these associations in **Settings > Memory**.
 
 **💡 Tip:**
 Mention your relationships naturally in conversations: "*My colleague Sophie sent me a file*".
@@ -349,7 +349,7 @@ These memories personalize LIA's responses. For example, LIA will say "Hello Mar
 Beyond what it recalls with each message, LIA can search its memory for a subject it meets along the way — the sender of an e-mail it just read, a place named in a document. On the phone too, it recalls what matches your question, not its latest memories. If you switched memory off, nothing is searched, and a failed search is never passed off as "nothing remembered".
 
 **🛡️ Full control:**
-View, edit, pin or delete your memories in **Settings › Features › Identity & Memory › Long-term Memory**.
+View, edit, pin or delete your memories in **Settings › Features › Identity & Memory › Memory**.
 
 ## What are usage limits and where can I see them?
 Usage limits are quotas set by your administrator to control resource consumption (tokens, messages, cost). You can see your current usage vs limits on the **Dashboard** via dedicated tiles (Period Limits and Global Limits).
@@ -365,7 +365,7 @@ When limits are configured, color-coded gauge bars show your consumption:
 If you reach a limit, the message input and voice are disabled and a red banner explains the situation. Contact your administrator to have limits adjusted.
 
 **⚙️ Admin management:**
-Administrators manage limits in **Settings › Administration › Users & Access › Limits Administration**. They can set per-user quotas, block/unblock users instantly, and monitor real-time consumption.
+Administrators manage limits in **Settings › Administration › Users & Access › Limits admin**. They can set per-user quotas, block/unblock users instantly, and monitor real-time consumption.
 
 ## How do I export my consumption data?
 
@@ -509,13 +509,21 @@ streams your instance offers:
 • **Proactive notifications** LIA sent on its own initiative
 • **Interest notifications** about the subjects you follow
 • **Pending reminders** — what is still to come
-• **Scheduled routines** and their next runs
+• **Scheduled routines** and their next runs, each marked **Enabled** in green or
+  **Disabled** in grey
 • **Workboard tickets** that need you — a run waiting for your answer, or something overdue
+• **Proactive discussions** LIA opened with you, and whether you answered
+• **My SMS** — the messages your phone relayed to LIA
 
 Each section arrives folded, **already showing its exact total**, and
 paginates by ten — so you choose what to open rather than opening it to find
 out. No list is fetched until something is unfolded: only the counts are,
 in a single read, and opening a section costs exactly one more.
+
+Under the title sit three buttons of one height: **Activity timeline** (when
+your instance offers it), **Action journal** and **Refresh**, which re-reads the
+counts and every open section. The **Activity** page carries the same ones in
+the same place, with **Received / To follow up** to come back here.
 
 The settings panels remain the detailed configuration for each of those
 streams, and every deep link you had saved keeps working. Reminders are the one
@@ -554,13 +562,13 @@ LIA files such an instruction in its long-term memory under a category of its ow
 
 **🛡️ Protected:** a new rule is pinned as soon as it is stored, so LIA does not rewrite it on its own. Unpinned, a rule can be corrected when you say something new, but it is never simply dropped.
 
-**🗑️ Changing or removing one:** in **Settings › Features › Identity & Memory › Long-term Memory**, filter on **Rules & directives**, then edit, unpin or delete it. **Add** lets you write one yourself.
+**🗑️ Changing or removing one:** in **Settings › Features › Identity & Memory › Memory**, filter on **Rules & directives**, then edit, unpin or delete it. **Add** lets you write one yourself.
 
 ## What happens when a fact I told LIA changes?
 
 Just tell LIA — *my daughter's name is Elsa, not Emma* — and its memory follows. In the background, LIA reviews what you said: the old memory is **retired, with the date** it stopped being true, and the new one takes its place.
 
-**🚫 No stale fact in answers:** a retired memory is never recalled again, and **Settings › Features › Identity & Memory › Long-term Memory** lists only what LIA holds as true today.
+**🚫 No stale fact in answers:** a retired memory is never recalled again, and **Settings › Features › Identity & Memory › Memory** lists only what LIA holds as true today.
 
 **🧾 A short trail:** the retired version is kept for a period your administrator sets, then erased for good.
 
@@ -630,3 +638,32 @@ Yes. Try “Which response mode is active?”, “Switch my answers to HTML + ca
 ## When do I confirm or continue in the browser?
 
 Confirmation applies to the operation and content shown. OAuth sign-in, file selection, a key or device permission continue in your authenticated browser: do not paste these secrets into chat. LIA may prepare the request and wait for that step. Enabling hands-free listening and sensitive permissions retain their protections; a command cannot bypass them.
+
+## How do I send SMS to LIA and control their use?
+
+In **Settings → SMS**, after Meetings, create and confirm a token for your phone. An iPhone Shortcuts automation then sends each SMS to LIA by HTTPS POST, in the format below. Reuse the same event ID and payload for retries.
+
+**📤 The request:**
+• `POST https://your-lia-domain/api/v1/ingest/message`
+• headers: `Authorization: Bearer pi_…` (the token created in LIA) and `Content-Type: application/json`
+• body: one JSON object per SMS; an array of objects, `{"data": [...]}` or one object per line (NDJSON) sends a batch
+
+**📋 The fields:**
+• `sender` (required): who sent it — number, address or name
+• `date` (required): ISO 8601 text with a timezone, for example `2026-10-19T09:30:00+02:00`; a date in the future is rejected
+• `body` (required): the text of the SMS
+• `o` (required): the origin, in letters, digits, `-` or `_` — for example `iphone`
+• `event_id` (optional, recommended): a UUID created once per SMS and reused on every retry
+• `date_kind` (optional): `received` when the date really is the reception time, `captured` when it is the time the shortcut ran, `unknown` otherwise (the default)
+• `schema_version` (optional): `1`
+An unknown field gets the SMS rejected.
+
+**💡 Example:**
+`{"schema_version": 1, "event_id": "812a2280-6047-4af3-9422-27e2581ec37b", "sender": "Alice", "date": "2026-10-19T09:30:00+02:00", "date_kind": "received", "body": "The meeting moved to 10:30.", "o": "iphone"}`
+
+**✅ The response:**
+A single SMS returns **201** when stored, **200** when it was already received or is set aside (a recognized access secret, a blocked sender), **409** when the same `event_id` arrives with different content and **422** when the format needs fixing. In a batch, each SMS gets its own verdict in `items`.
+
+Your SMS remain in LIA until you delete them. **Assistant access** starts disabled, independently of ingestion and immediate reception push. The **Immediate push for each new SMS** switch sits at the top of this page. Proactive notifications also have their own **My SMS** source and hours. Recognized access secrets are excluded before storage; the heuristic cannot recognize all private text.
+
+Personal export includes readable SMS. Erasure invalidates hosted exports but cannot recall downloaded copies, earlier chats or separately retained knowledge. LIA receives only what Shortcuts sends; verify iOS trigger criteria and permissions on the phone. Step-by-step guide: `docs/guides/GUIDE_IPHONE_SHORTCUTS_SMS.md`.

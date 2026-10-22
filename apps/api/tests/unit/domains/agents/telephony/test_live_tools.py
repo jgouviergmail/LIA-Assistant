@@ -195,7 +195,7 @@ def test_exposed_parameters_hide_identifiers_and_mechanics_but_keep_spoken_array
 def test_native_lookups_recall_the_person_s_memories() -> None:
     """The catalogue has no memory tool (the chat injects memories itself), so
     the phone gets a native lookup reading through the same builder."""
-    (recall,) = NATIVE_LOOKUPS
+    recall = next(spec for spec in NATIVE_LOOKUPS if spec.name == "recall_memories")
     assert recall.name == "recall_memories" and recall.native is True
     assert recall.domain == "context" and recall.section == "memories"
     params = live_tool_parameters(recall, None)
@@ -378,6 +378,7 @@ async def test_availability_reads_the_flag_the_capabilities_and_the_person_s_swi
         "get_route_matrix_tool",
         "get_route_tool",
         "recall_memories",
+        "list_sms_tool",
     ]
     # The person switched the memories off too.
     offered = await available_live_tools(disabled_domains=frozenset({"email", "context"}))

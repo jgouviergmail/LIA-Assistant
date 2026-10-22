@@ -1,14 +1,23 @@
 'use client';
 
-import { useContext, useMemo, useState, type ComponentPropsWithoutRef } from 'react';
+import {
+  useContext,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentPropsWithoutRef,
+} from 'react';
 import type { ExtraProps } from 'react-markdown';
 import { useTranslation } from 'react-i18next';
 import { ExternalLink, LocateFixed, MapPinned } from 'lucide-react';
 import { AppConfigSeedContext, type AppConfig } from '@/hooks/useAppConfig';
 import { usePaidMap } from '@/hooks/usePaidMap';
+import { usePlaceRoute } from '@/hooks/usePlaceRoute';
 import { AuthContext } from '@/lib/auth';
 import { parsePlacePosition, type PlacePositionData } from '@/lib/place-position-data';
 import { hasSearchMatch } from './markdown-search-matches';
+import { PlaceMapPopup, type PlacePopup } from './place-map-popup';
 
 type Props = ComponentPropsWithoutRef<'div'> & ExtraProps & { 'data-place-position'?: string };
 
@@ -62,6 +71,10 @@ function PositionMap({
   const { t, i18n } = useTranslation();
   const config = useContext(AppConfigSeedContext);
   const [selected, setSelected] = useState(data.places.find(place => place.position)?.ref ?? '');
+  const route = usePlaceRoute(owner);
+  const [popup, setPopup] = useState<PlacePopup | null>(null);
+  const popupRef = useRef<PlacePopup | null>(null);
+  const choices = useRef(new Map<string, HTMLButtonElement>());
   const { state, reportFailed, element, controller, activate, retryReport } = usePaidMap({
     purpose: 'places',
     prepare: async grant => {
@@ -83,29 +96,44 @@ function PositionMap({
   function select(ref: string) {
     setSelected(ref);
     controller.current?.select(ref);
+    const place = data.places.find(item => item.ref === ref);
+    if (!place?.position || !controller.current) return;
+    const element =
+      popupRef.current?.place.ref === ref
+        ? popupRef.current.element
+        : document.createElement('div');
+    const header =
+      popupRef.current?.place.ref === ref ? popupRef.current.header : document.createElement('div');
+    header.className = 'lia-place-details__native-title';
+    popupRef.current = { place, element, header, invoker: choices.current.get(ref) ?? null };
+    setPopup(popupRef.current);
+    calculate(place);
+  }
+  const dismissPopup = useCallback(() => {
+    controller.current?.clearDetails();
+    popupRef.current = null;
+    setPopup(null);
+  }, [controller]);
+  function calculate(place: PlacePositionData['places'][number], force = false) {
+    if (!place.position) return;
+    controller.current?.setRoute(null);
+    void route.load(place.ref, place.position, force).then(result => {
+      if (result) controller.current?.setRoute(result.route);
+    });
   }
   const cost = positionOffer(config, owner, data, i18n.language);
   return (
     <div className="lia-route-map__content">
-      <div
-        className="lia-route-map__stage lia-place-position__stage"
-        data-available={Boolean(cost) || state === 'ready'}
-      >
-        <div
-          ref={element}
-          className="lia-route-map__canvas"
-          role="region"
-          aria-label={t('chat.position_map.map')}
-          aria-hidden={state !== 'ready'}
-          data-active={state === 'ready'}
+      {popup && state === 'ready' && (
+        <PlaceMapPopup
+          popup={popup}
+          controller={controller}
+          route={route.state}
+          onRetry={() => calculate(popup.place, true)}
+          onDismiss={dismissPopup}
         />
-        {state !== 'ready' && (
-          <div className="lia-place-position__preview">
-            <MapPinned aria-hidden="true" size={32} />
-            <p>{t(cost ? 'chat.position_map.preview' : 'chat.position_map.unavailable')}</p>
-          </div>
-        )}
-      </div>
+      )}
+      <PlaceMapStage state={state} cost={cost} element={element} detailsActive={popup !== null} />
       {cost && (
         <div className="lia-route-map__toolbar">
           <button
@@ -144,6 +172,10 @@ function PositionMap({
             {state === 'ready' && place.position ? (
               <>
                 <button
+                  ref={element => {
+                    if (element) choices.current.set(place.ref, element);
+                    else choices.current.delete(place.ref);
+                  }}
                   type="button"
                   aria-pressed={selected === place.ref}
                   onClick={() => {
@@ -192,6 +224,43 @@ function PositionMap({
             {t('common.retry')}
           </button>
         </p>
+      )}
+    </div>
+  );
+}
+
+function PlaceMapStage({
+  state,
+  cost,
+  element,
+  detailsActive,
+}: {
+  state: ReturnType<typeof usePaidMap>['state'];
+  cost: string | null;
+  element: React.Ref<HTMLDivElement>;
+  detailsActive: boolean;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div
+      className="lia-route-map__stage lia-place-position__stage"
+      data-available={Boolean(cost) || state === 'ready'}
+      data-details-active={detailsActive}
+      hidden={Boolean(cost) && state !== 'loading' && state !== 'ready'}
+    >
+      <div
+        ref={element}
+        className="lia-route-map__canvas"
+        role="region"
+        aria-label={t('chat.position_map.map')}
+        aria-hidden={state !== 'ready'}
+        data-active={state === 'ready'}
+      />
+      {state !== 'ready' && (
+        <div className="lia-place-position__preview">
+          <MapPinned aria-hidden="true" size={32} />
+          <p>{t(cost ? 'chat.position_map.preview' : 'chat.position_map.unavailable')}</p>
+        </div>
       )}
     </div>
   );

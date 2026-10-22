@@ -12,7 +12,7 @@
 
 import { describe, it, expect } from 'vitest';
 
-import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import { renderWithProviders, screen, within } from '@/__tests__/test-utils';
 import { InterestNotificationHistory } from '../InterestNotificationHistory';
 import type { InterestNotification } from '@/hooks/useInterestNotificationHistory';
 
@@ -141,25 +141,32 @@ describe('InterestNotificationHistory', () => {
   });
 
   it('puts the interest in the badge slot, where the proactive card puts its priority', () => {
-    // The two histories share a card and must READ the same. The proactive row
-    // opens with date + coloured badge + verdict; leaving that slot empty made
-    // the interest row visibly lighter than its neighbour on the same page.
-    // Priority has no equivalent here, but "what this was about" does.
-    const { container } = renderWithProviders(<InterestNotificationHistory {...makeProps()} />);
+    // The two histories share a row and must READ the same. The proactive row
+    // opens the line under its date with the coloured priority; leaving that
+    // slot empty made the interest row visibly lighter than its neighbour on
+    // the same page. Priority has no equivalent here, but "what this was
+    // about" does.
+    renderWithProviders(<InterestNotificationHistory {...makeProps()} />);
 
-    const badge = container.querySelector('.uppercase');
-    expect(badge, 'the badge slot must be filled').not.toBeNull();
-    expect(badge).toHaveTextContent('fusion nucléaire');
+    const row = screen.getByRole('listitem');
+    const metaLine = row.querySelector('time')?.parentElement?.nextElementSibling;
+    expect(metaLine, 'the line under the date').toBeTruthy();
+    expect(metaLine?.firstElementChild).toContainElement(within(row).getByText('fusion nucléaire'));
   });
 
   it('leaves the slot empty rather than inventing one when the interest is gone', () => {
-    const { container } = renderWithProviders(
+    renderWithProviders(
       <InterestNotificationHistory
         {...makeProps({ notifications: [notification({ topic: null })] })}
       />
     );
 
-    expect(container.querySelector('.uppercase')).toBeNull();
+    const row = screen.getByRole('listitem');
+    const metaLine = row.querySelector('time')?.parentElement?.nextElementSibling;
+    // The provider leads the line: no marker was invented before it.
+    expect(metaLine?.firstElementChild).toContainElement(
+      within(row).getByText('interests.history.source_perplexity')
+    );
   });
 
   it('stops repeating the interest as a chip once it is the badge', () => {

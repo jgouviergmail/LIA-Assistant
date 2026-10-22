@@ -110,11 +110,23 @@ export function useHealthMetrics(period: HealthMetricsPeriod = 'day') {
     refetch: refetchTokens,
     setData: setTokens,
   } = tokenQuery;
+  // Re-read in place: what is on screen stays until the answers land — a
+  // refresh is never a visible reload (owner rule 2026-10-21). A reread that
+  // fails cannot vouch for what is on screen (an erasure may be the very change
+  // it was reading), so that part is withdrawn, and the failure still reaches
+  // the sync, which says so.
   const refreshHealth = useCallback(async () => {
-    setAggregate(undefined);
-    setTokens(undefined);
-    await Promise.all([refetchAggregate(), refetchTokens()]);
-  }, [setAggregate, setTokens, refetchAggregate, refetchTokens]);
+    const [aggregateRead, tokensRead] = await Promise.allSettled([
+      refetchAggregate(),
+      refetchTokens(),
+    ]);
+    if (aggregateRead.status === 'rejected') setAggregate(undefined);
+    if (tokensRead.status === 'rejected') setTokens(undefined);
+    const failure = [aggregateRead, tokensRead].find(
+      (read): read is PromiseRejectedResult => read.status === 'rejected'
+    );
+    if (failure) throw failure.reason;
+  }, [refetchAggregate, refetchTokens, setAggregate, setTokens]);
   const releaseHealth = useCallback(() => {}, []);
   useApplicationResourceSync(ownerId, 'health_metrics', refreshHealth, releaseHealth);
 

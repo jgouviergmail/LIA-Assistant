@@ -120,7 +120,7 @@ export function HeroLiaCard({
             </Button>
           </div>
         </div>
-        {children && <div className="mt-4 border-t border-border/60 pt-4">{children}</div>}
+        {children && <div className="mt-4 border-t border-border pt-4">{children}</div>}
       </CardContent>
     </Card>
   );

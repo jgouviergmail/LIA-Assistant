@@ -1,0 +1,150 @@
+{
+  "date": "2026-10-20",
+  "authority": "Owner selected MalinosLand as visual base and requested inspiration from its concepts while retaining prior LIA principles.",
+  "repository": "https://github.com/Rogue06/MalinosLand",
+  "branch": "main",
+  "commit": "53e2987718c46b10f3f28c21c92cbcaa9e9abb84",
+  "commit_date": "2026-10-20T13:08:28Z",
+  "commit_tree": "88dab600fba9249ab5b933cc76ad1eefda658e5e",
+  "scope": "Inline source and three repository screenshots reviewed through GitHub connector. No installation, game execution, live-world participation, application change or paid model call.",
+  "files": [
+    {
+      "path": "README.md",
+      "blob_sha": "6ff71bb85343da0b49736f692c289bfe7b7066a6",
+      "url": "https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/README.md"
+    },
+    {
+      "path": "package.json",
+      "blob_sha": "a79e706d570e988aff6c9a3e1eb701c4c7d5d3ca",
+      "url": "https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/package.json"
+    },
+    {
+      "path": "LICENSE",
+      "blob_sha": "0c97efd25b5974b974ed9a8a18207bc4f55bb338",
+      "url": "https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/LICENSE"
+    },
+    {
+      "path": "docs/ART_DIRECTION.md",
+      "blob_sha": "a839b65a3970c076fe9b26358109ea875c8d7162",
+      "url": "https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/docs/ART_DIRECTION.md"
+    },
+    {
+      "path": "docs/GAME_DESIGN.md",
+      "blob_sha": "3063ab3cc3cd16c4496e26706a4b67ca3e6f92a7",
+      "url": "https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/docs/GAME_DESIGN.md"
+    },
+    {
+      "path": "docs/WORLD_DESIGN.md",
+      "blob_sha": "41aa9d478b9f81e13a760ea293e7e50d30e2f44a",
+      "url": "https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/docs/WORLD_DESIGN.md"
+    },
+    {
+      "path": "src/game/createGame.ts",
+      "blob_sha": "5698a235be66b65244130db22a0d4b06959da687",
+      "url": "https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/game/createGame.ts"
+    },
+    {
+      "path": "src/game/WorldRenderer.ts",
+      "blob_sha": "51616986757fa896232ca276d36de86c57d03e54",
+      "url": "https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/game/WorldRenderer.ts"
+    },
+    {
+      "path": "src/game/textures.ts",
+      "blob_sha": "8e85e809b357f68c043c724038c017eecb8e4a0f",
+      "url": "https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/game/textures.ts"
+    },
+    {
+      "path": "src/game/art/iso3d.ts",
+      "blob_sha": "22afc374b92f4cf334fcc4ccf48b904ee055bfb3",
+      "url": "https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/game/art/iso3d.ts"
+    },
+    {
+      "path": "src/world/PlayerController.ts",
+      "blob_sha": "32b7ee1f10d822757c55a2279f330cd6000605ac",
+      "url": "https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/world/PlayerController.ts"
+    },
+    {
+      "path": "src/multiplayer/ServerTransport.ts",
+      "blob_sha": "8469a138fcd3f5fe51e963d5b73613780701a10b",
+      "url": "https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/multiplayer/ServerTransport.ts"
+    },
+    {
+      "path": "server/src/WorldRoom.ts",
+      "blob_sha": "e8516ee6e4677d490625f6158535cc27c3ae0a05",
+      "url": "https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/server/src/WorldRoom.ts"
+    },
+    {
+      "path": "server/src/hub.ts",
+      "blob_sha": "5349915161a35821317ec42388cb98c9f4c6e193",
+      "url": "https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/server/src/hub.ts"
+    },
+    {
+      "path": "src/game/scenes/WorldScene.ts",
+      "blob_sha": "8809793807dab922580b61544da20dbc4501bedc",
+      "url": "https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/game/scenes/WorldScene.ts"
+    },
+    {
+      "path": "src/content/catalog.ts",
+      "blob_sha": "132fa2fadd3435e5925daa32c3c5f8b947696a4b",
+      "url": "https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/content/catalog.ts"
+    },
+    {
+      "path": "src/content/quests.ts",
+      "blob_sha": "8911d0bd6112c21444788e0ef56ff3cb85716253",
+      "url": "https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/content/quests.ts"
+    },
+    {
+      "path": "src/content/secrets.ts",
+      "blob_sha": "4e3748d46aca122e8ffe9ef2fa08b648ab9f6bb1",
+      "url": "https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/content/secrets.ts"
+    },
+    {
+      "path": "src/game/life/AmbientLife.ts",
+      "blob_sha": "900b22bb97766a99724da437149cd4324731e0ac",
+      "url": "https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/src/game/life/AmbientLife.ts"
+    }
+  ],
+  "screenshots_inspected": [
+    {
+      "path": "docs/images/hub-vue-ensemble.jpg",
+      "blob_sha": "82a77bf3e1c18816a13993c73ead3674ba8663b7",
+      "url": "https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/docs/images/hub-vue-ensemble.jpg"
+    },
+    {
+      "path": "docs/images/coworking.jpg",
+      "blob_sha": "1112ba24389f7bd93754f17aaf9591f2593407a0",
+      "url": "https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/docs/images/coworking.jpg"
+    },
+    {
+      "path": "docs/images/salon-assis-cafe.jpg",
+      "blob_sha": "7ff9921bf0603f05a27133e7773793fb731c07b4",
+      "url": "https://github.com/Rogue06/MalinosLand/blob/53e2987718c46b10f3f28c21c92cbcaa9e9abb84/docs/images/salon-assis-cafe.jpg"
+    }
+  ],
+  "licence": {
+    "upstream_manifest": "AGPL-3.0-only",
+    "lia_manifest": "AGPL-3.0-or-later",
+    "lia_notice": "also offers a separate commercial licence; third-party relicensing authority must not be assumed"
+  },
+  "limitations": [
+    "No upstream or LIA game tests executed in this pass.",
+    "No browser demo execution or minimum-device/combined-Pi capacity proof.",
+    "Generic web and browser entry points failed; GitHub text/base64-image access succeeded.",
+    "Earlier 2026-10-09 world-brick test results remain historical and are not recertified."
+  ],
+  "documentation_validation": {
+    "date": "2026-10-20",
+    "local_references_checked": 160,
+    "design_documents_checked": 5,
+    "missing_local_targets": 0,
+    "trailing_whitespace": 0,
+    "task": "task lint:docs:preview",
+    "task_exit_code": 0,
+    "living_broken_links": 0,
+    "living_stale_paths": 0,
+    "living_orphans": 0,
+    "quoted_fact_drift": 0,
+    "living_maps": "up to date at this run",
+    "limits": "documentation validation only; historical runtime checks not rerun"
+  }
+}

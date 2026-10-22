@@ -186,3 +186,102 @@ describe('ContactCardBody', () => {
     expect(screen.getAllByText('+33600000000')).toHaveLength(2);
   });
 });
+
+describe('ContactCardBody — no separator lines (owner request 2026-10-21)', () => {
+  it('groups its rows by tone and gap, never by a rule', () => {
+    const { container } = renderWithProviders(
+      <ContactCardBody
+        locale="fr"
+        card={card({ emails: [{ value: 'a@example.test', label: null }] })}
+      />
+    );
+
+    expect(screen.getByText('a@example.test')).toBeInTheDocument();
+    expect(container.querySelector('.divide-y, .border-t')).toBeNull();
+  });
+});
+
+describe('ContactCardBody — every value leads where it should (owner request 2026-10-21)', () => {
+  it('writes to an e-mail, calls a phone for real, and opens an address in Google Maps', () => {
+    renderWithProviders(
+      <ContactCardBody
+        locale="fr"
+        card={card({
+          emails: [{ value: 'gerard@example.com', label: null }],
+          phones: [{ value: '+33 6 12 34 56 78', label: null }],
+          addresses: [{ value: '12 rue des Lilas, 75001 Paris', label: null }],
+        })}
+      />
+    );
+
+    const mail = screen.getByRole('link', { name: 'gerard@example.com' });
+    expect(mail).toHaveAttribute('href', 'mailto:gerard@example.com');
+    expect(mail).not.toHaveAttribute('target');
+    // A real call from the device, never through LIA.
+    const phone = screen.getByRole('link', { name: '+33 6 12 34 56 78' });
+    expect(phone).toHaveAttribute('href', 'tel:+33612345678');
+    expect(phone).not.toHaveAttribute('target');
+    const address = screen.getByRole('link', { name: '12 rue des Lilas, 75001 Paris' });
+    expect(address).toHaveAttribute(
+      'href',
+      'https://www.google.com/maps/search/?api=1&query=12%20rue%20des%20Lilas%2C%2075001%20Paris'
+    );
+    expect(address).toHaveAttribute('target', '_blank');
+    expect(address).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('never lets a mailbox start mail headers, and leaves an unusable value as text', () => {
+    renderWithProviders(
+      <ContactCardBody
+        locale="fr"
+        card={card({
+          emails: [
+            { value: 'a?cc=x@example.com', label: null },
+            { value: 'not an address', label: null },
+          ],
+          phones: [{ value: 'ext.', label: null }],
+        })}
+      />
+    );
+
+    expect(screen.getByRole('link', { name: 'a?cc=x@example.com' })).toHaveAttribute(
+      'href',
+      'mailto:a%3Fcc%3Dx@example.com'
+    );
+    expect(screen.getByText('not an address').tagName).toBe('SPAN');
+    expect(screen.getByText('ext.').tagName).toBe('SPAN');
+  });
+
+  it('dials only a whole number, drops the international (0), and links any script', () => {
+    renderWithProviders(
+      <ContactCardBody
+        locale="fr"
+        card={card({
+          emails: [{ value: 'info@bücher.de', label: null }],
+          phones: [
+            { value: '+33 (0)1 23 45 67 89', label: null },
+            { value: '(01) 23.45.67.89', label: null },
+            { value: '+1 650-253-0000 ext. 123', label: null },
+            { value: '1-800-FLOWERS', label: null },
+          ],
+        })}
+      />
+    );
+
+    expect(screen.getByRole('link', { name: 'info@bücher.de' })).toHaveAttribute(
+      'href',
+      'mailto:info@bücher.de'
+    );
+    expect(screen.getByRole('link', { name: '+33 (0)1 23 45 67 89' })).toHaveAttribute(
+      'href',
+      'tel:+33123456789'
+    );
+    expect(screen.getByRole('link', { name: '(01) 23.45.67.89' })).toHaveAttribute(
+      'href',
+      'tel:0123456789'
+    );
+    // An extension or a vanity number would ring someone else: left as text.
+    expect(screen.getByText('+1 650-253-0000 ext. 123').tagName).toBe('SPAN');
+    expect(screen.getByText('1-800-FLOWERS').tagName).toBe('SPAN');
+  });
+});

@@ -1,0 +1,27 @@
+# Evidence frames and usage nuances the discussion source adapters write for the
+# discussion models, `key|template` per line; blank lines and #-comments are
+# ignored (ADR-284: prose never lives in a .py). Loaded once by
+# `domains/shared/discussion_lines.py`; each source adapter renders only its own
+# keys. A frame is part of its evidence's version: changing a line re-versions
+# every fact rendered through it, so the next run interprets those facts again.
+
+habit_frame|Learned habit {key}; kind={kind}
+habit_nuance|Learned behavior, not a current event. Intermittent shape promises no calendar day; silence does not imply distress.
+
+interest_frame|Interest: {topic}; category: {category}; subject: {subject}
+interest_nuance|Learned interest; positive signals={positive}, negative signals={negative}; last mentioned={mentioned}. Not proof of a recent activity.
+
+meeting_nuance|Current recorded minutes; may be assistant-generated. Named action items are plans, not proof of completion or of the user's attendance.
+
+commitment_frame|Direction: {direction}; state: {status}; closing reason: {closed_reason}; literal counterparty: {counterparty}; deadline hint: {due}
+commitment_nuance|Extracted commitment; a deadline is advisory. Closed/dismissed does not prove completion.
+
+reminder_intention|Reminder intention: {content}
+reminder_firing|Next planned firing: {trigger_at}; timezone={timezone}
+reminder_nuance|An intention to receive a reminder; not proof that its action happened. Fired reminders are deleted, not retained as history.
+
+sms_sender|Literal sender: {sender}
+sms_content|SMS content: {body}
+sms_nuance|Sender identity is unresolved; captured/unknown dates do not prove receipt time.
+
+task_nuance|A task's reported completion is its stored status, not proof of a performed human action.

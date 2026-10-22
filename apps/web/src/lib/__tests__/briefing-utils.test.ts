@@ -12,6 +12,7 @@ import {
   formatNumberLocale,
   parseBirthdayIso,
   partialDateLabel,
+  relativeTense,
   resolveErrorCtaKey,
 } from '../briefing-utils';
 import {
@@ -155,6 +156,44 @@ describe('dateTimeRangeLabel', () => {
     const fr = dateTimeRangeLabel('fr-FR', '2026-08-05T09:00:00Z');
     const en = dateTimeRangeLabel('en-US', '2026-08-05T09:00:00Z');
     expect(fr).not.toBe(en);
+  });
+
+  it('names the day when asked, and only then', () => {
+    // Noon UTC is a Wednesday in every timezone the suite may run in.
+    const plain = dateTimeRangeLabel('fr-FR', '2026-08-05T12:00:00Z');
+    const named = dateTimeRangeLabel('fr-FR', '2026-08-05T12:00:00Z', null, { weekday: true });
+    expect(plain).not.toContain('mercredi');
+    expect(named).toContain('mercredi');
+    expect(named).toMatch(/\d{2}:\d{2}$/);
+  });
+});
+
+describe('relativeTense', () => {
+  const now = new Date('2026-08-05T12:00:00Z');
+
+  it('places a past instant behind now, with its distance', () => {
+    expect(relativeTense('2026-08-02T12:00:00Z', now)).toEqual({
+      tense: 'past',
+      bucket: { kind: 'days', count: 3 },
+    });
+  });
+
+  it('places an upcoming instant AHEAD — never "just now"', () => {
+    // `computeTimeAgo` clamps the future to zero: a meeting next week would
+    // have read "just now".
+    expect(relativeTense('2026-08-05T15:30:00Z', now)).toEqual({
+      tense: 'future',
+      bucket: { kind: 'hours', count: 3 },
+    });
+  });
+
+  it('calls anything within the minute "now", on either side', () => {
+    expect(relativeTense('2026-08-05T11:59:30Z', now)?.tense).toBe('now');
+    expect(relativeTense('2026-08-05T12:00:30Z', now)?.tense).toBe('now');
+  });
+
+  it('answers null rather than a guess for an unreadable instant', () => {
+    expect(relativeTense('pas une date', now)).toBeNull();
   });
 });
 

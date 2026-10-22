@@ -9,6 +9,12 @@
  *   2026-07-25: `grep -c 'register_agent(' agents.py` — the telephony agent
  *   had landed without this counter following it.
  * - tools: tool manifests the running catalogue actually EXPOSES, not the count
+ *   Re-measured 2026-10-22 (v3.4.0) on the Docker dev runtime: 327 registered
+ *   manifests (`tool_count` of `catalogue_initialized`, 2026-10-22T05:19:15Z):
+ *   the eight SMS tools (ADR-357) and the eight proactive-discussion tools
+ *   (ADR-358/359) joined the catalogue. Agents were re-measured the same day:
+ *   `grep -c 'register_agent(' agents.py` = 19 (the SMS agent joined), + MCP
+ *   iterative + sub-agents = 21.
  *   Re-measured 2026-10-19 (v3.3.0) after DEV recreation: 311 registered
  *   manifests (`catalogue_initialized`, 2026-10-19T02:05:42Z), unchanged.
  *   Re-measured 2026-10-18 (v3.2.0) at Docker dev startup: 311 (`tool_count`
@@ -101,6 +107,9 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Re-measured 2026-10-22 (v3.4.0): backend 52,293 collected in 3,489 files
+ *   (pytest tests --collect-only -q --no-cov); frontend coverage: 13,919 tests
+ *   in 1,117 files. Combined inventory: 66,212 -> 66000.
  *   Re-measured 2026-10-19 (v3.3.0): backend 50,770 collected in 3,318 files
  *   (pytest tests --collect-only -q --no-cov); frontend coverage: 13,231 tests
  *   in 1,075 files. Combined inventory: 64,001 -> 64000.
@@ -397,25 +406,27 @@
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
  *   223 headings at v1.31.2, no Unreleased pending. 253 at v1.44.0.
- * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
- *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
- *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
- *   report + protocol: docs/audit/ (AUDIT_REPORT_URL below). The i18n key
- *   landing.transparency.p2_t carries the locale-formatted display value and
- *   must be updated in the 6 locales whenever auditScore changes.
+ * - auditScore/auditAreas: technical audit V14 of the 2026-10-22 snapshot
+ *   (v3.4.0 preparation) — 24 normalized areas mapped to ISO/IEC 25010:2023,
+ *   each area the sum of five 0–2 axes, arithmetic mean 192/240 = 8.0/10,
+ *   security out of scope. Previous cycles: V11/V12 8.3 (2026-07-16/24),
+ *   V13 7.3 (2026-08-02). Full public report + protocol: docs/audit/
+ *   (AUDIT_REPORT_URL below). No landing band renders the score today; the
+ *   texts that quote it (README, story/how guides, the getting-started FAQ
+ *   answer and story.meta.description in the 6 locales) follow this value.
  */
 
 export const LANDING_STATS = {
-  agents: 20,
-  tools: 311,
+  agents: 21,
+  tools: 327,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 623,
+  metrics: 627,
   uiLanguages: 6,
-  tests: 64000,
-  adrs: 351,
-  releases: 284,
-  auditScore: '8.3/10',
+  tests: 66000,
+  adrs: 359,
+  releases: 285,
+  auditScore: '8.0/10',
   auditAreas: 24,
 } as const;
 

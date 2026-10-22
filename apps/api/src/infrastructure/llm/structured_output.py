@@ -85,7 +85,9 @@ from src.infrastructure.llm.strict_schema import (  # noqa: F401  (re-export)
 # here so every caller keeps one import surface.
 from src.infrastructure.llm.structured_output_errors import (  # noqa: F401  (re-export)
     StructuredOutputError,
+    StructuredOutputRefusedError,
     StructuredOutputTruncatedError,
+    raise_if_provider_refused,
 )
 from src.infrastructure.llm.tool_call_rescue import (
     invalid_call_arguments,
@@ -477,6 +479,8 @@ async def _structured_via_auto_tool[T: BaseModel](
     schema: type[T],
     reasoning_emit: Callable[[str], None] | None,
     provider: str = "unknown",
+    *,
+    last_door: bool = False,
     **invoke_kwargs: Any,
 ) -> T | None:
     """Structured output via ``tool_choice="auto"`` instead of a forced tool.
@@ -503,6 +507,10 @@ async def _structured_via_auto_tool[T: BaseModel](
         schema: Target Pydantic schema.
         reasoning_emit: Coalesced-reasoning callback, or ``None`` to skip streaming.
         provider: Provider name, for the truncation refusal below.
+        last_door: True when no other request shape can follow (a Claude that
+            refuses the forced tool). A provider refusal is then final; otherwise
+            the caller's buffered request is a DIFFERENT request (no streaming,
+            no reasoning summary) that a 4xx of this one does not condemn.
         **invoke_kwargs: Carries ``config`` for token tracking / tracing.
 
     Returns:
@@ -510,8 +518,9 @@ async def _structured_via_auto_tool[T: BaseModel](
 
     Raises:
         StructuredOutputTruncatedError: When the provider reports the answer
-            cut at its output budget (ADR-275). This is the ONE failure this
-            helper raises: a fallback would only pay for the same cut again.
+            cut at its output budget (ADR-275).
+        StructuredOutputRefusedError: On a deterministic provider refusal when
+            ``last_door``: neither failure may retry the unchanged request.
     """
     schema_name = schema.__name__
     # NOTE (prompt impact): unlike the forced-tool path (``with_structured_output``,
@@ -542,6 +551,8 @@ async def _structured_via_auto_tool[T: BaseModel](
         else:
             ai_msg = await bound.ainvoke(payload, **invoke_kwargs)
     except Exception as exc:  # defensive: must never break the node
+        if last_door:
+            raise_if_provider_refused(exc, provider, schema_name)
         logger.warning(
             "structured_auto_tool_failed",
             schema=schema_name,
@@ -629,6 +640,7 @@ async def _get_native_structured_output[T: BaseModel](
             schema=schema,
             reasoning_emit=reasoning_emit,
             provider=provider,
+            last_door=anthropic_thinking,
             **invoke_kwargs,
         )
         if auto_result is not None:
@@ -845,6 +857,7 @@ async def _get_native_structured_output[T: BaseModel](
 
     except Exception as e:
         # LLM API error or other failure
+        raise_if_provider_refused(e, provider, schema_name)
         raise StructuredOutputError(
             f"Native structured output failed: {e}",
             provider=provider,
@@ -1022,6 +1035,7 @@ async def _get_json_mode_fallback[T: BaseModel](
 
     except Exception as e:
         # Catch-all for unexpected errors
+        raise_if_provider_refused(e, provider, schema_name)
         raise StructuredOutputError(
             f"JSON mode fallback failed: {e}",
             provider=provider,
@@ -1149,21 +1163,12 @@ async def get_structured_output_with_retry[T: BaseModel](
                 user_id=user_id,
                 **invoke_kwargs,
             )
-        except StructuredOutputTruncatedError:
-            # Deterministic: the same prompt is cut at the same place, and each
-            # retry is paid in full for the same refusal (ADR-275).
+        except StructuredOutputTruncatedError, StructuredOutputRefusedError:
+            # Deterministic: resending the unchanged request cannot repair a
+            # refused budget or complete a cut answer (ADR-275).
             raise
         except StructuredOutputError as e:
             last_error = e
-            logger.warning(
-                "structured_output_retry",
-                attempt=attempt,
-                max_retries=max_retries,
-                provider=provider,
-                schema=schema_name,
-                error=str(e),
-            )
-
             if attempt == max_retries:
                 # Final attempt failed
                 logger.error(
@@ -1173,6 +1178,14 @@ async def get_structured_output_with_retry[T: BaseModel](
                     attempts=max_retries,
                 )
                 raise
+            logger.warning(
+                "structured_output_retry",
+                attempt=attempt,
+                max_retries=max_retries,
+                provider=provider,
+                schema=schema_name,
+                error=str(e),
+            )
 
     # Should never reach here, but type checker needs it
     if last_error:

@@ -116,6 +116,62 @@ const PINNED: ReadonlyArray<{ key: string; placeholders?: readonly string[] }> =
   { key: 'settings.search.no_results', placeholders: ['query'] },
   { key: 'settings.search.no_results_hint' },
   { key: 'settings.search.unavailable', placeholders: ['section'] },
+  // SMS: a removed key kept naming the dashboard card's rows (`relations.sms_open`).
+  { key: 'sms.open_message' },
+  { key: 'sms.stats_title' },
+  // SMS: an insertion anchored on the first `"sms": {` filed this one under the
+  // briefing card, in all six locales — parity green, the raw key on screen.
+  { key: 'sms.refresh_names' },
+  // Alerts: the activity timeline's way back to the hub's two registers.
+  { key: 'activity.hub_back' },
+  // Alerts: the green badge an enabled routine wears, beside the grey one.
+  { key: 'notifications_hub.routine_enabled' },
+  // Proactive discussions: the data panel, apart from the « Context » status one.
+  { key: 'discussions.context_data_title' },
+  // Capability sharing: the popup a confirmed send ends on names what went to whom.
+  ...['skill', 'mcp', 'plugin'].map(kind => ({
+    key: `settings.capability_share.sent.${kind}`,
+    placeholders: ['name', 'recipient'],
+  })),
+  { key: 'settings.capability_share.not_sent', placeholders: ['name', 'recipient'] },
+  { key: 'settings.capability_share.incomplete', placeholders: ['name', 'recipient'] },
+  // Relations: how long ago AND when, read through <Trans> — a lost placeholder
+  // would print the bare amount or a sentence with no date.
+  { key: 'relations.when.past', placeholders: ['ago', 'when'] },
+  { key: 'relations.when.future', placeholders: ['ago', 'when'] },
+  { key: 'relations.when.now', placeholders: ['when'] },
+  ...['minutes', 'hours', 'days'].map(unit => ({
+    key: `relations.when.${unit}`,
+    placeholders: ['n'],
+  })),
+  { key: 'relations.peer_link_connected' },
+  // Proactive discussions: a rebuild's progress, the last update and the last run,
+  // a ceiling reached and the hub's history — several are built from a server value
+  // at runtime.
+  { key: 'discussions.rebuild_running' },
+  { key: 'discussions.rebuild_controls_over_budget' },
+  { key: 'discussions.rebuild_ceiling_blocked' },
+  { key: 'discussions.item_period', placeholders: ['start', 'end'] },
+  { key: 'discussions.item_on', placeholders: ['date'] },
+  { key: 'discussions.item_updated', placeholders: ['date'] },
+  ...['updated_at', 'rebuilt_at', 'last_run'].map(label => ({
+    key: `discussions.activity.${label}`,
+  })),
+  ...['pages', 'facts', 'admitted', 'offered', 'calls', 'items'].map(figure => ({
+    key: `discussions.activity.figures.${figure}`,
+  })),
+  ...['claimed', 'completed', 'skipped', 'failed', 'abandoned'].map(state => ({
+    key: `discussions.rebuild_states.${state}`,
+  })),
+  ...['rebuild', 'opening'].map(kind => ({ key: `discussions.run_kinds.${kind}` })),
+  ...['instance_budget', 'owner_day', 'instance_day'].map(ceiling => ({
+    key: `discussions.ceiling.${ceiling}`,
+    placeholders: ['date'],
+  })),
+  ...['usage_limit', 'run_ceiling'].map(ceiling => ({ key: `discussions.ceiling.${ceiling}` })),
+  ...['title', 'subtitle', 'empty', 'error'].map(part => ({
+    key: `notifications_hub.sections.discussions.${part}`,
+  })),
 ];
 
 /** Resolve a dotted path, or undefined. */

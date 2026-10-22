@@ -2,7 +2,8 @@
 
 import json
 from collections.abc import Mapping
-from typing import Literal
+from typing import Annotated, Literal
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -13,10 +14,18 @@ from src.domains.agents.display.components.base import (
     wrap_with_response,
 )
 from src.domains.agents.display.escaping import escape_html
-from src.domains.agents.display.urls import build_place_url
-from src.domains.agents.display.values import scalar_text
+from src.domains.agents.display.urls import build_place_url, safe_image_url
+from src.domains.agents.display.values import (
+    first_present,
+    list_values,
+    nonnegative_integer,
+    rating_value,
+    scalar_text,
+)
 
 MAX_POSITION_PLACES = 64
+MAX_POSITION_WIRE_CHARACTERS = 512 * 1024
+_MAX_SAFE_INTEGER = 2**53 - 1
 _TITLES = {
     "fr": "Position",
     "en": "Position",
@@ -33,17 +42,40 @@ class PositionPoint(BaseModel):
     lng: float = Field(ge=-180, le=180, allow_inf_nan=False)
 
 
+class PositionPlaceDetails(BaseModel):
+    """Bounded facts already acquired for the selected place, without provider trees."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    address: str | None = Field(max_length=1000, description="Already acquired address, if any.")
+    rating: float | None = Field(ge=0, le=5, allow_inf_nan=False, description="Provider score.")
+    reviews_count: int | None = Field(
+        ge=0, le=_MAX_SAFE_INTEGER, description="Already acquired review count, if any."
+    )
+    phone: str | None = Field(max_length=128, description="Already acquired telephone number.")
+    website: str | None = Field(max_length=4096, description="Credential-free HTTP(S) website.")
+    opening_hours: list[Annotated[str, Field(min_length=1, max_length=500)]] = Field(
+        max_length=7, description="Supplied weekday descriptions."
+    )
+
+
 class PositionPlace(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     ref: str = Field(min_length=1, max_length=256)
     label: str = Field(min_length=1, max_length=200)
     url: str = Field(max_length=4096)
     position: PositionPoint | None
+    details: PositionPlaceDetails | None = None
 
 
-class PositionMapV1(BaseModel):
+class PositionMapV2(BaseModel):
+    """The Position map's second payload version: located places and what was left out.
+
+    ``unlocated_count`` counts the listed places without coordinates (they get no
+    pin), ``omitted_count`` the places beyond the map's bound (not listed at all).
+    """
+
     model_config = ConfigDict(extra="forbid", frozen=True)
-    version: Literal[1] = 1
+    version: Literal[2] = 2
     places: list[PositionPlace] = Field(min_length=1, max_length=MAX_POSITION_PLACES)
     unlocated_count: int = Field(ge=0)
     omitted_count: int = Field(ge=0)
@@ -120,7 +152,64 @@ def _project_place(ref: str, payload: Mapping[str, object], identity: str) -> Po
         place_id=provider_id if 0 < len(provider_id) <= 512 else None,
         query=f"{label} {address}",
     )
-    return PositionPlace(ref=ref, label=label, url=url, position=_point(payload))
+    return PositionPlace(
+        ref=ref, label=label, url=url, position=_point(payload), details=_details(payload)
+    )
+
+
+def _website(value: object) -> str | None:
+    candidate = scalar_text(value).strip()
+    # Reuse the display URL guard's strict HTTP(S) lexical checks, then exclude
+    # site-relative paths and credentials from this archived external link.
+    if not candidate or len(candidate) > 4096 or not safe_image_url(candidate):
+        return None
+    try:
+        parsed = urlsplit(candidate)
+        _ = parsed.port  # Invalid/non-numeric ports must not poison the frontend archive parser.
+        return (
+            candidate if parsed.hostname and not parsed.username and not parsed.password else None
+        )
+    except ValueError:
+        return None
+
+
+def _opening_hours(payload: Mapping[str, object]) -> list[str]:
+    candidates: list[object] = []
+    for key in ("currentOpeningHours", "regularOpeningHours", "openingHours"):
+        value = payload.get(key)
+        if isinstance(value, Mapping):
+            candidates.append(value.get("weekdayDescriptions", value.get("weekday_text")))
+    candidates.append(payload.get("opening_hours"))
+    for candidate in candidates:
+        lines = []
+        for line in list_values(candidate):
+            if isinstance(line, str) and line.strip():
+                lines.append(line[:500])
+                if len(lines) == 7:
+                    break
+        if lines:
+            return lines
+    return []
+
+
+def _details(payload: Mapping[str, object]) -> PositionPlaceDetails:
+    count = nonnegative_integer(
+        first_present(payload, "userRatingCount", "rating_count", "reviews_count")
+    )
+    return PositionPlaceDetails(
+        address=scalar_text(
+            first_present(payload, "formattedAddress", "formatted_address", "address")
+        )[:1000]
+        or None,
+        rating=rating_value(payload.get("rating")),
+        reviews_count=count if count is not None and count <= _MAX_SAFE_INTEGER else None,
+        phone=scalar_text(
+            first_present(payload, "internationalPhoneNumber", "phone_international", "phone")
+        )[:128]
+        or None,
+        website=_website(first_present(payload, "websiteUri", "website")),
+        opening_hours=_opening_hours(payload),
+    )
 
 
 def _places(
@@ -141,17 +230,31 @@ def project_positions(
     registry: Mapping[str, object] | None,
     *,
     resolved: Mapping[str, object] | None = None,
-) -> PositionMapV1 | None:
+) -> PositionMapV2 | None:
     places = _places(registry, resolved)
     return _projection(places) if places else None
 
 
-def _projection(places: list[PositionPlace]) -> PositionMapV1:
-    return PositionMapV1(
+def _projection(places: list[PositionPlace]) -> PositionMapV2:
+    projection = PositionMapV2(
         places=places[:MAX_POSITION_PLACES],
         unlocated_count=sum(place.position is None for place in places),
         omitted_count=max(0, len(places) - MAX_POSITION_PLACES),
     )
+    remaining = len(_wire(projection))
+    bounded = list(projection.places)
+    for index in reversed(range(len(bounded))):
+        if remaining <= MAX_POSITION_WIRE_CHARACTERS:
+            break
+        details = bounded[index].details
+        if details is not None:
+            remaining -= len(_wire(details)) - len("null")
+            bounded[index] = bounded[index].model_copy(update={"details": None})
+    return projection.model_copy(update={"places": bounded})
+
+
+def _wire(value: BaseModel) -> str:
+    return json.dumps(value.model_dump(mode="json"), ensure_ascii=True, separators=(",", ":"))
 
 
 def render_positions(
@@ -176,11 +279,7 @@ def _render_positions(
     places = _places(registry, resolved)
     if not places:
         return ""
-    wire = json.dumps(
-        _projection(places).model_dump(mode="json"),
-        ensure_ascii=True,
-        separators=(",", ":"),
-    )
+    wire = _wire(_projection(places))
     fallback = (
         '<ol class="lia-place-position__fallback">'
         + "".join(

@@ -49,6 +49,7 @@ from src.core.constants import (
     SCHEDULED_ACTIONS_SESSION_PREFIX,
     SCHEDULED_ACTIONS_SSE_PREVIEW_MAX_LENGTH,
 )
+from src.core.exceptions import ResourceNotFoundError
 from src.core.i18n import normalize_language
 from src.core.i18n_drafts import label_separator
 from src.core.time_utils import now_utc
@@ -364,7 +365,12 @@ async def _notify_result(
 
 
 async def _load_tick(
-    db: AsyncSession, repo: ScheduledActionRepository, action_id: uuid.UUID, user_id: uuid.UUID
+    db: AsyncSession,
+    repo: ScheduledActionRepository,
+    action_id: uuid.UUID,
+    user_id: uuid.UUID,
+    *,
+    execution_token: uuid.UUID | None = None,
 ) -> tuple[ScheduledAction, UserProfile] | None:
     """The routine and its owner, or ``None`` when the tick must not run.
 
@@ -380,22 +386,17 @@ async def _load_tick(
         logger.warning("scheduled_action_execute_not_found", action_id=str(action_id))
         return None
 
-    user = await UserService(db).get_user_by_id(user_id)
-    if not user:
-        logger.warning(
-            "scheduled_action_execute_user_not_found",
-            action_id=str(action_id),
-            user_id=str(user_id),
-        )
-        return None
-
-    # Guard: skip inactive users (deleted users also have is_active=False)
-    if not user.is_active:
+    try:
+        user = await UserService(db).get_user_by_id(user_id)
+    except ResourceNotFoundError:
+        # The public lookup returns active accounts only; an unavailable owner
+        # settles without a run. The enclosing DB context commits on return.
+        released = await repo.disable_for_unavailable_owner(action_id, user_id, execution_token)
         logger.info(
-            "scheduled_action_skipped_user_inactive",
+            "scheduled_action_skipped_owner_unavailable",
             action_id=str(action_id),
             user_id=str(user_id),
-            is_active=user.is_active,
+            reservation_released=released,
         )
         return None
 
@@ -482,7 +483,7 @@ async def execute_single_action(
 
     async with get_db_context() as db:
         repo = ScheduledActionRepository(db)
-        loaded = await _load_tick(db, repo, action_id, user_id)
+        loaded = await _load_tick(db, repo, action_id, user_id, execution_token=execution_token)
         if loaded is None:
             return ""
         action, user = loaded
@@ -734,11 +735,10 @@ async def _mark_routine(
     )
     # The message is kept on the routine for its owner; the log carries the
     # exception's TYPE, a fact, never the text it quotes (ADR-317).
-    kind = error_msg.split(":", 1)[0]
     logger.warning(
         "scheduled_action_failed_after_retries",
         action_id=str(action.id),
-        error_type=kind if kind.isidentifier() else "refused",
+        error_type=result.error_code or result.outcome.value,
         total_attempts=result.attempts,
         **_interrupt_facts(result.interrupt),
     )

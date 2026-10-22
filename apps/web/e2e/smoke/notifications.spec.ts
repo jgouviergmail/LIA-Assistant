@@ -196,7 +196,9 @@ async function metadataIsReadable(page: Page, messages: Locator): Promise<void> 
       { exact: true }
     );
     await expect(attribution).toHaveCount(1);
-    await expect(row.getByText(message.peer_display_name, { exact: true })).toHaveCount(0);
+    // The name alone in bold, the words around it plain — and said once.
+    await expect(attribution.locator('strong')).toHaveText(message.peer_display_name);
+    await expect(row.getByText(message.peer_display_name, { exact: true })).toHaveCount(1);
     const body = row.getByText(message.content ?? copy('notifications_hub.message_no_content'), {
       exact: true,
     });
@@ -214,9 +216,11 @@ async function metadataIsReadable(page: Page, messages: Locator): Promise<void> 
   for (const [index, item] of notificationProactive.entries()) {
     const row = proactive.getByRole('listitem').nth(index);
     const date = row.locator(`time[datetime="${item.created_at}"]`);
-    const badge = row.getByText(copy(`heartbeat.history.priority_${item.priority}`), {
-      exact: true,
-    });
+    // The pill, not its words: the marker wraps its label in a span of its
+    // own, inset by the pill's padding, and the alignment below is the pill's.
+    const badge = row
+      .getByText(copy(`heartbeat.history.priority_${item.priority}`), { exact: true })
+      .locator('..');
     const feedback = row.getByText(
       copy(`heartbeat.history.feedback_${item.user_feedback ?? 'none'}`),
       { exact: true }
@@ -242,10 +246,10 @@ async function metadataIsReadable(page: Page, messages: Locator): Promise<void> 
     );
     await expectLayout(
       page,
-      [date, badge],
-      ([dateBox, badgeBox]) =>
-        Math.abs(dateBox.y + dateBox.height / 2 - badgeBox.y - badgeBox.height / 2) <= 2,
-      'date and priority share the first metadata line'
+      [date, badge, body],
+      ([dateBox, badgeBox, bodyBox]) =>
+        below(dateBox, badgeBox) && below(badgeBox, bodyBox) && Math.abs(badgeBox.x - dateBox.x) <= 2,
+      'the date titles the row; the priority leads the line below it'
     );
     await expectLayout(
       page,
@@ -284,9 +288,14 @@ async function metadataIsReadable(page: Page, messages: Locator): Promise<void> 
       interestRow.getByText(copy(`interests.history.source_${interest.source}`), { exact: true }),
       interestRow.getByText(interest.content!, { exact: true }),
     ],
+    // The badge leads: the source sits after it on its line, or below it once a
+    // narrow screen wraps the line — never before it.
     ([topicBox, sourceBox, contentBox]) =>
-      below(topicBox, sourceBox) && below(sourceBox, contentBox),
-    'the interest source follows its badge and stays above the interest content'
+      ((topicBox.x < sourceBox.x &&
+        Math.abs(topicBox.y + topicBox.height / 2 - sourceBox.y - sourceBox.height / 2) <= 4) ||
+        below(topicBox, sourceBox)) &&
+      below(sourceBox, contentBox),
+    'the interest badge leads the line its source shares, above the interest content'
   );
 
   const workboard = await openFamily(page, 'workboard');

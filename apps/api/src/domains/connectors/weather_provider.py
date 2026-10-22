@@ -29,7 +29,9 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-async def resolve_weather_client(user_id: UUID, connector_service: Any) -> Any | None:
+async def resolve_weather_client(
+    user_id: UUID, connector_service: Any, *, fresh: bool = False
+) -> Any | None:
     """Client of the active weather provider (OWM-shaped), or None.
 
     Args:
@@ -42,7 +44,12 @@ async def resolve_weather_client(user_id: UUID, connector_service: Any) -> Any |
     """
     from src.domains.connectors.provider_resolver import resolve_active_connector
 
-    resolved = await resolve_active_connector(user_id, "weather", connector_service)
+    if fresh:
+        from src.domains.connectors.provider_authority import resolve_active_connector_fresh
+
+        resolved = await resolve_active_connector_fresh(user_id, "weather", connector_service)
+    else:
+        resolved = await resolve_active_connector(user_id, "weather", connector_service)
     if resolved is None:
         return None
 

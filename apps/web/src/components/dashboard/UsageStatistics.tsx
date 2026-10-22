@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { BarChart3, ChevronDown, RefreshCw } from 'lucide-react';
+import { BarChart3, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { DashboardTile } from '@/components/dashboard/DashboardTile';
 import { Button } from '@/components/ui/button';
+import { HeadingRule } from '@/components/ui/heading-rule';
 import { Skeleton } from '@/components/ui/skeleton';
 import { UsageLimitsTile } from '@/components/usage/UsageLimitsTile';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
@@ -23,11 +24,11 @@ export function UsageStatistics() {
   const [retrying, setRetrying] = useState(false);
   const retryPending = useRef(false);
   const retryTrigger = useRef<HTMLButtonElement | null>(null);
-  const summary = useRef<HTMLElement | null>(null);
+  const heading = useRef<HTMLHeadingElement | null>(null);
   useEffect(() => {
     if (error || !statistics || !retryTrigger.current) return;
     if (!retryTrigger.current.isConnected && document.activeElement === document.body) {
-      summary.current?.focus();
+      heading.current?.focus();
     }
     retryTrigger.current = null;
   }, [error, statistics]);
@@ -52,20 +53,23 @@ export function UsageStatistics() {
   }
 
   return (
-    <details className="group/usage" open>
-      <summary
-        ref={summary}
-        className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
+    // A rubrique of the home page, never folded (owner request 2026-10-21):
+    // the heading runs on into the hairline every page-level rubrique draws.
+    <section aria-labelledby="dashboard-consumption-heading">
+      <div className="flex min-h-11 items-center gap-2 py-2">
         <BarChart3 className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-        <h2 className="min-w-0 flex-1 text-base font-semibold tracking-tight text-foreground sm:text-lg">
+        {/* Focusable by script only: where focus returns once a retry's
+            button has gone. */}
+        <h2
+          ref={heading}
+          id="dashboard-consumption-heading"
+          tabIndex={-1}
+          className="min-w-0 rounded-md text-base font-semibold tracking-tight text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-lg"
+        >
           {t('dashboard.statistics.consumption_title')}
         </h2>
-        <ChevronDown
-          className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open/usage:rotate-180 motion-reduce:transition-none"
-          aria-hidden="true"
-        />
-      </summary>
+        <HeadingRule />
+      </div>
       <div className="mt-3 space-y-4">
         {(cycleDates || since) && (
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs leading-relaxed text-muted-foreground">
@@ -88,7 +92,7 @@ export function UsageStatistics() {
         ) : (
           <>
             {(!statistics || error) && (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-card px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
                 <p role="status" className="min-w-0 flex-1 text-sm text-muted-foreground">
                   {t(
                     statistics
@@ -123,7 +127,7 @@ export function UsageStatistics() {
           <UsageLimitsTile limits={limits} isLoading={limitsLoading} />
         </div>
       </div>
-    </details>
+    </section>
   );
 }
 

@@ -257,6 +257,40 @@ def routes_sku_suffix(body: Mapping[str, Any]) -> str:
     return ROUTES_SKU_ESSENTIALS
 
 
+def default_travel_mode(distance_km: float | None) -> TravelMode:
+    """The shared default: walk below the configured threshold, otherwise drive."""
+    threshold = settings.routes_walk_threshold_km
+    if distance_km is not None and distance_km < threshold:
+        logger.debug(
+            "travel_mode_default_walk",
+            distance_km=distance_km,
+            threshold_km=threshold,
+            reason=f"distance < {threshold}km",
+        )
+        return TravelMode.WALK
+    return TravelMode.DRIVE
+
+
+def route_request_features(
+    travel_mode: TravelMode,
+    routing_preference: RoutingPreference = RoutingPreference.TRAFFIC_AWARE,
+    *,
+    avoid_tolls: bool = False,
+) -> dict[str, object]:
+    """Mode, traffic and toll features shared by the request and its SKU quote.
+
+    Walking, cycling and transit requests cannot carry routingPreference.
+    Motorized routes ask for toll computation unless avoiding tolls, as before.
+    Additional waypoints and modifiers stay on the caller's complete body.
+    """
+    features: dict[str, object] = {"travelMode": travel_mode.value}
+    if travel_mode in (TravelMode.DRIVE, TravelMode.TWO_WHEELER):
+        features["routingPreference"] = routing_preference.value
+        if not avoid_tolls:
+            features["extraComputations"] = ["TOLLS"]
+    return features
+
+
 # =============================================================================
 # CLIENT
 # =============================================================================
@@ -451,16 +485,10 @@ class GoogleRoutesClient:
         body: dict[str, Any] = {
             "origin": self._build_waypoint(origin),
             "destination": self._build_waypoint(destination),
-            "travelMode": travel_mode.value,
             "languageCode": language_code or self.language,
             "units": units,
+            **route_request_features(travel_mode, routing_preference, avoid_tolls=avoid_tolls),
         }
-
-        # routingPreference is ONLY supported for DRIVE and TWO_WHEELER modes
-        # NOT supported for: WALK, BICYCLE, TRANSIT
-        # https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes
-        if travel_mode in (TravelMode.DRIVE, TravelMode.TWO_WHEELER):
-            body["routingPreference"] = routing_preference.value
 
         # Add waypoints if provided (intermediates use waypoint wrapper)
         if waypoints:
@@ -500,10 +528,6 @@ class GoogleRoutesClient:
         # Request alternative routes
         if compute_alternative_routes:
             body["computeAlternativeRoutes"] = True
-
-        # Request toll info for DRIVE/TWO_WHEELER modes (requires extraComputations)
-        if travel_mode in (TravelMode.DRIVE, TravelMode.TWO_WHEELER) and not avoid_tolls:
-            body["extraComputations"] = ["TOLLS"]
 
         # Use appropriate field mask based on travel mode
         # TRANSIT mode needs additional fields for line/stop info
@@ -790,4 +814,7 @@ __all__ = [
     "DEFAULT_ROUTE_FIELD_MASK",
     "EXTENDED_ROUTE_FIELD_MASK",
     "MATRIX_FIELD_MASK",
+    "default_travel_mode",
+    "route_request_features",
+    "routes_sku_suffix",
 ]

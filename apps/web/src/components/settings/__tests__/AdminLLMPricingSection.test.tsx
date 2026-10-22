@@ -14,6 +14,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import {
+  act,
   answerConfirmDialog,
   renderWithProviders,
   screen,
@@ -21,6 +22,8 @@ import {
   waitFor,
 } from '@/__tests__/test-utils';
 import { makeLLMPricing } from '@/__tests__/factories';
+import type { CatalogueStatus } from '@/lib/actions/settings-actions';
+import { CatalogueInvalidationProvider } from '@/lib/catalogue-invalidation-context';
 import type { LLMModelPricing } from '../AdminLLMPricingSection';
 
 const { get } = vi.hoisted(() => ({ get: vi.fn() }));
@@ -45,9 +48,19 @@ vi.mock('@/lib/actions/settings-actions', () => ({
   reloadLLMPricingCache,
 }));
 const { invalidateCatalogue } = vi.hoisted(() => ({ invalidateCatalogue: vi.fn() }));
-vi.mock('@/lib/catalogue-invalidation-context', () => ({
-  useCatalogueInvalidator: () => invalidateCatalogue,
-}));
+vi.mock('@/lib/catalogue-invalidation-context', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/lib/catalogue-invalidation-context')>();
+  return {
+    ...actual,
+    useCatalogueInvalidator: function useCatalogueInvalidator() {
+      const invalidate = actual.useCatalogueInvalidator();
+      return (name: Parameters<typeof invalidate>[0]) => {
+        invalidateCatalogue(name);
+        invalidate(name);
+      };
+    },
+  };
+});
 const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('sonner', () => ({ toast }));
 vi.mock('@/lib/logger', () => ({
@@ -68,7 +81,11 @@ function listOf(models: LLMModelPricing[]) {
 }
 
 function render() {
-  return renderWithProviders(<AdminLLMPricingSection lng="en" />);
+  return renderWithProviders(
+    <CatalogueInvalidationProvider>
+      <AdminLLMPricingSection lng="en" />
+    </CatalogueInvalidationProvider>
+  );
 }
 
 async function renderLoaded(models: LLMModelPricing[] = [makeLLMPricing()]) {
@@ -152,6 +169,80 @@ describe('AdminLLMPricingSection — listing', () => {
 });
 
 describe('AdminLLMPricingSection — cache reload', () => {
+  it.each(['success', 'failure'] as const)(
+    'ignores the superseded catalogue read when it settles with %s',
+    async outcome => {
+      const current: CatalogueStatus = {
+        compared: 1,
+        auto: 0,
+        review: 0,
+        retiring: [],
+        provenance: { declared: 1 },
+        snapshot_generated_at: null,
+      };
+      let resolveInitial: (status: CatalogueStatus) => void = () => {};
+      let rejectInitial: (error: Error) => void = () => {};
+      const initialRead = new Promise<CatalogueStatus>((resolve, reject) => {
+        resolveInitial = resolve;
+        rejectInitial = reject;
+      });
+      let catalogueReads = 0;
+      get.mockImplementation((endpoint: string) => {
+        if (endpoint !== '/admin/llm/catalogue-status') {
+          return Promise.resolve(listOf([makeLLMPricing()]));
+        }
+        return catalogueReads++ === 0 ? initialRead : Promise.resolve(current);
+      });
+      const { user } = render();
+      await screen.findByRole('table');
+
+      await user.click(screen.getByRole('button', { name: RELOAD }));
+      expect(await screen.findByText(`${I18N}.catalogue.provenance.declared: 1`)).toBeVisible();
+      await act(async () => {
+        if (outcome === 'success') {
+          resolveInitial({ ...current, compared: 3, provenance: { declared: 3 } });
+        } else {
+          rejectInitial(new Error('superseded request failed'));
+        }
+      });
+
+      expect(screen.getByText(`${I18N}.catalogue.provenance.declared: 1`)).toBeVisible();
+      expect(
+        screen.queryByText(`${I18N}.catalogue.provenance.declared: 3`)
+      ).not.toBeInTheDocument();
+    }
+  );
+
+  it('hides stale counters when refreshing the catalogue fails and keeps the table usable', async () => {
+    const catalogue: CatalogueStatus = {
+      compared: 1,
+      auto: 0,
+      review: 0,
+      retiring: [],
+      provenance: { declared: 1 },
+      snapshot_generated_at: null,
+    };
+    let catalogueReads = 0;
+    get.mockImplementation((endpoint: string) => {
+      if (endpoint !== '/admin/llm/catalogue-status') {
+        return Promise.resolve(listOf([makeLLMPricing()]));
+      }
+      return catalogueReads++ === 0
+        ? Promise.resolve(catalogue)
+        : Promise.reject(new Error('catalogue unavailable'));
+    });
+    const { user } = render();
+    const badge = `${I18N}.catalogue.provenance.declared: 1`;
+    expect(await screen.findByText(badge)).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: RELOAD }));
+
+    await waitFor(() => expect(screen.queryByText(badge)).not.toBeInTheDocument());
+    expect(screen.getByText('claude-x')).toBeVisible();
+    expect(screen.getByRole('button', { name: EDIT })).toBeEnabled();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
   it('invalidates the model catalogue after a successful reload', async () => {
     const { user } = await renderLoaded();
     await user.click(screen.getByRole('button', { name: RELOAD }));
@@ -169,6 +260,48 @@ describe('AdminLLMPricingSection — cache reload', () => {
 });
 
 describe('AdminLLMPricingSection — deactivation', () => {
+  it.each(['declared', 'imported', 'verified'] as const)(
+    'stops counting a %s model as soon as its deactivation succeeds',
+    async provenance => {
+      let catalogue: CatalogueStatus = {
+        compared: 3,
+        auto: 0,
+        review: 0,
+        retiring: [],
+        provenance: { declared: 1, imported: 1, verified: 1 },
+        snapshot_generated_at: null,
+      };
+      get.mockImplementation((endpoint: string) =>
+        Promise.resolve(
+          endpoint === '/admin/llm/catalogue-status'
+            ? catalogue
+            : listOf([makeLLMPricing({ capability_provenance: provenance })])
+        )
+      );
+      deactivateLLMPricing.mockImplementation(async () => {
+        catalogue = {
+          ...catalogue,
+          compared: 2,
+          provenance: { ...catalogue.provenance, [provenance]: 0 },
+        };
+        return { success: true, message: 'disabled' };
+      });
+      const { user } = render();
+      const badge = `${I18N}.catalogue.provenance.${provenance}: 1`;
+      expect(await screen.findByText(badge)).toBeVisible();
+
+      await user.click(screen.getByRole('button', { name: DISABLE }));
+      await answerConfirmDialog(user);
+
+      await waitFor(() => expect(screen.queryByText(badge)).not.toBeInTheDocument());
+      for (const remaining of ['declared', 'imported', 'verified']) {
+        if (remaining !== provenance) {
+          expect(screen.getByText(`${I18N}.catalogue.provenance.${remaining}: 1`)).toBeVisible();
+        }
+      }
+    }
+  );
+
   it('does not deactivate when the confirmation is dismissed', async () => {
     const { user } = await renderLoaded();
     await user.click(screen.getByRole('button', { name: DISABLE }));

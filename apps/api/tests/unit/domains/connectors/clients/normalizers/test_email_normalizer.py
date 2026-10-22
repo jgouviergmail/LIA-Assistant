@@ -231,6 +231,27 @@ class TestConvertImapQuery:
         criteria_str = str(criteria)
         assert "2024" in criteria_str
 
+    @pytest.mark.parametrize(
+        ("query", "criterion"),
+        [
+            # 2026-10-20T13:20:00Z and 2026-10-27T13:20:00Z, as Gmail spells instants.
+            ("after:1792502400", "SINCE 20-Oct-2026"),
+            ("before:1793107200", "BEFORE 28-Oct-2026"),
+            # Exactly midnight: the bound already is a day.
+            ("before:1793059200", "BEFORE 27-Oct-2026"),
+            ("-after:1792502400", "BEFORE 21-Oct-2026"),
+            ("-before:1793107200", "SINCE 27-Oct-2026"),
+        ],
+    )
+    def test_an_instant_widens_to_the_whole_day_that_holds_it(
+        self, query: str, criterion: str
+    ) -> None:
+        """IMAP searches by day. The discussion source sends ``after:``/``before:``
+        as epoch seconds, which used to read as no date at all: the search became
+        ``(ALL)`` and returned another period under the requested window's name."""
+        criteria, _ = convert_imap_query(query)
+        assert str(criteria) == f"({criterion})"
+
     def test_bare_text(self) -> None:
         """Bare text (no operator) becomes full-text search."""
         criteria, folder = convert_imap_query("important documents")

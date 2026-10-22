@@ -172,11 +172,10 @@ test.describe('settings search', () => {
     await search.fill('administration des utilisateurs');
 
     // The all-words tier may legitimately surface a USER section containing
-    // these common words; what must never appear is the admin pane itself.
+    // these common words; what must never appear is the admin pane itself,
+    // named by its current title (the former full name is now a keyword).
     await expect(page.getByRole('status')).toContainText(/./, { timeout: APPEARS });
-    await expect(
-      page.getByRole('option', { name: /Administration des utilisateurs/ })
-    ).toHaveCount(0);
+    await expect(page.getByRole('option', { name: /Admin\. des utilisateurs/ })).toHaveCount(0);
   });
 
   test('fits a 320 px screen without pushing anything off it', async ({

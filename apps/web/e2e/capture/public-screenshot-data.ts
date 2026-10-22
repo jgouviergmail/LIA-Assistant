@@ -3,7 +3,12 @@ import { dashboardShellMocks, briefingWindowsMock } from '../fixtures/dashboard-
 import { loadedChatRoutes } from '../fixtures/chat';
 import { makeTestUser } from '../fixtures/test-user';
 import type { MockRoute } from '../fixtures/api-mock';
-import type { CardSection, CardsBundle, SectionData } from '../../src/types/briefing';
+import type {
+  CardSection,
+  CardsBundle,
+  SectionData,
+  WorkboardTicketItem,
+} from '../../src/types/briefing';
 import type { PsycheHistoryEntry, PsycheState } from '../../src/types/psyche';
 import { psycheEfficacyProfile } from '../fixtures/psyche-efficacy';
 
@@ -28,6 +33,23 @@ const appointments = [
     location: 'Demo Studio — meeting room A',
   },
   { title: 'Project check-in', start_local: '14:30', end_local: '15:00', location: 'Video call' },
+];
+/** The tickets the demo person holds — « my tickets », grouped like a live card. */
+const DEMO_TICKETS: WorkboardTicketItem[] = [
+  {
+    id: 'demo-ticket-date',
+    title: 'Approve the supplier date clarification',
+    status: 'confirming',
+    due_at: '2026-10-12T08:00:00Z',
+    overdue: false,
+  },
+  {
+    id: 'demo-ticket-recap',
+    title: 'Review the Atlas launch recap',
+    status: 'validating',
+    due_at: '2026-10-12T14:00:00Z',
+    overdue: false,
+  },
 ];
 const cards: CardsBundle = {
   weather: section({
@@ -184,26 +206,20 @@ const cards: CardsBundle = {
   }),
   workboard: section({
     needs_me: 2,
+    held_by_me: 2,
     held_by_lia: 1,
     held_by_peers: 1,
     overdue: 0,
     open_total: 4,
-    items: [
-      {
-        id: 'demo-ticket-date',
-        title: 'Approve the supplier date clarification',
-        status: 'confirming',
-        due_at: '2026-10-12T08:00:00Z',
-        overdue: false,
-      },
-      {
-        id: 'demo-ticket-recap',
-        title: 'Review the Atlas launch recap',
-        status: 'validating',
-        due_at: '2026-10-12T14:00:00Z',
-        overdue: false,
-      },
-    ],
+    items: DEMO_TICKETS,
+    previews: {
+      needs_me: DEMO_TICKETS,
+      held_by_me: DEMO_TICKETS,
+      held_by_lia: [],
+      held_by_peers: [],
+      overdue: [],
+      open_total: [],
+    },
   }),
 };
 

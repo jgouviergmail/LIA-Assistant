@@ -95,7 +95,7 @@ SMS_MESSAGE = SemanticType(
     name="SmsMessage",
     parent="CreativeWork",
     category=TypeCategory.CONTENT,
-    description="A received SMS retained in the user's personal archive, with exact identity/date provenance and paginated literal body.",
+    description="A received SMS retained in LIA, with exact identity/date provenance and paginated literal body.",
     properties={
         "identifier": "sms_message_id",
         "sender": "Text",

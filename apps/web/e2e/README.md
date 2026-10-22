@@ -180,6 +180,13 @@ docker run --rm --network container:lia-web-dev -e E2E_BASE_URL=http://127.0.0.1
 (`HOSTNAME=0.0.0.0`), and `localhost` may resolve to `::1` first (connection
 refused — the recurring IPv6-first trap on this codebase).
 
+`task test:e2e` also runs `npm run typecheck`; run that step on the HOST
+(`node node_modules/typescript/bin/tsc --noEmit` in `apps/web/e2e`), never in
+this container. The specs import `../src/…`, whose `react`, `zustand` and
+`next` resolve through the host's `apps/web/node_modules` — on Windows, pnpm
+junctions the Linux container cannot follow — so the container reports some
+125 resolution errors for a tree that typechecks clean (measured 2026-10-22).
+
 `NEXT_PUBLIC_API_URL=` (blank) at build time, as `task test:e2e` sets it: a
 `NEXT_PUBLIC_*` value is baked into the bundle, and the dev container exports
 an absolute API host — measured 2026-09-20, ten chunks carried it, so browser

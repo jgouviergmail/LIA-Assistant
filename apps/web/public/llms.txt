@@ -1,14 +1,14 @@
 # LIA — Multi-Agent Conversational AI Assistant
 
 > LIA (Learning Intelligent Assistant) is an open-source, multi-agent conversational AI platform
-> that orchestrates 19+ specialized AI agents to manage daily productivity — emails, calendar,
+> that orchestrates 21+ specialized AI agents to manage daily productivity — emails, calendar,
 > contacts, files, tasks, smart home and more — with systematic human validation (HITL) of every
 > sensitive action. Nearly 100% of its code was written by an AI under human direction; the method
-> and a measured 8.3/10 technical audit are documented at /story.
+> and a measured 8.0/10 technical audit (open worksites published) are documented at /story.
 
 ## Key Features
 
-- **19+ specialized AI agents**: emails, calendar, contacts, files, tasks, weather, web search, Wikipedia, places, routes, reminders, health metrics, browser automation, smart home (Philips Hue), and more — 76 integrated tools
+- **21+ specialized AI agents**: emails, calendar, contacts, files, tasks, weather, web search, Wikipedia, places, routes, reminders, health metrics, browser automation, smart home (Philips Hue), and more — 327 integrated tools
 - **7 LLM providers**: OpenAI, Anthropic, Google Gemini, DeepSeek, Qwen, Perplexity, Ollama (local models) — per-node model selection, cost comparison, no vendor lock-in
 - **Two execution modes**: a deterministic Pipeline (plan → validate → approve → parallel execution, 4–8× fewer tokens) and an autonomous ReAct loop — user-switchable per conversation
 - **Human-in-the-Loop (HITL)**: 6 approval levels ensuring no sensitive action happens without user consent; pending approvals survive restarts
@@ -16,7 +16,7 @@
 - **Psyche Engine**: dynamic emotional state — 14 moods, 22 emotions, Big Five personality traits, a relationship that deepens over time ("show, don't tell")
 - **Personal journals**: stratified introspection (observations → directives → patterns → portrait) with deferred self-evaluation and a compiled user-model portrait
 - **Connected services**: Google, Apple iCloud, and Microsoft 365 (email, calendar, contacts, tasks, Drive) — one active provider per category, interchangeable
-- **Voice mode**: wake word and speech-to-text run 100% locally in the browser (Sherpa-onnx/Whisper, 99+ languages); TTS via Edge (free), OpenAI or ElevenLabs
+- **Voice mode**: the wake word is detected 100% locally in the browser (a trained ONNX model per interface language) and speech is transcribed on your own server (sherpa-onnx offline Whisper, 99+ languages); TTS via Edge (free), OpenAI, ElevenLabs, Gemini or Fish Audio; live voice sessions on your own provider key
 - **Knowledge Spaces (RAG)**: upload documents in 15+ formats or sync Google Drive folders — hybrid semantic + keyword search with per-query cost transparency
 - **AI image generation & editing**: text-to-image and photo editing with cost tracking
 - **Interactive outputs**: MCP Apps widgets, Excalidraw diagram generation, rich skills rendering maps/dashboards/mini-apps in chat, LaTeX math rendering
@@ -24,9 +24,10 @@
 - **Extensible via MCP**: per-user MCP servers (OAuth 2.1, SSRF protection) with an iterative ReAct mode for complex APIs
 - **Skills system (agentskills.io)**: create custom expert skills in natural language, import from the marketplace, rich HTML/image outputs
 - **Sub-agents**: delegate complex research to specialized ephemeral experts working in parallel
-- **Proactive intelligence**: heartbeat notifications (weather changes, meetings, tasks), interest tracking, scheduled recurring actions, reminders
+- **Proactive intelligence**: heartbeat notifications (weather changes, meetings, tasks), personal discussions LIA may open when you allow it (your hours, sources and topics), interest tracking, scheduled recurring actions, reminders
+- **Daily companions**: a workboard of tickets LIA can hold, meeting recording with structured minutes, a personal radio in your language, phone calls placed by LIA on your own telephony account
 - **Multi-channel**: web app (installable PWA), Telegram (chat, voice, HITL inline buttons), push notifications
-- **Health metrics**: heart rate and step ingestion from any source (iPhone Shortcuts documented), period charts, opt-in assistant access
+- **Health metrics and SMS**: heart rate and steps from any source, and the SMS your iPhone relays into a private encrypted archive (iPhone Shortcuts documented), period charts, opt-in assistant access for each
 - **Usage quotas**: per-user token/message/cost limits with 5-layer enforcement and real-time gauges
 - **14 personalities**: from Professor to Cynic — each user gets their own assistant persona and emotional relationship
 - **6 UI languages**: French, English, German, Spanish, Italian, Chinese — parity enforced in CI
@@ -34,13 +35,13 @@
 
 ## Architecture
 
-- **Backend**: Python 3.14 / FastAPI with Domain-Driven Design (43 bounded contexts)
+- **Backend**: Python 3.14 / FastAPI with Domain-Driven Design (58 bounded contexts)
 - **Frontend**: Next.js 16 / React 19 / TypeScript strict / TailwindCSS
 - **Orchestration**: LangGraph 1.x state machine — conditional routing, parallel execution waves, PostgreSQL checkpointing
 - **Database**: PostgreSQL 16 + pgvector (state, vectors) + Redis (cache, rate limiting, sessions)
-- **Observability**: 428 Prometheus metrics, 25 Grafana dashboards, Loki logs, Tempo traces, Langfuse LLM tracing
+- **Observability**: 627 Prometheus metrics, 32 Grafana dashboards, Loki logs, Tempo traces, Langfuse LLM tracing
 - **Security**: OAuth 2.1 with PKCE, BFF pattern (HTTP-only cookies), Fernet encryption, PII filtering, GDPR compliant
-- **Engineering**: 15,000+ automated tests, 140+ Architecture Decision Records, 160+ releases, 360° technical audit (8.3/10)
+- **Engineering**: 66,000+ automated tests, 359 Architecture Decision Records, 285 releases, 360° technical audit (8.0/10 across 24 areas, security assessed separately)
 - **Self-hosting**: multi-arch Docker images (amd64/arm64) — runs in production on a Raspberry Pi 5
 
 ## How It Works
@@ -62,7 +63,7 @@
 
 - [Landing Page](https://lia.jeyswork.com)
 - [Story — how LIA was built by an AI under human direction](https://lia.jeyswork.com/story)
-- [Blog](https://lia.jeyswork.com/blog) — 31 technical articles about architecture, integrations, features, security, and engineering
+- [Blog](https://lia.jeyswork.com/blog) — 29 technical articles about architecture, integrations, features, security, and engineering
 - [FAQ](https://lia.jeyswork.com/faq)
 - [Changelog — the full release history, version by version](https://lia.jeyswork.com/changelog)
 - [More — the small UX attentions that make daily use pleasant](https://lia.jeyswork.com/more)

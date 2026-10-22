@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
 
 /** The tile's frame: shape, solid ground, border, shadow. */
 export const DASHBOARD_TILE_FRAME =
-  'relative overflow-hidden rounded-2xl border border-border/70 bg-card shadow-[var(--lia-shadow-md)]';
+  'relative overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--lia-shadow-md)]';
 
 /** The icon badge at the head of a tile; the icon inherits the primary colour. */
 export const TILE_ICON_BADGE =

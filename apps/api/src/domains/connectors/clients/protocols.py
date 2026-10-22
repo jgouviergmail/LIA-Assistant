@@ -327,7 +327,9 @@ class ContactsClientProtocol(Protocol):
 
     async def delete_contact(self, resource_name: str) -> bool: ...
 
-    async def list_email_directory(self, max_contacts: int) -> ContactDirectory: ...
+    async def list_email_directory(
+        self, max_contacts: int, *, cache_scope: str | None = None
+    ) -> ContactDirectory: ...
 
 
 class TasksClientProtocol(Protocol):

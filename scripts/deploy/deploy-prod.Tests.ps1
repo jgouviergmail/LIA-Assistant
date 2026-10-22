@@ -1591,6 +1591,122 @@ Describe "deploy scripts Windows PowerShell 5.1 compatibility (static)" {
 # ============================================================================
 # NOTE: no "<->" in the Describe name — Pester 6 fails parsing such names
 # ("The term '$-' is not recognized").
+Describe "generated deploy.sh Grafana public directory permissions (bash)" {
+    BeforeAll {
+        if (-not $script:BashExe -or -not (Get-Command $script:BashExe -ErrorAction SilentlyContinue)) {
+            Set-ItResult -Skipped -Because "no usable bash on this machine"
+        }
+
+        function Invoke-GrafanaPermissionDeploy {
+            param([switch]$NoProvider, [switch]$FailChmod, [string]$SymlinkPath)
+            $lab = Join-Path $TestDrive ([guid]::NewGuid().ToString("N"))
+            $proj = New-DeploySandbox $lab
+            if (-not $NoProvider) {
+                $grafana = Join-Path $proj "infrastructure/observability/grafana"
+                New-Item -ItemType Directory (Join-Path $grafana "dashboards") -Force | Out-Null
+                New-Item -ItemType Directory (Join-Path $grafana "provisioning/dashboards") -Force | Out-Null
+                Set-Content (Join-Path $grafana "dashboards/04-http-api.json") '{"uid":"04-http-api"}'
+                Set-Content (Join-Path $grafana "provisioning/dashboards/dashboards.yml") "apiVersion: 1"
+            }
+            Push-Location $proj
+            try {
+                & pwsh -NoProfile -File (Join-Path $proj "scripts/deploy/prepare-prod.ps1") -Clean | Out-Null
+                $LASTEXITCODE | Should -Be 0
+            } finally {
+                Pop-Location
+            }
+            $prod = Join-Path $proj "PROD"
+            Move-Item (Join-Path $prod ".env.prod") (Join-Path $prod ".env")
+            $bin = New-BashShimSet $lab
+            # Audit the real chmod boundary; only its failure branch is faked.
+            # Git Bash on NTFS cannot represent mode0700, so Linux additionally
+            # checks real modes below instead of claiming Windows proved them.
+            $chmod = @'
+#!/bin/sh
+echo "chmod $*" >> "$SHIM_LOG"
+if [ "$FAIL_PUBLIC_CHMOD" = 1 ] && [ "$1" = 755 ]; then exit 55; fi
+exec /usr/bin/chmod "$@"
+'@
+            [IO.File]::WriteAllText((Join-Path $bin "chmod"), ($chmod -replace "`r`n", "`n"), (New-Object Text.UTF8Encoding($false)))
+            $prodBash = ConvertTo-BashPath $prod
+            $binBash = ConvertTo-BashPath $bin
+            $log = Join-Path $lab "permissions.log"
+            $logBash = ConvertTo-BashPath $log
+            $publicDirs = @("dashboards", "provisioning", "provisioning/dashboards")
+            $initial = "cd '$prodBash' && /usr/bin/chmod +x '$binBash'/* && /usr/bin/chmod 600 .env && /usr/bin/chmod 700 . apps/api/config"
+            if (-not $NoProvider) {
+                foreach ($dir in $publicDirs) { $initial += " && /usr/bin/chmod 700 infrastructure/observability/grafana/$dir" }
+            }
+            & $script:BashExe -c $initial
+            $LASTEXITCODE | Should -Be 0
+            if ($SymlinkPath) {
+                $unsafe = [IO.Path]::GetFullPath((Join-Path $prod $SymlinkPath))
+                $unsafe.StartsWith($prod + [IO.Path]::DirectorySeparatorChar) | Should -BeTrue
+                $target = Join-Path $prod "private-target"
+                Move-Item -LiteralPath $unsafe -Destination $target
+                if ($IsWindows) {
+                    New-Item -ItemType Junction -Path $unsafe -Target $target | Out-Null
+                } else {
+                    & $script:BashExe -c "ln -s '$target' '$unsafe'"
+                    $LASTEXITCODE | Should -Be 0
+                }
+            }
+            $fail = if ($FailChmod) { "1" } else { "0" }
+            $command = "cd '$prodBash' && export PATH='$binBash':`$PATH SHIM_LOG='$logBash' FAIL_PUBLIC_CHMOD=$fail " +
+                "READY_RETRIES=1 READY_SLEEP=0 CURL_MODE=green HAS_ROLLBACK=1 && bash ./deploy.sh"
+            $output = & $script:BashExe -c $command 2>&1 | Out-String
+            $exitCode = $LASTEXITCODE
+            $modes = & $script:BashExe -c "cd '$prodBash' && stat -c '%a' .env . apps/api/config" | Out-String
+            @{
+                ExitCode = $exitCode
+                Output = $output
+                ShimLog = if (Test-Path $log) { Get-Content $log -Raw } else { "" }
+                SecretModes = $modes.Trim()
+                PublicModes = if (-not $NoProvider -and -not $SymlinkPath) {
+                    (& $script:BashExe -c "cd '$prodBash' && stat -c '%a' infrastructure/observability/grafana/dashboards infrastructure/observability/grafana/provisioning infrastructure/observability/grafana/provisioning/dashboards" | Out-String).Trim()
+                } else { "" }
+            }
+        }
+    }
+
+    It "normalizes only the three public directories before Compose and preserves secret modes" {
+        $r = Invoke-GrafanaPermissionDeploy
+        $r.ExitCode | Should -Be 0
+        $calls = @($r.ShimLog -split "`r?`n" | Where-Object { $_ -match '^chmod 755 ' })
+        $calls | Should -HaveCount 3
+        $calls | Should -Contain "chmod 755 infrastructure/observability/grafana/dashboards"
+        $calls | Should -Contain "chmod 755 infrastructure/observability/grafana/provisioning"
+        $calls | Should -Contain "chmod 755 infrastructure/observability/grafana/provisioning/dashboards"
+        $r.ShimLog | Should -Not -Match 'chmod -R'
+        $r.ShimLog.IndexOf($calls[-1]) | Should -BeLessThan $r.ShimLog.IndexOf("docker compose")
+        if (-not $IsWindows) {
+            $r.PublicModes -replace "`r", "" | Should -Be "755`n755`n755"
+            $r.SecretModes -replace "`r", "" | Should -Be "600`n700`n700"
+        }
+    }
+
+    It "keeps minimal deployments without the Grafana provider working" {
+        $r = Invoke-GrafanaPermissionDeploy -NoProvider
+        $r.ExitCode | Should -Be 0
+        $r.ShimLog | Should -Not -Match '^chmod 755|(?m)^chmod 755'
+    }
+
+    It "refuses to reach Compose when a public chmod fails" {
+        $r = Invoke-GrafanaPermissionDeploy -FailChmod
+        $r.ExitCode | Should -Not -Be 0
+        $r.ShimLog | Should -Not -Match 'docker compose'
+    }
+
+    It "rejects a substituted <Unsafe> directory before any public chmod" -ForEach @(
+        @{ Unsafe = "infrastructure/observability/grafana/dashboards" },
+        @{ Unsafe = "infrastructure/observability/grafana" }
+    ) {
+        $r = Invoke-GrafanaPermissionDeploy -SymlinkPath $Unsafe
+        $r.ExitCode | Should -Not -Be 0
+        $r.ShimLog | Should -Not -Match 'chmod 755|docker compose'
+    }
+}
+
 Describe "generated deploy.sh to readiness-gate wiring (bash)" {
     BeforeAll {
         if (-not $script:BashExe -or -not (Get-Command $script:BashExe -ErrorAction SilentlyContinue)) {

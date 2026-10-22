@@ -313,6 +313,16 @@ attend ton accord » — suit le drapeau comme le reste depuis le 2026-09-09 (D5
 mais n'est offerte qu'au DÉTENTEUR : le côté qui ne peut pas y répondre ne la
 reçoit pas, fût-il abonné.
 
+« Ce ticket t'a été confié » ne part qu'**après le commit** de l'attribution, sur
+une session courte à elle (`dispatch_committed_assignment_notices`), depuis l'écran
+comme depuis le chat : le service ne fait que la COLLECTER. Envoyée sous la
+clôture de mutation (ADR-335), qui tient en `FOR UPDATE` les lignes `users` des
+comptes concernés, la notification réclamait son acte dans `agent_effects` sur une
+connexion à elle, dont la clé étrangère attend un verrou partagé sur la ligne du
+destinataire : la requête attendait une réclamation qui l'attendait, cycle que
+PostgreSQL ne voit pas, et toute écriture suivante du compte s'empilait derrière
+(production, 2026-10-21, jusqu'au redémarrage).
+
 ### Quand LIA a besoin d'un accord (lot 7)
 
 Un run rencontre un outil qui demande une confirmation (`confirm`) ou qui
@@ -598,7 +608,8 @@ prédicat « le tableau est-il rétréci ? » viennent du même module
 **tri n'est pas un rétrécissement** — il change l'ORDRE, jamais l'ensemble.
 
 **Réglages › Workboard est le tableau en un coup d'œil** (lot 18) :
-`GET /workboard/summary` — total, en retard, chez LIA, à votre décision, un
+`GET /workboard/summary` — total, en retard, chez LIA, mes tickets (ce que le
+compte détient — jamais un ticket de LIA ou d'un pair), un
 compte exact par colonne, chacun un lien vers le tableau réduit ; la
 capacité du compte contre le plafond de l'instance ; le coût des exécutions
 dans le vocabulaire du compteur du chat. Les comptes portent sur ce que le
@@ -607,10 +618,10 @@ compte voit, les sommes sur ce qu'il possède.
 **The dashboard has a workboard card**: the `workboard` card of the
 « Mon dashboard » grid (configurable like the others: hidden and reordered
 from the grid settings). `briefing.fetch_workboard` reads
-`summary_queries.read_attention` — waiting on you, held by LIA, overdue, open,
-all EXACT aggregates over the OPEN tickets, each a link to the board narrowed
-to the same set — then the first tickets waiting on you, each a link to
-`/dashboard/workboard/<id>`. Always read live (like the reminders card), and
+`summary_queries.read_attention` — your tickets (what you hold), held by LIA,
+held by peers, overdue, open, all EXACT aggregates over the OPEN tickets, each a
+link to the board narrowed to the same set — then the first two tickets of each
+set, each a link to `/dashboard/workboard/<id>`. Always read live (like the reminders card), and
 hidden when the instance has switched the workboard off (the switch is read at
 call time). Details: [BRIEFING_DOMAIN.md](BRIEFING_DOMAIN.md#the-workboard-card).
 

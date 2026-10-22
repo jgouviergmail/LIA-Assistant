@@ -29,6 +29,7 @@ from typing import Any
 
 import structlog
 from langgraph.types import interrupt
+from pydantic import BaseModel, ValidationError
 
 from src.core.constants import PYTHON_SANDBOX_TOOL_NAME
 from src.core.i18n import resolve_language
@@ -46,6 +47,7 @@ from src.domains.agents.services.hitl.protocols import HitlInteractionType
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.utils.message_filters import TOOL_CALL_NOT_RUN
+from src.infrastructure.mcp.gated_tool import EffectGatedMCPTool, parse_mcp_wire_arguments
 from src.infrastructure.observability.metrics_react import (
     python_sandbox_egress_grants_total,
     react_agent_hitl_interrupts_total,
@@ -209,6 +211,39 @@ async def settle_egress_question(
         return await rerun()
 
 
+def _provided_arguments(model: BaseModel) -> dict[str, object]:
+    """Keep validated supplied values without serializing an injected runtime.
+
+    Python owns omitted defaults. In particular, changing a published schema
+    must not inject a new default into a coroutine that does not accept it.
+    """
+    return {
+        name: getattr(model, name)
+        for name in type(model).model_fields
+        if name in model.model_fields_set
+    }
+
+
+def _validated_input(
+    schema: type[BaseModel] | None, arguments: Mapping[str, object], *, wire_aliases: bool
+) -> dict[str, object] | UnifiedToolOutput:
+    """Reject malformed native calls while honoring MCP's declared openness."""
+    try:
+        if wire_aliases:
+            return parse_mcp_wire_arguments(schema, dict(arguments))
+        assert schema is not None  # native get_input_schema always returns a model
+        model = schema.model_validate(dict(arguments), extra="forbid")
+        return _provided_arguments(model)
+    except ValidationError as exc:
+        issues = "; ".join(
+            f"{'.'.join(str(part) for part in error['loc'])}: {error['msg']}"
+            for error in exc.errors(include_input=False, include_url=False)
+        )
+        return UnifiedToolOutput.failure(
+            message=f"INVALID_INPUT: {issues}", error_code=ToolErrorCode.INVALID_INPUT
+        )
+
+
 async def invoke_with_settlement(
     wrapper: Any,
     injected_args: Mapping[str, Any],
@@ -235,6 +270,16 @@ async def invoke_with_settlement(
         The tool's result, or the settled re-invocation's.
     """
 
+    original = wrapper._original_tool
+    is_mcp = isinstance(original, EffectGatedMCPTool)
+    validated_args = _validated_input(
+        original.args_schema if is_mcp else original.get_input_schema(),
+        injected_args,
+        wire_aliases=is_mcp,
+    )
+    if isinstance(validated_args, UnifiedToolOutput):
+        return validated_args
+
     # Nobody can answer a routine (N10): its card would wait on the person's
     # thread and read their next message as its answer. Not settleable, the
     # call takes the tool path's own refusal, which names the setting.
@@ -244,9 +289,7 @@ async def invoke_with_settlement(
         # The one place an egress question is settled: the tool may ASK here,
         # and refuses an unknown host anywhere else (``tool_path``).
         with settling_questions() if settleable else nullcontext():
-            return await asyncio.wait_for(
-                wrapper._original_tool.coroutine(**injected_args), timeout
-            )
+            return await asyncio.wait_for(original.coroutine(**validated_args), timeout)
 
     raw_result = await _call()
     draft_info = extract_draft_info(raw_result, tool_name)

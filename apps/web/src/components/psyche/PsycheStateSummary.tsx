@@ -80,15 +80,15 @@ function StateOverview({
   const [moodOpen, setOpen] = useState('mood');
   return (
     <div className="min-w-0 space-y-4">
-      <Card surface="nested" variant="flat" className="min-w-0 border-border/70 px-4 sm:px-6">
-        {summary && <div className="border-b border-border/60 py-5">{summary}</div>}
+      <Card surface="nested" variant="flat" className="min-w-0 border-border px-4 sm:px-6">
+        {summary && <div className="border-b border-border py-5">{summary}</div>}
         {state ? (
           <>
             <Accordion type="single" collapsible value={moodOpen} onValueChange={setOpen}>
               <AccordionItem value="mood" className="min-w-0 border-0">
-                <AccordionTrigger className="gap-3 py-5 text-left text-base font-semibold hover:no-underline">
+                <AccordionTrigger className="gap-3 py-3 text-left text-sm font-medium hover:no-underline">
                   <span className="flex min-w-0 items-center gap-2">
-                    <Brain className="size-5 shrink-0 text-primary" aria-hidden="true" />
+                    <Brain className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                     <span className="min-w-0 break-words">{t('psyche.presentation.mood')}</span>
                   </span>
                 </AccordionTrigger>
@@ -100,7 +100,7 @@ function StateOverview({
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
-            <div className="border-t border-border/60 pb-3">
+            <div className="border-t border-border pb-3">
               <OceanTraits state={state} lng={lng} />
             </div>
           </>
@@ -136,7 +136,7 @@ function EmotionOrbits({ state, lng }: { state: PsycheState; lng: Language }) {
     <section
       aria-label={t('psyche.activeEmotion')}
       aria-describedby={hintId}
-      className="min-w-0 rounded-lg border border-border/60 bg-card p-3"
+      className="min-w-0 rounded-lg border border-border bg-card p-3"
     >
       <div
         className="relative mx-auto aspect-square w-full max-w-[280px]"
@@ -242,7 +242,7 @@ function PadPlane({ state, lng }: { state: PsycheState; lng: Language }) {
     [t('psyche.education.mood.dominance'), state.mood_dominance],
   ] as const;
   return (
-    <section className="min-w-0 rounded-lg border border-border/60 bg-card p-3">
+    <section className="min-w-0 rounded-lg border border-border bg-card p-3">
       <InstrumentHeading icon={ChartScatter} title={t('psyche.presentation.padTitle')} />
       <svg
         viewBox="0 0 330 258"
@@ -351,7 +351,7 @@ function BehaviorOverview({ state, lng }: { state: PsycheState; lng: Language })
   const relationshipTitle = t('psyche.presentation.relationship');
   const drivesTitle = t('psyche.presentation.drivesTitle');
   return (
-    <Card surface="nested" variant="flat" className="min-w-0 border-border/70">
+    <Card surface="nested" variant="flat" className="min-w-0 border-border">
       <Accordion
         type="multiple"
         value={open}
@@ -360,12 +360,12 @@ function BehaviorOverview({ state, lng }: { state: PsycheState; lng: Language })
       >
         <AccordionItem
           value="relationship"
-          className="min-w-0 border-b border-border/60 px-4 sm:px-6 md:border-b-0 md:border-r"
+          className="min-w-0 border-b border-border px-4 sm:px-6 md:border-b-0 md:border-r"
         >
           <AccordionTrigger
             aria-label={relationshipTitle}
             aria-describedby={stageId}
-            className="gap-3 py-5 text-left text-base font-semibold hover:no-underline"
+            className="gap-3 py-3 text-left text-sm font-medium hover:no-underline"
           >
             <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
               <span className="flex min-w-0 flex-[1_1_12rem] items-center gap-2">
@@ -384,7 +384,7 @@ function BehaviorOverview({ state, lng }: { state: PsycheState; lng: Language })
         <AccordionItem value="drives" className="min-w-0 border-0 px-4 sm:px-6">
           <AccordionTrigger
             aria-label={drivesTitle}
-            className="gap-3 py-5 text-left text-base font-semibold hover:no-underline"
+            className="gap-3 py-3 text-left text-sm font-medium hover:no-underline"
           >
             <span className="flex min-w-0 items-center gap-2">
               <Compass aria-hidden="true" className="size-4 shrink-0 text-primary" />
@@ -502,9 +502,9 @@ function OceanTraits({ state, lng }: { state: PsycheState; lng: Language }) {
       defaultOpen
       icon={Brain}
       title={t('psyche.education.traits.title')}
-      titleClassName="whitespace-normal text-base font-semibold"
+      titleClassName="whitespace-normal"
       surface="primary"
-      className="border-border/60 px-3"
+      className="border-border px-3"
     >
       <div className="grid min-w-0 items-center gap-5 pt-3 md:grid-cols-2">
         <svg
@@ -546,7 +546,7 @@ function OceanTraits({ state, lng }: { state: PsycheState; lng: Language }) {
             );
           })}
         </svg>
-        <dl className="min-w-0 divide-y divide-border/50">
+        <dl className="min-w-0 divide-y divide-border">
           {traits.map(([key, label, value]) => (
             <div key={key} className="flex min-w-0 flex-wrap items-start gap-2 py-3 text-sm">
               <dt className="flex min-w-0 flex-[1_1_10em] flex-wrap items-start gap-2">

@@ -16,7 +16,7 @@ If the briefing cannot load, the radio and your shortcuts stay available.
 
 ## Which cards are on My dashboard, and what can I do from them?
 
-Ten cards, in the order you choose: **Weather** (with air quality and pollen where available), **Birthdays**, **Active reminders**, **Health**, **Agenda** (a timeline, day by day), **Unread mail**, **For you** (commitments being tracked and your next routine), **Tasks** (pending and overdue), **Documents** (recent Drive files) and **Workboard** (what waits on you, what LIA or your connections hold, what is late or open — each count opens the board, filtered).
+Eleven cards, in the order you choose: **Weather** (with air quality and pollen where available), **Birthdays**, **Active reminders**, **Health**, **My SMS** (the messages your phone relayed, counted for the period), **Agenda** (a timeline, day by day), **Unread mail**, **For you** (commitments being tracked and your next routine), **Tasks** (pending and overdue), **Documents** (recent Drive files) and **Workboard** (your tickets, what LIA or your connections hold, what is late or open — each count opens the board, filtered).
 
 **👆 From an item:**
 • a click opens the chat with a matching request ready — you send it yourself
@@ -25,7 +25,7 @@ Ten cards, in the order you choose: **Weather** (with air quality and pollen whe
 
 ## Can I customize the dashboard cards?
 
-Yes — the shortest path: the **Customize** button next to **Refresh all**, right above the grid, leads straight to the right section. Or go through **Settings › Preferences › Personalization › My dashboard**. Hide any of the ten briefing cards — including the Workboard card, which shows what is waiting on you, what LIA is holding and what is overdue — or reorder them (↑/↓ buttons, or drag-and-drop). A hidden card is **not even fetched**: fewer calls to your services, a faster dashboard.
+Yes — the shortest path: the **Customize** button next to **Refresh all**, right above the grid, leads straight to the right section. Or go through **Settings › Preferences › Personalization › My dashboard**. Hide any of the eleven briefing cards — including the Workboard card, which shows your tickets, what LIA is holding and what is overdue — or reorder them (↑/↓ buttons, or drag-and-drop). A hidden card is **not even fetched**: fewer calls to your services, a faster dashboard.
 
 A starter checklist on the Home page also shows what your instance can do (connectors, voice, channels…) until you dismiss it.
 

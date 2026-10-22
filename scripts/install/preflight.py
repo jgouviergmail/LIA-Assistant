@@ -8,6 +8,7 @@ install; ``--dry-run``/``--check-only`` stay read-only.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from scripts.install.manifest import ManifestError, load_manifest
@@ -67,10 +68,18 @@ def check_compose_version(version: str) -> None:
         PreflightError: ``compose_version_too_old`` or
             ``compose_version_unparsable``.
     """
-    parts = version.strip().lstrip("v").split(".")
+    # Accept distro revisions and repack/build metadata, but not upstream prereleases.
+    match = re.fullmatch(
+        r"v?([0-9]+)\.([0-9]+)\.([0-9]+)"
+        r"(?:-[0-9][0-9A-Za-z.+~]*)?"
+        r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?",
+        version.strip(),
+    )
+    if match is None:
+        raise PreflightError("compose_version_unparsable")
     try:
-        numbers = tuple(int(part) for part in parts[:3])
+        numbers = tuple(int(part) for part in match.groups())
     except ValueError as exc:
         raise PreflightError("compose_version_unparsable") from exc
-    if len(numbers) < 3 or numbers < MIN_COMPOSE_VERSION:
+    if numbers < MIN_COMPOSE_VERSION:
         raise PreflightError("compose_version_too_old")

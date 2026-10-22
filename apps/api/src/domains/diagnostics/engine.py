@@ -12,9 +12,11 @@ from __future__ import annotations
 
 import asyncio
 import math
+import socket
 import time
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 import structlog
@@ -251,6 +253,24 @@ async def _probe_circuit_breakers() -> ProbeOutcome:
     return CheckStatus.OK, 0.0, ""
 
 
+@dataclass(frozen=True)
+class _EgressAttempt:
+    """One name resolution then TCP connect, each phase timed in milliseconds.
+
+    ``failure`` names the phase that failed and how (``None`` when the target
+    was reached); the durations of a failed attempt are not read.
+    """
+
+    failure: str | None
+    resolve_ms: float = 0.0
+    connect_ms: float = 0.0
+
+    @property
+    def total_ms(self) -> float:
+        """Duration of the whole attempt, the value the check reports."""
+        return round(self.resolve_ms + self.connect_ms, 1)
+
+
 async def _probe_platform_egress() -> ProbeOutcome:
     """Can this instance still open a connection to the outside at all?
 
@@ -261,14 +281,59 @@ async def _probe_platform_egress() -> ProbeOutcome:
     container resolver needs no forwarding) and the host itself reached the
     internet fine, so every intuitive test exonerated a broken platform.
 
-    One bounded TCP connect, no TLS and no request: this measures reachability,
-    never a third party's health, and it borrows no credentials.
+    Each attempt is a name resolution then a TCP connect — no TLS, no request:
+    this measures reachability, never a third party's health, and it borrows no
+    credentials. The phases are named apart because they fail apart (ADR-361):
+    Docker's embedded resolver waits 4 s before failing over to its next DNS
+    server, so a datagram lost twice used to consume a single 5 s attempt and
+    read « unreachable » for a platform whose connection was never even tried.
+    A loss is therefore confirmed over paced attempts before it is critical.
 
     Returns:
-        ``ok`` with the connect duration in milliseconds, ``critical`` when the
-        target cannot be reached, ``unknown`` when the target is unreadable.
+        ``ok`` with the attempt's duration in milliseconds; ``degraded`` when the
+        target was reached only after a failed attempt or slower than
+        ``DIAGNOSTICS_EGRESS_PROBE_SLOW_SECONDS``; ``critical`` when every attempt
+        failed; ``unknown`` when the target is unreadable.
     """
     target = str(getattr(settings, "diagnostics_egress_probe_target", "") or "").strip()
+    parsed = _parse_egress_target(target)
+    if parsed is None:
+        # A typo in the setting must never read as "the platform is cut off".
+        return CheckStatus.UNKNOWN, None, f"malformed target '{target}'"
+    host, port = parsed
+
+    budget = float(settings.diagnostics_egress_probe_timeout_seconds)
+    attempts = int(settings.diagnostics_egress_probe_attempts)
+    failures: list[str] = []
+    for number in range(1, attempts + 1):
+        slot_started = time.monotonic()
+        attempt = await _egress_attempt(host, port, budget)
+        if attempt.failure is None:
+            return _egress_success(target, attempt, failures, number, attempts)
+        failures.append(attempt.failure)
+        if number < attempts:
+            # A fast failure waits out its slot, so N attempts span (N - 1)
+            # budgets: a loss shorter than that is a hiccup, not a cut.
+            await asyncio.sleep(max(0.0, budget - (time.monotonic() - slot_started)))
+
+    plural = "s" if attempts > 1 else ""
+    reasons = "; ".join(dict.fromkeys(failures))
+    return (
+        CheckStatus.CRITICAL,
+        None,
+        f"{target} unreachable after {attempts} attempt{plural}: {reasons}",
+    )
+
+
+def _parse_egress_target(target: str) -> tuple[str, int] | None:
+    """Split ``host:port``, stripping the brackets of an IPv6 literal.
+
+    Args:
+        target: The configured probe target.
+
+    Returns:
+        ``(host, port)``, or ``None`` when the target is unreadable.
+    """
     host, separator, port_text = target.rpartition(":")
     if host.startswith("[") and host.endswith("]"):
         # `[::1]:443` is the standard spelling for an IPv6 literal, but
@@ -279,29 +344,127 @@ async def _probe_platform_egress() -> ProbeOutcome:
         host = host[1:-1]
     port = int(port_text) if port_text.isdigit() else 0
     if not separator or not host or not 1 <= port <= 65535:
-        # A typo in the setting must never read as "the platform is cut off".
-        return CheckStatus.UNKNOWN, None, f"malformed target '{target}'"
+        return None
+    return host, port
 
-    timeout = float(settings.diagnostics_egress_probe_timeout_seconds)
+
+async def _egress_attempt(host: str, port: int, budget: float) -> _EgressAttempt:
+    """Resolve then connect within one budget, naming the phase that failed.
+
+    The resolution goes through the running loop's resolver — the one every
+    outbound call of the process uses. A resolution cancelled by its timeout
+    keeps its executor thread until the system resolver gives up; attempts are
+    sequential, so at most one such thread per attempt.
+
+    Args:
+        host: Host name or IP literal (no brackets).
+        port: TCP port.
+        budget: Seconds for both phases together.
+
+    Returns:
+        The attempt: its failure (phase and exception class only — a message can
+        carry hosts), or the durations of both phases.
+    """
+    loop = asyncio.get_running_loop()
     started = time.monotonic()
+    try:
+        infos = await asyncio.wait_for(
+            loop.getaddrinfo(host, port, type=socket.SOCK_STREAM), timeout=budget
+        )
+    except TimeoutError:
+        return _EgressAttempt(failure="name resolution timed out")
+    except OSError as exc:
+        return _EgressAttempt(failure=f"name resolution failed ({type(exc).__name__})")
+    resolved = time.monotonic()
+    # A slow resolution leaves the connect what is left of the budget: say how
+    # much it took, or a connect starved by the resolver reads as the culprit.
+    resolve_ms = round((resolved - started) * 1000, 1)
+
     writer: asyncio.StreamWriter | None = None
     try:
         _reader, writer = await asyncio.wait_for(
-            asyncio.open_connection(host, port), timeout=timeout
+            _connect_first([str(info[4][0]) for info in infos], port),
+            timeout=max(0.0, budget - (resolved - started)),
         )
         # Stop the clock HERE: the teardown below is not part of what we measure,
         # and a shown number is the measured number.
-        elapsed_ms = round((time.monotonic() - started) * 1000, 1)
-    except (TimeoutError, OSError) as exc:
-        # The exception IS the signal; only its class name is recorded.
-        return CheckStatus.CRITICAL, None, f"{target} unreachable ({type(exc).__name__})"
+        connected = time.monotonic()
+    except TimeoutError:
+        return _EgressAttempt(
+            failure=f"connect timed out (name resolution took {resolve_ms:.0f} ms)"
+        )
+    except OSError as exc:
+        return _EgressAttempt(
+            failure=f"connect failed ({type(exc).__name__}, "
+            f"name resolution took {resolve_ms:.0f} ms)"
+        )
     finally:
         if writer is not None:
             writer.close()
             with suppress(Exception):
                 await writer.wait_closed()
 
-    return CheckStatus.OK, elapsed_ms, target
+    return _EgressAttempt(
+        failure=None,
+        resolve_ms=resolve_ms,
+        connect_ms=round((connected - resolved) * 1000, 1),
+    )
+
+
+async def _connect_first(
+    addresses: list[str], port: int
+) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
+    """Open a connection to the first address that accepts, in resolver order.
+
+    The order ``open_connection`` follows when it resolves a name itself, so the
+    split into two phases changes what is named, never which address is tried.
+
+    Args:
+        addresses: Resolved addresses, in the resolver's preference order.
+        port: TCP port.
+
+    Returns:
+        The stream pair of the first address that accepted.
+
+    Raises:
+        OSError: When no address accepted (the last refusal is re-raised).
+    """
+    last_error: OSError = OSError("the resolver returned no address")
+    for address in addresses:
+        try:
+            return await asyncio.open_connection(address, port)
+        except OSError as exc:
+            last_error = exc
+    raise last_error
+
+
+def _egress_success(
+    target: str,
+    attempt: _EgressAttempt,
+    failures: list[str],
+    number: int,
+    attempts: int,
+) -> ProbeOutcome:
+    """The verdict of a reached target: clean, or reached but not cleanly.
+
+    Args:
+        target: The configured target, for the detail.
+        attempt: The successful attempt.
+        failures: What the earlier attempts of this tick ran into.
+        number: Which attempt succeeded (1-based).
+        attempts: How many attempts the tick allowed.
+
+    Returns:
+        ``ok`` with the target as detail, or ``degraded`` with what was seen.
+    """
+    timing = f"name resolution {attempt.resolve_ms:.0f} ms, connect {attempt.connect_ms:.0f} ms"
+    if failures:
+        reasons = "; ".join(dict.fromkeys(failures))
+        detail = f"{target} reached on attempt {number}/{attempts} ({timing}) after: {reasons}"
+        return CheckStatus.DEGRADED, attempt.total_ms, detail
+    if attempt.total_ms >= float(settings.diagnostics_egress_probe_slow_seconds) * 1000:
+        return CheckStatus.DEGRADED, attempt.total_ms, f"{target} reached slowly: {timing}"
+    return CheckStatus.OK, attempt.total_ms, target
 
 
 async def _probe_scheduler_tick() -> ProbeOutcome:

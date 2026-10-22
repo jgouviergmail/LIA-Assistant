@@ -192,7 +192,7 @@ E - Elevation of Privilege (Élévation de privilèges)
 #### Chaîne proxy de confiance & frontière XSS (ADR-093, 2026-07)
 
 - **Réseau** : en production, les ports API publiés (`8000`, `9091`) sont bindés sur `127.0.0.1` — cloudflared (systemd sur l'hôte) est l'unique point d'entrée public ; le trafic inter-conteneurs (SSR web → `http://api:8000`, scrape Prometheus → `api:9091`) passe par le réseau compose et n'est pas affecté. uvicorn tourne avec `--proxy-headers --forwarded-allow-ips="*"` : le `"*"` n'est sûr **que** grâce au binding loopback (tout pair pouvant atteindre le port est de confiance) — invariant couplé, ne modifier ni l'un ni l'autre isolément.
-- **IP client** : `request.client.host` (validé par uvicorn) est l'unique source — plafond global, GeoIP, logs et rate limit auth. Aucun code applicatif ne lit le header `X-Forwarded-For` brut (spoofable).
+- **IP client** : `core/client_ip.py:resolve_client_ip` est l'unique source — plafond global, protection des scans, GeoIP, logs et rate limit auth. Il valide `CF-Connecting-IP`, transmis par Cloudflare, puis utilise le pair en son absence. Cette confiance dépend des ports API limités au loopback et du réseau Compose ; `X-Forwarded-For` ne sert pas d'identité applicative.
 - **Rendu LLM** : le pipeline markdown du chat applique `rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex → rehypeTableLabels` (+ `rehypeSearchHighlight` pendant une recherche d'historique) avec un schéma audité (`apps/web/src/lib/markdown-sanitize-schema.ts`) — `script`/`iframe`/`form`/handlers supprimés, HTML légitime des cartes préservé ; les MCP/Skill Apps ne passent jamais par le markdown (sentinelle → widget iframe sandboxé). `rehypeMathInText` rend les formules `$…$`/`$$…$$` situées dans le HTML émis par l'assistant (que `remark-math` ne voit pas) : il ne lit que du texte déjà sanitizé et n'émet que des `<span>` à classe fixe, sans nouvelle surface XSS. `rehypeTableLabels` (cartes d'un tableau empilé sur écran étroit) n'écrit que des VALEURS d'attribut — le nom de la colonne (`data-label`, affiché par CSS `attr()`, donc comme texte) et des rôles ARIA fixes — calculées depuis ce même texte ; `rowspan`/`colspan` y sont bornés, une valeur hostile ne coûte rien. Toute nouvelle feature produisant du HTML doit étendre le schéma explicitement.
 - **Données structurées SEO (JSON-LD)** (v1.21.14, CA-5) : les `<script type="application/ld+json">` sérialisent des champs compilés depuis le dépôt (questions FAQ, titres/extraits d'articles de blog). Tous passent par le helper unique `serializeJsonLd` (`apps/web/src/components/seo/JsonLd.tsx`), qui échappe chaque `<` en sa forme JSON `U+003C` — ainsi une séquence `</script>` dans un champ ne peut plus fermer la balise ni injecter de markup, tout en restant du JSON-LD valide et re-parseable. Un garde vitest systémique (`__tests__/JsonLd.test.tsx`) interdit tout `JSON.stringify` brut dans un `dangerouslySetInnerHTML` de script à travers `apps/web/src`.
 
@@ -1257,7 +1257,7 @@ class RateLimitMiddleware:
 
 | Propriété | Choix | Raison |
 |-----------|-------|--------|
-| Clé | `http:global:{ip}` — `scope["client"]` résolu par uvicorn | Un cookie serait rotatable par le client qu'on cherche à borner |
+| Clé | `http:global:{ip}` — `resolve_client_ip` | Un cookie ou le premier élément de `X-Forwarded-For` serait rotatable par le client qu'on cherche à borner |
 | Plafond | `RATE_LIMIT_GLOBAL_PER_MINUTE` (300) | Calibré sur la mesure : pic réel de 67 req/min pour une session navigateur |
 | Exemptions | `/health`, `/ready`, `/metrics`, en **égalité stricte** | Brider les sondes ferait redémarrer le conteneur au pire moment. La comparaison a été un `startswith` : `/healthz` ou `/metrics-flood` échappaient alors au plafond, ce qui en faisait un contournement trivial |
 | Panne Redis | **fail-open**, compté (`http_rate_limit_degraded_total`) et alerté (`GlobalRateLimitDegraded`, noyau ADR-119) | Sur instance unique, échouer fermé transformerait une panne de cache en panne totale |
@@ -1269,6 +1269,45 @@ class RateLimitMiddleware:
 > ses helpers ont été supprimés (ADR-149) plutôt que conservés sous perfusion de
 > tests. Ce plafond global **ne remplace pas** les limites par endpoint
 > (`auth/dependencies.py`), qui restent plus strictes.
+
+### Protection des scans HTTP et traçabilité des refus
+
+Décisions et alternatives : [bannissements API partagés dans Redis (ADR-353)](../architecture/ADR-353-API-HTTP-Scan-Bans-In-Shared-Redis.md)
+et [IP canonique dans chaque HTTP 429 (ADR-354)](../architecture/ADR-354-Canonical-Client-IP-In-Every-HTTP-429.md).
+
+`ScanProtectionMiddleware` (`apps/api/src/core/http_scan.py`) protège l'API
+avec un état Redis partagé entre les workers. Une fenêtre compte les chemins
+**distincts sans route reconnue** ayant répondu 404 ; une autre compte les 401
+sur les soumissions POST de login et de vérification MFA. Les 404 d'une
+ressource absente sur une route reconnue et les 401 de session absente ou expirée
+ne produisent aucun signal de scan. Les sondes exactes, OPTIONS et les appels
+internes ne peuvent pas être bannis.
+
+Les seuils, fenêtres, durée de bannissement et délai Redis sont déclarés dans
+`SecuritySettings`, sous `HTTP_SCAN_*` dans `.env.example`. Un script Lua
+enregistre le signal et crée le bannissement atomiquement ; chaque clé expire.
+Les requêtes refusées ne prolongent pas le bannissement. La réponse 429 conserve
+`Retry-After`, la langue, l'identifiant de requête, CORS et les en-têtes de
+sécurité. Une panne ou un dépassement du délai Redis laisse passer et incrémente
+`http_scan_degraded_total`, sans fermer le pool partagé.
+
+Les nouveaux bannissements produisent `http_scan_ip_banned`. **Toute réponse
+HTTP 429** produit `request_completed` au niveau WARNING avec `status_code`,
+`client_ip`, `method`, `path` et le `request_id` du contexte, même lorsque les
+accès ordinaires restent au niveau DEBUG. Le chemin exclut la query string ;
+aucun corps, cookie ou en-tête d'authentification n'est ajouté. L'IP reste un
+champ JSON soumis à la rétention des logs, jamais un label Loki ou Prometheus.
+Le journal du plafond global conserve aussi l'IP dans `global_rate_limit_exceeded`.
+
+Un opérateur peut désactiver la protection via `HTTP_SCAN_PROTECTION_ENABLED`
+et recréer l'API. Pour lever un bannissement précis sans purger Redis, supprimer
+la seule clé `http:scan:{IP_CANONIQUE}:ban` dans la base de cache. Le port et le
+nom de base doivent être ceux de l'instance ciblée ; aucune commande de purge
+globale n'est nécessaire.
+
+Cette protection native couvre l'API. Les pages servies seulement par Next.js
+restent une surface distincte ; une règle Cloudflare est nécessaire pour un
+filtrage à l'entrée de tous les hostnames. Fail2Ban SSH reste indépendant.
 
 ### 1 bis. Taille des corps de requête
 

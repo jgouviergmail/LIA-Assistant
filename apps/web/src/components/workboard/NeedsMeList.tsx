@@ -28,9 +28,11 @@ export interface NeedsMeListProps {
 export function NeedsMeList({ tickets, lng }: NeedsMeListProps) {
   const { t } = useTranslation();
   const locale = getIntlLocale(lng);
+  const dueDate = (iso: string) =>
+    new Intl.DateTimeFormat(locale, { dateStyle: 'short' }).format(new Date(iso));
 
   return (
-    <ul className="divide-y divide-border/50">
+    <ul className="divide-y divide-border">
       {tickets.map(ticket => (
         <li key={ticket.id}>
           <Link
@@ -41,16 +43,16 @@ export function NeedsMeList({ tickets, lng }: NeedsMeListProps) {
               <Badge variant={lifecycleTone(ticket.status)}>
                 {t(`workboard.columns.${ticket.status}`)}
               </Badge>
-              {isOverdue(ticket) && (
-                <Badge variant="destructive">{t('workboard.card.overdue')}</Badge>
+              {/* Late, the badge names the date it was due (owner request
+                  2026-10-21): « en retard » alone said nothing of how late. */}
+              {ticket.due_at && isOverdue(ticket) && (
+                <Badge variant="destructive">
+                  {t('workboard.card.overdue_due', { date: dueDate(ticket.due_at) })}
+                </Badge>
               )}
               {ticket.due_at && !isOverdue(ticket) && (
                 <span className="text-xs text-muted-foreground">
-                  {t('workboard.card.due', {
-                    date: new Intl.DateTimeFormat(locale, { dateStyle: 'short' }).format(
-                      new Date(ticket.due_at)
-                    ),
-                  })}
+                  {t('workboard.card.due', { date: dueDate(ticket.due_at) })}
                 </span>
               )}
             </span>

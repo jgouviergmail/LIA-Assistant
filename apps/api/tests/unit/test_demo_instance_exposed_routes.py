@@ -446,6 +446,7 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
 #: "closed by decision", it is closed by omission, and that is how the gallery
 #: and the kept answers shipped to the demonstrator as empty screens.
 HIDDEN_BY_DECISION: dict[str, str] = {
+    "/api/v1/proactive-discussions*": "personal longitudinal context and discretionary paid initiative are not exposed to anonymous demonstrator visitors; owned records stay manageable on ordinary instances",
     "GET /api/v1/avatars/faces": "personal avatar catalogue stays closed on the public demonstrator",
     "PUT /api/v1/avatars/settings": "personal avatar settings stay closed on the public demonstrator",
     "/api/v1/avatars/sessions*": "personal avatar sessions stay closed on the public demonstrator",

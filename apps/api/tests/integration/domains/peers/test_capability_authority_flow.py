@@ -1,6 +1,7 @@
 """Adversarial admission tests exercise actual SQL and filesystem effects."""
 
 import asyncio
+import json
 from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
@@ -16,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from src.core.config import settings
 from src.core.exceptions import BaseAPIException
+from src.core.security.utils import encrypt_data
 from src.domains.account_export import builder as account_export
 from src.domains.conversations.models import ConversationMessage
 from src.domains.peers import capability_flow, capability_notifications
@@ -28,11 +30,12 @@ from src.domains.peers.capability_contracts import (
     TransferStatus,
 )
 from src.domains.peers.capability_install import TransferInstallation
-from src.domains.peers.capability_models import PeerCapabilityTransfer
+from src.domains.peers.capability_models import PeerCapabilityComponent, PeerCapabilityTransfer
 from src.domains.peers.models import PeerBlock, PeerConnection, canonical_pair
-from src.domains.skills.models import Skill
+from src.domains.skills.models import Skill, UserSkillState
 from src.domains.user_mcp.installation import ValidatedMCPEndpoint
 from src.domains.user_mcp.models import UserMCPServer
+from src.domains.users.models import User
 from src.infrastructure.proactive.notification import NotificationDispatcher
 from tests.fixtures.factories import UserFactory
 
@@ -72,7 +75,7 @@ async def world(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> World:
-    maker = async_sessionmaker(async_engine, expire_on_commit=False)
+    maker = async_sessionmaker(async_engine, expire_on_commit=False, autoflush=False)
 
     @asynccontextmanager
     async def sessions() -> AsyncIterator[AsyncSession]:
@@ -308,12 +311,27 @@ async def test_mcp_dns_occurs_without_a_database_checkout_and_no_credentials_are
         return ValidatedMCPEndpoint(url)
 
     monkeypatch.setattr(capability_flow, "validate_install_endpoint", validated)
+    credentials = {
+        "api_key": {"header_name": "X-Custom-Key", "api_key": "sender-api-secret"},
+        "bearer": {"token": "sender-bearer-secret"},
+        "oauth2": {
+            "client_id": "sender-client",
+            "client_secret": "sender-client-secret",
+            "access_token": "sender-access-secret",
+            "refresh_token": "sender-refresh-secret",
+        },
+        "none": None,
+    }[auth_type]
     async with world.sessions() as db:
         source = UserMCPServer(
             user_id=world.sender,
             name="Personal MCP",
             url="https://mcp.example.test/api",
             auth_type=auth_type,
+            credentials_encrypted=encrypt_data(json.dumps(credentials)) if credentials else None,
+            is_enabled=True,
+            hitl_required=False,
+            discovered_tools_cache={"tools": [{"name": "sender-only-tool"}]},
             required_header_name="X-Custom-Key" if auth_type == "api_key" else None,
             oauth_metadata=(
                 {
@@ -346,6 +364,17 @@ async def test_mcp_dns_occurs_without_a_database_checkout_and_no_credentials_are
         assert copy.oauth_metadata == (
             {"requested_scopes": "read:items"} if auth_type == "oauth2" else None
         )
+        copied_id = copy.id
+        copy.is_enabled = True
+        copy.domain_description = "Recipient edited endpoint"
+    repeated = await capability_flow.send_capability(world.sender, preview.id, preview.digest)
+    assert repeated.status is TransferStatus.INSTALLED
+    async with world.sessions() as db:
+        copy = (
+            await db.execute(select(UserMCPServer).where(UserMCPServer.user_id == world.recipient))
+        ).scalar_one()
+        assert copy.id == copied_id and copy.is_enabled
+        assert copy.domain_description == "Recipient edited endpoint"
 
 
 @pytest.mark.parametrize("fail_first", [False, True])
@@ -389,8 +418,39 @@ async def test_notification_archive_and_outbox_ack_are_one_commit(
             )
         )
         assert len(messages) == 1
+        # The recipient is told who shared which kind of capability, and its title.
+        assert messages[0].content.startswith(
+            "Test User t’a partagé la compétence « authority-example »."
+        )
+        assert (messages[0].message_metadata or {})["sender_name"] == "Test User"
     await capability_notifications.deliver_capability_receipt(preview.id)
     publish.assert_awaited_once()
+
+
+async def test_a_sender_who_left_is_announced_without_a_name(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(capability_notifications, "get_db_context", world.sessions)
+    monkeypatch.setattr(NotificationDispatcher, "_publish_sse", AsyncMock())
+    preview = await capability_flow.preview_capability(world.sender, world.request)
+    await capability_flow.send_capability(world.sender, preview.id, preview.digest)
+    async with world.sessions() as db:
+        sender = await db.get(User, world.sender)
+        assert sender is not None
+        sender.is_active = False
+    await capability_notifications.deliver_capability_receipt(preview.id)
+    async with world.sessions() as db:
+        message = (
+            await db.scalars(
+                select(ConversationMessage).where(
+                    ConversationMessage.message_metadata["target_id"].astext == str(preview.id)
+                )
+            )
+        ).one()
+        assert message.content.startswith(
+            "Un utilisateur t’a partagé la compétence « authority-example »."
+        )
+        assert "sender_name" not in (message.message_metadata or {})
 
 
 async def test_cancel_before_skill_commit_rolls_back_disk_and_can_resume(
@@ -412,6 +472,19 @@ async def test_cancel_before_skill_commit_rolls_back_disk_and_can_resume(
         await capability_flow.send_capability(world.sender, preview.id, preview.digest)
     async with world.sessions() as db:
         assert not list(await db.scalars(select(Skill.id).where(Skill.owner_id == world.recipient)))
+        assert not list(
+            await db.scalars(
+                select(UserSkillState.id).where(UserSkillState.user_id == world.recipient)
+            )
+        )
+        assert not list(
+            await db.scalars(
+                select(PeerCapabilityComponent.id).where(
+                    PeerCapabilityComponent.transfer_id == preview.id,
+                    PeerCapabilityComponent.installed.is_(True),
+                )
+            )
+        )
         receipt = await db.get(PeerCapabilityTransfer, preview.id)
         assert receipt is not None
         receipt.lease_expires_at = datetime.now(UTC) - timedelta(seconds=1)
@@ -419,6 +492,7 @@ async def test_cancel_before_skill_commit_rolls_back_disk_and_can_resume(
         Path(settings.skills_users_path) / str(world.recipient) / "authority-example" / "SKILL.md"
     )
     assert not copied.exists()
+    assert world.manifest.read_text(encoding="utf-8").endswith("Instructions")
     monkeypatch.setattr(TransferInstallation, "check", original)
     result = await capability_flow.send_capability(world.sender, preview.id, preview.digest)
     assert result.status is TransferStatus.INSTALLED and copied.is_file()

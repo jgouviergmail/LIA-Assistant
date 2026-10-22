@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 45 |
-| ADRs | 351 ADR files (ADR-357 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
+| ADRs | 359 ADR files (ADR-361 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
 | Fiches knowledge (RAG système) | 40 |
 
 ---
@@ -50,10 +50,11 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [LIVE_MODE.md](./technical/LIVE_MODE.md) | Le mode Live vocal (ADR-299, ADR-300, ADR-301) : parole à parole sur la clé de la personne, Gemini Live, GPT-Live ET ElevenLabs Agents (catégorie additive, deux fils sous une couture — jeton ou offre SDP, fonction ou délégation native), la voix délègue toute demande au moteur du chat, la session DIRECTE qui tient les outils de lecture elle-même, une session par compte, silence et plafond par modèle, le compteur indicatif du fournisseur (facturation `vendor` : montrée, jamais enregistrée), la dépense de LIA sur la carte de clôture, le mode direct relayé à la fin comme au téléphone |
 | [RADIO.md](./technical/RADIO.md) | La radio personnelle (ADR-324) : une rédaction d'instance sans modèle et une antenne par auditeur qui ne tourne que pendant qu'il écoute ; grille déterministe, modèles qui n'écrivent que ce que des faits citent, voix et mixage, coût en direct ; routes et refus codés, réglages, tâches de fond, métriques et alerte |
 | [BOOKMARKS.md](./technical/BOOKMARKS.md) | Les réponses qu'une personne conserve hors de ses conversations (ADR-282) : une copie, pas un pointeur ; l'onglet « Bookmarks » de « Mes fichiers générés » ; chaque réponse conservée projetée dans l'espace de connaissances « Réponses conservées » du compte, réclamée, comptée, retirée avec le bookmark (ADR-291) |
+| [PROACTIVE_DISCUSSIONS.md](./technical/PROACTIVE_DISCUSSIONS.md) | Les discussions proactives (ADR-358, ADR-359, ADR-360) : une exécution de bout en bout, et surtout le contexte — ce qui est lu, admis, interprété, gardé et oublié ; une reconstruction qui couvre tout ce qu'elle peut payer, la réservation dimensionnée à la marge du jour, la mesure sans écriture |
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (351 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (359 ADR files) |
 
 ### Pour les Product Managers
 
@@ -82,7 +83,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [TIMEOUT_REGISTRY.md](./technical/TIMEOUT_REGISTRY.md) | Référence centralisée de tous les timeouts backend (HTTP, tools, locks, scheduler, SSE/WS) — Settings, ranges, defaults, cascades |
 | [GUIDE_OBSERVABILITY.md](./guides/GUIDE_OBSERVABILITY.md) | Guide observabilité quickstart |
 | [runbooks/](./runbooks/) | Runbooks opérationnels (34+ procédures) |
-| [audit/](./audit/README.md) | **Audit technique public** — résumé (8.3/10, 24 périmètres normalisés ISO/IEC 25010:2023, 7 chantiers modérés) + [rapport autonome V11](./audit/AUDIT_CODEBASE_2026-07-16_CONSOLIDE_V11.html) + [protocole reproductible](./audit/AUDIT_PROTOCOL.md) et pipeline de republication |
+| [audit/](./audit/README.md) | **Audit technique public** — résumé (8.0/10, 24 périmètres normalisés ISO/IEC 25010:2023, 16 chantiers dont 3 majeurs, historique des cycles) + [rapport autonome V14](./audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14.html) + [protocole reproductible](./audit/AUDIT_PROTOCOL.md) et pipeline de republication |
 
 ---
 
@@ -111,6 +112,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [LIA world validation and visuals](./superpowers/specs/2026-10-09-lia-isometric-world-validation.md) | Scoped existing tests, Redis/rendering/Pi probes, hypothesis ledger and five representative visual concepts including multilingual text | Characterized; full-world qualification pending |
 | [LIA world V1 and extensible foundation](./superpowers/specs/2026-10-09-lia-isometric-world-v1-scope.md) | Accepted launch scope, typed evolution contracts, retained social/private/mobile experience and conditional assisted-work planning objectives | Scope accepted; generic design required |
 | [LIA world global architecture and game-quality review](./superpowers/specs/2026-10-09-lia-isometric-world-global-review.md) | Fresh source audit and primary research; strict translation attempts, socket security, movement/camera/input, integration lifetimes, risk oracles and measurable quality gates | Accepted V1 refined; runtime qualification pending |
+| [LIA world: MalinosLand reference and concepts](./superpowers/specs/2026-10-20-lia-world-malinosland-reference.md) | Owner-selected visual base, inspected source/screenshots, reusable game concepts, selective Phaser investigation and LIA/licensing boundaries | Visual reference accepted; implementation and qualification pending |
 
 ---
 
@@ -130,10 +132,14 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [STACK_TECHNIQUE.md](./technical/STACK_TECHNIQUE.md) | Référence complète versions technologies | ✅ |
 | [REACT_EXECUTION_MODE.md](./technical/REACT_EXECUTION_MODE.md) | ReAct execution mode — 5-node loop (dont `react_recovery` : un tour jugé sur son résultat, un écart déclaré qui achète une passe de reprise bornée, ADR-310), cache de prompt inter-tours au rythme d'échanges que chacun choisit, historique par blocs ancrés sur le compteur de tours (ADR-308, ADR-309, ADR-311), verdict d'échec structurel (ADR-303), pipeline vs ReAct, tools, HITL, skills, mémoire à parité pipeline et budget gagné à la progression (ADR-248), scripts Python éphémères dans le bac à sable des skills (ADR-249), sortie réseau par un seul proxy avec question à trois réponses réglée dans la boucle (ADR-298), bloc de données d'outil partagé avec la réponse du pipeline (ADR-347) | ✅ |
 | [Plan latence/TTFT](./superpowers/plans/2026-07-10-latency-optimization-plan.md) | Instrumentation par étage (`langgraph_stage_duration_seconds`), protocole reproductible (`scripts/perf/measure_ttft.py`), shortlist chiffrée & avant/après | 🚧 |
+| [Analyse latence dashboard et MCP](./superpowers/specs/2026-10-20-dashboard-mcp-latency-systemic-analysis.md) | Diagnostic daté, contrats vérifiés, architecture progressive, confidentialité, coûts, risques et matrice de tests | Étude |
+| [Plan TDD dashboard et MCP](./superpowers/plans/2026-10-20-dashboard-mcp-latency.md) | Lots indépendants puis qualification transverse, sans implémentation ni déploiement à ce stade | Étude |
+| [Chat and dashboard latency analysis](./superpowers/specs/2026-10-21-chat-dashboard-latency-analysis.md) | Revision of the 2026-10-20 study: verified facts with file:line, persisted MCP catalogue served while revalidated and verified at use (amends ADR-338), pre-graph commit and archive-first, dashboard without re-collection then progressive over a signed act (amends ADR-271), costs, registers, UX, risks and test matrix | Proposed — two owner questions open |
+| [Chat and dashboard latency plan](./superpowers/plans/2026-10-21-chat-dashboard-latency.md) | Ordered TDD lots (baseline, journey metrics, dashboard quick wins, weather clients, pre-graph re-order, MCP snapshot, preparation, verification, notices, progressive dashboard, safe retries, network diagnosis) with ratchet constraints | Proposed |
 | [BACKGROUND_RUNS.md](./technical/BACKGROUND_RUNS.md) | Exécution détachée du chat (ADR-117) — producteur + Redis Streams, archive-first, drain shutdown, flag `BACKGROUND_RUNS_ENABLED` | ✅ |
 | [BRIEFING_DOMAIN.md](./technical/BRIEFING_DOMAIN.md) | Today Briefing — bounded context autonome sans LangGraph (ADR-077) : fetchers `asyncio.gather`, cache Redis par section, endpoints split cards/synthesis | ✅ |
 | [AI_ACT_TRACEABILITY.md](./technical/AI_ACT_TRACEABILITY.md) | Traçabilité (ADR-263, lots 5 à 9) : ce que LIA enregistre, ce que le scellement par compte prouve — et, dit noir sur blanc, ce qu'il ne prouve pas ; la carte de l'article 12 lot par lot, la fenêtre publiée, l'exploitation du notaire ; les registres lus par le modèle avec des totaux exacts (`get_my_activity_tool`, ADR-318) | ✅ |
-| [DIAGNOSTICS_DOMAIN.md](./technical/DIAGNOSTICS_DOMAIN.md) | Auto-diagnostic (ADR-247, ADR-266) : lecture Prometheus/Loki/Alertmanager qui ne lève jamais, catalogue de requêtes borné, auto-contrôle leader, mémoire d'incidents, diagnostic LLM budgété sur un dossier de preuves collecté au moment du diagnostic (recettes par clé de corrélation, échec ouvert source par source), advisor de dégradations sur le chemin de réponse | ✅ |
+| [DIAGNOSTICS_DOMAIN.md](./technical/DIAGNOSTICS_DOMAIN.md) | Auto-diagnostic (ADR-247, ADR-266, ADR-361) : lecture Prometheus/Loki/Alertmanager qui ne lève jamais, catalogue de requêtes borné, auto-contrôle leader, sonde de sortie qui nomme l'étape fautive et confirme une coupure sur des essais espacés, mémoire d'incidents, diagnostic LLM budgété sur un dossier de preuves collecté au moment du diagnostic (recettes par clé de corrélation, échec ouvert source par source), advisor de dégradations sur le chemin de réponse | ✅ |
 | [DEBUG_PANEL_ARCHITECTURE.md](./technical/DEBUG_PANEL_ARCHITECTURE.md) | Debug Panel — flow des métriques de scoring (domaines, outils, intents) pour le tuning des thresholds | ✅ |
 
 ### Agents & Outils
@@ -278,7 +284,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 |----------|-------------|--------|
 | [OBSERVABILITY_AGENTS.md](./technical/OBSERVABILITY_AGENTS.md) | Stack Prometheus/Grafana/Loki/Tempo | ✅ |
 | [METRICS_REFERENCE.md](./technical/METRICS_REFERENCE.md) | 500+ métriques documentées | ✅ |
-| [GRAFANA_DASHBOARDS.md](./technical/GRAFANA_DASHBOARDS.md) | 31 dashboards Grafana | ✅ |
+| [GRAFANA_DASHBOARDS.md](./technical/GRAFANA_DASHBOARDS.md) | 32 dashboards Grafana | ✅ |
 | [GUIDE_OBSERVABILITY.md](./guides/GUIDE_OBSERVABILITY.md) | Guide observabilité quickstart | ✅ |
 | [GRAFANA_LANGFUSE_DASHBOARD.md](./technical/GRAFANA_LANGFUSE_DASHBOARD.md) | Intégration Grafana + Langfuse | ✅ |
 | [ALERTING.md](./technical/ALERTING.md) | Chaîne d'alerte (ADR-119) : Alertmanager e-mail, validation, troubleshooting | ✅ |
@@ -365,6 +371,15 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| [ADR-361](./architecture/ADR-361-Egress-Probe-Names-The-Failing-Step-And-Confirms-A-Cut.md) | **Sonde de sortie : l'étape nommée, la coupure confirmée** : résolution DNS puis connexion nommées à part, perte confirmée sur des essais espacés, réussite reprise ou lente signalée dégradée sans notification | 2026-10 |
+| [ADR-360](./architecture/ADR-360-Bounded-Discussion-Research-And-Accounted-Abstention.md) | **Recherche et abstention comptabilisées** : enveloppe finie, réservation discrétionnaire et usages conservés sur toutes les sorties ; implémentée sur les contrats natifs de l'application | 2026-10 |
+| [ADR-359](./architecture/ADR-359-Longitudinal-Discussion-Context-And-User-Control.md) | **Contexte longitudinal contrôlable** : épisodes soutenus, portrait autonome, purge, exclusions persistantes et directives ; base dérivée visible, reconstruite par époque | 2026-10 |
+| [ADR-358](./architecture/ADR-358-Independent-Proactive-Discussions-And-Native-Delivery.md) | **Discussions proactives indépendantes** : politique dédiée, publication atomique et diffusion native ; implémentée, notifications existantes préservées | 2026-10 |
+| [ADR-357](./architecture/ADR-357-Phone-Ingestion-And-Personal-SMS-Archive.md) | **Les SMS du téléphone dans une archive personnelle** : jeton d'ingestion en écriture seule, reçus rejouables, archive chiffrée, consentement Assistant distinct, codes d'accès écartés avant stockage, notification sans contenu | 2026-10 |
+| [ADR-356](./architecture/ADR-356-Responsive-Position-Details-And-Shared-Place-Numbers.md) | **Position reste lisible sur chaque écran** : activation explicite sans canevas vide, popup desktop et dialogue mobile à un seul défilement, même numéro visible dans la liste et sur le repère | 2026-10 |
+| [ADR-355](./architecture/ADR-355-Acquired-Place-Details-And-Accounted-Selected-Routes.md) | **Les détails acquis et un trajet comptabilisé pour le lieu choisi** : origine navigateur, dernière position datée ou domicile ; marche jusqu'à 2 km inclus, correction voiture bornée si le trajet réel dépasse la limite, chaque appel payé conservé au registre | 2026-10 |
+| [ADR-354](./architecture/ADR-354-Canonical-Client-IP-In-Every-HTTP-429.md) | **Chaque refus HTTP 429 reste attribuable** : IP canonique, méthode et chemin sans query string au niveau WARNING, indépendamment des exclusions des accès ordinaires ; la confiance dépend de l'enveloppe proxy, l'adresse reste hors des labels | 2026-10 |
+| [ADR-353](./architecture/ADR-353-API-HTTP-Scan-Bans-In-Shared-Redis.md) | **Les scans API sont bloqués temporairement entre tous les workers** : chemins inconnus distincts et identifiants rejetés, bannissement Redis atomique à durée fixe, erreurs normales de session et de ressource préservées, panne du cache visible et sans blocage global | 2026-10 |
 | ADR-348 | **L'expérience de LIA s'apprend sur des preuves, jamais sur sa propre note** : sept domaines gardent deux axes jamais fusionnés — le résultat vérifié et l'utilité exprimée par 👍/👎 — sous un minimum d'observations ; un seul ajustement borné (vérifier, clarifier, nommer une limite) lu par le planificateur, ReAct et la synthèse, sans modèle, outil, budget ni confirmation de plus ; pilote, aucun gain revendiqué | 2026-10 |
 | ADR-347 | **Ce qu'un outil de lecture trouve atteint la réponse du pipeline, et un échec déclaré n'est jamais un succès** : projection du bloc de données (ADR-286) sous le budget du créneau de réponse, filet aux points de passage des connecteurs, FOR_EACH partiel qui garde ses réussites | 2026-10 |
 | ADR-346 | **Le replanificateur consultatif est retiré : un échec du pipeline se dit, il ne se rejoue pas** — remplace ADR-128 ; `pipeline_step_failures_total{error_code}` compte chaque étape en échec | 2026-10 |
@@ -607,7 +622,7 @@ section ne référence.
 | Technologie | Usage |
 |-------------|-------|
 | Prometheus | 500+ métriques |
-| Grafana | 31 dashboards |
+| Grafana | 32 dashboards |
 | Loki | Logs agrégés |
 | Tempo | Traces distribuées |
 | Langfuse | LLM observability |

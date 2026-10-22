@@ -149,7 +149,7 @@ function ForYouContent({
   return (
     <div className="space-y-3">
       {data.next_automation && (
-        <div className="space-y-1.5 rounded-lg bg-fuchsia-500/10 p-3">
+        <div className="space-y-1.5 rounded-lg border border-fuchsia-500/20 bg-fuchsia-500/10 p-3">
           <p className="flex items-center gap-1.5 text-xs font-medium text-fuchsia-700 dark:text-fuchsia-300">
             <CalendarClock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             {t('dashboard.briefing.cards.for_you.next_automation_label')}

@@ -69,7 +69,7 @@ def test_deduplicates_identity_but_keeps_coincident_places_and_complete_fallback
     assert html.count('class="lia-place-position"') == 1
     assert "Position" in html and "Place a" in html and "Place b" in html
     wire = re.search(r'data-place-position="([^"]+)"', html).group(1)
-    assert json.loads(unescape(wire))["version"] == 1
+    assert json.loads(unescape(wire))["version"] == 2
     assert "api_key" not in html
 
 
@@ -99,6 +99,127 @@ def test_source_text_and_links_cannot_become_executable_html():
     html = render_positions({"one": value}, language="fr")
     assert "<script>" not in html and "<img src=x" not in html
     assert 'href="javascript:' not in html
+
+
+@pytest.mark.parametrize(
+    "facts",
+    [
+        {
+            "formattedAddress": "1 Main Street",
+            "rating": "4.5",
+            "userRatingCount": 0,
+            "internationalPhoneNumber": "+33 1 23 45 67 89",
+            "websiteUri": "https://example.test/?a=1&b=2",
+            "currentOpeningHours": {"weekdayDescriptions": ["Monday: 09:00–18:00"]},
+        },
+        {
+            "address": "1 Main Street",
+            "rating": 4.5,
+            "reviews_count": 0,
+            "phone": "+33 1 23 45 67 89",
+            "website": "https://example.test/?a=1&b=2",
+            "opening_hours": ["Monday: 09:00–18:00"],
+        },
+    ],
+)
+def test_projects_only_already_acquired_place_facts_without_changing_the_source(facts):
+    registry = {"one": place(location={"lat": 0, "lon": 0}, **facts)}
+    before = copy.deepcopy(registry)
+    result = project_positions(registry)
+    assert result.version == 2
+    assert result.places[0].details.model_dump() == {
+        "address": "1 Main Street",
+        "rating": 4.5,
+        "reviews_count": 0,
+        "phone": "+33 1 23 45 67 89",
+        "website": "https://example.test/?a=1&b=2",
+        "opening_hours": ["Monday: 09:00–18:00"],
+    }
+    assert registry == before
+
+
+@pytest.mark.parametrize(
+    "website",
+    [
+        "javascript:alert(1)",
+        "mailto:test@example.test",
+        "https://user:password@example.test",
+        "https://user@example.test",
+        "https://example.test\\@evil.test",
+        "https://example.test/\npath",
+        "https:///missing-host",
+        "https://example.test:invalid",
+        "https://example.test:65536",
+    ],
+)
+def test_optional_invalid_facts_are_absent_instead_of_discarding_the_map(website):
+    result = project_positions(
+        {"one": place(website=website, rating=True, reviews_count=-1, phone={"raw": "tree"})}
+    )
+    assert result.places[0].details.model_dump() == {
+        "address": None,
+        "rating": None,
+        "reviews_count": None,
+        "phone": None,
+        "website": None,
+        "opening_hours": [],
+    }
+
+
+def test_bounds_details_and_keeps_home_coordinates_and_provider_trees_out_of_archives():
+    registry = {
+        "one": place(
+            address="A" * 1200,
+            phone="1" * 200,
+            website="https://example.test/" + "a" * 4096,
+            reviews_count=10**100,
+            opening_hours=[None, {"raw": "tree"}, ""] + ["H" * 600 for _ in range(9)],
+            home_location={"lat": 12.345, "lon": 67.89},
+            photos=[{"name": "private-provider-photo"}],
+        )
+    }
+    details = project_positions(registry).places[0].details
+    assert len(details.address) == 1000
+    assert len(details.phone) == 128
+    assert details.website is None and details.reviews_count is None
+    assert details.opening_hours == ["H" * 500] * 7
+    html = render_positions(registry, language="en")
+    assert "home_location" not in html and "12.345" not in html
+    assert "private-provider-photo" not in html
+
+
+def test_details_text_stays_data_inside_the_escaped_archive():
+    dangerous = '<img src=x onerror="alert(1)">'
+    html = render_positions(
+        {"one": place(address=dangerous, opening_hours=[dangerous])}, language="en"
+    )
+    assert dangerous not in html
+    wire = re.search(r'data-place-position="([^"]+)"', html).group(1)
+    details = json.loads(unescape(wire))["places"][0]["details"]
+    assert details["address"] == dangerous and details["opening_hours"] == [dangerous]
+
+
+def test_archive_budget_removes_details_from_the_end_without_losing_places_or_coordinates():
+    registry = {
+        str(index): place(
+            str(index),
+            {"lat": index, "lon": index},
+            address="界" * 1000,
+            website="https://example.test/" + "a" * 4000,
+            opening_hours=["界" * 500] * 7,
+        )
+        for index in range(64)
+    }
+    result = project_positions(registry)
+    wire = json.dumps(result.model_dump(mode="json"), ensure_ascii=True, separators=(",", ":"))
+    assert len(wire) <= 512 * 1024
+    assert len(result.places) == 64
+    assert result.omitted_count == 0
+    assert result.places[0].details is not None and result.places[-1].details is None
+    for index, projected in enumerate(result.places):
+        assert projected.ref == str(index)
+        assert projected.position.lat == index and projected.position.lng == index
+        assert projected.url.startswith("https://www.google.com/maps/place/")
 
 
 def test_non_google_or_non_place_item_cannot_trigger_a_position_card():

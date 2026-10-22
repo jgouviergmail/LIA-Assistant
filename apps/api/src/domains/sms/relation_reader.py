@@ -16,9 +16,10 @@ from src.core.exceptions import ResourceConflictError
 from src.domains.shared.aggregates import NameActivity
 from src.domains.shared.relation_sms import PersonalSms, RelationSmsPage, RelationSmsProof
 from src.domains.sms.content import read_sms_content
-from src.domains.sms.facade import resolve_view
-from src.domains.sms.identity import IdentityBook
-from src.domains.sms.identity_directory import load_identity_book
+from src.domains.sms.facade import resolved_view
+from src.domains.sms.identity import IdentityBook, SenderIdentity
+from src.domains.sms.identity_resolution import resolve_senders
+from src.domains.sms.identity_store import ResolutionScope, validate_resolutions
 from src.domains.sms.models import SmsMessage
 from src.domains.sms.reads import require_read
 from src.domains.sms.repository import project
@@ -41,6 +42,21 @@ async def source_stamp(db: AsyncSession, owner: UUID) -> str:
         )
     ).one()
     return hashlib.sha256(f"{count}:{latest}".encode()).hexdigest()
+
+
+async def _sender_identities(
+    owner: UUID, rows: Sequence[Row[tuple[str, str, int, datetime]]], proof: RelationSmsProof
+) -> tuple[IdentityBook, dict[str, SenderIdentity], ResolutionScope | None]:
+    """Prepare sender names outside the SQL publication transaction."""
+    if not rows:
+        return IdentityBook(complete=True), {}, None
+    resolved = await resolve_senders(
+        owner,
+        [read_sms_content(row[1]) for row in rows],
+        revision=proof.revision,
+        assistant=proof.assistant,
+    )
+    return IdentityBook(resolver=resolved.resolver), resolved.identities, resolved.scope
 
 
 class SmsRelationReader:
@@ -73,10 +89,12 @@ class SmsRelationReader:
             ).all()
         if len(rows) > settings.sms_directory_max_contacts:
             raise ResourceConflictError("sms", detail={"error_code": "QUERY_TOO_BROAD"})
-        book = await load_identity_book(owner) if rows else IdentityBook(complete=True)
-        activities, hashes = await self._resolve(rows, book, person)
+        book, identities, scope = await _sender_identities(owner, rows, proof)
+        activities, hashes = await self._resolve(rows, book, identities, person)
         async with _read_db() as db:
             actor = await require_read(db, owner, assistant=assistant)
+            if scope is not None:
+                await validate_resolutions(db, scope, assistant=assistant)
             await self._check_stamp(db, owner, proof, actor.extraction_revision or 0)
             selected = select(SmsMessage).where(
                 SmsMessage.user_id == owner, SmsMessage.sender_hash.in_(hashes)
@@ -97,7 +115,8 @@ class SmsRelationReader:
             )
             items = []
             for row in messages:
-                item = resolve_view(project(row), book)
+                raw = project(row)
+                item = resolved_view(raw, identities[raw.sender])
                 items.append(PersonalSms.model_validate(item.model_dump()))
             return RelationSmsPage(
                 available=True, activities=activities, messages=items, total=total, proof=proof
@@ -105,7 +124,10 @@ class SmsRelationReader:
 
     @staticmethod
     async def _resolve(
-        rows: Sequence[Row[tuple[str, str, int, datetime]]], book: IdentityBook, person: str | None
+        rows: Sequence[Row[tuple[str, str, int, datetime]]],
+        book: IdentityBook,
+        identities: dict[str, SenderIdentity],
+        person: str | None,
     ) -> tuple[list[NameActivity], list[str]]:
         activities = []
         hashes = []
@@ -116,7 +138,7 @@ class SmsRelationReader:
                 raise ResourceConflictError("sms", detail={"error_code": "QUERY_TOO_BROAD"})
             if index % 16 == 0:
                 await asyncio.sleep(0)
-            identity = book.resolve(read_sms_content(encrypted))
+            identity = identities[read_sms_content(encrypted)]
             activities.append(NameActivity(identity.display_name, count, latest))
             if target is None or book.resolver.key(identity.display_name) == target:
                 hashes.append(digest)

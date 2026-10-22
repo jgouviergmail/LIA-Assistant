@@ -8,19 +8,7 @@
  */
 
 import type { MeetingGeolocation } from '@/types/meetings';
-
-/** Longest wait for a fix before recording without a position. */
-const POSITION_TIMEOUT_MS = 3000;
-
-async function permissionGranted(): Promise<boolean> {
-  if (typeof navigator === 'undefined' || !navigator.permissions?.query) return false;
-  try {
-    const status = await navigator.permissions.query({ name: 'geolocation' });
-    return status.state === 'granted';
-  } catch {
-    return false;
-  }
-}
+import { readGrantedPosition } from '@/lib/browser-geolocation';
 
 /**
  * The current position when geolocation is already granted, else `null`.
@@ -28,24 +16,6 @@ async function permissionGranted(): Promise<boolean> {
  * @returns Latitude/longitude/accuracy, or `null` (never a prompt, never a throw).
  */
 export async function bestEffortPosition(): Promise<MeetingGeolocation | null> {
-  if (typeof navigator === 'undefined' || !navigator.geolocation) return null;
-  if (!(await permissionGranted())) return null;
-  return new Promise(resolve => {
-    const timer = setTimeout(() => resolve(null), POSITION_TIMEOUT_MS);
-    navigator.geolocation.getCurrentPosition(
-      position => {
-        clearTimeout(timer);
-        resolve({
-          lat: position.coords.latitude,
-          lon: position.coords.longitude,
-          accuracy_m: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null,
-        });
-      },
-      () => {
-        clearTimeout(timer);
-        resolve(null);
-      },
-      { maximumAge: 60_000, timeout: POSITION_TIMEOUT_MS, enableHighAccuracy: false }
-    );
-  });
+  const position = await readGrantedPosition();
+  return position ? { lat: position.lat, lon: position.lon, accuracy_m: position.accuracy } : null;
 }

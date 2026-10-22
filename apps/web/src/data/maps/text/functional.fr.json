@@ -218,6 +218,11 @@
       "role": "Revenir à l'instant qui compte : juste après une réunion, ou à l'arrivée d'un e-mail que tu attendais.",
       "goal": "Une question au bon moment vaut mieux qu'un rappel au hasard."
     },
+    "f.discussions": {
+      "name": "Discussions proactives",
+      "role": "Engage d'elle-même une conversation personnelle, une fois autorisée, à partir d'un contexte que tu vois, corriges ou reconstruis, dans tes heures et sous des budgets réservés.",
+      "goal": "Inviter à répondre au bon moment, sans rien décider à ta place."
+    },
     "f.briefing": {
       "name": "Briefing du jour",
       "role": "La page d'accueil : agenda, e-mails, météo, rappels et une synthèse, lus une seule fois par chargement.",

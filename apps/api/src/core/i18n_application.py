@@ -1279,3 +1279,46 @@ APPLICATION_INTEREST_BULK: dict[Language, ApplicationExportCopy] = {
         "待删除的全部兴趣",
     ),
 }
+
+
+_DISCUSSION_FIELD_NAMES = (
+    "discussion_preferences",
+    "discussion_context_use",
+    "discussion_context_purge",
+    "discussion_context_rebuild",
+)
+_DISCUSSION_FIELD_COPY: dict[Language, tuple[str, ...]] = {
+    "fr": (
+        "Discussions proactives",
+        "Utilisation d’un élément de contexte",
+        "Purge du contexte des discussions",
+        "Reconstruction du contexte des discussions",
+    ),
+    "en": (
+        "Proactive discussions",
+        "Context item use",
+        "Discussion context purge",
+        "Discussion context rebuild",
+    ),
+    "es": (
+        "Conversaciones proactivas",
+        "Uso de un elemento de contexto",
+        "Borrado del contexto de conversaciones",
+        "Reconstrucción del contexto de conversaciones",
+    ),
+    "de": (
+        "Proaktive Gespräche",
+        "Verwendung eines Kontextelements",
+        "Gesprächskontext löschen",
+        "Gesprächskontext neu aufbauen",
+    ),
+    "it": (
+        "Conversazioni proattive",
+        "Utilizzo di un elemento di contesto",
+        "Cancellazione del contesto delle conversazioni",
+        "Ricostruzione del contesto delle conversazioni",
+    ),
+    "zh-CN": ("主动对话", "上下文条目使用", "清空对话上下文", "重建对话上下文"),
+}
+for _language, _copy in _DISCUSSION_FIELD_COPY.items():
+    APPLICATION_FIELD_LABELS[_language].update(zip(_DISCUSSION_FIELD_NAMES, _copy, strict=True))

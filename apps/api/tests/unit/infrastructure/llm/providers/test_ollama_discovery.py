@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+from structlog.testing import capture_logs
 
 from src.infrastructure.llm.providers.ollama_discovery import (
     _fetch_model_capabilities,
@@ -115,6 +116,45 @@ def _make_mock_client(tags_response: dict, show_responses: dict | None = None) -
 
 class TestDiscoverOllamaModels:
     """Tests for discover_ollama_models()."""
+
+    @pytest.mark.parametrize(
+        ("failure", "event", "error_type"),
+        [
+            (httpx.ConnectTimeout(""), "ollama_discovery_timeout", "ConnectTimeout"),
+            (httpx.ReadTimeout(""), "ollama_discovery_timeout", "ReadTimeout"),
+            (httpx.HTTPError(""), "ollama_discovery_http_error", "HTTPError"),
+            (None, "ollama_discovery_parse_error", "JSONDecodeError"),
+        ],
+    )
+    async def test_failure_diagnostics_keep_the_exception_subtype(
+        self, failure: Exception | None, event: str, error_type: str
+    ) -> None:
+        """Empty exception messages still identify the timeout/HTTP/parse failure."""
+
+        def respond(request: httpx.Request) -> httpx.Response:
+            if failure is not None:
+                raise failure
+            return httpx.Response(200, text="invalid-json", request=request)
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+        with (
+            patch(
+                "src.infrastructure.llm.providers.ollama_discovery._resolve_ollama_base_url",
+                return_value="http://synthetic.invalid:11434",
+            ),
+            patch(
+                "src.infrastructure.llm.providers.ollama_discovery.httpx.AsyncClient",
+                return_value=client,
+            ),
+            capture_logs() as logs,
+        ):
+            models = await discover_ollama_models()
+
+        assert models == []
+        assert client.is_closed
+        (warning,) = [entry for entry in logs if entry["event"] == event]
+        assert warning["log_level"] == "warning"
+        assert warning["error_type"] == error_type
 
     @pytest.mark.asyncio
     async def test_success_with_real_capabilities(self):

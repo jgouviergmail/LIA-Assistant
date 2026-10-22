@@ -12,6 +12,7 @@ import { publishApplicationResources } from '@/lib/application-resources';
 import {
   smsCompletionSchema,
   smsProposalSchema,
+  smsSingleEraseProposalSchema,
   type SmsJson,
   type SmsOperation,
   type SmsProposal,
@@ -57,8 +58,8 @@ export function useSmsManagement() {
   const confirm = useCallback(async () => {
     if (!isCurrent() || !proposal || inFlight.current === lifetime) return;
     const selected = proposal;
-    setProposal(null);
     if (Date.parse(selected.expires_at) <= Date.now()) {
+      setProposal(null);
       setError(true);
       return;
     }
@@ -82,6 +83,7 @@ export function useSmsManagement() {
       }
     } finally {
       if (inFlight.current === lifetime) inFlight.current = null;
+      setProposal(null);
       setBusy(false);
     }
   }, [
@@ -109,5 +111,56 @@ export function useSmsManagement() {
   const clearSecret = useCallback(() => {
     setSecret(null);
   }, [setSecret]);
-  return { proposal, secret, uncertain, error, busy, propose, confirm, cancel, clearSecret };
+  const eraseMessage = useCallback(
+    async (messageId: string) => {
+      if (!isCurrent() || proposal || inFlight.current === lifetime) return;
+      inFlight.current = lifetime;
+      setBusy(true);
+      setError(false);
+      setUncertain(false);
+      let confirming = false;
+      try {
+        const selected = smsSingleEraseProposalSchema.parse(
+          await mutate('/sms/commands', {
+            operation_id: 'sms_messages.delete',
+            payload: { message_ids: [messageId] },
+          })
+        );
+        if (!isCurrent()) return;
+        if (
+          selected.before.sms_messages_to_delete.message_ids[0] !== messageId ||
+          Date.parse(selected.expires_at) <= Date.now()
+        )
+          throw new Error('sms_single_delete_scope');
+        confirming = true;
+        smsCompletionSchema.parse(
+          await mutate(`/sms/commands/${selected.command_id}/confirm`, {
+            content_digest: selected.content_digest,
+          })
+        );
+      } catch {
+        if (isCurrent()) {
+          if (confirming) setUncertain(true);
+          else setError(true);
+        }
+      } finally {
+        if (inFlight.current === lifetime) inFlight.current = null;
+        if (isCurrent() && owner) publishApplicationResources(owner, new Set(['sms']));
+        setBusy(false);
+      }
+    },
+    [isCurrent, proposal, lifetime, mutate, owner, setBusy, setError, setUncertain]
+  );
+  return {
+    proposal,
+    secret,
+    uncertain,
+    error,
+    busy,
+    propose,
+    confirm,
+    cancel,
+    clearSecret,
+    eraseMessage,
+  };
 }

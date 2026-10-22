@@ -31,6 +31,11 @@ INCIDENT_SOURCE_SELF_CHECK = "self_check"
 INCIDENT_STATUS_OPEN = "open"
 INCIDENT_STATUS_RESOLVED = "resolved"
 
+#: Predicate of the open incidents' partial unique index, repeated LITERALLY by
+#: the upsert's conflict target: bound as a parameter, PostgreSQL cannot infer
+#: the arbiter index once it plans the prepared statement generically.
+INCIDENT_OPEN_SQL = f"status = '{INCIDENT_STATUS_OPEN}'"
+
 
 class HealthSnapshot(BaseModel):
     """One self-check run: overall verdict plus per-check results.
@@ -105,7 +110,7 @@ class Incident(BaseModel):
             INCIDENT_OPEN_PARTIAL_INDEX_NAME,
             "correlation_key",
             unique=True,
-            postgresql_where=text(f"status = '{INCIDENT_STATUS_OPEN}'"),
+            postgresql_where=text(INCIDENT_OPEN_SQL),
         ),
         Index("ix_incidents_opened_at", "opened_at"),
     )

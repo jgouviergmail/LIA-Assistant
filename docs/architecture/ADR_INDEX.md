@@ -5267,10 +5267,74 @@ graph TD
 
 **Decision**: A source-derived Position card precedes places across Cards, HTML and Markdown. Interactive Maps loads only after a priced click; missing configuration or provider failures retain the address list. Quota, ownership and billing checks remain server-enforced.
 
-### ADR-357: Phone ingestion and a personal SMS archive
+### ADR-353: API HTTP scan bans in shared Redis
+
+**File**: `docs/architecture/ADR-353-API-HTTP-Scan-Bans-In-Shared-Redis.md`
+
+**Status**: Accepted, 2026-10-19.
+
+**Decision**: Pure-ASGI admission protection qualifies distinct unknown-route 404s and rejected login/MFA credentials while preserving normal resource and session errors. Redis owns atomic rolling windows and a fixed temporary ban shared by the API workers. Internal callers, exact health probes and OPTIONS remain admissible; bounded cache failures allow traffic and are exposed through metrics, the existing degradation alert and diagnostics. Cloudflare filtering remains complementary for surfaces outside the API.
+
+### ADR-354: Canonical client IP in every HTTP 429
+
+**File**: `docs/architecture/ADR-354-Canonical-Client-IP-In-Every-HTTP-429.md`
+
+**Status**: Accepted, 2026-10-19.
+
+**Decision**: Every HTTP 429 produces a WARNING completion event with the existing canonical client-IP resolver, method, query-free path, status, duration and request context, independently of ordinary access-log levels and exclusions. Trust in Cloudflare's header depends on the deployment envelope; raw forwarded chains do not become application identities. The address remains a retained JSON log field, never an indexing or metric label. Earlier logs without an address cannot support retrospective attribution.
+
+### ADR-355: Acquired place details and accounted selected routes
+
+**File**: `docs/architecture/ADR-355-Acquired-Place-Details-And-Accounted-Selected-Routes.md`
+
+**Status**: Accepted, 2026-10-19.
+
+**Decision**: Position details reuse acquired native facts. One authenticated route endpoint owns the browser/dated last-known/home origin cascade, inclusive 2 km walking rule and one bounded DRIVE correction when the actual walking distance exceeds it. Both paid calls are filed exactly once under the existing pricing and quota policies, including refusal and cancellation.
+
+### ADR-356: Responsive Position details and shared place numbers
+
+**File**: `docs/architecture/ADR-356-Responsive-Position-Details-And-Shared-Place-Numbers.md`
+
+**Status**: Accepted, 2026-10-19.
+
+**Decision**: Explicit map activation leaves no empty pre-activation canvas. Desktop native popups and narrow-screen dialogs share facts and one scrolling region per presentation. The ordered Position payload supplies one visible number for the list and its marker, preserving gaps for places without coordinates.
+
+### ADR-357: Phone ingestion and personal SMS
 
 **File**: [ADR-357-Phone-Ingestion-And-Personal-SMS-Archive.md](ADR-357-Phone-Ingestion-And-Personal-SMS-Archive.md)
 
 **Status**: Accepted, 2026-10-20. Physical iPhone/FCM acceptance remains separate.
 
 **Decision**: A shared typed ingestion boundary admits write-only phone credentials, stable replay receipts and a durable per-destination outbox. The encrypted personal SMS archive has independent assistant consent, deterministic access-secret exclusion and bounded external evidence across chat, relationships and proactivity. Immediate content-free push, personal export, erasure and indirect consumers keep explicit owner, freshness and privacy fences. Health ingestion stays compatible.
+
+### ADR-358: Independent proactive discussions and native delivery
+
+**File**: [ADR-358-Independent-Proactive-Discussions-And-Native-Delivery.md](ADR-358-Independent-Proactive-Discussions-And-Native-Delivery.md)
+
+**Status**: Accepted, 2026-10-20 — implemented on the native application contracts; amended 2026-10-21 (cold review, production measurement) and 2026-10-22 (operator tick capacity). Device display and perceived conversational quality remain product-pilot qualifications.
+
+**Decision**: Personal conversational initiative has its own policy, cadence and owner-fenced runs. One assistant archive, logical opening and outbox intent share an atomic publication boundary, followed by native eligible delivery. Human turns, approvals and alerts keep priority; the existing notification engine remains independent. API, internal tools, accessible settings and lifecycle gates are required before activation.
+
+### ADR-359: Longitudinal discussion context and user control
+
+**File**: [ADR-359-Longitudinal-Discussion-Context-And-User-Control.md](ADR-359-Longitudinal-Discussion-Context-And-User-Control.md)
+
+**Status**: Accepted, 2026-10-20 — implemented on the native application contracts; amended four times on 2026-10-21 and on 2026-10-22.
+
+**Decision**: Typed source observations support episodes and qualified patterns in PostgreSQL, with explicit temporal uncertainty, coverage and current authority. The portrait remains an independent whole source. A visible derived base supports purge and persistent reversible usage exclusions; procedural directives and immediate correction guards constrain initiative before model use. A rebuilt generation cannot undo a human exclusion or restore a purged context implicitly.
+
+### ADR-360: Bounded discussion research and accounted abstention
+
+**File**: [ADR-360-Bounded-Discussion-Research-And-Accounted-Abstention.md](ADR-360-Bounded-Discussion-Research-And-Accounted-Abstention.md)
+
+**Status**: Accepted, 2026-10-20 — implemented on the native application contracts; amended twice on 2026-10-21.
+
+**Decision**: Typed research and staged model calls share published finite limits and a reserved discretionary budget under native quotas. Physical attempts and known actual usage remain accounted on abstention, cancellation, errors and discarded output. Missing financial or source authority defers the voluntary feature. Physical provider calls are admitted at native transport boundaries, a provider's Retry-After becomes a durable defer, and a run reserves the smaller of its ceiling and the day's room before its first call.
+
+### ADR-361: The egress probe names the failing step and confirms a cut
+
+**File**: [ADR-361-Egress-Probe-Names-The-Failing-Step-And-Confirms-A-Cut.md](ADR-361-Egress-Probe-Names-The-Failing-Step-And-Confirms-A-Cut.md)
+
+**Status**: Accepted, 2026-10-22. Amends ADR-247 (decision 1).
+
+**Decision**: The `platform_egress` probe resolves then connects in two named phases and confirms a loss over paced attempts (`DIAGNOSTICS_EGRESS_PROBE_ATTEMPTS`, one per timeout slot) before calling the platform cut off. A success after a failed attempt, or slower than `DIAGNOSTICS_EGRESS_PROBE_SLOW_SECONDS` (refused at boot, for a configured probe, when not below the timeout), is degraded: visible on the health page, never paged. Measured on production: Docker's embedded resolver waits 4 s before failing over to its next DNS server, so a datagram lost twice consumed the single 5-second attempt and read « unreachable » while the connection had never been tried — 16 of 18 incidents lasted one tick, and what lost the packets (a dropping Wi-Fi association, a disrupted Internet access) was outside LIA.

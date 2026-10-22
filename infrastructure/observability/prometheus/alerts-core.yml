@@ -193,26 +193,26 @@ groups:
           description: "TTFT p95 is {{ $value | humanize }}s over 10 minutes (threshold: 60s — set above the measured production baseline; tighten it after the latency optimization work lands — evaluated only over at least 20 turns a person waited for, below which a p95 is the slowest single turn)."
           runbook: "docs/runbooks/alerts/AgentsTTFTViolation.md"
 
-      # SEC-016. The global HTTP limiter fails OPEN when Redis is unreachable:
-      # on a single-instance deployment, failing closed would turn a cache
-      # outage into a total outage. That trade-off is only defensible while the
-      # unprotected window is visible, and this alert is what makes it so —
-      # every request counted here crossed the API with NO rate limit applied.
-      #
-      # Distinct from RedisDown: that one fires when the exporter says Redis is
-      # gone, this one fires when the API cannot USE it, which also covers a
-      # saturated pool, a network partition or an auth failure with Redis up.
+      # Both Redis-backed HTTP abuse controls fail OPEN: the global ceiling
+      # and temporary scan bans. A healthy Redis exporter does not prove the
+      # API can use either guard (pool saturation, timeouts and auth can fail).
+      # Count failed guard operations, not unique requests: check/record and
+      # the global ceiling may each fail on the same request.
       - alert: GlobalRateLimitDegraded
         expr: |
-          sum(rate(http_rate_limit_degraded_total[5m])) > 0.01
+          (
+            (sum(rate(http_rate_limit_degraded_total[5m])) or vector(0))
+            +
+            (sum(rate(http_scan_degraded_total[5m])) or vector(0))
+          ) > 0.01
         for: 5m
         labels:
           severity: warning
           component: api
           tier: core
         annotations:
-          summary: "Global rate limit degraded — requests admitted unchecked"
-          description: "{{ $value | humanize }} req/s are crossing the API with no rate limit applied because the limiter cannot reach Redis (threshold: 0.01 req/s over 5 minutes — fail-open is deliberate, but the API is running without a global ceiling until Redis recovers)."
+          summary: "HTTP abuse protection degraded — Redis checks failing open"
+          description: "{{ $value | humanize }} guard operations/s are failing open because the API cannot use Redis for its global rate limit or temporary HTTP scan bans (threshold: 0.01 operations/s over 5 minutes). The counter counts failed operations, not unique requests; inspect the HTTP dashboard to identify the affected guard."
           runbook: "docs/runbooks/alerts/GlobalRateLimitDegraded.md"
 
       # 2026-08-20 postmortem (incident of 08-14/15): one client's EventSource

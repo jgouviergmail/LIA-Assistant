@@ -4,12 +4,14 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import func, or_, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import PROACTIVE_MESSAGE_TYPE_PREFIX
 from src.core.i18n_capability_sharing import capability_shared_body
 from src.domains.peers.capability_contracts import TransferStatus
 from src.domains.peers.capability_models import PeerCapabilityTransfer
+from src.domains.peers.constants import PEER_META_SENDER_NAME
 from src.domains.shared.markdown_literal import markdown_data_literal
 from src.domains.users.models import User
 from src.infrastructure.database.session import get_db_context
@@ -18,6 +20,28 @@ from src.infrastructure.proactive.notification import NotificationDispatcher
 
 logger = get_logger(__name__)
 TASK_TYPE = "peer_capability_shared"
+
+
+async def _sender_display_name(db: AsyncSession, sender_id: UUID | None) -> str | None:
+    """The sender's name as the recipient's settings badge shows it.
+
+    Only a live account is named — the rule of ``capability_origins`` — so a
+    delivery retried after the sender left says "a user" rather than a name
+    the badge no longer shows.
+
+    Args:
+        db: The delivery's session.
+        sender_id: The transfer's sender, None once their account was deleted.
+
+    Returns:
+        The display name, or None when there is no live, named sender.
+    """
+    if sender_id is None:
+        return None
+    sender = await db.get(User, sender_id)
+    if sender is None or not sender.is_active or sender.deleted_at is not None:
+        return None
+    return sender.full_name or None
 
 
 async def deliver_capability_receipt(transfer_id: UUID) -> None:
@@ -41,13 +65,21 @@ async def deliver_capability_receipt(transfer_id: UUID) -> None:
             recipient = await db.get(User, receipt.recipient_id)
             if recipient is None or not recipient.is_active or recipient.deleted_at is not None:
                 return
-            body = capability_shared_body(markdown_data_literal(receipt.name), recipient.language)
+            sender_name = await _sender_display_name(db, receipt.sender_id)
+            body = capability_shared_body(
+                receipt.kind,
+                markdown_data_literal(receipt.name),
+                markdown_data_literal(sender_name) if sender_name else None,
+                recipient.language,
+            )
             metadata = {
                 "type": f"{PROACTIVE_MESSAGE_TYPE_PREFIX}{TASK_TYPE}",
                 "target_id": str(receipt.id),
                 "feedback_enabled": False,
                 "sent_at": datetime.now(UTC).isoformat(),
             }
+            if sender_name:
+                metadata[PEER_META_SENDER_NAME] = sender_name
             dispatcher = NotificationDispatcher()
             await dispatcher._archive_message(recipient, body, metadata, db)
             receipt.notification_sent = True

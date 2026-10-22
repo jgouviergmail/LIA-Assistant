@@ -2,9 +2,9 @@
 
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
-**Version**: 2.4
-**Datum**: 2026-10-19
-**Anwendung**: LIA v3.3.0
+**Version**: 2.5
+**Datum**: 2026-10-22
+**Anwendung**: LIA v3.4.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -13,23 +13,25 @@
 
 LIA ist ein vollständiger Multi-Agenten-KI-Assistent — Fachkonnektoren, Sprache, Gedächtnis, Verbindungen zwischen Nutzern, sechs Sprachen — der als persönliches Projekt entworfen, entwickelt und kontinuierlich in Produktion betrieben wird.
 
-Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führung: ein schriftliches Engineering-Regelwerk, blockierende automatische Prüfungen, systematische Reviews, wiederkehrende Audits. Das Ergebnis ist gemessen: **8,3/10** im technischen Audit über 24 Bereiche. Das Repository ist Open Source; die Schlussfolgerungen des Audits — Stärken wie Schwächen — werden offen eingestanden und in diesem Dokument zusammengefasst.
+Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führung: ein schriftliches Engineering-Regelwerk, blockierende automatische Prüfungen, systematische Reviews, wiederkehrende Audits. Das Ergebnis ist gemessen: **8,0/10** im technischen Audit über 24 Bereiche. Das Repository ist Open Source; die Schlussfolgerungen des Audits — Stärken wie Schwächen — werden offen eingestanden und in diesem Dokument zusammengefasst.
 
 | Indikator | Wert |
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
-| Quellcodezeilen (ohne Tests) — 55 Fachdomänen | **967.000+** |
-| Inventarisierte automatisierte Tests; passende Suiten für Commit und Release | **64.000+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **351** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **284** |
+| Quellcodezeilen (ohne Tests) — 58 Fachdomänen | **1.003.000+** |
+| Inventarisierte automatisierte Tests; passende Suiten für Commit und Release | **66.000+** |
+| Dokumentierte Architekturentscheidungen (ADR) | **359** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **285** |
 | Sprachen, Parität automatisch geprüft | **6** |
-| Technisches Audit über 24 Bereiche | **8,3/10** |
+| Technisches Audit über 24 Bereiche | **8,0/10** |
 
 Überzeugung aus Erfahrung: KI-gestützte Entwicklung ist heute industrialisierbar. Der begrenzende Faktor ist nicht das Werkzeug — es ist der Führungsrahmen, den man ihm gibt.
 
 Dieselbe Disziplin gilt auch im Produkt. Eine kleine Modellentscheidung kann einen Weg oder ein Format wählen helfen, doch LIA begrenzt die Auswahl, misst die Kosten und behält die Prüfung und Bestätigung des Ergebnisses. Optionale native Entscheidungen erweitern diese Methode, ohne Modellvertrauen in eine Berechtigung umzudeuten.
 
 Nützliche Unterstützung braucht auch Kontinuität: eine Entscheidung im vollständigen Protokoll wiederfinden, eine wiederverwendbare Fähigkeit an eine vertraute Person weitergeben oder vorgeschlagene Orte gemeinsam verorten. Jede Erleichterung behält eine sichtbare Grenze. Geteilte Fähigkeiten kommen deaktiviert und ohne Zugangsdaten; eine E-Mail-Bewertung bleibt ein Hinweis, kein Sicherheitsbeweis; eine interaktive Karte öffnest du selbst mit sichtbaren Kosten.
+
+Initiative folgt derselben Regel. LIA kann von sich aus ein persönliches Gespräch beginnen, aber nur in den Zeiten, Quellen und Themen, die die Person erlaubt hat, mit sichtbaren Gründen, sichtbarem Kontext und sichtbaren Kosten — und vier Reaktionen, um zu antworten. Die SMS, die ein Telefon weiterleitet, landen in einem privaten Archiv, das der Assistent nur mit einer gesonderten Einwilligung liest, und ein auf der Karte gewählter Ort liefert seine Details und eine Route, die einmal abgerechnet und gezählt wird.
 
 ## 2. Der Ansatz
 
@@ -68,7 +70,7 @@ Das Projekt wird inzwischen mit mehreren Entwicklungsagenten parallel geführt �
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 351 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 359 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Selbsthosting gibt dir die Kontrolle über den Server; Kontodaten liegen auf der Instanz und Konnektor-Zugangsdaten sind verschlüsselt. Die gewählten externen Dienste erhalten weiterhin die Daten, die sie für ihren Teil einer Anfrage benötigen.
 
@@ -80,7 +82,7 @@ Drei strukturelle Entscheidungen, unter den 351 dokumentierten:
 
 Ein System, das nach Instrumenten geflogen wird:
 
-- **Observability**: einunddreißig Dashboards — Anwendungsgesundheit, Service-Verpflichtungen, KI-Kosten, Agentenverhalten, Infrastruktur. Mehr als 600 Metriken; zentralisierte strukturierte Logs; durchgängiges verteiltes Tracing — Logs, Metriken und Traces behalten nur Fakten, nie die Worte oder Namen der Menschen. Rund vierzig schriftliche Betriebsprozeduren — Diagnose, Behebung, Wiederherstellung. Und der Assistent liest diese Telemetrie selbst: periodische Selbstprüfung, ein anhand eben dieser Prozeduren diagnostiziertes Vorfallgedächtnis, Antworten, die einen bekannten Ausfall umfahren. Und eine Diagnose zeigt die Beweise, aus denen sie geschrieben wurde. Und die Instrumente reichen bis zu den Prozessen: jeder API-Worker veröffentlicht, was er im Speicher hält, sodass sich eine Container-Summe Prozess für Prozess lesen lässt. Und ein Instrument misst, was es benennt: Der Latenzalarm zählt nur Durchläufe, auf die eine Person wartet, und der Tagesbericht des Hosts beginnt mit dem, was die Überwachung aufgezeichnet hat, statt mit einer Momentaufnahme.
+- **Observability**: zweiunddreißig Dashboards — Anwendungsgesundheit, Service-Verpflichtungen, KI-Kosten, Agentenverhalten, Infrastruktur. Mehr als 600 Metriken; zentralisierte strukturierte Logs; durchgängiges verteiltes Tracing — Logs, Metriken und Traces behalten nur Fakten, nie die Worte oder Namen der Menschen. Rund vierzig schriftliche Betriebsprozeduren — Diagnose, Behebung, Wiederherstellung. Und der Assistent liest diese Telemetrie selbst: periodische Selbstprüfung, ein anhand eben dieser Prozeduren diagnostiziertes Vorfallgedächtnis, Antworten, die einen bekannten Ausfall umfahren. Und eine Diagnose zeigt die Beweise, aus denen sie geschrieben wurde. Und die Instrumente reichen bis zu den Prozessen: jeder API-Worker veröffentlicht, was er im Speicher hält, sodass sich eine Container-Summe Prozess für Prozess lesen lässt. Und ein Instrument misst, was es benennt: Der Latenzalarm zählt nur Durchläufe, auf die eine Person wartet, und der Tagesbericht des Hosts beginnt mit dem, was die Überwachung aufgezeichnet hat, statt mit einer Momentaufnahme.
 - **Lieferung**: containerisiertes Deployment, automatisierte Schemamigrationen, Images für zwei Hardwarearchitekturen (amd64/arm64) veröffentlicht.
 - **Lieferkette**: jeder Baustein des Servers per Digest fixiert und mit jeder Version inventarisiert; eine wöchentliche Prüfung liest die Sicherheitshinweise, die jede Abhängigkeit veröffentlicht — auch jene, die keine öffentliche Datenbank weitergibt —, und ein Update wartet eine Karenzzeit ab, ohne je zurückzugehen; jede Version wird vor ihrer Veröffentlichung auf leeren Maschinen installiert.
 - **Kosten**: bewusst frugale Infrastruktur — etwa 150 € Hardware, null Lizenzen, Open-Source-Bausteine, dimensioniert nach dem realen Bedarf.
@@ -94,19 +96,20 @@ Eine sichtbare Präsenz muss eine kontrollierbare Wahl bleiben: Der experimentel
 
 ## 6. Der Beweis
 
-Das in diesem Dokument beanspruchte Niveau stammt aus einem vollständigen technischen Audit: 24 bewertete Bereiche, jeder Befund im Code verifiziert und gegengeprüft, um Falsch-Positive zu eliminieren. Das Audit wendet die Methode des Projekts selbst an — mit KI-Werkzeugen durchgeführt, in kontradiktorischer Haltung, jede Schlussfolgerung in gegengeprüften Belegen verankert. Bewertung vom Juli 2026: **8,3/10**, mit einem offen eingestandenen Profil. Der vollständige Bericht — Bewertungsraster, Methode, offene Befunde und das Protokoll zur Reproduktion — ist öffentlich: [vollständiger Audit-Bericht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
+Das in diesem Dokument beanspruchte Niveau stammt aus einem vollständigen technischen Audit: 24 bewertete Bereiche, jeder Befund im Code verifiziert und gegengeprüft, um Falsch-Positive zu eliminieren. Das Audit wendet die Methode des Projekts selbst an — mit KI-Werkzeugen durchgeführt, in kontradiktorischer Haltung, jede Schlussfolgerung in gegengeprüften Belegen verankert. Bewertung vom Oktober 2026: **8,0/10** (im August 7,3), mit einem offen eingestandenen Profil. Der vollständige Bericht — Bewertungsraster, Methode, offene Befunde und das Protokoll zur Reproduktion — ist öffentlich: [vollständiger Audit-Bericht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
 
 **Bestätigte Stärken:**
 
-- Solide Datenschicht: vollständige referenzielle Integrität, Migrationen ohne Brüche, beherrschte konkurrierende Zugriffe.
-- Vollständige Observability und Qualitätswerkzeuge, die täglich tatsächlich genutzt werden.
-- Nachvollziehbarkeit der Entscheidungen und Lieferdisziplin über die gesamte Dauer gehalten.
+- Reproduzierbare Konfiguration und Abhängigkeiten: Lockfiles, die die Produktions-Builds verwenden, Modelle gegen ihre Prüfsummen heruntergeladen.
+- Gemeinsame Verträge und deklarative Register: Ein Agent, ein Werkzeug oder eine Sprache kommt über dokumentierte Wege hinzu, und die Versionsangaben werden generiert.
+- Eine Dokumentation, die Prüfungen wahr halten: Entscheidungen, Karten und zitierte Zahlen werden bei jeder Änderung gegen ihre Quellen geprüft.
+- Eine Auslieferung, die ausführt, was ein Entwickler ausführt: eine schlanke CI auf denselben Tasks, hermetisch getestete Installation und Auslieferung, Migrationen von einer leeren Datenbank aus wiederholt.
 
 **Was noch zu tun ist — bekannt, geplant:**
 
-- Backups: Verschlüsselung und externe Kopien — die tägliche Automatisierung selbst läuft produktiv und ist verifiziert.
-- Alarme: Neukalibrierung der historischen Schwellenwerte — der kritische Kern ist aktiv und Ende-zu-Ende nachgewiesen, E-Mail inklusive.
-- Fortsetzung der Zerlegung der dichtesten Komponenten, nun messgetrieben (Komplexität, Kopplung) — die wichtigsten Monolithen des Backends sind behandelt.
+- Dauerhafte Zustände, die die Wahrheit sagen: Ein nach einer Übernahme neu verarbeitetes Dokument muss bei seinem aktuellen Eigentümer bleiben, und eine Anrufbenachrichtigung darf nur nach einem ausdrücklichen Erfolg als zugestellt gelten.
+- Alarme: jede angekündigte Kombination von Benachrichtigungskanälen zusammensetzen und testen, Routing inklusive.
+- Die absolute Strukturschuld — dichte zentrale Funktionen, voneinander abhängige Domänen, Typisierungsausnahmen — Schritt für Schritt abbauen, gesteuert durch Messung.
 
 Der Maßnahmenplan ist in Wellen organisiert, jede mit messbaren Abschlusskriterien. So legt dieses Projekt Rechenschaft ab: kein proklamiertes Niveau, ein gemessenes — Lücken inklusive.
 
@@ -127,4 +130,4 @@ Was diese Erfahrung in einer Führungspraxis verändert:
 - **Zwischen Generalverbot und blindem Vertrauen gibt es einen steuerbaren Weg.** Abgestufte menschliche Kontrolle lässt sich spezifizieren, testen und auditieren; es ist der Ansatz, auf den die regulatorischen Anforderungen zulaufen, und er ist heute einsatzbereit.
 - **Eine Führungskraft, die praktiziert, entscheidet besser.** Selbst machen oder machen lassen, akzeptable Schulden oder nicht, glaubwürdiges Anbieterversprechen oder nicht — diese Entscheidungen gewinnen an Treffsicherheit, wenn man die Materie selbst erprobt hat. Dieses Projekt ist eine Art, diese Nähe zum Terrain zu pflegen.
 
-*Persönliches Projekt, außerhalb jeder beruflichen Tätigkeit durchgeführt. Technische Bewertung aus dem Audit von Juli 2026, Befunde gegengeprüft. Strukturelle Zahlen folgen dem Repository; Quellcodezeilen wurden am 2026-10-16 erneut gemessen. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Persönliches Projekt, außerhalb jeder beruflichen Tätigkeit durchgeführt. Technische Bewertung aus dem Audit von Juli 2026, Befunde gegengeprüft. Strukturelle Zahlen folgen dem Repository; Quellcodezeilen wurden am 2026-10-22 erneut gemessen. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

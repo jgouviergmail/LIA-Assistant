@@ -141,7 +141,7 @@ function ReachableList({ hosts, lng }: { hosts: ReachableHost[]; lng: Language }
           {t('settings.sandbox_egress.reachable_empty')}
         </p>
       ) : (
-        <ul className="divide-y divide-border/60 rounded-xl border border-border/60 bg-card">
+        <ul className="divide-y divide-border rounded-xl border border-border bg-card">
           {hosts.map(host => (
             <li key={host.host} className="flex items-center gap-3 px-3 py-2">
               {host.status === 'connector' ? (
@@ -212,7 +212,7 @@ function GrantList({
           {t('settings.sandbox_egress.grants_empty')}
         </p>
       ) : (
-        <ul className="divide-y divide-border/60 rounded-xl border border-border/60 bg-card">
+        <ul className="divide-y divide-border rounded-xl border border-border bg-card">
           {grants.map(grant => (
             <GrantRow
               key={grant.id}

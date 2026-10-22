@@ -76,7 +76,7 @@ export function Page1Welcome({ lng }: Page1WelcomeProps) {
       {/* Action Cards Grid */}
       <div className="grid gap-3 grid-cols-1 md:grid-cols-2">
         {actionItems.map(item => (
-          <Card key={item.titleKey} className="border-border/50 bg-card/50">
+          <Card key={item.titleKey} className="border-border bg-card/50">
             <CardContent className="p-4 flex items-center gap-3">
               <div className={`p-2 rounded-lg ${item.bgColor}`}>
                 <item.icon className={`w-5 h-5 ${item.color}`} />

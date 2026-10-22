@@ -399,6 +399,7 @@ class TestSummary:
         assert figures.counts_by_status["done"] == 1
         assert figures.overdue == 1
         assert figures.held_by_lia == 1
+        assert figures.held_by_me == 4, "mine, the finished one and the one handed to me"
         assert figures.needs_me == 1, "the late one needs me; nothing waits on me"
         assert figures.owned == 4, "the peer's ticket is on my board, not in my count"
         assert figures.runs_total == 2, "the peer's runs are the peer's"
@@ -468,6 +469,7 @@ class TestAttention:
         assert figures.held_by_lia == 1, "the finished one is not work in motion"
         assert figures.overdue == 1
         assert figures.needs_me == 3, "two waiting on me, one late"
+        assert figures.held_by_me == 3, "what I hold, the peer's request included"
         assert len(figures.needs_me_first) == 2, "a page of the set, never its size"
         assert figures.needs_me_first[0].title == "late", "earliest due first"
 
@@ -475,12 +477,16 @@ class TestAttention:
 
         assert set(figures.previews) == {
             "needs_me",
+            "held_by_me",
             "held_by_lia",
             "held_by_peers",
             "overdue",
             "open_total",
         }
         assert [row.title for row in figures.previews["held_by_lia"]] == ["LIA works on it"]
+        mine = [row.title for row in figures.previews["held_by_me"]]
+        assert mine[0] == "late" and len(mine) == 2, "earliest due first, two at most"
+        assert not set(mine) & {"LIA works on it", "the peer's own"}
         assert figures.previews["held_by_peers"] == []
         assert [row.title for row in figures.previews["overdue"]] == ["late"]
         for group in figures.previews.values():

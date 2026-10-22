@@ -152,12 +152,27 @@ describe('MarkdownContent — legitimate markup survives', () => {
   });
 
   it('keeps tel: links (click-to-call)', () => {
-    // Note: formatPhonesInText (existing behaviour) may reformat the number —
-    // what matters here is that the tel: protocol survives sanitization.
     const { container } = render(
-      <MarkdownContent content={'<a href="tel:+33612345678">tel</a>'} />
+      <MarkdownContent content={'<a href="tel:+33612345678">+33612345678</a>'} />
     );
-    expect(container.querySelector('a')?.getAttribute('href')).toMatch(/^tel:/);
+    expect(container.querySelector('a')?.getAttribute('href')).toBe('tel:+33612345678');
+    expect(container.querySelector('a')).toHaveTextContent('06.12.34.56.78');
+  });
+
+  it('preserves phone-like code and URL query values while formatting prose', () => {
+    const { container } = render(
+      <MarkdownContent
+        content={
+          '<p>Call +33612345678</p><code>+33612345678</code><a href="https://example.test/?phone=+33612345678">site</a>'
+        }
+      />
+    );
+    expect(container.querySelector('p')).toHaveTextContent('06.12.34.56.78');
+    expect(container.querySelector('code')).toHaveTextContent('+33612345678');
+    expect(container.querySelector('a')).toHaveAttribute(
+      'href',
+      'https://example.test/?phone=+33612345678'
+    );
   });
 
   it.each([

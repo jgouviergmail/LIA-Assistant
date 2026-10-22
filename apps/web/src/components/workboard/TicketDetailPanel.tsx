@@ -394,7 +394,7 @@ function TicketDetailBody({
         </CommentsBlock>
         <HistoryBlock events={detail.events} locale={locale} />
 
-        <div className="flex flex-wrap justify-end gap-2 border-t border-border/60 pt-3">
+        <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-3">
           {ticket.assignee_kind === 'lia' && (
             <Button variant="outline" onClick={() => void onRunNow(ticket.id)}>
               <PlayCircle className="mr-2 h-4 w-4" aria-hidden="true" />

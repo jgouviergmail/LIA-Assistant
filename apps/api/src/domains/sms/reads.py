@@ -1,6 +1,7 @@
 """Fresh consent gates every reader; one projection powers all SMS surfaces."""
 
 import builtins
+from collections.abc import Callable
 from datetime import datetime
 from time import perf_counter
 from typing import Never
@@ -54,10 +55,18 @@ class SmsReadService:
         self.db = db
 
     async def list(
-        self, owner: UUID, query: SmsQuery, *, assistant: bool, unmentioned_only: bool = False
+        self,
+        owner: UUID,
+        query: SmsQuery,
+        *,
+        assistant: bool,
+        unmentioned_only: bool = False,
+        on_read: Callable[[], None] | None = None,
     ) -> SmsPage:
         actor = await require_read(self.db, owner, assistant=assistant)
         cursor = cursor_for(owner, query, actor.extraction_revision or 0)
+        if on_read is not None:
+            on_read()
         if actor.ingestion_key_encrypted is None and (
             query.sender is not None or query.query is not None
         ):
@@ -140,8 +149,32 @@ class SmsReadService:
             _too_broad()
         return candidates
 
-    async def get(self, owner: UUID, message_id: UUID, *, assistant: bool) -> SmsView:
+    async def get(
+        self,
+        owner: UUID,
+        message_id: UUID,
+        *,
+        assistant: bool,
+        on_read: Callable[[], None] | None = None,
+    ) -> SmsView:
+        """Read one of the owner's SMS, the read guard checked before and after.
+
+        Args:
+            owner: The account.
+            message_id: The SMS.
+            assistant: Whether the assistant reads it, which needs the person's consent.
+            on_read: Called once the guard passed, before the row is read.
+
+        Returns:
+            The SMS view.
+
+        Raises:
+            AuthorizationError: SMS are off, or the assistant may not read them.
+            ResourceNotFoundError: The SMS is not the owner's.
+        """
         await require_read(self.db, owner, assistant=assistant)
+        if on_read is not None:
+            on_read()
         message = await self.db.scalar(
             select(SmsMessage).where(SmsMessage.id == message_id, SmsMessage.user_id == owner)
         )

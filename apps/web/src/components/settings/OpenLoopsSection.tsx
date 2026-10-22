@@ -164,7 +164,7 @@ function LoopGroup({
             <Card
               surface="primary"
               variant="flat"
-              className="flex items-center gap-2 border-border/40 px-3 py-2"
+              className="flex items-center gap-2 border-border px-3 py-2"
             >
               {editingId === loop.id ? (
                 <div className="min-w-0 flex-1">

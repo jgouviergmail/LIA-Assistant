@@ -69,7 +69,7 @@ export function PreferenceDropdown({
     : t('settings.connectors.preferences.select_task_list');
 
   return (
-    <div className="mt-4 pt-4 border-t border-border/50">
+    <div className="mt-4 pt-4 border-t border-border">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <Settings2 className="h-4 w-4 text-muted-foreground" />
@@ -90,7 +90,7 @@ export function PreferenceDropdown({
 
       {/* Loading state */}
       {loading && (
-        <div className="flex items-center gap-2 p-3 rounded-lg border border-border/50">
+        <div className="flex items-center gap-2 p-3 rounded-lg border border-border">
           <LoadingSpinner size="default" />
           <span className="text-sm text-muted-foreground">
             {t('settings.connectors.preferences.loading_items')}

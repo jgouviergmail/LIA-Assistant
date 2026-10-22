@@ -109,6 +109,7 @@ async def test_settings_cost_uses_call_start_across_weekend(monkeypatch, fake_jo
     assert price.call_args.kwargs["cached_tokens"] == 100
     assert user.journal_last_cost_at == datetime.fromtimestamp(START, UTC)
     assert float(user.journal_last_cost_eur) == 0.4
+    assert (user.journal_last_cost_tokens_in, user.journal_last_cost_tokens_cache) == (0, 100)
 
 
 @pytest.mark.parametrize("reported_model", [None, "provider-returned-model"])
@@ -356,7 +357,9 @@ async def test_settings_cost_keeps_callback_bill_when_final_message_has_no_usage
         "requested-model",
         capture=capture,
     )
-    assert user.journal_last_cost_tokens_in == 100
+    # The chat meter's vocabulary: the cache reads are counted apart from IN.
+    assert user.journal_last_cost_tokens_in == 0
+    assert user.journal_last_cost_tokens_cache == 100
     assert user.journal_last_cost_tokens_out == 0
     assert float(user.journal_last_cost_eur) == 0.16
     assert user.journal_last_cost_at == datetime.fromtimestamp(START, UTC)

@@ -80,50 +80,57 @@ export function SkillGallery({
             ? t(`settings.skills.desc_${skill.name}`, { defaultValue: skill.description })
             : skill.description);
         return (
+          // The MCP server card's frame: the content, then its actions under a
+          // rule (owner request 2026-10-21). The card ground on the nested
+          // fold's background — a system skill is told by its fold, not by a
+          // fainter card.
           <div
             key={skill.name}
-            className={`flex flex-wrap items-start gap-2 rounded-lg border p-3 ${
-              isAdmin ? 'bg-card/50' : 'bg-card'
-            }`}
+            className="flex h-full min-w-0 flex-col gap-2 rounded-lg border bg-card p-3"
           >
-            <button
-              type="button"
-              onClick={() => onOpen(skill)}
-              aria-label={t('settings.skills.gallery.open_details', { name: skill.name })}
-              className="min-w-0 flex-1 text-left rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <span className="flex items-center gap-2 flex-wrap">
-                <span className="font-medium text-sm truncate">{skill.name}</span>
-                <CardBadges skill={skill} t={t} />
-              </span>
-              <span className="mt-1 block text-xs text-muted-foreground line-clamp-2">
-                {description}
-              </span>
-            </button>
-            <Switch
-              checked={skill.enabled_for_user}
-              onCheckedChange={() => onToggle(skill)}
-              disabled={toggling}
-              aria-label={t('settings.skills.toggle_skill', { name: skill.name })}
-            />
+            <div className="flex items-start gap-2">
+              <button
+                type="button"
+                onClick={() => onOpen(skill)}
+                aria-label={t('settings.skills.gallery.open_details', { name: skill.name })}
+                className="min-w-0 flex-1 text-left rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium text-sm truncate">{skill.name}</span>
+                  <CardBadges skill={skill} t={t} />
+                </span>
+                <span className="mt-1 block text-xs text-muted-foreground line-clamp-2">
+                  {description}
+                </span>
+              </button>
+              <Switch
+                checked={skill.enabled_for_user}
+                onCheckedChange={() => onToggle(skill)}
+                disabled={toggling}
+                aria-label={t('settings.skills.toggle_skill', { name: skill.name })}
+              />
+            </div>
             {skill.shared_origin && (
-              <div className="w-full min-w-0">
+              <div className="min-w-0">
                 <CapabilityOriginBadge origin={skill.shared_origin} lng={lng} />
               </div>
             )}
             {onShare && skill.scope === 'user' && skill.skill_id && (
-              <RowActions
-                className="ml-auto w-full justify-end"
-                actions={[
-                  {
-                    key: 'share',
-                    label: t('settings.capability_share.action', { name: skill.name }),
-                    icon: Send,
-                    onSelect: () => onShare(skill),
-                  },
-                ]}
-                menuLabel={t('common.actions_for', { name: skill.name })}
-              />
+              // `mt-auto`: in a grid row the rules line up whatever each card holds.
+              <div className="mt-auto border-t pt-2">
+                <RowActions
+                  className="justify-end"
+                  actions={[
+                    {
+                      key: 'share',
+                      label: t('settings.capability_share.action', { name: skill.name }),
+                      icon: Send,
+                      onSelect: () => onShare(skill),
+                    },
+                  ]}
+                  menuLabel={t('common.actions_for', { name: skill.name })}
+                />
+              </div>
             )}
           </div>
         );

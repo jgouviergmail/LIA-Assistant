@@ -132,7 +132,7 @@ export function PsycheHistory({ lng, isOpen, refreshKey = 0 }: PsycheHistoryProp
           <CalendarDays aria-hidden="true" className="size-4 text-primary" />
           {t('psyche.history.periodLabel')}
         </p>
-        <div className="grid grid-cols-4 gap-1 rounded-xl border border-border/70 bg-card p-1">
+        <div className="grid grid-cols-4 gap-1 rounded-xl border border-border bg-card p-1">
           {ranges.map(range => (
             <button
               key={range}
@@ -168,7 +168,7 @@ export function PsycheHistory({ lng, isOpen, refreshKey = 0 }: PsycheHistoryProp
                 'flex min-w-0 items-center justify-center gap-2 rounded-lg border px-2 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 activeTab === tab
                   ? 'border-primary/25 bg-primary/10 font-medium text-primary'
-                  : 'border-border/70 bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                  : 'border-border bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground'
               )}
             >
               <Icon aria-hidden="true" className="size-4 shrink-0" />
@@ -252,7 +252,7 @@ function HistoryChart({ lng, label, activeTab, data, resets, series, busy }: His
       aria-label={label}
       aria-busy={busy}
       aria-describedby={descriptionId}
-      className="min-w-0 rounded-xl border border-border/70 bg-card p-2 pt-5 sm:p-4"
+      className="min-w-0 rounded-xl border border-border bg-card p-2 pt-5 sm:p-4"
     >
       <p id={descriptionId} className="sr-only">
         {t('psyche.history.chartDescription')}
@@ -345,7 +345,7 @@ function HistoryChart({ lng, label, activeTab, data, resets, series, busy }: His
           </Chart>
         </ResponsiveContainer>
       </div>
-      <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 border-t border-border/60 pt-4">
+      <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 border-t border-border pt-4">
         {series.map(item => (
           <li key={item.key} className="flex min-w-0 items-start gap-2 text-sm">
             <span

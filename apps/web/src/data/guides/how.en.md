@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 5.4
-**Date**: 2026-10-19
-**Application**: LIA v3.3.0
+**Version**: 5.5
+**Date**: 2026-10-22
+**Application**: LIA v3.4.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -72,8 +72,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), credentials encrypted with Fernet, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 623 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 351 ADRs, 64,000+ automated backend and frontend tests, native observability, 6-level HITL |
+| Full transparency | 627 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 359 ADRs, 66,000+ automated backend and frontend tests, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -91,12 +91,12 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 64,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
-| pytest fixtures | 1,082, 48 of them shared through conftest |
-| Documentation documents | 716 |
-| ADRs (Architecture Decision Records) | 351 |
-| Prometheus metrics | 623 definitions |
-| Grafana dashboards | 31 |
+| Tests | 66,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
+| pytest fixtures | 1,391, 58 of them shared through conftest |
+| Documentation documents | 835 |
+| ADRs (Architecture Decision Records) | 359 |
+| Prometheus metrics | 627 definitions |
+| Grafana dashboards | 32 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
 
 ---
@@ -775,9 +775,9 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 `get_llm()` resolves the effective configuration via `get_llm_config_for_agent(settings, agent_type)` (code defaults → DB admin overrides), instantiates the model, and applies specific adapters.
 
-### 12.2. 87 LLM configuration types
+### 12.2. 93 LLM configuration types
 
-The effective registry exposes **87 configurations**: **62 chat**, **21 native decisions** and **4 for image generation, transcription or speech synthesis**. The native decisions comprise meeting-template selection and 20 other JEV uses. Each slot is independently configurable through the Admin UI, without redeployment:
+The effective registry exposes **93 configurations**: **66 chat**, **23 native decisions** and **4 for image generation, transcription or speech synthesis**. The native decisions comprise meeting-template selection and 22 other JEV uses. Each slot is independently configurable through the Admin UI, without redeployment:
 
 | Category | Configurable types |
 |----------|-------------------|
@@ -866,7 +866,7 @@ LIA can place an outbound phone call on the user's behalf, hold a goal-directed 
 
 **Return path.** The call is never recorded and the transcript is never persisted. When the call ends, a per-user HMAC-signed webhook triggers a tool-less LLM synthesis that produces a short, expiring summary, reinjected asynchronously into the conversation (the same detached-run channel as ADR-117) with an optional one-tap follow-up draft. Every call is gated by a HITL confirmation before dialing, and the whole subsystem sits behind a feature flag.
 
-**The phone as a channel (ADR-290).** The confirmation card protects a third party who never asked for anything; when LIA calls *the person*, the one who would confirm is the one who picks up — provided the number is proven theirs. The identity is therefore a number declared in the settings, shown whole, then verified by a call in which LIA reads a code the person types back (bounded attempts, a short-lived code bound to the number, a constant-time comparison, the same hourly cap as every paid call); never a name match, and the third-party tool refuses that number. The **same** vendor agent serves three mandates — the third-party one baked in, the owner's and the verification one sent as a per-call override rendered on the server — so nothing of the person's context is ever baked into an agent that also phones strangers; and what the agent *sounds like* (its model, language, voice, audio format, duration cap) is the vendor portal's, never a setting, because the vendor merges a PATCH with what it stores and a pinned model would collide with the portal's reasoning effort on every sync. `call_me` carries no card by construction, which is also what lets a routine plan it. The call takes the chat's own context under a token budget (memories, agenda, reminders, open loops, recent exchanges — a switch turns it off) and the personality configured for the assistant, every read filed in the consultation register. Behind a second flag, the agent **reads LIA live** during the call, and acts on nothing: the tool set is a rule over the catalogue rather than a list — every tool that only reads, in a domain the phone offers, whose required parameters a voice can speak (55 tools over 22 domains, plus a native memory recall) — attached to the agent for the owner's call only, since the vendor refuses tool ids inside a per-call override, and each result is reduced to what a voice can say before the item-by-item paging (an identifier, a link, a nested structure never reach the voice; four weekend events fit where a single raw one would). Each domain has a switch of the person's own, read from their row at every call-back. When the call ends, what was said comes back as **the person's own message**: the transcript is synthesised, then replayed through the out-of-turn engine as a turn *spoken by the person* — memory, journal and psyche extractions run as in the chat, the message wears a phone badge, a draft waits for confirmation in the chat. The relay is claimed before the turn and settled by conditional update, a crash mid-relay is swept back to a notification that says why, and ten relay verdicts are counted and drawn on the calls list — « nobody picked up » and « the line failed » told apart from « someone else answered ». Every euro of a call lands under one run id — the live lookups, the synthesis, the relayed turn — so the per-run summary the chat meter already reads is the call's bill, on the relayed answer and on the calls list; what runs on the person's own vendor key is billed there and never counted here.
+**The phone as a channel (ADR-290).** The confirmation card protects a third party who never asked for anything; when LIA calls *the person*, the one who would confirm is the one who picks up — provided the number is proven theirs. The identity is therefore a number declared in the settings, shown whole, then verified by a call in which LIA reads a code the person types back (bounded attempts, a short-lived code bound to the number, a constant-time comparison, the same hourly cap as every paid call); never a name match, and the third-party tool refuses that number. The **same** vendor agent serves three mandates — the third-party one baked in, the owner's and the verification one sent as a per-call override rendered on the server — so nothing of the person's context is ever baked into an agent that also phones strangers; and what the agent *sounds like* (its model, language, voice, audio format, duration cap) is the vendor portal's, never a setting, because the vendor merges a PATCH with what it stores and a pinned model would collide with the portal's reasoning effort on every sync. `call_me` carries no card by construction, which is also what lets a routine plan it. The call takes the chat's own context under a token budget (memories, agenda, reminders, open loops, recent exchanges — a switch turns it off) and the personality configured for the assistant, every read filed in the consultation register. Behind a second flag, the agent **reads LIA live** during the call, and acts on nothing: the tool set is a rule over the catalogue rather than a list — every tool that only reads, in a domain the phone offers, whose required parameters a voice can speak (56 tools over 24 domains, plus a native memory recall) — attached to the agent for the owner's call only, since the vendor refuses tool ids inside a per-call override, and each result is reduced to what a voice can say before the item-by-item paging (an identifier, a link, a nested structure never reach the voice; four weekend events fit where a single raw one would). Each domain has a switch of the person's own, read from their row at every call-back. When the call ends, what was said comes back as **the person's own message**: the transcript is synthesised, then replayed through the out-of-turn engine as a turn *spoken by the person* — memory, journal and psyche extractions run as in the chat, the message wears a phone badge, a draft waits for confirmation in the chat. The relay is claimed before the turn and settled by conditional update, a crash mid-relay is swept back to a notification that says why, and ten relay verdicts are counted and drawn on the calls list — « nobody picked up » and « the line failed » told apart from « someone else answered ». Every euro of a call lands under one run id — the live lookups, the synthesis, the relayed turn — so the per-run summary the chat meter already reads is the call's bill, on the relayed answer and on the calls list; what runs on the person's own vendor key is billed there and never counted here.
 
 **One policy per mode, whichever the line (ADR-301).** Relaying the conversation at its *end* on one line while the other hands every request to the chat *during* it would make two truths for one word. A voice session therefore has a mode, and the policy follows it alone: in **Live** (the phone's default, chosen in Settings › My phone) the voice holds neither context nor tool and hands every request to LIA through one function — the very one the browser's Live declares to its provider — which the server turns into a chat turn of the person while they speak: LIA's questions (a question IS the result, the next request resumes the turn that asked), the confirmations, the registers, the quotas and the trace in the conversation come with it; in **Live direct** the voice reads for the person, acts on nothing, and their words are relayed at the end as a message from them — on the line as in the browser. One closing keeps both lines' books: the voice-only exchanges archived, the card with exact figures, the decision, the learning — or the synthesis, the relayed turn and the card rewritten when it settles, its cost re-read. Live is offered only where the phone provider can call the instance back; otherwise the settings say so and the call runs direct. The provider's engine sets three rules: the voice announces the call and keeps the conversation going, a late answer would be lost past the provider's timeout — so the bridge answers before it —, and an exchange holding a delegation belongs to the graph whole.
 
@@ -950,9 +950,9 @@ The editorial filter removes advertising, sponsorships, discounts and purchase p
 
 **Phase 1 — Decision** (the `heartbeat_decision` slot, a frugal model chosen in the admin catalogue):
 1. `EligibilityChecker`: opt-in, time window, cooldown (1h global, 30 min per type), recent activity — optional `notification_filter`/`cross_type_filters` keep each flow's eligibility budget separate from the shared ledger
-2. `ContextAggregator`: 14 sources in parallel (`asyncio.gather`): Calendar, Weather (change detection), Tasks, Emails, Interests, Activity, recent heartbeat/interest notifications, other proactive surfaces (fired reminders, automation results, call reports — the extended anti-redundancy window), Health, upcoming Birthdays Open loops (the commitments ledger, ADR-139), Habits (a learned routine whose usual slot passed, with what it usually asks for) and the Workboard. A **second pass** then derives a dynamic semantic query from the aggregated context to select Journals and Memories (ADR-135 symmetry) and computes the traffic-aware departure advice (Routes ETA, flag-gated). Interests arrive as a **varied sample** (`pick_varied_sample`: one interest per subject, least recently served subjects first) — the model can only mention what it is shown, so the rotation is mechanical
+2. `ContextAggregator`: 15 sources in parallel (`asyncio.gather`): Calendar, Weather (change detection), Tasks, Emails, Interests, Activity, recent heartbeat/interest notifications, other proactive surfaces (fired reminders, automation results, call reports — the extended anti-redundancy window), Health, SMS, upcoming Birthdays Open loops (the commitments ledger, ADR-139), Habits (a learned routine whose usual slot passed, with what it usually asks for) and the Workboard. A **second pass** then derives a dynamic semantic query from the aggregated context to select Journals and Memories (ADR-135 symmetry) and computes the traffic-aware departure advice (Routes ETA, flag-gated). Interests arrive as a **varied sample** (`pick_varied_sample`: one interest per subject, least recently served subjects first) — the model can only mention what it is shown, so the rotation is mechanical
 
-   **Being connected and being interrupted are two decisions** (ADR-197). Thirteen of these sources carry their own switch, applied **before** the fetch: a refused source stops feeding the decision *and* stops costing an API call, without disconnecting the service — so without losing the tool you ask with. Storage holds the **refusal**, never the permission: `NULL` means “never expressed”, so an existing account keeps its behaviour and a source added later is on until someone refuses it. What is not a source — activity, the anti-redundancy windows — stays out of the registry by construction: gating those would make the assistant repeat itself rather than interrupt less. And a dependency is **declared then published**: leave-by advice reads the calendar of the first pass, so refusing the calendar would silence it; the panel says so instead of leaving a live switch with no effect.
+   **Being connected and being interrupted are two decisions** (ADR-197). Fourteen of these sources carry their own switch, applied **before** the fetch: a refused source stops feeding the decision *and* stops costing an API call, without disconnecting the service — so without losing the tool you ask with. Storage holds the **refusal**, never the permission: `NULL` means “never expressed”, so an existing account keeps its behaviour and a source added later is on until someone refuses it. What is not a source — activity, the anti-redundancy windows — stays out of the registry by construction: gating those would make the assistant repeat itself rather than interrupt less. And a dependency is **declared then published**: leave-by advice reads the calendar of the first pass, so refusing the calendar would silence it; the panel says so instead of leaving a live switch with no effect.
 3. LLM structured output: `skip` | `notify` plus `interest_topic` (copied verbatim from the sample, fail-open runtime guard) and source labels constrained by a `Literal` — a label outside the vocabulary is repaired or dropped and counted, never fatal to the whole decision. Two-level anti-redundancy: source, and **content** — the last 10 notifications over 7 days are injected with their excerpts, which forbids re-proposing a theme even when it came from a different source
 
 **Phase 1b — Enrichment** (when `interest_topic` is set): `InterestContentGenerator` (Perplexity → Brave → Wikipedia) under a hard timeout, deduplicated against recent notification embeddings. Fully fail-open: flag off, failure or empty result → the message ships without facts.
@@ -1008,6 +1008,16 @@ The studio makes schedule and condition exclusive. A scheduled routine uses the 
 ### A routine never asks a question nobody will see
 
 A routine runs with nobody in front of the screen. A confirmation, or a sandbox-network question, asked in that context would hang on the thread, and the person's next message would serve as its answer. A turn with nobody to ask therefore refuses and says where to allow the action; a ticket, for its part, knows how to ask. A routine's reservation is held by a token: the recovery never frees a run still alive, a late settle never overwrites another tick's, and a retry after a timeout is refused as soon as the effect register shows an action already done — a routine never repeats what it did. A scheduler leader that loses its lease pauses until it is re-elected, and a server shutdown starts no job any more.
+
+### Discussions LIA opens, on a context you can read
+
+A notification tells; a discussion invites a reply. Proactive discussions therefore have their own policy, cadence and runs, never borrowed from the heartbeat (ADR-358): a person allows them, sets their hours and a daily maximum, and every source and every sensitive topic is a separate permission, read again at each run.
+
+**The context is a derived base, not a hidden memory** (ADR-359). Each permitted source is read through one typed gateway into dated observations, interpreted into episodes and qualified patterns that carry their period, their coverage and their current authority. The person sees every element and can exclude it — its related evidence goes with it —, delete it, purge everything or ask for a rebuild; a rebuild works by epoch and checkpoint, covers every admitted fact pass after pass, and can never undo a human exclusion nor bring back a purged context.
+
+**Spending is reserved before it happens** (ADR-360). A run reserves the smaller of its own ceiling and the day's remaining room — for the account and for the whole instance —, starts only when its first call fits, and stages its model calls, deciding then writing, under published finite limits. An abstention, a cancellation or a discarded draft keeps its known cost on the account's ledger, every run records why it ended, and the prompt ceiling is the configured slot's own window, never an envelope written in code.
+
+**Publishing is one act, delivering another.** The archived message, the logical opening and the outbox intent commit together; native delivery follows, and a person's own turn, an approval or an alert keeps priority. An opening informed by an SMS or by a sensitive topic stays private — a masked push, never an external channel —, and every opening is filed in the registers as an act of LIA's own initiative, beside the sources its run read.
 
 ---
 
@@ -1099,6 +1109,7 @@ Autonomous ReAct agent (Playwright driving the distribution's own Chromium, upda
 | Decompression bomb | A compressed body is decoded by LIA itself under the read ceiling (gzip, deflate, zstd); a coding it cannot bound and a truncated stream are refused (ADR-326) |
 | Prompt Injection | Provenance carried by the data: 24 classified types (fail-closed, boot-time assert), marking on the three surfaces that reach the LLM, 7 pattern families detected across 6 languages without ever rewriting the content (ADR-167); `<external_content>` markers kept on the tool side |
 | Rate Limiting / IP spoofing | Distributed Redis sliding window (atomic Lua); trusted proxy chain — API ports loopback-bound (cloudflared = single entry), uvicorn `--proxy-headers`, `request.client.host` validated as the single IP source (no shared global bucket, raw XFF never read) A global ceiling sits in front of every route as real ASGI middleware on that same shared limiter, so one client cannot consume the whole API; probes stay exempt so supervision is never throttled. |
+| Scanners and credential stuffing | Pure-ASGI admission ahead of routing: distinct unknown-route 404s and rejected login or MFA credentials are counted per canonical client IP in atomic rolling Redis windows; past the threshold, a fixed temporary ban shared by every API worker. Ordinary resource and session errors never count; internal callers, exact health probes and `OPTIONS` stay admissible; a Redis failure lets traffic through, visible in the metrics, the degradation alert and the diagnostics (ADR-353). Every 429 is logged once at WARNING with the canonical client IP, method, query-free path, status and duration — a log field, never a metric label (ADR-354) |
 | Hostile text (ReDoS) | The Markdown/HTML flatteners — push, voice, ticket comments, radio, e-mail cards — run on the event loop: every paired span is bounded (`MARKDOWN_SPAN_MAX_CHARS`) and no character belongs to two neighbouring classes; growth (n then 4n) and exhaustive-equivalence tests, API and browser side, hold the linearity (ADR-326) |
 | Supply Chain | Every build input pinned by digest (GitHub Actions, images, languages, tools); a weekly watch of the advisories each dependency publishes and of end-of-life dates, every finding fixed or accepted in writing; refresh under a cooling-off period that never moves backwards, a security fix becoming a floor (ADR-331); secret scan before every push; a CycloneDX SBOM with every release |
 
@@ -1150,15 +1161,15 @@ Third-party content travels in an envelope the model knows not to obey; its tag 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 623 custom metrics (RED pattern) |
-| Grafana | 31 production-ready dashboards |
+| Prometheus | 627 custom metrics (RED pattern) |
+| Grafana | 32 production-ready dashboards |
 | Loki | Aggregated structured JSON logs, collected by Grafana Alloy (the same redaction at collection) |
 | Tempo | Cross-service distributed traces (OTLP gRPC), named by the route template |
 | Langfuse | LLM-specific tracing (prompt versions, token usage) |
 | Alertmanager | Vital alert core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 623 defined; the ones that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. Without that guard, a heartbeat source failing open can drop part of the health signals for days with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 627 defined; the ones that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. Without that guard, a heartbeat source failing open can drop part of the health signals for days with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1306,7 +1317,7 @@ The lock states what is installed; what remains is deciding **when a version may
 
 ### 22.4. The audit is public — and reproducible
 
-The quality bar described in this guide is not self-declared: a complete 360° technical audit — **8.3/10 across 24 normalized areas** on the ISO/IEC 25010 grid, open findings included — is published in the repository ([full report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), together with the [audit protocol](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) that makes every cycle reproducible: pinned commit, per-area evidence requirements, anchored scoring, and a committed script measuring size in logical SLOC. The report ends with the exact commands to reproduce the measurements yourself.
+The quality bar described in this guide is not self-declared: a complete 360° technical audit — **8.0/10 across 24 normalized areas** on the ISO/IEC 25010 grid, open findings included — is published in the repository ([full report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), together with the [audit protocol](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) that makes every cycle reproducible: pinned commit, per-area evidence requirements, anchored scoring, and a committed script measuring size in logical SLOC. The report ends with the exact commands to reproduce the measurements yourself.
 
 ### 22.5. A guard is only worth what it measures
 
@@ -1466,7 +1477,7 @@ The full application to weather (`gettext.gettext(text, language)` propagated ex
 
 ### 23.11. Observability architecture
 
-Observability rests on three pillars: **defensive emission** on the critical path, pre-wired **Grafana dashboards** (28 dashboards / 719 panels covering app, infra and every business sub-system), and **DB-backed gauges** maintained by a periodic updater.
+Observability rests on three pillars: **defensive emission** on the critical path, pre-wired **Grafana dashboards** (32 dashboards / 847 panels covering app, infra and every business sub-system), and **DB-backed gauges** maintained by a periodic updater.
 
 A 26th dashboard turns this telemetry into a product cockpit (ADR-178): outcomes are validated E1 (explicit user confirmation) or E2 (an action left uncorrected through a full behavioral window), the exact deduplicated counting lives in PostgreSQL — mutable states can never be derived from Prometheus counters — and Grafana reads it through a read-only role restricted to aggregate views with a pinned statement timeout.
 
@@ -1501,6 +1512,8 @@ LIA accepts external event ingestions (iPhone Apple Health samples, third-party 
 **Visualization**: a polymorphic Python aggregator walks samples ordered by `date_start` in a window and emits one point per bucket (hour/day/week/month/year), with `AVG/MIN/MAX` over `heart_rate` samples and `SUM` over `steps` samples. Empty buckets are emitted with `has_data=False` so the frontend (`recharts`, `connectNulls={false}`) shows honest gaps rather than interpolation. The Settings component reuses the `SettingsSection` + Accordion pattern (4 sub-sections: API + tokens, Charts, Statistics, Data management) and displays the **actual aggregation window** to defuse the "stats don't move when I change period" confusion (HR is invariant when all data fits in the smallest window).
 
 **Exposure to the central loops**: a **single per-user opt-in toggle** governs four consumers at once — conversation (assistant tools), Heartbeat (a `health_signals` source), memory extraction (a `{health_context}` prompt placeholder + an optional `context_biometric` JSONB blob attached to high-emotional-weight memories), and journal (extraction + consolidation). All four receive the same **factual non-raw projection**: deltas vs baseline, directional trends, structural events (inactivity streaks, etc.) — never raw values. The rolling 28-day baseline auto-selects `bootstrap` (simple median while less than 7 days of history are available — surfaced to the LLM so it qualifies its claims) then flips to `rolling`. Deleting raw measurements targets the `health_samples` table; derived memories and other records have their own deletion controls.
+
+**The same boundary carries SMS** (ADR-357). An iPhone Shortcuts automation posts each message with a write-only phone token (`pi_`); a stable event UUID makes a retry a duplicate and different content under the same identifier a conflict, item by item in a batch. The receipt, the encrypted message, its search index and a per-destination outbox commit in one transaction, and a leased worker delivers a content-free push. Recognised access secrets are excluded before storage, the assistant reads the archive only under a consent of its own, and every reader — chat, relationships, proactivity, Radio, a phone call — receives bounded external evidence after a fresh owner, consent and source check. The personal export streams the readable messages, and an erasure invalidates hosted exports.
 
 ### 23.13. Installable application (PWA)
 
@@ -1582,7 +1595,7 @@ Two interface rules became component contracts rather than habits. The first is 
 
 ## 24. Architecture Decision Records (ADR)
 
-351 ADRs in MADR format document the major architectural decisions. Some representative examples:
+359 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1784,6 +1797,8 @@ Emitting all that observability and reading none of it is being instrumented eve
 
 **A lost resolution does not keep an incident open.** An incident born of an alert closes on the resolution notice Alertmanager sends; when that notice got lost, nothing else closed it. Every self-check tick therefore reads the alerts Alertmanager holds as active, outside any transaction, and closes the incident of an alert that is absent and has stayed silent for the window `DIAGNOSTICS_INCIDENT_SILENCE_CLOSE_SECONDS` sets, with an entry in its history. A silenced or inhibited alert counts as active, an unreachable Alertmanager closes nothing, and a failed reconciliation pass costs only itself, never the tick.
 
+**A probe names the step that failed.** The platform-egress check resolves, then connects, in two named phases, and confirms a loss over paced attempts before calling the platform cut off (ADR-361): a probe that recovered, or answered slower than its threshold, is degraded — visible on the health page, never paged. A single lost DNS datagram no longer reads as an outage.
+
 ## 34. Computing instead of guessing: an ephemeral script in the skills sandbox
 
 Ask a language model how long a series of layovers adds up to, which names appear in both of two lists, or what a column of figures comes to once timezones are taken into account, and it answers — plausibly, fluently, and with nothing in the answer to show you it is wrong. This is not a prompt defect: predicting the next token is not arithmetic. Five lines of Python are.
@@ -1912,6 +1927,8 @@ The companion's face does not take its end-of-turn expression from the psyche's 
 
 **What a run writes, and where.** A run archives its brief and its question as rows of the run — kept out of the chat, pointed at by the decision register, removed by retention after the ticket closes — while the notification the person is meant to read is an ordinary message. The distinction is a derived column rather than a stamp in the metadata, computed at the one place that builds the row; and every archived turn's metadata is built by a named builder, guarded against a dictionary written at the call site, because that is exactly how a deletion preview would reach the chat.
 
+**Nothing is told before it is true.** An assignment notice is collected during the ticket's transaction and leaves through one door once it has committed — guarded, so that no notice can wait on a row its own transaction still holds.
+
 ## 42. The anatomy of a process: what it loads is declared, measured and bounded
 
 An API server is several processes: a supervisor that serves no request, and workers that serve everything. Each holds memory for different reasons, and "the container uses five gigabytes" says nothing useful until you know which process holds what. LIA applies one rule here: **what a process loads is declared, measured per process, and bounded where it multiplies**. Every item is measured on the target host, in a throwaway process, before being touched: a first reading is often wrong, which is exactly why one measures.
@@ -1951,6 +1968,8 @@ An answer that carries data is rendered by the server as HTML cards, archived wi
 Overlays — dialogs, menus, lists, tooltips, viewers, notifications — share one glass built on the theme tokens; a preference for reduced transparency or forced colours makes a surface opaque, reduced motion removes decorative transitions, and a dialog returns focus to the control that opened it. Every renderer is tested from its real producer through registry serialisation, with explicit zeros, falses, absences and hostile inputs.
 
 A selection is claimed only when evidence establishes which items and dates it covers; an uncertain temporal filter keeps the canonical results. MCP cards name the server, its public origin and the called method across structured, list and text outputs; a declared cooldown is shared across workers. Weather symbols follow the supplied conditions. Deleting an e-mail from its card verifies the exact connected mailbox and still requires confirmation.
+
+**A place gives its details and one route, counted once** (ADR-355, ADR-356). The Position card numbers every place — the same number in the list and on its pin. Selecting one shows the facts the answer already acquired, with no new search, and computes one route through a single authenticated endpoint that owns the origin: the browser position when it is already granted, else the dated last known one, else home; walking up to 2 km inclusive, otherwise driving, corrected once when the actual walk is longer. Each paid call is filed exactly once under the existing pricing and quotas, refusals and cancellations included, and desktop popups and phone dialogs share the same facts and one scrolling region.
 
 ---
 
@@ -1992,8 +2011,8 @@ The oMLX, llama.cpp and LM Studio studies and the isometric world are qualificat
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 351 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 64,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 359 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 66,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 351 ADRs, and the changelog (v1.0 to v3.3.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (800+ documents), 359 ADRs, and the changelog (v1.0 to v3.4.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

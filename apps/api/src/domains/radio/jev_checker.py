@@ -18,6 +18,7 @@ from src.domains.llm_config.jev_registry import JevUsage
 from src.domains.radio.checking import checked_positions
 from src.domains.radio.facts import FactPack
 from src.domains.radio.production import LineChecker
+from src.domains.radio.sms_context import sms_pack_current
 from src.domains.radio.verification import VerifiedLine
 from src.infrastructure.llm.jev_debug_store import record_action
 from src.infrastructure.llm.jev_runtime import choose_many_with_jev
@@ -82,6 +83,8 @@ class JevLineChecker:
     async def unsupported(
         self, lines: Sequence[VerifiedLine], pack: FactPack
     ) -> frozenset[int] | None:
+        if not await sms_pack_current(pack):
+            return None
         positions = checked_positions(lines)
         if not positions:
             return frozenset()

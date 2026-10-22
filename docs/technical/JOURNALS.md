@@ -101,7 +101,8 @@ Each row identifies one outcome by `journal_entry_id`, `rule_revision` and `even
 - `journal_revision` / `journal_consolidated_revision` — Corpus work revision and last successfully consumed revision; deletions count even when no active entry remains
 - `journal_last_attempted_at` / `journal_last_attempt_status` — Attempt pacing and outcome, independent of successful settlement
 - `journal_consolidation_owner` / `journal_consolidation_held_until` — Expiring per-account lease shared by manual and scheduled runs
-- `journal_last_cost_*` (5 fields) — Last intervention cost tracking
+- `journal_last_cost_*` — Last intervention cost, shown in the settings in the chat
+  meter's vocabulary: input tokens without the cache reads, the cache reads apart, output, euros
 - `journal_portrait_full` / `journal_portrait_brief` (Text NULL, ADR-079) — The compiled analytical synthesis and its brief essence
 - `journal_portrait_compiled_at` (DateTime NULL, ADR-079) — Last compilation timestamp
 - `journal_portrait_sources` (JSONB NULL) — Source counts/statuses, corpus revision, source/compiler fingerprint, supported claims and pending portrait work

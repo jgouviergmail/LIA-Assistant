@@ -46,8 +46,12 @@ export interface NotificationHistoryRow {
    * as more urgent than a tint even when the two hues are close.
    */
   badge?: { label: string; tone: BadgeTone; icon?: ReactNode } | null;
-  /** A relayed message names its peer beside the direction, never twice. */
-  attribution?: string;
+  /**
+   * A relayed message names its peer beside the direction, never twice. A
+   * node, so the caller can set the name in bold and the words around it
+   * plain (owner request 2026-10-21).
+   */
+  attribution?: ReactNode;
   /**
    * The chips: the sources used, the interest's provider, the person a
    * message was relayed with. `tone` is the chip's classes from
@@ -64,13 +68,21 @@ export interface NotificationHistoryRow {
   contentFallback?: string;
 }
 
-export type NotificationHistoryPresentation = 'cards' | 'timeline';
+/**
+ * How the rows are set apart — never how one reads: the hub's timeline draws a
+ * rule between them, the settings frame each in a panel of its own on the card
+ * ground (owner request 2026-10-21: one sub-panel per row, no rule between).
+ */
+export type NotificationHistoryPresentation = 'panels' | 'timeline';
+
+/** The frame of one row, per presentation. */
+const ROW_FRAME: Record<NotificationHistoryPresentation, string> = {
+  timeline: 'min-w-0 space-y-3 border-b border-border py-4 last:border-b-0',
+  panels: 'min-w-0 space-y-3 rounded-lg border bg-card p-3',
+};
 
 export interface NotificationHistoryListProps {
-  /** The hub's timeline is opt-in; existing settings keep their card layout. */
   presentation?: NotificationHistoryPresentation;
-  /** Timeline metadata can precede the message; settings retain their footer. */
-  metadataPosition?: 'header' | 'footer';
   /** Undefined until the first response lands. */
   rows: NotificationHistoryRow[] | undefined;
   /** True only before the first payload — never on a refetch. */
@@ -90,8 +102,7 @@ export function NotificationHistoryList({
   error,
   locale,
   labels,
-  presentation = 'cards',
-  metadataPosition = 'footer',
+  presentation = 'panels',
 }: NotificationHistoryListProps) {
   if (firstLoad) {
     return (
@@ -130,7 +141,8 @@ export function NotificationHistoryList({
             row={row}
             formatDate={formatDate}
             presentation={presentation}
-            metadataPosition={metadataPosition}
+            // The date titles the row; the marker leads the line under it.
+            metadataPosition="header"
           />
         ))}
       </ul>
@@ -171,129 +183,161 @@ export function historyDateFormatter(locale: string): (iso: string) => string {
 export function NotificationHistoryItem({
   row,
   formatDate,
-  presentation = 'cards',
+  presentation = 'panels',
   metadataPosition = 'footer',
+  badgePlacement = 'meta',
 }: {
   row: NotificationHistoryRow;
   formatDate: (iso: string) => string;
   presentation?: NotificationHistoryPresentation;
   metadataPosition?: 'header' | 'footer';
+  /**
+   * Where the hub's timeline draws the marker: leading the line under the
+   * date (`meta`), or leading the message itself (`content`) — an SMS names
+   * its sender where its words begin (owner request 2026-10-21). A row with
+   * no message keeps it under the date.
+   */
+  badgePlacement?: 'meta' | 'content';
 }) {
-  const timeline = presentation === 'timeline';
-  const headerMetadata = timeline && metadataPosition === 'header';
+  const headerMetadata = metadataPosition === 'header';
+  const slot = badgeSlot(row, headerMetadata, badgePlacement);
+  const badge = row.badge ? <HistoryBadge badge={row.badge} inline={slot === 'content'} /> : null;
 
   return (
-    <li
-      className={
-        timeline
-          ? 'min-w-0 space-y-3 border-b border-border/50 py-4 last:border-b-0'
-          : 'space-y-1.5 rounded-lg border border-border/40 bg-card/40 px-3 py-2'
-      }
-    >
+    <li className={ROW_FRAME[presentation]}>
       <HistoryHeading
         row={row}
         formatDate={formatDate}
-        timeline={timeline}
         headerMetadata={headerMetadata}
+        badge={slot === 'heading' ? badge : null}
       />
 
-      {headerMetadata && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <HistoryChips chips={row.chips} timeline={timeline} />
-          {row.feedback !== undefined && (
-            <FeedbackMark verdict={row.feedback} negativeIsDestructive />
-          )}
-        </div>
-      )}
+      {headerMetadata && <HistoryMeta row={row} badge={slot === 'meta' ? badge : null} />}
 
-      {/* Plain React children: this is LLM output, or words a person wrote,
-          and may echo third-party text (an event title, a mail subject). */}
-      {row.content ? (
-        <p
-          className={cn(
-            'whitespace-pre-line text-sm text-foreground/90',
-            timeline ? 'break-words leading-relaxed' : 'line-clamp-3'
-          )}
-        >
-          {row.content}
-        </p>
-      ) : (
-        row.contentFallback && (
-          // Full `muted-foreground`, never a diluted /80: at this size the
-          // faded pair measures under the 4.5:1 AA floor.
-          <p className="break-words text-xs italic text-muted-foreground">{row.contentFallback}</p>
-        )
-      )}
+      <HistoryContent row={row} lead={slot === 'content' ? badge : null} />
 
-      {!headerMetadata && <HistoryChips chips={row.chips} timeline={timeline} />}
+      {!headerMetadata && <HistoryChips chips={row.chips} />}
     </li>
   );
 }
 
-/** The date, badge and optional attribution occupy one shared heading. */
+/**
+ * Where a row's marker is drawn: on the line under the date (its own, or the
+ * metadata line it leads), or leading the message itself. A row asking for
+ * `content` but holding no message keeps its marker under the date.
+ */
+function badgeSlot(
+  row: NotificationHistoryRow,
+  headerMetadata: boolean,
+  placement: 'meta' | 'content'
+): 'heading' | 'meta' | 'content' {
+  if (placement === 'content' && row.content) return 'content';
+  return headerMetadata ? 'meta' : 'heading';
+}
+
+/**
+ * The line under the date when the metadata leads: the marker FIRST, then the
+ * sources and the verdict (owner request 2026-10-21) — the date is the row's
+ * title.
+ */
+function HistoryMeta({ row, badge }: { row: NotificationHistoryRow; badge: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      {badge}
+      <HistoryChips chips={row.chips} />
+      {row.feedback !== undefined && <FeedbackMark verdict={row.feedback} />}
+    </div>
+  );
+}
+
+/**
+ * The message — or the sentence saying it was not kept. Plain React children:
+ * this is LLM output, or words a person wrote, and may echo third-party text
+ * (an event title, a mail subject). `lead` opens the message (an SMS's sender).
+ */
+function HistoryContent({ row, lead }: { row: NotificationHistoryRow; lead: ReactNode }) {
+  if (row.content) {
+    return (
+      <p className="whitespace-pre-line break-words text-sm leading-relaxed text-foreground/90">
+        {lead}
+        {row.content}
+      </p>
+    );
+  }
+  if (!row.contentFallback) return null;
+  // Full `muted-foreground`, never a diluted /80: at this size the faded pair
+  // measures under the 4.5:1 AA floor.
+  return <p className="break-words text-xs italic text-muted-foreground">{row.contentFallback}</p>;
+}
+
+/**
+ * The date and, unless the caller drew it elsewhere, the badge, the
+ * attribution and the verdict. The date is the row's title: it takes a line of
+ * its own, and everything else follows below it.
+ */
 function HistoryHeading({
   row,
   formatDate,
-  timeline,
   headerMetadata,
+  badge,
 }: {
   row: NotificationHistoryRow;
   formatDate: (iso: string) => string;
-  timeline: boolean;
   headerMetadata: boolean;
+  /** The marker, when it belongs to this line — null when drawn elsewhere. */
+  badge: ReactNode;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <time
         dateTime={row.createdAt}
-        className={cn(
-          'text-xs font-bold tabular-nums text-muted-foreground',
-          timeline && 'break-words',
-          timeline && !headerMetadata && 'w-full'
-        )}
+        className="w-full break-words text-xs font-bold tabular-nums text-muted-foreground"
       >
         {formatDate(row.createdAt)}
       </time>
-      {row.badge && (
-        <Badge
-          variant={row.badge.tone}
-          size="sm"
-          icon={row.badge.icon}
-          className={cn(
-            'font-bold uppercase tracking-wide',
-            timeline && 'h-auto min-w-0 max-w-full py-1 normal-case leading-relaxed tracking-normal'
-          )}
-        >
-          <span className={timeline ? 'min-w-0 break-words' : undefined}>{row.badge.label}</span>
-        </Badge>
-      )}
+      {badge}
       {row.attribution && <span className="min-w-0 break-words text-sm">{row.attribution}</span>}
-      {!headerMetadata && row.feedback !== undefined && (
-        <FeedbackMark verdict={row.feedback} negativeIsDestructive={timeline} />
-      )}
+      {!headerMetadata && row.feedback !== undefined && <FeedbackMark verdict={row.feedback} />}
     </div>
   );
 }
 
-/** One vocabulary of source labels, shared by header and footer metadata. */
-function HistoryChips({
-  chips,
-  timeline,
+/** The row's marker — a priority, a state, a subject, a sender. */
+function HistoryBadge({
+  badge,
+  inline,
 }: {
-  chips: NotificationHistoryRow['chips'];
-  timeline: boolean;
+  badge: NonNullable<NotificationHistoryRow['badge']>;
+  /** Leading the message's own text: no taller than its line, a gap after it. */
+  inline: boolean;
 }) {
+  return (
+    <Badge
+      variant={badge.tone}
+      size="sm"
+      icon={badge.icon}
+      className={cn(
+        'h-auto min-w-0 max-w-full py-1 font-bold leading-relaxed',
+        inline && 'mr-2 py-0 leading-normal'
+      )}
+    >
+      <span className="min-w-0 break-words">{badge.label}</span>
+    </Badge>
+  );
+}
+
+/** One vocabulary of source labels, shared by header and footer metadata. */
+function HistoryChips({ chips }: { chips: NotificationHistoryRow['chips'] }) {
   if (!chips.length) return null;
   return (
-    <div className={cn('flex min-w-0 max-w-full flex-wrap gap-1', timeline && 'gap-x-3 gap-y-1')}>
+    <div className="flex min-w-0 max-w-full flex-wrap gap-x-3 gap-y-1">
       {chips.map(chip => (
+        // The domain's colour, as a word: its tint and its edge are dropped.
         <span
           key={chip.key}
           className={cn(
-            'rounded border px-1.5 py-0.5 text-px-10 font-bold',
             chip.tone ?? THEME_CHIP_TONE,
-            timeline &&
-              'min-w-0 max-w-full break-words rounded-none border-0 bg-transparent px-0 py-0 text-xs font-bold leading-relaxed'
+            'min-w-0 max-w-full break-words rounded-none border-0 bg-transparent px-0 py-0 text-xs font-bold leading-relaxed'
           )}
         >
           {chip.label}
@@ -304,13 +348,7 @@ function HistoryChips({
 }
 
 /** The verdict already recorded — or the fact that none was. */
-function FeedbackMark({
-  verdict,
-  negativeIsDestructive = false,
-}: {
-  verdict: string | null;
-  negativeIsDestructive?: boolean;
-}) {
+function FeedbackMark({ verdict }: { verdict: string | null }) {
   const { t } = useTranslation();
   if (verdict === 'thumbs_up') {
     return (
@@ -322,12 +360,7 @@ function FeedbackMark({
   }
   if (verdict === 'thumbs_down') {
     return (
-      <span
-        className={cn(
-          'flex items-center gap-1 text-xs font-bold',
-          negativeIsDestructive ? 'text-destructive' : 'text-warning'
-        )}
-      >
+      <span className="flex items-center gap-1 text-xs font-bold text-destructive">
         <ThumbsDown className="h-3 w-3" aria-hidden="true" />
         {t('heartbeat.history.feedback_thumbs_down')}
       </span>

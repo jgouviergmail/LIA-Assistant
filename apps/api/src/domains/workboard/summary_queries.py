@@ -37,6 +37,7 @@ class BoardSummaryFigures:
         counts_by_status: One exact count per column, over everything visible.
         overdue: Open tickets past their due date, on the visible board.
         held_by_lia: Visible tickets LIA holds.
+        held_by_me: Visible tickets this account holds — « my tickets ».
         needs_me: Tickets waiting on this account, or late on its board.
         owned: Tickets this account owns — what the cap counts.
         runs_total: Runs over the owned tickets, summed.
@@ -50,6 +51,7 @@ class BoardSummaryFigures:
     counts_by_status: dict[str, int]
     overdue: int
     held_by_lia: int
+    held_by_me: int
     needs_me: int
     owned: int
     runs_total: int
@@ -70,6 +72,8 @@ class AttentionFigures:
 
     Attributes:
         needs_me: Tickets waiting on this account, or late on its board.
+        held_by_me: Open tickets this account holds — « my tickets », never
+            a ticket LIA or a peer holds, late or not (owner request 2026-10-21).
         held_by_lia: Open tickets LIA holds.
         held_by_peers: Open tickets another account holds (the board peer filter).
         overdue: Open tickets past their due date.
@@ -80,6 +84,7 @@ class AttentionFigures:
     """
 
     needs_me: int
+    held_by_me: int
     held_by_lia: int
     held_by_peers: int
     overdue: int
@@ -111,17 +116,21 @@ async def read_attention(
     open_statuses = tuple(sorted(OPEN_STATUSES))
     lia_stmt = repo.filtered_stmt(user_id, BoardFilters(statuses=open_statuses, assignee="lia"))
     peer_stmt = repo.filtered_stmt(user_id, BoardFilters(statuses=open_statuses, assignee="peer"))
+    me_stmt = repo.filtered_stmt(user_id, BoardFilters(statuses=open_statuses, assignee="me"))
     # Independent, possibly overlapping sets, in the same database round trip.
     holder_counts = select(
-        count_over(lia_stmt).scalar_subquery(), count_over(peer_stmt).scalar_subquery()
+        count_over(lia_stmt).scalar_subquery(),
+        count_over(peer_stmt).scalar_subquery(),
+        count_over(me_stmt).scalar_subquery(),
     )
-    held_by_lia, held_by_peers = (await db.execute(holder_counts)).one()
+    held_by_lia, held_by_peers, held_by_me = (await db.execute(holder_counts)).one()
     overdue_tickets = repo.filtered_stmt(user_id, BoardFilters(overdue=True))
     overdue = int((await db.execute(count_over(overdue_tickets))).scalar() or 0)
     statements = {
         "needs_me": select(WorkboardTicket).where(
             WorkboardTicket.id.in_(needs_me_stmt(user_id, now))
         ),
+        "held_by_me": me_stmt,
         "held_by_lia": lia_stmt,
         "held_by_peers": peer_stmt,
         "overdue": overdue_tickets,
@@ -133,6 +142,7 @@ async def read_attention(
     needs_me = await repo.count_needs_me(user_id, now)
     return AttentionFigures(
         needs_me=needs_me,
+        held_by_me=int(held_by_me),
         held_by_lia=int(held_by_lia),
         held_by_peers=int(held_by_peers),
         overdue=overdue,
@@ -225,6 +235,8 @@ async def read_board_summary(
     overdue = int((await db.execute(overdue_stmt)).scalar() or 0)
     lia_stmt = count_over(repo.filtered_stmt(user_id, BoardFilters(assignee="lia")))
     held_by_lia = int((await db.execute(lia_stmt)).scalar() or 0)
+    me_stmt = count_over(repo.filtered_stmt(user_id, BoardFilters(assignee="me")))
+    held_by_me = int((await db.execute(me_stmt)).scalar() or 0)
     needs_stmt = select(func.count()).select_from(needs_me_stmt(user_id, now).subquery())
     needs_me = int((await db.execute(needs_stmt)).scalar() or 0)
     owned, runs, tokens_in, tokens_out, tokens_cache, google, cost = (
@@ -234,6 +246,7 @@ async def read_board_summary(
         counts_by_status=counts,
         overdue=overdue,
         held_by_lia=held_by_lia,
+        held_by_me=held_by_me,
         needs_me=needs_me,
         owned=int(owned),
         runs_total=int(runs),

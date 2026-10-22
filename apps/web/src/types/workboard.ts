@@ -102,6 +102,9 @@ export interface TicketRow {
   last_run_error: string | null;
   last_run_tokens_in: number | null;
   last_run_tokens_out: number | null;
+  /** The meter's two other figures for the same run; null when its ledger no longer says. */
+  last_run_tokens_cache: number | null;
+  last_run_google_requests: number | null;
   last_run_cost_eur: number | null;
   /**
    * What the ticket has cost SINCE IT WAS CREATED, in the vocabulary the chat
@@ -170,6 +173,8 @@ export interface BoardSummary {
   counts_by_status: Record<string, number>;
   overdue: number;
   held_by_lia: number;
+  /** Visible tickets this account holds — « my tickets ». */
+  held_by_me: number;
   /** Waiting on this account, or late on its board. */
   needs_me: number;
   /** Owned — what the cap counts. */

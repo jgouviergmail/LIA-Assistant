@@ -102,6 +102,7 @@ def _to_open_loop(loop: Any, now: datetime) -> RelationOpenLoop:
         direction=loop.direction,
         due_hint=loop.due_hint,
         days_open=_days_between(loop.created_at, now),
+        opened_at=loop.created_at,
     )
 
 
@@ -340,7 +341,10 @@ class RelationsService:
             open_loops_total=_total_for(loop_activity, target_key, resolver=resolver),
             recent_calls=[_to_call(call) for call in phone_calls],
             recent_calls_total=_total_for(call_activity, target_key, resolver=resolver),
-            memories=[RelationMemory(id=str(row.id), content=row.content) for row in memory_rows],
+            memories=[
+                RelationMemory(id=str(row.id), content=row.content, created_at=row.created_at)
+                for row in memory_rows
+            ],
             memories_total=memories_total,
             peer_messages=[_to_peer_message(signal) for signal in messages.signals],
             peer_messages_total=messages.total,

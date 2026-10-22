@@ -117,6 +117,10 @@ _EDITABLE_NESTED_FIELDS = {
 }
 _STRUCTURED_OPERATIONS = frozenset(
     {
+        "proactive_discussions.update",
+        "discussion_context.use",
+        "discussion_context.purge",
+        "discussion_context.rebuild",
         *INGESTION_CANONICAL,
         *MANAGEMENT_CANONICAL,
         "relation_settings.update",

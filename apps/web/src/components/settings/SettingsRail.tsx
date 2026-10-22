@@ -53,7 +53,7 @@ export function SettingsRail({ lng, model, activeToken, onSelect }: SettingsRail
         return (
           <div
             key={tab.tab}
-            className={cn(tab.tab === 'administration' && 'border-t border-border/60 pt-5')}
+            className={cn(tab.tab === 'administration' && 'border-t border-border pt-5')}
           >
             {/* Below `lg` the rail IS the page, so the two heading levels
                 become full-width BANDS with centred labels (owner arbitration

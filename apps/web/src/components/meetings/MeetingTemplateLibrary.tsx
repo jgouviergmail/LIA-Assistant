@@ -223,7 +223,7 @@ function TemplateSection({
                     </span>
                   </AccordionTrigger>
                   <AccordionContent className="pb-2">
-                    <ul className="divide-y divide-border/60 rounded-md border border-border/60 bg-background">
+                    <ul className="divide-y divide-border rounded-md border border-border bg-background">
                       {members.map(template => (
                         <TemplateRow
                           key={template.ref}

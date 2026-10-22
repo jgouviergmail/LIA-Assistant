@@ -109,7 +109,7 @@ export function Column({ status, tickets, count, draggable, className, ...cards 
       ref={setNodeRef}
       aria-label={t(`workboard.columns.${status}`)}
       className={cn(
-        'flex min-h-32 flex-col gap-3 rounded-xl border border-border/50 bg-muted/30 p-3',
+        'flex min-h-32 flex-col gap-3 rounded-xl border border-border bg-muted/30 p-3',
         isOver && 'border-primary/50 bg-primary/5',
         className
       )}

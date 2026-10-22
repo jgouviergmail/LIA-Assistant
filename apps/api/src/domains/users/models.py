@@ -458,7 +458,11 @@ class User(
     )
     journal_last_cost_tokens_in: Mapped[int | None] = mapped_column(
         nullable=True,
-        comment="Input tokens of last journal background intervention.",
+        comment="Input tokens of last journal background intervention, cache reads excluded.",
+    )
+    journal_last_cost_tokens_cache: Mapped[int | None] = mapped_column(
+        nullable=True,
+        comment="Cache-read input tokens of last journal background intervention.",
     )
     journal_last_cost_tokens_out: Mapped[int | None] = mapped_column(
         nullable=True,

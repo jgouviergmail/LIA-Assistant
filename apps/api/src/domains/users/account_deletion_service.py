@@ -142,6 +142,17 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
 
     return [
         # Group 1 — Child tables (FK to other user-scoped tables)
+        by_user("discussion_outbox"),
+        by_user("discussion_openings"),
+        by_user("discussion_spend_reservations"),
+        by_user("discussion_runs"),
+        by_user("discussion_context_items"),
+        by_user("discussion_context_observations"),
+        by_user("discussion_context_exclusions"),
+        by_user("discussion_context_resume_markers"),
+        by_user("discussion_context_states"),
+        by_user("discussion_preferences"),
+        by_user("discussion_budget_buckets"),
         by_user("interest_notifications"),
         by_user("user_broadcast_reads"),
         # ADR-312: the targeted broadcasts addressed to the account. Group 1:
@@ -238,6 +249,8 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         by_user("sms_search_terms"),
         by_user("ingestion_deliveries"),
         by_user("sms_messages"),
+        by_user("sms_sender_identities"),
+        by_user("sms_identity_states"),
         by_user("sms_sender_blocks"),
         by_user("ingestion_receipts"),
         by_user("ingestion_tokens"),

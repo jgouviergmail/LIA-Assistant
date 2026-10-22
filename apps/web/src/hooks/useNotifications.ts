@@ -34,6 +34,7 @@ export type NotificationType =
   | 'oauth_health_critical'
   | 'proactive_interest'
   | 'proactive_heartbeat'
+  | 'proactive_discussion'
   | 'scheduled_action'
   | 'subagent_result'
   | 'admin_broadcast';
@@ -200,6 +201,8 @@ function buildFcmMetadata(
       // key at all: `proactiveFeedbackProps` reads it as a string and would
       // forward '' as though it identified something.
       ...(d.run_id ? { run_id: d.run_id } : {}),
+      ...(d.message_id ? { message_id: d.message_id } : {}),
+      ...(d.sensitive_in_app_only === 'true' ? { sensitive_in_app_only: true } : {}),
     };
   }
   if (fcmType === 'scheduled_action') {
@@ -261,6 +264,7 @@ const sseNotice = z.object({
       'oauth_health_critical',
       'proactive_interest',
       'proactive_heartbeat',
+      'proactive_discussion',
       'scheduled_action',
       'subagent_result',
       'admin_broadcast',

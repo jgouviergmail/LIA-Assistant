@@ -198,6 +198,10 @@ class TicketRow(BaseModel):
     last_run_error: str | None
     last_run_tokens_in: int | None
     last_run_tokens_out: int | None
+    #: The chat meter's two other figures for the same run; None on a run
+    #: settled before they were kept whose ledger no longer says.
+    last_run_tokens_cache: int | None
+    last_run_google_requests: int | None
     last_run_cost_eur: float | None
     #: What the ticket has cost SINCE IT WAS CREATED, in the vocabulary the chat
     #: already shows. A ticket is run up to ten times, and « what did this cost
@@ -285,6 +289,7 @@ class BoardSummary(BaseModel):
     counts_by_status: dict[str, int] = Field(description="Exact count per column, all columns.")
     overdue: int = Field(ge=0, description="Open tickets past their due date.")
     held_by_lia: int = Field(ge=0, description="Visible tickets LIA holds.")
+    held_by_me: int = Field(ge=0, description="Visible tickets the caller holds.")
     needs_me: int = Field(
         ge=0, description="Tickets waiting on the caller, or late on their board."
     )

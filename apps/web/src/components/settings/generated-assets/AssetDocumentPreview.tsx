@@ -61,7 +61,7 @@ export function AssetDocumentPreview({ asset, label }: { asset: GeneratedAsset; 
   return (
     <div
       ref={box}
-      className="flex h-36 w-full flex-col overflow-hidden rounded-lg border border-border/60 bg-muted/40"
+      className="flex h-36 w-full flex-col overflow-hidden rounded-lg border border-border bg-muted/40"
     >
       {visible && wire && type === 'pdf' && !failed ? (
         // eslint-disable-next-line @next/next/no-img-element -- authenticated private API thumbnail.

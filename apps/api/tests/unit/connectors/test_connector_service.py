@@ -358,10 +358,15 @@ class TestDeleteConnector:
     """Tests for delete_connector with revocation and cache invalidation."""
 
     @pytest.mark.asyncio
-    async def test_delete_connector_success(self):
+    async def test_delete_connector_success(self, monkeypatch):
         """Test delete_connector deletes and invalidates cache (Lines 234-264)."""
         mock_db = AsyncMock()
         service = ConnectorService(mock_db)
+        invalidate_discussions = AsyncMock()
+        monkeypatch.setattr(
+            "src.domains.connectors.removal_commands.invalidate_discussion_sources",
+            invalidate_discussions,
+        )
 
         user_id = uuid.uuid4()
         connector_id = uuid.uuid4()
@@ -392,6 +397,9 @@ class TestDeleteConnector:
         service.repository.delete.assert_called_once_with(mock_connector)
         service._invalidate_user_connectors_cache.assert_called_once_with(user_id)
         mock_db.commit.assert_called_once()
+        from src.domains.shared.discussion_sources import SourceKey
+
+        invalidate_discussions.assert_awaited_once_with(mock_db, user_id, (SourceKey.EMAILS,))
 
 
 class TestOAuthFlows:

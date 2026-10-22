@@ -33,6 +33,9 @@ class RelationOpenLoop(BaseModel):
     direction: str = Field(description="user_owes | waiting_on_other")
     due_hint: datetime | None = None
     days_open: int = Field(ge=0)
+    opened_at: datetime = Field(
+        description="UTC instant the commitment was recorded — the row's dated title."
+    )
 
 
 class RelationCall(BaseModel):
@@ -48,12 +51,13 @@ class RelationCall(BaseModel):
 
 
 class RelationMemory(BaseModel):
-    """One stored memory mentioning this person."""
+    """One stored memory mentioning this person, dated by when it was kept."""
 
     model_config = ConfigDict(frozen=True)
 
     id: str
     content: str
+    created_at: datetime
 
 
 class RelationPeerMessage(BaseModel):

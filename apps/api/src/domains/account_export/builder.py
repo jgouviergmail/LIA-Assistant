@@ -63,6 +63,11 @@ _OWNER_COLUMN_OVERRIDES: dict[str, str] = {
 # Columns stripped from exported rows even on FULL tables: secrets, key
 # material, or server-internal bookkeeping. Asserted by the exclusion test.
 _REDACTED_COLUMNS: dict[str, frozenset[str]] = {
+    # Proactive discussions: the server's own fencing, claim and cache tokens.
+    "discussion_context_states": frozenset({"ready_context"}),
+    "discussion_outbox": frozenset({"attempt_token"}),
+    "discussion_preferences": frozenset({"active_run_id", "lease_until", "run_fence"}),
+    "discussion_runs": frozenset({"fence"}),
     "peer_capability_transfers": frozenset(
         {"snapshot", "lease_owner", "lease_expires_at", "fence"}
     ),
