@@ -27,6 +27,14 @@ async def test_sms_migration_round_trip_matches_columns_and_indexes(async_engine
     assert next_spec and next_spec.loader
     proactive = importlib.util.module_from_spec(next_spec)
     next_spec.loader.exec_module(proactive)
+    # The schema starts at head, where a later revision dropped the private
+    # marker `proactive` adds (ADR-357 amendment 2026-10-23): it is undone
+    # first and redone last, so each revision runs against the schema it expects.
+    marker_path = path.parent / "2026_10_23_1430-213b9ac595c5_heartbeat_drop_sms_private_marker.py"
+    marker_spec = importlib.util.spec_from_file_location("sms_private_marker_drop", marker_path)
+    assert marker_spec and marker_spec.loader
+    marker_drop = importlib.util.module_from_spec(marker_spec)
+    marker_spec.loader.exec_module(marker_drop)
     names = {
         "ingestion_sources",
         "ingestion_tokens",
@@ -39,12 +47,17 @@ async def test_sms_migration_round_trip_matches_columns_and_indexes(async_engine
 
     def cycle(connection):
         with Operations.context(MigrationContext.configure(connection)):
+            marker_drop.downgrade()
             proactive.downgrade()
             migration.downgrade()
             assert not names & set(inspect(connection).get_table_names())
             migration.upgrade()
             proactive.upgrade()
+            marker_drop.upgrade()
         reflection = inspect(connection)
+        assert {
+            column["name"] for column in reflection.get_columns("heartbeat_notifications")
+        } == set(Base.metadata.tables["heartbeat_notifications"].columns.keys())
         for name in names:
             assert {column["name"] for column in reflection.get_columns(name)} == set(
                 Base.metadata.tables[name].columns.keys()
