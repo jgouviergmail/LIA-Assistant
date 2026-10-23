@@ -6390,7 +6390,7 @@
             "i3": "<b>🔁 Quién tenía el ticket, quién lo tiene</b> — El historial de un ticket muestra «En manos de: Yo → LIA» en cada traspaso, también cuando LIA devuelve un ticket o termina una conexión.",
             "i4": "<b>📱 Pensado para tu teléfono</b> — Tablas, tarjetas y código ocupan todo el ancho de la conversación, una tarjeta vacía del inicio se reduce a su frase y los botones de una ficha de relación abarcan todo el ancho de la pantalla.",
             "i5": "<b>🗺️ Lugares y vistas previas</b> — En pantalla grande, Posición coloca los lugares junto al mapa y muestra su coste justo debajo de su botón, y los detalles de un lugar quedan a la vista. En Relaciones, las vistas previas de los correos muestran sus caracteres reales, en hasta cuatro líneas.",
-            "i6": "<b>🛠️ Para administradores</b> — Dos interruptores rigen la hora de la caché de Claude y la reutilización del razonamiento anterior, las llamadas del modo ReAct aparecen en todas las métricas de modelos y una alerta avisa cuando una escritura en caché llega sin su duración.",
+            "i6": "<b>🛠️ Para administradores</b> — Dos interruptores rigen la hora de la caché de Claude y la reutilización del razonamiento anterior, las llamadas del modo ReAct aparecen en todas las métricas de modelos una alerta avisa cuando una escritura en caché llega sin su duración, y un proveedor saturado ya no cuenta como un error del modelo ni se reintenta por partida doble.",
             "i7": "<b>🔍 La contraauditoría</b> — La auditoría técnica de octubre se volvió a examinar punto por punto sobre el código actual: 7,8/10 en 24 perímetros en lugar de 8,0, con 12 hallazgos nuevos y un plan de corrección priorizado, todo publicado."
           }
         },

@@ -91,6 +91,16 @@ the technical audit publishes its counter-review, 7.8/10.
 
 ### Fixed
 
+- 🔁 **A failed structured-output call is said as itself** (ADR-100 amendment
+  2026-10-23). A provider error on the auto-tool door — a 503, a 529, a 429, a
+  refused connection — used to become a cause-less « produced no valid tool
+  call », counted as the model's rejection and invisible to the proactive
+  discussions' backoff. It is now `StructuredOutputCallError`, raised from the
+  provider's error by the three doors where a call fails and counted
+  `call_failed` (dashboard 05). The retry wrapper leaves a client that retries by
+  itself (the vendor SDK's `max_retries`) to its own attempts: one 503 costs three
+  requests instead of nine. An unusable answer is still retried, and a client with
+  no retry of its own keeps the wrapper's loop.
 - 📈 The ReAct loop's model calls reach every Prometheus LLM metric: the node now
   hands them the per-node metrics handler every other node attaches.
 - 🔇 A structured-output refusal no longer quotes the first 120 characters of the

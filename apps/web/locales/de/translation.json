@@ -6390,7 +6390,7 @@
             "i3": "<b>🔁 Wer das Ticket hielt, wer es hält</b> — Der Verlauf eines Tickets zeigt bei jeder Übergabe „Gehalten von: Ich → LIA“ — auch wenn LIA ein Ticket zurückgibt oder eine Verbindung endet.",
             "i4": "<b>📱 Für dein Smartphone gemacht</b> — Tabellen, Karten und Code nutzen die ganze Breite des Gesprächs, eine leere Karte der Startseite schrumpft auf ihren Satz, und die Schaltflächen einer Beziehungskarte reichen über die ganze Bildschirmbreite.",
             "i5": "<b>🗺️ Orte und Vorschauen</b> — Auf großen Bildschirmen stehen die Orte in Position neben der Karte, ihre Kosten direkt unter ihrer Schaltfläche, und die Details eines Ortes bleiben im Blick. In Beziehungen zeigen E-Mail-Vorschauen ihre echten Zeichen, auf bis zu vier Zeilen.",
-            "i6": "<b>🛠️ Für Administratoren</b> — Zwei Schalter regeln die Stunde des Claude-Caches und die Wiederverwendung früherer Überlegungen, die Aufrufe des ReAct-Modus erscheinen in allen Modellmetriken, und ein Alarm warnt, wenn ein Cache-Schreibvorgang ohne seine Lebensdauer eintrifft.",
+            "i6": "<b>🛠️ Für Administratoren</b> — Zwei Schalter regeln die Stunde des Claude-Caches und die Wiederverwendung früherer Überlegungen, die Aufrufe des ReAct-Modus erscheinen in allen Modellmetriken, ein Alarm warnt, wenn ein Cache-Schreibvorgang ohne seine Lebensdauer eintrifft, und ein überlasteter Anbieter gilt nicht mehr als Modellfehler und wird nicht mehr doppelt neu versucht.",
             "i7": "<b>🔍 Das Gegengutachten des Audits</b> — Das technische Audit vom Oktober wurde Punkt für Punkt am aktuellen Code überprüft: 7,8/10 über 24 Bereiche statt 8,0, mit 12 neuen Befunden und einem priorisierten Behebungsplan — alles veröffentlicht."
           }
         },

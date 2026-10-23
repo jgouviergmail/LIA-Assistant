@@ -6411,7 +6411,7 @@
             "i3": "<b>🔁 Qui tenait le ticket, qui le tient</b> — L’historique d’un ticket affiche « Détenu par : Moi → LIA » à chaque passage de main, y compris quand LIA rend un ticket ou qu’une connexion prend fin.",
             "i4": "<b>📱 Pensé pour ton téléphone</b> — Tableaux, cartes et code prennent toute la largeur de la conversation, une carte vide de l’accueil se réduit à sa phrase, et les boutons d’une fiche de relation occupent toute la largeur de l’écran.",
             "i5": "<b>🗺️ Lieux et aperçus</b> — Sur grand écran, Position range les lieux à côté du plan et affiche le coût de la carte juste sous son bouton, et le détail d’un lieu reste visible. Dans Relations, les aperçus d’e-mails montrent leurs vrais caractères, sur quatre lignes au plus.",
-            "i6": "<b>🛠️ Pour les administrateurs</b> — Deux interrupteurs règlent l’heure du cache Claude et la reprise de la réflexion précédente, les appels du mode ReAct apparaissent dans toutes les métriques de modèle, et une alerte prévient quand une écriture de cache arrive sans sa durée.",
+            "i6": "<b>🛠️ Pour les administrateurs</b> — Deux interrupteurs règlent l’heure du cache Claude et la reprise de la réflexion précédente, les appels du mode ReAct apparaissent dans toutes les métriques de modèle, une alerte prévient quand une écriture de cache arrive sans sa durée, et un fournisseur surchargé n’est plus pris pour une erreur du modèle ni relancé en double.",
             "i7": "<b>🔍 La contre-expertise de l’audit</b> — L’audit technique d’octobre a été réexaminé point par point sur le code actuel : 7,8/10 sur 24 périmètres au lieu de 8,0, avec 12 nouveaux constats et un plan de remédiation priorisé, le tout publié."
           }
         },

@@ -6400,7 +6400,7 @@
             "i3": "<b>🔁 Who held the ticket, who holds it now</b> — A ticket’s history reads “Held by: Me → LIA” for every hand-over, including when LIA hands a ticket back or a connection ends.",
             "i4": "<b>📱 Made for your phone</b> — Tables, cards and code use the whole width of the conversation, an empty Home card shrinks to its sentence, and the buttons of a relationship card span the screen.",
             "i5": "<b>🗺️ Places and previews</b> — On a wide screen, Position lists the places beside the map and shows the map’s cost right under its button, and a place’s details stay in view. In Relations, e-mail previews show their real characters, on up to four lines.",
-            "i6": "<b>🛠️ For administrators</b> — Two switches govern the Claude cache’s hour and the reuse of earlier reasoning, ReAct calls now appear in every model metric, and an alert warns when a cache write arrives without its lifetime.",
+            "i6": "<b>🛠️ For administrators</b> — Two switches govern the Claude cache’s hour and the reuse of earlier reasoning, ReAct calls now appear in every model metric, an alert warns when a cache write arrives without its lifetime, and an overloaded provider is no longer read as a model error nor retried twice over.",
             "i7": "<b>🔍 The audit’s counter-review</b> — The October technical audit was re-examined point by point against the current code: 7.8/10 over 24 areas instead of 8.0, with 12 new findings and a prioritized remediation plan, all published."
           }
         },
