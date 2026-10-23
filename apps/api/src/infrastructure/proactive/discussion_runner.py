@@ -40,7 +40,6 @@ from src.domains.proactive_discussions.llm_contracts import (
     PromptBudgetExceeded,
 )
 from src.domains.proactive_discussions.policy import effective_sources, validate_decision
-from src.domains.proactive_discussions.privacy import sms_in_context
 from src.domains.proactive_discussions.publication_types import OpeningDraft
 from src.domains.proactive_discussions.repository import DiscussionRepository
 from src.domains.proactive_discussions.rule_controls import RuleCache, restricted_sources
@@ -332,8 +331,7 @@ class DiscussionAct:
         """Decide and word an opening on a ready context, or abstain.
 
         The selected facts are read again before the decision and after the wording;
-        an opening already made stops the run before its wording is paid for. A draft
-        is private when an SMS informed anything the run read (ADR-357).
+        an opening already made stops the run before its wording is paid for.
 
         Args:
             result: The context result.
@@ -367,10 +365,7 @@ class DiscussionAct:
             self.gateway,
         )
         await self.authority.check()
-        read = (*current, *(item for page in result.snapshots for item in page.items))
-        return make_draft(
-            selected, decision, text, sms_context=sms_in_context(read, result.knowledge)
-        )
+        return make_draft(selected, decision, text)
 
     async def _decide(
         self,
@@ -490,19 +485,17 @@ def make_draft(
     selected: tuple[DiscussionEvidence, ...],
     decision: EngageDecision,
     text: str,
-    *,
-    sms_context: bool,
 ) -> OpeningDraft:
     """Assemble the opening draft: its fingerprint, proofs and privacy.
 
-    It is private when an SMS informed the run, or when the decision or a selected
-    fact touches a sensitive topic.
+    It is private when the decision or a selected fact touches a sensitive topic,
+    whatever the source the fact comes from: an SMS is personal data like a mail
+    (ADR-357 amendment 2026-10-23).
 
     Args:
         selected: The facts the opening rests on.
         decision: The engagement.
         text: The opening's words.
-        sms_context: Whether an SMS informed anything the run read.
 
     Returns:
         The draft.
@@ -516,11 +509,8 @@ def make_draft(
             for item in selected
         ),
         sensitive_context=bool(
-            sms_context
-            or decision.sensitive_topics
-            or any(item.sensitive_topics for item in selected)
+            decision.sensitive_topics or any(item.sensitive_topics for item in selected)
         ),
-        sms_context=sms_context,
     )
 
 

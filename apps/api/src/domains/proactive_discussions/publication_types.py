@@ -1,9 +1,9 @@
 """Validated publication input and durable idempotency receipt."""
 
-from typing import Annotated, Self
+from typing import Annotated
 from uuid import UUID
 
-from pydantic import Field, StrictBool, model_validator
+from pydantic import Field, StrictBool
 
 from src.core.constants import DISCUSSION_OPENING_MAX_CHARS, DISCUSSION_OPENING_PROOFS_MAX
 from src.domains.proactive_discussions.context_store.schemas import ContextEvidenceLink
@@ -20,20 +20,9 @@ class OpeningDraft(DiscussionValue):
     sensitive_context: StrictBool = Field(
         default=False, description="Deliver privately: push masked, no external channel."
     )
-    sms_context: StrictBool = Field(
-        default=False,
-        description="The run read an SMS: private delivery and no later decision window.",
-    )
     proofs: Annotated[
         tuple[ContextEvidenceLink, ...], Field(max_length=DISCUSSION_OPENING_PROOFS_MAX)
     ] = ()
-
-    @model_validator(mode="after")
-    def sms_is_private(self) -> Self:
-        """Refuse an SMS-informed opening that is not private (ADR-357)."""
-        if self.sms_context and not self.sensitive_context:
-            raise ValueError("an SMS-informed opening is private (ADR-357)")
-        return self
 
 
 class PublicationReceipt(DiscussionValue):

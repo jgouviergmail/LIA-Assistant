@@ -6,7 +6,7 @@
 
 **Version**: 5.6
 **Date**: 2026-10-23
-**Application**: LIA v3.5.0
+**Application**: LIA v3.5.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -1019,7 +1019,7 @@ A notification tells; a discussion invites a reply. Proactive discussions theref
 
 **Spending is reserved before it happens** (ADR-360). A run reserves the smaller of its own ceiling and the day's remaining room — for the account and for the whole instance —, starts only when its first call fits, and stages its model calls, deciding then writing, under published finite limits. An abstention, a cancellation or a discarded draft keeps its known cost on the account's ledger, every run records why it ended, and the prompt ceiling is the configured slot's own window, never an envelope written in code.
 
-**Publishing is one act, delivering another.** The archived message, the logical opening and the outbox intent commit together; native delivery follows, and a person's own turn, an approval or an alert keeps priority. An opening informed by an SMS or by a sensitive topic stays private — a masked push, never an external channel —, and every opening is filed in the registers as an act of LIA's own initiative, beside the sources its run read.
+**Publishing is one act, delivering another.** The archived message, the logical opening and the outbox intent commit together; native delivery follows, and a person's own turn, an approval or an alert keeps priority. An opening touching a sensitive topic stays private — a masked push, never an external channel —, and every opening is filed in the registers as an act of LIA's own initiative, beside the sources its run read.
 
 ---
 
@@ -2017,4 +2017,4 @@ The 360 ADRs document not only the decisions made but also the rejected alternat
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (800+ documents), 360 ADRs, and the changelog (v1.0 to v3.5.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (800+ documents), 360 ADRs, and the changelog (v1.0 to v3.5.1). All metrics, versions, and patterns cited are verifiable in the codebase.*

@@ -154,17 +154,15 @@ async def test_a_connections_words_relayed_by_lia_are_never_the_stations(
     ]
 
 
-async def test_sensitive_in_app_notifications_are_excluded_before_the_sql_limit(
+async def test_a_heartbeat_archived_with_the_retired_private_marker_is_read_like_any_other(
     async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    listener = await _user(async_session, "radio_sensitive@test.local")
-    rows = [
-        _message(listener.id, minute, "proactive_heartbeat") for minute in (55, 50, 45, 20, 15, 10)
-    ]
-    for row in rows:
-        row.message_metadata = {"type": "proactive_heartbeat", "sensitive_in_app_only": True}
-    public = _message(listener.id, 30, "proactive_interest")
-    async_session.add_all([*rows, public])
+    """An SMS in view no longer makes a notification private (ADR-357 amendment
+    2026-10-23); the rows archived with the marker before it are ordinary too."""
+    listener = await _user(async_session, "radio_formerly_private@test.local")
+    marked = _message(listener.id, 10, "proactive_heartbeat")
+    marked.message_metadata = {"type": "proactive_heartbeat", "sensitive_in_app_only": True}
+    async_session.add(marked)
     await async_session.commit()
 
     @contextlib.asynccontextmanager
@@ -172,8 +170,8 @@ async def test_sensitive_in_app_notifications_are_excluded_before_the_sql_limit(
         yield async_session
 
     monkeypatch.setattr(module, "get_db_context", _ctx)
-    assert module.notification_line(rows[0]) is None
+    assert module.notification_line(marked) is not None
     notes = await module.read_flash_notes(listener.id, after=NOW - timedelta(hours=1), limit=1)
     drafts = await module.read_notifications(listener.id, now=NOW, tz=UTC)
-    assert [note.id for note in notes] == [str(public.id)]
-    assert len(drafts) == 1 and "Update 30 minutes ago" in drafts[0].text
+    assert [note.id for note in notes] == [str(marked.id)]
+    assert len(drafts) == 1 and "(heartbeat)" in drafts[0].text

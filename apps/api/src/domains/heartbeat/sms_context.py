@@ -1,4 +1,4 @@
-"""Bounded SMS evidence for existing proactive calls, with no implicit memory copy."""
+"""Bounded SMS evidence for the heartbeat decision and its mention bookkeeping."""
 
 from __future__ import annotations
 
@@ -9,7 +9,6 @@ from uuid import UUID
 from src.core.config import Settings, settings
 from src.core.exceptions import AuthorizationError
 from src.core.llm_config_helper import get_effective_context_window_for_slot
-from src.core.notification_privacy import NotificationPrivacy
 from src.domains.sms.proactive import mark_sms_mentioned
 from src.domains.sms.summary import SmsSignal, project_sms_signal, read_sms_signal
 
@@ -79,14 +78,6 @@ def sms_owner_matches(signal: SmsSignal | None, user_id: UUID | str | None) -> b
         return UUID(str(user_id)) == signal.owner
     except ValueError, TypeError:
         return False
-
-
-def sms_privacy(context: HeartbeatContext) -> NotificationPrivacy:
-    return (
-        NotificationPrivacy.IN_APP_SENSITIVE
-        if context.sms is not None
-        else NotificationPrivacy.NORMAL
-    )
 
 
 async def settle_sms_notification(

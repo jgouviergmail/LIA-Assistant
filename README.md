@@ -44,7 +44,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 3.5.0</strong> — <strong>Follow-ups read back from the cache, a simple start, hand-overs that name both ends.</strong> On Claude, the next turn reads its history back from the provider's cache — for an hour when you are waiting — a new account opens on the weather and occasional exchanges, a ticket's history says who held it before and after, the phone gets the whole width, and the audit publishes its counter-review — 23 October 2026.
+  <strong>Version 3.5.1</strong> — <strong>Notifications that no longer repeat themselves.</strong> An SMS is now treated like an email: before writing to you, LIA again reads every notification it already sent, so a birthday is announced once rather than at every check — 23 October 2026.
 </p>
 
 ---
@@ -559,7 +559,7 @@ A ticket has a lifecycle, a holder and a result ([ADR-276](docs/architecture/ADR
 #### Discussions it opens
 
 - Beyond telling you something, LIA may start a personal conversation when you allow it — off until you switch it on: your hours and daily maximum, each source and sensitive topic chosen, topics to avoid, and four reactions on every opening.
-- What LIA understood stays visible: every element of its context can be excluded, deleted, purged or rebuilt, and the last run says why it ended, what it read and what it cost. Each opening is filed as LIA's own act, every call counts under your quotas and three budgets, and an opening informed by an SMS or a sensitive topic stays private — a masked push, never an external channel ([ADR-358](docs/architecture/ADR-358-Independent-Proactive-Discussions-And-Native-Delivery.md), [ADR-359](docs/architecture/ADR-359-Longitudinal-Discussion-Context-And-User-Control.md), [ADR-360](docs/architecture/ADR-360-Bounded-Discussion-Research-And-Accounted-Abstention.md), [PROACTIVE_DISCUSSIONS](docs/technical/PROACTIVE_DISCUSSIONS.md)).
+- What LIA understood stays visible: every element of its context can be excluded, deleted, purged or rebuilt, and the last run says why it ended, what it read and what it cost. Each opening is filed as LIA's own act, every call counts under your quotas and three budgets, and an opening touching a sensitive topic stays private — a masked push, never an external channel ([ADR-358](docs/architecture/ADR-358-Independent-Proactive-Discussions-And-Native-Delivery.md), [ADR-359](docs/architecture/ADR-359-Longitudinal-Discussion-Context-And-User-Control.md), [ADR-360](docs/architecture/ADR-360-Bounded-Discussion-Research-And-Accounted-Abstention.md), [PROACTIVE_DISCUSSIONS](docs/technical/PROACTIVE_DISCUSSIONS.md)).
 
 #### Moments served to the minute
 
@@ -763,7 +763,7 @@ The result is measured, not proclaimed:
 |                           |                                           |                                         |                                                                         |
 | ------------------------- | ----------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
 | **58** functional domains | **1,003,000+** source lines (excl. tests) | **66,000+** inventoried automated tests | **360** ADRs                                                            |
-| **286** versions shipped  | **6 languages**, parity enforced in CI    | **630** Prometheus metrics              | [**7.8/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **287** versions shipped  | **6 languages**, parity enforced in CI    | **630** Prometheus metrics              | [**7.8/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 Source-line figure: 1,003,000+ physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-22). Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
 

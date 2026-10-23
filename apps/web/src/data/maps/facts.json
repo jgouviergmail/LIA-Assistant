@@ -1,7 +1,7 @@
 {
-  "version": "3.5.0",
+  "version": "3.5.1",
   "releaseDate": "2026-10-23",
-  "releases": 286,
+  "releases": 287,
   "milestones": [
     {
       "version": "1.0.0",
@@ -245,6 +245,10 @@
     },
     {
       "version": "3.5.0",
+      "date": "2026-10-23"
+    },
+    {
+      "version": "3.5.1",
       "date": "2026-10-23"
     }
   ],

@@ -6,7 +6,7 @@
 
 **Versión**: 5.6
 **Fecha**: 2026-10-23
-**Aplicación**: LIA v3.5.0
+**Aplicación**: LIA v3.5.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -1019,7 +1019,7 @@ Una notificación informa; una conversación invita a responder. Por eso las con
 
 **El gasto se reserva antes de producirse** (ADR-360). Una ejecución reserva el menor entre su propio límite y el margen que le queda al día —para la cuenta y para toda la instancia—, solo arranca si su primera llamada cabe, y escalona sus llamadas al modelo, decidir y luego escribir, bajo límites finitos y publicados. Una abstención, una cancelación o un borrador descartado conserva su coste conocido en el registro de la cuenta, cada ejecución anota por qué terminó, y el límite del prompt es la ventana del slot configurado, nunca un presupuesto escrito en el código.
 
-**Publicar es un acto; entregar, otro.** El mensaje archivado, la apertura lógica y la intención de la cola de envío se confirman juntos; la entrega nativa viene después, y un turno de la persona, una aprobación o una alerta conservan la prioridad. Una apertura basada en un SMS o en un tema sensible sigue siendo privada —una notificación enmascarada, nunca un canal externo—, y cada apertura queda registrada como un acto por iniciativa propia de LIA, junto a las fuentes que leyó su ejecución.
+**Publicar es un acto; entregar, otro.** El mensaje archivado, la apertura lógica y la intención de la cola de envío se confirman juntos; la entrega nativa viene después, y un turno de la persona, una aprobación o una alerta conservan la prioridad. Una apertura que toca un tema sensible sigue siendo privada —una notificación enmascarada, nunca un canal externo—, y cada apertura queda registrada como un acto por iniciativa propia de LIA, junto a las fuentes que leyó su ejecución.
 
 ---
 
@@ -2023,4 +2023,4 @@ Los 360 ADRs documentan no solo las decisiones tomadas sino también las alterna
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (800+ documentos), de los 360 ADRs y del changelog (v1.0 a v3.5.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (800+ documentos), de los 360 ADRs y del changelog (v1.0 a v3.5.1). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

@@ -8,7 +8,7 @@ Models:
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -72,10 +72,6 @@ class HeartbeatNotification(Base, UUIDMixin):
     content_hash: Mapped[str] = mapped_column(
         String(64),
         nullable=False,
-    )
-
-    sensitive_context: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default="false"
     )
 
     # Context metadata

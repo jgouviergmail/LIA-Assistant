@@ -283,8 +283,9 @@ bounded excerpts retain timestamp provenance and unknown phone read status; they
 are sensitive external facts in the journal's day material. The source uses the
 existing SMS context budget and the receiving writer/verifier windows, with its
 fact bound declared in `personal.MAX_PER_SOURCE`. It opens no source in company,
-with SMS disabled or with the personal journal off. Private proactive SMS
-notification copies remain excluded from the notifications reader.
+with SMS disabled or with the personal journal off. A notification written with
+SMS in view is read by the notifications reader like any other (ADR-357 amendment
+2026-10-23).
 
 The [SMS reader](../../apps/api/src/domains/radio/sms_context.py) attaches private
 source proofs that are excluded from serialized facts. Model and production

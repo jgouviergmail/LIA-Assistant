@@ -1,20 +1,15 @@
-"""Old wording reaches a model only with its complete freshly permitted support set.
-
-An opening an SMS informed never comes back at all (ADR-357): its support set may
-be SMS-free while its words are not.
-"""
+"""Old wording reaches a model only with its complete freshly permitted support set."""
 
 from uuid import UUID
 
 from pydantic import TypeAdapter
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.domains.conversations.models import ConversationMessage
 from src.domains.proactive_discussions.context_store.schemas import ContextEvidenceLink
 from src.domains.proactive_discussions.models import DiscussionOpeningRecord
-from src.domains.proactive_discussions.privacy import DISCUSSION_SMS_CONTEXT_FIELD
 from src.domains.proactive_discussions.schemas import PriorOpening
 from src.domains.shared.discussion_sources import DiscussionEvidence
 
@@ -28,8 +23,7 @@ async def relevant_opening_history(
 
     An opening comes back only when every proof it rests on is present at the
     same version and from the same source account, so old wording never reaches
-    a model on a support that changed or was withdrawn; an opening an SMS
-    informed never comes back at all (ADR-357).
+    a model on a support that changed or was withdrawn.
 
     Args:
         db: The session to read with.
@@ -55,11 +49,6 @@ async def relevant_opening_history(
                 ConversationMessage.conversation_id == DiscussionOpeningRecord.conversation_id,
                 ConversationMessage.hidden.is_(False),
                 ConversationMessage.role == "assistant",
-                # ADR-357: an SMS-informed opening never reaches a later decision window.
-                func.coalesce(
-                    ConversationMessage.message_metadata[DISCUSSION_SMS_CONTEXT_FIELD].as_boolean(),
-                    False,
-                ).is_(False),
             )
             .order_by(DiscussionOpeningRecord.created_at.desc(), DiscussionOpeningRecord.id.desc())
             .limit(settings.discussion_history_openings)

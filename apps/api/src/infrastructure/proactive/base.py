@@ -16,7 +16,6 @@ from typing import Any, Protocol
 from uuid import UUID
 
 from src.core.llm_usage import LLMBillingRecord
-from src.core.notification_privacy import NotificationPrivacy
 
 
 class ContentSource(str, Enum):
@@ -78,7 +77,6 @@ class ProactiveTaskResult:
     target_id: str | None = None
     tokens_cache_write: int = 0
     billing_records: tuple[LLMBillingRecord, ...] = ()
-    privacy: NotificationPrivacy = NotificationPrivacy.NORMAL
 
     @property
     def total_tokens(self) -> int:

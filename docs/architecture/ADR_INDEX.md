@@ -5313,7 +5313,7 @@ graph TD
 
 **File**: [ADR-357-Phone-Ingestion-And-Personal-SMS-Archive.md](ADR-357-Phone-Ingestion-And-Personal-SMS-Archive.md)
 
-**Status**: Accepted, 2026-10-20. Physical iPhone/FCM acceptance remains separate.
+**Status**: Accepted, 2026-10-20; amended 2026-10-21 (the in-app notice names its sender) and 2026-10-23 (an SMS in view is personal data like a mail: no proactive notification is private because of it). Physical iPhone/FCM acceptance remains separate.
 
 **Decision**: A shared typed ingestion boundary admits write-only phone credentials, stable replay receipts and a durable per-destination outbox. The encrypted personal SMS archive has independent assistant consent, deterministic access-secret exclusion and bounded external evidence across chat, relationships and proactivity. Immediate content-free push, personal export, erasure and indirect consumers keep explicit owner, freshness and privacy fences. Health ingestion stays compatible.
 
@@ -5321,7 +5321,7 @@ graph TD
 
 **File**: [ADR-358-Independent-Proactive-Discussions-And-Native-Delivery.md](ADR-358-Independent-Proactive-Discussions-And-Native-Delivery.md)
 
-**Status**: Accepted, 2026-10-20 — implemented on the native application contracts; amended 2026-10-21 (cold review, production measurement) and 2026-10-22 (operator tick capacity). Device display and perceived conversational quality remain product-pilot qualifications.
+**Status**: Accepted, 2026-10-20 — implemented on the native application contracts; amended 2026-10-21 (cold review, production measurement) and 2026-10-22 (operator tick capacity); its SMS privacy rule withdrawn on 2026-10-23 (ADR-357 amendment). Device display and perceived conversational quality remain product-pilot qualifications.
 
 **Decision**: Personal conversational initiative has its own policy, cadence and owner-fenced runs. One assistant archive, logical opening and outbox intent share an atomic publication boundary, followed by native eligible delivery. Human turns, approvals and alerts keep priority; the existing notification engine remains independent. API, internal tools, accessible settings and lifecycle gates are required before activation.
 

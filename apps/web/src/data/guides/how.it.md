@@ -6,7 +6,7 @@
 
 **Versione**: 5.6
 **Data**: 2026-10-23
-**Applicazione**: LIA v3.5.0
+**Applicazione**: LIA v3.5.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -1019,7 +1019,7 @@ Una notifica informa; una conversazione invita a rispondere. Le conversazioni pr
 
 **La spesa è riservata prima di avvenire** (ADR-360). Un'esecuzione riserva il minore tra il proprio tetto e il margine residuo della giornata — per l'account e per l'intera istanza —, parte solo se la sua prima chiamata ci sta, e scagliona le chiamate al modello, decidere poi scrivere, entro limiti finiti e pubblicati. Un'astensione, un annullamento o una bozza scartata conserva il suo costo noto nel registro dell'account, ogni esecuzione annota perché si è conclusa, e il tetto del prompt è la finestra dello slot configurato, mai un budget scritto nel codice.
 
-**Pubblicare è un atto, consegnare un altro.** Il messaggio archiviato, l'apertura logica e l'intenzione della coda di invio vengono confermati insieme; la consegna nativa segue, e un turno della persona, un'approvazione o un avviso mantengono la priorità. Un'apertura basata su un SMS o su un argomento sensibile resta privata — una notifica mascherata, mai un canale esterno —, e ogni apertura è registrata come un atto di iniziativa propria di LIA, accanto alle fonti lette dalla sua esecuzione.
+**Pubblicare è un atto, consegnare un altro.** Il messaggio archiviato, l'apertura logica e l'intenzione della coda di invio vengono confermati insieme; la consegna nativa segue, e un turno della persona, un'approvazione o un avviso mantengono la priorità. Un'apertura che tocca un argomento sensibile resta privata — una notifica mascherata, mai un canale esterno —, e ogni apertura è registrata come un atto di iniziativa propria di LIA, accanto alle fonti lette dalla sua esecuzione.
 
 ---
 
@@ -2027,4 +2027,4 @@ I 360 ADRs documentano non solo le decisioni prese, ma anche le alternative scar
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (800+ documenti), dei 360 ADRs e del changelog (da v1.0 a v3.5.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (800+ documenti), dei 360 ADRs e del changelog (da v1.0 a v3.5.1). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

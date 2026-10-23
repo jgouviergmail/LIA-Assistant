@@ -6,7 +6,7 @@
 
 **Version**: 5.6
 **Datum**: 2026-10-23
-**Application**: LIA v3.5.0
+**Application**: LIA v3.5.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -1019,7 +1019,7 @@ Eine Benachrichtigung informiert; ein Gespräch lädt zur Antwort ein. Proaktive
 
 **Ausgaben werden reserviert, bevor sie entstehen** (ADR-360). Ein Durchlauf reserviert den kleineren Wert aus seiner eigenen Obergrenze und dem verbleibenden Tagesspielraum — für das Konto und für die ganze Instanz —, startet nur, wenn sein erster Aufruf hineinpasst, und staffelt seine Modellaufrufe, erst entscheiden, dann schreiben, unter veröffentlichten, endlichen Grenzen. Eine Enthaltung, ein Abbruch oder ein verworfener Entwurf behält seine bekannten Kosten im Konto-Ledger, jeder Durchlauf hält fest, warum er endete, und die Prompt-Obergrenze ist das Fenster des konfigurierten Slots, nie ein im Code geschriebenes Budget.
 
-**Veröffentlichen ist ein Akt, Zustellen ein anderer.** Die archivierte Nachricht, der logische Auftakt und die Outbox-Absicht werden gemeinsam festgeschrieben; die native Zustellung folgt, und ein eigener Zug der Person, eine Freigabe oder ein Alarm behalten Vorrang. Ein Auftakt, der sich auf eine SMS oder ein sensibles Thema stützt, bleibt privat — eine maskierte Push-Nachricht, nie ein externer Kanal —, und jeder Auftakt wird in den Registern als Akt aus LIAs eigener Initiative abgelegt, neben den Quellen, die sein Durchlauf gelesen hat.
+**Veröffentlichen ist ein Akt, Zustellen ein anderer.** Die archivierte Nachricht, der logische Auftakt und die Outbox-Absicht werden gemeinsam festgeschrieben; die native Zustellung folgt, und ein eigener Zug der Person, eine Freigabe oder ein Alarm behalten Vorrang. Ein Auftakt, der ein sensibles Thema berührt, bleibt privat — eine maskierte Push-Nachricht, nie ein externer Kanal —, und jeder Auftakt wird in den Registern als Akt aus LIAs eigener Initiative abgelegt, neben den Quellen, die sein Durchlauf gelesen hat.
 
 ---
 
@@ -2023,4 +2023,4 @@ Die 360 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auc
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (800+ Dokumente), der 360 ADRs und des Changelogs (v1.0 bis v3.5.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (800+ Dokumente), der 360 ADRs und des Changelogs (v1.0 bis v3.5.1). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

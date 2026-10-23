@@ -654,13 +654,16 @@ async def test_an_opening_without_sms_is_ordinary_and_returns_as_prior_wording(
     assert [item.content for item in history] == [message.content]
 
 
-async def test_an_sms_the_run_read_makes_the_opening_private_whatever_the_decision_cites(
+async def test_an_sms_the_run_read_leaves_the_opening_ordinary_and_it_returns_as_prior_wording(
     producer, discussion_owner, monkeypatch
 ):
-    """ADR-357: the decision cites the calendar alone; the run still READ an SMS."""
+    """The run READ an SMS; the decision cites the calendar alone.
+
+    An SMS is personal data like a mail (ADR-357 amendment 2026-10-23): having read
+    one makes the opening neither private nor absent from the next decision window.
+    """
     from src.core.notification_privacy import PRIVATE_NOTIFICATION_MARKER
     from src.domains.proactive_discussions.history import relevant_opening_history
-    from src.domains.proactive_discussions.privacy import DISCUSSION_SMS_CONTEXT_FIELD
 
     async def interpret(self, content):
         await self.spend("context")
@@ -700,12 +703,11 @@ async def test_an_sms_the_run_read_makes_the_opening_private_whatever_the_decisi
     assert await discussion_runner.run_for_owner(discussion_owner) == "completed"
     opening, message = await _published(producer, discussion_owner)
     assert opening.references == ["calendar:fiction"]
-    assert opening.sensitive_context is True
-    assert message.message_metadata[PRIVATE_NOTIFICATION_MARKER] is True
-    assert message.message_metadata[DISCUSSION_SMS_CONTEXT_FIELD] is True
+    assert opening.sensitive_context is False
+    assert message.message_metadata[PRIVATE_NOTIFICATION_MARKER] is False
     async with producer() as db:
-        # Its proofs are SMS-free and still fresh: the wording stays out regardless.
-        assert await relevant_opening_history(db, discussion_owner, (_calendar_fact(),)) == ()
+        history = await relevant_opening_history(db, discussion_owner, (_calendar_fact(),))
+    assert [item.content for item in history] == [message.content]
 
 
 async def test_a_message_after_the_opening_closed_is_not_its_reply_and_the_opening_expires(

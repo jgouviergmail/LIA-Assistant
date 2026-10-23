@@ -172,7 +172,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [TABULAR_ADMIN_IO.md](./technical/TABULAR_ADMIN_IO.md) | Import/export tabulaire des administrations (ADR-228) — socle déclaratif, classeur Excel, aperçu obligatoire, verrou optimiste par ligne | ✅ |
 | [HEARTBEAT_AUTONOME.md](./technical/HEARTBEAT_AUTONOME.md) | Notifications proactives LLM-driven (Heartbeat) — evolution F5 | ✅ |
 | [HEALTH_METRICS.md](./technical/HEALTH_METRICS.md) | Health Metrics — iPhone Shortcuts ingestion, per-user tokens, charts, aggregation; assistant integrations (agents + Heartbeat + journal + memory) + `HEALTH_KINDS` registry (v1.17.2) | ✅ |
-| [SMS_INGESTION.md](./technical/SMS_INGESTION.md) | Generic phone ingestion and Mes SMS — source authority, encrypted archive, assistant evidence, private notifications and lifecycle | ✅ |
+| [SMS_INGESTION.md](./technical/SMS_INGESTION.md) | Generic phone ingestion and Mes SMS — source authority, encrypted archive, assistant evidence, reception notifications and lifecycle | ✅ |
 | [SMS_QUALIFICATION.md](./technical/SMS_QUALIFICATION.md) | SMS test/qualification matrix and physical-device acceptance limits | ✅ |
 | [GUIDE_IPHONE_SHORTCUTS_SMS.md](./guides/GUIDE_IPHONE_SHORTCUTS_SMS.md) | iPhone Shortcuts setup, stable retries, privacy and personal archive | ✅ |
 | [SMS_INGESTION_RECOVERY.md](./runbooks/SMS_INGESTION_RECOVERY.md) | Operator recovery, stable tenant material and restore reconciliation | ✅ |

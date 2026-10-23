@@ -13,7 +13,6 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.notification_privacy import NotificationPrivacy
 from src.domains.account_export import builder
 from src.domains.account_export.models import AccountExportJob
 from src.domains.agents.display.components.base import RenderContext
@@ -34,6 +33,7 @@ from src.domains.sms.relation_reader import SmsRelationReader
 from src.domains.sms.summary import read_sms_summary, sms_signal_current
 from src.domains.users.models import User
 from src.infrastructure.proactive.notification import NotificationDispatcher
+from src.infrastructure.proactive.runner import ProactiveTaskRunner
 from src.infrastructure.scheduler.ingestion_delivery import IngestionDeliveryWorker
 from tests.integration.test_application_memory_independent_transactions import (
     committed_actor as committed_actor,
@@ -140,7 +140,7 @@ async def test_one_source_has_consistent_archive_tools_relations_home_delivery_a
         AsyncMock(return_value=("Le rendez-vous d’Alice est à 10h30.", 11, 7, 0, 0, ())),
     )
     result = await task.generate_content(user.id, target, "fr")
-    assert result.success and result.privacy is NotificationPrivacy.IN_APP_SENSITIVE
+    assert result.success
     assert (result.tokens_in, result.tokens_out) == (12, 8)
     dispatch = NotificationDispatcher(
         fcm_enabled=True, sse_enabled=True, archive_enabled=True, channel_enabled=True
@@ -149,17 +149,14 @@ async def test_one_source_has_consistent_archive_tools_relations_home_delivery_a
     dispatch._send_fcm = AsyncMock(return_value={"success": 1})
     dispatch._publish_sse = AsyncMock()
     dispatch._send_channels = AsyncMock(return_value=1)
-    sent = await dispatch.dispatch(
-        user=user,
-        content=result.content,
-        task_type="heartbeat",
-        target_id=result.target_id,
-        metadata=result.metadata,
-        db=db,
-        privacy=result.privacy,
+    # The runner's own door to the dispatcher. An SMS in view is personal data like
+    # a mail (ADR-357 amendment 2026-10-23): the push carries the words and the
+    # external channels receive them, as for a notification drawn from a mail.
+    sent = await ProactiveTaskRunner(task, dispatcher=dispatch)._dispatch_notification(
+        user, result, target, db
     )
-    assert sent.success and "10h30" not in dispatch._send_fcm.await_args.kwargs["body"]
-    dispatch._send_channels.assert_not_awaited()
+    assert sent.success and "10h30" in dispatch._send_fcm.await_args.kwargs["body"]
+    dispatch._send_channels.assert_awaited_once()
     await task.on_notification_sent(user.id, target, result)
     assert await fetch_sms_context(user.id, user, settings) is None
     assert not await sms_signal_current(source)

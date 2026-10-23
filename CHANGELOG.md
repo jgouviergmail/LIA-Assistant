@@ -5,6 +5,74 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.1] - 2026-10-23
+
+**Notifications that no longer repeat themselves.**
+An SMS is now personal data like an email: a proactive message written while an
+SMS sat in LIA's context is no longer set apart, so the next decision reads it
+back again and the same birthday is announced once, not at every check.
+
+### Fixed
+
+- 🔁 **The same subject announced at every heartbeat tick** (ADR-357 amendment
+  2026-10-23). A notification written while an SMS sat in the decision's context
+  was marked private and withheld from the next decision's recent window — the
+  only guard against repeating a subject the model had already raised. An SMS
+  stays an unmentioned candidate for its whole summary window, so on an account
+  that receives SMS nearly every notification was withheld: measured in
+  production, 21 of the 24 notifications sent to the affected account since
+  2026-10-20, and one birthday announced six times between 21:07 and 13:29 the
+  next day, against one or two birthday notifications a day over the ninety days
+  before. The same afternoon
+  gave the counter-proof: the first unmarked announcement reached the window and
+  the next decision chose another subject. The proactive discussions had the
+  same blind spot: an opening an SMS informed never came back to their opening
+  history.
+
+### Changed
+
+- 📱 **An SMS in view is treated like an email** (owner decision, ADR-357
+  amendment). A heartbeat notification drawn from a context holding an SMS
+  shows its words in the push, reaches the external channels, airs on Radio to
+  a listener alone, is kept for conversational continuity, enriches an
+  interest-centred notification and is read back by the next decision — like a
+  notification drawn from mail. A proactive discussion is private when it
+  touches a sensitive topic (health, relationships, finances…), whatever the
+  source of its facts, and no longer because the run read an SMS. Unchanged:
+  the separate assistant consent, the offering of unmentioned messages only, the
+  mention bookkeeping after a successful delivery and the content-free reception
+  push. Withdrawing the consent stops every new read; a notification already
+  sent keeps its words, as one drawn from mail does once its connector is
+  removed.
+
+### Removed
+
+- 🧹 The SMS private mode's plumbing: `heartbeat_notifications.sensitive_context`
+  (migration `213b9ac595c5`, applied at startup), the window filter
+  `get_recent_by_user(for_context=…)`, `sms_privacy`, the dispatcher's `privacy`
+  parameter and `ProactiveTaskResult.privacy` (the dispatcher, the runner and the
+  task result are back to their shape before the SMS lot),
+  `proactive_discussions/privacy.py`, `OpeningDraft.sms_context` and its
+  validator, the history's SMS exclusion and the Radio reader's marker filter
+  (discussions never reach Radio: they are excluded by their type).
+
+### Tests
+
+- 🧪 Each change was first written as a failing test: a notification sent with an
+  SMS in view is stored for continuity and read back by the recent window
+  (PostgreSQL), the runner's own door delivers it with its words and to the
+  external channels, an interest-centred notification is enriched with an SMS in
+  view, a discussion run that read an SMS publishes an ordinary opening that
+  returns as prior wording, and Radio reads a heartbeat archived with the retired
+  marker like any other.
+
+### Documentation
+
+- 📚 The ADR-357 amendment and the ADR-358 note; the SMS ingestion and
+  qualification documents, proactive discussions, Radio, the index, the README;
+  the FAQ, the proactive-notifications and privacy articles and the How guide
+  in six languages; the knowledge corpus.
+
 ## [3.5.0] - 2026-10-23
 
 **Follow-ups read back from the cache, a first dashboard that starts simple, hand-overs that name both ends.**

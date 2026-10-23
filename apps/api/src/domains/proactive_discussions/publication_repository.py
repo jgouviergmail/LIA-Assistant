@@ -19,7 +19,6 @@ from src.domains.proactive_discussions.models import (
 )
 from src.domains.proactive_discussions.policy import may_start
 from src.domains.proactive_discussions.policy_repository import policy_value
-from src.domains.proactive_discussions.privacy import DISCUSSION_SMS_CONTEXT_FIELD
 from src.domains.proactive_discussions.publication_types import OpeningDraft, PublicationReceipt
 from src.domains.proactive_discussions.repository import DiscussionRepository, owns_claim
 from src.domains.proactive_discussions.run_types import RunClaim
@@ -135,7 +134,6 @@ class DiscussionPublicationRepository(DiscussionRepository):
                 FIELD_DISCUSSION_PAUSE_HOURS: settings.discussion_pause_hours,
                 "feedback_enabled": False,
                 PRIVATE_NOTIFICATION_MARKER: draft.sensitive_context,
-                DISCUSSION_SMS_CONTEXT_FIELD: draft.sms_context,
             },
         )
         opening = DiscussionOpeningRecord(

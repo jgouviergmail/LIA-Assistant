@@ -64,15 +64,19 @@ async def test_withdrawal_before_successful_delivery_cannot_write_a_mention(sms_
     assert row.proactive_mentioned_at is None
 
 
-@pytest.mark.parametrize("private_result", [True, False])
-async def test_private_proactive_audit_never_reenters_memory_or_later_decisions(
-    sms_actor_session, monkeypatch, private_result
+async def test_a_notification_sent_with_sms_in_view_is_remembered_and_read_back_next_time(
+    sms_actor_session, monkeypatch
 ):
+    """ADR-357 amendment 2026-10-23: an SMS in view is personal data like a mail.
+
+    The 2026-10-23 incident: a birthday notification written while SMS sat in the
+    context was hidden from the next decision's anti-repetition window, so the
+    same birthday was announced again at every tick.
+    """
     from unittest.mock import AsyncMock
 
-    from src.core.notification_privacy import NotificationPrivacy
+    from src.domains.heartbeat.context_aggregator import ContextAggregator
     from src.domains.heartbeat.proactive_task import HeartbeatProactiveTask
-    from src.domains.heartbeat.repository import HeartbeatNotificationRepository
     from src.domains.heartbeat.schemas import HeartbeatContext, HeartbeatDecision, HeartbeatTarget
     from src.infrastructure.proactive.base import ProactiveTaskResult
 
@@ -80,17 +84,15 @@ async def test_private_proactive_audit_never_reenters_memory_or_later_decisions(
     actor = await authority(db, user)
     user.sms_preferences = {"assistant_enabled": True}
     await db.commit()
-    await SmsIngestionService(db).ingest(actor, [message(body="Private appointment")])
+    await SmsIngestionService(db).ingest(actor, [message(body="Fictional appointment")])
     source = await read_sms_signal(user.id, unmentioned_only=True)
     target = HeartbeatTarget(
         context=HeartbeatContext(sms=source),
         decision=HeartbeatDecision(
             action="notify",
-            reason="Concrete appointment",
-            message_draft="Private appointment",
-            sources_used=["SMS"],
-            sms_actionable=True,
-            sms_message_ids=[source.messages[0].id],
+            reason="A fictional friend's birthday is today",
+            message_draft="Today is a fictional friend's birthday.",
+            sources_used=["UPCOMING_BIRTHDAYS"],
         ),
         decision_tokens_in=1,
         decision_tokens_out=1,
@@ -98,18 +100,14 @@ async def test_private_proactive_audit_never_reenters_memory_or_later_decisions(
     )
     result = ProactiveTaskResult(
         success=True,
-        content="Private appointment",
+        content="Today is a fictional friend's birthday.",
         target_id=str(uuid4()),
-        privacy=(
-            NotificationPrivacy.IN_APP_SENSITIVE if private_result else NotificationPrivacy.NORMAL
-        ),
-        metadata={"sources_used": ["SMS"]},
+        metadata={"sources_used": ["UPCOMING_BIRTHDAYS"]},
     )
     sink = AsyncMock()
     monkeypatch.setattr("src.infrastructure.proactive.context_sink.write_heartbeat_context", sink)
     await HeartbeatProactiveTask().on_notification_sent(user.id, target, result)
-    sink.assert_not_awaited()
-    repo = HeartbeatNotificationRepository(db)
-    rows = await repo.get_recent_by_user(user.id)
-    assert len(rows) == 1 and rows[0].sensitive_context is True
-    assert await repo.get_recent_by_user(user.id, for_context=True) == []
+    sink.assert_awaited_once()
+    window = await ContextAggregator(db)._fetch_recent_heartbeats(db, user.id, user)
+    assert window is not None
+    assert [item["content"] for item in window] == [result.content]

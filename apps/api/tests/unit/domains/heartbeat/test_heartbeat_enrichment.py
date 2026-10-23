@@ -87,6 +87,25 @@ class TestEnrichment:
         fetch.assert_not_awaited()
         assert result.metadata["interest_topic"] is None
 
+    async def test_sms_in_view_does_not_withhold_the_enrichment(self) -> None:
+        """An SMS in the context is personal data like a mail (ADR-357 amendment
+        2026-10-23): the interest-centred heartbeat is enriched and keeps its topic."""
+        task = HeartbeatProactiveTask()
+        target = _target("Cinéma A24")
+        target.context.sms = MagicMock()
+        with (
+            patch(
+                "src.domains.heartbeat.proactive_task.generate_heartbeat_message",
+                new=AsyncMock(return_value=("msg", 20, 10, 0, 0, ())),
+            ),
+            patch.object(task, "_fetch_interest_facts", new=AsyncMock(return_value=None)) as fetch,
+            patch.object(task, "_get_user_personality", new=AsyncMock(return_value=None)),
+        ):
+            result = await task.generate_content(uuid.uuid4(), target, "fr")
+
+        fetch.assert_awaited_once()
+        assert result.metadata["interest_topic"] == "Cinéma A24"
+
     async def test_enrichment_reuses_recent_embeddings_for_dedup(self) -> None:
         """Symmetry with the interest flow: fetched content is deduped against
         recent notifications for the same interest (ADR-135)."""

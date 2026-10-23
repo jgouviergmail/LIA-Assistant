@@ -254,7 +254,7 @@ A **proactive discussion** is a personal conversation LIA starts with you of its
 
 **When LIA writes:** the opening appears in the conversation. Answer it, ignore it, or use one of four reactions: **Thanks, this resonates**, **Not now** (pauses for the hours the button states), **Do not bring up this topic**, **This context is incorrect**. A recent proactive notification or interest alert no longer holds a discussion back (your administrator can restore a gap), and two openings stay at least 30 minutes apart by default. **Alerts › Proactive discussions** keeps the history, each opening marked open, answered, set aside or lapsed; in the settings, **Recent discussions** lists them too, each dated in bold, and **Why this opening?** shows the reason and the sources recorded when it began.
 
-**Privacy:** an opening informed by your SMS, or touching a sensitive topic, stays private — its push notification is masked and it is never sent to your external channels such as Telegram.
+**Privacy:** an opening touching a sensitive topic stays private — its push notification is masked and it is never sent to your external channels such as Telegram. An SMS is treated like an email: having read one does not make an opening private.
 
 **Cost:** every model call and every paid read of a discussion or a rebuild is counted on your account like a conversation turn, and your usage quotas apply to it: a run your quota refuses reads nothing and says so. It also stays within the spending limits your administrator sets per run, per account per day and for the whole instance per day. Without those limits nothing starts, and your administrator can switch the feature off.
 

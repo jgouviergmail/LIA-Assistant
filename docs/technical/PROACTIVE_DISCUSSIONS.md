@@ -205,8 +205,9 @@ stops as `usage_limit_reached`.
 Each source is its own switch, and a new source stays off. A new account consents to
 the operator's default sensitive topics (`DISCUSSION_DEFAULT_SENSITIVE_TOPICS`, all
 five unless configured otherwise) and withdraws any of them; an account that chose
-keeps its choice. An opening informed by SMS or touching a sensitive topic is private:
-its push is masked and no external channel receives it.
+keeps its choice. An opening touching a sensitive topic is private: its push is masked
+and no external channel receives it. Reading an SMS does not make an opening private —
+an SMS is personal data like a mail (ADR-357 amendment 2026-10-23).
 
 The account export carries every discussion record: the preferences, the openings and
 their delivery, the runs, the context items with their proofs, the evidence checkpoints,

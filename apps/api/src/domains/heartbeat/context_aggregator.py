@@ -973,7 +973,6 @@ class ContextAggregator:
             user_id,
             limit=settings.heartbeat_recent_window_count,
             max_age_days=settings.heartbeat_recent_window_days,
-            for_context=True,
         )
 
         if not notifications:

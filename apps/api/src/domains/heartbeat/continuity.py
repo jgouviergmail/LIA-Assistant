@@ -1,23 +1,25 @@
-"""Optional conversation continuity; private source content never becomes memory."""
+"""Optional conversation continuity of a delivered heartbeat notification."""
 
 from datetime import UTC, datetime
 from uuid import UUID
 
 import structlog
 
-from src.core.notification_privacy import NotificationPrivacy
 from src.infrastructure.proactive.base import ProactiveTaskResult
 
 logger = structlog.get_logger(__name__)
 
 
-async def store_heartbeat_continuity(
-    user_id: UUID, result: ProactiveTaskResult, *, sensitive: bool
-) -> None:
-    # No implicit persistent memory of SMS-derived model content.
-    if sensitive or result.privacy is NotificationPrivacy.IN_APP_SENSITIVE:
-        return
-    # 2. Store summary in LangGraph Store for conversational continuity
+async def store_heartbeat_continuity(user_id: UUID, result: ProactiveTaskResult) -> None:
+    """Store a short summary of the notification for conversational continuity.
+
+    Whatever the sources the decision read: an SMS in view is personal data like
+    a mail (ADR-357 amendment 2026-10-23). Best-effort, never raises.
+
+    Args:
+        user_id: The notified account.
+        result: The delivered notification.
+    """
     try:
         from pydantic import JsonValue, TypeAdapter
 

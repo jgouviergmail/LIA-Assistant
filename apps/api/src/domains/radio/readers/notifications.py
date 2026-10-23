@@ -29,7 +29,6 @@ from uuid import UUID
 from sqlalchemy import Select, select
 
 from src.core.constants import PROACTIVE_MESSAGE_TYPE_PREFIX
-from src.core.notification_privacy import PRIVATE_NOTIFICATION_MARKER
 from src.domains.conversations.message_reads import visible_only
 from src.domains.conversations.models import ConversationMessage
 from src.domains.conversations.repository import ConversationRepository
@@ -63,8 +62,6 @@ class NotificationLine:
 
 def notification_line(row: MessageRow) -> NotificationLine | None:
     """An archived message as a notification the radio may come back to, or None."""
-    if (row.message_metadata or {}).get(PRIVATE_NOTIFICATION_MARKER) is True:
-        return None
     kind = (row.message_metadata or {}).get("type")
     if row.role != "assistant" or not isinstance(kind, str):
         return None
@@ -110,9 +107,6 @@ def _sent_after(conversation_id: UUID, after: datetime) -> Select[tuple[Conversa
             kind.startswith(PROACTIVE_MESSAGE_TYPE_PREFIX, autoescape=True),
             kind != "proactive_discussion",
             kind.not_in(sorted(RELAYED_MESSAGE_TYPES)),
-            ConversationMessage.message_metadata[
-                PRIVATE_NOTIFICATION_MARKER
-            ].astext.is_distinct_from("true"),
         ),
         include_hidden=False,
     )

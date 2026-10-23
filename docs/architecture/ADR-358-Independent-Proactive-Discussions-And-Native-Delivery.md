@@ -110,10 +110,11 @@ Each point closes a defect found by reading or measuring the staged lot.
 
 - **ADR-357 holds for discussions.** A run that READ an SMS — a fact, or a
   context item resting on one — offered it to a model, so its opening is private
-  whatever it cites ([privacy rule](../../apps/api/src/domains/proactive_discussions/privacy.py)):
-  the push is masked, no external channel forwards it, Radio never airs it, and
-  [later decision windows](../../apps/api/src/domains/proactive_discussions/history.py) never
-  offer its words back. Before, only a sensitive topic made an opening private.
+  whatever it cites: the push is masked, no external channel forwards it, Radio never
+  airs it, and later decision windows never offer its words back. Before, only a
+  sensitive topic made an opening private. *(Withdrawn on 2026-10-23 by the amendment
+  of [ADR-357](ADR-357-Phone-Ingestion-And-Personal-SMS-Archive.md): an SMS is personal
+  data like a mail, and only a sensitive topic makes an opening private again.)*
 - **Delivery starts when the opening is committed**, outside the run's deadline
   ([runner](../../apps/api/src/infrastructure/proactive/discussion_runner.py)): the tick used to
   dispatch only after its whole batch, longer than the delivery authority's proof
