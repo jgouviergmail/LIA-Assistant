@@ -241,6 +241,8 @@ class TestTheWeatherRoutinesOwnRead:
             )
 
         assert err.value.source == "google_weather"
+        # A missing provider is a CONNECTOR the person or the operator sets up.
+        assert err.value.error_code == "connector_not_configured"
 
     async def test_a_refusing_provider_is_a_classified_access_error_and_the_client_closes(
         self,
@@ -256,11 +258,15 @@ class TestTheWeatherRoutinesOwnRead:
     async def test_no_location_is_not_configured_and_no_client_is_left_open(self) -> None:
         # The card's path used to leak the client here.
         client = _weather_client()
-        with pytest.raises(ConnectorNotConfiguredError):
+        with pytest.raises(ConnectorNotConfiguredError) as err:
             await _read(client, no_location=True)
 
         client.close.assert_awaited_once()
         client.get_hourly_forecast.assert_not_awaited()
+        # The provider is there and the ADDRESS is missing: the dashboard must
+        # send the person to their location settings, not to the connectors —
+        # since ADR-307 a new account has a weather provider and no address.
+        assert err.value.error_code == "location_not_configured"
 
 
 class TestTheAgendaWindow:

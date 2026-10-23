@@ -4,6 +4,7 @@
 > **Date**: 2026-09-15 (Updated - ADR-287 content first, detail levels, digests)
 > **Auteur**: Claude Code Implementation
 > **Status**: ✅ Production Ready
+> **Changelog 2026-10-22**: the formatter's extractors and date formatters left without a caller by ADR-194 are deleted (ADR-194 amendment) — every section below the current-state table that shows `EmailFormatter`, `ContactsFormatter`, `BaseFormatter`, `format_item`, `FIELD_EXTRACTORS` or `format_google_datetime` describes removed code
 > **Changelog v1.3.0**: one tool `get_emails_tool` with `detail` levels, `EmailMessage` vocabulary, per-message digest (ADR-287); the legacy `search_emails_tool` / `get_email_details_tool` are GONE — the sections below that still name them describe the formatter's history, not a callable surface
 > **Changelog v1.2.0**: Renamed Gmail → Emails (multi-provider architecture - ADR-010)
 > **Changelog v1.1.0**: Added attachments support + refactored email display in response_node
@@ -17,7 +18,7 @@ Ce que le modèle lit d'un e-mail est décidé par [ADR-286](../architecture/ADR
 | Surface | Fichier | Rôle |
 |---|---|---|
 | `EmailMessage` | `domains/connectors/clients/normalizers/email_message.py` | Le vocabulaire neutre que les trois normaliseurs produisent : `id`, `threadId`, `labelIds`, `snippet`, `subject`, `from`, `to`, `cc`, `date`, `rfc_message_id`, `internalDate`, `body` (texte propre, jamais HTML ni base64), `attachments`, `_provider`. Graph et IMAP ne fabriquent plus d'arbre Gmail ; Gmail garde son arbre natif jusqu'au builder, qui le retire. |
-| `html_to_text` / `strip_html_to_line` | `normalizers/html_text.py` | La seule conversion HTML → texte (liens conservés sous une étiquette technique) et la seule ligne d'aperçu. |
+| `html_to_text` / `strip_html_to_line` | `normalizers/html_text.py` | La seule conversion HTML → texte (liens conservés sous une étiquette technique) et la seule ligne d'aperçu. L'aperçu de Gmail, que l'API livre échappé en HTML et rembourré de caractères invisibles, y passe aussi, une seule fois, au bord du client (`GoogleGmailClient._normalize_message_fields`, 2026-10-22) : aucun lecteur ne le décode une seconde fois. |
 | `trim_quoted_reply` / `clean_reply_body` | `normalizers/reply_trimming.py` | La citation et la signature quittent le corps au bord du client (marqueurs en six langues ; gardiens : moins de 20 caractères restants, réponses entrelacées, message transféré jamais rogné). Interrupteur `EMAILS_TRIM_QUOTED_REPLIES`. Mesuré 48/48 sur `reply_trimming_corpus.json` ; `task emails:corpus:measure` rejoue le corpus. |
 | `get_emails_tool(detail, part, page_token)` | `domains/agents/tools/emails_tools.py` | `metadata` liste sans corps POUR LE MODÈLE (la carte le dessine, lu en entier et gardé dans `RegistryItemMeta.display`, amendement ADR-287 du 2026-09-30) ; `full` (défaut) sert le corps paginé au paragraphe (`body_part` / `body_parts`, `EMAILS_BODY_PART_TOKENS`) ; `summary` sert un condensé par message. Pagination opaque (`next_page_token`), `result_size_estimate` publié comme ESTIMATION, `count` compte la page. |
 | `EmailDetail`, `paginate_body`, `apply_detail_level` | `domains/agents/emails/detail_levels.py` | Le niveau, la coupe au paragraphe, la forme de chaque item. |
@@ -96,8 +97,8 @@ Réglages (section `[34]` des `.env`) : `EMAILS_BODY_PART_TOKENS`, `EMAILS_DIGES
 ### Composants créés
 
 1. **`EmailFormatter`** (anciennement `EmailFormatter`) : Formatter spécialisé pour emails (supports Gmail, future: Outlook, IMAP)
-2. **`format_google_datetime()`** : Fonction générique de formatage dates (Google services)
-3. **`format_google_time_only()`** : Fonction formatage heures
+2. **`format_google_datetime()`** : Fonction générique de formatage dates (Google services) — supprimée le 2026-10-22, sans appelant depuis ADR-194
+3. **`format_google_time_only()`** : Fonction formatage heures — supprimée le 2026-10-22, sans appelant depuis ADR-194
 4. Intégration dans `get_emails_tool` (domain: `emails/`) — les deux outils hérités `search_emails_tool` / `get_email_details_tool` ont été supprimés (ADR-287)
 
 ---
@@ -277,120 +278,21 @@ interface Attachment {
 
 ## 🚀 API et utilisation
 
-### Classe `EmailFormatter`
+### Ce que `formatters.py` garde pour l'e-mail (2026-10-22)
 
-**Fichier** : `apps/api/src/domains/agents/tools/formatters.py`
+La classe `EmailFormatter`, ses méthodes `format_list_response` / `format_single_response` et
+`FIELD_EXTRACTORS` ont disparu avec ADR-194 (2026-08-02). Les extracteurs d'en-têtes qu'ils
+appelaient et les formateurs `format_google_datetime` / `format_google_time_only`, restés sans
+appelant depuis, ont été supprimés le 2026-10-22 (amendement d'ADR-194). Restent deux méthodes
+statiques, chacune avec ses lecteurs :
 
-#### Constructor
+| Méthode | Lecteurs | Rôle |
+|---|---|---|
+| `GmailFormatter._extract_body(message)` | `agents/emails/message_finishing.py` | Le corps en texte : celui du haut du message (Apple, Microsoft — ADR-287), sinon l'arbre MIME de Gmail |
+| `GmailFormatter._extract_attachments(message, locale)` | `agents/emails/message_finishing.py` | Les pièces jointes de l'arbre de Gmail : nom, type, taille, identifiants |
 
-```python
-formatter = EmailFormatter(
-    tool_name="search_emails_tool",  # Nom du tool
-    operation="search",  # "search" | "details"
-    user_timezone="Europe/Paris",  # IANA timezone
-    locale="fr-FR"  # Format locale
-)
-```
-
-#### Méthodes principales
-
-##### `format_list_response()`
-
-```python
-formatted_json = formatter.format_list_response(
-    items=raw_messages,  # Liste Gmail messages bruts
-    query="is:unread",
-    from_cache=False,
-    cached_at=None
-)
-# Returns: JSON string
-```
-
-##### `format_single_response()`
-
-```python
-formatted_json = formatter.format_single_response(
-    item=raw_message,  # Un message Gmail brut
-    from_cache=True,
-    cached_at="2025-11-17T15:00:00Z"
-)
-# Returns: JSON string
-```
-
-#### Field Extractors
-
-```python
-FIELD_EXTRACTORS = {
-    "id": lambda msg, tz, loc: msg.get("id", ""),
-    "from": lambda msg, tz, loc: _extract_from(msg),
-    "to": lambda msg, tz, loc: _extract_to(msg),
-    "cc": lambda msg, tz, loc: _extract_cc(msg),
-    "subject": lambda msg, tz, loc: _extract_subject(msg),
-    "date": lambda msg, tz, loc: _extract_date(msg, tz, loc),
-    "snippet": lambda msg, tz, loc: _extract_snippet(msg),
-    "is_unread": lambda msg, tz, loc: _extract_is_unread(msg),
-    "gmail_url": lambda msg, tz, loc: _extract_gmail_url(msg),
-    "body": lambda msg, tz, loc: _extract_body(msg),
-    "labels": lambda msg, tz, loc: msg.get("labelIds", []),
-    "headers": lambda msg, tz, loc: _extract_all_headers(msg),
-}
-```
-
-### Fonctions utilitaires dates
-
-#### `format_google_datetime()`
-
-**Usage générique pour TOUS les connecteurs Google**
-
-```python
-from src.domains.agents.tools.formatters import format_google_datetime
-
-# Timestamp en millisecondes (format Gmail internalDate)
-formatted = format_google_datetime(
-    timestamp_ms=1700000000000,
-    user_timezone="Europe/Paris",
-    locale="fr-FR",
-    include_time=True
-)
-# => "mercredi 15 novembre 2023 à 01:13"
-
-# Sans heure
-formatted_date_only = format_google_datetime(
-    timestamp_ms=1700000000000,
-    user_timezone="Europe/Paris",
-    locale="fr-FR",
-    include_time=False
-)
-# => "mercredi 15 novembre 2023"
-
-# String ISO
-formatted_from_iso = format_google_datetime(
-    timestamp_ms="2025-11-17T15:24:28Z",
-    user_timezone="America/New_York",
-    locale="en-US",
-    include_time=True
-)
-# => "Sunday November 17, 2025 at 10:24"
-```
-
-**Caractéristiques** :
-- ✅ Accepte `int` (millisecondes) ou `str` (ISO 8601)
-- ✅ Conversion automatique timezone
-- ✅ Jour de la semaine complet
-- ✅ Format localisé
-- ✅ Gestion d'erreurs robuste
-
-#### `format_google_time_only()`
-
-```python
-from src.domains.agents.tools.formatters import format_google_time_only
-
-time_str = format_google_time_only(
-    timestamp_ms=1700000000000,
-    user_timezone="Europe/Paris"
-)
-# => "01:13"
-```
+Les dates d'un e-mail se formatent par `core/time_utils.py` (`format_datetime_for_display`,
+`format_time_only`).
 
 ### Intégration dans les tools
 
@@ -645,79 +547,13 @@ Le formatage utilise `strftime()` Python qui supporte nativement les locales via
 
 ## 🔄 Extension future
 
-### Pattern pour nouveaux connecteurs Google
-
-Le `EmailFormatter` suit exactement le même design que `ContactsFormatter`.
-
-#### Google Calendar
-
-```python
-class GoogleCalendarFormatter(BaseFormatter):
-    """Formatter pour événements Google Calendar."""
-
-    FIELD_EXTRACTORS = {
-        "id": lambda evt, tz, loc: evt.get("id", ""),
-        "summary": lambda evt, tz, loc: evt.get("summary", "Sans titre"),
-        "start": lambda evt, tz, loc: format_google_datetime(
-            evt.get("start", {}).get("dateTime"),
-            tz,
-            loc
-        ),
-        "end": lambda evt, tz, loc: format_google_datetime(
-            evt.get("end", {}).get("dateTime"),
-            tz,
-            loc
-        ),
-        "location": lambda evt, tz, loc: evt.get("location", ""),
-        "attendees": lambda evt, tz, loc: [
-            a.get("email") for a in evt.get("attendees", [])
-        ],
-        "calendar_url": lambda evt, tz, loc: f"https://calendar.google.com/calendar/event?eid={evt.get('id')}"
-    }
-
-    OPERATION_DEFAULT_FIELDS = {
-        "search": ["id", "summary", "start", "location", "calendar_url"],
-        "details": ["id", "summary", "start", "end", "location", "attendees", "description", "calendar_url"],
-    }
-```
-
-#### Google Drive
-
-```python
-class GoogleDriveFormatter(BaseFormatter):
-    """Formatter pour fichiers Google Drive."""
-
-    FIELD_EXTRACTORS = {
-        "id": lambda file, tz, loc: file.get("id", ""),
-        "name": lambda file, tz, loc: file.get("name", ""),
-        "mimeType": lambda file, tz, loc: file.get("mimeType", ""),
-        "modifiedTime": lambda file, tz, loc: format_google_datetime(
-            file.get("modifiedTime"),
-            tz,
-            loc
-        ),
-        "size": lambda file, tz, loc: _format_file_size(file.get("size", 0)),
-        "webViewLink": lambda file, tz, loc: file.get("webViewLink", ""),
-        "icon": lambda file, tz, loc: _get_mime_icon(file.get("mimeType")),
-    }
-```
-
-### Réutilisation de `format_google_datetime()`
-
-**Clé de la généricité** : Cette fonction est conçue pour fonctionner avec TOUS les timestamps Google :
-
-```python
-# Gmail internalDate (millisecondes)
-format_google_datetime(1700000000000, tz, locale)
-
-# Calendar start.dateTime (ISO string)
-format_google_datetime("2025-11-17T15:00:00Z", tz, locale)
-
-# Drive modifiedTime (ISO string)
-format_google_datetime("2025-11-17T15:00:00.123Z", tz, locale)
-
-# Contacts birthdays (peut être adapté)
-```
+Le patron que décrivait cette section — un formatter par connecteur, bâti sur `BaseFormatter`,
+`FIELD_EXTRACTORS` et `format_google_datetime()` — n'existe plus (ADR-194, puis son amendement du
+2026-10-22). Un nouveau connecteur met sa charge utile en forme au bord de son client (les
+normaliseurs, sur le précédent du vocabulaire `EmailMessage` d'ADR-287) ; le formatage d'une date
+pour l'affichage existe dans `core/time_utils.py` (`format_datetime_for_display`,
+`format_time_only`), et ce que la personne voit est dessiné par la carte de son domaine
+(`agents/display/components/`).
 
 ---
 
@@ -1004,7 +840,7 @@ curl -X POST http://localhost:8000/api/v1/agents/chat \
 ### Documentation liée
 
 - [TOOLS.md](./TOOLS.md) : Documentation générale des tools
-- [GOOGLE_CONTACTS_INTEGRATION.md](./GOOGLE_CONTACTS_INTEGRATION.md) : Pattern ContactsFormatter
+- [GOOGLE_CONTACTS_INTEGRATION.md](./GOOGLE_CONTACTS_INTEGRATION.md) : Intégration Google Contacts
 - [AGENTS.md](./AGENTS.md) : Architecture agents LangGraph
 
 ---

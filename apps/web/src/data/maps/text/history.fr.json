@@ -1518,6 +1518,10 @@
     "361": {
       "title": "Une sonde de sortie qui nomme l'étape fautive et confirme la coupure",
       "summary": "La sonde de connectivité sortante sépare la résolution DNS de la connexion et confirme une perte sur plusieurs essais espacés. Un paquet DNS perdu n'ouvre plus d'incident critique : une reprise ou une lenteur est signalée comme dégradée, et une vraie coupure nomme l'étape qui a échoué."
+    },
+    "362": {
+      "title": "Le cache de Claude relu d'un tour à l'autre",
+      "summary": "Le tour suivant relit désormais tout l'historique depuis le cache au lieu de le réécrire, et ce qu'il relira reste gardé une heure quand une personne attend et échange souvent. Ces écritures d'une heure sont facturées à leur juste prix, et la réflexion d'un tour précédent est rendue au modèle Claude qui l'a écrite, là où il peut la relire."
     }
   }
 }

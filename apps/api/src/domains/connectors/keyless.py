@@ -16,7 +16,9 @@ active » true by construction, for every account, with no reconciliation job.
 The same predicate answers everywhere a keyless type is asked about:
 ``ConnectorService.is_connector_active``, the functional-category resolver
 (Google Weather is the weather default when the person configured no
-provider of their own) and the heartbeat's source availability probe.
+provider of their own) and the heartbeat's source availability probe. Its
+settings half (:func:`keyless_ceiling_reason`) is what ``/config`` publishes as
+a deployment ceiling, read without a database.
 
 Created: 2026-09-23
 """
@@ -50,12 +52,33 @@ async def keyless_unavailable_reason(
         ValueError: If ``connector_type`` is not keyless — the question has no
             instance-wide answer for a connector the person must configure.
     """
-    if not connector_type.is_keyless:
-        raise ValueError(f"{connector_type.value} is not a keyless connector type")
+    ceiling = keyless_ceiling_reason(connector_type)
     # No row means enabled — the default `ConnectorService._check_connector_enabled` applies.
     config = await repository.get_global_config_by_type(connector_type)
     if config is not None and not config.is_enabled:
         return REASON_DISABLED_BY_ADMIN
+    return ceiling
+
+
+def keyless_ceiling_reason(connector_type: ConnectorType) -> str | None:
+    """Why the DEPLOYMENT withholds this keyless type, or ``None`` — no database read.
+
+    The half of :func:`keyless_unavailable_reason` that its settings decide
+    (the platform key, the browser flag): what ``/config`` publishes as a
+    deployment ceiling, beside the other ceilings it publishes. The
+    administrator's switch is the other half, enforced where the service is used.
+
+    Args:
+        connector_type: A keyless connector type.
+
+    Returns:
+        ``REASON_PLATFORM_KEY_MISSING``, ``REASON_BROWSER_DISABLED`` or ``None``.
+
+    Raises:
+        ValueError: If ``connector_type`` is not keyless.
+    """
+    if not connector_type.is_keyless:
+        raise ValueError(f"{connector_type.value} is not a keyless connector type")
     if connector_type.uses_global_api_key and not settings.google_api_key:
         return REASON_PLATFORM_KEY_MISSING
     if connector_type is ConnectorType.BROWSER and not settings.browser_enabled:

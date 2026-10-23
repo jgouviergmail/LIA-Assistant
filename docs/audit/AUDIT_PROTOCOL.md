@@ -133,15 +133,21 @@ Execute in this order — the figures rule is *constants first, then texts*:
 2. `apps/web/src/components/landing/constants.ts` — `auditScore`, `auditAreas`
    (single source of truth; update the provenance comment).
 3. `apps/web/locales/{en,fr,de,es,it,zh}/translation.json` —
-   `landing.proof.audit_value` (respect locale decimal separators: comma for fr/de/es/it,
-   dot for en/zh — e.g. `8,5/10` vs `8.5/10`) and any other audit-related keys. The pre-commit hook enforces
-   6-locale key parity.
+   the keys that quote the score — `faq.sections.getting_started.questions.q7.answer` and
+   `story.meta.description` (the landing's former `proof.audit_value` band was purged and
+   is guarded as such) — respecting locale decimal separators: comma for fr/de/es/it,
+   dot for en/zh — e.g. `8,5/10` vs `8.5/10`. A release changelog entry that announced an
+   earlier score stays as written: it is history. The pre-commit hook enforces 6-locale key
+   parity.
 4. `README.md` — four touchpoints: the audit badge in the header badge block, the figure in
    the "Built by an AI" table, the row in the Tests → Statistics table, the mention in the
    Performance note. All link to `docs/audit/README.md`.
 5. `apps/web/src/data/guides/story.{en,fr,de,es,it,zh}.md` — the audit figures appear in the
    opening paragraph, the numbers table and the audit section; keep the six versions in sync.
-6. `docs/INDEX.md` — verify the audit entry is present and current.
+   The How guides quote the score too (`how.*.md`, « The audit is public — and reproducible »).
+6. `docs/INDEX.md` — verify the audit entry is present and current; then the two texts that
+   speak for the product outside the app: `docs/knowledge/01_getting_started.md` (the help
+   corpus LIA answers from) and `apps/web/public/llms.txt`.
 7. **Validation before handing over:** i18n parity check (the CI script), TypeScript +
    ESLint + vitest run inside the `lia-web-dev` container, `python scripts/audit/measure_sloc.py`
    runs clean, and `python scripts/audit/doc_audit.py` reports **0 LIVING broken links**

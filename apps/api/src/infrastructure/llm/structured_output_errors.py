@@ -6,7 +6,8 @@ keeps importing it from ``structured_output``, which re-exports it.
 
 The classes share one hierarchy: callers of ``StructuredOutputError`` keep
 handling every failure, while a retry owner can distinguish an unusable answer
-from a truncated answer or a deterministic provider refusal.
+from a truncated answer, a deterministic provider refusal or a call that failed
+before any answer came back.
 """
 
 from __future__ import annotations
@@ -56,6 +57,20 @@ class StructuredOutputRefusedError(StructuredOutputError):
         self.status_code = status_code
 
 
+class StructuredOutputCallError(StructuredOutputError):
+    """The model call itself raised: no answer came back to read.
+
+    A provider's error status, a transport failure or a timeout, never an answer
+    the door could not use. The provider's exception is both the ``__cause__`` and
+    the ``original_error``, where whoever decides on a retry reads what the provider
+    wrote (ADR-303): the discussion backoff defers on a 429 or a ``Retry-After``,
+    and the retry wrapper leaves a client that retries by itself to its own
+    attempts. Until 2026-10-23 the auto-tool door turned this failure into
+    « produced no valid tool call » with no cause: a discussion's context pass was
+    lost to an Anthropic 503 that way, counted as the model's rejection.
+    """
+
+
 def _provider_status(error: BaseException) -> tuple[int | None, str | None]:
     """The HTTP status and retry hint the provider attached to the failure, if any.
 
@@ -96,3 +111,29 @@ def raise_if_provider_refused(error: Exception, provider: str, schema_name: str)
     raise StructuredOutputRefusedError(
         status_code=status, provider=provider, schema_name=schema_name, original_error=error
     ) from error
+
+
+def call_failure(
+    error: Exception, provider: str, schema_name: str, door: str
+) -> StructuredOutputCallError:
+    """The error a door raises when its model call raised ``error``.
+
+    A deterministic refusal is raised as itself first: resending the unchanged
+    request cannot heal it, which a failed call may.
+
+    Args:
+        error: What the model call raised.
+        provider: The provider name.
+        schema_name: The schema the call was asked for.
+        door: The door's name, the subject of the message.
+
+    Returns:
+        The failed-call error, for the door to raise ``from error``.
+
+    Raises:
+        StructuredOutputRefusedError: ``error`` is a deterministic provider refusal.
+    """
+    raise_if_provider_refused(error, provider, schema_name)
+    return StructuredOutputCallError(
+        f"{door} failed: {error}", provider=provider, schema_name=schema_name, original_error=error
+    )

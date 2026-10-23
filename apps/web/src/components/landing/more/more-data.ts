@@ -1,10 +1,10 @@
 /**
- * Single source of truth for the "/more" small-attentions page: 105 cards in
+ * Single source of truth for the "/more" small-attentions page: 107 cards in
  * 6 moment sections, each card carrying one lucide icon and the list of
  * translated micro-labels its animated scene needs.
  *
  * ANTI-REGRESSION CONTRACT: the guard test
- * `__tests__/more-content-coverage.test.ts` asserts the structure (105 unique
+ * `__tests__/more-content-coverage.test.ts` asserts the structure (107 unique
  * cards, icon/scene-label completeness), the level contract (keys disjoint
  * from the editorial landing's REQUIRED_FEATURE_KEYS — this page presents
  * craft, one level below capabilities), and the i18n content (every
@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   AppWindow,
   ArrowDownCircle,
+  ArrowRightLeft,
   AtSign,
   AudioLines,
   BellRing,
@@ -94,6 +95,7 @@ import {
   Sliders,
   Sparkles,
   Star,
+  StretchHorizontal,
   Sunrise,
   TextSearch,
   TextSelect,
@@ -151,6 +153,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'card_details',
       'card_compose',
       'code_scroll',
+      'full_width_phone',
       'followup_chips',
       'scroll_return',
       'bubble_actions',
@@ -228,6 +231,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'sender_notice',
       'week_grid',
       'day_timeline',
+      'handover_trail',
       'folded_settings',
       'document_first_page',
       'exchange_rhythm',
@@ -289,6 +293,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   error_not_empty: ListX,
   back_where_you_were: Undo2,
   day_timeline: CalendarClock,
+  handover_trail: ArrowRightLeft,
   voices_in_language: Languages,
   voice_sample: Headphones,
   document_first_page: FileText,
@@ -304,6 +309,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   living_face: Smile,
   composed_page: LayoutTemplate,
   code_scroll: Code2,
+  full_width_phone: StretchHorizontal,
   followup_chips: MessageSquarePlus,
   scroll_return: ArrowDownCircle,
   bubble_actions: ThumbsUp,
@@ -402,6 +408,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   error_not_empty: ['error', 'retry'],
   back_where_you_were: ['query', 'filter', 'back'],
   day_timeline: ['morning', 'afternoon', 'live'],
+  handover_trail: ['held_by', 'me', 'lia'],
   voices_in_language: ['only_mine', 'female', 'male'],
   voice_sample: ['warm', 'bright', 'calm', 'playing', 'replay'],
   document_first_page: ['pdf', 'excerpt'],
@@ -417,6 +424,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   living_face: [],
   composed_page: ['plain', 'composed'],
   code_scroll: [],
+  full_width_phone: [],
   followup_chips: ['chip1', 'chip2'],
   scroll_return: [],
   bubble_actions: ['copied'],

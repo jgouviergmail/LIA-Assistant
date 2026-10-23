@@ -232,7 +232,9 @@ export function RelationScopeSection({
         // `aria-disabled`, never `disabled`: a control disabled while focused
         // is blurred by the browser and leaves the tab order.
         aria-disabled={saving || nothingSelected}
-        className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+        // Full width on a phone, its label on the left, like every action of
+        // the sheet (owner request 2026-10-22).
+        className="inline-flex min-h-11 w-full items-center justify-start gap-1.5 rounded-lg bg-primary px-3 py-2 text-left text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-disabled:cursor-not-allowed aria-disabled:opacity-50 sm:w-auto sm:justify-center"
       >
         <Sparkles className="h-4 w-4" aria-hidden="true" />
         {t('relations.scope_launch')}

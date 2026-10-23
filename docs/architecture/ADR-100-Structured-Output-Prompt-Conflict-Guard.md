@@ -69,6 +69,79 @@ is a repair, not a success, and 15 % of lost analyses had no series to show
 them. Replayed through the door after the change: 24 of 24 analyses settled,
 14 repaired.
 
+**Amendment 2026-10-22 — one repair chain for every door, and an undeclared key
+that says nothing.** « Every native call » was false: the net lived inside the
+forced-tool call alone. A Claude that refuses a forced tool (thinking on, or a
+generation that refuses forcing — ADR-306) has ONE door, the auto-tool call,
+and that door validated the tool call raw: no repair, and no outcome on the
+series. Read on production (read-only, seven days): the auto-tool door carried
+about 1,100 structured calls against about 300 for the forced one, and its 7
+refusals reached no dashboard — none of them mechanical (a value outside an
+enum, a string where a list belongs, a missing required field), so they stay
+refusals. Measured on dev the same day, on a real ReAct turn: Haiku 5.5 with
+thinking answered a complete query analysis with `"source_quote_note": ""`
+inside a requested outcome; `GoalRequirement` forbids extras, the analysis was
+refused whole and the turn fell back to a bare conversation without its tools
+(1 auto-tool call of 13 in that session). The new shape is structural
+(ADR-184): on a model that FORBIDS extras, an undeclared key whose value is
+null, blank or an empty collection is dropped, since nothing could read it; a
+key that says something stays, because it may be a declared field misspelled
+and dropping it would let a default replace what the model meant. It joins the
+defaulted nulls as one walk, `drop_absent_values`, whose two counts are logged
+on `structured_output_absent_values_dropped` (the outcome `nulls_defaulted`
+became `absent_values_dropped`). The chain is ONE function,
+`tool_call_rescue.repair_refused_answer` — absent values, bare words, an object
+written as text — called by both native doors after ADR-275's verdict, and the
+JSON-mode door repairs absent values too. The auto-tool door counts `parsed`,
+its repairs and `truncated`; a miss is counted once, by whoever settles it (the
+buffered fallback, or `rejected` on a Claude's last door), and its log line
+names the schema paths, never a refused value. Logging that verdict on a second
+door found a leak in it (ADR-317): a parser error with no « Received » verdict
+was quoted whole — the first 120 characters of the model's arguments, at
+WARNING. The function now quotes the parser's verdict or nothing, and is named
+`refusal_verdict`: `rejection_reason` is the name of the words a person types
+to reject a plan, and the log guard rightly read it that way. Measured on the real API after
+the change: 40 query analyses on the dev slot, 40 settled through the
+auto-tool door and counted, none needing a repair. Left out on purpose, and
+provider-specific: Claude's strict tool use (`strict: true`, documented as
+compatible with thinking) would constrain the auto-tool arguments at the
+source; it must be measured on LIA's own schemas before it is trusted.
+
+**Amendment 2026-10-23 — a failed call is said as itself, and retried by one
+layer.** Production, 2026-10-22 20:35 UTC: a proactive discussion's context
+call (`discussion_context`, a Claude that refuses a forced tool) met an HTTP
+503 `overloaded_error` — two independent log lines with the provider's request
+id, no incident on the vendor's status page. The auto-tool door caught it,
+returned « nothing usable », and the caller raised « produced no valid tool
+call »: the provider's error and its headers were gone, the outcome was counted
+`rejected` as if the model had answered badly, and the discussion's backoff
+(`retry_deadline`, ADR-360), which reads a 429 or a `Retry-After` through the
+cause chain, read nothing. Reproduced offline on the real path against a local
+fake of the API: a 503, a 529, a 500, a 429 and a refused connection all became
+that same cause-less error; a 400 alone kept its class. The other doors already
+chained their cause; the gap was the last door's `return None`. A failed CALL
+is now `StructuredOutputCallError`, a `StructuredOutputError` subclass — so no
+handler changes: every caller of the door, followed two to three levels up in
+the syntax tree, catches the base class or `Exception` — raised `from` what the
+call raised by the three doors where a call fails (auto-tool last door, forced
+tool, JSON mode), built once (`call_failure`, after the deterministic-refusal
+check) and counted `call_failed` by the native doors. The retry wrapper no
+longer re-retries such a failure when the client retries by itself
+(`client_retries_by_itself`, the public `max_retries` LangChain hands to the
+vendor SDK): measured the same day, LIA's factory-built Anthropic and
+OpenAI-wire clients already send three requests for one 503 (twice, with
+backoff and `Retry-After`, as Anthropic's errors page documents), and the
+wrapper's three immediate passes on top made it nine. An unusable ANSWER is
+still the wrapper's to retry (it recovered three self-diagnoses in a week), and
+a client with no retry of its own — Ollama, or a slot set to zero — keeps the
+wrapper's loop as its only one. Left as measured, for decision: the discussion
+phases switch the SDK's retries off on purpose (ADR-360) and hold a failed
+call's upper bound as uncertain spend (1.32 USD of a 5 USD day for that 503);
+the LangChain `ModelRetryMiddleware` that `base_agent_builder` installs retries
+any exception on top of the SDK (its default `retry_on`, read, not simulated);
+the ReAct node's stream-then-buffered fallback sends a second round (six
+requests for one persistent 503, simulated).
+
 ### 2. Prompt convention (root cause)
 
 Prompts consumed by native structured output MUST NOT instruct JSON-text

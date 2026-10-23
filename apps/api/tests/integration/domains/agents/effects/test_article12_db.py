@@ -114,6 +114,8 @@ async def _populate(session: AsyncSession, user: User, *, at: datetime) -> None:
             prompt_tokens=10,
             completion_tokens=5,
             cached_tokens=0,
+            cache_write_tokens=6,
+            cache_write_extended_tokens=4,
             provider="openai",
             temperature=0.3,
             params_digest="d" * 64,
@@ -235,6 +237,8 @@ class TestTheFiveReadsReachFiveTables:
         assert inference["provider"] == "openai"
         assert inference["temperature"] == 0.3
         assert inference["params_digest"] == "d" * 64
+        # ADR-362: the writes inside the prompt count, and their extended part.
+        assert (inference["cache_write_tokens"], inference["cache_write_extended_tokens"]) == (6, 4)
 
 
 class TestThePeriodFiltersAllFiveTheSameWay:

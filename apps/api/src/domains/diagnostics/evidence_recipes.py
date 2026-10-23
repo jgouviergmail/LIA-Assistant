@@ -182,6 +182,14 @@ EVIDENCE_RECIPES: dict[str, EvidenceRecipe] = {
             logs=LogRecipe(events=("google_api_call_unaccounted",)),
         ),
         EvidenceRecipe(
+            "LLMCacheWriteLifetimeUnreported",
+            prom_queries=(
+                "llm_cache_write_lifetime_unreported_by_model",
+                "llm_cache_writes_by_lifetime",
+            ),
+            logs=LogRecipe(events=("llm_cache_write_breakdown_missing",)),
+        ),
+        EvidenceRecipe(
             "circuit_breakers",
             prom_queries=("circuit_breakers_open", "llm_errors_by_kind"),
             logs=LogRecipe(events=("circuit_breaker_opened", "circuit_breaker_rejected_request")),

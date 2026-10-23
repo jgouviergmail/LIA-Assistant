@@ -19,6 +19,7 @@ import pytest_asyncio
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.domains.auth.google_identity import GoogleSignInRefusedError
 from src.domains.auth.repository import AuthRepository
 from src.domains.auth.service import AuthService
@@ -387,9 +388,12 @@ class TestFindOrCreateGoogleUser:
         assert user.is_verified is True
         assert user.is_active is True
 
-    async def test_creates_new_user(self, auth_service, async_session):
+    async def test_creates_new_user(self, auth_service, async_session, monkeypatch):
         """Test creating new user when no existing user found."""
         # Arrange
+        # The weather card alone needs a deployment that serves the weather
+        # (the platform key, ADR-307): fixed here, never read from the host.
+        monkeypatch.setattr(settings, "google_api_key", "platform-key")
         userinfo = {
             "id": "google-brand-new",
             "email": "brandnew@example.com",
@@ -411,6 +415,13 @@ class TestFindOrCreateGoogleUser:
         assert user.is_active is False  # New users disabled by default (admin approval required)
         assert user.is_verified is True
         assert user.hashed_password is None  # OAuth users don't have password
+        # A new account opens on the weather card alone, in occasional
+        # exchanges (owner decision 2026-10-22) — read back from PostgreSQL.
+        await async_session.refresh(user)
+        assert user.exchange_rhythm == "occasional"
+        assert user.briefing_preferences is not None
+        assert "weather" not in user.briefing_preferences["hidden"]
+        assert len(user.briefing_preferences["hidden"]) == 10
 
     async def test_handles_missing_name_in_userinfo(self, auth_service, async_session):
         """Test creating user with missing 'name' field in userinfo."""

@@ -42,6 +42,86 @@
   outline: 2px solid var(--color-ring);
   outline-offset: 2px;
 }
+/* Without a map to point at — behind its offer, unavailable, failed, or the
+   server's own fallback list — the places read as a centred line that wraps
+   (owner request 2026-10-22): a column of names only pushed the answer down. */
+.lia-place-position__content[data-map-shown='false'] > .lia-place-position__choices,
+.lia-place-position__fallback {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  column-gap: 1rem;
+}
+/* The map wears the panel's own corners (owner request 2026-10-22). */
+.lia-place-position__stage {
+  border-radius: var(--lia-radius-lg);
+  overflow: hidden;
+}
+/* The offer reads as one centred block: the button, and under it its cost in
+   a smaller type (owner request 2026-10-22). The cost is drawn on a line of
+   its own after the buttons; the reading order stays the DOM's. */
+.lia-place-position__content > .lia-route-map__toolbar {
+  justify-content: center;
+}
+.lia-place-position__content > .lia-route-map__toolbar > .lia-route-map__cost {
+  order: 1;
+  flex: 1 0 100%;
+  text-align: center;
+  font-size: calc(0.6875rem * var(--lia-text-scale, 1));
+}
+/* The places beside the map once it is shown, on a card wide enough to keep
+   the map usable (owner request 2026-10-22): the native details window is
+   min(384px, 78vw) wide, so the map keeps about 26rem of a 45rem card. Below
+   that width the list stays under the map. */
+@container card (min-width: 45rem) {
+  .lia-place-position__content[data-map-shown='true'] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(12rem, 16rem);
+    column-gap: 1rem;
+  }
+  .lia-place-position__content[data-map-shown='true'] > * {
+    grid-column: 1 / -1;
+  }
+  .lia-place-position__content[data-map-shown='true'] > .lia-place-position__stage,
+  .lia-place-position__content[data-map-shown='true'] > .lia-route-map__toolbar {
+    grid-column: 1;
+  }
+  .lia-place-position__content[data-map-shown='true'] > .lia-place-position__choices {
+    grid-column: 2;
+    grid-row: 1;
+    /* Sized by the map beside it, never the reverse: a long list scrolls
+       inside that height. */
+    display: flex;
+    flex-direction: column;
+    height: 0;
+    min-height: 100%;
+    margin: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+  /* Centred on the map's height (owner request 2026-10-22) by auto margins,
+     not `justify-content: center`: a list longer than the map would overflow
+     upward too, and its first places could no longer be scrolled to. */
+  .lia-place-position__content[data-map-shown='true']
+    > .lia-place-position__choices
+    > li:first-child {
+    margin-top: auto;
+  }
+  .lia-place-position__content[data-map-shown='true']
+    > .lia-place-position__choices
+    > li:last-child {
+    margin-bottom: auto;
+  }
+}
+/* On a phone the places start at the left edge, map or no map (owner request
+   2026-10-22); the line still wraps. */
+@media (max-width: 639px) {
+  .lia-place-position__content[data-map-shown='false'] > .lia-place-position__choices,
+  .lia-place-position__fallback {
+    justify-content: flex-start;
+  }
+}
 .lia-place-position__number {
   display: inline-grid;
   flex: none;

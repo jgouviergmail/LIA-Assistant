@@ -641,6 +641,36 @@ tests:
         alertname: GoogleApiCallsUnaccounted
         exp_alerts: []
 
+  # ===== LLMCacheWriteLifetimeUnreported: a write priced without its lifetime =====
+  # One streamed response that wrote without its breakdown must fire (zero threshold).
+  - interval: 30s
+    input_series:
+      - series: 'llm_cache_write_breakdown_missing_total{model="claude-sonnet-5"}'
+        values: '0+0x60 1+0x180'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: LLMCacheWriteLifetimeUnreported
+        exp_alerts:
+          - exp_labels:
+              model: claude-sonnet-5
+              severity: warning
+              component: agents
+              tier: core
+            exp_annotations:
+              summary: "Streamed Claude responses writing to the prompt cache without their lifetime on claude-sonnet-5"
+              description: "1 streamed response(s) of claude-sonnet-5 reported prompt-cache writes without saying which were for the hour in the last hour (threshold: 0). Their writes were priced at the five-minute rate: an hour-long write is under-billed in token_usage_logs, the instance spend ceiling and the cost dashboards."
+              runbook: "docs/runbooks/alerts/LLMCacheWriteLifetimeUnreported.md"
+
+  # ===== …and a flat counter stays silent =====
+  - interval: 30s
+    input_series:
+      - series: 'llm_cache_write_breakdown_missing_total{model="claude-sonnet-5"}'
+        values: '0+0x240'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: LLMCacheWriteLifetimeUnreported
+        exp_alerts: []
+
   # ===== SystemKnowledgeIndexationFailing: repeated indexation failures =====
   # Two failures in six hours must fire. The counter is the aggregate across
   # uvicorn workers (multiprocess mode), and only the worker holding the claim

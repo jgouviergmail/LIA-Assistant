@@ -25,16 +25,16 @@ Eleven cards, in the order you choose: **Weather** (with air quality and pollen 
 
 ## Can I customize the dashboard cards?
 
-Yes — the shortest path: the **Customize** button next to **Refresh all**, right above the grid, leads straight to the right section. Or go through **Settings › Preferences › Personalization › My dashboard**. Hide any of the eleven briefing cards — including the Workboard card, which shows your tickets, what LIA is holding and what is overdue — or reorder them (↑/↓ buttons, or drag-and-drop). A hidden card is **not even fetched**: fewer calls to your services, a faster dashboard.
+Yes — the shortest path: the **Customize** button next to **Refresh all**, right above the grid, leads straight to the right section. Or go through **Settings › Preferences › Personalization › My dashboard**. Hide any of the eleven briefing cards — including the Workboard card, which shows your tickets, what LIA is holding and what is overdue — or reorder them (↑/↓ buttons, or drag-and-drop). A hidden card is **not even fetched**: fewer calls to your services, a faster dashboard. A new account starts with the **Weather** card alone (with every card when the instance does not provide the weather itself): switch them on or off there.
 
-A starter checklist on the Home page also shows what your instance can do (connectors, voice, channels…) until you dismiss it.
+A starter checklist on the Home page opens with your home address, which switches the weather on (when the instance can locate an address), then shows what your instance can do (connectors, voice, channels…) until you dismiss it.
 
 ## Why is a card missing, empty or showing an error?
 
 Each card says where it stands:
-• **Empty**: the source answered and there is nothing today — "Inbox zero 🎉"
+• **Empty**: the source answered and there is nothing today — "Inbox zero 🎉"; on a phone the card then shrinks to its title and that sentence
 • **Error**: the source failed this time. The card keeps the last data it received, with its age and the time of the last attempt, and offers **Retry**, **Try again later** or **Reconnect** when your access has expired
-• **Waiting to be set up**: a card whose source is not configured is not drawn. One discreet line under the grid names those cards, each linking to where you switch it on — your connectors for the agenda, mail, birthdays, tasks, documents and weather (which also needs your location), the **Health data** settings for health
+• **Waiting to be set up**: a card whose source is not configured is not drawn. One discreet line under the grid names those cards, each linking to where you switch it on — your connectors for the agenda, mail, birthdays, tasks and documents, your **Location** for the weather when it misses your home address (your connectors when it misses its provider), the **Health data** settings for health
 • **Hidden**: a card you hid yourself is never fetched, and never named in that line
 
 The Workboard card is absent when your instance has switched the workboard off.

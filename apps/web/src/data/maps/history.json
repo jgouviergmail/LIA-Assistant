@@ -2672,6 +2672,13 @@
       "theme": "reliability",
       "functional": ["f.diagnostics"],
       "technical": ["t.selfdiag"]
+    },
+    {
+      "adr": 362,
+      "date": "2026-10-22",
+      "theme": "models",
+      "functional": ["f.react", "f.costs", "f.llmconfig"],
+      "technical": ["t.llmfactory", "t.pricing", "t.react"]
     }
   ]
 }

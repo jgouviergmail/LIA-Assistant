@@ -22,16 +22,18 @@ import { useTranslation } from 'react-i18next';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { prefersReducedMotion } from '@/lib/utils/motion';
-import { useAppConfig } from '@/hooks/useAppConfig';
+import { useAppConfig, type AppConfig } from '@/hooks/useAppConfig';
 import { useAuth } from '@/hooks/useAuth';
 import { useChannelBindings } from '@/hooks/useChannelBindings';
 import { useHeartbeatSettings } from '@/hooks/useHeartbeatSettings';
 import { usePersonality } from '@/hooks/usePersonality';
 import { useScheduledActions } from '@/hooks/useScheduledActions';
 import { useSpaces } from '@/hooks/useSpaces';
+import type { HomeLocation } from '@/hooks/useHomeLocationSettings';
 import { settingsSectionHref, type SettingsSectionToken } from '@/lib/settings-sections';
 
 export type ChecklistItemId =
+  | 'home'
   | 'connector'
   | 'personality'
   | 'voice'
@@ -41,14 +43,38 @@ export type ChecklistItemId =
   | 'automation';
 
 export interface ChecklistFlags {
+  homeAddress: boolean;
   channels: boolean;
   heartbeat: boolean;
   ragSpaces: boolean;
 }
 
-/** Items offered on THIS instance (gate-keeper: disabled subsystems absent). */
+/**
+ * The gates, read from the flags `/config` publishes: unknown is closed — an
+ * optional item is offered once the instance said it can be done.
+ */
+export function checklistFlags(
+  config: { features?: Partial<AppConfig['features']> } | null
+): ChecklistFlags {
+  const features = config?.features;
+  return {
+    homeAddress: !!features?.home_address_enabled,
+    channels: !!features?.channels_enabled,
+    heartbeat: !!features?.heartbeat_enabled,
+    ragSpaces: !!features?.rag_spaces_enabled,
+  };
+}
+
+/**
+ * Items offered on THIS instance (gate-keeper: disabled subsystems absent).
+ *
+ * The home address leads: a new account's dashboard shows the weather card
+ * alone (owner decision 2026-10-22), and the weather needs nothing but it —
+ * where the deployment can save one at all (Google Places, ADR-307).
+ */
 export function visibleChecklistItems(flags: ChecklistFlags): ChecklistItemId[] {
-  const items: ChecklistItemId[] = ['connector', 'personality', 'voice'];
+  const items: ChecklistItemId[] = flags.homeAddress ? ['home'] : [];
+  items.push('connector', 'personality', 'voice');
   if (flags.channels) items.push('telegram');
   if (flags.heartbeat) items.push('heartbeat');
   if (flags.ragSpaces) items.push('space');
@@ -120,6 +146,7 @@ function CelebrationLine({ t }: { t: (key: string) => string }) {
  * components that declare them.
  */
 const ITEM_SECTIONS: Record<ChecklistItemId, SettingsSectionToken> = {
+  home: 'location',
   connector: 'connectors',
   personality: 'personality',
   voice: 'voice-mode',
@@ -132,6 +159,10 @@ const ITEM_SECTIONS: Record<ChecklistItemId, SettingsSectionToken> = {
 /** Live detection of each item — tolerant: a failed probe = not done. */
 function useChecklistDetection(): Record<ChecklistItemId, boolean> {
   const { user } = useAuth();
+  // `null` until an address is saved — the endpoint answers null, never a 404.
+  const { data: home } = useApiQuery<HomeLocation | null>('/users/me/home-location', {
+    componentName: 'StarterChecklistCard',
+  });
   const { data: connectorsData } = useApiQuery<{ connectors?: unknown[] }>('/connectors', {
     componentName: 'StarterChecklistCard',
   });
@@ -142,6 +173,7 @@ function useChecklistDetection(): Record<ChecklistItemId, boolean> {
   const { actions } = useScheduledActions();
 
   return {
+    home: !!home,
     connector: (connectorsData?.connectors?.length ?? 0) > 0,
     personality: !!currentPersonalityId,
     voice: !!user?.voice_enabled || !!user?.voice_mode_enabled,
@@ -173,12 +205,7 @@ function ChecklistBody({
   t: (key: string, opts?: Record<string, unknown>) => string;
   config: ReturnType<typeof useAppConfig>['config'];
 }) {
-  const flags: ChecklistFlags = {
-    channels: !!config?.features?.channels_enabled,
-    heartbeat: !!config?.features?.heartbeat_enabled,
-    ragSpaces: !!config?.features?.rag_spaces_enabled,
-  };
-  const items = visibleChecklistItems(flags);
+  const items = visibleChecklistItems(checklistFlags(config));
   const detection = useChecklistDetection();
   const doneCount = items.filter(id => detection[id]).length;
   const allDone = items.length > 0 && doneCount === items.length;

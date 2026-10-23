@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 45 |
-| ADRs | 359 ADR files (ADR-361 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
+| ADRs | 360 ADR files (ADR-362 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
 | Fiches knowledge (RAG système) | 40 |
 
 ---
@@ -54,7 +54,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (359 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (360 ADR files) |
 
 ### Pour les Product Managers
 
@@ -83,7 +83,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [TIMEOUT_REGISTRY.md](./technical/TIMEOUT_REGISTRY.md) | Référence centralisée de tous les timeouts backend (HTTP, tools, locks, scheduler, SSE/WS) — Settings, ranges, defaults, cascades |
 | [GUIDE_OBSERVABILITY.md](./guides/GUIDE_OBSERVABILITY.md) | Guide observabilité quickstart |
 | [runbooks/](./runbooks/) | Runbooks opérationnels (34+ procédures) |
-| [audit/](./audit/README.md) | **Audit technique public** — résumé (8.0/10, 24 périmètres normalisés ISO/IEC 25010:2023, 16 chantiers dont 3 majeurs, historique des cycles) + [rapport autonome V14](./audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14.html) + [protocole reproductible](./audit/AUDIT_PROTOCOL.md) et pipeline de republication |
+| [audit/](./audit/README.md) | **Audit technique public** — résumé (7.8/10 après la contre-expertise du V14, 24 périmètres normalisés ISO/IEC 25010:2023, 26 constats ouverts dont 4 majeurs, historique des cycles) + [rapport de révision](./audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14-revision.html) et [rapport V14](./audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14.html) + [protocole reproductible](./audit/AUDIT_PROTOCOL.md) et pipeline de republication |
 
 ---
 
@@ -371,6 +371,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| [ADR-362](./architecture/ADR-362-Claude-Cross-Turn-Cache-History-Read-Point-Hour-Lifetime-And-Prior-Thinking.md) | **Cache de prompt de Claude d'un tour à l'autre** : un point de relecture à la fin de l'historique, l'heure pour les deux points relus au tour suivant quand une personne attend en échanges fréquents (écriture facturée 2× et enregistrée par appel), la réflexion antérieure rendue au modèle qui l'a écrite quand il la garde sans la lier | 2026-10 |
 | [ADR-361](./architecture/ADR-361-Egress-Probe-Names-The-Failing-Step-And-Confirms-A-Cut.md) | **Sonde de sortie : l'étape nommée, la coupure confirmée** : résolution DNS puis connexion nommées à part, perte confirmée sur des essais espacés, réussite reprise ou lente signalée dégradée sans notification | 2026-10 |
 | [ADR-360](./architecture/ADR-360-Bounded-Discussion-Research-And-Accounted-Abstention.md) | **Recherche et abstention comptabilisées** : enveloppe finie, réservation discrétionnaire et usages conservés sur toutes les sorties ; implémentée sur les contrats natifs de l'application | 2026-10 |
 | [ADR-359](./architecture/ADR-359-Longitudinal-Discussion-Context-And-User-Control.md) | **Contexte longitudinal contrôlable** : épisodes soutenus, portrait autonome, purge, exclusions persistantes et directives ; base dérivée visible, reconstruite par époque | 2026-10 |
@@ -489,6 +490,7 @@ Les ADR-001 à ADR-008 n'ont pas de fichier dédié : ils sont documentés inlin
 | [GlobalRateLimitDegraded.md](./runbooks/alerts/GlobalRateLimitDegraded.md) | Plafond de requêtes global inopérant (fail-open Redis) |
 | [LLMCallsWithoutUsage.md](./runbooks/alerts/LLMCallsWithoutUsage.md) | Appels LLM payants sans comptage de jetons (ADR-220) |
 | [GoogleApiCallsUnaccounted.md](./runbooks/alerts/GoogleApiCallsUnaccounted.md) | Appels Google Maps Platform payants faits sans contexte de comptabilité (ADR-272) |
+| [LLMCacheWriteLifetimeUnreported.md](./runbooks/alerts/LLMCacheWriteLifetimeUnreported.md) | Écritures de cache Claude reçues en flux sans leur durée, facturées au tarif de cinq minutes (ADR-362) |
 | [PushWakeSweepStalled.md](./runbooks/alerts/PushWakeSweepStalled.md) | Réveils poussés mis en file et jamais servis — le balayage ne rend plus la main (ADR-304) |
 | [RadioNewsroomStalled.md](./runbooks/alerts/RadioNewsroomStalled.md) | Rédaction de la radio sans passe menée à son terme — passes en échec ou tâche arrêtée (ADR-324) |
 | [CriticalLatencyP99.md](./runbooks/alerts/CriticalLatencyP99.md) | Latence P99 critique |

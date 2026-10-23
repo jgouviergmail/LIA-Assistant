@@ -678,14 +678,16 @@ describe('RelationDetailPanel — quick actions', () => {
     const call = screen.getByRole('button', { name: 'relations.action_lia_call' });
     expect(emails).toHaveLength(2);
     expect(routes).toHaveLength(1);
-    // One column per kind, each sized to its widest button (`w-max`), every
-    // button stretched to it and every row the tallest one's height.
+    // One column per kind, each sized to its widest button from `sm` up
+    // (`sm:w-max`) and the sheet's full width on a phone (owner request
+    // 2026-10-22), every button stretched to it and every row the tallest
+    // one's height.
     const emailColumn = emails[0].parentElement;
     const routeColumn = routes[0].parentElement;
     const callColumn = call.parentElement;
     expect(new Set([emailColumn, routeColumn, callColumn]).size).toBe(3);
     for (const column of [emailColumn, routeColumn, callColumn]) {
-      expect(column).toHaveClass('grid', 'w-max', 'max-w-full', 'auto-rows-fr');
+      expect(column).toHaveClass('grid', 'w-full', 'sm:w-max', 'sm:max-w-full', 'auto-rows-fr');
       expect(column?.parentElement).toBe(emailColumn?.parentElement);
     }
     expect(emails[1].parentElement).toBe(emailColumn);

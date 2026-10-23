@@ -63,6 +63,7 @@ from src.domains.workboard.constants import (
     TicketEventKind,
     TicketStatus,
 )
+from src.domains.workboard.history import holder_fields
 from src.domains.workboard.models import WorkboardTicket
 from src.domains.workboard.notifications import (
     WorkboardEvent,
@@ -726,7 +727,11 @@ async def _settle(db: AsyncSession, prepared: ClaimedRun, result: RunResult) -> 
             actor_kind=ActorKind.LIA.value,
             actor_user_id=None,
             kind=TicketEventKind.ASSIGNED.value,
-            payload={"to_kind": AssigneeKind.HUMAN.value, "reason": "handed_back"},
+            payload={
+                **holder_fields("from", AssigneeKind.LIA.value, None),
+                **holder_fields("to", AssigneeKind.HUMAN.value, None),
+                "reason": "handed_back",
+            },
         )
     workboard_runs_total.labels(outcome=plan.outcome).inc()
     workboard_run_duration_seconds.labels(outcome=plan.outcome).observe(

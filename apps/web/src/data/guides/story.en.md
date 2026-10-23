@@ -2,9 +2,9 @@
 
 > Field report — a complete system, from design to production.
 
-**Version**: 2.5
-**Date**: 2026-10-22
-**Application**: LIA v3.4.0
+**Version**: 2.6
+**Date**: 2026-10-23
+**Application**: LIA v3.5.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -13,17 +13,17 @@
 
 LIA is a complete multi-agent AI assistant — business connectors, voice, memory, user-to-user connections, six languages — designed, built and continuously operated in production, as a personal project.
 
-Nearly all of the code was written by an AI, under human direction: a written engineering rulebook, blocking automated checks, systematic review, recurring audits. The result is measured: **8.0/10** on a technical audit across 24 areas. The repository is open source; the audit's conclusions — strengths and weaknesses alike — are owned and summarized in this document.
+Nearly all of the code was written by an AI, under human direction: a written engineering rulebook, blocking automated checks, systematic review, recurring audits. The result is measured: **7.8/10** on a technical audit across 24 areas. The repository is open source; the audit's conclusions — strengths and weaknesses alike — are owned and summarized in this document.
 
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
 | Source lines (excluding tests) — 58 functional domains | **1,003,000+** |
 | Inventoried automated tests; suites selected for commits and releases | **66,000+** |
-| Documented architecture decisions (ADR) | **359** |
-| Versions shipped at a steady pace | **285** |
+| Documented architecture decisions (ADR) | **360** |
+| Versions shipped at a steady pace | **286** |
 | Languages, parity checked automatically | **6** |
-| Technical audit across 24 areas | **8.0/10** |
+| Technical audit across 24 areas | **7.8/10** |
 
 Conviction from experience: AI-assisted development can be industrialized today. The limiting factor is not the tool — it is the management framework you give it.
 
@@ -70,7 +70,7 @@ The project is now run with several development agents in parallel — each on i
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 359 documented:
+Three structural decisions, among the 360 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Self-hosting gives you control of the server; account data is stored on the instance and connector credentials are encrypted. The remote services you choose still receive the data needed for their part of a request.
 
@@ -96,7 +96,7 @@ A visible presence must remain a controlled choice: the experimental Simli avata
 
 ## 6. The proof
 
-The level claimed in this document comes from a complete technical audit: 24 areas scored, every finding verified in the code and cross-checked to eliminate false positives. The audit applies the project's own method — conducted with AI tooling, in an adversarial posture, every conclusion anchored in cross-checked evidence. October 2026 assessment: **8.0/10** (7.3 in August), with a profile openly acknowledged. The full report — scorecard, method, open findings and the protocol to reproduce it — is public: [full audit report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
+The level claimed in this document comes from a complete technical audit: 24 areas scored, every finding verified in the code and cross-checked to eliminate false positives. The audit applies the project's own method — conducted with AI tooling, in an adversarial posture, every conclusion anchored in cross-checked evidence. October 2026 assessment: **7.8/10**, after a counter-review that re-examined the first reading point by point (8.0 at first, 7.3 in August), with a profile openly acknowledged. The full report — scorecard, method, open findings and the protocol to reproduce it — is public: [full audit report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
 
 **Confirmed strengths:**
 
@@ -107,7 +107,9 @@ The level claimed in this document comes from a complete technical audit: 24 are
 
 **What remains to be done — known, planned:**
 
-- Durable states that tell the truth: a document reprocessed after a takeover must stay with its current owner, and a call notification must only count as delivered on an explicit success.
+- Durable states that tell the truth: a document reprocessed after a takeover must stay with its current owner, and a notification — of a call, of a message between connections, of an incident — must only count as delivered on an explicit success.
+- Waits with a bound: the database must cut a lock wait or an idle transaction short before it can freeze an account, and a token refresh must belong to one worker at a time.
+- A loop that closes: every finding tracked with its age and its deadline, and a backend coverage margin restored.
 - Alerting: assemble and test every advertised combination of notification channels, routing included.
 - Absolute structural debt — dense central functions, domains that depend on each other, typing exemptions — reduced batch by batch, driven by measurement.
 

@@ -571,8 +571,10 @@ class User(
     )
 
     # Briefing grid preferences (UXR Lot 5, B4): {hidden: [...], order: [...]}.
-    # NULL = all cards visible in canonical order. Writes are full NEW-dict
-    # replacements (JSONB new-dict rule); the tolerant reader is
+    # NULL = all cards visible in canonical order (an account created before
+    # 2026-10-22 whose grid was never saved); a new account starts with the
+    # weather card alone (auth/new_account_columns.py). Writes are full NEW-dict replacements
+    # (JSONB new-dict rule); the tolerant reader is
     # domains/briefing/preferences.sanitize_briefing_preferences.
     briefing_preferences: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB,

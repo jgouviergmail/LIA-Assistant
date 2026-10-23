@@ -107,6 +107,9 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Re-measured 2026-10-23 (v3.5.0): backend 52,397 collected in 3,500 files
+ *   (pytest tests --collect-only -q --no-cov); frontend coverage: 13,948 tests
+ *   in 1,118 files. Combined inventory: 66,345 -> 66000 (unchanged).
  *   Re-measured 2026-10-22 (v3.4.0): backend 52,293 collected in 3,489 files
  *   (pytest tests --collect-only -q --no-cov); frontend coverage: 13,919 tests
  *   in 1,117 files. Combined inventory: 66,212 -> 66000.
@@ -406,11 +409,12 @@
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
  *   223 headings at v1.31.2, no Unreleased pending. 253 at v1.44.0.
- * - auditScore/auditAreas: technical audit V14 of the 2026-10-22 snapshot
- *   (v3.4.0 preparation) — 24 normalized areas mapped to ISO/IEC 25010:2023,
- *   each area the sum of five 0–2 axes, arithmetic mean 192/240 = 8.0/10,
- *   security out of scope. Previous cycles: V11/V12 8.3 (2026-07-16/24),
- *   V13 7.3 (2026-08-02). Full public report + protocol: docs/audit/
+ * - auditScore/auditAreas: the V14 revision of 2026-10-22, a counter-review
+ *   of the same day's V14 (v3.4.0 preparation) on the same grid — 24
+ *   normalized areas mapped to ISO/IEC 25010:2023, each area the sum of five
+ *   0–2 axes, arithmetic mean 186.5/240 = 7.8/10, security out of scope.
+ *   V14 itself had read 192/240 = 8.0. Previous cycles: V11/V12 8.3
+ *   (2026-07-16/24), V13 7.3 (2026-08-02). Full public report + protocol: docs/audit/
  *   (AUDIT_REPORT_URL below). No landing band renders the score today; the
  *   texts that quote it (README, story/how guides, the getting-started FAQ
  *   answer and story.meta.description in the 6 locales) follow this value.
@@ -421,12 +425,12 @@ export const LANDING_STATS = {
   tools: 327,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 627,
+  metrics: 630,
   uiLanguages: 6,
   tests: 66000,
-  adrs: 359,
-  releases: 285,
-  auditScore: '8.0/10',
+  adrs: 360,
+  releases: 286,
+  auditScore: '7.8/10',
   auditAreas: 24,
 } as const;
 

@@ -2029,9 +2029,13 @@ interaction = HitlInteractionRegistry.from_action_type(action_type, ...)
   and a write is billed at 1.25x
   ([ADR-306](./architecture/ADR-306-Claude-Request-Surface-And-Billed-Prompt-Cache.md))
 - Anthropic: the static prefix is marked at the `DYNAMIC CONTEXT` marker whatever the
-  system's shape, the rolling breakpoint only in tool loops, previous turns' thinking
-  never replayed, 5-minute TTL; a cache write is billed at 1.25x on every cost path
-  ([ADR-306](./architecture/ADR-306-Claude-Request-Surface-And-Billed-Prompt-Cache.md))
+  system's shape; in tool loops only, the history's end is a read point and the rolling
+  breakpoint covers the request's tail; a cache write is billed at its price on every cost
+  path — 1.25x for five minutes, 2x for the hour the two cross-turn read points of a
+  frequent turn a person waits for are written for; an earlier turn's thinking goes back
+  only to the model that wrote it, where it keeps it unbound
+  ([ADR-306](./architecture/ADR-306-Claude-Request-Surface-And-Billed-Prompt-Cache.md),
+  [ADR-362](./architecture/ADR-362-Claude-Cross-Turn-Cache-History-Read-Point-Hour-Lifetime-And-Prior-Thinking.md))
 
 **3. Parallel Execution**
 - asyncio.gather() for independent tools

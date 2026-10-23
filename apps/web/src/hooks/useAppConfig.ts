@@ -45,6 +45,8 @@ export interface AppConfig {
     rag_spaces_mail_sync_enabled?: boolean;
     journals_enabled: boolean;
     // UXR Lot 6 (A10) — additive instance flags (gate-keeper ADR-061).
+    // The home address: its deployment ceiling (Google Places, ADR-307).
+    home_address_enabled?: boolean;
     channels_enabled?: boolean;
     heartbeat_enabled?: boolean;
     skills_enabled?: boolean;

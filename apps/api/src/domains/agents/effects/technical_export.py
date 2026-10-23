@@ -291,6 +291,8 @@ INFERENCE_EXPORTED_COLUMNS: tuple[str, ...] = (
     "prompt_tokens",
     "completion_tokens",
     "cached_tokens",
+    "cache_write_tokens",
+    "cache_write_extended_tokens",
     "latency_ms",
     "status",
     "failure_kind",

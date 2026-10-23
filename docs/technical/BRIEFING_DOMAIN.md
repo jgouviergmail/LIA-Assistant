@@ -104,11 +104,11 @@ Each section yields a `CardSection` with one of four statuses:
 | Status            | Trigger                                              | Frontend rendering                  |
 |-------------------|------------------------------------------------------|-------------------------------------|
 | `ok`              | Fetcher returned a non-empty payload                 | Normal display                      |
-| `empty`           | Fetcher returned an empty list                       | Positive empty state ("Inbox propre 🎉") |
+| `empty`           | Fetcher returned an empty list                       | Positive empty state ("Inbox propre 🎉"); on a phone (one column) the card shrinks to its title and that sentence |
 | `error`           | `ConnectorAccessError` or unexpected exception       | Message + CTA mapped from `error_code` |
 | `not_configured`  | `ConnectorNotConfiguredError`                        | Card entirely hidden (`return null`)|
 
-`error_code` is a stable identifier (see `constants.py`) used by the frontend to choose the correct localized CTA — `connector_oauth_expired` → "Reconnect", `connector_network` → "Retry", etc.
+`error_code` is a stable identifier (see `constants.py`) used by the frontend to choose the correct localized CTA — `connector_oauth_expired` → "Reconnect", `connector_network` → "Retry", etc. A `not_configured` section carries `connector_not_configured`, except a weather card whose provider is there and whose ADDRESS is not: `LocationNotConfiguredError` says `location_not_configured`, and the setup line sends the person to their location settings rather than to the connectors (since ADR-307 the weather has a provider of its own on every instance that keeps its platform key).
 
 ### LLM tracking
 
@@ -156,6 +156,22 @@ are full NEW-dict replacements per the JSONB rule). The GET returns the
 completed with every missing section in the historical display order, so a
 NULL column (or a future section) never reshuffles the grid. The PUT is
 **strict** (unknown or duplicated section names → 422).
+
+A NULL column means every card visible: it is the column of an account created
+before 2026-10-22 whose grid was never saved. A brand-new account (an e-mail
+registration, a first Google sign-in or the installer's first account — the
+one declaration `auth/new_account_columns.py`) is instead created with every card but the weather in `hidden`
+(`NEW_ACCOUNT_VISIBLE_SECTIONS`, `preferences.new_account_briefing_preferences`,
+owner decision 2026-10-22): on an instance serving Google Weather (ADR-307) the
+weather needs nothing but an address, which the starter checklist asks for
+first, and the person switches the other cards on in the grid settings. A
+deployment without the platform key — the public demonstrator, where nobody
+can link a provider either — could never draw the weather card, and a grid
+holding it alone would be empty: a new account there starts with every card
+(`keyless_ceiling_reason`, the deployment half of the keyless predicate), and
+the checklist leaves the address out (`/config.features.home_address_enabled`).
+A card added by a later release is in nobody's `hidden`, so it shows on every
+account alike.
 
 A hidden section short-circuits inside `_section()` **before any fetch or
 cache IO** and returns a `status: "hidden"` placeholder — the economy is
@@ -333,8 +349,10 @@ card, which is a different situation.
 `unconfiguredCards()` (`lib/briefing-setup.ts`) answers, purely: among the
 sections the user actually displays, which ones report a missing configuration,
 and where each is configured (`SECTION_SETTINGS_TARGET`, verified against the
-fetchers one raise site at a time). Hidden cards are excluded — asking someone
-to connect a card they chose to hide is noise, not help.
+fetchers one raise site at a time — a weather card reporting
+`location_not_configured` goes to the location settings instead). Hidden cards
+are excluded — asking someone to connect a card they chose to hide is noise,
+not help.
 
 `BriefingSetupHint` renders one discreet line, each card name linking to its
 settings section. Never seven promotional cards: on mobile the grid is already

@@ -349,7 +349,8 @@ ANTHROPIC_CACHE_MIN_TOKENS_TYPICAL = 1024
 ANTHROPIC_MAX_CACHE_BREAKPOINTS = 4
 
 # Claude « preserved thinking » (ADR-306): on the generations that bind a
-# thinking block to the conversation that produced it (Fable 5.1, Opus 5.5), an
+# thinking block to the conversation that produced it
+# (``ClaudeSurface.binds_thinking_to_conversation``), an
 # account created from 2026-08-31 gets a 400 once the history before the block
 # changed — measured on Opus 5.5 with a rebuilt system prompt, which LIA does
 # every turn. The behaviour below asks the API to drop such a block instead of
@@ -362,11 +363,29 @@ ANTHROPIC_PREFIX_MISMATCH_BEHAVIOR = "drop_block"
 # the same on both vendors that charge a write (pricing pages read 2026-09-23,
 # ADR-306): Claude's « 5m cache writes » and OpenAI's « cache writes » on GPT-5.6
 # and GPT-6. The written tokens stay in the prompt count, which already pays 1x:
-# the cost adds the difference. LIA only ever writes the default TTL of each
-# (Claude's 5 minutes — anthropic_payload sets no ttl; OpenAI's 30 minutes, its
-# only value), so it is the one rate needed. The pricing cache hands it to every
-# Anthropic and OpenAI tariff when it builds its index.
+# the cost adds the difference. It is the rate of each vendor's DEFAULT lifetime
+# (Claude's 5 minutes, OpenAI's 30 minutes, its only value). The pricing cache
+# hands it to every Anthropic and OpenAI tariff when it builds its index.
 PROMPT_CACHE_WRITE_MULTIPLIER = 1.25
+
+# The rate of a write at the vendor's EXTENDED lifetime — Claude's « 1h cache
+# writes », twice the input price on every Claude model (prompt-caching page,
+# read 2026-10-22; ADR-362). Only the cross-turn read points of a ReAct turn a
+# person waits for, in frequent exchanges, are written for the hour; the
+# usage reader reports that part apart (``UsageTokens.cache_write_extended``).
+PROMPT_CACHE_EXTENDED_WRITE_MULTIPLIER = 2.0
+
+# The ``ttl`` value of Claude's extended cache lifetime (the API accepts
+# ``"5m"``, its default, and ``"1h"``).
+ANTHROPIC_CACHE_TTL_EXTENDED = "1h"
+
+# ADR-362: an earlier turn's thinking goes back to the Claude model that wrote it
+# when that generation keeps prior thinking without binding it to its
+# conversation -- the vendor's default context, which LIA used to remove
+# everywhere. Measured 2026-10-22: accepted in LIA's history shape (two
+# assistant messages per ReAct turn), billed as input (about a hundred tokens
+# for a short reasoning). False = every earlier turn's thinking removed.
+PRIOR_TURN_THINKING_REPLAY_ENABLED_DEFAULT: bool = True
 
 # ============================================================================
 # RESPONSE LLM CONTEXT — STYLE NEUTRALIZATION (HTML enriched display mode)
@@ -3340,9 +3359,8 @@ LLM_MODEL_DEFAULT_MAX_OUTPUT_TOKENS: int = 4096
 # ============================================================================
 
 # Marker used in prompt .txt templates to separate static (cacheable) prefix
-# from dynamic context (user query, datetime, etc.). Used by:
-# - factory.py (Anthropic cache_control split)
-# - responses_adapter.py (OpenAI prompt_cache_key extraction)
+# from dynamic context (user query, datetime, etc.). Every cache mechanism is
+# translated from it; ``core/prompt_layout`` is its one reading (ADR-309).
 DYNAMIC_CONTEXT_MARKER = "--- DYNAMIC CONTEXT"
 
 # ============================================================================
@@ -6264,6 +6282,17 @@ REACT_CROSS_TURN_CACHE_MAX_WINDOW_FRACTION_DEFAULT: float = 0.5
 # three on the others. The response node's history is NOT dropped by blocks: it
 # follows the turn's own context (query, date, results), so no cache reads it.
 REACT_CROSS_TURN_HISTORY_BLOCK_FRACTION_DEFAULT: float = 0.5
+# ADR-362: for a ReAct turn a person waits for, in frequent exchanges, the two
+# CROSS-TURN read points of the prompt cache (the static prefix and the history
+# end) are written for the provider's extended lifetime -- Claude's hour, 2x the
+# input price instead of 1.25x -- while the loop's rolling tail keeps five
+# minutes. Measured 2026-10-22 on two Claude generations: either lifetime reads
+# the other's entry, a request mixing them is billed span by span, and the next
+# turn read its whole history back. Production's person ReAct turns over 60
+# days (two accounts): 49-59 % follow within five minutes, 77-78 % within the
+# hour, so the hour saves 8 to 26 % of the cross-turn prefix. False = the
+# provider's default lifetime everywhere.
+PROMPT_CACHE_EXTENDED_TTL_ENABLED_DEFAULT: bool = True
 # ADR-310: recovery passes a ReAct turn may take when its final message declares
 # facts it could not obtain (an <unresolved> block). A pass re-opens the loop with
 # the draft and the gaps instead of ending the turn; 0 switches the pass off.

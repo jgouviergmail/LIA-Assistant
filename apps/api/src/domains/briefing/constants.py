@@ -147,6 +147,12 @@ SECTION_DISPLAY_ORDER_DEFAULT: tuple[str, ...] = (
     SECTION_WORKBOARD,
 )
 
+# The only card a brand-new account sees (owner decision 2026-10-22): every
+# other one starts hidden — never fetched — and is switched back on in the
+# grid settings. The weather needs nothing but the person's address, which
+# the getting-started checklist asks for first. Existing accounts keep theirs.
+NEW_ACCOUNT_VISIBLE_SECTIONS: tuple[str, ...] = (SECTION_WEATHER,)
+
 # =============================================================================
 # LLM prompt names (must match files in agents/prompts/v1/) and tracking labels.
 # =============================================================================
@@ -173,6 +179,9 @@ BRIEFING_SYNTHESIS_TARGET_PREFIX = "synthesis"
 # =============================================================================
 
 ERROR_CODE_CONNECTOR_NOT_CONFIGURED = "connector_not_configured"
+# The source is there, the person's ADDRESS is not (weather): the frontend sends
+# them to their location settings rather than to the connectors.
+ERROR_CODE_LOCATION_NOT_CONFIGURED = "location_not_configured"
 ERROR_CODE_CONNECTOR_OAUTH_EXPIRED = "connector_oauth_expired"
 ERROR_CODE_CONNECTOR_NETWORK = "connector_network"
 ERROR_CODE_CONNECTOR_RATE_LIMIT = "connector_rate_limit"

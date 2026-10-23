@@ -21,7 +21,15 @@ import { UsageLine, meterFigures, type Figure } from '@/components/ui/usage-line
 import { useAuth } from '@/hooks/useAuth';
 import { lifecycleTone } from '@/lib/status-tone';
 import { cn } from '@/lib/utils';
-import { eventChanges, eventLabelKey, type EventChange } from '@/lib/workboard/display';
+import {
+  eventChanges,
+  eventLabelKey,
+  holderParty,
+  partyLabel,
+  type EventChange,
+  type HolderRef,
+  type PeerName,
+} from '@/lib/workboard/display';
 import { runFailure } from '@/lib/workboard/errors';
 import type { CommentRow, EventRow, RunOutcome, TicketRow } from '@/types/workboard';
 
@@ -281,8 +289,19 @@ export function CommentsBlock({
   );
 }
 
+/** Who a holder of a hand-over is, in the reader's words. */
+type HolderName = (holder: HolderRef) => string;
+
 /** One change, in the reader's words, their locale and their timezone. */
-function Change({ change, locale }: { change: EventChange; locale: string }) {
+function Change({
+  change,
+  locale,
+  holderName,
+}: {
+  change: EventChange;
+  locale: string;
+  holderName: HolderName;
+}) {
   const { t } = useTranslation();
   const stamp = (value: string | null) =>
     value
@@ -312,6 +331,16 @@ function Change({ change, locale }: { change: EventChange; locale: string }) {
       </span>
     );
   }
+  if (change.field === 'holder') {
+    return (
+      <span>
+        {t('workboard.history.holder')}
+        {sep}
+        {change.from && `${holderName(change.from)} → `}
+        {holderName(change.to)}
+      </span>
+    );
+  }
   const named = (value: string | null) => {
     if (!value) return t('workboard.history.none');
     if (change.field === 'status') return t(`workboard.columns.${value}`);
@@ -336,8 +365,23 @@ function Change({ change, locale }: { change: EventChange; locale: string }) {
  * registers. The two never add up and are never joined — this block shows the
  * ticket's own log and nothing else.
  */
-export function HistoryBlock({ events, locale }: { events: readonly EventRow[]; locale: string }) {
+export function HistoryBlock({
+  events,
+  locale,
+  ownerId,
+  meId,
+  peers,
+}: {
+  events: readonly EventRow[];
+  locale: string;
+  /** Whom a person-less end of a hand-over means (ADR-276). */
+  ownerId: string;
+  meId: string | undefined;
+  /** Accepted connections, to name the people a ticket passed through. */
+  peers: readonly PeerName[];
+}) {
   const { t } = useTranslation();
+  const holderName: HolderName = holder => partyLabel(holderParty(holder, ownerId, meId, peers), t);
   return (
     <Panel icon={History} title={t('workboard.detail.history')}>
       {events.length === 0 ? (
@@ -350,7 +394,12 @@ export function HistoryBlock({ events, locale }: { events: readonly EventRow[]; 
               <li key={event.id} className="flex flex-wrap items-baseline gap-x-1.5">
                 <span className="font-medium text-foreground">{t(eventLabelKey(event))}</span>
                 {changes.map((change, index) => (
-                  <Change key={`${event.id}-${index}`} change={change} locale={locale} />
+                  <Change
+                    key={`${event.id}-${index}`}
+                    change={change}
+                    locale={locale}
+                    holderName={holderName}
+                  />
                 ))}
                 <time dateTime={event.created_at} className="ms-auto">
                   {new Intl.DateTimeFormat(locale, {

@@ -276,6 +276,27 @@ groups:
           description: "{{ $value | humanize }} paid Google {{ $labels.api_name }} call(s) were made with no accounting context in the last hour (threshold: 0). The deployment paid them and no ledger received them: google_api_usage_logs, the person's statistics, the instance spend ceiling and the cost dashboards did not see it."
           runbook: "docs/runbooks/alerts/GoogleApiCallsUnaccounted.md"
 
+      # ADR-362. A streamed Claude response says which of its prompt-cache
+      # writes were for the hour at its START only, and LIA copies that
+      # breakdown into the stream's usage (providers/anthropic_hooks). A start
+      # that reports writes without it prices every one of them at the
+      # five-minute rate: an hour-long write is under-billed by 0.75x the input
+      # price in token_usage_logs and in every ceiling that reads it. Zero is the
+      # honest threshold: the vendor's stream carries the breakdown (measured
+      # 2026-10-22), so a series means the stream changed shape.
+      - alert: LLMCacheWriteLifetimeUnreported
+        expr: |
+          sum by (model) (increase(llm_cache_write_breakdown_missing_total[1h])) > 0
+        for: 0m
+        labels:
+          severity: warning
+          component: agents
+          tier: core
+        annotations:
+          summary: "Streamed Claude responses writing to the prompt cache without their lifetime on {{ $labels.model }}"
+          description: "{{ $value | humanize }} streamed response(s) of {{ $labels.model }} reported prompt-cache writes without saying which were for the hour in the last hour (threshold: 0). Their writes were priced at the five-minute rate: an hour-long write is under-billed in token_usage_logs, the instance spend ceiling and the cost dashboards."
+          runbook: "docs/runbooks/alerts/LLMCacheWriteLifetimeUnreported.md"
+
   # ===== SYSTEM KNOWLEDGE — the FAQ the assistant answers about itself from =====
   - name: core_system_knowledge
     interval: 60s

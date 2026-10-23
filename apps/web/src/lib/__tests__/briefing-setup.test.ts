@@ -73,6 +73,25 @@ describe('unconfiguredCards', () => {
     ]);
   });
 
+  it('sends a weather card that misses the address to the location settings', () => {
+    // Since ADR-307 the weather has a provider of its own: what a new account
+    // lacks is its address, and the connectors page has nothing to offer it.
+    const cards = bundle(['weather', 'agenda']);
+    (cards.weather as { error_code: string }).error_code = 'location_not_configured';
+    expect(unconfiguredCards(cards, ALL)).toEqual([
+      { section: 'weather', target: 'location' },
+      { section: 'agenda', target: 'connectors' },
+    ]);
+  });
+
+  it('sends a weather card that misses its provider to the connectors', () => {
+    // An instance that withholds its weather key: the person's own provider
+    // (OpenWeatherMap) is then the way to the card.
+    expect(unconfiguredCards(bundle(['weather']), ALL)).toEqual([
+      { section: 'weather', target: 'connectors' },
+    ]);
+  });
+
   it('sends the health card to its own settings section', () => {
     // health is gated by a toggle, not by a connector — sending the user to the
     // connectors page would be a dead end.

@@ -5,7 +5,7 @@
 **Version**: 4.1 (2026-07-17)
 **Status**: Production-Ready
 **Architecture**: Prometheus + Grafana + Loki + Tempo + AlertManager
-**Total Metrics**: 627 definitions in the backend's metric modules
+**Total Metrics**: 630 definitions in the backend's metric modules
 **Dashboards**: one JSON per dashboard in `infrastructure/observability/grafana/dashboards/`, catalogued with their panels in [GRAFANA_DASHBOARDS.md](../technical/GRAFANA_DASHBOARDS.md)
 **Alert Rules**: the active core set, `alerts-core.yml` (ADR-119; legacy set pending recalibration)
 **Recording Rules**: 86 optimized rules
@@ -47,7 +47,7 @@ Observability is the ability to measure the internal states of a system by exami
 
 | Component | Purpose | Metrics | Retention | Port |
 |-----------|---------|---------|-----------|------|
-| **Prometheus** | Metrics collection & storage | 627 custom metrics (scraped from :9091) | 15 days | 9090 |
+| **Prometheus** | Metrics collection & storage | 630 custom metrics (scraped from :9091) | 15 days (dev), 7 (prod) | 9090 |
 | **Grafana** | Visualization & dashboards | catalogued in [GRAFANA_DASHBOARDS.md](../technical/GRAFANA_DASHBOARDS.md) | N/A (queries only) | 3000 |
 | **Loki** | Log aggregation & storage | N/A (logs, not metrics) | 7 days | 3100 |
 | **Tempo** | Distributed tracing | Trace spans | 7 days | 3200 |
@@ -56,19 +56,22 @@ Observability is the ability to measure the internal states of a system by exami
 
 ### Metrics Breakdown by Category
 
-| Category | Metrics Count | Key Metrics | Dashboards |
-|----------|---------------|-------------|------------|
-| **LLM Agents** | 35+ | `sse_time_to_first_token`, `router_latency`, `graph_exceptions` | 04 - Agents LangGraph |
-| **LLM Tokens/Cost** | 20+ | `llm_tokens_consumed_total`, `llm_cost_total`, `llm_api_calls_total` | 05 - LLM Tokens & Cost |
-| **HITL Tool Approval** | 18+ | `hitl_classification_method_total`, `hitl_for_each_decisions_total` (`hitl_edit_actions_total` a ete supprimee) | 07 - HITL Tool Approval |
-| **Conversations** | 15+ | `conversation_created_total`, `checkpoint_save_duration_seconds` (`conversation_active_users_total` n'existe pas) | 06 - Conversations |
-| **OAuth 2.1 Security** | 12+ | `oauth_callback_total`, `oauth_pkce_validation_total` | 08 - OAuth Security |
-| **HTTP/API** | 10+ | `http_requests_total`, `http_request_duration_seconds` | 01 - Application Performance |
-| **Infrastructure** | 25+ | `node_cpu_seconds_total`, `node_memory_MemAvailable_bytes` | 02 - Infrastructure Resources |
-| **Business** | 15+ | `lia_total_users`, `lia_total_connectors` | 03 - Business Metrics |
-| **GeoIP** | 1 | `http_requests_by_country_total` | 17 - User Analytics & Geo |
+| Category | Key metrics | Dashboard |
+|----------|-------------|-----------|
+| **Agent orchestration** | `router_latency_seconds`, `graph_exceptions_total` | [07-agents-pipeline](../../infrastructure/observability/grafana/dashboards/07-agents-pipeline.json) |
+| **Answer latency** | `sse_time_to_first_token_seconds` | [01-app-overview](../../infrastructure/observability/grafana/dashboards/01-app-overview.json) |
+| **LLM tokens & cost** | `llm_tokens_consumed_total`, `llm_cost_total`, `llm_api_calls_total` | [05-llm-tokens-cost](../../infrastructure/observability/grafana/dashboards/05-llm-tokens-cost.json) |
+| **HITL** | `hitl_classification_method_total`, `hitl_for_each_decisions_total` | [08-hitl](../../infrastructure/observability/grafana/dashboards/08-hitl.json) |
+| **Checkpoints** | `checkpoint_save_duration_seconds` | [14-registry-checkpoints](../../infrastructure/observability/grafana/dashboards/14-registry-checkpoints.json) |
+| **OAuth & connectors** | `oauth_callback_total`, `oauth_pkce_validation_total` | [10-oauth-connectors-mcp](../../infrastructure/observability/grafana/dashboards/10-oauth-connectors-mcp.json) |
+| **HTTP/API** | `http_requests_total`, `http_request_duration_seconds` | [04-http-api](../../infrastructure/observability/grafana/dashboards/04-http-api.json) |
+| **Infrastructure** | `node_cpu_seconds_total`, `node_memory_MemAvailable_bytes` (node-exporter) | [03-infra-resources](../../infrastructure/observability/grafana/dashboards/03-infra-resources.json) |
+| **Product value** | `product_activation_rate`, `product_retention_rate`, `user_active_daily_gauge` | [26-product-value](../../infrastructure/observability/grafana/dashboards/26-product-value.json) |
+| **Usage & geolocation** | `conversation_created_total`, `http_requests_by_country_total` | [17-user-analytics-geo](../../infrastructure/observability/grafana/dashboards/17-user-analytics-geo.json) |
 
-**Total**: 180+ metrics across 9 categories
+The total is the derived count at the top of this guide. Every dashboard, and the
+metrics each of its panels reads, is in the catalogue
+[GRAFANA_DASHBOARDS.md](../technical/GRAFANA_DASHBOARDS.md).
 
 ---
 
@@ -98,9 +101,9 @@ Observability is the ability to measure the internal states of a system by exami
 │                 │  │                 │  │                 │
 │ - Time-series   │  │ - Log streams   │  │ - Trace spans   │
 │ - Recording     │  │ - Label index   │  │ - Service       │
-│   rules (65+)   │  │ - Compaction    │  │   graphs        │
+│   rules         │  │ - Compaction    │  │   graphs        │
 │ - Alert eval    │  │                 │  │                 │
-│   (57 rules)    │  │                 │  │                 │
+│   (core set)    │  │                 │  │                 │
 └────────┬────────┘  └────────┬────────┘  └────────┬────────┘
          │                    │                     │
          │ (Alert firing)     │                     │
@@ -313,18 +316,10 @@ curl -s 'http://localhost:9090/api/v1/query?query=up' | jq '.data.result[] | {in
 
 1. Navigate to http://localhost:3000
 2. Login: `admin` / `admin` (change on first login)
-3. Go to **Dashboards** → **Browse**
-4. Open folder **"LIA"**
-5. Available dashboards:
-   - 01 - Application Performance
-   - 02 - Infrastructure Resources
-   - 03 - Business Metrics
-   - 04 - Agents LangGraph
-   - 05 - LLM Tokens & Cost
-   - 06 - Conversations
-   - 07 - HITL Tool Approval
-   - 08 - OAuth Security
-   - 09 - Logs & Traces
+3. Go to **Dashboards**: every dashboard of `infrastructure/observability/grafana/dashboards/`
+   is provisioned there, at the root, numbered by domain (`01 - Application Overview`,
+   `05 - LLM Tokens & Cost`, …); the **LIA dashboards** menu of each one opens the others
+4. What each dashboard shows, panel by panel: [GRAFANA_DASHBOARDS.md](../technical/GRAFANA_DASHBOARDS.md)
 
 ### 7. Test Alerting
 
@@ -363,113 +358,32 @@ curl -X POST http://localhost:9093/api/v1/alerts -H "Content-Type: application/j
 
 ##### prometheus.yml (Main Configuration)
 
-```yaml
-global:
-  scrape_interval: 15s       # Default scrape interval
-  evaluation_interval: 30s   # Alert rule evaluation frequency
-  external_labels:
-    cluster: 'lia'
-    environment: 'production'
+**File**: `infrastructure/observability/prometheus/prometheus.yml`: the jobs it scrapes
+(the API on its metrics port 9091, the containers through cAdvisor, PostgreSQL, Redis,
+the node, the observability stack itself on keep-lists — ADR-333 — and the blackbox
+probes) and the two rule files it loads, `recording_rules.yml` and the core alerts
+`alerts-core.yml` (ADR-119); the legacy `alerts.yml` and `rules/*.yml` stay commented
+out. The file is the reference; this guide does not restate it.
 
-scrape_configs:
-  # API metrics
-  - job_name: 'lia-api'
-    static_configs:
-      - targets: ['api:9091']
-    scrape_interval: 15s
+**Retention**: `--storage.tsdb.retention.time` in the compose files — 15 days in dev,
+7 in production.
 
-  # PostgreSQL metrics
-  - job_name: 'postgresql'
-    static_configs:
-      - targets: ['postgres_exporter:9187']
+##### recording_rules.yml
 
-  # Redis metrics
-  - job_name: 'redis'
-    static_configs:
-      - targets: ['redis_exporter:9121']
+See the *Recording Rules* section below.
 
-  # Node metrics (infrastructure)
-  - job_name: 'node'
-    static_configs:
-      - targets: ['node_exporter:9100']
+##### alerts-core.yml (the alerts Prometheus loads)
 
-  # Container metrics
-  - job_name: 'cadvisor'
-    static_configs:
-      - targets: ['cadvisor:8080']
+The core alert set (ADR-119), rendered from `alerts-core.yml.template` with each
+environment's thresholds and tested rule by rule with `promtool` (`task test:alerts`,
+`infrastructure/observability/prometheus/tests/alerts_core_test.yml`); every alert
+links to its runbook under `docs/runbooks/alerts/`. Operational guide:
+[ALERTING.md](../technical/ALERTING.md).
 
-# Alert rules
-alerting:
-  alertmanagers:
-    - static_configs:
-        - targets: ['alertmanager:9093']
+##### alerts.yml and alert_rules.yml (legacy, not loaded)
 
-# Recording & alert rules
-rule_files:
-  - '/etc/prometheus/recording_rules.yml'   # 65+ recording rules
-  - '/etc/prometheus/alerts.yml'            # Infrastructure alerts
-  - '/etc/prometheus/alert_rules.yml'       # HITL quality alerts
-```
-
-**Key Parameters**:
-- `scrape_interval: 15s` - Balance between freshness and load
-- `evaluation_interval: 30s` - Alert rule evaluation frequency
-- Retention: 15 days (configurable via `--storage.tsdb.retention.time=15d`)
-
-##### recording_rules.yml (65+ Optimized Queries)
-
-**Purpose**: Pre-compute expensive queries to improve dashboard performance.
-
-**Categories**:
-1. **LLM Costs** (5 rules): Cost per request, tokens per request, cost by model
-2. **Agent Performance** (8 rules): TTFT percentiles, tokens/sec, router latency
-3. **HITL Quality** (6 rules): Approval rate, edit rate, rejection rate
-4. **Conversations** (4 rules): Checkpoint save/load p99, active users
-5. **HTTP** (3 rules): Request rate, error rate, latency percentiles
-6. **OAuth Security** (2 rules): Callback success rate, connector API success rate
-7. **Database & Infrastructure** (15+ rules): Connection pool usage, query performance
-8. **SSE Streaming** (10+ rules): TTFT percentiles, streaming errors, tokens/sec by intention
-9. **LLM Cache** (5 rules): Hit rate, size, evictions, latency
-10. **Router** (7 rules): Confidence distribution, fallback rate, latency by intention
-
-**Example Recording Rule**:
-```yaml
-# Time to First Token (TTFT) p95 by intention (5min window)
-- record: sse_ttft:p95:5m
-  expr: |
-    histogram_quantile(0.95,
-      sum(rate(sse_time_to_first_token_seconds_bucket[5m])) by (intention, le)
-    )
-```
-
-**Dashboard Usage**:
-Instead of running expensive `histogram_quantile()` on every dashboard refresh, use pre-computed `sse_ttft:p95:5m`.
-
-##### alerts.yml (Infrastructure & Application Alerts)
-
-**47 alert rules** across 6 groups:
-- `application_alerts` (5 rules): Error rate, latency, service down
-- `database_alerts` (4 rules): Connection pool, slow queries
-- `infrastructure_alerts` (6 rules): Disk, CPU, memory, containers
-- `redis_alerts` (3 rules): Redis down, memory, connections
-- `redis_rate_limiting_alerts` (9 rules): Hit rates, latency, errors, Lua failures
-- `agents_langgraph_alerts` (5 rules): SLA violations (TTFT, tokens/s, router)
-- `conversations` (6 rules): Checkpoint performance, resets, availability
-- `tokens_and_cost` (8 rules): LLM API failures, budgets, efficiency
-- `oauth_alerts` (6 rules): OAuth security, PKCE validation
-
-##### alert_rules.yml (HITL Quality Alerts)
-
-**10 alert rules** for Human-in-the-Loop quality monitoring:
-- `HITLClarificationFallbackHigh/Critical`: Classifier confidence issues
-- `HITLFullRewritesHigh`: Users rewriting proposals
-- `HITLEditRateIncreasing`: High edit rate
-- `HITLExplicitRejectionsHigh`: Users rejecting proposals
-- `HITLRejectionRateSpike`: Sudden spike in rejections
-- `HITLUserResponseTimeSlow`: UX friction
-- `HITLQualityDegraded`: Multiple quality indicators degraded
-
-**Total Alert Rules**: 57 across 9 groups
+The 2025-11 design, commented out in `prometheus.yml` until it is recalibrated (see
+the *Alerting* section below).
 
 #### Data Storage
 
@@ -487,11 +401,11 @@ Instead of running expensive `histogram_quantile()` on every dashboard refresh, 
 └── queries.active        # Active queries log
 ```
 
-**Retention**: 15 days (configurable)
+**Retention**: 15 days in dev, 7 in production (`--storage.tsdb.retention.time` in the compose files)
 
 **Disk Usage Estimation**:
 - ~500MB per day for 150 metrics scraped every 15s
-- 15 days retention = ~7.5GB total
+- 15 days retention (dev) = ~7.5GB total
 
 #### Prometheus UI Features
 
@@ -605,405 +519,25 @@ topk(10, count by (__name__)({__name__=~".+"}))
 
 #### Dashboards
 
-**Location**: `infrastructure/observability/grafana/dashboards/`
-
-**Catalogue**: every dashboard and its panels, in [GRAFANA_DASHBOARDS.md](../technical/GRAFANA_DASHBOARDS.md)
-
-**New Dashboards (Phase 2-3)**:
-- **10** - Redis Rate Limiting (Phase 2.4)
-- **11** - LangGraph Framework (Phase 2.5)
-- **12** - Recording Rules Health (Phase 2.2)
-- **13** - SLO Tracking (Phase 2.2)
-- **14** - Langfuse LLM Observability (Phase 3.1)
-- **15** - Checkpoint Observability (Phase 3.3)
-
-##### Dashboard 01 - Application Performance (2 panels)
-
-**Purpose**: HTTP request monitoring, error rates, latency
-
-**Key Panels**:
-1. **Requests per Second by Endpoint** (Graph)
-   - Query: `sum(rate(http_requests_total{job="lia-api"}[5m])) by (method, endpoint)`
-   - Recording rule: `http_requests:rate:5m`
-
-2. **HTTP Latency Percentiles** (Graph)
-   - P50/P95/P99 latency
-   - Query: `histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))`
-   - Recording rule: `http_latency:p95:5m`
-
----
-
-##### Dashboard 02 - Infrastructure Resources (20 panels)
-
-**Purpose**: CPU, memory, disk, network, container monitoring
-
-**Key Panels**:
-- CPU Usage % (Gauge + Graph)
-- Memory Usage % (Gauge + Graph)
-- Disk Usage % (Gauge + Graph)
-- Network I/O (Graph)
-- Container Status (Table)
-- PostgreSQL Connection Pool (Graph)
-- Redis Memory Usage (Graph)
-
----
-
-##### Dashboard 03 - Business Metrics (2 panels)
-
-**Purpose**: User growth, connector usage, business KPIs
-
-**Key Panels**:
-1. **Total Users & Active Users** (Stat)
-   - Query: `lia_total_users`, `lia_active_users`
-
-2. **Connectors by Type** (Pie Chart)
-   - Query: `lia_connectors_by_type`
-
----
-
-##### Dashboard 04 - Agents LangGraph (40 panels)
-
-**Purpose**: LangGraph execution monitoring, node performance, error tracking
-
-**Categories**:
-- **SSE Streaming Performance** (10 panels): TTFT, tokens/sec, streaming errors
-- **Router Performance** (8 panels): Latency, confidence, fallback rate
-- **Graph Execution** (12 panels): Node execution time, exceptions, memory usage
-- **HITL Tool Approval** (10 panels): Approval rate, edit actions, rejection types
-
-**Key Metrics**:
-- `sse_time_to_first_token_seconds` (TTFT - SLA: < 1000ms)
-- `sse_tokens_per_second` (SLA: > 20 tokens/sec)
-- `router_latency_seconds` (SLA: < 500ms)
-- `graph_exceptions_total` (monitor by node_name)
-
----
-
-##### Dashboard 05 - LLM Tokens & Cost (13 panels)
-
-**Purpose**: Token consumption, cost tracking, LLM API monitoring
-
-**Key Panels**:
-1. **Total Tokens Consumed 24h** (Stat)
-   - Query: `sum(increase(llm_tokens_consumed_total[24h]))`
-
-2. **Estimated Cost 24h** (Stat)
-   - Query: `sum(increase(llm_cost_total{currency="EUR"}[24h]))`
-   - Thresholds: 10€ (green), 50€ (yellow), 100€ (red)
-
-3. **LLM API Success Rate** (Gauge)
-   - Query: `sum(rate(llm_api_calls_total{status="success"}[5m])) / sum(rate(llm_api_calls_total[5m]))`
-   - Alert if < 95%
-
-4. **Cost by Model** (Bar Gauge)
-   - Query: `sum by (model) (increase(llm_cost_total{currency="EUR"}[1h]))`
-
----
-
-##### Dashboard 06 - Conversations (3 panels)
-
-**Purpose**: Conversation metrics, checkpoint performance
-
-**Key Panels**:
-1. **Active Conversations** (Stat)
-   - Query: `conversation_active_users_total`
-   - Thresholds: 100 (yellow), 500 (red)
-
-2. **Checkpoint Save Performance** (Graph)
-   - Query: `histogram_quantile(0.99, rate(checkpoint_save_duration_seconds_bucket[5m]))`
-   - Recording rule: `checkpoint_save:p99:5m`
-   - Alert if p99 > 2s
-
-3. **Checkpoint Size Distribution** (Graph)
-   - Query: `histogram_quantile(0.95, rate(checkpoint_size_bytes_bucket[1h]))`
-
----
-
-##### Dashboard 07 - HITL Tool Approval (14 panels + 8 alerts)
-
-**Purpose**: Human-in-the-Loop quality monitoring
-
-**Key Panels**:
-1. **HITL Approval Rate** (Gauge)
-   - Query: `sum(rate(hitl_classification_method_total{decision="APPROVE"}[1h])) / sum(rate(hitl_classification_method_total[1h]))`
-   - Recording rule: `hitl_approval_rate:1h`
-
-2. **Edit Actions Distribution** (Pie Chart)
-   - Query: `sum by (edit_type) (rate(hitl_edit_actions_total[1h]))`
-   - Types: `minor_edit`, `moderate_edit`, `full_rewrite`
-
-3. **Rejection Reasons** (Table)
-   - Query: `sum by (rejection_type) (rate(hitl_rejection_type_total[1h]))`
-
-**Associated Alert Rules**:
-- `HITLClarificationFallbackHigh` (>20%)
-- `HITLClarificationFallbackCritical` (>40%)
-- `HITLFullRewritesHigh` (>30%)
-- `HITLExplicitRejectionsHigh` (>20%)
-- `HITLRejectionRateSpike` (>50%)
-- `HITLUserResponseTimeSlow` (p95 >5min)
-- `HITLQualityDegraded` (multiple indicators)
-
----
-
-##### Dashboard 08 - OAuth Security (10 panels)
-
-**Purpose**: OAuth 2.1 security monitoring (PKCE, state validation)
-
-**Key Panels**:
-1. **OAuth Callback Success Rate** (Gauge)
-   - Query: `sum(rate(oauth_callback_total{status="success"}[5m])) / sum(rate(oauth_callback_total[5m]))`
-   - Recording rule: `oauth_callback_success_rate:5m`
-
-2. **PKCE Validation Failures** (Stat)
-   - Query: `sum(rate(oauth_pkce_validation_total{result="failed"}[5m]))`
-   - Alert if > 5/s (possible CSRF attack)
-
-3. **OAuth Callback Latency p95** (Graph)
-   - Query: `histogram_quantile(0.95, rate(oauth_callback_duration_seconds_bucket[5m]))`
-
----
-
-##### Dashboard 09 - Logs & Traces (12 panels)
-
-**Purpose**: Log aggregation, trace visualization, error tracking
-
-**Key Panels**:
-1. **Logs by Level** (Graph)
-   - LogQL: `sum by (level) (count_over_time({job="lia-api"}[5m]))`
-
-2. **Top 10 Most Frequent Errors** (Table)
-   - LogQL: `topk(10, sum(count_over_time({job="lia-api"} | json | level="ERROR" [1h])) by (message))`
-
-3. **Trace Latency Distribution** (Histogram)
-   - TraceQL: `{service.name="lia-api"}`
-
----
-
-##### Dashboard 10 - Redis Rate Limiting (13 panels)
-
-**Purpose**: Redis-based rate limiting monitoring (sliding window algorithm)
-
-**Added**: Phase 2.4 (Session 4-5)
-
-**Key Panels**:
-1. **Rate Limit Allows/Denies** (Timeseries)
-   - Query: `sum by (connector_type, allowed) (rate(redis_rate_limit_acquire_total[5m]))`
-   - Monitor: Allow vs Deny ratio by connector
-
-2. **Rate Limit Check Latency P50/P95/P99** (Timeseries)
-   - Query: `histogram_quantile(0.95, sum by (le, connector_type) (rate(redis_rate_limit_check_duration_seconds_bucket[5m])))`
-   - Recording rule: `key_prefix:redis_rate_limit_check_duration_ms:p95_rate5m`
-   - SLA: P95 < 10ms (Lua script execution)
-
-3. **Blocked Requests (429) - Last Hour** (Stat)
-   - Query: `sum(increase(redis_rate_limit_blocked_total[1h]))`
-   - Threshold: >100 (yellow), >500 (red)
-
-4. **Redis Connection Pool Utilization** (Gauge)
-   - Query: `redis_connection_pool_utilization_ratio`
-   - Alert if > 80%
-
----
-
-##### Dashboard 11 - LangGraph Framework (40+ panels)
-
-**Purpose**: LangGraph framework internals monitoring (graphs, nodes, state, subgraphs, streaming)
-
-**Added**: Phase 2.5 (Session 5)
-
-**Sections**:
-1. **Graph Execution** (12 panels):
-   - Graph duration P95/P99
-   - Graph error rate
-   - Concurrent graphs
-   - Graph execution rate
-
-2. **Node Transitions** (10 panels):
-   - State transitions heatmap
-   - Node-to-node latency
-   - Conditional edge decisions
-   - Node error rate by type
-
-3. **State Management** (8 panels):
-   - State size distribution (KB)
-   - State update frequency
-   - State complexity (nested depth)
-
-4. **SubGraphs** (6 panels):
-   - SubGraph duration by agent
-   - Nested subgraph depth
-   - SubGraph invocation rate
-
-5. **Streaming Events** (6 panels):
-   - SSE event distribution by type
-   - Event payload size
-   - Streaming error rate
-
-**Key Metrics**:
-- `langgraph_graph_duration_seconds` (P95 < 5s)
-- `langgraph_state_size_bytes` (P95 < 100KB)
-- `langgraph_node_transitions_total` (track graph flow)
-- `langgraph_subgraph_duration_seconds` (ReAct loop performance)
-
----
-
-##### Dashboard 12 - Recording Rules Health (13 panels)
-
-**Purpose**: Meta-monitoring of Prometheus recording rules (performance, evaluation time)
-
-**Added**: Phase 2.2 (Session 8)
-
-**Key Panels**:
-1. **Recording Rule Evaluation Duration** (Timeseries)
-   - Query: `prometheus_rule_evaluation_duration_seconds{rule_group=~".*_optimized"}`
-   - Monitor: Evaluation time for each rule group
-
-2. **Recording Rule Failures** (Stat)
-   - Query: `sum(rate(prometheus_rule_evaluation_failures_total[1h]))`
-   - Alert if > 0 (rules should never fail)
-
-3. **Recording Rules Coverage** (Stat)
-   - Total: 31 rules across 8 groups
-   - Performance gain: 98% (query time reduction)
-
-4. **Top 10 Slowest Recording Rules** (Table)
-   - Query: `topk(10, prometheus_rule_evaluation_duration_seconds)`
-
-**Recording Rule Groups**:
-- `oauth_security_optimized` (4 rules)
-- `hitl_quality_optimized` (8 rules)
-- `redis_rate_limiting_optimized` (3 rules)
-- `langgraph_framework_optimized` (3 rules)
-- `llm_performance_optimized` (3 rules)
-- `slo_tracking` (10+ rules)
-
----
-
-##### Dashboard 13 - SLO Tracking (15 panels)
-
-**Purpose**: Service Level Objectives tracking (Google SRE)
-
-**Added**: Phase 2.2 (Session 8)
-
-**SLO Categories**:
-
-1. **API Latency SLOs** (5 panels):
-   - **SLO Target**: P95 < 500ms
-   - **SLO Compliance**: `api:slo:latency_p95_500ms:compliance_ratio`
-   - **Error Budget**: 30-day rolling window
-   - **Burn Rate**: 1h, 6h, 3d windows
-
-2. **Availability SLOs** (3 panels):
-   - **SLO Target**: 99.9% uptime (3 nines)
-   - **Current Availability**: `api:slo:availability:ratio_5m`
-   - **Error Budget Remaining**: `api:slo:error_budget:remaining_30d`
-   - **Fast Burn Alert**: If >10% budget consumed in 1h
-
-3. **Agent Latency SLOs** (3 panels):
-   - **SLO Target**: Agent P95 < 3000ms
-   - **Current P95/P99**: `agent:latency:p95_5m`, `agent:latency:p99_5m`
-   - **Success Rate**: `agent:slo:success_rate:1h` (target 95%)
-
-4. **LLM Provider SLOs** (2 panels):
-   - **SLO Target**: 99% availability, P95 < 2000ms
-   - **Provider Availability**: `llm:slo:availability:ratio_5m`
-   - **Rate Limit Hits**: `llm:rate_limits:hits_per_hour`
-
-5. **Business SLOs** (2 panels):
-   - **Abandonment Rate**: < 15% (target)
-   - **HITL Approval Rate**: > 80% (target)
-   - **Conversation Cost**: Average cost per conversation
-
-**Recording Rules Used**:
-All SLO panels use pre-aggregated recording rules from `slo_tracking` group for fast query performance.
-
----
-
-##### Dashboard 14 - Langfuse LLM Observability (20+ panels)
-
-**Purpose**: Langfuse integration monitoring (prompt versioning, eval scores, traces)
-
-**Added**: Phase 3.1 (Sessions 10-13)
-
-**Sections**:
-
-1. **Trace Ingestion** (5 panels):
-   - Trace creation rate
-   - Trace ingestion latency P95
-   - Failed trace uploads
-   - Trace payload size distribution
-
-2. **Prompt Versioning** (6 panels):
-   - Active prompt versions by name
-   - Prompt performance by version (A/B testing)
-   - Prompt rollout status
-   - Version change frequency
-
-3. **Evaluation Scores** (5 panels):
-   - Score distribution by metric (correctness, helpfulness, toxicity)
-   - Average score trends
-   - Low-scoring interactions (< 0.5)
-   - Evaluation coverage (% of traces scored)
-
-4. **Nested Traces** (4 panels):
-   - Trace depth distribution
-   - Parent-child relationships
-   - Subgraph trace correlation
-   - Trace completeness (all spans present)
-
-**Key Metrics**:
-- `langfuse_trace_created_total`
-- `langfuse_prompt_version_active_total`
-- `langfuse_evaluation_score` (histogram)
-- `langfuse_trace_upload_duration_seconds`
-
----
-
-##### Dashboard 15 - Checkpoint Observability (13 panels)
-
-**Purpose**: LangGraph checkpoint persistence layer monitoring
-
-**Added**: Phase 3.3 (Session 15)
-
-**Sections**:
-
-1. **Operations** (4 panels):
-   - Save/Load operations rate
-   - Operation success rate
-   - Operations by status (success/error)
-   - Concurrent checkpoint operations
-
-2. **Latency** (3 panels):
-   - Save duration P50/P95/P99 by node
-   - Load duration P50/P95/P99 (with/without conversation)
-   - Alert: P99 save > 2s, P99 load > 1s
-
-3. **Size** (2 panels):
-   - Checkpoint size distribution (bytes)
-   - P90 size by node (storage optimization)
-   - Large checkpoints (>500KB)
-
-4. **Errors** (4 panels):
-   - Error rate by type (db_connection, serialization, timeout, permission)
-   - Error count breakdown
-   - Save failures (critical alert)
-   - Load failures
-
-**Key Metrics**:
-- `checkpoint_operations_total{operation="save|load", status="success|error"}`
-- `checkpoint_errors_total{error_type, operation}`
-- `checkpoint_save_duration_seconds` (histogram, buckets: 10ms-1s)
-- `checkpoint_load_duration_seconds` (histogram, buckets: 10ms-2s)
-- `checkpoint_size_bytes` (histogram, buckets: 100B-1MB)
-
-**Alerts**:
-- `CheckpointSaveLatencyHigh`: P95 > 1s (warning)
-- `CheckpointSaveLatencyCritical`: P99 > 2s (critical)
-- `CheckpointSizeTooBig`: P90 > 500KB (warning)
-- `CheckpointSaveFailures`: Error rate > 1% (critical, PagerDuty)
-
----
+**Location**: `infrastructure/observability/grafana/dashboards/`, one JSON file per
+dashboard, provisioned at the root of Grafana's **Dashboards** page and numbered by
+domain.
+
+**Catalogue**: every dashboard, its rows, its panels and the metrics each panel reads,
+in [GRAFANA_DASHBOARDS.md](../technical/GRAFANA_DASHBOARDS.md). This guide does not
+restate it: kept in two places, the list drifted here, where dashboards were still
+described under their former names and panel counts long after they were renumbered.
+
+**Conventions** (ADR-333, held by `apps/api/tests/unit/test_grafana_dashboard_conventions_guard.py`):
+
+- a dashboard opens on the last **7 days** and refreshes every **5 minutes**; the logs
+  and traces dashboard ([06-logs-traces](../../infrastructure/observability/grafana/dashboards/06-logs-traces.json)) opens on **4 hours**;
+- every dashboard carries the same **LIA dashboards** menu, listing every dashboard
+  tagged `lia`; a link does not carry the time range, so each one opens on its own;
+- every metric the backend defines is read by a panel, a recording rule or an alert
+  (`apps/api/tests/unit/test_metric_coverage_ratchet_guard.py`); a counter watched for
+  a rare event reads `or vector(0)` with `"noValue": "0"`, so a quiet one shows 0, not
+  « No data ».
 
 ### 3. Loki (Log Aggregation)
 
@@ -1339,9 +873,19 @@ Default route → default-email
 
 ### Metrics Inventory
 
-**Total**: 180+ metrics across 9 categories
+**Total**: the derived count at the top of this guide.
 
-For exhaustive metrics inventory with descriptions, see: METRICS_INVENTORY_ANALYSIS.md
+Every metric is defined once, in `apps/api/src/infrastructure/observability/`:
+`metrics.py` (HTTP and the application's own gauges), `metrics_agents.py` (graph,
+router, streaming, LLM tokens and cost, HITL) and one module per domain beside them
+(`metrics_oauth.py`, `metrics_product.py`, `metrics_prompt_cache.py`, …); a few live
+with the code they measure (the checkpointer's, in
+`apps/api/src/domains/conversations/checkpointer.py`). What each one counts, and its
+labels: [METRICS_REFERENCE.md](../technical/METRICS_REFERENCE.md); which dashboard
+reads it: the table *Metrics Breakdown by Category* above and
+[GRAFANA_DASHBOARDS.md](../technical/GRAFANA_DASHBOARDS.md). This guide quotes no
+definition: the module is the definition, and the copies kept here had drifted — a
+third of the metrics they quoted no longer existed.
 
 #### Multi-worker aggregation (multiprocess)
 
@@ -1354,234 +898,13 @@ for shared/DB-derived values, `livesum` for per-worker resources, `livemax`/`liv
 avoid per-PID series duplication. See [ADR-089](../architecture/ADR-089-Prometheus-Multiprocess-Metrics.md)
 and [METRICS_REFERENCE.md](../technical/METRICS_REFERENCE.md).
 
-#### 1. LLM Agents (35+ metrics)
+#### Adding a metric
 
-**File**: `apps/api/src/infrastructure/observability/metrics_agents.py`
-
-**Key Metrics**:
-```python
-# SSE Streaming Performance
-sse_time_to_first_token_seconds = Histogram(
-    "sse_time_to_first_token_seconds",
-    "Time to first token in SSE streaming",
-    ["intention"],
-    buckets=[0.1, 0.5, 1.0, 2.0, 3.0, 5.0, 10.0]
-)
-
-sse_tokens_generated_total = Counter(
-    "sse_tokens_generated_total",
-    "Total tokens generated during SSE streaming",
-    ["intention", "model"]
-)
-
-# Router Performance
-router_latency_seconds = Histogram(
-    "router_latency_seconds",
-    "Router decision latency",
-    buckets=[0.1, 0.25, 0.5, 0.75, 1.0, 2.0, 3.0, 5.0]
-)
-
-router_decisions_total = Counter(
-    "router_decisions_total",
-    "Router decisions by intention and confidence",
-    ["intention", "confidence_bucket"]
-)
-
-# HITL Tool Approval
-hitl_classification_method_total = Counter(
-    "hitl_classification_method_total",
-    "HITL classification method used",
-    ["method", "decision"]
-)
-
-hitl_edit_actions_total = Counter(
-    "hitl_edit_actions_total",
-    "HITL edit actions by type",
-    ["edit_type"]  # minor_edit, moderate_edit, full_rewrite
-)
-```
-
-#### 2. LLM Tokens & Cost (20+ metrics)
-
-**File**: `apps/api/src/infrastructure/observability/metrics.py`
-
-**Key Metrics**:
-```python
-llm_tokens_consumed_total = Counter(
-    "llm_tokens_consumed_total",
-    "Total tokens consumed (prompt + completion)",
-    ["model", "token_type", "intention"]
-)
-
-llm_cost_total = Counter(
-    "llm_cost_total",
-    "Total LLM API cost",
-    ["model", "currency", "intention"]
-)
-
-llm_api_calls_total = Counter(
-    "llm_api_calls_total",
-    "LLM API calls by model and status",
-    ["model", "status"]  # success, error
-)
-
-llm_api_latency_seconds = Histogram(
-    "llm_api_latency_seconds",
-    "LLM API call latency",
-    ["model"],
-    buckets=[0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0]
-)
-```
-
-#### 3. HITL Tool Approval (18+ metrics)
-
-**File**: `apps/api/src/infrastructure/observability/metrics_agents.py`
-
-**Key Metrics**:
-```python
-hitl_classification_method_total = Counter(
-    "hitl_classification_method_total",
-    "Classification method: llm_classifier or clarification_fallback",
-    ["method", "decision"]
-)
-
-hitl_user_response_time_seconds = Histogram(
-    "hitl_user_response_time_seconds",
-    "Time user takes to respond to HITL interrupt",
-    buckets=[1, 5, 10, 30, 60, 120, 300, 600]
-)
-
-hitl_edit_actions_total = Counter(
-    "hitl_edit_actions_total",
-    "Edit actions on tool proposals",
-    ["edit_type"]
-)
-
-hitl_rejection_type_total = Counter(
-    "hitl_rejection_type_total",
-    "Rejection types (explicit vs implicit)",
-    ["rejection_type"]
-)
-```
-
-#### 4. Conversations (15+ metrics)
-
-**File**: `apps/api/src/infrastructure/observability/metrics_business.py`
-
-**Key Metrics**:
-```python
-conversation_created_total = Counter(
-    "conversation_created_total",
-    "Total conversations created"
-)
-
-conversation_active_users_total = Gauge(
-    "conversation_active_users_total",
-    "Number of users with active conversations"
-)
-
-checkpoint_save_duration_seconds = Histogram(
-    "checkpoint_save_duration_seconds",
-    "Checkpoint save duration",
-    ["node_name"],
-    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0]
-)
-
-checkpoint_size_bytes = Histogram(
-    "checkpoint_size_bytes",
-    "Checkpoint size in bytes",
-    ["node_name"],
-    buckets=[1000, 5000, 10000, 50000, 100000, 500000, 1000000]
-)
-```
-
-#### 5. OAuth 2.1 Security (12+ metrics)
-
-**File**: `apps/api/src/infrastructure/observability/metrics_oauth.py`
-
-**Key Metrics**:
-```python
-oauth_callback_total = Counter(
-    "oauth_callback_total",
-    "OAuth callbacks received",
-    ["provider", "status"]
-)
-
-oauth_pkce_validation_total = Counter(
-    "oauth_pkce_validation_total",
-    "PKCE validation results",
-    ["provider", "result"]
-)
-
-oauth_state_validation_total = Counter(
-    "oauth_state_validation_total",
-    "State token validation results (CSRF protection)",
-    ["provider", "result"]
-)
-
-oauth_callback_duration_seconds = Histogram(
-    "oauth_callback_duration_seconds",
-    "OAuth callback processing duration",
-    ["provider"],
-    buckets=[0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 7.0, 10.0]
-)
-```
-
-#### 6. HTTP/API (10+ metrics)
-
-**File**: `apps/api/src/infrastructure/observability/metrics.py`
-
-**Key Metrics**:
-```python
-http_requests_total = Counter(
-    "http_requests_total",
-    "Total HTTP requests",
-    ["method", "endpoint", "status"]
-)
-
-http_request_duration_seconds = Histogram(
-    "http_request_duration_seconds",
-    "HTTP request duration",
-    ["method", "endpoint"],
-    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
-)
-```
-
-#### 7. Infrastructure (25+ metrics)
-
-**Exporters**:
-- **Node Exporter** (node metrics): CPU, memory, disk, network
-- **cAdvisor** (container metrics): Container CPU, memory, network
-- **PostgreSQL Exporter**: Database connections, queries, replication
-- **Redis Exporter**: Memory, connections, commands
-
-#### 8. Business (15+ metrics)
-
-**File**: `apps/api/src/infrastructure/observability/metrics.py`
-
-**Key Metrics**:
-```python
-lia_total_users = Gauge(
-    "lia_total_users",
-    "Total registered users"
-)
-
-lia_active_users = Gauge(
-    "lia_active_users",
-    "Active users in last 24h"
-)
-
-lia_total_connectors = Gauge(
-    "lia_total_connectors",
-    "Total connectors configured"
-)
-
-lia_connectors_by_type = Gauge(
-    "lia_connectors_by_type",
-    "Connectors by type",
-    ["type"]
-)
-```
+A new metric goes in the module of its domain, and the build refuses it until a panel,
+a recording rule or an alert reads it
+(`apps/api/tests/unit/test_metric_coverage_ratchet_guard.py`). A labelled counter that
+never fired exposes no series, so a panel watching a rare event reads `or vector(0)`
+with `"noValue": "0"`.
 
 ---
 
@@ -1696,93 +1019,19 @@ Inhibition rules prevent alert spam by suppressing redundant alerts.
 
 **Purpose**: Pre-compute expensive queries to improve dashboard performance.
 
-**Total**: 65+ recording rules
+**Where**: `infrastructure/observability/prometheus/recording_rules.yml`, loaded by
+Prometheus beside the core alerts (`alerts-core.yml`); the legacy `alerts.yml` and
+`rules/*.yml` stay commented out in `prometheus.yml` (ADR-119). `task test:alerts`
+checks both loaded files with `promtool`, and a recording rule counts as a reader of
+the metrics it reads for the metric coverage guard.
 
-### Recording Rule Naming Convention
+**Naming**: a family, then what it computes and over which window, colon-separated —
+for example `sse_ttft:p95_5m`, `business:hitl:approval_rate:1h` or
+`api:slo:error_budget:remaining_30d`.
 
-```
-<metric_name>:<aggregation>:<window>
-
-Examples:
-- http_requests:rate:5m          # HTTP request rate (5min window)
-- sse_ttft:p95:5m                # TTFT p95 (5min window)
-- llm_cost_per_request:1h        # Cost per request (1h window)
-```
-
-### Key Recording Rules
-
-#### LLM Costs (5 rules)
-
-```yaml
-# LLM cost per request (hourly average)
-- record: llm_cost_per_request:1h
-  expr: |
-    sum(rate(llm_cost_total{currency="USD"}[1h]))
-    /
-    sum(rate(llm_api_calls_total[1h]))
-
-# Tokens per request
-- record: llm_tokens_per_request:1h
-  expr: |
-    sum(rate(llm_tokens_consumed_total[1h]))
-    /
-    sum(rate(llm_api_calls_total[1h]))
-
-# Cost by model (1h window)
-- record: llm_cost_by_model:1h
-  expr: |
-    sum by (model) (rate(llm_cost_total{currency="USD"}[1h]))
-```
-
-#### Agent Performance (8 rules)
-
-```yaml
-# TTFT percentiles (5min window)
-- record: sse_ttft:p50:5m
-  expr: |
-    histogram_quantile(0.5, sum(rate(sse_time_to_first_token_seconds_bucket[5m])) by (intention, le))
-
-- record: sse_ttft:p95:5m
-  expr: |
-    histogram_quantile(0.95, sum(rate(sse_time_to_first_token_seconds_bucket[5m])) by (intention, le))
-
-# Tokens per second by intention
-- record: sse_tokens_per_second:5m
-  expr: |
-    sum by (intention) (rate(sse_tokens_generated_total[5m]))
-    /
-    sum by (intention) (rate(sse_streaming_duration_seconds_count[5m]))
-
-# Router latency p95
-- record: router_latency:p95:5m
-  expr: |
-    histogram_quantile(0.95, sum(rate(router_latency_seconds_bucket[5m])) by (le))
-```
-
-#### HITL Quality (6 rules)
-
-```yaml
-# HITL approval rate (1h window)
-- record: hitl_approval_rate:1h
-  expr: |
-    sum(rate(hitl_classification_method_total{decision="APPROVE"}[1h]))
-    /
-    sum(rate(hitl_classification_method_total[1h]))
-
-# HITL edit rate
-- record: hitl_edit_rate:1h
-  expr: |
-    sum(rate(hitl_edit_actions_total[1h]))
-    /
-    sum(rate(hitl_classification_method_total[1h]))
-
-# Clarification fallback rate
-- record: hitl_clarification_fallback_rate:1h
-  expr: |
-    sum(rate(hitl_clarification_fallback_total[1h]))
-    /
-    sum(rate(hitl_classification_method_total[1h]))
-```
+This guide quotes no rule: the file is the definition, and the copies kept here had
+drifted — most of the rules they quoted no longer existed, under a total the file had
+long outgrown.
 
 ---
 
@@ -1792,7 +1041,7 @@ Examples:
 
 | Component | Retention | Configurable | Location |
 |-----------|-----------|--------------|----------|
-| **Prometheus** | 15 days | Yes (`--storage.tsdb.retention.time`) | `prometheus.yml` |
+| **Prometheus** | 15 days (dev), 7 (prod) | Yes (`--storage.tsdb.retention.time`) | the compose files |
 | **Loki** | 7 days | Yes (`retention_period`) | `loki-config.yml` |
 | **Tempo** | 7 days | Yes (`block_retention`) | `tempo.yml` |
 | **Grafana** | N/A (queries only) | N/A | N/A |
@@ -1800,7 +1049,7 @@ Examples:
 
 ### Disk Space Estimation
 
-**Total**: ~10GB for full stack (15 days Prometheus, 7 days logs/traces)
+**Total**: ~10GB for full stack in dev (15 days Prometheus, 7 days logs/traces)
 
 | Component | Daily Usage | 15 Days | 7 Days |
 |-----------|-------------|---------|--------|
@@ -1981,7 +1230,7 @@ histogram_quantile(0.95,
 
 **✅ Good** (use pre-computed recording rule):
 ```promql
-sse_ttft:p95:5m
+sse_ttft:p95_5m
 ```
 
 **Savings**: ~90% query time reduction

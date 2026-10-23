@@ -55,6 +55,7 @@ from src.domains.workboard.constants import (
     WorkboardError,
 )
 from src.domains.workboard.creation_fence import lock_creation_scope
+from src.domains.workboard.history import holder_fields
 from src.domains.workboard.models import WorkboardComment, WorkboardTicket, WorkboardTicketEvent
 from src.domains.workboard.repository import WorkboardRepository
 from src.domains.workboard.schemas import BoardSummary, CommentCreate, TicketCreate, TicketUpdate
@@ -436,7 +437,12 @@ class WorkboardService:
         if ticket_id is not None:
             values["id"] = ticket_id
         ticket = await self.repo.create(values)
-        await self._event(ticket, actor, TicketEventKind.CREATED, {"status": status})
+        await self._event(
+            ticket,
+            actor,
+            TicketEventKind.CREATED,
+            {"status": status, **holder_fields("to", kind, holder)},
+        )
         logger.info(
             "workboard_ticket_created",
             ticket_id=str(ticket.id),
@@ -816,10 +822,8 @@ class WorkboardService:
             actor,
             TicketEventKind.ASSIGNED,
             {
-                "from_kind": previous[0],
-                "from_user": str(previous[1]) if previous[1] else None,
-                "to_kind": kind,
-                "to_user": str(holder) if holder else None,
+                **holder_fields("from", previous[0], previous[1]),
+                **holder_fields("to", kind, holder),
                 **({"reason": reason} if reason else {}),
             },
         )
@@ -1121,7 +1125,11 @@ class WorkboardService:
                     ticket,
                     None,
                     TicketEventKind.ASSIGNED,
-                    {"to_kind": AssigneeKind.HUMAN.value, "reason": "connection_removed"},
+                    {
+                        **holder_fields("from", AssigneeKind.HUMAN.value, holder_id),
+                        **holder_fields("to", AssigneeKind.HUMAN.value, None),
+                        "reason": "connection_removed",
+                    },
                 )
                 released.append(ticket)
         if released:

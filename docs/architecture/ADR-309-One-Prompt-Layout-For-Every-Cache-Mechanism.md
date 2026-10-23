@@ -3,6 +3,7 @@
 **Status**: accepted — 2026-09-23 (owner rule: every provider and model is configurable, so no decision reasons on one of them; aim at the best AVERAGE over usages and model choices)
 **Revised**: 2026-09-24, after the owner's test turns — the response sends its conversation once and keeps its sections' order (4), the history blocks are the loop's alone (6), the journal extraction gains the boundary (2)
 **Amended**: 2026-09-24, after production's first morning under the flag — the loop's history blocks are counted by the turn counter, from the end, in whole turns (6, and the amendment below); and by [ADR-311](ADR-311-Exchange-Rhythm-Is-The-Persons-Choice.md): the blocks follow the person's exchange rhythm, with every tool and the context's place
+**Amended**: 2026-10-22 by [ADR-362](ADR-362-Claude-Cross-Turn-Cache-History-Read-Point-Hour-Lifetime-And-Prior-Thinking.md) — on Claude the loop's history blocks are read back only from a read point at their end, which the payload policy now places
 **Amends**: ADR-306 (the explicit request mode, a second payload adapter), ADR-308 (the loop's history dropped by blocks under the same flag), ADR-284 (the response's conversation sent once, its two scaffolds in a lines file), ADR-064 (the analyst persona's place in the extraction prompt), ADR-147 (the grounding block's own budget)
 
 ## Context

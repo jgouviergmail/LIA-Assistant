@@ -20,7 +20,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 import structlog
 from langchain_core.messages import AIMessage, HumanMessage
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from src.infrastructure.llm.structured_output import (
     StructuredOutputError,
@@ -95,8 +95,38 @@ async def test_a_call_rejected_for_a_null_is_defaulted_and_logged() -> None:
             provider="deepseek",
         )
     assert answer.title == "t" and answer.bullets == []
-    events = [entry for entry in captured if entry["event"] == "structured_output_nulls_defaulted"]
-    assert events and events[0]["defaulted"] == 1 and events[0]["schema"] == "_Answer"
+    events = [e for e in captured if e["event"] == "structured_output_absent_values_dropped"]
+    assert events and events[0]["schema"] == "_Answer"
+    assert events[0]["nulls_defaulted"] == 1 and events[0]["empty_extras_dropped"] == 0
+
+
+class _Strict(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str
+
+
+async def test_a_call_rejected_for_an_empty_undeclared_key_is_kept_and_counted() -> None:
+    before = _outcome("_Strict", "absent_values_dropped")
+    args = {"title": "t", "title_note": ""}
+    with pytest.raises(ValidationError) as refused:
+        _Strict.model_validate(args)
+    bundle = {
+        "raw": AIMessage(
+            content="",
+            tool_calls=[{"name": "_Strict", "args": args, "id": "c1", "type": "tool_call"}],
+        ),
+        "parsed": None,
+        "parsing_error": refused.value,
+    }
+    with structlog.testing.capture_logs() as captured:
+        answer = await _get_native_structured_output(
+            _llm(bundle), [HumanMessage(content="hi")], _Strict, provider="deepseek"
+        )
+    assert answer.title == "t"
+    events = [e for e in captured if e["event"] == "structured_output_absent_values_dropped"]
+    assert events and events[0]["empty_extras_dropped"] == 1
+    assert _outcome("_Strict", "absent_values_dropped") == before + 1
 
 
 async def test_a_call_the_schema_still_rejects_names_the_paths_and_keeps_the_error() -> None:
@@ -159,7 +189,7 @@ async def test_a_call_the_parser_refused_beyond_repair_names_the_verdict_and_kee
 
 async def test_a_parsed_answer_and_a_defaulted_null_are_counted_as_what_they_are() -> None:
     parsed_before = _outcome("_Answer", "parsed")
-    nulls_before = _outcome("_Answer", "nulls_defaulted")
+    nulls_before = _outcome("_Answer", "absent_values_dropped")
     parsed = _Answer(title="t")
     await _get_native_structured_output(
         _llm({"raw": AIMessage(content=""), "parsed": parsed, "parsing_error": None}),
@@ -174,4 +204,4 @@ async def test_a_parsed_answer_and_a_defaulted_null_are_counted_as_what_they_are
         provider="deepseek",
     )
     assert _outcome("_Answer", "parsed") == parsed_before + 1
-    assert _outcome("_Answer", "nulls_defaulted") == nulls_before + 1
+    assert _outcome("_Answer", "absent_values_dropped") == nulls_before + 1

@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 5.5
-**Date**: 2026-10-22
-**Application**: LIA v3.4.0
+**Version**: 5.6
+**Date**: 2026-10-23
+**Application**: LIA v3.5.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -72,8 +72,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), credentials encrypted with Fernet, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 627 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 359 ADRs, 66,000+ automated backend and frontend tests, native observability, 6-level HITL |
+| Full transparency | 630 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 360 ADRs, 66,000+ automated backend and frontend tests, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -94,8 +94,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Tests | 66,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 1,391, 58 of them shared through conftest |
 | Documentation documents | 835 |
-| ADRs (Architecture Decision Records) | 359 |
-| Prometheus metrics | 627 definitions |
+| ADRs (Architecture Decision Records) | 360 |
+| Prometheus metrics | 630 definitions |
 | Grafana dashboards | 32 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -800,7 +800,7 @@ The counting itself is **contractual, not incidental**: an OpenAI-compatible pro
 
 Pricing itself follows the provider's clock: some providers bill text models by UTC time of day, with peak windows at a multiple of the off-peak rate. Each pricing row can therefore carry optional, non-overlapping UTC time windows — midnight wrap included — that override the unit prices while active, the base columns remaining the default tariff. A window may also name the days it applies on — those of the UTC day it opens, so a window running past midnight belongs to the day it started — because peak hours can be a weekday matter: DeepSeek bills its weekends off-peak all day. One single implementation resolves the active window for both cost chokepoints: every call is valued at its own instant, the one the provider invoices, and a historical message keeps the tariff of its original hour when recomputed. The windows travel with the temporally-versioned pricing rows, are administered in the LLM pricing dialog, and the reference data ships DeepSeek's official windowed tariff (ADR-223).
 
-A tariff is only worth anything if it is **the one the provider bills**. A write to the prompt cache is billed at its price — 1.25 times the input at Anthropic and at OpenAI for the generations that report it —, counted as the fourth quantity of the single usage reader, and an AST guard refuses any pricing door that would forget it (ADR-306). The prices themselves are re-read on the providers' pages, and a correction migration replaces only a value LIA shipped, never one an administrator entered; a Google Maps call is filed at the SKU its request triggers — a route with traffic or tolls is not a plain route, a matrix is billed per element. And the pricing cache is a table **shared by every worker**: each rebuilds it from the database at startup — never from a blob older than the last migration — and every writer, tariff or exchange rate, publishes the invalidation after its commit, so an edited price reaches every worker at once, not just the one that wrote it (ADR-063).
+A tariff is only worth anything if it is **the one the provider bills**. A write to the prompt cache is billed at its price — 1.25 times the input at Anthropic and at OpenAI for the generations that report it, twice the input for a Claude write kept an hour —, counted as the fourth quantity of the single usage reader, and an AST guard refuses any pricing door that would forget it (ADR-306). The prices themselves are re-read on the providers' pages, and a correction migration replaces only a value LIA shipped, never one an administrator entered; a Google Maps call is filed at the SKU its request triggers — a route with traffic or tolls is not a plain route, a matrix is billed per element. And the pricing cache is a table **shared by every worker**: each rebuilds it from the database at startup — never from a blob older than the last migration — and every writer, tariff or exchange rate, publishes the invalidation after its commit, so an edited price reaches every worker at once, not just the one that wrote it (ADR-063).
 
 **Each provider attempt keeps its own tariff snapshot**, model, start time and exchange rate. A retry cannot reprice its predecessor. Known usage from a failed or cancelled attempt remains charged, and cache reads and writes are valued separately without counting the same tokens twice. Missing usage stays visible as missing rather than becoming a fabricated zero.
 
@@ -819,6 +819,8 @@ The Pricing LLM admin screen writes that ladder **directly**: it renders the dep
 Every provider bills less (and answers faster) when the beginning of a prompt is byte-identical across requests — but each with its own mechanism: Anthropic's `cache_control` blocks, OpenAI's `prompt_cache_key` routing, implicit prefix caches on DeepSeek/Qwen/Gemini. LIA separates the concerns: every versioned system prompt places its static content (role, rules, examples, output format) first, then a canonical `--- DYNAMIC CONTEXT ---` marker, then all per-request content (datetime, query, context, tool catalogue). Templates stay model-neutral; the infrastructure layer translates the marker into each provider's dialect — the `cache_control` split for Anthropic, the cache-routing key for OpenAI, nothing at all for the implicit caches, which benefit from the stable prefix as-is. The planner prompt — the pipeline's most expensive — exposes a ~77% byte-stable cacheable prefix across any two requests. Shrink-only CI guards lock the convention: every dynamic prompt must carry the marker, no placeholder may precede it without a justified exception, and the planner prefix's byte stability is asserted on every build.
 
 The convention is **one layout for every cache mechanism** (ADR-309): stable before volatile, one reading of the boundary (`core/prompt_layout.split_at_marker`), and no cache write nobody will read. A single call — the analyzer, the initiative, the memory, interest and journal extractions — sends its fixed part as a system message, where each adapter can mark it; providers with breakpoints get theirs at the end of the static prefix whatever the system's shape (a list-shaped system would otherwise put the breakpoint on the turn's data: nothing read back, everything rewritten at 1.25x); those with an explicit cache only are marked explicitly; a request no tool loop will extend writes its declared breakpoints only; and the response sends the conversation once, as whole messages. What each model generation accepts — sampling, a forced tool choice, six shapes of thinking, an implicit depth, thinking blocks bound to their conversation — is measured on the API and declared in one table (`core/claude_surface.py` for Claude) that the reasoning rules, the adapter, structured output and the administration read. A model with no cache pays nothing extra: the optimisation aims at the average over mechanisms, never at one model.
+
+**From one turn to the next, the cache is read back instead of rewritten** (ADR-362). With breakpoint caching, an entry is written only at a breakpoint and found only by walking back from the next request's own: inside a tool loop the history's end is therefore a read point too, and the next turn reads its whole history back instead of writing it again — 439 tokens written instead of 1,685, measured on two generations. When a person is waiting in frequent exchanges, the two points the next turn will read — the static prefix and the history's end — are written for the provider's longer lifetime, an hour on Claude: a person's turns come minutes apart, not seconds, and after a seven-minute pause the next turn's first call cost 89 % less. The hour is billed at its own rate through every pricing door, a stream included — the API names it only in its first event —, every call records its cache writes, and a stream that leaves it unnamed is counted and alerted. An earlier turn's thinking goes back to the model that wrote it when that generation keeps it without binding it to the conversation — never to another model, never to a generation that would refuse it.
 
 ---
 
@@ -1161,7 +1163,7 @@ Third-party content travels in an envelope the model knows not to obey; its tag 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 627 custom metrics (RED pattern) |
+| Prometheus | 630 custom metrics (RED pattern) |
 | Grafana | 32 production-ready dashboards |
 | Loki | Aggregated structured JSON logs, collected by Grafana Alloy (the same redaction at collection) |
 | Tempo | Cross-service distributed traces (OTLP gRPC), named by the route template |
@@ -1169,7 +1171,7 @@ Third-party content travels in an envelope the model knows not to obey; its tag 
 | Alertmanager | Vital alert core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 627 defined; the ones that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. Without that guard, a heartbeat source failing open can drop part of the health signals for days with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 630 defined; the ones that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. Without that guard, a heartbeat source failing open can drop part of the health signals for days with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1317,7 +1319,7 @@ The lock states what is installed; what remains is deciding **when a version may
 
 ### 22.4. The audit is public — and reproducible
 
-The quality bar described in this guide is not self-declared: a complete 360° technical audit — **8.0/10 across 24 normalized areas** on the ISO/IEC 25010 grid, open findings included — is published in the repository ([full report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), together with the [audit protocol](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) that makes every cycle reproducible: pinned commit, per-area evidence requirements, anchored scoring, and a committed script measuring size in logical SLOC. The report ends with the exact commands to reproduce the measurements yourself.
+The quality bar described in this guide is not self-declared: a complete 360° technical audit — **7.8/10 across 24 normalized areas** on the ISO/IEC 25010 grid, open findings included — is published in the repository ([full report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), together with the [audit protocol](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) that makes every cycle reproducible: pinned commit, per-area evidence requirements, anchored scoring, and a committed script measuring size in logical SLOC. The report ends with the exact commands to reproduce the measurements yourself.
 
 ### 22.5. A guard is only worth what it measures
 
@@ -1595,7 +1597,7 @@ Two interface rules became component contracts rather than habits. The first is 
 
 ## 24. Architecture Decision Records (ADR)
 
-359 ADRs in MADR format document the major architectural decisions. Some representative examples:
+360 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -2011,8 +2013,8 @@ The oMLX, llama.cpp and LM Studio studies and the isometric world are qualificat
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 359 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 66,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 360 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 66,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (800+ documents), 359 ADRs, and the changelog (v1.0 to v3.4.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (800+ documents), 360 ADRs, and the changelog (v1.0 to v3.5.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

@@ -23,8 +23,6 @@ from src.core.field_names import (
     FIELD_IMAGE_GENERATION_COST_EUR,
     FIELD_IMAGE_GENERATION_REQUESTS,
     FIELD_MESSAGE_COUNT,
-    FIELD_MODEL_NAME,
-    FIELD_NODE_NAME,
     FIELD_TOKENS_CACHE,
     FIELD_TOKENS_IN,
     FIELD_TOKENS_OUT,
@@ -57,6 +55,7 @@ from src.domains.chat.tracking_records import (
     TokenUsageRecord,
     TTSUsageRecord,
     breakdown_entry,
+    token_log_row,
     tts_usage_record,
 )
 from src.infrastructure.cache.pricing_cache import PricingCacheData
@@ -264,6 +263,7 @@ class TrackingContext:
         failure_kind: str | None = None,
         params: InferenceParams | None = None,
         cache_write_tokens: int = 0,
+        cache_write_extended_tokens: int = 0,
         requested_model: str | None = None,
         pricing_snapshot: PricingCacheData | None = None,
     ) -> None:
@@ -291,6 +291,8 @@ class TrackingContext:
                 enough for sequential background calls that lack a start stamp.
             cache_write_tokens: The part of ``prompt_tokens`` Claude wrote to
                 its prompt cache, priced with its write surcharge (ADR-306).
+            cache_write_extended_tokens: The part of ``cache_write_tokens``
+                written for the extended lifetime, at its own rate (ADR-362).
             requested_model: The model the request NAMED (the slot's
                 configuration), kept beside ``model_name`` — what the provider
                 reported and what is billed — for the debug panel (B8).
@@ -323,6 +325,7 @@ class TrackingContext:
                 cached_tokens=cached_tokens,
                 at=billed_at,
                 cache_write_tokens=cache_write_tokens,
+                cache_write_extended_tokens=cache_write_extended_tokens,
                 snapshot=pricing_snapshot,
             )
 
@@ -360,6 +363,8 @@ class TrackingContext:
                 params_digest=params.params_digest if params else None,
                 requested_model=requested_model,
                 created_at=billed_at,
+                cache_write_tokens=cache_write_tokens,
+                cache_write_extended_tokens=cache_write_extended_tokens,
             )
             self._node_records.append(record)
 
@@ -1049,34 +1054,7 @@ class TrackingContext:
         )
 
         # 1. Create detailed logs for each node call using bulk operation
-        logs_data = [
-            {
-                FIELD_NODE_NAME: record.node_name,
-                FIELD_MODEL_NAME: record.model_name,
-                "prompt_tokens": record.prompt_tokens,
-                "completion_tokens": record.completion_tokens,
-                "cached_tokens": record.cached_tokens,
-                "cost_usd": record.cost_usd,
-                FIELD_COST_EUR: record.cost_eur,
-                "usd_to_eur_rate": record.usd_to_eur_rate,
-                "created_at": record.created_at,
-                # Observation columns (ADR-244). ``duration_ms`` was already
-                # measured for the debug panel; persisting it costs nothing.
-                "latency_ms": round(record.duration_ms) if record.duration_ms else None,
-                "llm_type": record.llm_type,
-                "status": record.status,
-                "failure_kind": record.failure_kind,
-                # ADR-263 lot 7: what was SENT, not what is configured.
-                "provider": record.provider,
-                "temperature": record.temperature,
-                "top_p": record.top_p,
-                "max_output_tokens": record.max_output_tokens,
-                "reasoning_level": record.reasoning_level,
-                "reasoning_budget_tokens": record.reasoning_budget_tokens,
-                "params_digest": record.params_digest,
-            }
-            for record in self._node_records
-        ]
+        logs_data = [token_log_row(record) for record in self._node_records]
         await chat_repo.bulk_create_token_logs(
             run_id=self.run_id,
             user_id=self.user_id,

@@ -2,6 +2,7 @@
 
 **Status**: accepted — 2026-09-23 (owner arbitration: one flag, off by default, one behaviour for every model)
 **Amended**: 2026-09-24 by [ADR-311](ADR-311-Exchange-Rhythm-Is-The-Persons-Choice.md) — the choice is the PERSON's (Settings › Usage preferences: frequent or occasional exchanges), read once per turn; the flag becomes the default of an account that never chose, and the context after the question travels with every tool, as measured here
+**Amended**: 2026-10-22 by [ADR-362](ADR-362-Claude-Cross-Turn-Cache-History-Read-Point-Hour-Lifetime-And-Prior-Thinking.md) — a fourth effect for a turn a person waits for: on Claude the static prefix and the history's end are written for the hour
 **Amends**: ADR-293 (the relevance selection stays the default and becomes the fallback), ADR-169 (the turn's system blocks lead the payload — unless the flag moves the context), ADR-306 (the static-prefix breakpoint and the prompt cache key this relies on)
 
 ## Context

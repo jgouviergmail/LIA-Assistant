@@ -118,19 +118,12 @@ NOT_A_CAPABILITY_READ: Final[dict[str, str]] = {
         "Google where to send change notices; it fetches no content, and the "
         "read those notices trigger is recorded by whoever performs it."
     ),
-    "domains/agents/utils/email_enricher.py": (
-        "Borrows the Gmail client's PARSER (``_extract_body_recursive``) on a "
-        "payload the turn already holds. Verified 2026-09-07: not one call "
-        "leaves the process — it opens no connection and fetches nothing. It "
-        "was first listed as a read on the strength of its import alone, "
-        "which is the very shortcut this table exists to replace."
-    ),
     "domains/rag_spaces/mail_render.py": (
         "Borrows two STATIC parsers from the Gmail client to turn a thread "
         "resource it was handed into a document. Its own docstring says it: "
         "« Pure: no session, no client, no clock ». Verified 2026-09-07, not "
-        "one call leaves the process — the second module listed as a read on "
-        "the strength of its import alone."
+        "one call leaves the process — listed as a read on the strength of its "
+        "import alone, like the e-mail enricher before it (deleted 2026-10-22)."
     ),
     "domains/agents/python_sandbox/egress/connectors.py": (
         "Reads three API-key client CLASSES for their declared host and auth "

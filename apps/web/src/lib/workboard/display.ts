@@ -69,6 +69,49 @@ function partyOf(userId: string, meId: string | undefined, peers: readonly PeerN
   return peer ? { kind: 'peer', name: peer.peer_display_name } : { kind: 'unknown' };
 }
 
+/**
+ * One end of a hand-over, as the history files it (`workboard/history.py`):
+ * `human` or `lia`, and the person's id — `null` meaning the ticket's OWNER
+ * (ADR-276), never the person reading it.
+ */
+export interface HolderRef {
+  kind: string;
+  user: string | null;
+}
+
+/**
+ * Who an end of a hand-over names, from the reader's side.
+ *
+ * @param holder - The end, as the history filed it.
+ * @param ownerId - The ticket's owner, whom a person-less end means.
+ * @param meId - The reading account.
+ * @param peers - Accepted connections.
+ * @returns The party, `unknown` for somebody no longer connected.
+ */
+export function holderParty(
+  holder: HolderRef,
+  ownerId: string,
+  meId: string | undefined,
+  peers: readonly PeerName[]
+): PartyLabel {
+  if (holder.kind === 'lia') return { kind: 'lia' };
+  return partyOf(holder.user ?? ownerId, meId, peers);
+}
+
+/** How a party reads: its name, or the wording of LIA, the reader, somebody else. */
+export function partyLabel(party: PartyLabel, t: (key: string) => string): string {
+  switch (party.kind) {
+    case 'lia':
+      return t('workboard.party.lia');
+    case 'me':
+      return t('workboard.party.me');
+    case 'peer':
+      return party.name;
+    case 'unknown':
+      return t('workboard.party.unknown');
+  }
+}
+
 /** Whether a column means the work is over. */
 export function isClosed(status: string): boolean {
   return (CLOSED_STATUSES as readonly string[]).includes(status);
@@ -219,7 +262,8 @@ export type EventChange =
   | { field: 'status' | 'priority'; from: string | null; to: string | null }
   | { field: 'start' | 'due'; from: string | null; to: string | null }
   | { field: 'created_in'; to: string | null }
-  | { field: 'follow'; on: boolean };
+  | { field: 'follow'; on: boolean }
+  | { field: 'holder'; from: HolderRef | null; to: HolderRef };
 
 /**
  * What an entry actually changed, before → after.
@@ -233,6 +277,12 @@ export type EventChange =
  * A date change carries two fields at once and yields one entry per field that
  * actually moved: setting only the due date must not claim the start date
  * changed too.
+ *
+ * A hand-over names both holders (« held by: me → LIA »); an entry filed
+ * before both ends were recorded names the new one alone rather than invent
+ * where the ticket came from. The creation names its first holder only when
+ * it is not the owner's own hands — saying so on every ticket a person creates
+ * for themselves would repeat the obvious.
  */
 export function eventChanges(event: Pick<EventRow, 'kind' | 'payload'>): EventChange[] {
   const payload = event.payload;
@@ -241,12 +291,26 @@ export function eventChanges(event: Pick<EventRow, 'kind' | 'payload'>): EventCh
     const value = payload[key];
     return typeof value === 'string' && value ? value : null;
   };
+  const holder = (side: 'from' | 'to'): HolderRef | null => {
+    const kind = text(`${side}_kind`);
+    return kind ? { kind, user: text(`${side}_user`) } : null;
+  };
 
   switch (event.kind) {
-    case 'created':
+    case 'created': {
       // One value, not two: nothing preceded it, and « aucune → À faire »
       // would invent a state the ticket never had.
-      return [{ field: 'created_in', to: text('status') }];
+      const created: EventChange[] = [{ field: 'created_in', to: text('status') }];
+      const first = holder('to');
+      if (first && (first.kind === 'lia' || first.user)) {
+        created.push({ field: 'holder', from: null, to: first });
+      }
+      return created;
+    }
+    case 'assigned': {
+      const to = holder('to');
+      return to ? [{ field: 'holder', from: holder('from'), to }] : [];
+    }
     case 'status_changed':
       return [{ field: 'status', from: text('from'), to: text('to') }];
     case 'priority_changed':

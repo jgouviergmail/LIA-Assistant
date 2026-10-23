@@ -130,7 +130,8 @@ export interface BriefingCardProps<T extends SectionData> {
  *
  * Visual contract:
  *  - Solid theme-aware material, restrained domain accents, no hover movement
- *  - Equal card height; the full received payload lives in a keyboard-accessible scroll area
+ *  - Equal card height (except an EMPTY card on a phone, which shrinks to its sentence);
+ *    the full received payload lives in a keyboard-accessible scroll area
  *  - NOT_CONFIGURED → returns null (card hidden, layout reflows)
  *  - ERROR → red status accent (semantic) + message + CTA
  *  - Refresh keeps the content readable and the focused button mounted
@@ -231,7 +232,16 @@ export function BriefingCard<T extends SectionData>({
         aria-hidden="true"
       />
 
-      <div className="relative flex h-[420px] flex-col gap-4 p-5 sm:h-[470px] sm:p-6">
+      {/* Equal heights keep the grid's rows aligned. A phone shows ONE column,
+          so a card with nothing to show shrinks there to its title and its
+          empty-state sentence, never a 420 px blank (owner request
+          2026-10-22). */}
+      <div
+        className={cn(
+          'relative flex flex-col gap-4 p-5 sm:h-[470px] sm:p-6',
+          section.status !== 'empty' && 'h-[420px]'
+        )}
+      >
         {/* Header stays outside the scroll area; long labels wrap instead of clipping. */}
         <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border pb-4">
           <div className="flex min-w-0 flex-1 basis-28 items-center gap-3">

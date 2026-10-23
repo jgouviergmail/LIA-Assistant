@@ -529,9 +529,17 @@ function QuickActions({
 
   return (
     <div className="space-y-3">
+      {/* Full width on a phone, its label on the left, like every action of
+          the sheet (owner request 2026-10-22): a row of chips left a thumb two
+          small targets. */}
       <div className="flex flex-wrap justify-center gap-2">
         {actions.map(action => (
-          <QuickActionButton key={action.key} action={action} lng={lng} />
+          <QuickActionButton
+            key={action.key}
+            action={action}
+            lng={lng}
+            className="w-full justify-start sm:w-auto sm:justify-center"
+          />
         ))}
       </div>
       {columns.length > 0 && <ContactActionColumns columns={columns} lng={lng} />}
@@ -548,13 +556,15 @@ function QuickActions({
  * gives every row the tallest one's height. `max-w-full` caps a column at the
  * sheet's width — a long address then wraps inside its buttons instead of
  * pushing the page sideways — and the columns wrap under one another on a
- * narrow screen.
+ * narrow screen. On a phone every column, and so every button, takes the full
+ * width of the sheet, its label on the left like every action of the sheet
+ * (owner request 2026-10-22).
  */
 function ContactActionColumns({ columns, lng }: { columns: QuickActionColumn[]; lng: string }) {
   return (
     <div className="flex flex-wrap items-start justify-center gap-2">
       {columns.map(column => (
-        <div key={column.kind} className="grid w-max max-w-full auto-rows-fr gap-2">
+        <div key={column.kind} className="grid w-full auto-rows-fr gap-2 sm:w-max sm:max-w-full">
           {column.actions.map(action => (
             <QuickActionButton
               key={action.key}

@@ -186,6 +186,17 @@ tasks:
       - cmd: .venv/bin/python scripts/llm_catalogue/preflight.py
         platforms: [linux, darwin]
 
+  llm:cache:probe:
+    desc: "Measure Claude's prompt cache against the ADR-362 design (NETWORK, the instance key, a USD budget): task llm:cache:probe -- --budget 1.0"
+    # A MEASUREMENT, never a gate (ADR-155): CI holds no provider key. Runs
+    # INSIDE the API container, which holds the instance key (never printed)
+    # and builds the turns with LIA's own layout and payload policy; every
+    # prefix opens on a fresh nonce, the spend is priced by LIA's own pricing
+    # door, and a request is refused once the spend reaches the budget (a run
+    # passes it by one request at most).
+    cmds:
+      - docker exec -w /app lia-api-dev python -m scripts.llm.claude_cache_probe {{.CLI_ARGS}}
+
   moments:preflight:
     desc: "Read-only: would an anticipated moment be produced right now? (reads the real calendar, writes nothing)"
     dir: "{{.API_DIR}}"

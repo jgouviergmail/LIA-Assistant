@@ -8,6 +8,7 @@ from src.domains.briefing.constants import (
     ERROR_CODE_CONNECTOR_NOT_CONFIGURED,
     ERROR_CODE_CONNECTOR_OAUTH_EXPIRED,
     ERROR_CODE_CONNECTOR_RATE_LIMIT,
+    ERROR_CODE_LOCATION_NOT_CONFIGURED,
 )
 
 
@@ -15,17 +16,34 @@ class ConnectorNotConfiguredError(Exception):
     """Raised when no active connector exists for the section's data source.
 
     Mapped to CardStatus.NOT_CONFIGURED by BriefingService — the card is then
-    entirely hidden from the UI (frontend returns null).
+    entirely hidden from the UI (frontend returns null), and the dashboard's
+    setup line names it with a link to where it gets configured.
 
     Attributes:
         source: Logical source name (e.g. "openweathermap", "calendar").
-        error_code: Stable code (always ERROR_CODE_CONNECTOR_NOT_CONFIGURED).
+        error_code: Stable code — ERROR_CODE_CONNECTOR_NOT_CONFIGURED here,
+            the missing piece's own code in a subclass.
     """
+
+    error_code: str = ERROR_CODE_CONNECTOR_NOT_CONFIGURED
 
     def __init__(self, source: str) -> None:
         self.source = source
-        self.error_code = ERROR_CODE_CONNECTOR_NOT_CONFIGURED
         super().__init__(f"No active connector for source '{source}'")
+
+
+class LocationNotConfiguredError(ConnectorNotConfiguredError):
+    """The source is there, the person's address is not (the weather card).
+
+    Since ADR-307 the weather has a provider on every instance that keeps its
+    platform key, so what a new account lacks is an address — and sending the
+    person to the connectors would point them at a page with nothing to do.
+    """
+
+    error_code = ERROR_CODE_LOCATION_NOT_CONFIGURED
+
+    def __init__(self) -> None:
+        super().__init__("location")
 
 
 class ConnectorAccessError(Exception):

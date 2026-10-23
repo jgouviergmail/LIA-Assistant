@@ -1897,6 +1897,11 @@
       "title": "Una sonda de salida que nombra el paso fallido y confirma el corte",
       "summary": "La sonda de conectividad saliente separa la resolución DNS de la conexión y confirma una pérdida en varios intentos espaciados. Un paquete DNS perdido ya no abre un incidente crítico: una recuperación o una lentitud se señala como degradada, y un corte real nombra el paso que falló.",
       "src": "9cf5696d02f2"
+    },
+    "362": {
+      "title": "La caché de Claude releída de un turno al siguiente",
+      "summary": "El turno siguiente relee ahora todo el historial desde la caché en lugar de volver a escribirlo, y lo que releerá se conserva una hora cuando una persona espera e intercambia a menudo. Esas escrituras de una hora se facturan a su precio justo, y el razonamiento de un turno anterior vuelve al modelo Claude que lo escribió, allí donde ese modelo puede releerlo.",
+      "src": "ba46216e9d0f"
     }
   }
 }

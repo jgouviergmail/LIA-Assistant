@@ -13,6 +13,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, NamedTuple
 
+from src.core.field_names import FIELD_COST_EUR, FIELD_MODEL_NAME, FIELD_NODE_NAME
 from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur, get_cached_usd_eur_rate
 
 
@@ -64,6 +65,52 @@ class TokenUsageRecord(NamedTuple):
     requested_model: str | None = None
     # The UTC billing instant (call start), kept through delayed persistence.
     created_at: datetime | None = None
+    # The prompt-cache writes inside ``prompt_tokens`` (ADR-306) and the part of
+    # them written for the extended lifetime (ADR-362): persisted, so a cost
+    # rebuilt from the row's counts and its tariff is the cost that was billed.
+    cache_write_tokens: int = 0
+    cache_write_extended_tokens: int = 0
+
+
+def token_log_row(record: TokenUsageRecord) -> dict[str, Any]:
+    """One model call, as a ``token_usage_logs`` row (``bulk_create_token_logs``).
+
+    Beside the record for the reason ``breakdown_entry`` is: describing a record
+    is the record's own subject, and the tracking context is at its size ceiling.
+
+    Args:
+        record: The call's in-memory record.
+
+    Returns:
+        The row's values, keyed as the repository reads them.
+    """
+    return {
+        FIELD_NODE_NAME: record.node_name,
+        FIELD_MODEL_NAME: record.model_name,
+        "prompt_tokens": record.prompt_tokens,
+        "completion_tokens": record.completion_tokens,
+        "cached_tokens": record.cached_tokens,
+        "cache_write_tokens": record.cache_write_tokens,
+        "cache_write_extended_tokens": record.cache_write_extended_tokens,
+        "cost_usd": record.cost_usd,
+        FIELD_COST_EUR: record.cost_eur,
+        "usd_to_eur_rate": record.usd_to_eur_rate,
+        "created_at": record.created_at,
+        # Observation columns (ADR-244). ``duration_ms`` was already measured
+        # for the debug panel; persisting it costs nothing.
+        "latency_ms": round(record.duration_ms) if record.duration_ms else None,
+        "llm_type": record.llm_type,
+        "status": record.status,
+        "failure_kind": record.failure_kind,
+        # ADR-263 lot 7: what was SENT, not what is configured.
+        "provider": record.provider,
+        "temperature": record.temperature,
+        "top_p": record.top_p,
+        "max_output_tokens": record.max_output_tokens,
+        "reasoning_level": record.reasoning_level,
+        "reasoning_budget_tokens": record.reasoning_budget_tokens,
+        "params_digest": record.params_digest,
+    }
 
 
 class ImageGenerationRecord(NamedTuple):

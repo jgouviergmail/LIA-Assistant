@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 6.5
-**Datum**: 2026-10-22
-**Anwendung**: LIA v3.4.0
+**Version**: 6.6
+**Datum**: 2026-10-23
+**Anwendung**: LIA v3.5.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -61,8 +61,8 @@ Jeder Benutzer verfügt über seinen eigenen Einstellungsbereich, der in zwei Re
 - **Bildgenerierung**: Aktiviere und konfiguriere die KI-gestützte Bilderstellung
 - **Persönliche MCP-Server**: Verbinde deine eigenen MCP-Server, um die Fähigkeiten von LIA zu erweitern
 - **Darstellung**: Sprache, Zeitzone, Theme (5 Farbpaletten, Hell, Dunkel oder absolutes Schwarz), Schrift (9 Optionen), Textgröße (14 bis 20 px, ohne einen Bereich zu verschieben), Anzeigeformat der Antworten (HTML-Karten, HTML, Markdown)
-- **Mein Dashboard**: Blende die 11 Briefing-Karten aus oder ordne sie neu — eine ausgeblendete Karte wird gar nicht mehr abgerufen
-- **Nutzungspräferenzen**: Wähle deinen Austauschrhythmus — häufig, und LIA hält alle Werkzeuge bereit, damit jeder Durchgang im ReAct-Modus den vorigen aus dem Cache des Anbieters liest; gelegentlich, und sie wählt die Werkzeuge, die jede Frage braucht, zu stabilen Kosten
+- **Mein Dashboard**: Blende die 11 Briefing-Karten aus oder ordne sie neu — eine ausgeblendete Karte wird gar nicht mehr abgerufen; ein neues Konto beginnt mit dem Wetter allein, wo die Instanz es liefert, und seine Startliste fragt zuerst nach der Wohnadresse
+- **Nutzungspräferenzen**: Wähle deinen Austauschrhythmus — häufig, und LIA hält alle Werkzeuge bereit, damit jeder Durchgang im ReAct-Modus den vorigen aus dem Cache des Anbieters liest; gelegentlich, und sie wählt die Werkzeuge, die jede Frage braucht, zu stabilen Kosten — dort beginnt ein neues Konto
 - **Debug**: Zugriff auf das Debug-Panel zur Inspektion jedes Austauschs (wenn vom Administrator aktiviert)
 
 **Erweiterte Funktionen:**
@@ -320,7 +320,7 @@ LIA läuft nicht nur auf bescheidener Hardware — sie **optimiert aktiv** ihren
 - **Katalog-Filterung**: Dem LLM werden nur die für deine Anfrage relevanten Tools präsentiert, was den Token-Verbrauch drastisch reduziert
 - **Pattern-Learning**: Validierte Pläne werden gespeichert und wiederverwendet, ohne erneut das LLM aufzurufen
 - **Message Windowing**: Jede Komponente sieht nur den unbedingt notwendigen Kontext
-- **Prompt-Cache**: Nutzung des nativen Caches der Anbieter zur Reduzierung wiederkehrender Kosten — und im ReAct-Modus entscheidest du den Kompromiss: Häufiger Austausch hält alle Werkzeuge geladen, damit jeder Durchgang den vorigen erneut liest, gelegentlicher Austausch behält die Relevanzauswahl und Kosten, die nicht vom Abstand zwischen zwei Nachrichten abhängen
+- **Prompt-Cache**: Nutzung des nativen Caches der Anbieter zur Reduzierung wiederkehrender Kosten — und im ReAct-Modus entscheidest du den Kompromiss: Häufiger Austausch hält alle Werkzeuge geladen, damit jeder Durchgang den vorigen erneut liest — bis zu einer Stunde aufbewahrt, während du wartest, bei einem Anbieter, der das erlaubt —, gelegentlicher Austausch behält die Relevanzauswahl und Kosten, die nicht vom Abstand zwischen zwei Nachrichten abhängen
 - **Prompts ohne Ballast**: Ein Kontext wird nur eingerahmt, wenn er existiert, sodass ein nackter Zug keine leere Hülle trägt, und eine Benachrichtigung von zwei Sätzen wird ohne Nachdenken angefordert — bei einem Modell, das standardmäßig nachdenkt, wird das Nachdenken innerhalb des Antwortbudgets abgerechnet
 
 Zusammengenommen erklären diese Optimierungen den Faktor 4 bis 8 zwischen dem Pipeline-Modus und dem autonomen Agentenmodus — bei gleicher Leistung.
@@ -351,7 +351,7 @@ Dieselbe Transparenz gilt für Aktionen: Unter jeder Antwort zeigt eine eingekla
 
 Die Regel kennt keine Ausnahme nach Pfad. Alles, was die Plattform mit ihren eigenen Schlüsseln für dich zahlt, erreicht deine Nutzung und deine Grenzen, welcher Modalität auch immer: eine Kartenabfrage während eines Telefonats oder einer direkten Live-Sitzung, die Wetterabfragen des Morgenbriefings, die Geokodierung deiner Adresse, ein dir gezeigtes Ortsfoto (gezählt, wenn es angezeigt wird, nie im Voraus), eine Sprachsynthese (nur für die tatsächlich gelieferten Sätze gezählt). Eine Telefonrechnung und eine Live-Sitzungskarte zeigen eine Zahl für das, was der Lauf gekostet hat, Maps-Euro eingeschlossen. Und was du mit **deinen eigenen** Konnektor-Schlüsseln zahlst – ein Live-Modell, der Telefonagent, eine Websuche – bleibt außen vor: dort gezeigt, wo es entsteht, nirgends aufgezeichnet.
 
-Und die angezeigte Zahl ist die, die der Anbieter wirklich berechnet: Die Tarife werden auf seinen Seiten nachgelesen, ein Schreibvorgang in den Cache eines Modells zählt zu seinem eigenen Preis, eine Nebenzeit kennt ihre Tage (das Wochenende, wenn der Anbieter es so hält), eine Route wird auf der Stufe gezählt, die ihre Anfrage auslöst – und ein von der Administration geänderter Preis erreicht sofort jeden Server.
+Und die angezeigte Zahl ist die, die der Anbieter wirklich berechnet: Die Tarife werden auf seinen Seiten nachgelesen, ein Schreibvorgang in den Cache eines Modells zählt zu seinem eigenen Preis, auch der, der eine Stunde hält, eine Nebenzeit kennt ihre Tage (das Wochenende, wenn der Anbieter es so hält), eine Route wird auf der Stufe gezählt, die ihre Anfrage auslöst – und ein von der Administration geänderter Preis erreicht sofort jeden Server.
 
 Selbst eine interaktive Karte kündigt ihre Kosten an, bevor sie sich öffnet, und eine Antwort, die du behältst, zeigt, was ihre Erzeugung und ihre Indexierung gekostet haben — den tatsächlich berechneten Betrag, nie eine Schätzung.
 

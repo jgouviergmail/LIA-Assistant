@@ -2919,7 +2919,7 @@
           "values": false
         }
       },
-      "description": "Native structured-output calls the provider's own parse did NOT settle: rescued (nulls defaulted, a bare word quoted, JSON found in text — complete answers the parser refused, ADR-184) or refused (truncated, ADR-275; rejected, nothing usable). Measured 2026-09-20: DeepSeek wrote `\"primary_domain\": mcp` on 15 % of the query analyses in production and every one of them cost the whole turn, with nothing to show it. A rescue is a repair, not a success: a steady rate on one schema names a prompt or a provider to look at."
+      "description": "Native structured-output calls the provider's own parse did NOT settle: rescued (values that only spell « absent » dropped — a defaulted null, an empty undeclared key —, a bare word quoted, JSON found in text: complete answers the parser refused, ADR-184) or refused (truncated, ADR-275; rejected, nothing usable) or failed (call_failed: the call itself raised, a provider or transport failure that no model answered, said apart since 2026-10-23). Both native doors count: the forced tool and the auto-tool call a Claude refusing a forced tool takes, which counted nothing before 2026-10-22 (ADR-100). Measured 2026-09-20: DeepSeek wrote `\"primary_domain\": mcp` on 15 % of the query analyses in production and every one of them cost the whole turn, with nothing to show it. A rescue is a repair, not a success: a steady rate on one schema names a prompt or a provider to look at."
     },
     {
       "id": 136,
@@ -2952,7 +2952,7 @@
           "placement": "bottom"
         }
       },
-      "description": "Which schema and which outcome — `invalid_call_repaired` is the bare-word defect, `rejected` is a lost answer (the query analyzer falls back to a bare conversation, a document tool refuses). `parsed` is left out so the rare outcomes stay readable."
+      "description": "Which schema and which outcome — `absent_values_dropped` is a null or an empty undeclared key, `invalid_call_repaired` is the bare-word defect, `rejected` is a lost answer (the query analyzer falls back to a bare conversation, a document tool refuses). `call_failed` is a call that got no answer at all (a provider 5xx or 429, a cut connection): the provider's failure, never the model's (ADR-100, 2026-10-23). `parsed` is left out so the rare outcomes stay readable."
     },
     {
       "id": 137,
@@ -3047,6 +3047,137 @@
         }
       },
       "description": "How each enhancement settled. Every outcome but `enhanced` sends the ORIGINAL prompt, so the image is never lost: `rejected` is a rewrite the deterministic checks discarded (empty, past the published bound, or a quoted text lost), `failed` a model refusal or a truncated answer, `skipped_quota` a ceiling refusal, `unchanged` a rewrite identical to the request. A rising `rejected` or `failed` share names a model that cannot hold the rules."
+    },
+    {
+      "id": 140,
+      "title": "Prompt-cache writes by lifetime (ADR-362)",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 162
+      },
+      "panels": []
+    },
+    {
+      "id": 141,
+      "title": "Streamed writes without a lifetime breakdown (24h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 163
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(llm_cache_write_breakdown_missing_total[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 1,
+                "color": "red"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "description": "Expected 0. A streamed Claude response whose start reported prompt-cache writes without saying which were for the hour: its writes are priced at the five-minute rate, so a one-hour write would be under-billed. A non-zero value means the client changed the stream's shape (providers/anthropic_hooks). Alert: LLMCacheWriteLifetimeUnreported (threshold 0)."
+    },
+    {
+      "id": 142,
+      "title": "Prompt-cache writes by lifetime (1h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 6,
+        "w": 18,
+        "x": 6,
+        "y": 163
+      },
+      "targets": [
+        {
+          "expr": "sum by (lifetime) (increase(llm_cache_write_tokens_total[1h])) or vector(0)",
+          "legendFormat": "{{lifetime}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "Prompt tokens written to the provider's prompt cache, by lifetime: `short` is the provider's default (Claude's five minutes, billed 1.25x the input price), `extended` Claude's one hour (2x), written only on the cross-turn read points of a ReAct turn a person waits for, in frequent exchanges (ADR-362). Writes are prompt tokens: they are NOT a token_type of llm_tokens_consumed_total, which would count them twice."
+    },
+    {
+      "id": 143,
+      "title": "Earlier-turn thinking carried back or removed (1h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 169
+      },
+      "targets": [
+        {
+          "expr": "sum by (model, decision, reason) (increase(llm_prior_turn_thinking_blocks_total[1h])) or vector(0)",
+          "legendFormat": "{{model}} · {{decision}} · {{reason}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "Thinking blocks of an EARLIER turn in a Claude request (ADR-362). `kept · same_model`: sent back to the model that wrote them, on a generation that keeps prior thinking without binding it (the vendor's default context, billed as input). `stripped`: removed before the request left -- `receiver_binds` (the generation binds a block to its conversation, which LIA rebuilds every turn: a 400 or a dropped block), `receiver_strips` (the API would strip it and lose the messages cache after it), `receiver_undeclared` (a generation the surface table does not declare yet: add its row), `other_model` / `unknown_origin` (dropped unread otherwise), `disabled` (PRIOR_TURN_THINKING_REPLAY_ENABLED=false). The current tool loop's thinking is never counted: it is always replayed."
     }
   ],
   "timepicker": {}

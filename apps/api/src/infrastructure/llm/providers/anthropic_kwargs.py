@@ -77,21 +77,22 @@ def prepare_anthropic_kwargs(
 def _degrade_thinking_binding(kwargs: dict[str, Any], reasoning: dict[str, Any]) -> None:
     """Ask a binding Claude generation to DROP a stale thinking block, not refuse.
 
-    Fable 5.1 and Opus 5.5 bind each thinking block to the conversation that
-    produced it: once the history before the block changed -- the system prompt
-    LIA rebuilds every turn is enough -- an account created from 2026-08-31 gets
-    a 400 (measured on Opus 5.5, ADR-306). The payload policy already strips the
-    prior turns' blocks; this is the net for what it cannot see, a history the
-    state reducer trimmed in the middle of a tool loop. The control rides the
-    ``thinking`` field -- adaptive when no depth was asked, so sending it then
-    changes nothing else -- and requires its beta header.
+    A binding generation (``ClaudeSurface.binds_thinking_to_conversation``)
+    ties each thinking block to the conversation that produced it: once the
+    history before the block changed -- the system prompt LIA rebuilds every
+    turn is enough -- an account created from 2026-08-31 gets a 400 (measured on
+    Opus 5.5, ADR-306). The request hook already removes every earlier turn's
+    block before such a model sees it (``anthropic_thinking``, ADR-362); this is
+    the net for what it cannot see, a history the state reducer trimmed in the
+    middle of a tool loop. The control rides the ``thinking`` field -- adaptive
+    when no depth was asked, so sending it then changes nothing else -- and
+    requires its beta header.
 
     The API accepts the control beside ``adaptive`` and ``enabled`` only.
     Sonnet 5.5's off switch, ``between_tools``, refuses it with a 400, so a
     request that turns the up-front thinking off goes without the net: the
-    payload policy's stripping of the prior turns' blocks is then its only
-    protection (the vendor's own advice for that shape: keep the history
-    append-only).
+    removal of the earlier turns' blocks is then its only protection (the
+    vendor's own advice for that shape: keep the history append-only).
 
     Args:
         kwargs: The constructor kwargs; their ``betas`` gain the header, after

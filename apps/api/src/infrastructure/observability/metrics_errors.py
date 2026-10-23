@@ -87,10 +87,15 @@ llm_structured_output_outcomes_total = Counter(
     "llm_structured_output_outcomes_total",
     "Native structured-output calls by schema and how the door settled them",
     ["provider", "schema", "outcome"],
-    # outcome: parsed (the provider's own parse), nulls_defaulted,
+    # outcome: parsed (the provider's own parse), absent_values_dropped,
     #          invalid_call_repaired, text_rescued (the three mechanical rescues
-    #          of a COMPLETE answer the parser refused, ADR-184), truncated (a
-    #          refusal, ADR-275), rejected (nothing usable came back).
+    #          of a COMPLETE answer the parser refused, ADR-184 — one chain,
+    #          tool_call_rescue.RepairOutcome), truncated (a refusal, ADR-275),
+    #          rejected (an answer came back, nothing usable in it), call_failed
+    #          (the call itself raised: a provider or transport failure, never
+    #          the model's answer — ADR-100, 2026-10-23). Both native doors count:
+    #          the buffered forced tool and the auto-tool call, which a Claude
+    #          refusing a forced tool takes for every call (ADR-100, 2026-10-22).
     # schema is the Pydantic class name — a closed set declared in code.
     # A rise in `rejected` or in a rescue on one schema names a provider that
     # stopped answering the shape: production lost 15 % of its query analyses

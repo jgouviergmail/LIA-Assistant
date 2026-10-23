@@ -26,14 +26,22 @@
  * chose to hide would be noise, not help.
  */
 
-import { BRIEFING_SECTION_NAMES, type BriefingSection, type CardsBundle } from '@/types/briefing';
+import {
+  BRIEFING_SECTION_NAMES,
+  ERROR_CODE_LOCATION_NOT_CONFIGURED,
+  type BriefingSection,
+  type CardsBundle,
+} from '@/types/briefing';
 import { type SettingsSectionToken } from '@/lib/settings-sections';
 
 /**
  * Where each card gets configured.
  *
  * Verified against the fetchers, one raise site at a time:
- *  - weather      → per-user OpenWeatherMap API key + a usable location
+ *  - weather      → a provider (the instance's Google Weather since ADR-307,
+ *                   else the person's OpenWeatherMap key) — the connectors;
+ *                   a missing ADDRESS says so with its own code and goes to
+ *                   the location settings instead ({@link targetOf})
  *  - agenda/mails/birthdays/tasks/documents → the corresponding connector
  *  - health       → the `health-metrics` toggle (or the server-side flag)
  *  - reminders/for_you → local tables, never `not_configured`, hence `null`
@@ -72,6 +80,22 @@ export const INSTANCE_GATED_SECTIONS: ReadonlySet<BriefingSection> = new Set<Bri
   'sms',
 ]);
 
+/**
+ * Where ONE unconfigured card sends the person.
+ *
+ * The section's own destination, unless the server named the missing piece:
+ * a weather card with a provider and no address (`location_not_configured`)
+ * is fixed in the location settings — the connectors page, where its provider
+ * already is, would offer a new account nothing to do.
+ */
+function targetOf(
+  section: BriefingSection,
+  errorCode: string | null | undefined
+): SettingsSectionToken | null {
+  if (errorCode === ERROR_CODE_LOCATION_NOT_CONFIGURED) return 'location';
+  return SECTION_SETTINGS_TARGET[section];
+}
+
 /** A card the user wants to see but that has no data source yet. */
 export interface UnconfiguredCard {
   section: BriefingSection;
@@ -100,7 +124,7 @@ export function unconfiguredCards(
       section =>
         cards[section]?.status === 'not_configured' && !INSTANCE_GATED_SECTIONS.has(section)
     )
-    .map(section => ({ section, target: SECTION_SETTINGS_TARGET[section] }));
+    .map(section => ({ section, target: targetOf(section, cards[section]?.error_code) }));
 }
 
 /** Completeness guard: the table must cover every declared section. */

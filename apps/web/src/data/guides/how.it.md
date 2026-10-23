@@ -4,9 +4,9 @@
 >
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
-**Versione**: 5.5
-**Data**: 2026-10-22
-**Applicazione**: LIA v3.4.0
+**Versione**: 5.6
+**Data**: 2026-10-23
+**Applicazione**: LIA v3.5.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -72,8 +72,8 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Auto-hosting ARM64 | Docker multi-arch, embeddings semantici (multilingue), Playwright chromium cross-platform |
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), credenziali cifrate con Fernet, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
-| Trasparenza totale | 627 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 359 ADRs, oltre 66.000 test automatizzati per backend e frontend, osservabilità nativa, HITL a 6 livelli |
+| Trasparenza totale | 630 metriche Prometheus, debug panel integrato, tracciamento token per token |
+| Affidabilità in produzione | 360 ADRs, oltre 66.000 test automatizzati per backend e frontend, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -94,8 +94,8 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Test | Oltre 66.000 test automatizzati con pytest e Vitest (soglie di copertura bloccate, ADR-116) |
 | Fixture pytest | 1.391, di cui 58 condivise tramite conftest |
 | Documenti di documentazione | 835 |
-| ADR (Architecture Decision Record) | 359 |
-| Metriche Prometheus | 627 definizioni |
+| ADR (Architecture Decision Record) | 360 |
+| Metriche Prometheus | 630 definizioni |
 | Dashboard Grafana | 32 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -800,7 +800,7 @@ Il conteggio stesso è **contrattuale, non accidentale**: un fornitore compatibi
 
 La tariffazione stessa segue l'orologio del fornitore: alcuni fornitori fatturano i modelli di testo secondo l'ora UTC, con fasce di punta a un multiplo della tariffa fuori punta. Ogni riga di prezzo può quindi portare fasce orarie UTC opzionali e senza sovrapposizioni — attraversamento della mezzanotte incluso — che sostituiscono i prezzi unitari mentre sono attive, con le colonne di base come tariffa predefinita. Una fascia può anche indicare i propri giorni — quelli del giorno UTC in cui si apre, così che una fascia che attraversa la mezzanotte appartiene al suo giorno di partenza —, perché la punta può riguardare solo i giorni feriali: DeepSeek fattura i suoi fine settimana a tariffa fuori punta per tutto il giorno. Un'unica implementazione risolve la fascia attiva per i due punti di valorizzazione: ogni chiamata è valorizzata al proprio istante — quello che il fornitore fattura — e un messaggio storico ricalcolato conserva la tariffa della sua ora d'origine. Le fasce viaggiano con le righe di prezzo versionate temporalmente, si amministrano nel dialogo delle tariffe LLM, e i dati di riferimento includono la tariffa a fasce ufficiale di DeepSeek (ADR-223).
 
-Una tariffa vale solo se è **quella che il fornitore fattura**. Una scrittura nella cache del prompt è fatturata al suo prezzo — 1,25 volte l'input presso Anthropic e presso OpenAI per le generazioni che la segnalano —, contata come quarta grandezza dell'unico lettore d'uso, e una guardia AST rifiuta qualsiasi porta di tariffazione che la dimentichi (ADR-306). I prezzi stessi sono riletti sulle pagine dei fornitori, e una migrazione di correzione sostituisce solo un valore che LIA aveva distribuito, mai uno inserito da un amministratore; una chiamata Google Maps è classificata nello SKU che la sua richiesta attiva — un percorso con traffico o pedaggi non è un percorso semplice, una matrice si fattura per elemento. E la cache dei prezzi è una tabella **condivisa da tutti i worker**: ciascuno la ricostruisce dal database all'avvio — mai da un blob anteriore all'ultima migrazione — e ogni scrittore, tariffa o tasso di cambio, pubblica l'invalidazione dopo il suo commit, così un prezzo modificato raggiunge subito ogni worker, non solo quello che lo ha scritto (ADR-063).
+Una tariffa vale solo se è **quella che il fornitore fattura**. Una scrittura nella cache del prompt è fatturata al suo prezzo — 1,25 volte l'input presso Anthropic e presso OpenAI per le generazioni che la segnalano, il doppio per una scrittura Claude conservata un'ora —, contata come quarta grandezza dell'unico lettore d'uso, e una guardia AST rifiuta qualsiasi porta di tariffazione che la dimentichi (ADR-306). I prezzi stessi sono riletti sulle pagine dei fornitori, e una migrazione di correzione sostituisce solo un valore che LIA aveva distribuito, mai uno inserito da un amministratore; una chiamata Google Maps è classificata nello SKU che la sua richiesta attiva — un percorso con traffico o pedaggi non è un percorso semplice, una matrice si fattura per elemento. E la cache dei prezzi è una tabella **condivisa da tutti i worker**: ciascuno la ricostruisce dal database all'avvio — mai da un blob anteriore all'ultima migrazione — e ogni scrittore, tariffa o tasso di cambio, pubblica l'invalidazione dopo il suo commit, così un prezzo modificato raggiunge subito ogni worker, non solo quello che lo ha scritto (ADR-063).
 
 **Ogni tentativo del fornitore conserva la propria fotografia tariffaria**, il modello, l’ora d’inizio e il tasso di cambio. Un nuovo tentativo non può ricalcolare il prezzo del precedente. L’uso noto di un tentativo fallito o annullato resta contabilizzato, mentre letture e scritture della cache sono valorizzate separatamente senza contare due volte gli stessi token. L’uso mancante resta segnalato invece di diventare uno zero inventato.
 
@@ -819,6 +819,8 @@ La schermata Tariffazione LLM scrive quella scala **direttamente**: mostra le pr
 Ogni provider fattura meno (e risponde più velocemente) quando l'inizio del prompt è byte-identico tra le richieste — ma ciascuno con il proprio meccanismo: i blocchi `cache_control` di Anthropic, il routing `prompt_cache_key` di OpenAI, le cache implicite di prefisso su DeepSeek/Qwen/Gemini. LIA separa le responsabilità: ogni prompt di sistema versionato colloca il contenuto statico (ruolo, regole, esempi, formato di output) all'inizio, poi un marcatore canonico `--- DYNAMIC CONTEXT ---`, quindi tutto il contenuto per-richiesta (data, query, contesto, catalogo degli strumenti). I template restano neutrali rispetto al modello; il livello infrastruttura traduce il marcatore nel dialetto di ciascun provider — lo split `cache_control` per Anthropic, la chiave di routing della cache per OpenAI, nulla per le cache implicite, che sfruttano il prefisso stabile così com'è. Il prompt del planner — il più costoso della pipeline — espone così un prefisso cacheabile byte-stabile di ~77 % tra due richieste qualsiasi. Guardie CI shrink-only blindano la convenzione: ogni prompt dinamico deve portare il marcatore, nessun placeholder può precederlo senza un'eccezione giustificata, e la stabilità byte del prefisso del planner è verificata a ogni build.
 
 La convenzione è **un unico schema per tutti i meccanismi di cache** (ADR-309): lo stabile prima del volatile, un'unica lettura del confine (`core/prompt_layout.split_at_marker`) e nessuna scrittura in cache che nessuno rileggerà. Una chiamata singola — l'analizzatore, l'iniziativa, le estrazioni di memoria, interessi e diario — invia la sua parte fissa come messaggio di sistema, dove ogni adattatore può marcarla; i fornitori con punti di interruzione ricevono il loro alla fine del prefisso statico qualunque sia la forma del sistema (altrimenti un sistema a lista metterebbe il punto di interruzione sui dati del turno: niente riletto, tutto riscritto a 1,25); quelli con la sola cache esplicita vengono marcati esplicitamente; una richiesta che nessun ciclo di strumenti prolungherà scrive solo i suoi punti di interruzione dichiarati; e la risposta invia la conversazione una sola volta, in messaggi interi. Ciò che ogni generazione di modelli accetta — campionamento, scelta forzata dello strumento, sei forme di ragionamento, profondità implicita, blocchi di ragionamento legati alla loro conversazione — è misurato sull'API e dichiarato in un'unica tabella (`core/claude_surface.py` per Claude) letta dalle regole di ragionamento, dall'adattatore, dall'output strutturato e dall'amministrazione. Un modello senza cache non paga nulla in più: l'ottimizzazione punta alla media dei meccanismi, mai a un modello.
+
+**Da un turno all'altro, la cache si rilegge invece di riscriversi** (ADR-362). Con una cache a punti di interruzione, una voce si scrive solo in un punto di interruzione e si ritrova solo risalendo da quelli della richiesta successiva: in un ciclo di strumenti, la fine della cronologia diventa quindi anch'essa un punto di rilettura, e il turno successivo rilegge tutta la sua cronologia invece di riscriverla — 439 token scritti invece di 1.685, misurati su due generazioni. Quando una persona attende la risposta con scambi frequenti, i due punti che il turno successivo rileggerà — il prefisso statico e la fine della cronologia — sono scritti per la durata lunga del fornitore, un'ora con Claude: i turni di una persona si susseguono a minuti di distanza, non a secondi, e dopo una pausa di sette minuti la prima chiamata del turno successivo è costata l'89 % in meno. Quell'ora è fatturata alla sua tariffa su ogni porta di tariffazione, flussi compresi — l'API la nomina solo nel suo primo evento —, ogni chiamata registra le sue scritture in cache, e un flusso che la tace viene contato e segnalato. Il ragionamento di un turno precedente torna infine al modello che l'ha scritto quando la sua generazione lo conserva senza legarlo alla conversazione — mai a un altro modello, mai a una generazione che lo rifiuterebbe.
 
 ---
 
@@ -1163,7 +1165,7 @@ Il contenuto esterno viaggia in un involucro a cui il modello sa di non dover ob
 
 | Tecnologia | Ruolo |
 |------------|-------|
-| Prometheus | 627 metriche custom (RED pattern) |
+| Prometheus | 630 metriche custom (RED pattern) |
 | Grafana | 32 dashboard production-ready |
 | Loki | Log strutturati JSON aggregati, raccolti da Grafana Alloy (stesso mascheramento alla raccolta) |
 | Tempo | Trace distribuite cross-service (OTLP gRPC), nominate dal modello del percorso |
@@ -1171,7 +1173,7 @@ Il contenuto esterno viaggia in un involucro a cui il modello sa di non dover ob
 | Alertmanager | Nucleo di alert vitali notificati via e-mail (runbook collegati, soglie per ambiente) + webhook verso LIA: ogni avviso diventa un incidente nel prodotto (ADR-247) |
 | structlog | Logging strutturato con filtraggio PII |
 
-**Una metrica che non raggiunge alcuna dashboard è una metrica su cui nessuno agisce.** La distanza fra ciò che il codice emette e ciò che un operatore può vedere è misurata, mai supposta: `scripts/audit/measure_metric_coverage.py` analizza ogni definizione di metrica (via AST e non con un'espressione regolare — una regex legge `ZoneInfo("UTC")` come una metrica `Info`) e confronta ogni nome con tutti i pannelli, le recording rule e le espressioni di alert. 627 definite; le metriche che non raggiungono nulla sono elencate esplicitamente in una baseline **che può solo restringersi**, così una metrica appena diventata cieca fa fallire la build e una metrica divenuta visibile deve lasciare l'elenco — altrimenti la prossima cieca ne occupa il posto in silenzio. Senza questa guardia, una sorgente di heartbeat che cade in modo aperto può scartare parte dei segnali di salute per giorni senza che alcuna metrica se ne accorga (ADR-148). Due trappole che la guardia chiude per costruzione — un contatore con label mai incrementato non espone **alcuna serie**, quindi un pannello che sorveglia un guasto raro ha bisogno di `or vector(0)`, altrimenti mostra «No data» dove l'operatore si aspetta uno zero verde; e la copertura è letta solo dalle **espressioni** di pannelli e regole, perché una metrica citata in un commento non è cablata.
+**Una metrica che non raggiunge alcuna dashboard è una metrica su cui nessuno agisce.** La distanza fra ciò che il codice emette e ciò che un operatore può vedere è misurata, mai supposta: `scripts/audit/measure_metric_coverage.py` analizza ogni definizione di metrica (via AST e non con un'espressione regolare — una regex legge `ZoneInfo("UTC")` come una metrica `Info`) e confronta ogni nome con tutti i pannelli, le recording rule e le espressioni di alert. 630 definite; le metriche che non raggiungono nulla sono elencate esplicitamente in una baseline **che può solo restringersi**, così una metrica appena diventata cieca fa fallire la build e una metrica divenuta visibile deve lasciare l'elenco — altrimenti la prossima cieca ne occupa il posto in silenzio. Senza questa guardia, una sorgente di heartbeat che cade in modo aperto può scartare parte dei segnali di salute per giorni senza che alcuna metrica se ne accorga (ADR-148). Due trappole che la guardia chiude per costruzione — un contatore con label mai incrementato non espone **alcuna serie**, quindi un pannello che sorveglia un guasto raro ha bisogno di `or vector(0)`, altrimenti mostra «No data» dove l'operatore si aspetta uno zero verde; e la copertura è letta solo dalle **espressioni** di pannelli e regole, perché una metrica citata in un commento non è cablata.
 
 ### 20.2. Debug Panel integrato
 
@@ -1321,7 +1323,7 @@ Il lock dice cosa è installato; resta da decidere **quando una versione può en
 
 ### 22.4. L'audit è pubblico — e riproducibile
 
-Il livello di rigore descritto in questa guida non è autodichiarato: un audit tecnico a 360° completo — **8,0/10 su 24 perimetri normalizzati** della griglia ISO/IEC 25010, rilievi aperti inclusi — è pubblicato nel repository ([rapporto completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), insieme al [protocollo di audit](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) che rende riproducibile ogni ciclo: commit fissato, requisiti di evidenza per perimetro, valutazione ancorata e uno script versionato che misura le dimensioni in SLOC logiche. Il rapporto si chiude con i comandi esatti per riprodurre le misurazioni da soli.
+Il livello di rigore descritto in questa guida non è autodichiarato: un audit tecnico a 360° completo — **7,8/10 su 24 perimetri normalizzati** della griglia ISO/IEC 25010, rilievi aperti inclusi — è pubblicato nel repository ([rapporto completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), insieme al [protocollo di audit](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) che rende riproducibile ogni ciclo: commit fissato, requisiti di evidenza per perimetro, valutazione ancorata e uno script versionato che misura le dimensioni in SLOC logiche. Il rapporto si chiude con i comandi esatti per riprodurre le misurazioni da soli.
 
 ### 22.5. Una garanzia vale quanto ciò che misura
 
@@ -1603,7 +1605,7 @@ Due regole d'interfaccia sono diventate contratti dei componenti anziché abitud
 
 ## 24. Architettura delle decisioni (ADR)
 
-359 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+360 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -2021,8 +2023,8 @@ Gli studi oMLX, llama.cpp e LM Studio e il mondo isometrico sono lavori di quali
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 359 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. Gli oltre 66.000 test automatizzati, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 360 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. Gli oltre 66.000 test automatizzati, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (800+ documenti), dei 359 ADRs e del changelog (da v1.0 a v3.4.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (800+ documenti), dei 360 ADRs e del changelog (da v1.0 a v3.5.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

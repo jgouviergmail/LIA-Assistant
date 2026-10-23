@@ -38,7 +38,8 @@ from src.infrastructure.observability.metrics_agents import (
     llm_cost_total,
     llm_tokens_consumed_total,
 )
-from src.infrastructure.observability.token_extractor import TokenExtractor
+from src.infrastructure.observability.metrics_prompt_cache import llm_cache_write_tokens_total
+from src.infrastructure.observability.token_extractor import TokenExtractor, TokenUsage
 
 logger = get_logger(__name__)
 
@@ -53,6 +54,28 @@ llm_calls_without_usage_total = Counter(
     "Completed LLM calls whose result carried no token usage metadata",
     ["node_name"],
 )
+
+
+def _count_cache_writes(model: str, node_name: str, usage: TokenUsage) -> None:
+    """The call's prompt-cache writes, by lifetime (ADR-362).
+
+    On their own counter, never as a ``token_type``: a written token is already
+    counted among the prompt tokens.
+
+    Args:
+        model: The model the provider reported.
+        node_name: The graph node that made the call.
+        usage: The call's extracted usage.
+    """
+    extended = min(usage.cache_write_extended_tokens, usage.cache_write_tokens)
+    for lifetime, count in (
+        ("short", usage.cache_write_tokens - extended),
+        ("extended", extended),
+    ):
+        if count > 0:
+            llm_cache_write_tokens_total.labels(
+                model=model, node_name=node_name, lifetime=lifetime
+            ).inc(count)
 
 
 class MetricsCallbackHandler(AsyncCallbackHandler):
@@ -235,6 +258,7 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
             llm_tokens_consumed_total.labels(
                 model=model_name, node_name=node_name, token_type="cached_tokens"
             ).inc(cached_tokens)
+        _count_cache_writes(model_name, node_name, usage)
 
         # Track API call success
         llm_api_calls_total.labels(model=model_name, node_name=node_name, status=call_status).inc()
@@ -250,6 +274,7 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
             cached_tokens=cached_tokens,
             at=datetime.fromtimestamp(started_at, UTC),
             cache_write_tokens=usage.cache_write_tokens,
+            cache_write_extended_tokens=usage.cache_write_extended_tokens,
             snapshot=pricing_snapshot,
         )
         # Get configured currency (validated Enum: USD or EUR)
@@ -660,6 +685,7 @@ class TokenTrackingCallback(AsyncCallbackHandler):
                 completion_tokens=usage_data.output_tokens,
                 cached_tokens=usage_data.cached_tokens,
                 cache_write_tokens=usage_data.cache_write_tokens,
+                cache_write_extended_tokens=usage_data.cache_write_extended_tokens,
                 duration_ms=duration_ms,
                 # v3.4 waterfall: real start stamp when the per-call context
                 # captured one (0.0 means the on_llm_start pairing was lost).
@@ -745,6 +771,9 @@ class TokenTrackingCallback(AsyncCallbackHandler):
                 completion_tokens=usage.output_tokens if usage is not None else 0,
                 cached_tokens=usage.cached_tokens if usage is not None else 0,
                 cache_write_tokens=usage.cache_write_tokens if usage is not None else 0,
+                cache_write_extended_tokens=(
+                    usage.cache_write_extended_tokens if usage is not None else 0
+                ),
                 duration_ms=duration_ms,
                 started_at=start_time if start_time > 0 else None,
                 llm_type=call_ctx.get("llm_type"),

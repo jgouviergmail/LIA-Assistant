@@ -121,6 +121,8 @@ class ChatRepository(BaseRepository[MessageTokenSummary]):
                 - prompt_tokens: int
                 - completion_tokens: int
                 - cached_tokens: int
+                - cache_write_tokens: int | None (ADR-306/ADR-362)
+                - cache_write_extended_tokens: int | None (ADR-362)
                 - cost_usd: Decimal
                 - cost_eur: Decimal
                 - usd_to_eur_rate: Decimal
@@ -150,6 +152,10 @@ class ChatRepository(BaseRepository[MessageTokenSummary]):
                     prompt_tokens=log_data["prompt_tokens"],
                     completion_tokens=log_data["completion_tokens"],
                     cached_tokens=log_data["cached_tokens"],
+                    # ADR-362. A caller that does not report them leaves NULL:
+                    # unknown, never a zero nobody measured.
+                    cache_write_tokens=log_data.get("cache_write_tokens"),
+                    cache_write_extended_tokens=log_data.get("cache_write_extended_tokens"),
                     cost_usd=Decimal(str(log_data["cost_usd"])),
                     cost_eur=Decimal(str(log_data[FIELD_COST_EUR])),
                     usd_to_eur_rate=log_data.get("usd_to_eur_rate"),

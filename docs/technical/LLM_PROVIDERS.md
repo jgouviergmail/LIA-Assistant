@@ -144,14 +144,26 @@ pas.
   laisse pas de place à la réponse, profondeur implicite comprise.
 - **Cache de prompt** : une politique unique (`providers/anthropic_payload.py`) — le
   préfixe statique est marqué au marqueur `DYNAMIC CONTEXT` quelle que soit la forme du
-  système, le point d'arrêt glissant n'est posé que dans une boucle d'outils, la
-  réflexion des tours précédents n'est pas rejouée, TTL de 5 minutes seulement. Une
-  écriture est facturée 1,25× l'entrée (`cache_write_multiplier` du tarif), une lecture
-  au prix « cache » de la ligne tarifaire.
-- Sur Fable 5.1 et Opus 5.5, un bloc de réflexion est lié à la conversation qui l'a
-  produit : la requête porte l'en-tête bêta `thinking-binding-controls-2026-08-01` et
-  `prefix_mismatch_behavior: drop_block`, filet pour un historique tronqué en cours de
-  boucle.
+  système ; dans une boucle d'outils seulement, la fin de l'historique devient un point
+  de relecture (le tour suivant y relit tout son historique au lieu de le réécrire) et
+  le point d'arrêt glissant couvre la fin de la requête ([ADR-362](../architecture/ADR-362-Claude-Cross-Turn-Cache-History-Read-Point-Hour-Lifetime-And-Prior-Thinking.md)). Les deux points relus d'un tour à l'autre — le préfixe statique et la fin de
+  l'historique — vivent une heure pour un tour qu'une personne attend, en échanges
+  fréquents (`PROMPT_CACHE_EXTENDED_TTL_ENABLED`) ; le glissant garde 5 minutes. Une
+  écriture est facturée 1,25× l'entrée pour 5 minutes, 2× pour une heure
+  (`cache_write_multiplier` et `cache_write_extended_multiplier` du tarif), une lecture
+  au prix « cache » de la ligne tarifaire. Une réponse en flux ne dit quelles écritures
+  valent une heure qu'à son début : le crochet de flux (`providers/anthropic_hooks.py`)
+  recopie ce détail, sans quoi elles seraient facturées au tarif de 5 minutes.
+- **Réflexion des tours précédents** (ADR-362) : rendue au modèle qui l'a écrite quand sa
+  génération la garde sans la lier à sa conversation
+  (`ClaudeSurface.preserves_prior_turn_thinking`, `PRIOR_TURN_THINKING_REPLAY_ENABLED`),
+  retirée partout ailleurs, chaque fois pour une raison comptée
+  (`providers/anthropic_thinking.py`, sur les messages LangChain, avant le formatage) ;
+  celle de la boucle en cours est toujours rejouée.
+- Sur les générations qui lient un bloc de réflexion à la conversation qui l'a produit
+  (`ClaudeSurface.binds_thinking_to_conversation`), la requête porte l'en-tête bêta
+  `thinking-binding-controls-2026-08-01` et `prefix_mismatch_behavior: drop_block`,
+  filet pour un historique tronqué en cours de boucle.
 - Mode rapide et `inference_geo` non utilisés ; les modèles Mythos (Project Glasswing)
   ne sont pas proposés.
 
@@ -420,7 +432,7 @@ L'eligibilite est determinee par le pattern regex `^(gpt-4\.1|gpt-5|o[1-9])`, ce
 | Structured output | Oui | Oui | Oui | **Non** | Oui | **Non** (JSON fallback) | **Non** |
 | Streaming | Oui | Oui | Oui | Oui | Oui | Oui | Oui |
 | Vision | Oui | Oui | Non | Non | Oui | Modele-dep. | Non |
-| Prompt caching | Responses API | Points d'arrêt `cache_control` (ADR-306) | Cache hit natif | Cache hit natif | Non | Non | Non |
+| Prompt caching | Responses API | Points d'arrêt `cache_control` (ADR-306, ADR-362) | Cache hit natif | Cache hit natif | Non | Non | Non |
 | Reasoning effort | Oui (o/gpt-5) | Oui (ADR-245, ADR-306) | Non | Non | Non | Non | Non |
 
 ### Regles de validation automatiques

@@ -63,6 +63,7 @@ import {
   heldBy,
   isOverdue,
   ownerParty,
+  partyLabel,
   runState,
   type PartyLabel,
   type PeerName,
@@ -102,20 +103,6 @@ export interface TicketCardProps {
 /** The party glyph at the badge's size — the registry's, so the holder list
     below wears the same mark (lot 20). */
 const BADGE_GLYPH = 'h-3 w-3';
-
-/** How a party reads on a card. */
-function partyLabel(party: PartyLabel, t: (key: string) => string): string {
-  switch (party.kind) {
-    case 'lia':
-      return t('workboard.party.lia');
-    case 'me':
-      return t('workboard.party.me');
-    case 'peer':
-      return party.name;
-    case 'unknown':
-      return t('workboard.party.unknown');
-  }
-}
 
 /** The late frame (see the card's class list): inside the borders, breathing. */
 const OVERDUE_FRAME =

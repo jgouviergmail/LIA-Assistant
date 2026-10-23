@@ -19,6 +19,7 @@ import {
   heldBy,
   assignPatch,
   eventChanges,
+  holderParty,
 } from '@/lib/workboard/display';
 import type { TicketRow } from '@/types/workboard';
 
@@ -327,9 +328,80 @@ describe('what a history entry says changed', () => {
     ]);
   });
 
+  it('gives a hand-over its two ends', () => {
+    expect(
+      eventChanges({
+        kind: 'assigned',
+        payload: { from_kind: 'human', from_user: null, to_kind: 'lia', to_user: null },
+      })
+    ).toEqual([
+      { field: 'holder', from: { kind: 'human', user: null }, to: { kind: 'lia', user: null } },
+    ]);
+  });
+
+  it('names the new holder alone when an old entry never filed the previous one', () => {
+    // Before 2026-10-22 a run's hand-back and a removed connection filed the
+    // destination only: inventing where the ticket came from would be a claim.
+    expect(
+      eventChanges({ kind: 'assigned', payload: { to_kind: 'human', reason: 'handed_back' } })
+    ).toEqual([{ field: 'holder', from: null, to: { kind: 'human', user: null } }]);
+  });
+
+  it('states the first holder of a ticket created for LIA or a connection', () => {
+    expect(
+      eventChanges({ kind: 'created', payload: { status: 'todo', to_kind: 'lia', to_user: null } })
+    ).toEqual([
+      { field: 'created_in', to: 'todo' },
+      { field: 'holder', from: null, to: { kind: 'lia', user: null } },
+    ]);
+    expect(
+      eventChanges({
+        kind: 'created',
+        payload: { status: 'todo', to_kind: 'human', to_user: PEER },
+      })
+    ).toEqual([
+      { field: 'created_in', to: 'todo' },
+      { field: 'holder', from: null, to: { kind: 'human', user: PEER } },
+    ]);
+  });
+
+  it('keeps quiet about the owner holding the ticket they created', () => {
+    // « Held by: me » on every ticket a person creates for themselves would
+    // repeat the obvious on every board.
+    expect(
+      eventChanges({
+        kind: 'created',
+        payload: { status: 'todo', to_kind: 'human', to_user: null },
+      })
+    ).toEqual([{ field: 'created_in', to: 'todo' }]);
+  });
+
   it('says nothing about an entry that carries no payload', () => {
     expect(eventChanges({ kind: 'created', payload: null })).toEqual([]);
     expect(eventChanges({ kind: 'run_started', payload: { run_id: 'r' } })).toEqual([]);
+  });
+});
+
+describe('who an end of a hand-over names', () => {
+  it('reads a person-less end as the OWNER, never as the reader', () => {
+    // NULL means « the owner holds it » (ADR-276): on a ticket a peer owns,
+    // that end is the peer, not the person reading it.
+    expect(holderParty({ kind: 'human', user: null }, PEER, ME, PEERS)).toEqual({
+      kind: 'peer',
+      name: 'Marie',
+    });
+    expect(holderParty({ kind: 'human', user: null }, ME, ME, PEERS)).toEqual({ kind: 'me' });
+  });
+
+  it('names LIA, a connection, and somebody no longer connected', () => {
+    expect(holderParty({ kind: 'lia', user: null }, ME, ME, PEERS)).toEqual({ kind: 'lia' });
+    expect(holderParty({ kind: 'human', user: PEER }, ME, ME, PEERS)).toEqual({
+      kind: 'peer',
+      name: 'Marie',
+    });
+    expect(holderParty({ kind: 'human', user: 'gone' }, ME, ME, PEERS)).toEqual({
+      kind: 'unknown',
+    });
   });
 });
 

@@ -19,12 +19,14 @@ const auth = {
 };
 const config = {
   features: {
+    home_address_enabled: true,
     channels_enabled: true,
     heartbeat_enabled: true,
     rag_spaces_enabled: true,
   },
 };
 const probes = {
+  home: null as { address: string; lat: number; lon: number } | null,
   connectors: [] as unknown[],
   personalityId: null as string | null,
   bindings: [] as unknown[],
@@ -36,7 +38,13 @@ const probes = {
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: auth.user }) }));
 vi.mock('@/hooks/useAppConfig', () => ({ useAppConfig: () => ({ config }) }));
 vi.mock('@/hooks/useApiQuery', () => ({
-  useApiQuery: () => ({ data: { connectors: probes.connectors }, loading: false, error: null }),
+  // Each probe answers its OWN url: a single shared answer would hand the
+  // connectors payload to the home-address probe and tick it for nothing.
+  useApiQuery: (url: string) => ({
+    data: url === '/users/me/home-location' ? probes.home : { connectors: probes.connectors },
+    loading: false,
+    error: null,
+  }),
 }));
 vi.mock('@/hooks/useApiMutation', () => ({ useApiMutation: () => ({ mutate }) }));
 vi.mock('@/hooks/usePersonality', () => ({
@@ -55,6 +63,7 @@ vi.mock('@/hooks/useScheduledActions', () => ({
 
 import {
   StarterChecklistCard,
+  checklistFlags,
   shouldRenderChecklist,
   visibleChecklistItems,
 } from '../StarterChecklistCard';
@@ -62,8 +71,14 @@ import {
 beforeEach(() => {
   vi.clearAllMocks();
   auth.user = { id: 'u1', voice_enabled: false, onboarding_checklist: null };
-  config.features = { channels_enabled: true, heartbeat_enabled: true, rag_spaces_enabled: true };
+  config.features = {
+    home_address_enabled: true,
+    channels_enabled: true,
+    heartbeat_enabled: true,
+    rag_spaces_enabled: true,
+  };
   Object.assign(probes, {
+    home: null,
     connectors: [],
     personalityId: null,
     bindings: [],
@@ -73,15 +88,45 @@ beforeEach(() => {
   });
 });
 
-describe('visibleChecklistItems — gate-keeper (ADR-061)', () => {
-  it('offers all 7 items on a fully enabled instance', () => {
+describe('checklistFlags — what the instance publishes', () => {
+  it('reads each gate from its own /config flag', () => {
     expect(
-      visibleChecklistItems({ channels: true, heartbeat: true, ragSpaces: true })
-    ).toHaveLength(7);
+      checklistFlags({
+        features: { home_address_enabled: true, channels_enabled: false, rag_spaces_enabled: true },
+      })
+    ).toEqual({ homeAddress: true, channels: false, heartbeat: false, ragSpaces: true });
+  });
+
+  it('offers nothing optional while the configuration is unknown', () => {
+    expect(checklistFlags(null)).toEqual({
+      homeAddress: false,
+      channels: false,
+      heartbeat: false,
+      ragSpaces: false,
+    });
+  });
+});
+
+describe('visibleChecklistItems — gate-keeper (ADR-061)', () => {
+  it('offers all 8 items on a fully enabled instance, the home address first', () => {
+    const items = visibleChecklistItems({
+      homeAddress: true,
+      channels: true,
+      heartbeat: true,
+      ragSpaces: true,
+    });
+    expect(items).toHaveLength(8);
+    // The weather card is all a new account shows, and it needs an address.
+    expect(items[0]).toBe('home');
   });
 
   it('never offers a disabled subsystem', () => {
-    const items = visibleChecklistItems({ channels: false, heartbeat: false, ragSpaces: false });
+    const items = visibleChecklistItems({
+      homeAddress: false,
+      channels: false,
+      heartbeat: false,
+      ragSpaces: false,
+    });
     expect(items).toEqual(['connector', 'personality', 'voice', 'automation']);
   });
 });
@@ -98,11 +143,11 @@ describe('shouldRenderChecklist — the never-again rule', () => {
 });
 
 describe('StarterChecklistCard', () => {
-  it('renders the 7 items with live detection states', () => {
+  it('renders the 8 items with live detection states', () => {
     probes.personalityId = 'cynic';
     render(<StarterChecklistCard />);
     expect(screen.getByText('dashboard.checklist.title')).toBeInTheDocument();
-    expect(screen.getAllByRole('listitem')).toHaveLength(7);
+    expect(screen.getAllByRole('listitem')).toHaveLength(8);
     // Done item is not a link anymore; undone items link to their journey.
     expect(
       screen.queryByRole('link', { name: 'dashboard.checklist.items.personality' })
@@ -121,6 +166,7 @@ describe('StarterChecklistCard', () => {
     render(<StarterChecklistCard />);
 
     const expected: Record<string, string> = {
+      home: 'location',
       connector: 'connectors',
       personality: 'personality',
       voice: 'voice-mode',
@@ -137,6 +183,30 @@ describe('StarterChecklistCard', () => {
         `/fr/dashboard/settings?section=${token}`
       );
     }
+  });
+
+  it('never offers the home address where the instance cannot save one', () => {
+    // No Google Places on this deployment (the public demonstrator has no
+    // platform key): an address could never be saved, so it is not asked for.
+    config.features = { ...config.features, home_address_enabled: false };
+    render(<StarterChecklistCard />);
+    expect(screen.getAllByRole('listitem')).toHaveLength(7);
+    expect(screen.queryByText('dashboard.checklist.items.home')).not.toBeInTheDocument();
+  });
+
+  it('ticks the home item once an address is saved, and only then', () => {
+    const { rerender } = render(<StarterChecklistCard />);
+    expect(screen.getByRole('link', { name: 'dashboard.checklist.items.home' })).toHaveAttribute(
+      'href',
+      '/fr/dashboard/settings?section=location'
+    );
+
+    probes.home = { address: '1 rue de l’Exemple, 75000 Ville Exemple', lat: 48.87, lon: 2.33 };
+    rerender(<StarterChecklistCard />);
+    expect(
+      screen.queryByRole('link', { name: 'dashboard.checklist.items.home' })
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('dashboard.checklist.items.home')).toBeInTheDocument();
   });
 
   it('never renders once dismissed server-side', () => {
@@ -156,6 +226,7 @@ describe('StarterChecklistCard', () => {
 
   it('silently persists celebration when 100% at first sight (no render)', async () => {
     Object.assign(probes, {
+      home: { address: '1 rue de l’Exemple, 75000 Ville Exemple', lat: 48.87, lon: 2.33 },
       connectors: [{}],
       personalityId: 'cynic',
       bindings: [{}],
@@ -196,6 +267,7 @@ describe('StarterChecklistCard — celebration sparkle (UX P18)', () => {
   function liveTransitionToComplete() {
     const view = render(<StarterChecklistCard />);
     Object.assign(probes, {
+      home: { address: '1 rue de l’Exemple, 75000 Ville Exemple', lat: 48.87, lon: 2.33 },
       connectors: [{}],
       personalityId: 'cynic',
       bindings: [{}],

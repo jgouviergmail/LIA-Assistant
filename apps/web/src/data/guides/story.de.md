@@ -2,9 +2,9 @@
 
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
-**Version**: 2.5
-**Datum**: 2026-10-22
-**Anwendung**: LIA v3.4.0
+**Version**: 2.6
+**Datum**: 2026-10-23
+**Anwendung**: LIA v3.5.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -13,17 +13,17 @@
 
 LIA ist ein vollständiger Multi-Agenten-KI-Assistent — Fachkonnektoren, Sprache, Gedächtnis, Verbindungen zwischen Nutzern, sechs Sprachen — der als persönliches Projekt entworfen, entwickelt und kontinuierlich in Produktion betrieben wird.
 
-Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führung: ein schriftliches Engineering-Regelwerk, blockierende automatische Prüfungen, systematische Reviews, wiederkehrende Audits. Das Ergebnis ist gemessen: **8,0/10** im technischen Audit über 24 Bereiche. Das Repository ist Open Source; die Schlussfolgerungen des Audits — Stärken wie Schwächen — werden offen eingestanden und in diesem Dokument zusammengefasst.
+Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führung: ein schriftliches Engineering-Regelwerk, blockierende automatische Prüfungen, systematische Reviews, wiederkehrende Audits. Das Ergebnis ist gemessen: **7,8/10** im technischen Audit über 24 Bereiche. Das Repository ist Open Source; die Schlussfolgerungen des Audits — Stärken wie Schwächen — werden offen eingestanden und in diesem Dokument zusammengefasst.
 
 | Indikator | Wert |
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
 | Quellcodezeilen (ohne Tests) — 58 Fachdomänen | **1.003.000+** |
 | Inventarisierte automatisierte Tests; passende Suiten für Commit und Release | **66.000+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **359** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **285** |
+| Dokumentierte Architekturentscheidungen (ADR) | **360** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **286** |
 | Sprachen, Parität automatisch geprüft | **6** |
-| Technisches Audit über 24 Bereiche | **8,0/10** |
+| Technisches Audit über 24 Bereiche | **7,8/10** |
 
 Überzeugung aus Erfahrung: KI-gestützte Entwicklung ist heute industrialisierbar. Der begrenzende Faktor ist nicht das Werkzeug — es ist der Führungsrahmen, den man ihm gibt.
 
@@ -70,7 +70,7 @@ Das Projekt wird inzwischen mit mehreren Entwicklungsagenten parallel geführt �
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 359 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 360 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Selbsthosting gibt dir die Kontrolle über den Server; Kontodaten liegen auf der Instanz und Konnektor-Zugangsdaten sind verschlüsselt. Die gewählten externen Dienste erhalten weiterhin die Daten, die sie für ihren Teil einer Anfrage benötigen.
 
@@ -96,7 +96,7 @@ Eine sichtbare Präsenz muss eine kontrollierbare Wahl bleiben: Der experimentel
 
 ## 6. Der Beweis
 
-Das in diesem Dokument beanspruchte Niveau stammt aus einem vollständigen technischen Audit: 24 bewertete Bereiche, jeder Befund im Code verifiziert und gegengeprüft, um Falsch-Positive zu eliminieren. Das Audit wendet die Methode des Projekts selbst an — mit KI-Werkzeugen durchgeführt, in kontradiktorischer Haltung, jede Schlussfolgerung in gegengeprüften Belegen verankert. Bewertung vom Oktober 2026: **8,0/10** (im August 7,3), mit einem offen eingestandenen Profil. Der vollständige Bericht — Bewertungsraster, Methode, offene Befunde und das Protokoll zur Reproduktion — ist öffentlich: [vollständiger Audit-Bericht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
+Das in diesem Dokument beanspruchte Niveau stammt aus einem vollständigen technischen Audit: 24 bewertete Bereiche, jeder Befund im Code verifiziert und gegengeprüft, um Falsch-Positive zu eliminieren. Das Audit wendet die Methode des Projekts selbst an — mit KI-Werkzeugen durchgeführt, in kontradiktorischer Haltung, jede Schlussfolgerung in gegengeprüften Belegen verankert. Bewertung vom Oktober 2026: **7,8/10**, nach einem Gegengutachten, das die erste Lesung Punkt für Punkt überprüft hat (zuerst 8,0, im August 7,3), mit einem offen eingestandenen Profil. Der vollständige Bericht — Bewertungsraster, Methode, offene Befunde und das Protokoll zur Reproduktion — ist öffentlich: [vollständiger Audit-Bericht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
 
 **Bestätigte Stärken:**
 
@@ -107,7 +107,9 @@ Das in diesem Dokument beanspruchte Niveau stammt aus einem vollständigen techn
 
 **Was noch zu tun ist — bekannt, geplant:**
 
-- Dauerhafte Zustände, die die Wahrheit sagen: Ein nach einer Übernahme neu verarbeitetes Dokument muss bei seinem aktuellen Eigentümer bleiben, und eine Anrufbenachrichtigung darf nur nach einem ausdrücklichen Erfolg als zugestellt gelten.
+- Dauerhafte Zustände, die die Wahrheit sagen: Ein nach einer Übernahme neu verarbeitetes Dokument muss bei seinem aktuellen Eigentümer bleiben, und eine Benachrichtigung — zu einem Anruf, einer Nachricht zwischen Verbindungen, einem Vorfall — darf nur nach einem ausdrücklichen Erfolg als zugestellt gelten.
+- Begrenzte Wartezeiten: Die Datenbank muss ein Warten auf eine Sperre oder eine untätige Transaktion abbrechen, bevor sie ein Konto einfrieren kann, und eine Token-Erneuerung darf immer nur einem Worker gehören.
+- Eine Schleife, die sich schließt: jeder Befund mit seinem Alter und seiner Frist verfolgt, und eine wiederhergestellte Reserve der Backend-Abdeckung.
 - Alarme: jede angekündigte Kombination von Benachrichtigungskanälen zusammensetzen und testen, Routing inklusive.
 - Die absolute Strukturschuld — dichte zentrale Funktionen, voneinander abhängige Domänen, Typisierungsausnahmen — Schritt für Schritt abbauen, gesteuert durch Messung.
 

@@ -34,6 +34,7 @@ from prometheus_client import Counter
 
 from src.core.config import settings
 from src.core.constants import (
+    PROMPT_CACHE_EXTENDED_WRITE_MULTIPLIER,
     PROMPT_CACHE_WRITE_MULTIPLIER,
     REDIS_KEY_PRICING_CACHE,
     SUPPORTED_CURRENCIES,
@@ -62,6 +63,13 @@ _CACHE_WRITE_MULTIPLIERS: dict[str, float] = {
     "anthropic": PROMPT_CACHE_WRITE_MULTIPLIER,
     "openai": PROMPT_CACHE_WRITE_MULTIPLIER,
     "qwen": PROMPT_CACHE_WRITE_MULTIPLIER,
+}
+
+#: The providers that offer an EXTENDED cache lifetime, and its write rate
+#: (ADR-362): Claude's one hour, 2x on every Claude model. A provider absent
+#: here has one lifetime, so any write it reports is priced at its short rate.
+_CACHE_WRITE_EXTENDED_MULTIPLIERS: dict[str, float] = {
+    "anthropic": PROMPT_CACHE_EXTENDED_WRITE_MULTIPLIER,
 }
 
 
@@ -120,6 +128,11 @@ class CachedModelPrice:
     #: input price: the provider's rule, set when the index is built (ADR-306).
     #: 1.0 = no surcharge, which also keeps a pre-surcharge blob deserializable.
     cache_write_multiplier: float = 1.0
+    #: The same for a write at the provider's extended lifetime (ADR-362).
+    #: None = the provider has one lifetime -- and the value an older worker's
+    #: blob deserializes to, so an extended write is never priced BELOW the
+    #: short rate during a rolling deploy.
+    cache_write_extended_multiplier: float | None = None
 
     def to_json(self) -> str:
         """Serialize to JSON for Redis storage."""
@@ -210,6 +223,7 @@ def build_price_index(rows: Iterable[LLMModelPricing]) -> dict[str, CachedModelP
     """
     index: dict[str, CachedModelPrice] = {}
     for pricing in rows:
+        provider = str(getattr(pricing.model.provider, "value", pricing.model.provider))
         index.setdefault(
             pricing.model.model_name,
             CachedModelPrice(
@@ -232,9 +246,8 @@ def build_price_index(rows: Iterable[LLMModelPricing]) -> dict[str, CachedModelP
                     if pricing.audio_output_unit_price is None
                     else float(pricing.audio_output_unit_price)
                 ),
-                cache_write_multiplier=_CACHE_WRITE_MULTIPLIERS.get(
-                    str(getattr(pricing.model.provider, "value", pricing.model.provider)), 1.0
-                ),
+                cache_write_multiplier=_CACHE_WRITE_MULTIPLIERS.get(provider, 1.0),
+                cache_write_extended_multiplier=_CACHE_WRITE_EXTENDED_MULTIPLIERS.get(provider),
             ),
         )
     return index
@@ -453,6 +466,7 @@ def get_cached_cost_usd_eur(
     at: datetime | None = None,
     *,
     cache_write_tokens: int = 0,
+    cache_write_extended_tokens: int = 0,
     snapshot: PricingCacheData | None = None,
 ) -> tuple[float, float]:
     """
@@ -481,6 +495,10 @@ def get_cached_cost_usd_eur(
             surcharge (``cache_write_multiplier`` - 1) — ADR-306. A caller whose
             usage carries writes must pass them: the guard
             ``test_cache_write_reaches_every_price`` holds every call site.
+        cache_write_extended_tokens: The part of ``cache_write_tokens`` written
+            at the provider's extended lifetime (``UsageTokens
+            .cache_write_extended``), which pays the extended rate instead —
+            ADR-362. Only the turn's doors can meet one (the same guard).
 
     Returns:
         Tuple of (cost_usd, cost_eur) as floats
@@ -524,6 +542,7 @@ def get_cached_cost_usd_eur(
         cached_tokens,
         at,
         cache_write_tokens=cache_write_tokens,
+        cache_write_extended_tokens=cache_write_extended_tokens,
     )
     return (total_usd, total_usd * cache.usd_eur_rate)
 
@@ -536,6 +555,7 @@ def quote_cached_cost_usd(
     at: datetime | None = None,
     *,
     cache_write_tokens: int = 0,
+    cache_write_extended_tokens: int = 0,
 ) -> float | None:
     """What token counts cost at the cached tariff, in USD, counting nothing.
 
@@ -556,6 +576,8 @@ def quote_cached_cost_usd(
         at: Billing instant for a time-slot tariff (ADR-223); now when None.
         cache_write_tokens: The part of ``prompt_tokens`` written to the prompt
             cache (see :func:`get_cached_cost_usd_eur`).
+        cache_write_extended_tokens: The part of ``cache_write_tokens`` written
+            at the extended lifetime (see :func:`get_cached_cost_usd_eur`).
 
     Returns:
         The cost in USD, or None when the cache is cold, the model has no
@@ -571,6 +593,7 @@ def quote_cached_cost_usd(
         cached_tokens,
         at,
         cache_write_tokens=cache_write_tokens,
+        cache_write_extended_tokens=cache_write_extended_tokens,
     )
 
 
@@ -582,12 +605,14 @@ def _tariff_cost_usd(
     at: datetime | None,
     *,
     cache_write_tokens: int,
+    cache_write_extended_tokens: int,
 ) -> float:
     """What token counts cost under one per-token tariff, in USD.
 
     The one arithmetic of both token doors: a slot active at ``at`` (now when
     None) overrides the three unit prices (ADR-223), and a written token pays
-    the tariff's surcharge over the input price it already paid (ADR-306).
+    the tariff's surcharge over the input price it already paid (ADR-306) — at
+    the extended rate for the part written at the extended lifetime (ADR-362).
 
     Args:
         prices: A tariff priced per 1M tokens.
@@ -596,6 +621,8 @@ def _tariff_cost_usd(
         cached_tokens: Prompt tokens read from the provider's cache.
         at: Billing instant; now (UTC) when None.
         cache_write_tokens: The part of ``prompt_tokens`` written to the cache.
+        cache_write_extended_tokens: The part of ``cache_write_tokens`` written
+            at the extended lifetime; bounded by ``cache_write_tokens``.
 
     Returns:
         The cost in USD.
@@ -617,8 +644,15 @@ def _tariff_cost_usd(
     input_cost = (prompt_tokens / 1_000_000) * input_price
     output_cost = (completion_tokens / 1_000_000) * output_price
     cached_cost = (cached_tokens / 1_000_000) * cached_price
-    write_surcharge = (
-        (cache_write_tokens / 1_000_000) * input_price * (prices.cache_write_multiplier - 1)
+    extended = max(0, min(cache_write_extended_tokens, cache_write_tokens))
+    extended_multiplier = (
+        prices.cache_write_multiplier
+        if prices.cache_write_extended_multiplier is None
+        else prices.cache_write_extended_multiplier
+    )
+    write_surcharge = (input_price / 1_000_000) * (
+        (cache_write_tokens - extended) * (prices.cache_write_multiplier - 1)
+        + extended * (extended_multiplier - 1)
     )
     return input_cost + output_cost + cached_cost + write_surcharge
 
@@ -693,6 +727,7 @@ def get_cached_cost(
     at: datetime | None = None,
     *,
     cache_write_tokens: int = 0,
+    cache_write_extended_tokens: int = 0,
     snapshot: PricingCacheData | None = None,
 ) -> float:
     """
@@ -709,6 +744,8 @@ def get_cached_cost(
         at: Call-start instant for UTC time-slot resolution; defaults to now.
         cache_write_tokens: The part of ``prompt_tokens`` written to the prompt
             cache (see :func:`get_cached_cost_usd_eur`).
+        cache_write_extended_tokens: The part of ``cache_write_tokens`` written
+            at the extended lifetime (see :func:`get_cached_cost_usd_eur`).
 
     Returns:
         Estimated cost in configured currency (EUR if settings.default_currency == "EUR")
@@ -721,6 +758,7 @@ def get_cached_cost(
         cached_tokens=cached_tokens,
         at=at,
         cache_write_tokens=cache_write_tokens,
+        cache_write_extended_tokens=cache_write_extended_tokens,
         snapshot=snapshot,
     )
 

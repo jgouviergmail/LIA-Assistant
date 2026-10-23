@@ -253,6 +253,29 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             external_metrics=(),
         ),
         NamedQuery(
+            query_id="llm_cache_write_lifetime_unreported_by_model",
+            title="Streamed Claude responses that wrote to the prompt cache without their lifetime",
+            promql_template=(
+                "sum by (model) "
+                "(increase(llm_cache_write_breakdown_missing_total[{window_minutes}m]))"
+            ),
+            params=(_WINDOW,),
+            unit="count",
+            lia_metrics=("llm_cache_write_breakdown_missing_total",),
+            external_metrics=(),
+        ),
+        NamedQuery(
+            query_id="llm_cache_writes_by_lifetime",
+            title="Prompt tokens written to the provider's prompt cache, by lifetime",
+            promql_template=(
+                "sum by (lifetime) (increase(llm_cache_write_tokens_total[{window_minutes}m]))"
+            ),
+            params=(_WINDOW,),
+            unit="tokens",
+            lia_metrics=("llm_cache_write_tokens_total",),
+            external_metrics=(),
+        ),
+        NamedQuery(
             query_id="recurrence_ledger_writes_by_outcome",
             title="Recurrence ledger writes by outcome",
             promql_template=(

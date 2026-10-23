@@ -926,27 +926,39 @@
     }
   }
 
-  /* A bubble holding a table spans 95 % of its column — a WIDTH, because the
-     bubble is a cross-axis item of a column flexbox (`flex-col items-end`):
+  /* A bubble holding a table spans its column — a WIDTH, because the bubble
+     is a cross-axis item of a column flexbox (`flex-col items-end`):
      `flex: 0 0 95%` sized its HEIGHT, so its width followed its content. A
      table drawn as stacked cards is narrow, so its bubble stayed narrow and
      the table stayed stacked at any screen width (measured 2026-09-25: a
      381 px bubble on a 1280 px screen after a phone-width round trip). */
   .message-bubble:has(table) {
-    width: 95%;
-    max-width: 95%;
+    width: 100%;
+    max-width: 100%;
   }
 
   /* Cards contain their inline size for responsive queries. They cannot
      supply an intrinsic width to a shrink-to-fit bubble: a short answer
      otherwise squeezes the whole card to the heading's width. */
   .message-bubble-assistant:has(.lia-card) {
-    width: 95%;
-    max-width: 95%;
+    width: 100%;
+    max-width: 100%;
   }
 
-  .message-bubble:has(pre) {
-    max-width: min(95%, 56rem);
+  /* On a phone these wide bubbles take the whole column, as every other
+     bubble there does: at 95 % LIA's right-aligned answer left a strip on its
+     left edge alone (measured 2026-10-22: 16 px of a 328 px column, owner
+     request; ADR-177). Beside the avatar they keep their 95 %. */
+  @media (min-width: 880px) {
+    .message-bubble:has(table),
+    .message-bubble-assistant:has(.lia-card) {
+      width: 95%;
+      max-width: 95%;
+    }
+
+    .message-bubble:has(pre) {
+      max-width: min(95%, 56rem);
+    }
   }
 
   /* ============================================

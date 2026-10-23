@@ -223,6 +223,7 @@ def _tariff(
     completion_tokens: int,
     cached_tokens: int,
     cache_write_tokens: int,
+    cache_write_extended_tokens: int,
 ) -> float:
     """One USD per million prompt tokens, two per million completion tokens."""
     return (prompt_tokens + 2 * completion_tokens) / 1_000_000
@@ -267,6 +268,7 @@ def test_cache_reads_and_writes_are_priced_apart() -> None:
         "completion_tokens": 40,
         "cached_tokens": 600,
         "cache_write_tokens": 100,
+        "cache_write_extended_tokens": 0,
     }
 
 

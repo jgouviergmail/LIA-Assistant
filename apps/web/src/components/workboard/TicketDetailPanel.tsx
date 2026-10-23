@@ -392,7 +392,13 @@ function TicketDetailBody({
             </Button>
           </div>
         </CommentsBlock>
-        <HistoryBlock events={detail.events} locale={locale} />
+        <HistoryBlock
+          events={detail.events}
+          locale={locale}
+          ownerId={ticket.owner_user_id}
+          meId={meId}
+          peers={peers}
+        />
 
         <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-3">
           {ticket.assignee_kind === 'lia' && (

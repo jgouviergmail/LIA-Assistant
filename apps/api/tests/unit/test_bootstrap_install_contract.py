@@ -161,13 +161,8 @@ async def test_ensure_admin_validates_before_any_query() -> None:
     db.execute.assert_not_awaited()
 
 
-async def test_a_new_admin_speaks_the_instance_s_configured_language(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Left to the DDL default, the first administrator was French whatever
-    DEFAULT_LANGUAGE said (ADR-323)."""
-    from scripts.data.create_admin import ensure_admin
-    from src.core.config import settings
+def _policy_password() -> str:
+    """A password the strict backend policy accepts, built from its own constants."""
     from src.core.constants import (
         PASSWORD_MIN_DIGITS,
         PASSWORD_MIN_LENGTH,
@@ -176,24 +171,52 @@ async def test_a_new_admin_speaks_the_instance_s_configured_language(
         PASSWORD_SPECIAL_CHARS,
     )
 
-    configured = "de"  # not "fr", the DDL default
-    monkeypatch.setattr(settings, "default_language", configured)
-    nobody = MagicMock()
-    nobody.fetchone.return_value = None
-    db = MagicMock()
-    db.execute = AsyncMock(side_effect=[nobody, MagicMock()])
-    db.flush = AsyncMock()
-
     required = (
         "A" * PASSWORD_MIN_UPPERCASE
         + "1" * PASSWORD_MIN_DIGITS
         + PASSWORD_SPECIAL_CHARS[0] * PASSWORD_MIN_SPECIAL
     )
-    password = required + "a" * max(0, PASSWORD_MIN_LENGTH - len(required))
-    await ensure_admin(db, email="admin@example.com", password=password, full_name="Admin")
+    return required + "a" * max(0, PASSWORD_MIN_LENGTH - len(required))
 
-    insert_params = db.execute.await_args_list[1].args[1]
+
+async def _created_admin_params() -> dict[str, object]:
+    """The parameters ``ensure_admin`` hands its INSERT for a brand-new account."""
+    from scripts.data.create_admin import ensure_admin
+
+    nobody = MagicMock()
+    nobody.fetchone.return_value = None
+    db = MagicMock()
+    db.execute = AsyncMock(side_effect=[nobody, MagicMock()])
+    db.flush = AsyncMock()
+    await ensure_admin(
+        db, email="admin@example.com", password=_policy_password(), full_name="Admin"
+    )
+    return db.execute.await_args_list[1].args[1]
+
+
+async def test_a_new_admin_speaks_the_instance_s_configured_language(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Left to the DDL default, the first administrator was French whatever
+    DEFAULT_LANGUAGE said (ADR-323)."""
+    from src.core.config import settings
+
+    configured = "de"  # not "fr", the DDL default
+    monkeypatch.setattr(settings, "default_language", configured)
+
+    insert_params = await _created_admin_params()
     assert insert_params["language"] == configured
+
+
+async def test_a_new_admin_starts_like_every_new_account() -> None:
+    """The installer creates the FIRST account of every instance: it starts with
+    the weather card alone and occasional exchanges, like an e-mail registration
+    or a first Google sign-in (owner decision 2026-10-22)."""
+    from src.domains.auth.new_account_columns import new_account_columns
+
+    insert_params = await _created_admin_params()
+    for column, value in new_account_columns().items():
+        assert insert_params[column] == value, column
 
 
 # ---------------------------------------------------------------------------

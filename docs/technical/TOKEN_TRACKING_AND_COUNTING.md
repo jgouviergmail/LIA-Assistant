@@ -245,6 +245,8 @@ CREATE TABLE token_usage_logs (
     prompt_tokens INTEGER DEFAULT 0,
     completion_tokens INTEGER DEFAULT 0,
     cached_tokens INTEGER DEFAULT 0,
+    cache_write_tokens INTEGER,           -- part of prompt_tokens written to the cache (NULL = row older than ADR-362)
+    cache_write_extended_tokens INTEGER,  -- the part of it written for the extended lifetime (ADR-362)
     cost_usd NUMERIC(10,6) DEFAULT 0.0,
     cost_eur NUMERIC(10,6) DEFAULT 0.0,
     usd_to_eur_rate NUMERIC(10,6) DEFAULT 1.0,
@@ -380,6 +382,7 @@ class TokenUsage(NamedTuple):
     cached_tokens: int         # 300 (cache reads)
     model_name: str            # "gpt-4.1-mini-2024-11-20"
     cache_write_tokens: int = 0  # part of input_tokens written to the cache (ADR-306)
+    cache_write_extended_tokens: int = 0  # the part of it written for the extended lifetime (ADR-362)
 ```
 
 ### Écritures de cache (ADR-306)
@@ -394,17 +397,27 @@ coûte : `CachedModelPrice.cache_write_multiplier`, fixé à la construction de 
 depuis le fournisseur du modèle (1,25 pour tout tarif Anthropic et OpenAI, 1,0
 ailleurs — chez OpenAI, seuls GPT-5.6 et GPT-6 signalent une écriture, les modèles
 antérieurs répondent `0`), et
-`get_cached_cost_usd_eur(..., cache_write_tokens=...)` ajoute
-`écritures × prix d'entrée × (multiplicateur − 1)`.
+`get_cached_cost_usd_eur(..., cache_write_tokens=..., cache_write_extended_tokens=...)`
+ajoute `écritures × prix d'entrée × (multiplicateur − 1)`. Une écriture faite pour la
+durée longue du fournisseur (l'heure de Claude, ADR-362) est une PART de
+`cache_write_tokens` et se paie à son propre multiplicateur,
+`CachedModelPrice.cache_write_extended_multiplier` (2,0 pour tout tarif Anthropic, le
+multiplicateur court ailleurs). En flux, Claude ne nomme cette part qu'au premier
+événement (`message_start`) : le crochet de flux (`providers/anthropic_hooks.py`) la
+recopie dans le morceau, le lecteur garde la plus grande des deux sources, et un
+début de flux qui ne la nomme pas est compté (`llm_cache_write_breakdown_missing_total`,
+alerte `LLMCacheWriteLifetimeUnreported`).
 
 Toutes les portes de coût reçoivent le compte — `record_node_tokens`,
 `track_proactive_tokens`, `record_instance_llm_spend`, la métrique `llm_cost_total` —
 et la garde `test_cache_write_reaches_every_price` refuse un appel de `src/` qui
 l'oublie (un `0` explicite là où ce qui est facturé n'a pas de cache : caractères
 TTS, embeddings). `TokenCaptureHandler` compte dans les mêmes seaux que le lecteur
-unique (lectures de cache hors de `tokens_in`). Limite énoncée : les colonnes de
-`token_usage_logs` ne portent pas le compte des écritures ; un coût recalculé depuis
-les colonnes et le tarif est court du supplément sur un appel qui a écrit.
+unique (lectures de cache hors de `tokens_in`). Chaque appel enregistre ses deux
+comptes d'écriture dans `token_usage_logs` (`cache_write_tokens`,
+`cache_write_extended_tokens`, migration `6b7fe9493921`), si bien qu'un coût recalculé
+depuis les colonnes et le tarif est le coût facturé ; une ligne antérieure porte
+`NULL` — inconnu, jamais un zéro que personne n'a mesuré.
 
 ### Strategy 2 : llm_output Dict (Legacy)
 

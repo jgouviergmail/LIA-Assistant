@@ -225,12 +225,15 @@ export function ProviderEmailsSection({
                 </span>
                 <ClassificationBadges value={email.classification} />
                 {/* The subject alone rarely says what an exchange was about
-                  ("Re: Re: point"). Two lines at most: the excerpt informs the
-                  row, it must not become it. Full `text-muted-foreground` — the
-                  diluted variants fall under the 4.5:1 AA floor at this size,
-                  the trap already closed on the timestamps above. */}
+                  ("Re: Re: point"). Four lines at most — enough for the
+                  provider's whole preview on a desktop, twice the two lines a
+                  phone used to cut it at (owner request 2026-10-22): the
+                  excerpt informs the row, it must not become it. Full
+                  `text-muted-foreground` — the diluted variants fall under the
+                  4.5:1 AA floor at this size, the trap already closed on the
+                  timestamps above. */}
                 {email.excerpt && (
-                  <span className="line-clamp-2 w-full text-xs leading-relaxed text-muted-foreground">
+                  <span className="line-clamp-4 w-full text-xs leading-relaxed text-muted-foreground">
                     {email.excerpt}
                   </span>
                 )}
@@ -244,7 +247,9 @@ export function ProviderEmailsSection({
         <button
           type="button"
           onClick={askForSummary}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          // Full width on a phone, its label on the left, like every action
+          // of the sheet (owner request 2026-10-22).
+          className="inline-flex w-full items-center justify-start gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-left text-xs font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto sm:justify-center"
         >
           <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
           {t('relations.emails_summarize', { count: selectedHere.length })}

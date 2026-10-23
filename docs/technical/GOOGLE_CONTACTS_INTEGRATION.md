@@ -4,6 +4,13 @@
 >
 > Version: 1.1
 > Date: 2025-12-27
+>
+> **État au 2026-10-22** : les exemples de code et les schémas ci-dessous datent d'avant
+> ADR-194. `ContactsFormatter` n'existe plus (amendement d'ADR-194 du 2026-10-22), ni les
+> fonctions `_get_connector_and_credentials` et `_fetch_single_contact_details` que montrent
+> les exemples. Le chemin vivant : `get_contact_details_tool` → `GetContactDetailsTool` →
+> `ToolOutputMixin.build_contacts_output`, qui remet la personne brute du fournisseur au
+> registre ; la carte contact la dessine.
 
 ---
 
@@ -1176,7 +1183,6 @@ async with GooglePeopleClient(user_id, credentials, connector_service) as client
 
 **Tools** :
 - `apps/api/src/domains/agents/tools/google_contacts_tools.py` (1200+ lignes)
-- `apps/api/src/domains/agents/tools/formatters.py` (ContactsFormatter)
 
 **Manifests** :
 - `apps/api/src/domains/agents/google_contacts/catalogue_manifests.py` (800+ lignes)

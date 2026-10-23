@@ -40,6 +40,18 @@ class TestClientConfigFlags:
         assert "workboard_enabled" in payload["features"]
         assert payload["features"]["workboard_enabled"] is bool(settings.workboard_enabled)
 
+    @pytest.mark.parametrize(("platform_key", "expected"), [("platform-key", True), ("", False)])
+    async def test_home_address_flag_is_the_places_ceiling(
+        self, platform_key: str, expected: bool, monkeypatch: pytest.MonkeyPatch
+    ):
+        """The starter checklist offers the home address only where an address
+        can be saved: saving geocodes it through Google Places, which a
+        deployment without the platform key withholds (ADR-307) — the public
+        demonstrator has none (measured 2026-10-22)."""
+        monkeypatch.setattr(settings, "google_api_key", platform_key)
+        payload = await get_client_config()
+        assert payload["features"]["home_address_enabled"] is expected
+
     async def test_sibling_gate_flags_still_present(self):
         """The section-gating flags the settings page consumes (page.tsx memo)."""
         payload = await get_client_config()

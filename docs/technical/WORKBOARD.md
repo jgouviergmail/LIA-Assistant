@@ -83,6 +83,18 @@ seul genre `assigned` : **confié** à quelqu'un, **rendu** par son détenteur, 
 l'événement, jamais le seul genre, sinon un ticket revenu au départ d'un pair se
 lirait « Confié ».
 
+Chaque passage de main porte ses DEUX bouts depuis le 2026-10-22 —
+`from_kind`/`from_user` puis `to_kind`/`to_user`, écrits par une seule fonction
+(`workboard/history.holder_fields`) —, le retour d'une exécution (`handed_back`,
+de LIA au propriétaire) et la libération d'une connexion (`connection_removed`,
+du pair au propriétaire) compris : ils n'écrivaient que la destination. Le
+panneau affiche « Détenu par : Moi → LIA » ; une entrée plus ancienne sans
+origine nomme le seul nouveau détenteur plutôt que d'inventer d'où venait le
+ticket. L'entrée `created` porte aussi le premier détenteur, affiché seulement
+quand ce n'est pas le propriétaire lui-même. Un `NULL` d'un côté désigne le
+PROPRIÉTAIRE du ticket, jamais le lecteur — sur un ticket qu'un pair possède,
+c'est ce pair (`holderParty`).
+
 ## Quand la relation se termine
 
 Un pair qui s'en va ne doit pas emporter le travail. Trois sorties, trois

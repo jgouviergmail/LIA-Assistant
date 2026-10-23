@@ -1,6 +1,6 @@
 """Recover a tool call the parser or the schema refused for a mechanical reason.
 
-Two shapes, both measured on DeepSeek, both complete answers the door threw away:
+Three shapes, each a complete answer a door threw away:
 
 - **Nulls where the schema has a default** (production 2026-09-05,
   ``deepseek-v4-flash``, a complete minutes payload, ``"bullets": null`` on a
@@ -12,6 +12,14 @@ Two shapes, both measured on DeepSeek, both complete answers the door threw away
   the key is dropped so the default applies; a ``null`` on an Optional field is
   a value and stays; a ``null`` on a required field is an error and stays.
   Nested models and lists of models are walked the same way.
+- **An undeclared key that says nothing** (dev 2026-10-22, Haiku 5.5 with
+  thinking on the auto-tool door, ``"source_quote_note": ""`` inside a requested
+  outcome: the whole query analysis was refused). On a model that FORBIDS extras,
+  an undeclared key whose value is null, blank or an empty collection is
+  dropped: nothing could read it. A key that says something stays, because it
+  may be a declared field misspelled, and dropping it would let a default
+  replace what the model meant. Where extras are ignored Pydantic drops the key
+  itself; where they are allowed the key is data.
 - **A bare word where a JSON string belongs** (dev replay 2026-09-20,
   ``deepseek-flash``, ``"primary_domain": mcp`` on 11 of 24 query-analyzer
   calls; production lost 4 of 26 analyses in 48 h to it). LangChain cannot parse
@@ -29,14 +37,22 @@ from __future__ import annotations
 import json
 import types
 from collections.abc import Sequence
-from typing import Any, Union, get_args, get_origin
+from dataclasses import dataclass
+from typing import Any, Literal, Union, get_args, get_origin
 
 from pydantic import BaseModel, ValidationError
+from pydantic.fields import FieldInfo
 
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+#: How a repair settled a refused answer — an ``outcome`` of
+#: ``llm_structured_output_outcomes_total`` (the doors add ``parsed`` and ``truncated``).
+RepairOutcome = Literal[
+    "absent_values_dropped", "invalid_call_repaired", "text_rescued", "rejected"
+]
 
 #: Paths listed in a rejection reason before the list is cut (a log line, not a report).
 _REASON_PATHS_MAX = 8
@@ -92,77 +108,187 @@ def _list_item_model(annotation: Any) -> type[BaseModel] | None:
     return None
 
 
-def drop_nulls_with_defaults(schema: type[BaseModel], payload: Any) -> tuple[Any, int]:
-    """A copy of ``payload`` without the ``null`` values ``schema`` would default.
+@dataclass(frozen=True, slots=True)
+class AbsentValues:
+    """What a payload spelled « absent » and the normaliser removed, by shape."""
+
+    nulls: int = 0
+    extras: int = 0
+
+    @property
+    def total(self) -> int:
+        """Every key removed, whatever its shape."""
+        return self.nulls + self.extras
+
+    def __add__(self, other: AbsentValues) -> AbsentValues:
+        return AbsentValues(self.nulls + other.nulls, self.extras + other.extras)
+
+
+def _declared_field(schema: type[BaseModel], key: str) -> FieldInfo | None:
+    """The field ``key`` names: by its name, or by a string alias it validates under."""
+    field = schema.model_fields.get(key)
+    if field is not None:
+        return field
+    for candidate in schema.model_fields.values():
+        if key in (candidate.alias, candidate.validation_alias):
+            return candidate
+    return None
+
+
+def _says_nothing(value: Any) -> bool:
+    """Whether a value carries nothing to read: null, blank text, an empty collection."""
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    return isinstance(value, list | dict) and not value
+
+
+def _cleaned_value(annotation: Any, value: Any) -> tuple[Any, AbsentValues]:
+    """``value`` with the absent values of the model(s) its annotation names removed."""
+    nested = _model_of(annotation)
+    if nested is not None and isinstance(value, dict):
+        return drop_absent_values(nested, value)
+    item_model = _list_item_model(annotation)
+    if item_model is None or not isinstance(value, list):
+        return value, AbsentValues()
+    absent = AbsentValues()
+    items: list[Any] = []
+    for item in value:
+        item, found = drop_absent_values(item_model, item)
+        absent += found
+        items.append(item)
+    return items, absent
+
+
+def drop_absent_values(schema: type[BaseModel], payload: Any) -> tuple[Any, AbsentValues]:
+    """A copy of ``payload`` without the values that only spell « absent ».
+
+    The two shapes of the module docstring: a ``null`` that ``schema`` would
+    default, and an undeclared key that says nothing on a model forbidding extras.
 
     Args:
         schema: The Pydantic model the payload is meant for.
         payload: The model's arguments (anything that is not a dict comes back as is).
 
     Returns:
-        ``(payload, dropped)`` — the cleaned copy and how many keys were removed.
+        ``(payload, absent)`` — the cleaned copy and what was removed.
     """
     if not isinstance(payload, dict):
-        return payload, 0
-    dropped = 0
+        return payload, AbsentValues()
+    forbids_extras = schema.model_config.get("extra") == "forbid"
+    absent = AbsentValues()
     cleaned: dict[str, Any] = {}
     for key, value in payload.items():
-        field = schema.model_fields.get(key)
+        field = _declared_field(schema, key)
         if field is None:
-            cleaned[key] = value
-            continue
-        if value is None:
-            if not field.is_required() and not _admits_none(field.annotation):
-                dropped += 1
+            if forbids_extras and _says_nothing(value):
+                absent += AbsentValues(extras=1)
                 continue
             cleaned[key] = value
-            continue
-        nested = _model_of(field.annotation)
-        if nested is not None and isinstance(value, dict):
-            value, count = drop_nulls_with_defaults(nested, value)
-            dropped += count
+        elif value is None:
+            if not field.is_required() and not _admits_none(field.annotation):
+                absent += AbsentValues(nulls=1)
+                continue
+            cleaned[key] = value
         else:
-            item_model = _list_item_model(field.annotation)
-            if item_model is not None and isinstance(value, list):
-                items: list[Any] = []
-                for item in value:
-                    item, count = drop_nulls_with_defaults(item_model, item)
-                    dropped += count
-                    items.append(item)
-                value = items
-        cleaned[key] = value
-    return cleaned, dropped
+            cleaned[key], found = _cleaned_value(field.annotation, value)
+            absent += found
+    return cleaned, absent
 
 
-def validate_with_defaulted_nulls[T: BaseModel](schema: type[T], payload: Any) -> tuple[T, int]:
-    """Validate ``payload`` against ``schema`` after defaulting its nulls.
+def validate_without_absent_values[T: BaseModel](
+    schema: type[T], payload: Any
+) -> tuple[T, AbsentValues]:
+    """Validate ``payload`` against ``schema`` once its absent values are removed.
 
     Raises:
-        ValidationError: When the payload is still invalid once the nulls are gone.
+        ValidationError: When the payload is still invalid once they are gone.
     """
-    cleaned, dropped = drop_nulls_with_defaults(schema, payload)
-    return schema.model_validate(cleaned), dropped
+    cleaned, absent = drop_absent_values(schema, payload)
+    return schema.model_validate(cleaned), absent
 
 
-def rescue_tool_call[T: BaseModel](raw_message: Any, schema: type[T]) -> tuple[T | None, int]:
-    """The first tool call of ``raw_message`` validated with its nulls defaulted.
+def rescue_payload[T: BaseModel](schema: type[T], payload: Any) -> tuple[T | None, AbsentValues]:
+    """``payload`` validated once its absent values are removed — if that is the repair.
 
-    Answers only for what it changed: a call that validates untouched was the
-    parser's to accept, and a call still invalid once cleaned is not rescued.
+    Answers only for what it changed: a payload with nothing absent was the
+    parser's verdict to keep, and one still invalid once cleaned is not rescued.
 
     Returns:
-        ``(instance, dropped)``, or ``(None, 0)`` when nothing could be rescued.
+        ``(instance, absent)``, or ``(None, AbsentValues())`` when nothing was rescued.
+    """
+    cleaned, absent = drop_absent_values(schema, payload)
+    if not absent.total:
+        return None, AbsentValues()
+    try:
+        return schema.model_validate(cleaned), absent
+    except ValidationError:
+        return None, AbsentValues()
+
+
+def rescue_tool_call[T: BaseModel](
+    raw_message: Any, schema: type[T]
+) -> tuple[T | None, AbsentValues]:
+    """The first tool call of ``raw_message`` validated once its absent values are removed.
+
+    Returns:
+        ``(instance, absent)``, or ``(None, AbsentValues())`` when nothing was rescued.
     """
     tool_calls = getattr(raw_message, "tool_calls", None) or []
     if not tool_calls:
-        return None, 0
-    cleaned, dropped = drop_nulls_with_defaults(schema, tool_calls[0].get("args"))
-    if dropped == 0:
-        return None, 0
-    try:
-        return schema.model_validate(cleaned), dropped
-    except ValidationError:
-        return None, 0
+        return None, AbsentValues()
+    return rescue_payload(schema, tool_calls[0].get("args"))
+
+
+def log_absent_values_dropped(provider: str, schema_name: str, absent: AbsentValues) -> None:
+    """The one log line every door writes when the absent values made an answer valid."""
+    logger.warning(
+        "structured_output_absent_values_dropped",
+        provider=provider,
+        schema=schema_name,
+        nulls_defaulted=absent.nulls,
+        empty_extras_dropped=absent.extras,
+    )
+
+
+def repair_refused_answer[T: BaseModel](
+    raw_message: Any, schema: type[T], provider: str, schema_name: str
+) -> tuple[T | None, RepairOutcome]:
+    """The first mechanical repair that makes a refused answer valid (ADR-184, ADR-100).
+
+    ONE chain for every door that receives a message, in this order: the absent
+    values of a parsed call, the bare words of a call the parser refused, an
+    object written as text. The caller has consulted the truncation verdict
+    first (ADR-275): a cut answer must never reach a repair, which would close
+    it into a shorter object announced as complete.
+
+    Args:
+        raw_message: The ``AIMessage`` the model returned (``None`` tolerated).
+        schema: Target Pydantic schema.
+        provider: Provider name (logging only).
+        schema_name: Schema name (logging only).
+
+    Returns:
+        ``(instance, outcome)``, or ``(None, "rejected")`` when nothing applies.
+    """
+    instance, absent = rescue_tool_call(raw_message, schema)
+    if instance is not None:
+        log_absent_values_dropped(provider, schema_name, absent)
+        return instance, "absent_values_dropped"
+    repaired, quoted = rescue_invalid_tool_call(raw_message, schema)
+    if repaired is not None:
+        logger.warning(
+            "structured_output_invalid_call_repaired",
+            provider=provider,
+            schema=schema_name,
+            quoted=quoted,
+        )
+        return repaired, "invalid_call_repaired"
+    rescued = rescue_from_text(raw_message, schema, provider, schema_name)
+    if rescued is not None:
+        return rescued, "text_rescued"
+    return None, "rejected"
 
 
 def _string_end(text: str, start: int) -> int:
@@ -295,7 +421,7 @@ def rescue_from_text[T: BaseModel](
         return None
 
     try:
-        instance, _defaulted = validate_with_defaulted_nulls(schema, json.loads(payload_text))
+        instance, _absent = validate_without_absent_values(schema, json.loads(payload_text))
     except json.JSONDecodeError, ValidationError:
         return None
 
@@ -329,7 +455,7 @@ def rescue_invalid_tool_call[T: BaseModel](
 
     Answers only for what it changed: arguments that quote nothing are the
     parser's verdict to keep, and a payload the schema still refuses once it
-    parses is not rescued. The schema's defaulted nulls are honoured on the
+    parses is not rescued. The payload's absent values are removed on the
     way, as for a parsed call.
 
     Returns:
@@ -342,18 +468,19 @@ def rescue_invalid_tool_call[T: BaseModel](
     if quoted == 0:
         return None, 0
     try:
-        instance, _dropped = validate_with_defaulted_nulls(schema, json.loads(repaired))
+        instance, _absent = validate_without_absent_values(schema, json.loads(repaired))
     except ValueError, ValidationError:
         return None, 0
     return instance, quoted
 
 
-def rejection_reason(raw_message: Any, parsing_error: BaseException | None) -> str:
-    """Why a native structured answer yielded nothing — the words the log carries.
+def refusal_verdict(raw_message: Any, parsing_error: BaseException | None) -> str:
+    """Why a structured answer yielded nothing, in facts a log line may carry.
 
     A rejected tool call is named as such, with the schema paths that failed,
     and a call whose arguments the parser refused is named too, with the
-    parser's own words; neither is ever reported as « no tool call ».
+    parser's own verdict; neither is ever reported as « no tool call ». No
+    value the model wrote is ever quoted: the result is logged above DEBUG.
     """
     tool_calls = getattr(raw_message, "tool_calls", None) or []
     if tool_calls:
@@ -368,9 +495,10 @@ def rejection_reason(raw_message: Any, parsing_error: BaseException | None) -> s
     invalid = _first_invalid_call(raw_message)
     if invalid is not None:
         # LangChain's message ends with the parser's verdict after « Received »;
-        # everything before it is the payload, which does not belong in a log line.
+        # everything before it is the payload, which does not belong in a log
+        # line — and an error with no verdict is the payload alone (ADR-317).
         error = str(invalid.get("error") or "")
-        detail = (error.rsplit("Received ", 1)[-1] if "Received " in error else error).strip()
+        detail = error.rsplit("Received ", 1)[-1].strip() if "Received " in error else ""
         detail = detail[:_REASON_DETAIL_MAX]
         suffix = f" ({detail})" if detail else ""
         return f"tool call arguments not valid JSON{suffix}"

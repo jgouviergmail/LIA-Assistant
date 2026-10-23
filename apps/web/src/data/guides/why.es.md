@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versión**: 6.5
-**Fecha**: 2026-10-22
-**Aplicación**: LIA v3.4.0
+**Versión**: 6.6
+**Fecha**: 2026-10-23
+**Aplicación**: LIA v3.5.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -61,8 +61,8 @@ Cada usuario dispone de su propio espacio de configuración, organizado en dos p
 - **Generación de imágenes**: activa y configura la creación de imágenes por IA
 - **Servidores MCP personales**: conecta tus propios servidores MCP para ampliar las capacidades de LIA
 - **Apariencia**: idioma, zona horaria, tema (5 paletas, modo claro, oscuro o negro absoluto), fuente (9 opciones), tamaño del texto (de 14 a 20 px, sin mover ningún panel), formato de visualización de respuestas (tarjetas HTML, HTML, Markdown)
-- **Mi dashboard**: oculta o reordena las 11 tarjetas del briefing — una tarjeta oculta ya ni siquiera se consulta
-- **Preferencias de uso**: elige tu ritmo de intercambios — frecuentes, y LIA tiene todas sus herramientas a mano para que cada turno del modo ReAct relea el anterior desde la caché del proveedor; puntuales, y elige las herramientas que necesita cada pregunta, con un coste estable
+- **Mi dashboard**: oculta o reordena las 11 tarjetas del briefing — una tarjeta oculta ya ni siquiera se consulta; una cuenta nueva empieza solo con el tiempo donde la instancia lo ofrece, y su lista de inicio pide primero la dirección de casa
+- **Preferencias de uso**: elige tu ritmo de intercambios — frecuentes, y LIA tiene todas sus herramientas a mano para que cada turno del modo ReAct relea el anterior desde la caché del proveedor; puntuales, y elige las herramientas que necesita cada pregunta, con un coste estable — ahí empieza una cuenta nueva
 - **Debug**: accede al panel de depuración para inspeccionar cada intercambio (si el administrador lo ha activado)
 
 **Funcionalidades avanzadas:**
@@ -320,7 +320,7 @@ LIA no solo funciona con hardware modesto — **optimiza activamente** su consum
 - **Filtrado de catálogo**: solo las herramientas relevantes para tu consulta se presentan al LLM, reduciendo drásticamente el número de tokens consumidos
 - **Aprendizaje de patrones**: los planes validados se memorizan y reutilizan sin volver a llamar al LLM
 - **Message Windowing**: cada componente ve únicamente el contexto estrictamente necesario
-- **Cache de prompts**: aprovechamiento de la caché nativa de los proveedores para limitar los costes recurrentes — y en modo ReAct eres tú quien arbitra: los intercambios frecuentes mantienen cargadas todas las herramientas para que cada turno relea el anterior, los puntuales conservan el filtrado por pertinencia y un coste que no depende del intervalo entre dos mensajes
+- **Cache de prompts**: aprovechamiento de la caché nativa de los proveedores para limitar los costes recurrentes — y en modo ReAct eres tú quien arbitra: los intercambios frecuentes mantienen cargadas todas las herramientas para que cada turno relea el anterior — conservado hasta una hora mientras esperas, con un proveedor que lo permite —, los puntuales conservan el filtrado por pertinencia y un coste que no depende del intervalo entre dos mensajes
 - **Prompts sin peso muerto**: un contexto solo se envuelve si existe, de modo que un turno desnudo no lleva ninguna envoltura vacía, y una notificación de dos frases se pide sin razonamiento — en un modelo que razona por defecto, el razonamiento se factura dentro del presupuesto de la respuesta
 
 Combinadas, estas optimizaciones explican el factor de 4 a 8 entre el modo Pipeline y el modo agente autónomo, con el mismo servicio prestado.
@@ -351,7 +351,7 @@ La misma transparencia se aplica a las acciones: bajo cada respuesta, una línea
 
 La regla no admite excepción por camino. Todo lo que la plataforma paga por ti con sus propias claves llega a tu uso y a tus límites, sea cual sea la modalidad: una consulta de mapa durante una llamada telefónica o una sesión live directa, las llamadas de tiempo del briefing de la mañana, la geocodificación de tu dirección, una foto de un lugar que se te muestra (contada cuando se muestra, nunca por adelantado), una síntesis de voz (contada solo por las frases realmente entregadas). Una factura telefónica y una tarjeta de sesión live muestran una sola cifra de lo que costó la ejecución, euros de Maps incluidos. Y lo que pagas con **tus propias** claves de conector — un modelo live, el agente telefónico, una búsqueda web — queda fuera: mostrado donde ocurre, registrado en ningún sitio.
 
-Y la cifra mostrada es la que el proveedor factura de verdad: las tarifas se releen en sus páginas, una escritura en la caché de un modelo cuenta a su propio precio, una hora valle conoce sus días (el fin de semana cuando el proveedor lo hace), una ruta se cuenta al nivel que activa su solicitud — y un precio que cambia el administrador llega enseguida a cada servidor.
+Y la cifra mostrada es la que el proveedor factura de verdad: las tarifas se releen en sus páginas, una escritura en la caché de un modelo cuenta a su propio precio, también la que dura una hora, una hora valle conoce sus días (el fin de semana cuando el proveedor lo hace), una ruta se cuenta al nivel que activa su solicitud — y un precio que cambia el administrador llega enseguida a cada servidor.
 
 Hasta un mapa interactivo anuncia su coste antes de abrirse, y una respuesta que guardas muestra lo que costó producirla e indexarla — el importe facturado de verdad, nunca una estimación.
 

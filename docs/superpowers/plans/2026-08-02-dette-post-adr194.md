@@ -95,6 +95,11 @@ renvoie que des mentions en docstring.
 `_extract_*` comptent **38 usages externes**, donc **aucune** ne devient orpheline
 en retirant `FIELD_EXTRACTORS`. Elles restent toutes vivantes.
 
+> **Corrigé le 2026-10-22** : faux. Les 38 usages mêlaient tests, homonymes et lignes de la
+> table, et les appelants restants des extracteurs de contacts étaient eux-mêmes morts. Remonté
+> jusqu'à un point d'entrée, seul `GmailFormatter._extract_body` / `_extract_attachments` est
+> atteint ; le reste est supprimé (amendement d'ADR-194 du 2026-10-22).
+
 **Reste vivant et ne doit pas être touché** : les méthodes statiques
 `_extract_*`, appelées directement sur la classe (jamais sur une instance) par
 `google_contacts_tools` et `emails_tools`.

@@ -440,10 +440,12 @@ async def get_client_config() -> dict:
 
     This endpoint is public and does not require authentication.
     """
+    from src.domains.connectors.keyless import keyless_ceiling_reason
     from src.domains.connectors.map_load_metering import (
         map_load_config,
         position_map_config,
     )
+    from src.domains.connectors.models import ConnectorType
 
     maps_config = map_load_config()
     return {
@@ -480,6 +482,10 @@ async def get_client_config() -> dict:
             # subsystem (gate-keeper rule, ADR-061).
             "channels_enabled": getattr(settings, "channels_enabled", False),
             "heartbeat_enabled": getattr(settings, "heartbeat_enabled", False),
+            # The deployment ceiling of the home address: saving one geocodes it
+            # through Google Places (ADR-307), which the administrator's switch
+            # can still withhold — the save route enforces that half.
+            "home_address_enabled": keyless_ceiling_reason(ConnectorType.GOOGLE_PLACES) is None,
             "skills_enabled": getattr(settings, "skills_enabled", False),
             "open_loops_enabled": getattr(settings, "open_loops_enabled", False),
             # Habits program (ADR-214): gates the « Habitudes » settings section.

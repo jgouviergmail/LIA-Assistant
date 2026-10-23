@@ -40,7 +40,7 @@ from src.domains.connectors.clients.gmail_compose import GmailComposeMixin
 from src.domains.connectors.clients.gmail_drafts_mixin import GmailDraftsMixin
 from src.domains.connectors.clients.gmail_send_mixin import GmailSendMixin
 from src.domains.connectors.clients.gmail_threads_mixin import GmailThreadsMixin
-from src.domains.connectors.clients.normalizers.html_text import html_to_text
+from src.domains.connectors.clients.normalizers.html_text import html_to_text, strip_html_to_line
 from src.domains.connectors.clients.normalizers.reply_trimming import clean_reply_body
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
@@ -204,6 +204,10 @@ class GoogleGmailClient(
         Body is extracted only when format is 'full' (metadata format does
         not include body data in the Gmail API response).
 
+        The preview (``snippet``) is decoded on the first pass: Gmail sends it
+        HTML-escaped, so every reader used to show « J&#39;ai » — or decode it
+        itself, then decode text that was already decoded.
+
         The original payload.headers structure is preserved for backwards
         compatibility with existing header-based extraction code.
 
@@ -239,6 +243,13 @@ class GoogleGmailClient(
                         if keep_quoted
                         else clean_reply_body(body, subject=message.get("subject"))
                     )
+
+        # Gmail's preview is HTML-ESCAPED (« J&#39;ai ») where the two other
+        # providers hand over text, and a newsletter pads it with characters
+        # that draw nothing: decoded once, on the first pass, like theirs.
+        snippet = message.get("snippet")
+        if "_provider" not in message and isinstance(snippet, str):
+            message["snippet"] = strip_html_to_line(snippet, max_length=len(snippet))
 
         # Mark provider for downstream identification (same as Apple/Microsoft)
         if "_provider" not in message:

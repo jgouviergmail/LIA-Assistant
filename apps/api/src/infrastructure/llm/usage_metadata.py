@@ -22,7 +22,9 @@ prompt count -- a written token is a prompt token -- and is reported apart
 because a vendor may bill it above the input price. The count is the same fact
 whoever reports it (langchain-anthropic and langchain-openai both fill the
 generic ``cache_creation``); what a write COSTS is the tariff's to say
-(``CachedModelPrice.cache_write_multiplier``), never this module's.
+(``CachedModelPrice.cache_write_multiplier``), never this module's. The part of
+it written at the provider's EXTENDED lifetime is the fifth (ADR-362): Claude
+bills a one-hour write at its own multiple of the input price.
 """
 
 from __future__ import annotations
@@ -30,11 +32,20 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any, NamedTuple
 
-#: Where the written tokens are reported. langchain-anthropic fills the TTL
-#: breakdown when the response carries one, and then sets the generic key to 0;
-#: on the path LIA runs it reports the generic key alone (measured on Sonnet 5,
-#: 2026-09-23). Summing the three counts each write once in either shape.
-_CACHE_WRITE_KEYS = ("cache_creation", "ephemeral_5m_input_tokens", "ephemeral_1h_input_tokens")
+#: The generic write count: langchain-anthropic's only key on a STREAMED
+#: response (its final usage carries the total alone), langchain-openai's for
+#: OpenAI's ``cache_write_tokens``.
+_GENERIC_WRITE_KEY = "cache_creation"
+#: The TTL breakdown langchain-anthropic copies from a COMPLETE response, setting
+#: the generic key to 0 when it does.
+_SHORT_LIFETIME_KEY = "ephemeral_5m_input_tokens"
+_EXTENDED_LIFETIME_KEY = "ephemeral_1h_input_tokens"
+#: The breakdown a streamed Claude response reports at its START, copied there by
+#: ``providers/anthropic_hooks`` under names langchain never writes: should the
+#: stream's end ever carry the breakdown itself, the two sources describe the same
+#: writes and the reader takes the larger, so nothing is counted twice.
+STREAM_CACHE_WRITE_SHORT_KEY = "stream_cache_write_short"
+STREAM_CACHE_WRITE_EXTENDED_KEY = "stream_cache_write_extended"
 
 
 class UsageTokens(NamedTuple):
@@ -46,13 +57,16 @@ class UsageTokens(NamedTuple):
         cached: Prompt tokens served from the provider's cache, priced apart.
         cache_write: The subset of ``prompt`` the provider wrote to its prompt
             cache. Its tariff says whether it owes more than the input price
-            (Claude: the 5-minute write at 1.25x — LIA sets no ``ttl``, ADR-306).
+            (Claude: 1.25x for the 5-minute lifetime, ADR-306).
+        cache_write_extended: The subset of ``cache_write`` written at the
+            provider's extended lifetime (Claude's one hour, priced 2x — ADR-362).
     """
 
     prompt: int
     completion: int
     cached: int
     cache_write: int = 0
+    cache_write_extended: int = 0
 
     @property
     def is_empty(self) -> bool:
@@ -87,10 +101,40 @@ def tokens_from_usage_metadata(usage_metadata: Mapping[str, Any] | None) -> Usag
     # Clamped: a provider reporting the two fields inconsistently must not
     # produce a negative prompt count that then flows into a price.
     prompt = max(raw_input - cached, 0)
-    written = sum(_as_int(details.get(key)) for key in _CACHE_WRITE_KEYS)
+    written, extended = _cache_writes(details, prompt)
     return UsageTokens(
-        prompt=prompt, completion=completion, cached=cached, cache_write=min(written, prompt)
+        prompt=prompt,
+        completion=completion,
+        cached=cached,
+        cache_write=written,
+        cache_write_extended=extended,
     )
+
+
+def _cache_writes(details: Mapping[str, Any], prompt: int) -> tuple[int, int]:
+    """The written tokens, and the part written at the extended lifetime.
+
+    Every shape reports the same writes: the generic total, a complete
+    response's breakdown, a stream start's breakdown. The largest is the count
+    (two sources never add up), the extended part is the largest one reported,
+    and both are bounded by what they are a part of.
+
+    Args:
+        details: The usage metadata's ``input_token_details``.
+        prompt: The billable prompt count the writes are a part of.
+
+    Returns:
+        ``(cache_write, cache_write_extended)``.
+    """
+    reported_extended = _as_int(details.get(_EXTENDED_LIFETIME_KEY))
+    streamed_extended = _as_int(details.get(STREAM_CACHE_WRITE_EXTENDED_KEY))
+    written = max(
+        _as_int(details.get(_GENERIC_WRITE_KEY)),
+        _as_int(details.get(_SHORT_LIFETIME_KEY)) + reported_extended,
+        _as_int(details.get(STREAM_CACHE_WRITE_SHORT_KEY)) + streamed_extended,
+    )
+    written = min(written, prompt)
+    return written, min(max(reported_extended, streamed_extended), written)
 
 
 def tokens_from_response(response: object) -> UsageTokens:
@@ -147,6 +191,7 @@ def sum_usage(readings: Iterable[UsageTokens]) -> UsageTokens:
             completion=total.completion + usage.completion,
             cached=total.cached + usage.cached,
             cache_write=total.cache_write + usage.cache_write,
+            cache_write_extended=total.cache_write_extended + usage.cache_write_extended,
         )
     return total
 
@@ -247,6 +292,8 @@ def _as_int(value: object) -> int:
 
 
 __all__ = [
+    "STREAM_CACHE_WRITE_EXTENDED_KEY",
+    "STREAM_CACHE_WRITE_SHORT_KEY",
     "UsageTokens",
     "model_name_of",
     "tokens_from_callback",

@@ -12,6 +12,12 @@ new-dict rule). Two layers:
   must never 500 the dashboard), the order is deduped and completed
   canonically so future sections surface by default at their canonical
   position.
+
+``new_account_briefing_preferences`` writes the grid a brand-new account
+starts with (the weather card alone where the instance serves the weather,
+owner decision 2026-10-22); a NULL column
+— an account created before that date whose grid was never saved — still means
+every card visible.
 """
 
 from __future__ import annotations
@@ -20,7 +26,13 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from src.domains.briefing.constants import SECTION_DISPLAY_ORDER_DEFAULT, SECTION_NAMES
+from src.domains.briefing.constants import (
+    NEW_ACCOUNT_VISIBLE_SECTIONS,
+    SECTION_DISPLAY_ORDER_DEFAULT,
+    SECTION_NAMES,
+)
+from src.domains.connectors.keyless import keyless_ceiling_reason
+from src.domains.connectors.models import ConnectorType
 
 
 class BriefingPreferences(BaseModel):
@@ -79,3 +91,29 @@ def sanitize_briefing_preferences(raw: dict[str, Any] | None) -> BriefingPrefere
     # (or a future section) must never reshuffle the grid users know.
     order += [name for name in SECTION_DISPLAY_ORDER_DEFAULT if name not in order]
     return BriefingPreferences(hidden=hidden, order=order)
+
+
+def new_account_briefing_preferences() -> dict[str, Any]:
+    """The grid a brand-new account starts with: the weather card alone, where it can show.
+
+    Stored exactly like a choice the person makes on the grid settings (the
+    strict schema, dumped), so the settings show every other card switched off,
+    ready to be switched back on. A card added by a later release is not in
+    ``hidden`` and therefore shows, like on every other account.
+
+    The weather card alone rests on the weather needing nothing but an address:
+    the instance serves Google Weather on its platform key (ADR-307). A
+    deployment without that key — the public demonstrator, where nobody can
+    link a provider either — could never draw it, and a grid holding it alone
+    would be empty: the account then starts with every card, as every account
+    did before.
+
+    Returns:
+        A new dict for the ``users.briefing_preferences`` column.
+    """
+    if keyless_ceiling_reason(ConnectorType.GOOGLE_WEATHER) is not None:
+        return BriefingPreferences().model_dump(mode="json")
+    hidden = [
+        name for name in SECTION_DISPLAY_ORDER_DEFAULT if name not in NEW_ACCOUNT_VISIBLE_SECTIONS
+    ]
+    return BriefingPreferences(hidden=hidden).model_dump(mode="json")

@@ -1473,15 +1473,12 @@ async def my_tool(user_id_raw, runtime):
 | `parse_user_id` | `runtime_helpers.py` | Parse UUID/ULID |
 | `handle_connector_api_error` | `runtime_helpers.py` | Error handling unifié |
 | `emit_side_channel_chunk` | `runtime_helpers.py` | Emit SSE chunks directly to frontend via side-channel queue |
-| `_extract_name`, `_extract_emails`, etc. | `ContactsFormatter` | Extraction données contacts |
 
 **Exemple CORRECT** :
 ```python
 from src.domains.agents.tools.runtime_helpers import parse_user_id
-from src.domains.agents.tools.formatters import ContactsFormatter
 
 user_id = parse_user_id(user_id_raw)
-name = ContactsFormatter._extract_name(person)
 ```
 
 **Exemple INCORRECT** :

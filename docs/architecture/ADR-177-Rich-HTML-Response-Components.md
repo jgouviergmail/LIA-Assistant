@@ -215,6 +215,28 @@ texte un bloc de code Markdown qui CITE du HTML, dès qu'une balise y était rec
   un antislash littéral, puis le crochet qui ferme le lien (CodeQL
   `js/incomplete-sanitization`, revue du 2026-09-30 sous ADR-326).
 
+## Amendement 2026-10-22 — sur un téléphone, une bulle large prend toute sa colonne
+
+Constat propriétaire : en affichage mobile, les bulles de LIA n'occupaient pas toute la
+largeur disponible à gauche, alors qu'elles touchaient le bord droit. **La cause était le
+95 % de l'amendement du 2026-09-25**, appliqué à toutes les largeurs, et le même 95 % sur
+la bulle d'une carte (`.message-bubble-assistant:has(.lia-card)`) et d'un bloc de code
+(`min(95%, 56rem)`) : alignée à droite (`items-end`), une telle bulle laissait une bande
+vide sur son seul bord gauche. Mesuré dans l'application de dev, dans un cadre de 388 px :
+16 px d'une colonne de 328 px. Une bulle de texte longue prenait déjà toute la colonne.
+
+- **Sous 880 px, sans colonne d'avatar, une bulle de tableau, de carte ou de code prend
+  toute sa colonne** : `width: 100%` pour le tableau et la carte (la largeur reste définie,
+  pour la raison du 2026-09-25), le plafond commun `max-width: 100%` pour le code.
+- **À partir de 880 px, à côté de l'avatar, rien ne change** : 95 % pour le tableau et la
+  carte, `min(95%, 56rem)` pour le code.
+- Une réponse courte reste une bulle courte, alignée à droite.
+
+Mesuré après : 0 px de chaque côté sur téléphone, 95 % de la colonne sur bureau. Un garde de
+feuille de style (`styles/__tests__/chat-layout.guard.test.ts`) refuse, sous 880 px, toute
+règle qui réduit une bulle sous sa colonne ; vu en échec contre l'ancienne feuille, puis
+vert. Le parcours e2e n'a pas été relancé (il construit l'application).
+
 ## Alternatives considérées
 
 - **Composants React interceptés** (tabs, accordéons animés — pattern

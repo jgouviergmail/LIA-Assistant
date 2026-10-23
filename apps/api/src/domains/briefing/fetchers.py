@@ -48,6 +48,7 @@ from src.domains.briefing.constants import (
 from src.domains.briefing.exceptions import (
     ConnectorAccessError,
     ConnectorNotConfiguredError,
+    LocationNotConfiguredError,
 )
 from src.domains.briefing.exceptions import (
     classify_http_error as _classify_http_error,
@@ -230,7 +231,8 @@ async def _open_weather(
         ``(client, location, environment_active)`` — the caller closes the client.
 
     Raises:
-        ConnectorNotConfiguredError: No weather provider, or no usable location.
+        ConnectorNotConfiguredError: No weather provider.
+        LocationNotConfiguredError: A provider, but no usable location.
     """
     async with get_db_context() as db:
         connector_service = ConnectorService(db)
@@ -241,7 +243,7 @@ async def _open_weather(
             try:
                 location = await UserLocationService(db).get_effective_location_for_proactive(user)
             except NoLocationAvailableError:
-                raise ConnectorNotConfiguredError("location") from None
+                raise LocationNotConfiguredError() from None
             # AQ/pollen enrichment (2026-08): whether it runs is READ here; the
             # provider is called by the caller, once this session is closed.
             environment_active = with_environment and await environment_enrichment_active(

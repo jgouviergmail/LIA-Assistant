@@ -10,10 +10,8 @@ Sonnet 5 (``max_tokens=0``, input billed only):
   REWROTE 5,222 tokens at 1.25x, because the breakpoint sat on the last,
   dynamic block.
 
-And on Opus 5.5, a thinking block from an earlier turn replayed under the
-system prompt LIA rebuilds every turn: 400 « bound to a different
-conversation » once enforcement is on (every account created from 2026-08-31),
-25 extra billed input tokens when it is not.
+Which earlier thinking a request carries back is decided before the client
+formats it: ``test_anthropic_thinking.py``.
 """
 
 from __future__ import annotations
@@ -26,7 +24,6 @@ from src.core.constants import DYNAMIC_CONTEXT_MARKER
 from src.infrastructure.llm.providers.anthropic_payload import (
     mark_static_system_prefix,
     shape_claude_payload,
-    strip_prior_turn_thinking,
     wants_rolling_breakpoint,
 )
 
@@ -104,10 +101,6 @@ def _tool_result(call_id: str) -> dict[str, Any]:
     }
 
 
-def _thinking() -> dict[str, Any]:
-    return {"type": "thinking", "thinking": "", "signature": "sig"}
-
-
 class TestTheRollingBreakpointOnlyWhereItIsRead:
     def test_a_single_call_writes_no_rolling_entry(self) -> None:
         """Its tail (the date, the question, the history) is unique: written at
@@ -134,72 +127,219 @@ class TestTheRollingBreakpointOnlyWhereItIsRead:
         assert wants_rolling_breakpoint(payload) is True
 
 
-class TestPriorTurnThinkingIsNotReplayed:
-    def test_a_previous_turns_thinking_is_removed_its_answer_kept(self) -> None:
-        answer = _text("Paris.")
-        messages = [
-            _user("Capital of France?"),
-            {"role": "assistant", "content": [_thinking(), answer]},
-            _user("And Italy?"),
-        ]
-        assert strip_prior_turn_thinking(messages) == [
-            _user("Capital of France?"),
-            {"role": "assistant", "content": [answer]},
-            _user("And Italy?"),
+def _assistant(*blocks: dict[str, Any]) -> dict[str, Any]:
+    return {"role": "assistant", "content": list(blocks)}
+
+
+def _tool_use(call_id: str) -> dict[str, Any]:
+    return {"type": "tool_use", "id": call_id, "name": "a", "input": {}}
+
+
+def _loop(*messages: dict[str, Any]) -> dict[str, Any]:
+    """A tool-loop request: several tools offered, the rolling breakpoint applies."""
+    return {
+        "system": f"{STATIC}\n{DYNAMIC}",
+        "messages": list(messages),
+        "tools": [{"name": "a"}, {"name": "b"}],
+    }
+
+
+def _marked(message: dict[str, Any]) -> list[dict[str, Any]]:
+    content = message["content"]
+    return [block for block in content if isinstance(block, dict) and "cache_control" in block]
+
+
+class TestTheHistoryEndIsAReadPoint:
+    """The next turn reads the history back only from an entry written at its end (ADR-362).
+
+    Claude writes an entry only at a breakpoint and a later request finds only
+    an entry that exists. In a tool loop the rolling breakpoint sits on the
+    turn's tail -- the question with its context, which the next turn never
+    sends again -- so without this read point no entry ever ended where the
+    next turn's prefix diverges, and the whole history was re-written every
+    turn. It costs nothing: the rolling breakpoint already writes the span.
+    """
+
+    def test_the_block_before_the_question_is_marked_in_a_tool_loop(self) -> None:
+        answer = _assistant(_text("Paris."))
+        payload = shape_claude_payload(_loop(_user("Capital of France?"), answer, _user("Go")))
+        assert _marked(payload["messages"][1]) == [_text("Paris.", cache_control=CC)]
+        assert payload["cache_control"] == CC
+
+    def test_a_plain_text_answer_becomes_a_marked_block(self) -> None:
+        payload = shape_claude_payload(
+            _loop(_user("Q1"), {"role": "assistant", "content": "A1"}, _user("Q2"))
+        )
+        assert payload["messages"][1]["content"] == [_text("A1", cache_control=CC)]
+
+    def test_every_text_content_takes_one_shape_in_a_tool_loop(self) -> None:
+        """The end becomes a block list the turn it is marked; one turn later it
+        is not the end any more. Every text content takes the block shape, so
+        the next turn resends the same BYTES (the two-turn simulation in
+        ``test_react_cross_turn_claude_prefix`` found the difference)."""
+        payload = shape_claude_payload(
+            _loop(
+                {"role": "user", "content": "Q1"},
+                {"role": "assistant", "content": "A1"},
+                {"role": "user", "content": "Q2"},
+            )
+        )
+        assert [message["content"] for message in payload["messages"]] == [
+            [_text("Q1")],
+            [_text("A1", cache_control=CC)],
+            [_text("Q2")],
         ]
 
-    def test_the_current_tool_loop_keeps_its_thinking_verbatim(self) -> None:
-        """A tool loop must replay the thinking of the call it continues."""
-        current = [
-            _user("Prepare my day"),
+    def test_the_read_point_does_not_move_while_the_loop_runs(self) -> None:
+        """Every iteration of the turn marks the same block: the first writes it."""
+        history = [_user("Q1"), _assistant(_text("A1")), _user("Q2")]
+        first = shape_claude_payload(_loop(*history))
+        later = shape_claude_payload(
+            _loop(*history, _assistant(_tool_use("t1")), _tool_result("t1"))
+        )
+        assert first["messages"][1] == later["messages"][1]
+        assert _marked(later["messages"][1])
+
+    def test_a_first_turn_has_no_history_to_mark(self) -> None:
+        payload = shape_claude_payload(_loop(_user("Hello")))
+        assert not _marked(payload["messages"][0])
+
+    def test_a_single_call_gets_no_read_point(self) -> None:
+        """No rolling breakpoint writes its span: marking the history would pay
+        the write premium on every turn for a prefix only frequent turns read."""
+        payload = shape_claude_payload(
             {
-                "role": "assistant",
-                "content": [_thinking(), {"type": "tool_use", "id": "t1", "name": "a"}],
-            },
-            _tool_result("t1"),
-        ]
-        assert strip_prior_turn_thinking(current) == current
+                "system": f"{STATIC}\n{DYNAMIC}",
+                "messages": [_user("Q1"), _assistant(_text("A1")), _user("Q2")],
+            }
+        )
+        assert not _marked(payload["messages"][1])
 
-    def test_a_user_message_carrying_tool_results_is_not_a_turn_boundary(self) -> None:
-        """Results plus a text note still answer the assistant call before them."""
-        messages = [
-            _user("Prepare my day"),
+    def test_breakpoints_a_caller_placed_in_the_messages_are_left_alone(self) -> None:
+        payload = shape_claude_payload(
+            _loop(
+                _user("Q1"),
+                _assistant(_text("A1")),
+                {"role": "user", "content": [_text("Q2", cache_control=CC)]},
+            )
+        )
+        assert not _marked(payload["messages"][1])
+
+    def test_the_read_point_never_crowds_out_the_rolling_breakpoint(self) -> None:
+        """Three explicit breakpoints leave one slot: the rolling one keeps it."""
+        payload = shape_claude_payload(
             {
-                "role": "assistant",
-                "content": [_thinking(), {"type": "tool_use", "id": "t1", "name": "a"}],
-            },
-            {
-                "role": "user",
-                "content": [
-                    {"type": "tool_result", "tool_use_id": "t1", "content": "ok"},
-                    _text("(approved)"),
-                ],
-            },
-        ]
-        assert strip_prior_turn_thinking(messages) == messages
+                "system": [_text(f"block {i}", cache_control=CC) for i in range(3)],
+                "messages": [_user("Q1"), _assistant(_text("A1")), _user("Q2")],
+                "tools": [{"name": "a"}, {"name": "b"}],
+            }
+        )
+        assert not _marked(payload["messages"][1])
+        assert payload["cache_control"] == CC
 
-    def test_redacted_thinking_goes_too(self) -> None:
-        messages = [
-            _user("Q1"),
-            {
-                "role": "assistant",
-                "content": [{"type": "redacted_thinking", "data": "x"}, _text("A1")],
-            },
-            _user("Q2"),
-        ]
-        assert strip_prior_turn_thinking(messages)[1] == {
-            "role": "assistant",
-            "content": [_text("A1")],
-        }
+    def test_a_reasoning_block_is_never_the_one_marked(self) -> None:
+        """A thinking block cannot carry ``cache_control``: the text before it can."""
+        kept = [{"type": "thinking", "thinking": "", "signature": "s"}, _text("A1")]
+        messages = [_user("Q1"), {"role": "assistant", "content": kept}, _user("Q2")]
+        payload = shape_claude_payload(_loop(*messages))
+        content = payload["messages"][1]["content"]
+        assert content[-1] == _text("A1", cache_control=CC)
 
-    def test_an_assistant_turn_left_empty_is_dropped(self) -> None:
-        """An empty content is a 400; two user messages in a row are merged by the API."""
-        messages = [_user("Q1"), {"role": "assistant", "content": [_thinking()]}, _user("Q2")]
-        assert strip_prior_turn_thinking(messages) == [_user("Q1"), _user("Q2")]
+    def test_no_cacheable_block_means_no_read_point(self) -> None:
+        empty = {"role": "assistant", "content": [_text("")]}
+        payload = shape_claude_payload(_loop(_user("Q1"), empty, _user("Q2")))
+        assert not _marked(payload["messages"][1])
 
-    def test_a_plain_text_history_is_untouched(self) -> None:
-        messages = [_user("Q1"), {"role": "assistant", "content": "A1"}, _user("Q2")]
-        assert strip_prior_turn_thinking(messages) == messages
+    def test_the_payload_given_is_never_mutated_beyond_its_messages_list(self) -> None:
+        answer = _assistant(_text("A1"))
+        shape_claude_payload(_loop(_user("Q1"), answer, _user("Q2")))
+        assert answer == _assistant(_text("A1"))
+
+
+HOUR = {"type": "ephemeral", "ttl": "1h"}
+
+
+def _breakpoints_in_render_order(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Every ``cache_control`` in the order the API renders the prompt."""
+    found: list[dict[str, Any]] = []
+    for block in payload.get("tools") or []:
+        if "cache_control" in block:
+            found.append(block["cache_control"])
+    system = payload.get("system")
+    for block in system if isinstance(system, list) else []:
+        if "cache_control" in block:
+            found.append(block["cache_control"])
+    for message in payload.get("messages") or []:
+        for block in message["content"] if isinstance(message["content"], list) else []:
+            if isinstance(block, dict) and "cache_control" in block:
+                found.append(block["cache_control"])
+    if "cache_control" in payload:  # the automatic breakpoint lands on the last block
+        found.append(payload["cache_control"])
+    return found
+
+
+class TestTheLifetimeFollowsTheRole:
+    """The cross-turn read points live the hour when asked; the loop's tail never does (ADR-362)."""
+
+    def test_an_extended_turn_marks_its_two_read_points_for_the_hour(self) -> None:
+        payload = shape_claude_payload(
+            _loop(_user("Q1"), _assistant(_text("A1")), _user("Q2")), extended_ttl=True
+        )
+        assert payload["system"][0]["cache_control"] == HOUR
+        assert _marked(payload["messages"][1]) == [_text("A1", cache_control=HOUR)]
+
+    def test_the_rolling_breakpoint_keeps_five_minutes(self) -> None:
+        """It is re-read seconds later by the next iteration: an hour would bill
+        every iteration's delta at 2x for nothing."""
+        payload = shape_claude_payload(
+            _loop(_user("Q1"), _assistant(_text("A1")), _user("Q2")), extended_ttl=True
+        )
+        assert payload["cache_control"] == CC
+
+    def test_the_hour_always_comes_before_five_minutes(self) -> None:
+        """The API refuses a one-hour entry after a five-minute one."""
+        for messages in (
+            [_user("Q1")],
+            [_user("Q1"), _assistant(_text("A1")), _user("Q2")],
+            [
+                _user("Q1"),
+                _assistant(_text("A1")),
+                _user("Q2"),
+                _assistant(_tool_use("t")),
+                _tool_result("t"),
+            ],
+        ):
+            order = _breakpoints_in_render_order(
+                shape_claude_payload(_loop(*messages), extended_ttl=True)
+            )
+            lifetimes = ["1h" if marker.get("ttl") == "1h" else "5m" for marker in order]
+            assert lifetimes == sorted(lifetimes, key=lambda lifetime: lifetime != "1h"), lifetimes
+
+    def test_a_single_call_asked_for_the_hour_marks_its_static_prefix_only(self) -> None:
+        payload = shape_claude_payload(
+            {"system": f"{STATIC}\n{DYNAMIC}", "messages": [_user("Hi")]}, extended_ttl=True
+        )
+        assert payload["system"][0]["cache_control"] == HOUR
+        assert "cache_control" not in payload
+
+    def test_nothing_asked_keeps_every_breakpoint_at_five_minutes(self) -> None:
+        payload = shape_claude_payload(_loop(_user("Q1"), _assistant(_text("A1")), _user("Q2")))
+        assert all(marker == CC for marker in _breakpoints_in_render_order(payload))
+
+    def test_breakpoints_a_caller_placed_keep_their_own_lifetime(self) -> None:
+        system = [_text(f"{STATIC}\n{DYNAMIC}", cache_control=CC)]
+        payload = shape_claude_payload(
+            {"system": system, "messages": [_user("Hi")]}, extended_ttl=True
+        )
+        assert payload["system"][0]["cache_control"] == CC
+
+    def test_beside_a_callers_breakpoint_nothing_added_lives_the_hour(self) -> None:
+        """The tools render first: an hour placed after a caller's five minutes
+        there is a 400 on every call, so the policy keeps the default."""
+        payload = _loop(_user("Q1"), _assistant(_text("A1")), _user("Q2"))
+        payload["tools"][0]["cache_control"] = CC
+        shaped = shape_claude_payload(payload, extended_ttl=True)
+        assert all(marker == CC for marker in _breakpoints_in_render_order(shaped))
 
 
 class TestTheWholePolicy:
@@ -243,9 +383,9 @@ class TestTheWholePolicy:
         assert shape_claude_payload({}) == {}
 
     def test_every_breakpoint_written_is_the_five_minute_one(self) -> None:
-        """The write surcharge is priced at the 5-minute rate alone
-        (``PROMPT_CACHE_WRITE_MULTIPLIER``): a ``ttl`` here would make every
-        written token cost 2x while the ledger books 1.25x."""
+        """Unless the call asked for the extended horizon, every breakpoint is the
+        provider's default lifetime (``TestTheLifetimeFollowsTheRole`` covers the
+        hour, which only the turn's doors price -- ADR-362)."""
         payload = shape_claude_payload(
             {
                 "system": [_text(f"{STATIC}\n{DYNAMIC}"), _text("DATA")],

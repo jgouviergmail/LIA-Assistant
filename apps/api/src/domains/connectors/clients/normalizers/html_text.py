@@ -14,8 +14,9 @@ Two doors:
   bullets, headers), ``<style>`` / ``<script>`` dropped, links kept as
   ``text [link](url)`` behind a technical label (ADR-256: what a model reads
   is English), long standalone urls shortened the same way;
-- :func:`strip_html_to_line` — a snippet: one line, entities decoded,
-  whitespace collapsed, capped.
+- :func:`strip_html_to_line` — a snippet: one line, entities decoded, a
+  preheader's invisible padding dropped, whitespace collapsed, capped. Gmail's
+  own preview goes through it too: it arrives HTML-escaped.
 """
 
 from __future__ import annotations
@@ -34,6 +35,11 @@ _HTML_TAG_RE = re.compile(r"<[^<>]+>")
 _BLOCK_TAGS = frozenset({"p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote"})
 _IGNORED_TAGS = frozenset({"style", "script"})
 _INLINE_PUNCTUATION = ".,;:!?'\")]}—"
+#: Characters that draw nothing and pad a mail's preview (``strip_html_to_line``):
+#: combining grapheme joiner, zero width space and non-joiner, word joiner,
+#: byte order mark, soft hyphen. The zero width JOINER is not one of them — it
+#: holds emoji sequences together.
+_INVISIBLE_PADDING = "\u034f\u200b\u200c\u2060\ufeff\u00ad"
 
 
 class HTMLToTextConverter(HTMLParser):
@@ -172,15 +178,23 @@ def html_to_text(html: str, *, url_shorten_threshold: int | None = None) -> str:
 def strip_html_to_line(html: str, *, max_length: int) -> str:
     """Flatten HTML to one capped line (the snippet door).
 
+    A newsletter pads its preview with characters that draw nothing, spaced
+    out (measured 2026-10-22 over forty Gmail previews: 187 ZERO WIDTH
+    NON-JOINER, 84 COMBINING GRAPHEME JOINER, one BYTE ORDER MARK) — kept, they
+    read as a long blank stretch in the middle of the line. A run made of them
+    alone is dropped; a word written with one inside it (a Persian non-joiner)
+    is left as written.
+
     Args:
         html: The HTML (or plain text) to flatten.
         max_length: Characters kept.
 
     Returns:
-        Tags removed, entities decoded, whitespace collapsed, capped.
+        Tags removed, entities decoded, padding dropped, whitespace collapsed, capped.
     """
     text = unescape(_HTML_TAG_RE.sub(" ", html))
-    return re.sub(r"\s+", " ", text).strip()[:max_length]
+    words = (word for word in text.split() if word.strip(_INVISIBLE_PADDING))
+    return " ".join(words)[:max_length]
 
 
 __all__ = ["HTMLToTextConverter", "html_to_text", "strip_html_to_line"]

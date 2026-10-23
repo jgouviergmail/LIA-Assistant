@@ -23,7 +23,8 @@ import sys
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 
 DEFAULT_NAME = "Admin User"
@@ -58,6 +59,7 @@ async def ensure_admin(
     from src.core.config import settings
     from src.core.security import get_password_hash
     from src.core.security.password_validation import validate_password_strict
+    from src.domains.auth.new_account_columns import new_account_columns
 
     validate_password_strict(password)
 
@@ -82,10 +84,15 @@ async def ensure_admin(
         text("""
             INSERT INTO users (id, email, hashed_password, full_name, language,
                                is_active, is_verified, is_superuser,
+                               memory_enabled, response_display_mode,
+                               exchange_rhythm, briefing_preferences,
                                created_at, updated_at)
             VALUES (:id, :email, :hashed_password, :full_name, :language,
-                    true, true, true, :now, :now)
-            """),
+                    true, true, true,
+                    :memory_enabled, :response_display_mode,
+                    :exchange_rhythm, :briefing_preferences,
+                    :now, :now)
+            """).bindparams(bindparam("briefing_preferences", type_=JSONB)),
         {
             "id": str(new_id),
             "email": email,
@@ -94,6 +101,9 @@ async def ensure_admin(
             # The instance's configured default: left to the DDL default, the
             # first administrator was French whatever DEFAULT_LANGUAGE said.
             "language": settings.default_language,
+            # The installer creates the first account of every instance: it
+            # starts like any other new account.
+            **new_account_columns(),
             "now": now,
         },
     )

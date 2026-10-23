@@ -770,7 +770,8 @@ conversation_cost = await calculate_conversation_cost(state, pricing_service)
 Pas de copie des prix ici (voir [Seed Data](#seed-data)) : la grille de chaque fournisseur
 est dans le bundle de référence et dans l'écran d'administration des tarifs, où chaque
 ligne dit sa date d'effet. Les règles qui NE sont PAS des prix vivent dans le code : le
-supplément d'écriture de cache (`CachedModelPrice.cache_write_multiplier`, ADR-306), les
+supplément d'écriture de cache (`CachedModelPrice.cache_write_multiplier`, ADR-306, et
+`cache_write_extended_multiplier` pour l'écriture d'une heure, ADR-362), les
 fenêtres horaires (ADR-223) et les prix audio des modèles live (ADR-300).
 
 ### Model Selection Strategy

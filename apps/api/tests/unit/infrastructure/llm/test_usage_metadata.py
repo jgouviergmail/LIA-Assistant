@@ -10,6 +10,8 @@ from __future__ import annotations
 import pytest
 
 from src.infrastructure.llm.usage_metadata import (
+    STREAM_CACHE_WRITE_EXTENDED_KEY,
+    STREAM_CACHE_WRITE_SHORT_KEY,
     UsageTokens,
     tokens_from_response,
     tokens_from_usage_metadata,
@@ -146,6 +148,114 @@ class TestCacheWrites:
             }
 
         assert tokens_from_callback(_Handler()).cache_write == 2900
+
+
+class TestExtendedLifetimeWrites:
+    """A write at the provider's EXTENDED lifetime is counted apart (ADR-362).
+
+    Claude bills a one-hour write at twice the input price where a five-minute
+    one costs 1.25x, so the reader must say how much of ``cache_write`` was
+    written for the hour. Two shapes carry it: the breakdown langchain-anthropic
+    copies from a complete response, and -- on a STREAMED response, whose final
+    usage holds the total alone -- the breakdown the Claude hooks copy from the
+    stream's start under keys langchain never writes.
+    """
+
+    def test_the_one_hour_part_of_a_complete_response(self) -> None:
+        usage = {
+            "input_tokens": 900,
+            "output_tokens": 1,
+            "input_token_details": {
+                "cache_creation": 0,
+                "ephemeral_5m_input_tokens": 300,
+                "ephemeral_1h_input_tokens": 200,
+            },
+        }
+        assert tokens_from_usage_metadata(usage) == UsageTokens(900, 1, 0, 500, 200)
+
+    def test_a_streamed_response_reads_the_breakdown_its_start_reported(self) -> None:
+        """The stream's end carries the total (generic key), its start the split."""
+        usage = {
+            "input_tokens": 6_000,
+            "output_tokens": 30,
+            "input_token_details": {
+                "cache_read": 0,
+                "cache_creation": 5_000,
+                STREAM_CACHE_WRITE_SHORT_KEY: 1_200,
+                STREAM_CACHE_WRITE_EXTENDED_KEY: 3_800,
+            },
+        }
+        tokens = tokens_from_usage_metadata(usage)
+        assert (tokens.cache_write, tokens.cache_write_extended) == (5_000, 3_800)
+
+    def test_a_breakdown_reported_twice_is_never_counted_twice(self) -> None:
+        """Should the stream's end ever carry the breakdown itself, the two
+        sources describe the same writes: the reader takes the larger."""
+        usage = {
+            "input_tokens": 6_000,
+            "output_tokens": 30,
+            "input_token_details": {
+                "cache_creation": 0,
+                "ephemeral_5m_input_tokens": 1_200,
+                "ephemeral_1h_input_tokens": 3_800,
+                STREAM_CACHE_WRITE_SHORT_KEY: 1_200,
+                STREAM_CACHE_WRITE_EXTENDED_KEY: 3_800,
+            },
+        }
+        tokens = tokens_from_usage_metadata(usage)
+        assert (tokens.cache_write, tokens.cache_write_extended) == (5_000, 3_800)
+
+    def test_writes_reported_after_the_start_count_at_the_short_lifetime(self) -> None:
+        """A total larger than the start's split (writes added mid-stream) is
+        kept whole; only what the start named as extended is extended."""
+        usage = {
+            "input_tokens": 7_000,
+            "output_tokens": 30,
+            "input_token_details": {
+                "cache_creation": 6_000,
+                STREAM_CACHE_WRITE_SHORT_KEY: 1_200,
+                STREAM_CACHE_WRITE_EXTENDED_KEY: 3_800,
+            },
+        }
+        tokens = tokens_from_usage_metadata(usage)
+        assert (tokens.cache_write, tokens.cache_write_extended) == (6_000, 3_800)
+
+    def test_a_stream_cut_before_its_end_invents_no_write(self) -> None:
+        """Only the start's chunk arrived: no prompt count, so no write either."""
+        usage = {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "input_token_details": {
+                STREAM_CACHE_WRITE_SHORT_KEY: 1_200,
+                STREAM_CACHE_WRITE_EXTENDED_KEY: 3_800,
+            },
+        }
+        tokens = tokens_from_usage_metadata(usage)
+        assert (tokens.cache_write, tokens.cache_write_extended) == (0, 0)
+
+    def test_the_extended_part_never_exceeds_the_writes(self) -> None:
+        usage = {
+            "input_tokens": 500,
+            "output_tokens": 1,
+            "input_token_details": {"cache_creation": 400, "ephemeral_1h_input_tokens": 900},
+        }
+        tokens = tokens_from_usage_metadata(usage)
+        assert tokens.cache_write == 500
+        assert tokens.cache_write_extended == tokens.cache_write
+
+    def test_a_provider_with_one_lifetime_reports_no_extended_write(self) -> None:
+        usage = {
+            "input_tokens": 1000,
+            "output_tokens": 10,
+            "input_token_details": {"cache_read": 0, "cache_creation": 1000},
+        }
+        assert tokens_from_usage_metadata(usage).cache_write_extended == 0
+
+    def test_extended_writes_are_summed_across_calls(self) -> None:
+        from src.infrastructure.llm.usage_metadata import sum_usage
+
+        total = sum_usage([UsageTokens(10, 1, 0, 8, 5), UsageTokens(20, 2, 3, 6, 1)])
+        assert total == UsageTokens(30, 3, 3, 14, 6)
 
 
 class TestTheClamp:

@@ -257,6 +257,27 @@ class TestCreateAssignment:
         assert payload["assignee_kind"] == AssigneeKind.HUMAN.value
         assert payload["assignee_user_id"] == PEER
 
+    @pytest.mark.parametrize(
+        ("request_fields", "holder"),
+        [
+            ({}, {"to_kind": "human", "to_user": None}),
+            ({"assignee": "lia"}, {"to_kind": "lia", "to_user": None}),
+            ({"assignee_user_id": PEER}, {"to_kind": "human", "to_user": str(PEER)}),
+        ],
+    )
+    async def test_the_creation_entry_names_the_first_holder(
+        self, request_fields: dict[str, Any], holder: dict[str, Any]
+    ) -> None:
+        """The history's first « held by » has a starting point: a ticket
+        created straight for LIA or a connection says so from its first line."""
+        service = _service()
+        service.repo.create = AsyncMock(return_value=_ticket())
+        await service.create(_user(OWNER), TicketCreate(title="t", **request_fields))
+
+        created = service.repo.add_event.await_args.kwargs
+        assert created["kind"] == TicketEventKind.CREATED.value
+        assert created["payload"] == {"status": "todo", **holder}
+
     async def test_a_peer_assignment_is_refused_when_the_instance_disabled_peers(self) -> None:
         service = _service(peers_enabled=False)
         with pytest.raises(BaseAPIException) as exc:
@@ -813,6 +834,26 @@ class TestReleasePair:
         await service.release_pair(OWNER, PEER)
         calls = {call.args for call in service.repo.list_held_between.await_args_list}
         assert calls == {(OWNER, PEER), (PEER, OWNER)}
+
+    async def test_the_release_says_who_held_the_ticket_and_who_holds_it_now(self) -> None:
+        """Without the previous holder the history reads « held by: me »
+        with nothing saying the connection had it a moment ago."""
+        service = _service()
+        held = _ticket(assignee_user_id=PEER)
+
+        async def _held(owner_id: uuid.UUID, holder_id: uuid.UUID) -> list[Any]:
+            return [held] if (owner_id, holder_id) == (OWNER, PEER) else []
+
+        service.repo.list_held_between = AsyncMock(side_effect=_held)
+        await service.release_pair(OWNER, PEER)
+
+        assert service.repo.add_event.await_args.kwargs["payload"] == {
+            "from_kind": "human",
+            "from_user": str(PEER),
+            "to_kind": "human",
+            "to_user": None,
+            "reason": "connection_removed",
+        }
 
     async def test_the_release_is_authored_by_lia_not_by_a_person(self) -> None:
         service = _service()

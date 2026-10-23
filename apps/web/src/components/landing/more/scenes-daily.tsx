@@ -1,13 +1,16 @@
 /**
  * Scenes of section 05 — "Day to day": customizable briefing grid, starter
- * checklist with its micro-celebration, empty-chat starters, PWA install, and
- * the notice that names an SMS's sender while the phone's stays content-free.
+ * checklist with its micro-celebration, empty-chat starters, PWA install, the
+ * notice that names an SMS's sender while the phone's stays content-free, and a
+ * ticket history naming both ends of every hand-over.
  * Timer-driven micro-demos; last phase = resting frame.
  */
 
 'use client';
 
 import {
+  ArrowRight,
+  History,
   Star,
   MessageSquare,
   CalendarClock,
@@ -1271,6 +1274,44 @@ function SenderNoticeScene({ active, labels }: SceneProps) {
   );
 }
 
+type HandoverPhase = 'created' | 'to_lia' | 'back';
+const HANDOVER_STEPS: readonly TimelineStep<HandoverPhase>[] = [
+  { at: 0, state: 'created' },
+  { at: 900, state: 'to_lia' },
+  { at: 2100, state: 'back' },
+];
+
+/** A ticket's history names both ends of each hand-over: me to LIA, then LIA back to me. */
+function HandoverTrailScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(HANDOVER_STEPS, { active });
+  const rows = [
+    { shown: phase !== 'created', from: labels.me, to: labels.lia },
+    { shown: phase === 'back', from: labels.lia, to: labels.me },
+  ];
+  return (
+    <div className={cn(STAGE, 'justify-center gap-1.5')}>
+      <div className="flex w-full max-w-[210px] items-center rounded-md border border-border bg-background px-2 py-1.5">
+        <SkeletonLine w="w-2/3" />
+      </div>
+      {rows.map((row, i) => (
+        <div
+          key={i}
+          className={cn(
+            'flex w-full max-w-[210px] items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-px-10 transition-all duration-500 ease-out motion-reduce:transition-none',
+            row.shown ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+          )}
+        >
+          <History className="h-3 w-3 shrink-0 text-muted-foreground" />
+          <span className="truncate text-muted-foreground">{labels.held_by}</span>
+          <span className="font-medium text-foreground">{row.from}</span>
+          <ArrowRight className="h-3 w-3 shrink-0 text-primary" />
+          <span className="font-medium text-foreground">{row.to}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   sender_notice: SenderNoticeScene,
   alerts_hub: AlertsHubScene,
@@ -1291,6 +1332,7 @@ export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   voices_react: VoicesReactScene,
   server_escape_hatch: ServerEscapeHatchScene,
   day_timeline: DayTimelineScene,
+  handover_trail: HandoverTrailScene,
   voices_in_language: VoicesInLanguageScene,
   voice_sample: VoiceSampleScene,
   document_first_page: DocumentFirstPageScene,

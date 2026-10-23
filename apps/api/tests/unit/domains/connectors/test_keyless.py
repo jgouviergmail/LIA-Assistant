@@ -20,6 +20,7 @@ from src.domains.connectors.keyless import (
     REASON_DISABLED_BY_ADMIN,
     REASON_PLATFORM_KEY_MISSING,
     is_keyless_available,
+    keyless_ceiling_reason,
     keyless_unavailable_reason,
 )
 from src.domains.connectors.models import ConnectorType
@@ -82,6 +83,44 @@ class TestKeylessUnavailableReason:
     async def test_a_connector_the_person_configures_has_no_instance_answer(self) -> None:
         with pytest.raises(ValueError, match="not a keyless"):
             await keyless_unavailable_reason(_repository(), ConnectorType.OPENWEATHERMAP)
+
+
+@pytest.mark.usefixtures("instance_provides_everything")
+class TestKeylessCeilingReason:
+    """The deployment's half of the answer, read without a database (``/config``)."""
+
+    @pytest.mark.parametrize("connector_type", KEYLESS)
+    def test_a_deployment_that_provides_everything_withholds_nothing(
+        self, connector_type: ConnectorType
+    ) -> None:
+        assert keyless_ceiling_reason(connector_type) is None
+
+    @pytest.mark.parametrize("connector_type", PLATFORM_KEY)
+    def test_no_platform_key_withholds_every_platform_key_type(
+        self, connector_type: ConnectorType, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(settings, "google_api_key", "")
+        assert keyless_ceiling_reason(connector_type) == REASON_PLATFORM_KEY_MISSING
+
+    def test_the_browser_flag_is_part_of_the_ceiling(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(settings, "browser_enabled", False)
+        assert keyless_ceiling_reason(ConnectorType.BROWSER) == REASON_BROWSER_DISABLED
+
+    @pytest.mark.parametrize("connector_type", KEYLESS)
+    async def test_the_full_answer_is_the_switch_then_the_ceiling(
+        self, connector_type: ConnectorType, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(settings, "google_api_key", "")
+        monkeypatch.setattr(settings, "browser_enabled", False)
+        ceiling = keyless_ceiling_reason(connector_type)
+        assert await keyless_unavailable_reason(_repository(), connector_type) == ceiling
+        # The administrator's switch still speaks first.
+        reason = await keyless_unavailable_reason(_repository(enabled=False), connector_type)
+        assert reason == REASON_DISABLED_BY_ADMIN
+
+    def test_a_connector_the_person_configures_has_no_ceiling(self) -> None:
+        with pytest.raises(ValueError, match="not a keyless"):
+            keyless_ceiling_reason(ConnectorType.OPENWEATHERMAP)
 
 
 @pytest.mark.usefixtures("instance_provides_everything")

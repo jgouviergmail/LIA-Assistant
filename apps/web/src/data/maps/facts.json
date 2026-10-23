@@ -1,7 +1,7 @@
 {
-  "version": "3.4.0",
-  "releaseDate": "2026-10-22",
-  "releases": 285,
+  "version": "3.5.0",
+  "releaseDate": "2026-10-23",
+  "releases": 286,
   "milestones": [
     {
       "version": "1.0.0",
@@ -242,6 +242,10 @@
     {
       "version": "3.4.0",
       "date": "2026-10-22"
+    },
+    {
+      "version": "3.5.0",
+      "date": "2026-10-23"
     }
   ],
   "domains": 58,
@@ -605,6 +609,7 @@
     "358": "ADR-358-Independent-Proactive-Discussions-And-Native-Delivery.md",
     "359": "ADR-359-Longitudinal-Discussion-Context-And-User-Control.md",
     "360": "ADR-360-Bounded-Discussion-Research-And-Accounted-Abstention.md",
-    "361": "ADR-361-Egress-Probe-Names-The-Failing-Step-And-Confirms-A-Cut.md"
+    "361": "ADR-361-Egress-Probe-Names-The-Failing-Step-And-Confirms-A-Cut.md",
+    "362": "ADR-362-Claude-Cross-Turn-Cache-History-Read-Point-Hour-Lifetime-And-Prior-Thinking.md"
   }
 }

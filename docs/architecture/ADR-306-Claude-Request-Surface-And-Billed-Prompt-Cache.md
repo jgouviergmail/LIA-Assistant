@@ -1,6 +1,7 @@
 # ADR-306 — The Claude request surface is declared once; the prompt cache is shaped, and billed, the way the vendor measures it
 
 **Status**: accepted — 2026-09-23 (the OpenAI half, section 7, the same day); amended 2026-09-30 (Sonnet 5.5, GPT-6.1 Sol) and 2026-10-08 (Haiku 5.5, Sonnet 5.5's cache read)
+**Amended**: 2026-10-22 by [ADR-362](ADR-362-Claude-Cross-Turn-Cache-History-Read-Point-Hour-Lifetime-And-Prior-Thinking.md) — in a tool loop the history's end is a read point too; a frequent turn a person waits for writes its two cross-turn read points for the hour, billed 2x through every pricing door and recorded per call; an earlier turn's thinking goes back to the model that wrote it on a generation that keeps it without binding it
 **Amends**: ADR-087 (the thin `ChatOpenAICached`), ADR-244 (model capability catalogue), ADR-245 (one reasoning intent, one seam), ADR-263 lot 7 (Article-12 inference parameters), ADR-272 (every euro the platform pays is counted), ADR-284 (the `DYNAMIC CONTEXT` convention of the versioned prompts)
 
 ## Context

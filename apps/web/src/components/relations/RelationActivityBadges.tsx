@@ -20,8 +20,10 @@ export function RelationActivityBadges({ relation }: { relation: RelationSummary
         relation.calls_count > 0 ||
         relation.peer_messages_count > 0 ||
         (relation.sms_count ?? 0) > 0) && (
-        // At the foot of the card, on its right edge, whatever the name above holds.
-        <div className="mt-auto flex max-w-full flex-wrap justify-end gap-1.5 self-end text-px-11">
+        // At the foot of the card, on its right edge, whatever the name above
+        // holds — under a rule across the card, the skill and MCP cards' own
+        // footer (owner request 2026-10-22). A card with no badge draws none.
+        <div className="mt-auto flex w-full flex-wrap justify-end gap-1.5 border-t pt-3 text-px-11">
           {relation.is_peer && (
             <span className={PILL} title={t('relations.peer_badge_hint')}>
               <Handshake className="h-3 w-3" aria-hidden="true" />

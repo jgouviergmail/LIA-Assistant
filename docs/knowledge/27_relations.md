@@ -95,7 +95,12 @@ Yes, in four ways:
   where you can correct or delete it. The link leads to the section, not to the
   row: the list is paginated and filterable, so promising to land on that exact
   memory would be false as soon as it sits on page two.
-• **Exchanged emails** can be selected and summarized together.
+• **Exchanged emails** can be selected and summarized together. Under each
+  email, an excerpt of at most four lines shows the preview your mailbox
+  provides.
+
+On a phone, every action button of the card takes the full width of the
+screen, its label on the left.
 
 Sent and received items each carry their own colour, on relayed messages as on
 emails — the direction used to be told apart by a small arrow alone.

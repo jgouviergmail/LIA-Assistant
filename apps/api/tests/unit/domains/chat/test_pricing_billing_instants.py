@@ -1,8 +1,9 @@
 """A call retains its tariff and UTC ledger date across delayed callbacks."""
 
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, tzinfo
 from decimal import Decimal
+from typing import Self
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 from zoneinfo import ZoneInfo
@@ -50,6 +51,12 @@ def windowed_cache(monkeypatch: pytest.MonkeyPatch) -> None:
             last_refresh_ts=0,
         ),
     )
+
+
+def _stamp(billed_at: datetime | None) -> float:
+    """A record's billing instant, which every record must carry."""
+    assert billed_at is not None
+    return billed_at.timestamp()
 
 
 def _result() -> LLMResult:
@@ -103,8 +110,8 @@ async def test_metrics_and_ledger_charge_start_tariff_once(
 
     class ClockDateTime(datetime):
         @classmethod
-        def now(cls, tz=None):
-            return datetime.fromtimestamp(clock["at"], tz)
+        def now(cls, tz: tzinfo | None = None) -> Self:
+            return cls.fromtimestamp(clock["at"], tz)
 
     monkeypatch.setattr(pricing_cache, "datetime", ClockDateTime)
     with (
@@ -255,8 +262,8 @@ async def test_capture_and_funnel_keep_each_retry_price_after_cache_change(
     assert capture.get_billing_records("other") == records
     run_id = str(uuid4())
     tracker = TrackingContext(run_id, uuid4(), "session", None, auto_commit=False)
-    tracker.commit = AsyncMock()
     with (
+        patch.object(tracker, "commit", new=AsyncMock()),
         patch("src.domains.chat.service.TrackingContext", return_value=tracker),
         patch("src.infrastructure.proactive.tracking._record_out_of_turn", new=AsyncMock()),
         patch(
@@ -281,7 +288,7 @@ async def test_capture_and_funnel_keep_each_retry_price_after_cache_change(
         assert result == run_id
         assert [row.model_name for row in tracker._node_records] == ["windowed", "windowed"]
         assert [row.cost_usd for row in tracker._node_records] == [8.625, 4.3125]
-        assert [row.created_at.timestamp() for row in tracker._node_records] == [early, late]
+        assert [_stamp(row.created_at) for row in tracker._node_records] == [early, late]
         assert sum(row.cost_eur for row in tracker._node_records) == pytest.approx(12.9375 * 0.9)
     finally:
         tracker.cleanup_run_records(run_id)
@@ -292,9 +299,9 @@ async def test_fully_cached_empty_response_is_still_accounted(windowed_cache: No
 
     run_id = str(uuid4())
     tracker = TrackingContext(run_id, uuid4(), "session", None, auto_commit=False)
-    tracker.commit = AsyncMock()
     started = datetime(2026, 8, 17, 2, tzinfo=UTC).timestamp()
     with (
+        patch.object(tracker, "commit", new=AsyncMock()),
         patch("src.domains.chat.service.TrackingContext", return_value=tracker),
         patch("src.infrastructure.proactive.tracking._record_out_of_turn", new=AsyncMock()),
     ):
@@ -315,7 +322,7 @@ async def test_fully_cached_empty_response_is_still_accounted(windowed_cache: No
         assert result == run_id
         assert len(tracker._node_records) == 1
         assert tracker._node_records[0].cost_usd == 0.5
-        assert tracker._node_records[0].created_at.timestamp() == started
+        assert _stamp(tracker._node_records[0].created_at) == started
     finally:
         tracker.cleanup_run_records(run_id)
 
@@ -418,7 +425,9 @@ def test_optional_cache_price_differs_from_explicit_free(
     )
     assert token_cost_usd(async_price, 0, 0, 1_000_000, at) == expected
     assert (
-        pricing_cache._tariff_cost_usd(cached, 0, 0, 1_000_000, at, cache_write_tokens=0)
+        pricing_cache._tariff_cost_usd(
+            cached, 0, 0, 1_000_000, at, cache_write_tokens=0, cache_write_extended_tokens=0
+        )
         == expected
     )
 

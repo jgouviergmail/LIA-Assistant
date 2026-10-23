@@ -2430,19 +2430,6 @@ class APIMessages:
     # =========================================================================
 
     @staticmethod
-    def unknown_name(language: SupportedLanguage | None = None) -> str:
-        """Unknown name placeholder for contacts."""
-        messages = {
-            "fr": "Nom inconnu",
-            "en": "Unknown name",
-            "es": "Nombre desconocido",
-            "de": "Unbekannter Name",
-            "it": "Nome sconosciuto",
-            "zh-CN": "未知姓名",
-        }
-        return messages.get(resolve_language(language), messages["en"])
-
-    @staticmethod
     def date_unknown(language: SupportedLanguage | None = None) -> str:
         """Unknown date placeholder."""
         messages = {
@@ -2452,45 +2439,6 @@ class APIMessages:
             "de": "Unbekanntes Datum",
             "it": "Data sconosciuta",
             "zh-CN": "未知日期",
-        }
-        return messages.get(resolve_language(language), messages["en"])
-
-    @staticmethod
-    def date_invalid(language: SupportedLanguage | None = None) -> str:
-        """Invalid date placeholder."""
-        messages = {
-            "fr": "Date invalide",
-            "en": "Invalid date",
-            "es": "Fecha inválida",
-            "de": "Ungültiges Datum",
-            "it": "Data non valida",
-            "zh-CN": "无效日期",
-        }
-        return messages.get(resolve_language(language), messages["en"])
-
-    @staticmethod
-    def sender_unknown(language: SupportedLanguage | None = None) -> str:
-        """Unknown sender placeholder for emails."""
-        messages = {
-            "fr": "Expéditeur inconnu",
-            "en": "Unknown sender",
-            "es": "Remitente desconocido",
-            "de": "Unbekannter Absender",
-            "it": "Mittente sconosciuto",
-            "zh-CN": "未知发件人",
-        }
-        return messages.get(resolve_language(language), messages["en"])
-
-    @staticmethod
-    def no_subject(language: SupportedLanguage | None = None) -> str:
-        """No subject placeholder for emails."""
-        messages = {
-            "fr": "(Sans objet)",
-            "en": "(No subject)",
-            "es": "(Sin asunto)",
-            "de": "(Kein Betreff)",
-            "it": "(Nessun oggetto)",
-            "zh-CN": "(无主题)",
         }
         return messages.get(resolve_language(language), messages["en"])
 

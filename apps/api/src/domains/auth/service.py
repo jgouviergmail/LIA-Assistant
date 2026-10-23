@@ -40,6 +40,7 @@ from src.domains.auth.google_identity import (
     google_email_is_verified,
     google_picture_after_sign_in,
 )
+from src.domains.auth.new_account_columns import new_account_columns
 from src.domains.auth.repository import AuthRepository
 from src.domains.auth.schemas import (
     # Removed: AuthResponse, TokenResponse (BFF Pattern migration v0.3.0)
@@ -135,8 +136,7 @@ class AuthService:
             ),  # The browser's, else the request's declared one
             FIELD_IS_ACTIVE: False,  # Requires email verification
             "is_verified": False,
-            "memory_enabled": True,  # Long-term memory enabled by default
-            "response_display_mode": "cards",  # Default display mode: HTML data cards
+            **new_account_columns(),
         }
 
         if data.terms_accepted:
@@ -653,9 +653,8 @@ class AuthService:
             FIELD_IS_ACTIVE: False,  # New users disabled by default (admin approval required)
             "is_verified": True,  # Google verifies emails
             "language": detected_language,  # Auto-detect from Google locale
-            "memory_enabled": True,  # Long-term memory enabled by default
-            "response_display_mode": "cards",  # Default display mode: HTML data cards
             "last_login": datetime.now(UTC),  # Track first login
+            **new_account_columns(),
         }
         user = await self.repository.create(user_data)
 

@@ -6,6 +6,7 @@ import {
   type MapsBoundsLiteral,
   type MapsInfoWindow,
   type MapsListener,
+  type MapsMarker,
   type MapsPolyline,
   type MapsPinElement,
 } from './google-maps-sdk';
@@ -93,12 +94,15 @@ export function mountPlaceMap(
   let details: MapsInfoWindow | null = null;
   let detailsCloseListener: MapsListener | null = null;
   let onDetailsClose: (() => void) | undefined;
+  // What the open window is anchored on, and what it shows — null once closed.
+  let shown: { anchor: MapsMarker; parts: (HTMLElement | undefined)[] } | null = null;
   let route: MapRoute | null = null;
   let routeLine: MapsPolyline | null = null;
   let destroyed = false;
   const observer = new MutationObserver(styleMap);
   function clearDetails() {
     onDetailsClose = undefined;
+    shown = null;
     details?.close();
     details?.setContent();
     details?.setOptions({ headerContent: undefined });
@@ -131,6 +135,31 @@ export function mountPlaceMap(
     if (bounds.north === bounds.south && bounds.west === bounds.east)
       map.setOptions({ center: first, zoom: 14 });
     else map.fitBounds(new maps.LatLngBounds(bounds), 36);
+    revealDetails();
+  }
+  /**
+   * Open the shown window again once the map has moved under it.
+   *
+   * The map pans a window into view when it OPENS, and a fit moves the map
+   * without moving the window: the route of a first selection comes back from
+   * the network after its details placed themselves, and its fit left them
+   * badly placed — a second selection, whose route comes from the cache, fitted
+   * before they placed themselves (owner report 2026-10-22). The close this
+   * costs is the map's, never the person's: their callback is held aside, as
+   * `clearDetails` does. A window the person is working in is left alone —
+   * re-opening detaches its content and would drop their focus.
+   */
+  function revealDetails() {
+    const current = shown;
+    if (!details || !current) return;
+    const focused = document.activeElement;
+    if (current.parts.some(part => part?.contains(focused))) return;
+    const callback = onDetailsClose;
+    onDetailsClose = undefined;
+    details.close();
+    details.open({ map, anchor: current.anchor, shouldFocus: false });
+    shown = current;
+    onDetailsClose = callback;
   }
   function pinColors() {
     const theme = getComputedStyle(element);
@@ -204,6 +233,7 @@ export function mountPlaceMap(
       if (!details) {
         details = new maps.InfoWindow({ maxWidth: 440 });
         detailsCloseListener = details.addListener('close', () => {
+          shown = null;
           const callback = onDetailsClose;
           onDetailsClose = undefined;
           callback?.();
@@ -214,6 +244,7 @@ export function mountPlaceMap(
       details.setOptions({ ariaLabel: label, headerContent: header });
       details.setContent(content);
       details.open({ map, anchor, shouldFocus: false });
+      shown = { anchor, parts: [content, header] };
     },
     setRoute(next: MapRoute | null) {
       if (destroyed) return;

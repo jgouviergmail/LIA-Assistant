@@ -40,16 +40,27 @@ function event(overrides: Partial<EventRow> = {}): EventRow {
   };
 }
 
+/** The reader owns the ticket and is connected to Marie (`peer`). */
+const READER = {
+  ownerId: 'me',
+  meId: 'me',
+  peers: [{ peer_id: 'peer', peer_display_name: 'Marie' }],
+};
+
 describe('HistoryBlock', () => {
   it('says so when there is nothing to tell', () => {
-    renderWithProviders(<HistoryBlock events={[]} locale="fr" />);
+    renderWithProviders(<HistoryBlock events={[]} locale="fr" {...READER} />);
 
     expect(screen.getByText('workboard.detail.no_history')).toBeInTheDocument();
   });
 
   it('names each event by its kind', () => {
     renderWithProviders(
-      <HistoryBlock events={[event(), event({ id: 'e2', kind: 'status_changed' })]} locale="fr" />
+      <HistoryBlock
+        events={[event(), event({ id: 'e2', kind: 'status_changed' })]}
+        locale="fr"
+        {...READER}
+      />
     );
 
     expect(screen.getByText(/workboard\.events\.created/)).toBeInTheDocument();
@@ -68,6 +79,7 @@ describe('HistoryBlock', () => {
           }),
         ]}
         locale="fr"
+        {...READER}
       />
     );
 
@@ -91,11 +103,47 @@ describe('HistoryBlock', () => {
           }),
         ]}
         locale="fr"
+        {...READER}
       />
     );
 
     expect(screen.getByText(/workboard\.events\.assigned/)).toBeInTheDocument();
     expect(screen.getByText(/workboard\.events\.returned/)).toBeInTheDocument();
+  });
+
+  it('says who held the ticket and who holds it now', () => {
+    renderWithProviders(
+      <HistoryBlock
+        events={[
+          event({
+            kind: 'assigned',
+            payload: { from_kind: 'human', from_user: null, to_kind: 'human', to_user: 'peer' },
+          }),
+        ]}
+        locale="fr"
+        {...READER}
+      />
+    );
+
+    expect(
+      screen.getByText(
+        'workboard.history.holderworkboard.history.separatorworkboard.party.me → Marie'
+      )
+    ).toBeInTheDocument();
+  });
+
+  it('states the first holder on the creation entry', () => {
+    renderWithProviders(
+      <HistoryBlock
+        events={[event({ payload: { status: 'todo', to_kind: 'lia', to_user: null } })]}
+        locale="fr"
+        {...READER}
+      />
+    );
+
+    expect(
+      screen.getByText('workboard.history.holderworkboard.history.separatorworkboard.party.lia')
+    ).toBeInTheDocument();
   });
 
   it('lets each label carry its own punctuation', () => {
@@ -105,6 +153,7 @@ describe('HistoryBlock', () => {
       <HistoryBlock
         events={[event({ kind: 'priority_changed', payload: { from: 'medium', to: 'urgent' } })]}
         locale="fr"
+        {...READER}
       />
     );
 
@@ -115,7 +164,7 @@ describe('HistoryBlock', () => {
   });
 
   it('formats the instant in the reader locale', () => {
-    renderWithProviders(<HistoryBlock events={[event()]} locale="fr" />);
+    renderWithProviders(<HistoryBlock events={[event()]} locale="fr" {...READER} />);
 
     // A French short date carries the day before the month.
     expect(screen.getByText(/09\/09\/2026/)).toBeInTheDocument();

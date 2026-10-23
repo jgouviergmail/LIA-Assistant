@@ -1,6 +1,7 @@
 # ADR-311 — The exchange rhythm is the person's choice: one value, read once per turn, decides the tools, the context's place and the history blocks
 
 **Status**: accepted — 2026-09-24 (owner decision: a « Preferences » settings menu whose first setting is frequent or occasional exchanges)
+**Amended**: 2026-10-22 by [ADR-362](ADR-362-Claude-Cross-Turn-Cache-History-Read-Point-Hour-Lifetime-And-Prior-Thinking.md) — frequent exchanges gain a fourth effect for a turn a person waits for: the cross-turn read points live the provider's extended lifetime
 **Amends**: ADR-308 (`REACT_CROSS_TURN_CACHE_ENABLED` becomes the default of an account that never chose), ADR-309 (the history blocks follow the turn's rhythm), ADR-293 (the relevance selection is the occasional rhythm)
 
 ## Context
@@ -101,6 +102,21 @@ read that way would have mixed two layouts inside one turn.
 - **Deleting the operator's setting**, following ADR-276's « one authority » rule: kept
   as the default of an account that never chose, with the person's choice always
   winning. Deleting it would have changed every deployment's behaviour at upgrade.
+
+## Amendment 2026-10-22 — a new account starts with occasional exchanges
+
+Owner decision: an account created from now on — an e-mail registration, a
+first Google sign-in or the installer's first account (`ensure_admin`, raw SQL)
+— is created with `exchange_rhythm = occasional` (`auth/new_account_columns.py`,
+the one declaration the three doors spread; the third is proven on PostgreSQL by
+`tests/integration/test_create_admin_db.py`). Measured that day, dev and
+production both set `REACT_CROSS_TURN_CACHE_ENABLED=true`, so a new account
+used to start in frequent exchanges without having chosen anything. The value is
+stored like a choice: the settings show « Occasional exchanges » selected, the
+person changes it there, and the account no longer follows the operator's
+default. Accounts created before keep what they had — NULL still follows the
+default — so no deployment changes at upgrade. It is a constant, not a setting
+(owner decision): the operator's default keeps its single meaning.
 
 ## References
 

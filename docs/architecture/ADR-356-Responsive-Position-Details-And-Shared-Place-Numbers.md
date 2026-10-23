@@ -53,6 +53,42 @@ keyboard-accessible path to every located selection.
 - Independently numbering the list and filtered markers shifts identities as
   soon as one place lacks coordinates.
 
+## Amendment 2026-10-22 — the list beside the map, a centred offer, details re-placed after a fit
+
+Owner requests of 2026-10-22, in the Position component, its map adapter and
+`lia-cards.css`:
+
+- `data-map-shown` (loading or ready) decides the list's layout. On a card at
+  least 45rem wide (`@container card`) the places sit in a column beside the
+  map, sized by the map alone and centred on its height by auto margins — a
+  list longer than the map scrolls inside that height from its first place,
+  which `justify-content: center` would have pushed out of reach. Without a
+  map — behind its offer, unavailable, failed, or the server's fallback list —
+  they read as a line that wraps, centred, and starting at the left edge on a
+  phone (`max-width: 639px`, the details' own phone breakpoint).
+- The offer is one centred block: the button, then its cost on a line of its
+  own in an 11 px type. The reading order stays the DOM's.
+- The stage wears the panel's corner radius (`--lia-radius-lg`).
+- The details window is re-placed after every fit (`revealDetails`). The map
+  pans a window into view when it opens; a fit moves the map, never the window.
+  A first selection's route comes back from the network after its details
+  placed themselves, and its fit left them badly placed; a second selection,
+  whose route comes from the cache, fitted first. The re-opening holds the
+  person's dismissal callback aside, as `clearDetails` does, and leaves alone a
+  window holding the focus. It relies on the SDK firing `close` synchronously,
+  which the second selection shows: it closes then re-opens with a new
+  callback, and would otherwise dismiss itself.
+
+Inferred from that evidence, not measured on live Google tiles: a paid
+verification remains. Unit tests pin the attribute and the four re-placement
+cases, and `styles/__tests__/chat-layout.guard.test.ts` the list's placement on
+the CSS text. The placement was measured in the dev browser with the map-shown
+state set in the DOM and no map loaded: the list's middle on the map's (447 px
+both), a fifteen-place list scrolling from its first place to its last, three
+places at the left edge of a 388 px phone frame. The browser journey below was
+not re-run for this amendment (it builds the application, which the owner's
+rule keeps off the workstation).
+
 ## Consequences and verification
 
 The same facts and route state feed both presentations. Viewport changes affect

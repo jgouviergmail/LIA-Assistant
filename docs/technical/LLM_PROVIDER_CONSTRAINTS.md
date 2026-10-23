@@ -20,7 +20,7 @@ The matrix below documents **family-level** behaviour for human reference. The r
 | **OpenAI reasoning** (gpt-5, gpt-5-mini/nano, o-series) | ❌ | ❌ | ❌ | ❌ | ✅ (varies) | `max_completion_tokens` |
 | **OpenAI gpt-5.1/5.2 + effort=none** | 0-2.0 | ✅ | ❌ | ❌ | ✅ (incl. `none`) | `max_completion_tokens` |
 | **OpenAI gpt-5.4, gpt-5.4-mini** (reasoning + vision) | ❌ | ❌ | ❌ | ❌ | ✅⁵ | `max_completion_tokens` |
-| **Anthropic** (Claude 4.5/4.6) | 0-1.0 (locked to default when thinking on)⁷ | ❌¹ | ❌ | ❌ | ✅ → `thinking`⁷ | `max_tokens` |
+| **Anthropic** (every generation, [`claude_surface.py`](../../apps/api/src/core/claude_surface.py)) | ≤ 1.0, omitted with thinking on or where sampling is refused⁷ | ❌¹ | ❌ | ❌ | ✅ → `thinking`⁷ | `max_tokens` |
 | **Gemini** (2.0-flash, 2.5-flash/pro) | 0-2.0 | ✅ | ❌ | ❌ | ✅ → `thinking_*` + `include_thoughts`² | `max_output_tokens` |
 | **DeepSeek chat** (V3, legacy) | 0-2.0 | ✅ | ✅ | ✅ | — | `max_tokens` (cap 8192) |
 | **DeepSeek reasoner** (R1, legacy) | ❌ | ❌ | ❌ | ❌ | — | `max_tokens` (cap 64000) |
@@ -30,7 +30,7 @@ The matrix below documents **family-level** behaviour for human reference. The r
 
 ⁵ gpt-5.4/gpt-5.4-mini: `reasoning_effort` is **NOT** sent when function tools are present in `/v1/chat/completions` — the two are mutually exclusive. `ResponsesLLM` automatically omits `reasoning_effort` when tools are bound.
 
-¹ Anthropic: `top_p` technically supported but mutually exclusive with `temperature` (Claude 4.5+ rejects both together). Our adapter drops `top_p` defensively.
+¹ Anthropic: `top_p` is never sent — alongside `temperature` it is a 400.
 
 ² Gemini: the intent's level renders as `thinking_budget` (2.5) or `thinking_level` (3.x), decided by the resolved family — NO silent `medium → low` remap; a level the family does not offer is coerced to the nearest one it does, and the move is counted (`llm_reasoning_coerced_total`). `include_thoughts=True` is set alongside (config-driven, by the Gemini renderer in `reasoning/translate.py`) so the configured thoughts surface in the stream; the live reasoning stream does NOT inject it.
 
@@ -40,11 +40,7 @@ The matrix below documents **family-level** behaviour for human reference. The r
 
 ⁶ DeepSeek V4: temperature/top_p/penalties are **silently ignored by the API** when thinking is enabled (`reasoning_effort != none`). Our adapter strips them locally for honesty so the request log matches what the model actually consumes.
 
-⁷ Anthropic extended thinking (verified on Anthropic docs, 2026-05):
-- **opus-4-6 / sonnet-4-6**: adaptive thinking, family `anthropic_adaptive`. The ladder is `["none","low","medium","high","max"]` (`none` = no thinking — it replaced the `off` spelling, which was not a level and left a ladder with no off switch when intersected). Renders `thinking={"type":"adaptive"}` + `effort=<level>`.
-- **opus-4-5 / haiku-4-5 / opus-4 / sonnet-4**: manual thinking, family `anthropic_budget`, ladder `["none","minimal","low","medium","high","xhigh"]`, budget bounded 1024–128000 **by the family** — the bound the validator enforces is the one the admin UI is shown, because both read the same resolved profile. Renders `thinking={"type":"enabled","budget_tokens":N}`.
-- **Temperature constraint**: Anthropic rejects a custom `temperature`/`top_p` while thinking is enabled. The admin UI locks those fields when reasoning is enabled (`anthropicThinkingActive`), the service forces them to `None`, and the adapter omits `temperature` from the payload (`temperature_override="__OMIT__"`). When reasoning is `none`/disabled, temperature is editable normally.
-- The live reasoning stream injects **nothing** — reasoning is enabled solely by this config-driven setup, so a "thinking" block appears only for agents the admin actually enabled reasoning on.
+⁷ Anthropic thinking: the ladder a slot is offered is the resolved profile (`resolve_reasoning_profile`, ADR-245), and the request shape is the one the generation's row of [`claude_surface.py`](../../apps/api/src/core/claude_surface.py) declares (ADR-306) — adaptive thinking with its effort, a token budget, or the off switch that generation spells. Thinking on takes `temperature` out of the request (`sampling_omitted`), the configuration write path stores none by the same rule, and the admin UI hides the field for the same reasons. The live reasoning stream injects **nothing**: a "thinking" block appears only on a slot whose configuration asked for it.
 
 ---
 
@@ -149,28 +145,16 @@ These are reasoning models with **vision support** (image inputs accepted). The 
 
 ### Anthropic
 
-**Models**: `claude-3-5-sonnet`, `claude-3-7-sonnet`, `claude-opus-4`, `claude-sonnet-4`, `claude-haiku-4`
+**What each Claude generation accepts is ONE table**, [`claude_surface.py`](../../apps/api/src/core/claude_surface.py) (ADR-306): how it thinks, the depth an empty request runs at, whether a custom sampling value is accepted, whether `tool_choice` may force a tool, whether its thinking is bound to the conversation. The adapter ([`anthropic_kwargs.py`](../../apps/api/src/infrastructure/llm/providers/anthropic_kwargs.py)), the reasoning rules, the structured-output door and the configuration write path's temperature lock read it, never a model name; a generation the table does not declare is sent only what every generation accepts (`UNDECLARED_CLAUDE`).
 
 | Parameter | Constraint |
 |-----------|-----------|
-| `temperature` | Range 0.0-1.0 (clamped server-side if > 1.0) |
-| `top_p` | Supported by API but **removed** by adapter (mutual exclusion with temperature on Claude 4.5+) |
-| `frequency_penalty` | Not supported — removed |
-| `presence_penalty` | Not supported — removed |
-| `reasoning_effort` | Mapped to Anthropic's native `effort` parameter: `low`/`medium`/`high` |
+| `temperature` | Omitted when thinking is on and on a generation that refuses a custom sampling value (`sampling_omitted`); otherwise capped at 1.0 |
+| `top_p` | Never sent — alongside `temperature` it is a 400 |
+| `frequency_penalty` / `presence_penalty` | Not Anthropic parameters — never sent |
+| reasoning | The stored intent is rendered by `kwargs_for` on the generation's resolved profile (ADR-245), in the shape its row declares |
 
-**Backend mapping** (`adapter.py` L651-670):
-- `minimal` → `low`
-- `low` → `low`
-- `medium` → `medium`
-- `high` → `high`
-- `none` → ignored (not sent)
-
-**Model-level thinking support**:
-- `claude-3-5-sonnet`: **No** extended thinking — `effort` parameter NOT sent (backend guard + frontend hidden)
-- `claude-3-7-sonnet`, `claude-opus-4`, `claude-sonnet-4`, `claude-haiku-4`: **Yes** — `effort` mapped from `reasoning_effort`
-
-Anthropic also supports `budget_tokens` in the `thinking` block (separate from `effort`). Currently not exposed in admin UI.
+**Structured output** (ADR-100, ADR-306). A forced `tool_choice` is refused with thinking on, and by some generations outright (`accepts_forced_tool_choice`). `get_structured_output` then takes the auto-tool door (`tool_choice="auto"` and a one-line directive): over the seven days to 2026-10-22 it carried about four production structured calls in five. Its arguments are validated by Pydantic, NOT constrained by the API: a mechanical deviation is repaired by the chain the forced-tool door uses ([`tool_call_rescue.repair_refused_answer`](../../apps/api/src/infrastructure/llm/tool_call_rescue.py)), anything else is refused. No other door follows it, so a call that fails before any answer — a 5xx, a 429, a cut connection — is raised as `StructuredOutputCallError`, chained to the provider's exception and counted `call_failed`, never as the model's « no valid tool call » (ADR-100 amendment 2026-10-23). Strict tool use (`strict: true`), documented by the vendor as compatible with thinking, is not requested yet.
 
 ### Gemini
 

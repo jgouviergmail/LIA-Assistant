@@ -267,17 +267,14 @@ except Exception as e:
     )
 ```
 
-### Formatters
+### Mise en forme des données
 
-Pour les extractors de données, utiliser le Formatter approprié :
-
-```python
-from src.domains.agents.tools.formatters import ContactsFormatter, GmailFormatter
-
-# Ne PAS dupliquer les extractors
-name = ContactsFormatter._extract_name(person)
-emails = ContactsFormatter._extract_emails(person)
-```
+Un outil de lecture ne met pas en forme ce qu'il lit : il remet la charge utile au registre
+par un `ToolOutputMixin.build_*_output` (l'outil contacts y remet la personne brute du
+fournisseur, les outils e-mail le vocabulaire `EmailMessage` normalisé au bord du client —
+ADR-287), et la carte du domaine la dessine (`agents/display/components/`). Il n'y a pas de
+classe de formatter à ajouter : `formatters.py` ne garde que `GmailFormatter`, le corps et les
+pièces jointes d'un e-mail (amendement d'ADR-194 du 2026-10-22).
 
 ---
 
@@ -287,7 +284,7 @@ emails = ContactsFormatter._extract_emails(person)
 
 - [ ] Créer `{service}_client.py` dans `connectors/clients/`
 - [ ] Créer `{service}_tools.py` dans `agents/tools/`
-- [ ] Ajouter/enrichir Formatter dans `formatters.py`
+- [ ] Remettre la charge utile au registre par un `ToolOutputMixin.build_*_output` (aucune classe de formatter)
 - [ ] Créer `catalogue_manifests.py` dans `agents/{service}/`
 
 ### Phase 2 : Registrations

@@ -124,3 +124,53 @@ def test_an_undeclared_claude_model_gets_the_strictest_surface() -> None:
     assert surface.accepts_forced_tool_choice is False
     assert surface.binds_thinking_to_conversation is False
     assert surface.implicit_effort is None
+
+
+#: model -> whether the API keeps a previous turn's thinking in the model's
+#: context. Read on the prompt-caching page (2026-10-22): « Opus 4.5 and later,
+#: Sonnet 4.6 and later, Haiku 5.5, Fable and Mythos » keep it; the earlier
+#: Opus, Sonnet and Haiku models strip it themselves. Measured the same day on
+#: ``claude-sonnet-5``: a replayed block, in LIA's two-assistant history shape,
+#: is accepted and billed as input (ADR-362).
+PRESERVES_PRIOR_TURN_THINKING: dict[str, bool] = {
+    "claude-3-5-sonnet": False,
+    "claude-sonnet-4": False,
+    "claude-opus-4-1": False,
+    "claude-haiku-4-5": False,
+    "claude-sonnet-4-5": False,
+    "claude-sonnet-4-5-20250929": False,
+    "claude-opus-4-5": True,
+    "claude-opus-4-5-20251101": True,
+    "claude-opus-4-6": True,
+    "claude-sonnet-4-6": True,
+    "claude-opus-4-7": True,
+    "claude-opus-4-8": True,
+    "claude-opus-5": True,
+    "claude-sonnet-5": True,
+    "claude-fable-5": True,
+    "claude-mythos-5": True,
+    "claude-fable-5-1": True,
+    "claude-opus-5-5": True,
+    "claude-sonnet-5-5": True,
+    "claude-haiku-5-5": True,
+}
+
+
+@pytest.mark.parametrize(("model", "expected"), sorted(PRESERVES_PRIOR_TURN_THINKING.items()))
+def test_each_generation_says_whether_it_keeps_prior_turn_thinking(
+    model: str, expected: bool
+) -> None:
+    assert claude_surface(model).preserves_prior_turn_thinking is expected
+
+
+def test_opus_4_5_is_not_captured_by_the_older_opus_4_prefix() -> None:
+    """The 4.5 generation shares its request surface but not its thinking
+    retention: Opus 4.5 keeps prior thinking, Sonnet and Haiku 4.5 do not."""
+    assert _facts("claude-opus-4-5") == _facts("claude-sonnet-4-5")
+    assert claude_surface("claude-opus-4-5").preserves_prior_turn_thinking is True
+    assert claude_surface("claude-opus-4-1").preserves_prior_turn_thinking is False
+
+
+def test_an_undeclared_claude_model_keeps_no_prior_thinking() -> None:
+    """Unknown retention reads as none: the history is sent without it."""
+    assert claude_surface("claude-opus-6").preserves_prior_turn_thinking is False

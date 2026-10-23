@@ -24,7 +24,11 @@ requests for the rest):
 A fourth fact is not a 400 today but becomes one on every account created from
 2026-08-31: a generation that binds a thinking block to the conversation that
 produced it refuses that block once the history before it changed (the ``system``
-prompt LIA rebuilds every turn is enough — measured on Opus 5.5).
+prompt LIA rebuilds every turn is enough — measured on Opus 5.5). A fifth says
+whether a generation keeps a previous turn's thinking in context at all: from
+Opus 4.5 and Sonnet 4.6 on it does (prompt-caching page), and LIA replays it to
+the model that wrote it when that model does not bind it (``anthropic_thinking``,
+ADR-362).
 
 The reasoning ladder is derived from the thinking shape by
 :mod:`src.core.reasoning_profiles`; this module holds the facts and nothing
@@ -64,6 +68,9 @@ class ClaudeSurface:
         accepts_forced_tool_choice: Whether ``tool_choice`` may force a tool.
         binds_thinking_to_conversation: Whether a thinking block is refused
             once the history that produced it changed (« preserved thinking »).
+        preserves_prior_turn_thinking: Whether the API keeps a previous turn's
+            thinking in the model's context (the earlier generations strip it
+            themselves, and the messages cache after it).
     """
 
     prefixes: tuple[str, ...]
@@ -72,6 +79,7 @@ class ClaudeSurface:
     accepts_sampling: bool
     accepts_forced_tool_choice: bool
     binds_thinking_to_conversation: bool
+    preserves_prior_turn_thinking: bool
 
 
 #: ORDERED: the first row whose prefix starts the model name wins. The Mythos
@@ -86,6 +94,7 @@ CLAUDE_SURFACES: tuple[ClaudeSurface, ...] = (
         accepts_sampling=True,
         accepts_forced_tool_choice=True,
         binds_thinking_to_conversation=False,
+        preserves_prior_turn_thinking=False,
     ),
     ClaudeSurface(
         prefixes=("claude-fable-5-1", "claude-mythos-5-1"),
@@ -94,6 +103,7 @@ CLAUDE_SURFACES: tuple[ClaudeSurface, ...] = (
         accepts_sampling=False,
         accepts_forced_tool_choice=False,
         binds_thinking_to_conversation=True,
+        preserves_prior_turn_thinking=True,
     ),
     ClaudeSurface(
         prefixes=("claude-opus-5-5",),
@@ -102,6 +112,7 @@ CLAUDE_SURFACES: tuple[ClaudeSurface, ...] = (
         accepts_sampling=False,
         accepts_forced_tool_choice=False,
         binds_thinking_to_conversation=True,
+        preserves_prior_turn_thinking=True,
     ),
     # Before the Opus 5 / Sonnet 5 row, whose ``claude-sonnet-5`` prefix starts
     # this name: matched there, ``none`` would send ``disabled`` (a 400) and the
@@ -113,6 +124,7 @@ CLAUDE_SURFACES: tuple[ClaudeSurface, ...] = (
         accepts_sampling=False,
         accepts_forced_tool_choice=False,
         binds_thinking_to_conversation=True,
+        preserves_prior_turn_thinking=True,
     ),
     # The first generation that binds its thinking to the conversation AND still
     # accepts a forced tool: the two columns are independent facts.
@@ -123,6 +135,7 @@ CLAUDE_SURFACES: tuple[ClaudeSurface, ...] = (
         accepts_sampling=False,
         accepts_forced_tool_choice=True,
         binds_thinking_to_conversation=True,
+        preserves_prior_turn_thinking=True,
     ),
     ClaudeSurface(
         prefixes=("claude-fable-5", "claude-mythos-5"),
@@ -131,6 +144,7 @@ CLAUDE_SURFACES: tuple[ClaudeSurface, ...] = (
         accepts_sampling=False,
         accepts_forced_tool_choice=True,
         binds_thinking_to_conversation=False,
+        preserves_prior_turn_thinking=True,
     ),
     ClaudeSurface(
         prefixes=("claude-opus-5", "claude-sonnet-5"),
@@ -139,6 +153,7 @@ CLAUDE_SURFACES: tuple[ClaudeSurface, ...] = (
         accepts_sampling=False,
         accepts_forced_tool_choice=True,
         binds_thinking_to_conversation=False,
+        preserves_prior_turn_thinking=True,
     ),
     ClaudeSurface(
         prefixes=("claude-opus-4-7", "claude-opus-4-8"),
@@ -147,6 +162,7 @@ CLAUDE_SURFACES: tuple[ClaudeSurface, ...] = (
         accepts_sampling=False,
         accepts_forced_tool_choice=True,
         binds_thinking_to_conversation=False,
+        preserves_prior_turn_thinking=True,
     ),
     ClaudeSurface(
         prefixes=("claude-opus-4-6", "claude-sonnet-4-6"),
@@ -155,12 +171,24 @@ CLAUDE_SURFACES: tuple[ClaudeSurface, ...] = (
         accepts_sampling=True,
         accepts_forced_tool_choice=True,
         binds_thinking_to_conversation=False,
+        preserves_prior_turn_thinking=True,
     ),
     # The 4.5 generation, plus the retired 4.0/4.1 names still found in the
-    # registries (``claude-opus-4-20250514``, ``claude-sonnet-4-0``...).
+    # registries (``claude-opus-4-20250514``, ``claude-sonnet-4-0``...). One
+    # request surface, two thinking retentions: Opus 4.5 keeps a prior turn's
+    # thinking, the others strip it -- so Opus 4.5 comes first, before the
+    # ``claude-opus-4`` prefix that starts its name.
+    ClaudeSurface(
+        prefixes=("claude-opus-4-5",),
+        thinking="budget",
+        implicit_effort=None,
+        accepts_sampling=True,
+        accepts_forced_tool_choice=True,
+        binds_thinking_to_conversation=False,
+        preserves_prior_turn_thinking=True,
+    ),
     ClaudeSurface(
         prefixes=(
-            "claude-opus-4-5",
             "claude-haiku-4-5",
             "claude-sonnet-4-5",
             "claude-opus-4",
@@ -171,13 +199,15 @@ CLAUDE_SURFACES: tuple[ClaudeSurface, ...] = (
         accepts_sampling=True,
         accepts_forced_tool_choice=True,
         binds_thinking_to_conversation=False,
+        preserves_prior_turn_thinking=False,
     ),
 )
 
 #: A generation released after this table: sent what EVERY generation accepts —
 #: no sampling parameter (the API default applies), no forced tool call (the
 #: auto-tool path works everywhere), no binding control (it requires a thinking
-#: form an unknown model may refuse). Its reasoning stays unknown.
+#: form an unknown model may refuse), no prior-turn thinking (a history without
+#: it is accepted by every generation). Its reasoning stays unknown.
 UNDECLARED_CLAUDE = ClaudeSurface(
     prefixes=(),
     thinking=None,
@@ -185,6 +215,7 @@ UNDECLARED_CLAUDE = ClaudeSurface(
     accepts_sampling=False,
     accepts_forced_tool_choice=False,
     binds_thinking_to_conversation=False,
+    preserves_prior_turn_thinking=False,
 )
 
 

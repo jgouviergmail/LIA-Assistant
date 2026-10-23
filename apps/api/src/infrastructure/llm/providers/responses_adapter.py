@@ -79,7 +79,7 @@ def _extract_static_prefix(content: str) -> str:
 
     Everything before the SINGLE canonical ``DYNAMIC_CONTEXT_MARKER`` is treated
     as static and cacheable. The marker is the one convention shared with the
-    Anthropic ``cache_control`` split in ``factory.py`` — provider adapters must
+    Anthropic ``cache_control`` split in ``anthropic_payload.py`` — provider adapters must
     agree on where "static" ends, or the same prompt caches differently per
     provider. Legacy alternative markers (``## DYNAMIC CONTEXT``,
     ``<TemporalContext>``, …) were dropped: matching them cut the prefix at mere

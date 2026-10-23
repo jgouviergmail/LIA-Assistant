@@ -40,6 +40,10 @@ class TokenUsageLog(BaseModel):
         prompt_tokens: Number of input tokens
         completion_tokens: Number of output tokens
         cached_tokens: Number of cached input tokens (prompt caching)
+        cache_write_tokens: Prompt tokens written to the provider's prompt cache
+            (ADR-306); NULL on rows written before the column (ADR-362)
+        cache_write_extended_tokens: The part of ``cache_write_tokens`` written
+            for the provider's extended lifetime (ADR-362)
         cost_usd: Estimated cost in USD at time of call
         cost_eur: Estimated cost in EUR at time of call
         usd_to_eur_rate: Exchange rate used for conversion (for audit)
@@ -62,6 +66,20 @@ class TokenUsageLog(BaseModel):
     prompt_tokens: Mapped[int] = mapped_column(Integer, default=0)
     completion_tokens: Mapped[int] = mapped_column(Integer, default=0)
     cached_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    # The writes inside ``prompt_tokens`` and their extended part (ADR-362),
+    # so a cost rebuilt from a row's counts and its tariff is the cost billed.
+    # Nullable with no backfill, like the ADR-244 columns: an older row's writes
+    # are inside its cost but were never counted, and NULL says so.
+    cache_write_tokens: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Prompt tokens written to the provider's prompt cache (part of prompt_tokens)",
+    )
+    cache_write_extended_tokens: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="The part of cache_write_tokens written for the provider's extended lifetime",
+    )
 
     # Cost tracking
     cost_usd: Mapped[Decimal] = mapped_column(Numeric(10, 6), default=Decimal("0.0"))

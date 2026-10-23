@@ -533,3 +533,41 @@ sans drapeau, drapeau `\Flagged`).
 `normalizers/test_graph_mail_query.py::TestANegation`,
 `normalizers/test_email_normalizer.py::TestANegation`,
 `tests/unit/domains/agents/emails/test_get_emails_tool_detail.py::TestAFolderTheMailboxCannotResolveIsSaid`.
+
+## Amendement 2026-10-22 — l'aperçu de Gmail est décodé au bord du client
+
+**Constat.** Le vocabulaire `EmailMessage` promet un `snippet` en texte, sur une
+ligne. Graph et IMAP le tenaient ; Gmail livre son aperçu échappé en HTML
+(« J&#39;ai »), et les infolettres le rembourrent de caractères qui ne dessinent
+rien. Mesuré le 2026-10-22 sur des aperçus Gmail réels : 4 sur 20 portaient des
+entités ; sur quarante, 187 ZERO WIDTH NON-JOINER, 84 COMBINING GRAPHEME JOINER
+et un BYTE ORDER MARK. La fiche Relations montrait les entités telles quelles,
+et les cartes e-mail du chat les échappaient une seconde fois. Le seul lecteur
+qui décodait, `GmailFormatter._extract_snippet`, n'avait plus d'appelant depuis
+ADR-194.
+
+**Décision.**
+
+- L'aperçu de Gmail passe par `strip_html_to_line`, la seule ligne d'aperçu,
+  déjà celle de Graph et d'IMAP. Il y passe une fois, au premier passage dans
+  `GoogleGmailClient._normalize_message_fields`.
+- Un message déjà marqué `_provider` (relu du cache) n'est jamais décodé une
+  seconde fois : ce serait changer un « &amp; » que l'expéditeur a écrit en un
+  caractère qu'il n'a pas écrit. Aucun lecteur ne décode plus l'aperçu ; les
+  rendus l'échappent une fois.
+- `strip_html_to_line` écarte une suite faite seulement de rembourrage
+  invisible. Un mot qui en porte un à l'intérieur (un non-joiner persan) reste
+  tel qu'il est écrit, et le ZERO WIDTH JOINER, qui tient les séquences
+  d'emoji, n'en fait pas partie.
+- `GmailFormatter._extract_snippet` est supprimé : du code mort qui décrivait
+  un décodage que plus rien n'appelait.
+- La longueur reste celle du fournisseur (décision du propriétaire : le
+  plafond de la fiche Relations ne change pas). La fiche montre l'aperçu sur
+  quatre lignes au lieu de deux.
+
+**Transition.** Une entrée du cache Gmail écrite avant ce changement porte déjà
+`_provider` : son aperçu reste échappé jusqu'à son expiration.
+
+**Preuves.** `tests/unit/domains/connectors/clients/normalizers/test_email_message_contract.py`
+(`TestTheSnippetIsPlainTextOnEveryProvider`, le rembourrage, le non-joiner
+persan).

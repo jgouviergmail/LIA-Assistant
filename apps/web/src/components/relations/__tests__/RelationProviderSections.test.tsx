@@ -221,8 +221,9 @@ describe('ProviderEmailsSection', () => {
     // empty line pretending the message was blank.
     const relance = screen.getByText('Relance').closest('label');
     expect(relance).not.toBeNull();
-    expect(relance?.querySelectorAll('.line-clamp-2')).toHaveLength(0);
-    expect(container.querySelectorAll('.line-clamp-2')).toHaveLength(1);
+    // Four lines at most since 2026-10-22: twice what a phone used to show.
+    expect(relance?.querySelectorAll('.line-clamp-4')).toHaveLength(0);
+    expect(container.querySelectorAll('.line-clamp-4')).toHaveLength(1);
   });
 
   it('dates each message absolutely, next to the relative label', async () => {

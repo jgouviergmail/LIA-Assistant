@@ -95,8 +95,9 @@ export function SpaceCard({
       </CardHeader>
 
       <CardContent className="mt-auto p-4 pt-0">
-        {/* Stats + Actions */}
-        <div className="flex items-center justify-between gap-2">
+        {/* Stats + Actions, under a rule — the skill and MCP cards' own footer
+            (owner request 2026-10-22). */}
+        <div className="flex items-center justify-between gap-2 border-t pt-3">
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
             <Badge variant={lifecycleTone(space.is_active ? 'active' : 'inactive')}>
               {space.is_active ? t('common.active') : t('common.inactive')}

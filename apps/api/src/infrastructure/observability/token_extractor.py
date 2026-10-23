@@ -24,7 +24,9 @@ class TokenUsage(NamedTuple):
     """Token usage extracted from LLMResult.
 
     ``cache_write_tokens`` is the part of ``input_tokens`` Claude wrote to its
-    prompt cache (``UsageTokens.cache_write``), owed the write surcharge.
+    prompt cache (``UsageTokens.cache_write``), owed the write surcharge;
+    ``cache_write_extended_tokens`` the part of it written for the extended
+    lifetime, owed the extended rate (ADR-362).
     """
 
     input_tokens: int
@@ -32,6 +34,7 @@ class TokenUsage(NamedTuple):
     cached_tokens: int
     model_name: str
     cache_write_tokens: int = 0
+    cache_write_extended_tokens: int = 0
 
 
 class TokenExtractor:
@@ -77,6 +80,7 @@ class TokenExtractor:
         output_tokens = 0
         cached_tokens = 0
         cache_write_tokens = 0
+        cache_write_extended_tokens = 0
         model_name = "unknown"
         usage_dict = None
 
@@ -100,6 +104,7 @@ class TokenExtractor:
                     # A Claude cache write stays in the prompt count (it is a
                     # prompt token) and is carried apart for its surcharge.
                     cache_write_tokens = tokens.cache_write
+                    cache_write_extended_tokens = tokens.cache_write_extended
 
             # Extract model name from response_metadata
             if hasattr(first_gen, "message") and hasattr(first_gen.message, "response_metadata"):
@@ -149,4 +154,5 @@ class TokenExtractor:
             cached_tokens=cached_tokens,
             model_name=model_name,
             cache_write_tokens=cache_write_tokens,
+            cache_write_extended_tokens=cache_write_extended_tokens,
         )

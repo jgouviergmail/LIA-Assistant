@@ -23,6 +23,7 @@ from src.core.constants import (
     EMBEDDING_RETRY_MAX_ATTEMPTS_DEFAULT,
     OLLAMA_DISCOVERY_RETRY_SECONDS,
     OLLAMA_DISCOVERY_TIMEOUT_SECONDS,
+    PRIOR_TURN_THINKING_REPLAY_ENABLED_DEFAULT,
 )
 
 # =============================================================================
@@ -260,6 +261,16 @@ class LLMSettings(BaseSettings):
             "burned its entire 600-token cap on reasoning and every post-call "
             "return degraded to the raw English vendor summary). Enforced at "
             "the admin save path and at boot on LLM_DEFAULTS."
+        ),
+    )
+    prior_turn_thinking_replay_enabled: bool = Field(
+        default=PRIOR_TURN_THINKING_REPLAY_ENABLED_DEFAULT,
+        description=(
+            "Send an earlier turn's thinking back to the Claude model that wrote it, "
+            "when that generation keeps prior thinking without binding it to its "
+            "conversation (ADR-362): the vendor's default context, billed as input. "
+            "Every other earlier thinking block is removed (a binding generation would "
+            "refuse it, another model drops it unread). False = all of them removed."
         ),
     )
 

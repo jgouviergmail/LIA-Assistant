@@ -189,3 +189,64 @@ validation.
 **Ne rien faire** : ~1 900 lignes qui simulent une garantie, dont 652 sous
 ratchet de taille et couvertes par 106 tests verts qui n'exécutaient rien de
 réel. Le coût n'est pas le stockage, c'est la croyance qu'un filet existe.
+
+## Amendement 2026-10-22 — le code que `FIELD_EXTRACTORS` faisait vivre suit
+
+**Constat.** Le dossier de dette du 2026-08-02 gardait les extracteurs de `formatters.py` au motif
+que « les `_extract_*` comptent 38 usages externes, donc aucune ne devient orpheline ». Le compte
+mêlait les tests, des homonymes et les lignes mêmes de la table supprimée. Ce chantier a mesuré
+deux fois, et la première mesure était encore fausse.
+
+1. Un recensement par l'arbre syntaxique, qui exige qu'une référence nomme sa classe
+   (`ContactsFormatter._extract_x`) ou importe la fonction du module, trouvait 26 définitions sur 33
+   sans appelant de production depuis `fb4287cf2`, et sept appelées.
+2. Remonter chaque appelant jusqu'à un point d'entrée réel — un outil enregistré, une route, une
+   tâche — a montré que cinq de ces sept ne l'étaient que par du code mort. Les cinq extracteurs de
+   `ContactsFormatter` encore appelés l'étaient par trois des sept `_extract_field_group_*` de
+   `google_contacts_tools.py`, tous appelés par `_fetch_single_contact_details`, que rien n'appelle
+   — **déjà à la première publication** (`046ba4d40`, 2026-03-12). L'outil vivant suit un autre
+   chemin : `get_contact_details_tool` → `GetContactDetailsTool` →
+   `ToolOutputMixin.build_contacts_output`, qui remet la personne brute du fournisseur au registre ;
+   la carte contact la dessine.
+
+Les pièges du comptage par nom, mesurés : l'outil contacts définissait son propre
+`_extract_birthdays`, les normaliseurs leurs `_extract_addresses` / `_extract_phones`, `tools/base.py`
+deux méthodes `_get_deps_or_fallback` homonymes de la fonction de l'outil contacts — un même nom,
+une autre fonction ; à l'inverse, `email_enricher` atteignait `GmailFormatter._extract_attachments`
+par une variable, qu'un recensement qualifié ne voit pas.
+
+**Décision.** Supprimer ce qu'aucun point d'entrée n'atteint :
+
+- dans `formatters.py`, 31 définitions : `ContactsFormatter` entière (18 méthodes), les trois
+  formateurs de dates (`format_google_datetime`, `format_google_time_only`,
+  `format_google_birthday`) et dix extracteurs Gmail (en-têtes, expéditeur, destinataires, objet,
+  date, non-lu, URL web). `_extract_snippet` était parti le matin même (amendement d'ADR-287).
+  Restent `GmailFormatter._extract_body` et `_extract_attachments`, qu'appelle
+  `agents/emails/message_finishing.py` pour `get_emails_tool`, la lecture d'un message
+  (`email_reading.py`) et les brouillons de boîte mail (`mailbox_drafts_tools.py`) ;
+- dans `google_contacts_tools.py`, les onze fonctions de l'ancien chemin de détail :
+  `_fetch_single_contact_details`, ses sept groupes de champs, son `_extract_birthdays`,
+  `_get_deps_or_fallback` et `_get_connector_and_credentials`, que seul un exemple de docstring
+  appelait ;
+- `agents/utils/email_enricher.py` (`EmailBodyEnricher`), qu'aucun module de production n'importe
+  depuis la première publication, et son entrée d'`effects/direct_client_callers.py` ;
+- les quatre messages traduits que seul ce code lisait : `APIMessages.unknown_name`,
+  `sender_unknown`, `no_subject`, `date_invalid` ;
+- les tests qui n'exerçaient que lui : 41 de `test_formatters_extractors.py` (restent les trois de
+  l'extraction du corps) et les 25 de `test_email_enricher.py`.
+
+**Rien ne change pour une personne** : aucun de ces chemins ne s'exécutait. Une première passe,
+arrêtée au recensement qualifié, avait branché six extracteurs dans les groupes de champs et corrigé
+l'écriture des dates partielles (`12/5/` pour un événement sans année) — dans des fonctions que rien
+n'appelle ; les deux changements sont partis avec elles. La carte contact, elle, n'écrit déjà
+l'année que lorsqu'elle existe (`ContactCard._format_date_components`).
+
+**Mesures.** `formatters.py` passe de 471 à 52 lignes logiques ; `google_contacts_tools.py` de
+1 489 à 1 208, son plafond abaissé de 1 519 à 1 233 par `task ratchet:update` ; `email_enricher.py`
+en comptait 69.
+
+**La leçon.** Un usage n'est pas un appelant, et un appelant ne prouve rien s'il n'est pas atteint
+lui-même. Compter par nom additionne les tests, les homonymes et la table qu'on supprime ; un
+recensement qualifié écarte ces trois erreurs mais s'arrête au premier appelant. La preuve est la
+remontée de chaque appelant jusqu'à un point d'entrée, croisée avec une recherche des accès par
+variable.

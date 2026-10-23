@@ -16,12 +16,13 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterator
-from datetime import UTC, datetime
-from types import SimpleNamespace
+from datetime import UTC, datetime, tzinfo
+from decimal import Decimal
+from typing import Self
 
 import pytest
 
-from src.domains.llm.models import LLMProviderEnum, PricingUnitEnum
+from src.domains.llm.models import LLMModel, LLMModelPricing, LLMProviderEnum, PricingUnitEnum
 from src.infrastructure.cache import pricing_cache
 from src.infrastructure.cache.pricing_cache import (
     CachedModelPrice,
@@ -60,9 +61,11 @@ PEAK_SLOTS = [
 ]
 
 #: Claude Opus 5 on platform.claude.com/docs/en/about-claude/pricing (2026-09-23):
-#: base input $5, « 5m cache writes » $6.25 per million tokens.
+#: base input $5, « 5m cache writes » $6.25 per million tokens; « 1h cache
+#: writes » $10 (prompt-caching page, read 2026-10-22).
 CLAUDE_INPUT_PRICE = 5.0
 CLAUDE_5M_WRITE_PRICE = 6.25
+CLAUDE_1H_WRITE_PRICE = 10.0
 
 PEAK_AT = datetime(2026, 8, 17, 2, 30, tzinfo=UTC)
 OFF_PEAK_AT = datetime(2026, 8, 17, 12, 0, tzinfo=UTC)
@@ -70,13 +73,13 @@ OFF_PEAK_AT = datetime(2026, 8, 17, 12, 0, tzinfo=UTC)
 
 def _tariff_row(
     name: str, provider: LLMProviderEnum, *, input_price: float = 1.0
-) -> SimpleNamespace:
-    """An active tariff row as ``build_price_index`` reads it (model joined)."""
-    return SimpleNamespace(
-        model=SimpleNamespace(model_name=name, provider=provider),
-        input_unit_price=input_price,
-        output_unit_price=2,
-        cached_input_unit_price=0,
+) -> LLMModelPricing:
+    """An active tariff row as ``build_price_index`` reads it (model joined), never persisted."""
+    return LLMModelPricing(
+        model=LLMModel(model_name=name, provider=provider),
+        input_unit_price=Decimal(str(input_price)),
+        output_unit_price=Decimal("2"),
+        cached_input_unit_price=Decimal("0"),
         pricing_unit=PricingUnitEnum.per_1m_tokens,
         time_slots=None,
         audio_input_unit_price=None,
@@ -121,6 +124,7 @@ def _populate_local_cache() -> Iterator[None]:
                 cached_input_unit_price=0.5,
                 pricing_unit="per_1m_tokens",
                 cache_write_multiplier=1.25,
+                cache_write_extended_multiplier=2.0,
             ),
         },
         usd_eur_rate=USD_EUR,
@@ -282,6 +286,158 @@ class TestCacheWriteSurcharge:
         assert with_write == pytest.approx(without * 1.25)
 
 
+class TestExtendedLifetimeWriteSurcharge:
+    """A token written for the provider's extended lifetime owes its own rate (ADR-362).
+
+    ``cache_write_extended_tokens`` is the part of ``cache_write_tokens`` written
+    for the hour: it pays the extended multiplier, the rest the short one.
+    """
+
+    def test_a_one_hour_write_costs_the_published_one_hour_price(self) -> None:
+        usd, eur = get_cached_cost_usd_eur(
+            "claude-opus-5",
+            MILLION,
+            0,
+            cache_write_tokens=MILLION,
+            cache_write_extended_tokens=MILLION,
+        )
+        assert usd == pytest.approx(CLAUDE_1H_WRITE_PRICE)
+        assert eur == pytest.approx(CLAUDE_1H_WRITE_PRICE * USD_EUR)
+
+    def test_each_lifetime_pays_its_own_rate_in_one_call(self) -> None:
+        """The vendor bills the span up to the last one-hour breakpoint at 2x and
+        the span after it at 1.25x: one request may carry both."""
+        usd, _ = get_cached_cost_usd_eur(
+            "claude-opus-5",
+            3 * MILLION,
+            0,
+            cache_write_tokens=2 * MILLION,
+            cache_write_extended_tokens=MILLION,
+        )
+        assert usd == pytest.approx(
+            CLAUDE_INPUT_PRICE + CLAUDE_5M_WRITE_PRICE + CLAUDE_1H_WRITE_PRICE
+        )
+
+    def test_the_extended_part_is_bounded_by_the_writes(self) -> None:
+        """A part larger than its whole is priced as the whole, never beyond it."""
+        bounded, _ = get_cached_cost_usd_eur(
+            "claude-opus-5",
+            MILLION,
+            0,
+            cache_write_tokens=MILLION,
+            cache_write_extended_tokens=3 * MILLION,
+        )
+        assert bounded == pytest.approx(CLAUDE_1H_WRITE_PRICE)
+
+    def test_a_tariff_with_one_lifetime_prices_any_write_at_its_rate(self) -> None:
+        """No extended rate declared: an extended count is a write like the others."""
+        cache = pricing_cache._local_cache
+        assert cache is not None
+        cache.models["gpt-6-luna"] = CachedModelPrice(
+            input_unit_price=0.10,
+            output_unit_price=0.8,
+            cached_input_unit_price=0.01,
+            cache_write_multiplier=1.25,
+        )
+        usd, _ = get_cached_cost_usd_eur(
+            "gpt-6-luna",
+            MILLION,
+            0,
+            cache_write_tokens=MILLION,
+            cache_write_extended_tokens=MILLION,
+        )
+        assert usd == pytest.approx(0.125)
+
+    def test_the_extended_surcharge_follows_the_input_price_of_a_time_slot(self) -> None:
+        cache = pricing_cache._local_cache
+        assert cache is not None
+        slotted = cache.models["deepseek-v4-flash"]
+        slotted.cache_write_multiplier = 1.25
+        slotted.cache_write_extended_multiplier = 2.0
+        usd, _ = get_cached_cost_usd_eur(
+            "deepseek-v4-flash",
+            MILLION,
+            0,
+            cache_write_tokens=MILLION,
+            cache_write_extended_tokens=MILLION,
+            at=PEAK_AT,
+        )
+        assert usd == pytest.approx(INPUT_PRICE * 2 * 2.0)
+
+    def test_the_extended_rate_is_the_providers_rule_set_when_the_index_is_built(self) -> None:
+        """Only Claude offers an extended lifetime; every other tariff has none."""
+        index = build_price_index(
+            [
+                _tariff_row("claude-opus-5", LLMProviderEnum.anthropic),
+                _tariff_row("gpt-6-luna", LLMProviderEnum.openai),
+                _tariff_row("qwen3.5-plus", LLMProviderEnum.qwen),
+                _tariff_row("gemini-3.8-flash", LLMProviderEnum.gemini),
+            ]
+        )
+        assert index["claude-opus-5"].cache_write_extended_multiplier == 2.0
+        assert index["gpt-6-luna"].cache_write_extended_multiplier is None
+        assert index["qwen3.5-plus"].cache_write_extended_multiplier is None
+        assert index["gemini-3.8-flash"].cache_write_extended_multiplier is None
+
+    def test_a_blob_written_before_the_extended_rate_prices_it_at_the_short_one(self) -> None:
+        """Rolling deploy: an older worker's blob carries no extended rate, so an
+        extended write is priced like a short one until the next rebuild --
+        never below the short rate, as a plain 1.0 default would."""
+        blob = json.dumps(
+            {
+                "models": {
+                    "claude-opus-5": {
+                        "input_unit_price": 5.0,
+                        "output_unit_price": 25.0,
+                        "cached_input_unit_price": 0.5,
+                        "pricing_unit": "per_1m_tokens",
+                        "cache_write_multiplier": 1.25,
+                    }
+                },
+                "usd_eur_rate": USD_EUR,
+                "last_refresh_ts": 0.0,
+            }
+        )
+        restored = PricingCacheData.from_json(blob)
+        assert restored.models["claude-opus-5"].cache_write_extended_multiplier is None
+        usd, _ = get_cached_cost_usd_eur(
+            "claude-opus-5",
+            MILLION,
+            0,
+            cache_write_tokens=MILLION,
+            cache_write_extended_tokens=MILLION,
+            snapshot=restored,
+        )
+        assert usd == pytest.approx(CLAUDE_5M_WRITE_PRICE)
+
+    def test_the_extended_rate_survives_the_redis_round_trip(self) -> None:
+        cache = pricing_cache._local_cache
+        assert cache is not None
+        restored = PricingCacheData.from_json(cache.to_json())
+        assert restored.models["claude-opus-5"].cache_write_extended_multiplier == 2.0
+
+    def test_the_quiet_door_and_the_currency_wrapper_carry_the_extended_writes(self) -> None:
+        from src.infrastructure.cache.pricing_cache import get_cached_cost
+
+        quoted = quote_cached_cost_usd(
+            "claude-opus-5",
+            MILLION,
+            0,
+            cache_write_tokens=MILLION,
+            cache_write_extended_tokens=MILLION,
+        )
+        assert quoted == pytest.approx(CLAUDE_1H_WRITE_PRICE)
+        short = get_cached_cost("claude-opus-5", MILLION, 0, cache_write_tokens=MILLION)
+        extended = get_cached_cost(
+            "claude-opus-5",
+            MILLION,
+            0,
+            cache_write_tokens=MILLION,
+            cache_write_extended_tokens=MILLION,
+        )
+        assert extended == pytest.approx(short * CLAUDE_1H_WRITE_PRICE / CLAUDE_5M_WRITE_PRICE)
+
+
 # ============================================================================
 # Fail-soft exits (never raise, never invent a price)
 # ============================================================================
@@ -403,8 +559,8 @@ class TestTimeSlotPricing:
 
         class _FrozenDatetime(datetime):
             @classmethod
-            def now(cls, tz: object = None) -> datetime:  # type: ignore[override]
-                return PEAK_AT
+            def now(cls, tz: tzinfo | None = None) -> Self:
+                return cls.fromtimestamp(PEAK_AT.timestamp(), tz or UTC)
 
         monkeypatch.setattr(pricing_cache, "datetime", _FrozenDatetime)
         usd, _ = get_cached_cost_usd_eur("deepseek-v4-flash", MILLION, 0)

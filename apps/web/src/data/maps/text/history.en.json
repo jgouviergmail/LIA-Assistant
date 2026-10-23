@@ -1897,6 +1897,11 @@
       "title": "An egress probe that names the failing step and confirms a cut",
       "summary": "The outbound-connectivity probe separates name resolution from the connection and confirms a loss over several paced attempts. A lost DNS packet no longer opens a critical incident: a recovery or a slowdown is reported as degraded, and a real cut names the step that failed.",
       "src": "9cf5696d02f2"
+    },
+    "362": {
+      "title": "Claude's cache read back from one turn to the next",
+      "summary": "The next turn now reads the whole history back from the cache instead of writing it again, and what it will read is kept for an hour when a person waits and exchanges often. These hour-long writes are billed at their fair price, and an earlier turn's thinking goes back to the Claude model that wrote it, wherever that model can read it.",
+      "src": "ba46216e9d0f"
     }
   }
 }

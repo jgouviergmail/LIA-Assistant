@@ -431,6 +431,9 @@ describe('details and route on the existing place map', () => {
       expect.objectContaining({ path: [{ lat: 20, lng: 178 }, route.path[1]] })
     );
     expect(maps.Map).toHaveBeenCalledOnce();
+    // Each fit above re-opened the shown window (the map's own close and
+    // open); destroying it is ONE more close, and the last.
+    popup.close.mockClear();
     controller.destroy();
     expect(popup.close).toHaveBeenCalledTimes(1);
     expect(popup.setContent).toHaveBeenLastCalledWith();
@@ -443,6 +446,67 @@ describe('details and route on the existing place map', () => {
     expect(maps.InfoWindow).toHaveBeenCalledOnce();
     controller.destroy();
     expect(popup.close).toHaveBeenCalledTimes(1);
+  });
+  it('opens a shown details window again AFTER a fit, so the map pans it back into view', () => {
+    // Owner report 2026-10-22: the first selection of a place left its details
+    // badly placed, a second one placed them right. The first selection's route
+    // comes back from the network after the window placed itself, and its fit
+    // moved the map under it; the second one's route comes from the cache, so
+    // its fit ran before the window placed itself.
+    const { controller, popup, map, closeNative } = detailsMap();
+    const onClose = vi.fn();
+    controller.showDetails('a', document.createElement('div'), undefined, onClose);
+    expect(popup.open).toHaveBeenCalledTimes(1);
+
+    controller.setRoute(route);
+
+    expect(popup.open).toHaveBeenCalledTimes(2);
+    expect(popup.open.mock.invocationCallOrder[1]).toBeGreaterThan(
+      map.fitBounds.mock.invocationCallOrder.at(-1)!
+    );
+    expect(popup.open).toHaveBeenLastCalledWith(expect.objectContaining({ shouldFocus: false }));
+    // Re-opening is the map's business: the person's close callback never hears of it…
+    expect(onClose).not.toHaveBeenCalled();
+    // …and still answers a close the person makes afterwards.
+    closeNative();
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+  it('the « all markers » fit brings an open window back into view too', () => {
+    const { controller, popup } = detailsMap();
+    controller.showDetails('a', document.createElement('div'));
+    controller.fit();
+    expect(popup.open).toHaveBeenCalledTimes(2);
+  });
+  it('never re-opens a window the person or the panel closed', () => {
+    const closedByPanel = detailsMap();
+    closedByPanel.controller.showDetails('a', document.createElement('div'));
+    closedByPanel.controller.clearDetails();
+    closedByPanel.controller.setRoute(route);
+    expect(closedByPanel.popup.open).toHaveBeenCalledTimes(1);
+
+    const closedNatively = detailsMap();
+    closedNatively.controller.showDetails('a', document.createElement('div'));
+    closedNatively.closeNative();
+    closedNatively.controller.setRoute(route);
+    expect(closedNatively.popup.open).toHaveBeenCalledTimes(1);
+  });
+  it('leaves a window alone while the person works in it', () => {
+    // Re-opening detaches its content: a focused control (the route retry)
+    // would lose the focus the person put there.
+    const { controller, popup } = detailsMap();
+    const content = document.createElement('div');
+    const retry = document.createElement('button');
+    content.append(retry);
+    document.body.append(content);
+    try {
+      controller.showDetails('a', content);
+      retry.focus();
+      controller.setRoute(route);
+      expect(popup.close).not.toHaveBeenCalled();
+      expect(popup.open).toHaveBeenCalledTimes(1);
+    } finally {
+      content.remove();
+    }
   });
   it('updates the route color with the document theme and releases the theme observer', async () => {
     const { controller, line } = detailsMap();

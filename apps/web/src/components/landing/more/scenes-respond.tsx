@@ -1,5 +1,6 @@
 /**
- * Scenes of section 02 — "When LIA replies": follow-up chips, the floating
+ * Scenes of section 02 — "When LIA replies": follow-up chips, a wide bubble
+ * taking a phone's whole column, the floating
  * return-to-bottom button, the per-bubble action row, share/export, an image
  * shared with a connection, the
  * one-draft-at-a-time review, the network question a script asks before going
@@ -51,6 +52,7 @@ import {
   MiniChip,
   MiniComposer,
   MiniToast,
+  PhoneFrame,
   SkeletonLine,
   STAGE,
 } from './primitives';
@@ -1090,6 +1092,43 @@ function CodeScrollScene({ active }: SceneProps) {
   );
 }
 
+type FullWidthPhase = 'narrow' | 'wide';
+const FULL_WIDTH_STEPS: readonly TimelineStep<FullWidthPhase>[] = [
+  { at: 0, state: 'narrow' },
+  { at: 1200, state: 'wide' },
+];
+
+/**
+ * On a phone, a table bubble aligned on its column's end grows from a bubble
+ * that left a strip on its left edge to the column's whole width; the short
+ * question above keeps its size.
+ */
+function FullWidthPhoneScene({ active }: SceneProps) {
+  const wide = useLoopedTimeline(FULL_WIDTH_STEPS, { active }) === 'wide';
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <PhoneFrame className="w-24">
+        <div className="flex h-full flex-col items-end gap-1.5">
+          <span className="h-2.5 w-1/2 rounded-full border border-primary/30 bg-primary/10" />
+          <div
+            className={cn(
+              'grid grid-cols-3 gap-0.5 rounded-md border border-border bg-background p-1 transition-[width] duration-700 ease-out motion-reduce:transition-none',
+              wide ? 'w-full' : 'w-[85%]'
+            )}
+          >
+            {Array.from({ length: 9 }, (_, i) => (
+              <span
+                key={i}
+                className={cn('h-1.5 rounded-sm', i < 3 ? 'bg-primary/40' : 'bg-muted-foreground/20')}
+              />
+            ))}
+          </div>
+        </div>
+      </PhoneFrame>
+    </div>
+  );
+}
+
 type RecipientPhase = 'empty' | 'typed' | 'list' | 'picked';
 const RECIPIENT_STEPS: readonly TimelineStep<RecipientPhase>[] = [
   { at: 0, state: 'empty' },
@@ -1298,6 +1337,7 @@ export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
   living_face: LivingFaceScene,
   composed_page: ComposedPageScene,
   code_scroll: CodeScrollScene,
+  full_width_phone: FullWidthPhoneScene,
   followup_chips: FollowupChipsScene,
   scroll_return: ScrollReturnScene,
   bubble_actions: BubbleActionsScene,

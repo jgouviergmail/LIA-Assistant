@@ -15,7 +15,7 @@ Migration notes:
 """
 
 import json
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Literal
 
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -26,7 +26,7 @@ from src.core.field_names import FIELD_LLM_PROVIDER, FIELD_LLM_TYPE
 from src.core.llm_agent_config import LLMAgentConfig
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.infrastructure.llm.providers.adapter import ProviderAdapter
-from src.infrastructure.llm.providers.anthropic_payload import shape_claude_payload
+from src.infrastructure.llm.providers.anthropic_hooks import install_claude_hooks
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -475,23 +475,13 @@ def get_llm(
 
     llm.callbacks = callbacks
 
-    # 6. Claude request payload policy (ADR-306): the static-prefix breakpoint
-    # whatever the shape of the system prompt, the rolling breakpoint only in a
-    # tool loop, no earlier turn's thinking replayed. The Claude API never
-    # caches unasked, so where the breakpoints sit decides the bill -- see
-    # ``providers/anthropic_payload.py`` for the three measurements behind it.
-    # Instance-level wiring survives ``.with_structured_output()`` and
-    # ``.bind_tools()``: both reuse this ChatAnthropic instance.
-    if provider == "anthropic" and hasattr(llm, "_get_request_payload"):
-        _original_get_request_payload = llm._get_request_payload
-
-        def _get_request_payload_with_cache(input_: Any, stop: Any = None, **kwargs: Any) -> dict:
-            # An invoke-time ``cache_control`` would land on the last message:
-            # the policy owns every breakpoint.
-            kwargs.pop("cache_control", None)
-            return shape_claude_payload(_original_get_request_payload(input_, stop=stop, **kwargs))
-
-        llm._get_request_payload = _get_request_payload_with_cache  # type: ignore[method-assign]
+    # 6. Claude request and stream policy (ADR-306, ADR-362): the Claude API
+    # never caches unasked, so where the breakpoints sit decides the bill, and
+    # a streamed response must still say which writes were for the hour. See
+    # ``providers/anthropic_hooks.py``; the hooks are instance-level and survive
+    # ``.with_structured_output()`` and ``.bind_tools()``.
+    if provider == "anthropic":
+        install_claude_hooks(llm)
 
     logger.info(
         "llm_created",

@@ -279,6 +279,7 @@ def calculate_total_cost_usd(messages: list[Any]) -> float:
             completion_tokens=usage.completion,
             cached_tokens=usage.cached,
             cache_write_tokens=usage.cache_write,
+            cache_write_extended_tokens=usage.cache_write_extended,
         )
         total_cost += cost_usd or 0.0
     return round(total_cost, 6)  # Round to 6 decimals ($0.000001 precision)

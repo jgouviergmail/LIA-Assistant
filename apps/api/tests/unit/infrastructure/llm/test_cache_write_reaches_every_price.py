@@ -82,3 +82,56 @@ def test_the_guard_sees_the_doors() -> None:
                 seen.add(name)
     # ``get_cached_cost`` is only reached through its metrics alias.
     assert seen >= set(DOORS) - {"get_cached_cost"}
+
+
+#: The doors a call's EXTENDED-lifetime writes reach (ADR-362), and the keyword
+#: carrying them. Only the ReAct model call of a turn a person waits for is
+#: written for the hour (``prompt_cache_horizon`` has one writer, guarded with
+#: the payload policy), so its writes are priced where the TURN prices a call:
+#: the metrics and tracking callbacks, the tracking context's own door, and the
+#: conversation metric that prices the thread's messages again.
+EXTENDED_WRITE_KEYWORD = "cache_write_extended_tokens"
+TURN_PRICING_MODULES: tuple[str, ...] = (
+    "infrastructure/observability/callbacks.py",
+    "domains/chat/service.py",
+    "domains/agents/services/business_metrics.py",
+)
+
+
+def test_the_turns_doors_are_handed_the_extended_writes() -> None:
+    offenders: list[str] = []
+    seen = 0
+    for rel in TURN_PRICING_MODULES:
+        tree = ast.parse((_SRC / rel).read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or _called_name(node) not in DOORS:
+                continue
+            seen += 1
+            if not any(kw.arg == EXTENDED_WRITE_KEYWORD for kw in node.keywords):
+                offenders.append(f"{rel}:{node.lineno} {_called_name(node)}")
+    assert seen >= len(TURN_PRICING_MODULES), "the turn's doors moved: update the list"
+    assert offenders == [], (
+        "A turn door prices a call without its extended-lifetime writes, so a "
+        "one-hour write would be billed at the five-minute rate (ADR-362):\n  "
+        + "\n  ".join(offenders)
+    )
+
+
+#: The one module allowed to open the extended cache horizon (ADR-362): the
+#: ReAct model call. Its accounting is the turn's, whose doors the rule above
+#: holds -- a second writer would write one-hour entries that a background door
+#: prices at the five-minute rate.
+EXTENDED_HORIZON_WRITERS = frozenset({"domains/agents/nodes/react_nodes.py"})
+
+
+def test_the_extended_horizon_has_one_writer() -> None:
+    writers: set[str] = set()
+    for path in sorted(_SRC.rglob("*.py")):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Call) and _called_name(node) == "extended_prompt_cache_horizon":
+                writers.add(path.relative_to(_SRC).as_posix())
+    assert writers == EXTENDED_HORIZON_WRITERS, (
+        "A new caller opens the extended cache horizon. Its calls write one-hour "
+        "entries (2x the input price): price them at the doors of its own "
+        "accounting with cache_write_extended_tokens, then declare it here."
+    )

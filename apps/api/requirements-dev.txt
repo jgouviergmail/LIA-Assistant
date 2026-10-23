@@ -4,7 +4,7 @@
 -r requirements-sandbox.txt
 
 # Linting & Formatting
-black==26.5.1
+black==26.10.1  # CVE-2026-114134 fix (the bundled GitHub Action; LIA runs black from this lock only)
 ruff==0.15.15
 mypy==1.20.1
 

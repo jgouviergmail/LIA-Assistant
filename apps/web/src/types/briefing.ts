@@ -424,6 +424,8 @@ export interface RefreshRequest {
 // =============================================================================
 
 export const ERROR_CODE_CONNECTOR_NOT_CONFIGURED = 'connector_not_configured';
+/** The source is there, the person's address is not (the weather card). */
+export const ERROR_CODE_LOCATION_NOT_CONFIGURED = 'location_not_configured';
 export const ERROR_CODE_CONNECTOR_OAUTH_EXPIRED = 'connector_oauth_expired';
 export const ERROR_CODE_CONNECTOR_NETWORK = 'connector_network';
 export const ERROR_CODE_CONNECTOR_RATE_LIMIT = 'connector_rate_limit';

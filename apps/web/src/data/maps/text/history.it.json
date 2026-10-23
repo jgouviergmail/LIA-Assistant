@@ -1897,6 +1897,11 @@
       "title": "Una sonda in uscita che nomina il passaggio fallito e conferma l'interruzione",
       "summary": "La sonda di connettività in uscita separa la risoluzione DNS dalla connessione e conferma una perdita su più tentativi distanziati. Un pacchetto DNS perso non apre più un incidente critico: un recupero o un rallentamento viene segnalato come degradato, e un'interruzione reale nomina il passaggio che è fallito.",
       "src": "9cf5696d02f2"
+    },
+    "362": {
+      "title": "La cache di Claude riletta da un turno all'altro",
+      "summary": "Il turno successivo rilegge ora tutta la cronologia dalla cache invece di riscriverla, e ciò che rileggerà resta conservato un'ora quando una persona attende e scambia spesso. Queste scritture di un'ora sono fatturate al loro giusto prezzo, e il ragionamento di un turno precedente torna al modello Claude che lo ha scritto, dove quel modello può rileggerlo.",
+      "src": "ba46216e9d0f"
     }
   }
 }

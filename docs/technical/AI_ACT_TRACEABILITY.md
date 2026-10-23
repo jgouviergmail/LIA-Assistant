@@ -208,7 +208,8 @@ account is deleted. **`token_usage_logs` is not**: it is classified
 parameters to it rather than duplicating it into a fourth register.
 
 Stated here rather than left to be discovered. The row holds no name, no
-content and no request — a model, a provider, sampling values, a digest — and
+content and no request — a model, a provider, sampling values, token counts
+(the prompt-cache writes by lifetime among them, ADR-362), a digest — and
 its account reference was already retained before lot 7. But a reader entitled
 to know what survives an erasure must not have to infer it from a data map.
 

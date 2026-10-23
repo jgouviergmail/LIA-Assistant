@@ -113,7 +113,10 @@ export function RelationMergePanel({
             type="button"
             onClick={submit}
             aria-disabled={busy || !picked}
-            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
+            // Full width on a phone (the column stretches it), its label on
+            // the left like every action of the sheet (owner request
+            // 2026-10-22).
+            className="inline-flex min-h-11 items-center justify-start gap-1.5 rounded-lg bg-primary px-3 py-2 text-left text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-disabled:cursor-not-allowed aria-disabled:opacity-60 sm:justify-center"
           >
             <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
             {t('relations.merge_action')}

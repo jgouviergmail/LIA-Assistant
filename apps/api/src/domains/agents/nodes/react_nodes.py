@@ -58,6 +58,7 @@ from src.domains.agents.nodes.react_prompt import build_bound_system_prompt
 from src.domains.agents.nodes.react_recovery import recovery_report, with_recovery_directives
 from src.domains.agents.nodes.react_turn_layout import (
     compose_turn_messages,
+    extended_cache_horizon,
     frequent_exchanges,
     react_slot_provider,
 )
@@ -88,7 +89,9 @@ from src.domains.agents.utils.react_budget import (
     uncharged_wall_seconds as _uncharged_wall_seconds,
 )
 from src.infrastructure.llm.factory import get_llm
+from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 from src.infrastructure.llm.message_text import coerce_content_to_text
+from src.infrastructure.llm.prompt_cache_horizon import extended_prompt_cache_horizon
 from src.infrastructure.observability.decorators import track_metrics
 from src.infrastructure.observability.metrics_agents import (
     agent_node_duration_seconds,
@@ -405,33 +408,41 @@ async def react_call_model_node(
         stream_reasoning_events,
     )
 
+    # The per-node metrics handler every node hands its model call: without it the
+    # loop's tokens, cost and cache writes reached the ledger and no Prometheus
+    # metric (measured on dev, 2026-10-22). The ledger's callback is kept.
+    config = enrich_config_with_node_metadata(config, "react_call_model")
+
+    # ADR-362: the call's cross-turn read points live the provider's extended
+    # lifetime when the next turn is minutes away (frequent, a person waiting).
     response: AIMessage | None = None
-    try:
-        response = await stream_reasoning_events(
-            llm_with_tools,
-            messages,
-            emit=make_reasoning_emit("react_call_model"),
-            config=config,
-        )
-    except Exception as exc:  # defensive: reasoning streaming must never break the loop
-        logger.warning(
-            "react_reasoning_stream_failed",
-            iteration=iteration + 1,
-            error=str(exc),
-            error_type=type(exc).__name__,
-        )
-    if response is None:
-        # Silent-double-call guard: the stream completed without a terminal
-        # output, so this ainvoke is a SECOND full LLM call. This path is
-        # healthy today (raw tool-bound LLM, proven capture) — if this warning
-        # ever fires, a provider/model/langchain change broke the capture.
-        logger.warning(
-            "react_reasoning_stream_no_output_double_call",
-            iteration=iteration + 1,
-            msg="Reasoning stream yielded no terminal output — falling back to "
-            "a second full LLM call (double cost/latency for this iteration)",
-        )
-        response = await llm_with_tools.ainvoke(messages, config)
+    with extended_prompt_cache_horizon(extended_cache_horizon(state)):
+        try:
+            response = await stream_reasoning_events(
+                llm_with_tools,
+                messages,
+                emit=make_reasoning_emit("react_call_model"),
+                config=config,
+            )
+        except Exception as exc:  # defensive: reasoning streaming must never break the loop
+            logger.warning(
+                "react_reasoning_stream_failed",
+                iteration=iteration + 1,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
+        if response is None:
+            # Silent-double-call guard: the stream completed without a terminal
+            # output, so this ainvoke is a SECOND full LLM call. This path is
+            # healthy today (raw tool-bound LLM, proven capture) — if this warning
+            # ever fires, a provider/model/langchain change broke the capture.
+            logger.warning(
+                "react_reasoning_stream_no_output_double_call",
+                iteration=iteration + 1,
+                msg="Reasoning stream yielded no terminal output — falling back to "
+                "a second full LLM call (double cost/latency for this iteration)",
+            )
+            response = await llm_with_tools.ainvoke(messages, config)
 
     tool_call_count = len(response.tool_calls) if response.tool_calls else 0
     logger.info(

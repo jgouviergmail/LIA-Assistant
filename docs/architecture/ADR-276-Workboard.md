@@ -1294,3 +1294,32 @@ Une relance rejoue le tour ENTIER, actions comprises.
 Gardes : `TestARetryNeverReplaysAnAction`, `test_acted_in_run_db.py` et
 `test_reservation_fence_pg.py` sur PostgreSQL avec deux acteurs, `TestTheReservationHoldsTheRun`,
 `TestEachRunCarriesItsReservation`, `test_router_execute.py`.
+
+## Amendement, 2026-10-22 — un passage de main nomme ses deux bouts
+
+**Constat.** L'historique d'un ticket disait à qui il passait, rarement d'où il
+venait. Des trois écrivains d'un passage de main, seul le service (l'écran et le
+chat) déposait les deux bouts ; la libération d'une connexion retirée et la
+remise d'un run ne déposaient que la destination, et le panneau ne dessinait
+aucune entrée `assigned`. La création ne nommait pas son premier porteur : le
+premier « Détenu par » d'un fil partait de rien.
+
+**Décision.**
+
+- Un bout de passage de main s'écrit par une seule fonction,
+  `workboard/history.holder_fields` : `from_kind`/`from_user` et
+  `to_kind`/`to_user`, un `user` NULL voulant dire le propriétaire (la
+  convention de la colonne) ou LIA. Les trois écrivains l'appellent, et la
+  création dépose son `to_*`.
+- Le panneau dessine « Détenu par : A → B » dans les mots du lecteur
+  (`holderParty`, `partyLabel` dans `lib/workboard/display.ts`, le vocabulaire
+  de la carte). Une entrée écrite avant ce changement nomme le seul bout
+  qu'elle porte, plutôt que d'inventer d'où venait le ticket.
+- La création nomme son premier porteur seulement quand ce ne sont pas les
+  mains du propriétaire (LIA ou une connexion) : le dire de chaque ticket
+  qu'une personne se crée répéterait l'évidence.
+
+**Preuves.** `tests/unit/domains/workboard/test_service.py` (création,
+libération), `tests/unit/infrastructure/scheduler/test_workboard_runner.py`
+(remise), `apps/web/src/lib/workboard/__tests__/display.test.ts`,
+`apps/web/src/components/workboard/__tests__/TicketDetailSections.test.tsx`.

@@ -262,6 +262,50 @@ class TestOneHtmlToText:
         assert line == "HTML & content next"
         assert strip_html_to_line("<p>" + "x" * 500 + "</p>", max_length=10) == "x" * 10
 
+    def test_a_preheader_padding_never_reaches_a_snippet(self) -> None:
+        # A newsletter pads its preview with characters that draw nothing,
+        # spaced out: kept, they read as a long blank stretch in the middle of
+        # a one-line excerpt (measured 2026-10-22 over forty Gmail previews:
+        # 187 ZERO WIDTH NON-JOINER, 84 COMBINING GRAPHEME JOINER, one BOM).
+        padded = "Offre &#847; &zwnj; &#847; &zwnj; \ufeff \u200b la semaine"
+        assert strip_html_to_line(padded, max_length=200) == "Offre la semaine"
+
+    def test_a_word_keeps_the_joiner_it_is_written_with(self) -> None:
+        # Only a run of padding goes: a Persian word needs its non-joiner.
+        word = "می\u200cخواهم"
+        assert strip_html_to_line(f"من {word}", max_length=200) == f"من {word}"
+
+
+class TestTheSnippetIsPlainTextOnEveryProvider:
+    """Gmail's preview is HTML-escaped where the two others hand over text."""
+
+    def test_gmail_hands_its_escaped_preview_over_decoded(self) -> None:
+        message = _gmail_full_html_only()
+        message["snippet"] = "J&#39;ai reçu &lt;le devis&gt; &amp; la facture"
+
+        GoogleGmailClient._normalize_message_fields(message, "full")
+
+        assert message["snippet"] == "J'ai reçu <le devis> & la facture"
+
+    def test_gmail_drops_the_preheader_padding_of_its_preview(self) -> None:
+        message = _gmail_full_html_only()
+        message["snippet"] = "Nouveautés \u034f \u200c \u034f \u200c \ufeff de la semaine"
+
+        GoogleGmailClient._normalize_message_fields(message, "metadata")
+
+        assert message["snippet"] == "Nouveautés de la semaine"
+
+    def test_a_second_normalisation_never_decodes_the_text_again(self) -> None:
+        # The mail says « &amp; » in so many words: decoded once it is the
+        # text, decoded twice it is a character the sender never wrote.
+        message = _gmail_full_html_only()
+        message["snippet"] = "Write &amp;amp; in HTML"
+
+        GoogleGmailClient._normalize_message_fields(message, "full")
+        GoogleGmailClient._normalize_message_fields(message, "full")
+
+        assert message["snippet"] == "Write &amp; in HTML"
+
 
 def test_a_snippet_of_hostile_markup_is_read_in_linear_time() -> None:
     """100 000 unclosed « < » cost 3.75 s on the event loop in an Outlook read."""

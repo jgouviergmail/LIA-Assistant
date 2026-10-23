@@ -78,3 +78,34 @@ administrator re-enables a type, `DELETE`/`PATCH` locked for the five types, a p
 rule in the weather resolver, and an exclusion in every count that reads rows. Five repairs,
 each one a place for the rows and the intent to drift apart, where one predicate over the
 instance has nothing to drift from.
+
+## Amendment 2026-10-22 — the deployment half is published, and a new account starts on it
+
+The predicate has two halves: the administrator's switch (a row) and the
+deployment's (the platform key, the browser flag). The second needs no database
+and is now a function of its own, `keyless_ceiling_reason`, which
+`keyless_unavailable_reason` composes: one implementation, the switch still
+speaking first.
+
+- `/config.features.home_address_enabled` publishes Google Places' ceiling.
+  Saving a home address geocodes it through Places, so the starter checklist
+  offers the address only where the deployment can save one, as its sibling
+  flags publish deployment ceilings. `/config` is read by 26 components, each
+  through a request of its own, so it reads no database for this; the
+  administrator's switch stays enforced by the save route.
+- A new account starts with the weather card alone only where the deployment
+  serves Google Weather (owner decision 2026-10-22,
+  `briefing/preferences.new_account_briefing_preferences`). Measured that day,
+  the public demonstrator has no platform key and refuses `/connectors`: its
+  weather card could never be drawn, and a grid holding it alone would be
+  empty. A new account there starts with every card, as before.
+- A weather card that misses an address rather than a provider says so:
+  `LocationNotConfiguredError` (`location_not_configured`) sends the setup line
+  to the person's Location settings, where `connector_not_configured` still
+  sends it to the connectors.
+
+Proofs: `tests/unit/domains/connectors/test_keyless.py::TestKeylessCeilingReason`,
+`tests/unit/api/test_client_config_flags.py`,
+`tests/unit/domains/auth/test_new_account_columns.py`,
+`apps/web/src/components/dashboard/__tests__/StarterChecklistCard.test.tsx`,
+`apps/web/src/lib/__tests__/briefing-setup.test.ts`.

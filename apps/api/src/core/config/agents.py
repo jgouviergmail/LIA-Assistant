@@ -215,6 +215,7 @@ from src.core.constants import (
     PLANNER_SEMANTIC_BROAD_BATCH_DEFAULT,
     PLANNER_TIMEOUT_SECONDS,
     PROACTIVE_CROSS_TYPE_COOLDOWN_MINUTES_DEFAULT,
+    PROMPT_CACHE_EXTENDED_TTL_ENABLED_DEFAULT,
     PYTHON_SANDBOX_EGRESS_HEALTH_URL_DEFAULT,
     PYTHON_SANDBOX_EGRESS_MANAGEMENT_URL_DEFAULT,
     PYTHON_SANDBOX_EGRESS_MAX_BODY_BYTES_DEFAULT,
@@ -924,6 +925,17 @@ class AgentsSettings(BaseSettings):
             "window dropped at once: it keeps between N and N + block - 1 turns, so each "
             "turn's history extends the previous one (ADR-309). The response node keeps "
             "sliding: its history follows the turn's own context, which no cache reads."
+        ),
+    )
+    prompt_cache_extended_ttl_enabled: bool = Field(
+        default=PROMPT_CACHE_EXTENDED_TTL_ENABLED_DEFAULT,
+        description=(
+            "For a ReAct turn a person waits for, in frequent exchanges (ADR-311), write "
+            "the prompt cache's two cross-turn read points -- the static prefix and the "
+            "history end -- for the provider's extended lifetime (Claude: one hour, a write "
+            "billed 2x the input price instead of 1.25x), so a turn coming between five "
+            "minutes and an hour later still reads them (ADR-362). The loop's rolling "
+            "breakpoint keeps the default lifetime. False = the default lifetime everywhere."
         ),
     )
     react_recovery_passes_max: int = Field(

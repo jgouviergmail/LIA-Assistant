@@ -60,6 +60,7 @@ from pydantic import BaseModel, ValidationError
 from src.core.claude_surface import claude_surface, requests_thinking
 from src.core.config import settings
 from src.core.constants import CAPABILITY_PROVENANCE_VERIFIED
+from src.infrastructure.llm.client_retries import client_retries_by_itself
 from src.infrastructure.llm.invoke_helpers import (
     enrich_config_preserving_callbacks,
     enrich_config_with_node_metadata,
@@ -84,17 +85,19 @@ from src.infrastructure.llm.strict_schema import (  # noqa: F401  (re-export)
 # The error taxonomy lives in its own module (file-size ratchet); re-exported
 # here so every caller keeps one import surface.
 from src.infrastructure.llm.structured_output_errors import (  # noqa: F401  (re-export)
+    StructuredOutputCallError,
     StructuredOutputError,
     StructuredOutputRefusedError,
     StructuredOutputTruncatedError,
+    call_failure,
     raise_if_provider_refused,
 )
 from src.infrastructure.llm.tool_call_rescue import (
     invalid_call_arguments,
-    rejection_reason,
-    rescue_from_text,
-    rescue_invalid_tool_call,
-    rescue_tool_call,
+    log_absent_values_dropped,
+    refusal_verdict,
+    repair_refused_answer,
+    rescue_payload,
 )
 from src.infrastructure.llm.usage_guard import enforce_usage_limit
 from src.infrastructure.observability.logging import get_logger
@@ -498,8 +501,11 @@ async def _structured_via_auto_tool[T: BaseModel](
 
     A short directive is prepended so the model reliably calls the tool under
     ``auto``. When ``reasoning_emit`` is set the call is streamed (live reasoning);
-    otherwise it is a plain ``ainvoke``. Returns ``None`` (the caller decides how
-    to fall back) when the model declines the tool or the args fail validation.
+    otherwise it is a plain ``ainvoke``. An answer that does not validate goes
+    through the native door's mechanical repairs (``repair_refused_answer``);
+    every settled call is counted on ``llm_structured_output_outcomes_total``.
+    Returns ``None`` (the caller decides how to fall back, and counts the miss)
+    when nothing could be settled.
 
     Args:
         llm: The chat model (OpenAI ChatOpenAI or Anthropic ChatAnthropic).
@@ -508,9 +514,10 @@ async def _structured_via_auto_tool[T: BaseModel](
         reasoning_emit: Coalesced-reasoning callback, or ``None`` to skip streaming.
         provider: Provider name, for the truncation refusal below.
         last_door: True when no other request shape can follow (a Claude that
-            refuses the forced tool). A provider refusal is then final; otherwise
-            the caller's buffered request is a DIFFERENT request (no streaming,
-            no reasoning summary) that a 4xx of this one does not condemn.
+            refuses the forced tool). A provider refusal is then final and a
+            failed call is raised as itself; otherwise the caller's buffered
+            request is a DIFFERENT request (no streaming, no reasoning summary)
+            that a failure of this one does not condemn.
         **invoke_kwargs: Carries ``config`` for token tracking / tracing.
 
     Returns:
@@ -521,6 +528,8 @@ async def _structured_via_auto_tool[T: BaseModel](
             cut at its output budget (ADR-275).
         StructuredOutputRefusedError: On a deterministic provider refusal when
             ``last_door``: neither failure may retry the unchanged request.
+        StructuredOutputCallError: When ``last_door`` and the call itself raised
+            (a provider or transport failure), chained to what it raised.
     """
     schema_name = schema.__name__
     # NOTE (prompt impact): unlike the forced-tool path (``with_structured_output``,
@@ -551,32 +560,52 @@ async def _structured_via_auto_tool[T: BaseModel](
         else:
             ai_msg = await bound.ainvoke(payload, **invoke_kwargs)
     except Exception as exc:  # defensive: must never break the node
-        if last_door:
-            raise_if_provider_refused(exc, provider, schema_name)
         logger.warning(
             "structured_auto_tool_failed",
             schema=schema_name,
             error=str(exc),
             error_type=type(exc).__name__,
         )
+        if last_door:
+            # No other door follows: the call's own failure is the answer. Returned
+            # as « nothing usable », a 503 read as « produced no valid tool call »,
+            # lost its cause and was counted the model's rejection (2026-10-22).
+            failure = call_failure(exc, provider, schema_name, "Auto-tool structured output")
+            _count_outcome(provider, schema_name, "call_failed")
+            raise failure from exc
         return None
 
     tool_calls = getattr(ai_msg, "tool_calls", None) or []
+    parsing_error: ValidationError | None = None
     if tool_calls:
         try:
             # A tool call that validates is complete, whatever the stop reason.
-            return schema(**(tool_calls[0].get("args") or {}))
+            parsed = schema(**(tool_calls[0].get("args") or {}))
         except ValidationError as exc:
-            logger.warning(
-                "structured_auto_tool_parse_failed",
-                schema=schema_name,
-                error=str(exc),
-            )
+            parsing_error = exc
+        else:
+            _count_outcome(provider, schema_name, "parsed")
+            return parsed
 
     # Nothing complete came back. A cut answer is not a « miss »: the buffered
-    # fallback would buy the same cut a second time (ADR-275).
+    # fallback would buy the same cut a second time, and a repair would close
+    # it into a shorter object announced as complete (ADR-275).
     if is_output_truncated(ai_msg):
+        _count_outcome(provider, schema_name, "truncated")
         raise_truncated(ai_msg, provider, schema_name)
+    # The native door's repairs: this door carries most structured calls of a
+    # Claude that refuses a forced tool, and it validated them raw (2026-10-22).
+    repaired, outcome = repair_refused_answer(ai_msg, schema, provider, schema_name)
+    if repaired is not None:
+        _count_outcome(provider, schema_name, outcome)
+        return repaired
+    # A miss is settled by the caller (a fallback that counts its own outcome,
+    # or a refusal counted once), so nothing is counted here.
+    logger.warning(
+        "structured_auto_tool_parse_failed",
+        schema=schema_name,
+        reason=refusal_verdict(ai_msg, parsing_error),
+    )
     return None
 
 
@@ -649,6 +678,7 @@ async def _get_native_structured_output[T: BaseModel](
         if anthropic_thinking:
             # The buffered with_structured_output path forces a tool: a certain
             # 400 here. No safe fallback: fail with a clear error.
+            _count_outcome(provider, schema_name, "rejected")
             raise StructuredOutputError(
                 f"Anthropic auto-tool structured output produced no valid tool call "
                 f"for {schema_name} (forced-tool fallback refused by this model)",
@@ -751,43 +781,21 @@ async def _get_native_structured_output[T: BaseModel](
                 _count_outcome(provider, schema_name, "truncated")
                 raise_truncated(raw_message, provider, schema_name)
             parsing_error = bundle.get("parsing_error") if isinstance(bundle, dict) else None
-            # A tool call rejected for its nulls is a complete answer spelled
-            # « absent » where the schema has a default (2026-09-05): default
-            # them, generically, before giving up on the call.
-            defaulted, dropped = rescue_tool_call(raw_message, schema)
-            if defaulted is not None:
-                logger.warning(
-                    "structured_output_nulls_defaulted",
-                    provider=provider,
-                    schema=schema_name,
-                    defaulted=dropped,
-                )
-                _count_outcome(provider, schema_name, "nulls_defaulted")
-                return defaulted
-            # A call the PARSER refused is not « no call »: the arguments are
-            # there, complete, with a bare word where a string belongs
-            # (2026-09-20). Quoted, they validate like any other call.
-            repaired, quoted = rescue_invalid_tool_call(raw_message, schema)
+            # A COMPLETE answer the parser refused is repaired mechanically and
+            # generically before the door gives up (ADR-184): values that only
+            # spell « absent », bare words where strings belong, an object
+            # written as text — one chain, shared with the auto-tool door.
+            repaired, outcome = repair_refused_answer(raw_message, schema, provider, schema_name)
             if repaired is not None:
-                logger.warning(
-                    "structured_output_invalid_call_repaired",
-                    provider=provider,
-                    schema=schema_name,
-                    quoted=quoted,
-                )
-                _count_outcome(provider, schema_name, "invalid_call_repaired")
+                _count_outcome(provider, schema_name, outcome)
                 return repaired
-            rescued = rescue_from_text(raw_message, schema, provider, schema_name)
-            if rescued is not None:
-                _count_outcome(provider, schema_name, "text_rescued")
-                return rescued
             # What the model actually wrote travels on the exception for the
             # diagnosis: the text when it answered in text, the refused
             # arguments when it called the tool and the parser said no.
             raw_text = coerce_content_to_text(
                 getattr(raw_message, "content", None) or ""
             ) or invalid_call_arguments(raw_message)
-            reason = rejection_reason(raw_message, parsing_error)
+            reason = refusal_verdict(raw_message, parsing_error)
             logger.warning(
                 "structured_output_tool_call_rejected",
                 provider=provider,
@@ -856,14 +864,10 @@ async def _get_native_structured_output[T: BaseModel](
         ) from e
 
     except Exception as e:
-        # LLM API error or other failure
-        raise_if_provider_refused(e, provider, schema_name)
-        raise StructuredOutputError(
-            f"Native structured output failed: {e}",
-            provider=provider,
-            schema_name=schema_name,
-            original_error=e,
-        ) from e
+        # The model call itself failed: a provider or transport error, said as itself.
+        failure = call_failure(e, provider, schema_name, "Native structured output")
+        _count_outcome(provider, schema_name, "call_failed")
+        raise failure from e
 
 
 async def _get_json_mode_fallback[T: BaseModel](
@@ -1009,17 +1013,22 @@ async def _get_json_mode_fallback[T: BaseModel](
             )
             parsed_json = json.loads(recovered)
 
-        # Validate with Pydantic schema
+        # Validate with Pydantic schema; values that only spell « absent » are
+        # repaired as on the other doors (ADR-184).
         try:
             result = schema.model_validate(parsed_json)
         except ValidationError as e:
-            raise StructuredOutputError(
-                f"Pydantic validation failed for {schema_name}: {e}",
-                provider=provider,
-                schema_name=schema_name,
-                raw_output=raw_output,
-                original_error=e,
-            ) from e
+            rescued, absent = rescue_payload(schema, parsed_json)
+            if rescued is None:
+                raise StructuredOutputError(
+                    f"Pydantic validation failed for {schema_name}: {e}",
+                    provider=provider,
+                    schema_name=schema_name,
+                    raw_output=raw_output,
+                    original_error=e,
+                ) from e
+            log_absent_values_dropped(provider, schema_name, absent)
+            result = rescued
 
         logger.info(
             "json_mode_fallback_success",
@@ -1034,14 +1043,8 @@ async def _get_json_mode_fallback[T: BaseModel](
         raise
 
     except Exception as e:
-        # Catch-all for unexpected errors
-        raise_if_provider_refused(e, provider, schema_name)
-        raise StructuredOutputError(
-            f"JSON mode fallback failed: {e}",
-            provider=provider,
-            schema_name=schema_name,
-            original_error=e,
-        ) from e
+        # The model call itself failed: a provider or transport error, said as itself.
+        raise call_failure(e, provider, schema_name, "JSON mode fallback") from e
 
 
 def _augment_messages_with_json_instructions(
@@ -1125,7 +1128,10 @@ async def get_structured_output_with_retry[T: BaseModel](
     Get structured output with automatic retry on transient failures.
 
     Useful for production environments where LLM API calls may occasionally fail
-    due to network issues, rate limits, or temporary service outages.
+    due to network issues, rate limits, or temporary service outages. A failed
+    CALL is left to a client that retries by itself (``client_retries_by_itself``):
+    the vendor SDK already spent its attempts on it. An unusable answer, or a call
+    on a client without retries of its own, is retried here.
 
     Args:
         llm: LangChain BaseChatModel instance
@@ -1168,6 +1174,11 @@ async def get_structured_output_with_retry[T: BaseModel](
             # refused budget or complete a cut answer (ADR-275).
             raise
         except StructuredOutputError as e:
+            if isinstance(e, StructuredOutputCallError) and client_retries_by_itself(llm):
+                # Its client already retried this very failure (the vendor SDK: with
+                # backoff and the provider's Retry-After); a second loop multiplied
+                # its attempts, nine requests for one 503 (2026-10-22, ADR-100).
+                raise
             last_error = e
             if attempt == max_retries:
                 # Final attempt failed

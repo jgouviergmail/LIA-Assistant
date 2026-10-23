@@ -35,6 +35,7 @@ from src.core.config import settings
 from src.core.constants import DYNAMIC_CONTEXT_MARKER
 from src.core.exchange_rhythm import ExchangeRhythm
 from src.core.prompt_layout import split_at_marker
+from src.domains.agents.services.streaming.latency_sli import a_person_is_waiting
 from src.infrastructure.llm.providers.adapter import ProviderType
 
 logger = structlog.get_logger(__name__)
@@ -51,11 +52,11 @@ class ContextPlacement(StrEnum):
 
 #: The trailing system message was measured on the real API for the first three
 #: (ReAct binding benchmark, 2026-09-23: OpenAI Responses, DeepSeek, Qwen
-#: compatible mode). The others cannot take one: Anthropic refuses a system
-#: message that is not first, ``langchain-google-genai`` merges it back into the
-#: system instruction, a mid-conversation system role is left to each Ollama
-#: model's own template, and Perplexity wants the system first and the roles
-#: alternating. Text appended to the question is valid on all of them.
+#: compatible mode). The others cannot take one: ``langchain-anthropic`` refuses a
+#: second system message that does not follow the first, ``langchain-google-genai``
+#: merges it back into the system instruction, a mid-conversation system role is
+#: left to each Ollama model's own template, and Perplexity wants the system first
+#: and the roles alternating. Text appended to the question is valid on all of them.
 CONTEXT_PLACEMENT: dict[str, ContextPlacement] = {
     "openai": ContextPlacement.TRAILING_SYSTEM,
     "deepseek": ContextPlacement.TRAILING_SYSTEM,
@@ -101,6 +102,29 @@ def frequent_exchanges(state: Mapping[str, Any]) -> bool:
         True for a frequent-exchanges turn.
     """
     return state.get("exchange_rhythm") == ExchangeRhythm.FREQUENT
+
+
+def extended_cache_horizon(state: Mapping[str, Any]) -> bool:
+    """Whether the turn's model calls keep their cross-turn read points for the hour (ADR-362).
+
+    The fourth effect of frequent exchanges, for a turn a person waits for: the
+    static prefix and the history end are written for the provider's extended
+    lifetime, because the next turn comes within the hour four times in five
+    (production, 2026-10-22) and within five minutes only about half the time.
+    A run nobody waits for -- a routine, a ticket, a relay -- is not followed
+    minutes later; the operator can withdraw the hour.
+
+    Args:
+        state: The turn's graph state.
+
+    Returns:
+        True when the turn's calls should ask for the extended lifetime.
+    """
+    return (
+        frequent_exchanges(state)
+        and a_person_is_waiting()
+        and settings.prompt_cache_extended_ttl_enabled
+    )
 
 
 def react_slot_provider() -> str | None:
@@ -212,6 +236,7 @@ __all__ = [
     "ContextPlacement",
     "assert_context_placement_completeness",
     "compose_turn_messages",
+    "extended_cache_horizon",
     "frequent_exchanges",
     "react_slot_provider",
 ]

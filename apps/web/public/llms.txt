@@ -4,7 +4,7 @@
 > that orchestrates 21+ specialized AI agents to manage daily productivity — emails, calendar,
 > contacts, files, tasks, smart home and more — with systematic human validation (HITL) of every
 > sensitive action. Nearly 100% of its code was written by an AI under human direction; the method
-> and a measured 8.0/10 technical audit (open worksites published) are documented at /story.
+> and a measured 7.8/10 technical audit (open findings published) are documented at /story.
 
 ## Key Features
 
@@ -39,9 +39,9 @@
 - **Frontend**: Next.js 16 / React 19 / TypeScript strict / TailwindCSS
 - **Orchestration**: LangGraph 1.x state machine — conditional routing, parallel execution waves, PostgreSQL checkpointing
 - **Database**: PostgreSQL 16 + pgvector (state, vectors) + Redis (cache, rate limiting, sessions)
-- **Observability**: 627 Prometheus metrics, 32 Grafana dashboards, Loki logs, Tempo traces, Langfuse LLM tracing
+- **Observability**: 630 Prometheus metrics, 32 Grafana dashboards, Loki logs, Tempo traces, Langfuse LLM tracing
 - **Security**: OAuth 2.1 with PKCE, BFF pattern (HTTP-only cookies), Fernet encryption, PII filtering, GDPR compliant
-- **Engineering**: 66,000+ automated tests, 359 Architecture Decision Records, 285 releases, 360° technical audit (8.0/10 across 24 areas, security assessed separately)
+- **Engineering**: 66,000+ automated tests, 360 Architecture Decision Records, 286 releases, 360° technical audit (7.8/10 across 24 areas, security assessed separately)
 - **Self-hosting**: multi-arch Docker images (amd64/arm64) — runs in production on a Raspberry Pi 5
 
 ## How It Works

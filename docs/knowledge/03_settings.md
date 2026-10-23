@@ -598,7 +598,7 @@ In **Settings › Preferences › Personalization › Usage preferences**, you t
 **Good to know:**
 • if the configured AI model cannot hold every tool, LIA picks them by relevance for that message
 • the saving relies on the prompt cache of your instance's AI provider: on a model without one, occasional exchanges remain the cheaper choice
-• until you choose, your instance's default applies
+• a new account starts with **Occasional exchanges**; an older account that never chose follows its instance's default
 • the Pipeline mode keeps its own planner and is not affected
 
 ## How does an administrator send an announcement to some users only?

@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 6.5
-**Date**: 2026-10-22
-**Application**: LIA v3.4.0
+**Version**: 6.6
+**Date**: 2026-10-23
+**Application**: LIA v3.5.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -61,8 +61,8 @@ Every user has their own settings space, organized in two tabs. A search field s
 - **Image generation**: enable and configure AI image creation
 - **Personal MCP servers**: connect your own MCP servers to extend LIA's capabilities
 - **Appearance**: language, timezone, theme (5 palettes, light, dark or absolute black), font (9 choices), text size (14 to 20 px, without moving a panel), response display format (HTML cards, HTML, Markdown)
-- **My dashboard**: hide or reorder the 11 briefing cards — a hidden card is not even fetched anymore
-- **Usage preferences**: choose your exchange rhythm — frequent, and LIA keeps every tool at hand so each ReAct turn re-reads the previous one from the provider's cache; occasional, and it picks the tools each question needs, at a steady cost
+- **My dashboard**: hide or reorder the 11 briefing cards — a hidden card is not even fetched anymore; a new account starts on the weather alone where the instance provides it, its starter checklist asking for the home address first
+- **Usage preferences**: choose your exchange rhythm — frequent, and LIA keeps every tool at hand so each ReAct turn re-reads the previous one from the provider's cache; occasional, and it picks the tools each question needs, at a steady cost — where a new account starts
 - **Debug**: access the debug panel to inspect each exchange (if enabled by administrator)
 
 **Advanced features:**
@@ -320,7 +320,7 @@ LIA doesn't just run on modest hardware — it **actively optimizes** its AI res
 - **Catalog filtering**: only the tools relevant to your query are presented to the LLM, drastically reducing token consumption
 - **Pattern learning**: validated plans are memorized and reused without calling the LLM again
 - **Message Windowing**: each component sees only the strictly necessary context
-- **Prompt caching**: leveraging native provider caching to limit recurring costs — and in ReAct mode, you arbitrate the trade-off: frequent exchanges keep every tool loaded so each turn re-reads the previous one, occasional exchanges keep the relevance filter and a cost that does not depend on the gap between two messages
+- **Prompt caching**: leveraging native provider caching to limit recurring costs — and in ReAct mode, you arbitrate the trade-off: frequent exchanges keep every tool loaded so each turn re-reads the previous one — kept up to an hour while you wait, with a provider that offers it —, occasional exchanges keep the relevance filter and a cost that does not depend on the gap between two messages
 - **Prompts with no dead weight**: a context is wrapped only when it exists, so a bare turn carries no empty envelope, and a two-sentence notification is asked for without reasoning — on a model that thinks by default, the thinking is billed inside the answer budget
 
 Combined, these optimizations account for the factor of 4 to 8 between Pipeline mode and the autonomous agent mode, for the same service rendered.
@@ -351,7 +351,7 @@ The same transparency applies to actions: under every response, a collapsed “�
 
 The rule has no exception by path. Everything the platform pays for you with its own keys reaches your usage and your limits, whatever the modality: a map lookup during a phone call or a direct live session, the weather calls of the morning briefing, the geocoding of your address, a place photo shown to you (counted when it is displayed, never in advance), a voice synthesis (counted only for the sentences actually delivered). A phone bill and a live session card show one figure for what the run cost, Maps euros included. And what you pay with your **own** connector keys — a live model, the phone agent, a web search — stays outside: shown to you where it happens, recorded nowhere.
 
-And the figure shown is the one the provider really bills: tariffs are re-read on its pages, a write to a model's cache counts at its own price, an off-peak hour knows its days (weekends, when the provider does it), a route is counted at the tier its request triggers — and a price the administrator edits reaches every server at once.
+And the figure shown is the one the provider really bills: tariffs are re-read on its pages, a write to a model's cache counts at its own price, the one kept an hour included, an off-peak hour knows its days (weekends, when the provider does it), a route is counted at the tier its request triggers — and a price the administrator edits reaches every server at once.
 
 Even an interactive map announces its cost before it opens, and an answer you keep shows what it cost to produce and to index — the amount actually billed, never an estimate.
 

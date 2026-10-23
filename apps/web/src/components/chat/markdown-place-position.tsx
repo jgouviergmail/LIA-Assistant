@@ -122,8 +122,12 @@ function PositionMap({
     });
   }
   const cost = positionOffer(config, owner, data, i18n.language);
+  // Drives the list's layout (lia-cards.css): beside the map on a wide card
+  // while there IS a map, a centred line that wraps while there is none —
+  // behind its offer, a side column would face nothing.
+  const mapShown = state === 'loading' || state === 'ready';
   return (
-    <div className="lia-route-map__content">
+    <div className="lia-route-map__content lia-place-position__content" data-map-shown={mapShown}>
       {popup && state === 'ready' && (
         <PlaceMapPopup
           popup={popup}

@@ -1897,6 +1897,11 @@
       "title": "Eine Ausgangssonde, die den fehlerhaften Schritt benennt und einen Ausfall bestätigt",
       "summary": "Die Sonde für ausgehende Verbindungen trennt die DNS-Auflösung vom Verbindungsaufbau und bestätigt einen Verlust über mehrere zeitlich verteilte Versuche. Ein verlorenes DNS-Paket öffnet keinen kritischen Vorfall mehr: Eine Wiederherstellung oder eine Verlangsamung wird als beeinträchtigt gemeldet, und ein echter Ausfall benennt den Schritt, der fehlgeschlagen ist.",
       "src": "9cf5696d02f2"
+    },
+    "362": {
+      "title": "Claudes Cache, von einer Runde zur nächsten wieder gelesen",
+      "summary": "Die nächste Runde liest den ganzen Verlauf jetzt aus dem Cache, statt ihn neu zu schreiben, und was sie lesen wird, bleibt eine Stunde lang erhalten, wenn eine Person wartet und häufig austauscht. Diese einstündigen Schreibvorgänge werden zu ihrem richtigen Preis abgerechnet, und das Nachdenken einer früheren Runde geht an das Claude-Modell zurück, das es geschrieben hat — sofern dieses Modell es wieder lesen kann.",
+      "src": "ba46216e9d0f"
     }
   }
 }

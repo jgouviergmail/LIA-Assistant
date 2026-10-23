@@ -11,7 +11,10 @@ A ReAct turn's prompt can be shaped for the NEXT turn or for this one alone:
 
 The three effects travel together: measured on 396 real turns (ADR-308), the
 context after the question pays only when every tool is bound, and the history
-blocks only when the prefix before them is read again.
+blocks only when the prefix before them is read again. A fourth follows the same
+choice for a turn a person waits for: the prefix's cross-turn read points live
+the provider's extended lifetime (``react_turn_layout.extended_cache_horizon``,
+ADR-362).
 
 The account stores the person's choice (``users.exchange_rhythm``); an account
 that never chose follows ``REACT_CROSS_TURN_CACHE_ENABLED``, the operator's

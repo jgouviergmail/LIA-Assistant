@@ -5,6 +5,146 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.0] - 2026-10-23
+
+**Follow-ups read back from the cache, a first dashboard that starts simple, hand-overs that name both ends.**
+On Claude, the next turn reads its whole history back from the provider's cache —
+for an hour when a person is waiting — and every write is billed at its real
+price; a new account opens on the weather and occasional exchanges; a ticket's
+history says who held it before and after; the phone gets the whole width; and
+the technical audit publishes its counter-review, 7.8/10.
+
+### Added
+
+- ⚡ **Claude's prompt cache across turns** (ADR-362). In a tool loop, the
+  history's end becomes a read point: the next turn reads its whole history back
+  instead of writing it again (measured on two generations: 439 tokens written
+  against 1,685). In frequent exchanges, a turn a person waits for writes its two
+  cross-turn read points — the static prefix and the history's end — for
+  Claude's one-hour lifetime: after a seven-minute pause, the next turn's first
+  call read 144,376 tokens back and cost 89 % less. The hour is billed at its own
+  rate (2x the input price) through every pricing door. A streamed response
+  names it at its start only, which a stream hook now keeps
+  (`providers/anthropic_hooks.py`); a start that names nothing is counted
+  (`llm_cache_write_breakdown_missing_total`) and alerted
+  (`LLMCacheWriteLifetimeUnreported`, runbook and self-diagnosis evidence
+  included). Each call records its cache writes (`token_usage_logs.cache_write_tokens`
+  and `cache_write_extended_tokens`, migration `6b7fe9493921`), the Article-12
+  technical extraction exports them and dashboard 05 draws the writes by
+  lifetime. An earlier turn's thinking goes back to the Claude model that wrote
+  it on a generation that keeps it without binding it to the conversation
+  (`ClaudeSurface.preserves_prior_turn_thinking`); every other earlier block is
+  removed under a named, counted reason. Two operator switches, both on:
+  `PROMPT_CACHE_EXTENDED_TTL_ENABLED` and `PRIOR_TURN_THINKING_REPLAY_ENABLED`.
+  `task llm:cache:probe` measures the design against the API under a USD budget.
+- 🌤️ **A new account starts simple** (ADR-311 and ADR-307 amendments). One
+  declaration, `auth/new_account_columns.py`, spread by the three sign-up doors —
+  an e-mail registration, a first Google sign-in and the installer's first
+  administrator — starts every new account in occasional exchanges and, where
+  the instance serves the weather on its own key, on a dashboard showing the
+  weather card alone; the other cards wait, switched off, in the grid settings.
+  The starter checklist opens on the home address wherever the deployment can
+  save one (`/config.features.home_address_enabled`), and a weather card that
+  misses an address says so (`location_not_configured`) and points to the
+  Location settings rather than to the connectors. Existing accounts keep what
+  they had.
+- 🔁 **Every hand-over in a ticket's history names both ends** (ADR-276
+  amendment): « Held by: Me → LIA », written by one function
+  (`workboard/history.holder_fields`) for the screen, the chat, a run handing a
+  ticket back and a connection that ends; a ticket created straight for LIA or a
+  connection names its first holder.
+
+### Changed
+
+- 📱 **The phone gets the whole width** (ADR-177 amendment). Below 880 px, a
+  table, card or code bubble takes its whole column — a short answer stays a
+  short bubble — under a stylesheet guard; an empty Home card shrinks to its
+  title and its sentence; on a relationship card, every action button takes the
+  sheet's full width, its label on the left.
+- 🗺️ **Position, rearranged** (ADR-356 amendment). On a wide card the places sit
+  in a column beside the map, centred on its height and scrolling inside it from
+  the first place; the map offer is one centred block with its cost underneath;
+  the stage takes the panel's corners; and the details window is placed again
+  after every fit, so a first selection whose route arrives late no longer leaves
+  it badly placed.
+- ✉️ **Gmail previews read as text** (ADR-287 amendment): decoded once at the
+  client's edge — « J&#39;ai » now reads « J'ai » — with a newsletter's invisible
+  padding dropped and a word that legitimately carries a joiner left as written;
+  a relationship's e-mail excerpt shows up to four lines.
+- 🧩 **One repair chain for every structured-output door** (ADR-100 amendment).
+  The auto-tool call — the only door of a Claude that refuses a forced tool — now
+  repairs and counts like the forced one, and a JSON-mode answer repairs absent
+  values too. On a model that forbids extras, an undeclared key holding nothing
+  is dropped (`absent_values_dropped`) instead of refusing the whole answer: a
+  query analysis refused for an empty note had sent its turn back to a
+  conversation without tools.
+- 🧱 Relationship and knowledge-space cards end on the same footer rule as the
+  skill and MCP cards.
+
+### Security
+
+- 🔐 **Black ≥ 26.10.1 as a manifest floor** (ADR-331): CVE-2026-114134 lets the
+  GitHub Action bundled with Black install a version read from an unvalidated
+  `pyproject.toml` setting. LIA never runs that Action — Black comes from the
+  development lockfile alone — but the dev lock carried the affected release,
+  and the backend audit refuses it. Formatting is unchanged (7,476 files).
+
+### Fixed
+
+- 📈 The ReAct loop's model calls reach every Prometheus LLM metric: the node now
+  hands them the per-node metrics handler every other node attaches.
+- 🔇 A structured-output refusal no longer quotes the first 120 characters of the
+  model's arguments at WARNING (ADR-317): the log names the parser's verdict and
+  the schema paths, never a refused value.
+
+### Removed
+
+- 🧹 **Code no entry point reached** (ADR-194 amendment), proven by walking every
+  caller up to a registered tool, a route or a job: 31 definitions of
+  `formatters.py` (`ContactsFormatter`, three date formatters, ten Gmail
+  extractors), the eleven functions of the former contact-detail path in
+  `google_contacts_tools.py`, `agents/utils/email_enricher.py`, the four
+  translated messages only they read, and the 66 tests that exercised nothing
+  else. Nothing changes for a person: none of these paths ran.
+
+### Tests
+
+- 🧪 PostgreSQL proofs for the two cache-write columns and for the installer's
+  first account starting like every new account; unit coverage of the Claude
+  payload policy (the history read point, the lifetimes, the hour never placed
+  after a caller's own breakpoint), the stream hook, the prior-thinking
+  decisions, the cache horizon's scope across `astream_events`, the auto-tool
+  repairs and the query-analysis door, the keyless ceiling, the starter
+  checklist, the weather setup line, the hand-over history and the Position
+  placements.
+- 🛡️ New guards: a stylesheet test refusing any rule that narrows a phone bubble
+  below its column and pinning the Position list's placement;
+  `test_cache_write_reaches_every_price` holds every turn door to the hour's
+  writes and names the cache horizon's one writer; two promtool cases for the new
+  alert.
+
+### Documentation
+
+- 📚 ADR-362, and amendments of ADR-100, ADR-177, ADR-194, ADR-276, ADR-287,
+  ADR-306, ADR-307, ADR-308, ADR-309, ADR-311 and ADR-356; the
+  `LLMCacheWriteLifetimeUnreported` runbook; the LLM pricing, providers, prompts,
+  ReAct, database schema, Grafana, briefing, workboard and connectors documents;
+  the FAQ and its knowledge corpus, the public presentations — including two new
+  animated cards on the *More* page — settings search and the living maps, in six
+  languages.
+- 🧭 **The technical audit publishes its counter-review.** The V14 revision of
+  2026-10-22 re-examined every finding and score against the current code and
+  lowers the published score from 8.0 to **7.8/10** (186.5/240) — eleven areas
+  down, usability up — with 26 open findings (4 major, 11 moderate, 11 minor),
+  12 of them new (AC-028 to AC-039), and the closures it could prove (AC-024 and
+  AC-025, AC-021 presumed; nine findings of V13). The public report, README,
+  Story and How guides, FAQ, knowledge corpus and `llms.txt` carry it, with its
+  prioritized remediation plan.
+- 📏 Public counters re-measured at the source: 66,000+ inventoried tests (52,397
+  backend tests collected across 3,500 files, 13,948 frontend tests across 1,118),
+  630 Prometheus metrics, 360 ADRs and 286 releases; the FAQ card of the Home
+  page names its eleven cards again — it still said nine.
+
 ## [3.4.0] - 2026-10-22
 
 **LIA speaks first, your texts join in, places show the way.**

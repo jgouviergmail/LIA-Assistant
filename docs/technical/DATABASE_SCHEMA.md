@@ -160,6 +160,8 @@ erDiagram
         int prompt_tokens
         int completion_tokens
         int cached_tokens
+        int cache_write_tokens "nullable, ADR-362"
+        int cache_write_extended_tokens "nullable, ADR-362"
         decimal cost_usd
         decimal cost_eur
     }
@@ -802,6 +804,11 @@ CREATE TABLE token_usage_logs (
     prompt_tokens INTEGER NOT NULL DEFAULT 0,
     completion_tokens INTEGER NOT NULL DEFAULT 0,
     cached_tokens INTEGER NOT NULL DEFAULT 0,  -- Prompt caching
+    -- Ecritures au cache de prompt (ADR-362) : la part du prompt ecrite, et celle
+    -- ecrite pour la duree etendue (Claude : une heure, facturee 2x). Nullables :
+    -- une ligne anterieure se lit « inconnu », pas « zero ».
+    cache_write_tokens INTEGER,
+    cache_write_extended_tokens INTEGER,
 
     -- Cost Tracking (6 decimals for precision)
     cost_usd NUMERIC(10, 6) NOT NULL DEFAULT 0.0,

@@ -331,7 +331,14 @@ class TestTheTick:
         calls = env.repository.add_event.await_args_list
         kinds = [call.kwargs["kind"] for call in calls]
         assert kinds == ["run_started", "run_finished", "assigned"]
-        assert calls[-1].kwargs["payload"]["reason"] == "handed_back"
+        # Both ends of the hand-back, so the history reads « held by: LIA → me ».
+        assert calls[-1].kwargs["payload"] == {
+            "from_kind": "lia",
+            "from_user": None,
+            "to_kind": "human",
+            "to_user": None,
+            "reason": "handed_back",
+        }
 
     async def test_a_run_that_stops_on_a_question_hands_the_ticket_back(self) -> None:
         """A question nobody holds is a question nobody answers."""

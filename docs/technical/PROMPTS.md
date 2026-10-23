@@ -225,10 +225,14 @@ gère les spécificités de chaque provider :
    l'écriture cache à 125 % à chaque appel sans jamais de hit). Un prompt 100 %
    statique opte en TERMINANT par le marqueur (ex. `compaction_prompt.txt`,
    `semantic_validator_prompt.txt`). Le point d'arrêt glissant (niveau racine)
-   n'est posé que dans une boucle d'outils, où la requête suivante le relit ;
-   la réflexion des tours précédents n'est pas rejouée ; TTL de 5 minutes
-   seulement. Une écriture est facturée à son prix (1,25× l'entrée) sur tous les
-   chemins de coût.
+   n'est posé que dans une boucle d'outils, où la requête suivante le relit, et
+   la fin de l'historique y devient un point de relecture pour le tour suivant ;
+   ces deux points relus d'un tour à l'autre (préfixe statique, fin de
+   l'historique) vivent une heure pour un tour fréquent qu'une personne attend,
+   le glissant toujours 5 minutes. La réflexion d'un tour précédent n'est rendue
+   qu'au modèle qui l'a écrite, quand il la garde sans la lier. Une écriture est
+   facturée à son prix sur tous les chemins de coût (1,25× l'entrée pour
+   5 minutes, 2× pour une heure ; ADR-362).
 3. **OpenAI** (`infrastructure/llm/providers/responses_adapter.py`) :
    `prompt_cache_key` dérivée du préfixe avant le PREMIER marqueur (routage du
    cache) — un message système placé après, sans marqueur, est dynamique comme le

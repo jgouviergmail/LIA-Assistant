@@ -343,6 +343,19 @@ describe('Position from sanitized archived HTML', () => {
     expect(mountPlaceMap).toHaveBeenCalledOnce();
     expect(activate).toHaveFocus();
   });
+  it('sets the places beside the map only once the map is shown', async () => {
+    // A wide card puts the list on the map's right (owner request 2026-10-22);
+    // while the map is hidden behind its offer, a column beside nothing would
+    // squeeze the list for no map at all.
+    const view = renderWithProviders(viewTree());
+    const activate = await screen.findByRole('button', { name: 'chat.position_map.activate' });
+    const layout = screen.getByRole('list', { name: 'chat.position_map.choose' }).parentElement;
+    expect(layout).toHaveAttribute('data-map-shown', 'false');
+
+    await view.user.click(activate);
+
+    await waitFor(() => expect(layout).toHaveAttribute('data-map-shown', 'true'));
+  });
   it('loads only after explicit costed activation and reports construction once', async () => {
     const view = renderWithProviders(viewTree());
     await view.user.click(
