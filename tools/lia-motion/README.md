@@ -33,6 +33,10 @@ Use Node 24 or later, FFmpeg/ffprobe and the API Python environment with NumPy.
 The studio runs on port 3100. Select `LIA-Full`, `LIA-Landing` or `LIA-focus-*`.
 The authoring dependencies remain outside the deployed frontend and Docker
 application build context. Pinned dependencies are installed by `npm ci`.
+`overrides` in `package.json` carries the security fixes a dependency has not
+taken yet: Remotion still pins `zod` 4.5.4, so `"zod": "$zod"` makes every copy
+the project's own patched version (GHSA-mrhx-c7xc-m3w5), and `fast-uri` has a
+3.1.9 floor under ajv. Remove an override once its dependency ships the fix.
 
 Keep complete source screens stationary unless a declared native-element focus
 clarifies the scenario. Focus crops have fixed geometry and preserve native

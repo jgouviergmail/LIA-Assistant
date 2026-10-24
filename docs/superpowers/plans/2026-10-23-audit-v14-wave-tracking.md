@@ -1530,3 +1530,14 @@ d'intégration dans `D:\` (décision du propriétaire).
     `pnpm install --lockfile-only` (3 s), squelettes vides retirés par un script qui ne suit aucun lien et refuse
     s'il trouve un fichier, puis une installation `--frozen-lockfile` ininterrompue (961 paquets importés, aucune
     suppression, `node_modules/.pnpm/lock.yaml` réécrit).
+  - Commit `afb55d4f6` poussé (le hook avait refusé deux fois : la vérification de `.env.example` demandait
+    `DIFF_COVERAGE_BASE` et `GITHUB_ACTIONS`, que lisent `scripts/audit/` — exclus par emplacement, comme
+    `tests/` ; puis le motif des secrets prenait la constante de revendication `_RESET_CLAIM_PASSWORD = "pfp"`
+    pour un mot de passe — renommée `_RESET_CLAIM_PASSWORD_FINGERPRINT`, ce qu'elle porte). GitHub annonçait au
+    push 52 alertes Dependabot : 3 dans `pnpm-lock.yaml`, corrigées par ce commit ; 42 dans la boîte à outils GPU
+    du mot d'éveil (Pillow, fsspec), acceptées dans la veille ; et deux angles morts qu'aucun audit de l'espace de
+    travail ne lit — `tools/lia-motion` (zod forcé à 4.6.7 par `overrides` malgré l'épinglage 4.5.4 de Remotion,
+    `fast-uri` ≥ 3.1.9, `npm audit` à 0 ; deux tests de couverture éditoriale du film rouges DEPUIS v3.4.0,
+    `proactive_discussions` et `sms_archive` sans temps fort — décision éditoriale laissée au propriétaire) et
+    `brotli` 1.2.0 de la boîte GPU (critique, plancher 1.2.1 dans `requirements-gpu.in`, seul paquet changé).
+    `datasets` reste tenu sous 4 par VoxCPM (GHSA-379c-qx7v-6h59, invisible pour la veille).

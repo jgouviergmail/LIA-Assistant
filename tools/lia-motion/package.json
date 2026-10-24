@@ -22,7 +22,7 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "remotion": "4.0.534",
-    "zod": "4.5.4"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@types/node": "24.10.0",
@@ -32,5 +32,9 @@
   },
   "engines": {
     "node": ">=24"
+  },
+  "overrides": {
+    "zod": "$zod",
+    "fast-uri": "^3.1.9"
   }
 }

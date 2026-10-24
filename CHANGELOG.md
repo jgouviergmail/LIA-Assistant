@@ -59,11 +59,18 @@ every finding to its proof.
   runs `interaction-only` in the page's theme and language, the CSP admits Cloudflare's
   challenge host (ADR-098 amendment), and the privacy policy (v1.2) names the check in
   six languages.
-- 📦 **Three dependency advisories closed before the tag**: `zod` 4.6.7 (GHSA-mrhx-c7xc-m3w5,
+- 📦 **The dependency advisories closed before the tag**: `zod` 4.6.7 (GHSA-mrhx-c7xc-m3w5,
   high, fixed from 4.6.6 — validation of an oversized constrained collection could exhaust
-  memory), raised as the manifest's floor (ADR-331), and `vitest` / `@vitest/coverage-v8` 4.1.12 for two
-  moderate `@vitest/mocker` advisories (GHSA-qxg6-89mg-rqv8, GHSA-xp26-3454-mjgp) of the
-  test toolchain.
+  memory), raised as the manifest's floor (ADR-331), and `vitest` / `@vitest/coverage-v8`
+  4.1.12 for two moderate `@vitest/mocker` advisories (GHSA-qxg6-89mg-rqv8,
+  GHSA-xp26-3454-mjgp) of the test toolchain, their two dependency-watch acceptances
+  removed. Two repository tools no workspace audit reads were behind too: the landing
+  film's Remotion project (`tools/lia-motion`) forces the same `zod` over Remotion's 4.5.4
+  pin and floors `fast-uri` at 3.1.9 (four advisories) through npm `overrides`, and the
+  wake-word GPU toolbox floors `brotli` at 1.2.1 (GHSA-9v8h-qqgm-4m35, critical, an
+  out-of-bounds write in the decoder). In that toolbox, `datasets` (GHSA-379c-qx7v-6h59),
+  Pillow and fsspec stay held by VoxCPM's and gradio's caps — a developer tool, never on
+  the API's interpreter nor on the Pi.
 
 ### Added
 
