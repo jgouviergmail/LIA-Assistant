@@ -341,6 +341,16 @@ def _fake_counts(
     # against a real 593). Anchored on what FOLLOWS the number, because the
     # bare phrase also matches an unrelated "5 métriques Prometheus" elsewhere
     # in the same bundle — the decoy below exercises exactly that.
+    # The Story page's meta description quotes the ADR count once per locale
+    # (v3.6.0: it still said 360 while every guarded surface had moved on).
+    story_descriptions = {
+        "en": "67,000+ tests, %d ADRs, a 7.8/10 technical audit.",
+        "fr": "67 000+ tests, %d ADRs, un audit technique noté 7,8/10.",
+        "de": "67.000+ Tests, %d ADRs, ein technisches Audit mit 7,8/10.",
+        "es": "67.000+ tests, %d ADRs, una auditoría técnica de 7,8/10.",
+        "it": "67.000+ test, %d ADR, un audit tecnico da 7,8/10.",
+        "zh": "67,000+ 个测试，%d 份架构决策记录，一次 7.8/10 的技术审计。",
+    }
     for locale, title, body_text, excerpt in (
         ("en", "%d Prometheus Metrics, 26 Grafana Dashboards",
          "%d Prometheus metrics covering HTTP, agents, tokens",
@@ -368,8 +378,19 @@ def _fake_counts(
             f'        "body": "<p>{body_text % metrics}</p>",\n'
             f'        "excerpt": "{excerpt % metrics}",\n'
             '        "decoy": "5 métriques Prometheus ailleurs, sans rapport"\n'
-            "      }\n    }\n  }\n}\n",
+            "      }\n    }\n  },\n"
+            f'  "story": {{\n    "meta": {{\n'
+            f'      "description": "{story_descriptions[locale] % adr_files}"\n'
+            "    }\n  }\n}\n",
         )
+
+    # The summary written for language models quotes the landing's three counts.
+    _write(
+        root / "apps" / "web" / "public" / "llms.txt",
+        "# LIA\n\n"
+        f"- Observability: {metrics} Prometheus metrics, 26 Grafana dashboards.\n"
+        f"- Engineering: {adr_files} Architecture Decision Records, {releases} releases.\n",
+    )
 
     # zh writes those two counters in its own shapes, plus a third sentence
     # saying "篇 MADR" — one word away from the "篇 ADR" pattern, which is
