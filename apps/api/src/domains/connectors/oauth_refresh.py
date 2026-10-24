@@ -400,21 +400,19 @@ async def _transition(apply: Callable[[AsyncSession], Awaitable[bool]]) -> _Land
     Raises:
         DBAPIError: Any other database failure.
     """
-    landing = _Landing.LOST
     async with get_db_context() as db:
         # A literal, not a bind: SET takes no parameters, and the value is a validated int.
         await db.execute(
             text(f"SET LOCAL lock_timeout = {settings.oauth_refresh_write_lock_timeout_ms}")
         )
         try:
-            landing = _Landing.LANDED if await apply(db) else _Landing.LOST
+            return _Landing.LANDED if await apply(db) else _Landing.LOST
         except DBAPIError as exc:
             if classify_database_error(exc) != "timeout":
                 raise
             # The failed transaction ends HERE: the session helper reports no incident.
             await db.rollback()
-            landing = _Landing.CONTENDED
-    return landing
+            return _Landing.CONTENDED
 
 
 async def _concluded[C](
