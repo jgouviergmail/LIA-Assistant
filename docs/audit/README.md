@@ -58,7 +58,7 @@ Eleven areas went down — nine by half a point, documentation and observability
 
 ## The proof is the loop, not the snapshot
 
-Each cycle starts by re-verifying the previous register in the code. The revision publishes what V14 had left out: the status of every V13 finding, and its age.
+Each cycle starts by re-verifying the previous register in the code. The revision publishes what V14 had left out: the status of every V13 finding, and its age. The register itself is machine-readable: [`findings_register.json`](findings_register.json) holds every finding under a stable identifier and is verified against each report by `task lint:docs`.
 
 | Finding | V13 (2026-08-02) | V14 (2026-10-22) | Revision (2026-10-22) |
 |---|---|---|---|

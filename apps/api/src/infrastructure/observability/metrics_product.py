@@ -95,6 +95,22 @@ product_data_quality_ratio = Gauge(
     multiprocess_mode="mostrecent",
 )
 
+product_outcome_cost_eur_mean = Gauge(
+    "product_outcome_cost_eur_mean",
+    "Mean EUR cost of the outcomes validated in the rolling window, computed in "
+    "PostgreSQL by the rollup (NaN when none was validated) — COST-05",
+    ["window"],
+    multiprocess_mode="mostrecent",
+)
+
+product_outcome_latency_p50_seconds = Gauge(
+    "product_outcome_latency_p50_seconds",
+    "Median request-to-answer latency of the outcomes validated in the rolling "
+    "window, computed in PostgreSQL by the rollup (NaN when none was validated) — OUT-16",
+    ["window"],
+    multiprocess_mode="mostrecent",
+)
+
 # ---------------------------------------------------------------------------
 # Client telemetry (Phase 4) — bounded vocabularies, <= 2 labels on histograms
 # ---------------------------------------------------------------------------
@@ -192,6 +208,19 @@ async def refresh_product_gauges() -> None:
                     activation if activation is not None else absent,
                 )
             )
+            mean_cost, median_latency = await repo.validated_outcome_value(days)
+            snapshot += [
+                (
+                    product_outcome_cost_eur_mean,
+                    (window_label,),
+                    absent if mean_cost is None else mean_cost,
+                ),
+                (
+                    product_outcome_latency_p50_seconds,
+                    (window_label,),
+                    absent if median_latency is None else median_latency,
+                ),
+            ]
             funnel = await repo.funnel_counts(days)
             for stage in FUNNEL_STAGES:
                 snapshot.append(

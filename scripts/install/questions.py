@@ -18,6 +18,7 @@ from scripts.install.answers import (
     is_valid_password_shape,
 )
 from scripts.install.maps import valid_map_id, valid_maps_value
+from scripts.install.turnstile import valid_turnstile_value
 from scripts.install.model import (
     APP_LANGUAGES,
     OPTIONAL_PROVIDER_IDS,
@@ -258,5 +259,27 @@ def build_questions() -> tuple[Question, ...]:
             env_only=True,
             optional=True,
             validator=valid_map_id,
+        ),
+        # The anti-robot check on the password doors (ADR-364): an instance reached on
+        # a public domain is the one scripts find; a LAN install is not asked.
+        Question(
+            key="turnstile_site_key",
+            kind=QuestionKind.SECRET,
+            message_id="question.turnstile_site_key",
+            secret=True,
+            env_only=True,
+            optional=True,
+            validator=valid_turnstile_value,
+            applies=_needs_domains,
+        ),
+        Question(
+            key="turnstile_secret_key",
+            kind=QuestionKind.SECRET,
+            message_id="question.turnstile_secret_key",
+            secret=True,
+            env_only=True,
+            optional=True,
+            validator=valid_turnstile_value,
+            applies=_needs_domains,
         ),
     )

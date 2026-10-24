@@ -211,36 +211,9 @@ class ConnectorTool(ABC):
         """
         pass
 
-    async def refresh_token_if_needed(self) -> None:
-        """
-        Refresh OAuth token si expiré.
-
-        Called automatiquement par @with_oauth_refresh decorator.
-        """
-        if not self.runtime.connector:
-            raise RuntimeError("No connector available for token refresh")
-
-        # Check if token expired
-        if self.runtime.connector.is_token_expired():
-            logger.info("oauth_token_expired", user_id=self.user_id)
-
-            # Refresh with lock (prevent concurrent refreshes)
-            async with OAuthLock(
-                self.redis,
-                self.user_id,
-                self.connector_type
-            ):
-                # Double-check after acquiring lock
-                if self.runtime.connector.is_token_expired():
-                    await oauth_service.refresh_access_token(
-                        self.runtime.connector.id
-                    )
-
-                    # Reload connector
-                    async with self.uow:
-                        self.runtime.connector = await self.uow.connectors.get_by_id(
-                            self.runtime.connector.id
-                        )
+    # Aucun outil ne rafraîchit de token : le client du connecteur lit ses identifiants
+    # par ``get_connector_credentials``, et un token qui expire passe par la porte unique
+    # de rafraîchissement (``connectors/oauth_refresh.py``, audit AC-029).
 
     def format_error(self, error: Exception) -> dict:
         """

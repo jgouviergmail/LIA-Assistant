@@ -24,7 +24,6 @@ Reference: docs/connectors/CONNECTOR_PHILIPS_HUE.md
 
 import asyncio
 from contextlib import suppress
-from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -39,10 +38,11 @@ from src.core.constants import (
     HUE_DISCOVERY_URL,
     HUE_PAIRING_DEVICE_TYPE,
     HUE_REMOTE_API_BASE_URL,
-    HUE_REMOTE_TOKEN_ENDPOINT,
 )
-from src.core.security import encrypt_data
+from src.domains.connectors.errors import ConnectorRevokedError
 from src.domains.connectors.models import ConnectorType
+from src.domains.connectors.oauth_refresh import ensure_fresh_credentials
+from src.domains.connectors.oauth_refresh_targets import expires_before, hue_remote_target
 from src.domains.connectors.schemas import HueBridgeCredentials, HueConnectionMode
 from src.domains.connectors.session_scope import connector_unit_of_work
 from src.infrastructure.rate_limiting import RedisRateLimiter, get_rate_limiter
@@ -287,73 +287,30 @@ class PhilipsHueClient:
 
     async def _ensure_valid_remote_token(self) -> None:
         """
-        Refresh remote token if expired (remote mode only).
+        Keep the remote token valid, through the one refresh door (audit AC-029).
 
-        Does NOT use connector_service._refresh_oauth_token() because it
-        rewrites plain ConnectorCredentials, overwriting HueBridgeCredentials
-        fields (connection_mode, remote_username, bridge_ip, etc.).
+        A token valid past the on-demand margin costs nothing. Otherwise the row is
+        read and the door refreshes it at most once at a time across workers, writes
+        it only over the token it started from, and keeps every Hue-specific field
+        (mode, whitelist username, bridge) as stored — the reason the Hue bridge
+        once had a POST of its own.
 
-        Instead, performs direct POST to Hue token endpoint and persists
-        the full HueBridgeCredentials format.
+        Raises:
+            ConnectorRevokedError: The Philips Hue connector is gone.
         """
         if self._connection_mode != HueConnectionMode.REMOTE:
             return
-        if self.credentials.expires_at and self.credentials.expires_at > datetime.now(UTC):
-            return  # Token still valid
-
-        logger.info(
-            "hue_remote_token_refresh_started",
-            user_id=str(self.user_id),
-            expires_at=str(self.credentials.expires_at),
-        )
-
-        # 1. Direct token refresh (preserves HueBridgeCredentials format)
-        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_HUE_API) as client:
-            response = await client.post(
-                HUE_REMOTE_TOKEN_ENDPOINT,
-                data={
-                    "grant_type": "refresh_token",
-                    "refresh_token": self.credentials.refresh_token,
-                },
-                auth=(settings.hue_remote_client_id, settings.hue_remote_client_secret),
+        if not expires_before(self.credentials.expires_at, None):
+            return  # still valid past the margin
+        # Read through the one seam that never closes a caller's session (ADR-304).
+        async with connector_unit_of_work(self.connector_service) as service:
+            connector = await service.repository.get_by_user_and_type(
+                self.user_id, ConnectorType.PHILIPS_HUE
             )
-            response.raise_for_status()
-            token_data = response.json()
-
-        # 2. Update in-memory credentials (HueBridgeCredentials, preserving all fields)
-        self.credentials.access_token = token_data["access_token"]
-        new_refresh = token_data.get("refresh_token")
-        if new_refresh:
-            self.credentials.refresh_token = new_refresh
-        self.credentials.expires_at = datetime.now(UTC) + timedelta(
-            seconds=token_data["expires_in"]
-        )
-
-        # 3. Persist updated HueBridgeCredentials (all Hue-specific fields preserved)
-        if self.connector_service:
-            try:
-                # Through the one seam that never closes a caller's session and
-                # can own one when the caller holds none (ADR-304).
-                async with connector_unit_of_work(self.connector_service) as service:
-                    connector = await service.repository.get_by_user_and_type(
-                        self.user_id, ConnectorType.PHILIPS_HUE
-                    )
-                    if connector:
-                        connector.credentials_encrypted = encrypt_data(
-                            self.credentials.model_dump_json()
-                        )
-                        await service.db.commit()
-                        logger.info(
-                            "hue_remote_token_refresh_success",
-                            user_id=str(self.user_id),
-                            new_expires_at=str(self.credentials.expires_at),
-                        )
-            except Exception as e:
-                logger.error(
-                    "hue_remote_token_persist_failed",
-                    user_id=str(self.user_id),
-                    error=str(e),
-                )
+        if connector is None:
+            raise ConnectorRevokedError(ConnectorType.PHILIPS_HUE, self.user_id)
+        target = hue_remote_target(connector)
+        self.credentials = await ensure_fresh_credentials(target, current=target.stored(connector))
 
     # =========================================================================
     # HTTP REQUEST (Core method with rate limiting + circuit breaker)

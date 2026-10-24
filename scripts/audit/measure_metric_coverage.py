@@ -20,6 +20,7 @@ Usage (from any directory):
     python scripts/audit/measure_metric_coverage.py            # report
     python scripts/audit/measure_metric_coverage.py --json     # machine-readable
     python scripts/audit/measure_metric_coverage.py --update   # shrink the ratchet baseline
+    python scripts/audit/measure_metric_coverage.py --producers  # every series read has a producer
 
 Paths resolve from this file's location, so the script is CWD-independent
 (F023 — the same trap that made the audit scripts fail from the repo root).
@@ -106,25 +107,40 @@ def metrics_defined_in_code(src_dir: Path | None = None) -> dict[str, str]:
     return found
 
 
+def coverage_rule_files() -> list[Path]:
+    """The rule files Prometheus loads — the ``rule_files`` of ``prometheus.yml``.
+
+    Only a loaded rule reaches an operator. Every ``*.yml`` of the directory used
+    to count, the dormant legacy catalogues and the unmounted product alerts
+    included (audit AC-006), so a metric read by a rule that never evaluates
+    would have looked wired.
+    """
+    walker = _load_dashboard_walker()
+    files: list[Path] = walker._live_rule_files()
+    return files
+
+
+def _rules(path: Path) -> list[dict[str, Any]]:
+    try:
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError:  # pragma: no cover - validated by the observability guard
+        return []
+    return [rule for group in (doc or {}).get("groups") or [] for rule in group.get("rules") or []]
+
+
 def _rule_expressions() -> list[str]:
-    """PromQL from the Prometheus rule files — expressions only, never comments.
+    """PromQL from the loaded rule files — expressions only, never comments.
 
     Reading the YAML as raw text would let a metric mentioned in a comment
     ("# TODO: wire foo_total to a panel") count as coverage, which defeats the
     guard: the metric would look wired while reaching no operator.
     """
-    exprs: list[str] = []
-    for path in sorted(PROM_DIR.rglob("*.yml")):
-        try:
-            doc = yaml.safe_load(path.read_text(encoding="utf-8"))
-        except yaml.YAMLError:  # pragma: no cover - validated by the observability guard
-            continue
-        for group in (doc or {}).get("groups") or []:
-            for rule in group.get("rules") or []:
-                expr = rule.get("expr")
-                if isinstance(expr, str):
-                    exprs.append(expr)
-    return exprs
+    return [
+        rule["expr"]
+        for path in coverage_rule_files()
+        for rule in _rules(path)
+        if isinstance(rule.get("expr"), str)
+    ]
 
 
 def observability_corpus() -> str:
@@ -150,6 +166,151 @@ def uncovered_metrics(
         if not re.search(rf"\b(?:{pattern})\b", blob):
             missing.append(name)
     return sorted(missing)
+
+
+# ---------------------------------------------------------------------------
+# The other direction: every series an operator is shown has a producer (AC-006)
+# ---------------------------------------------------------------------------
+
+#: Grafana datasource values whose targets are PromQL (the rest is LogQL, TraceQL, SQL).
+PROMETHEUS_DATASOURCES = frozenset({"prometheus", "$datasource"})
+
+#: What a target naming no datasource reads: Grafana's default, provisioned as
+#: Prometheus (``grafana/provisioning/datasources/datasources.yml``, ``isDefault``).
+DEFAULT_DATASOURCE = "prometheus"
+
+#: Series families no LIA code defines, each with what produces it: a scrape job of
+#: prometheus.yml, or Tempo's metrics generator writing span metrics remotely. The
+#: guard checks every producer named here is configured, so the list cannot hold a
+#: family nothing feeds any more.
+EXTERNAL_PRODUCERS: dict[str, str] = {
+    "container_": "job:cadvisor",
+    "node_": "job:node",
+    "pg_": "job:postgresql",
+    "redis_": "job:redis",
+    "probe_": "job:blackbox",
+    "prometheus_": "job:prometheus",
+    "loki_": "job:loki",
+    "tempo_": "job:tempo",
+    "traces_spanmetrics_": "remote_write:infrastructure/observability/tempo/tempo.yml",
+}
+
+#: Series Prometheus synthesizes for every target it scrapes.
+SYNTHETIC_SERIES = frozenset({"up"})
+
+_PROMQL_NOISE = (
+    re.compile(r"#[^\n]*"),  # comments of multi-line rule expressions
+    re.compile(r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'|`[^`]*`'),  # string literals
+    re.compile(r"\$\{[^}]*\}|\$\w+"),  # Grafana variables
+    re.compile(r"\{[^{}]*\}"),  # label matchers
+    re.compile(r"\[[^\]]*\]"),  # ranges and subqueries
+    re.compile(r"\b(?:by|without|on|ignoring|group_left|group_right)\s*\([^)]*\)"),
+)
+_PROMQL_KEYWORDS = frozenset(
+    {"by", "without", "on", "ignoring", "group_left", "group_right", "offset", "bool", "and",
+     "or", "unless", "atan2", "inf", "nan", "Inf", "NaN"}
+)  # fmt: skip
+_SERIES_TOKEN = re.compile(r"\b([a-zA-Z_:][a-zA-Z0-9_:]*)\b(?!\s*\()")
+
+
+def series_read(expr: str) -> set[str]:
+    """The series names a PromQL expression reads — never a function, label or variable."""
+    for noise in _PROMQL_NOISE:
+        expr = noise.sub(" ", expr)
+    return {token for token in _SERIES_TOKEN.findall(expr) if token not in _PROMQL_KEYWORDS}
+
+
+def _datasource_kind(datasource: Any) -> str:
+    """A datasource's type, else its uid — a target naming none reads the default."""
+    if isinstance(datasource, dict):
+        datasource = datasource.get("type") or datasource.get("uid")
+    return str(datasource) if datasource else DEFAULT_DATASOURCE
+
+
+def _panel_expressions(
+    dashboard: Path, panels: list[dict[str, Any]], inherited: Any = None
+) -> list[tuple[str, str]]:
+    found: list[tuple[str, str]] = []
+    for panel in panels:
+        datasource = panel.get("datasource") or inherited
+        for target in panel.get("targets", []) or []:
+            kind = _datasource_kind(target.get("datasource") or datasource)
+            if "expr" in target and kind in PROMETHEUS_DATASOURCES:
+                found.append((f"{dashboard.name}: {panel.get('title', '?')}", target["expr"]))
+        found += _panel_expressions(dashboard, panel.get("panels", []) or [], datasource)
+    return found
+
+
+def prometheus_expressions(dashboard_dir: Path | None = None) -> list[tuple[str, str]]:
+    """``(source, expr)`` for every PromQL target of a dashboard and every loaded rule.
+
+    Args:
+        dashboard_dir: Dashboards to read; the provisioned ones by default.
+
+    Returns:
+        Each expression with where it is shown, ``<dashboard>: <panel title>`` or
+        ``<rule file>: <alert or record>``.
+    """
+    directory = dashboard_dir or _load_dashboard_walker().DASHBOARD_DIR
+    found: list[tuple[str, str]] = []
+    for dashboard in sorted(directory.glob("*.json")):
+        data = json.loads(dashboard.read_text(encoding="utf-8"))
+        found += _panel_expressions(dashboard, data.get("panels", []) or [])
+    for path in coverage_rule_files():
+        for rule in _rules(path):
+            if isinstance(rule.get("expr"), str):
+                found.append(
+                    (f"{path.name}: {rule.get('alert') or rule.get('record')}", rule["expr"])
+                )
+    return found
+
+
+def _produced_series() -> set[str]:
+    """Every series the code exposes: each metric with the suffixes its family adds."""
+    produced: set[str] = set()
+    for name in metrics_defined_in_code():
+        base = name.removesuffix("_total")
+        for suffix in ("", "_total", "_bucket", "_count", "_sum", "_created"):
+            produced |= {name + suffix, base + suffix}
+    for path in coverage_rule_files():
+        produced |= {rule["record"] for rule in _rules(path) if "record" in rule}
+    return produced
+
+
+def series_without_producer(
+    expressions: list[tuple[str, str]] | None = None,
+) -> dict[str, list[str]]:
+    """Series read by a panel or a loaded rule that nothing produces.
+
+    Args:
+        expressions: ``(source, expr)`` pairs; every dashboard and loaded rule by default.
+
+    Returns:
+        ``{series: [sources]}`` — empty when every series has a producer.
+    """
+    produced = _produced_series()
+    orphans: dict[str, list[str]] = {}
+    for source, expr in expressions if expressions is not None else prometheus_expressions():
+        for series in sorted(series_read(expr) - produced - SYNTHETIC_SERIES):
+            if not any(series.startswith(prefix) for prefix in EXTERNAL_PRODUCERS):
+                orphans.setdefault(series, []).append(source)
+    return orphans
+
+
+def unconfigured_external_producers() -> list[str]:
+    """Declared external producers that nothing configures — the declaration must stay true."""
+    scrape = yaml.safe_load((PROM_DIR / "prometheus.yml").read_text(encoding="utf-8")) or {}
+    jobs = {config.get("job_name") for config in scrape.get("scrape_configs") or []}
+    missing = []
+    for prefix, producer in EXTERNAL_PRODUCERS.items():
+        kind, _, where = producer.partition(":")
+        if kind == "job" and where not in jobs:
+            missing.append(f"{prefix} names scrape job {where!r}, absent from prometheus.yml")
+        elif kind == "remote_write" and "remote_write" not in (REPO_ROOT / where).read_text(
+            encoding="utf-8"
+        ):
+            missing.append(f"{prefix} names a remote write {where} does not configure")
+    return missing
 
 
 def load_baseline() -> list[str]:
@@ -198,9 +359,29 @@ def _update_baseline(defined: dict[str, str], missing: list[str]) -> int:
     return 0
 
 
+def _check_producers() -> int:
+    """Refuse a series read with no producer, or a declared producer nothing configures."""
+    orphans = series_without_producer()
+    unconfigured = unconfigured_external_producers()
+    if not orphans and not unconfigured:
+        print("producers: every series a panel or a loaded rule reads has a producer.")
+        return 0
+    print(
+        f"::error::{len(orphans)} series read with no producer, "
+        f"{len(unconfigured)} declared producer(s) not configured:"
+    )
+    for series, sources in sorted(orphans.items()):
+        print(f"  {series}  <- {', '.join(sorted(sources))}")
+    for problem in unconfigured:
+        print(f"  {problem}")
+    return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     """Print the coverage report; ``--update`` shrinks the ratchet baseline."""
     args = argv if argv is not None else sys.argv[1:]
+    if "--producers" in args:
+        return _check_producers()
     defined = metrics_defined_in_code()
     missing = uncovered_metrics(defined)
     covered = len(defined) - len(missing)

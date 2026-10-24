@@ -63,7 +63,13 @@ beforeEach(() => {
       return { active: false, confirmed_at: null, backup_codes_remaining: 0 };
     }
     if (endpoint === '/auth/step-up/status') {
-      return { methods: [], password_set: false, step_up_valid_until: null };
+      return {
+        methods: [],
+        password_set: false,
+        step_up_valid_until: null,
+        password_recovery: 'email_link',
+        sign_in_provider: null,
+      };
     }
     throw new Error(`Unexpected security request: ${endpoint}`);
   });

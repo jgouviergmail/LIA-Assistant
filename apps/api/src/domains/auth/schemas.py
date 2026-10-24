@@ -12,6 +12,7 @@ from src.core.constants import (
     NATIVE_HANDOFF_VERIFIER_MAX_LENGTH,
     NATIVE_HANDOFF_VERIFIER_MIN_LENGTH,
 )
+from src.domains.auth.password_reset_policy import PasswordRecovery
 from src.domains.shared.schemas import (
     LanguageValidatorMixin,
     PasswordValidatorMixin,
@@ -280,6 +281,15 @@ class StepUpStatusResponse(BaseModel):
     step_up_valid_until: datetime | None = Field(
         default=None, description="Until when the current session's step-up stays fresh"
     )
+    password_recovery: PasswordRecovery = Field(
+        ...,
+        description="What a reset request leaves the account once it holds no password "
+        "(ADR-363): email_link (the reset link), provider (a notice naming the provider it "
+        "signs in with) or none (an administrator: nothing is sent)",
+    )
+    sign_in_provider: str | None = Field(
+        default=None, description="Display name of the provider the account signs in with"
+    )
 
 
 class StepUpPasswordRequest(BaseModel):
@@ -341,6 +351,20 @@ class AuthFeaturesResponse(BaseModel):
             "public demonstrator, where the only way in is an email address and an "
             "explicit acceptance of the terms."
         ),
+    )
+
+
+class PublicAuthFeaturesResponse(AuthFeaturesResponse):
+    """What the sign-in pages need beyond the capabilities: the bot check's site key.
+
+    A subclass, served by ``GET /auth/features`` alone: the chat's security read
+    projects ``AuthFeaturesResponse``, and a key meant for a browser widget is
+    noise to a model (ADR-364).
+    """
+
+    turnstile_site_key: str | None = Field(
+        default=None,
+        description="Public Cloudflare Turnstile site key when the bot check is on, else null",
     )
 
 

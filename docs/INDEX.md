@@ -17,8 +17,8 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents totaux | 400+ |
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
-| Runbooks | 45 |
-| ADRs | 360 ADR files (ADR-362 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
+| Runbooks | 48 |
+| ADRs | 362 ADR files (ADR-364 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
 | Fiches knowledge (RAG système) | 40 |
 
 ---
@@ -54,7 +54,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (360 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (362 ADR files) |
 
 ### Pour les Product Managers
 
@@ -371,6 +371,8 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| [ADR-364](./architecture/ADR-364-Turnstile-Bot-Check-On-The-Password-Doors.md) | **Vérification anti-robot Turnstile aux portes du mot de passe** : l'inscription, la connexion et la demande de réinitialisation portent un jeton vérifié après le limiteur par IP, valable pour cette porte de cette instance ; sans réponse exploitable de Cloudflare, seule la connexion passe ; désactivée tant que l'opérateur n'apporte pas son widget | 2026-10 |
+| [ADR-363](./architecture/ADR-363-Password-Reset-Bounded-Per-Account-And-Bound-To-It.md) | **Réinitialisation bornée par compte et liée à lui** : une seule décision à la demande et à l'usage (rien pour un administrateur, un avis pour un compte Google sans mot de passe), un budget d'e-mails par compte quelle que soit l'adresse IP, un lien lié à l'empreinte du mot de passe, deux alertes ; la commande `set_password` pour l'administrateur | 2026-10 |
 | [ADR-362](./architecture/ADR-362-Claude-Cross-Turn-Cache-History-Read-Point-Hour-Lifetime-And-Prior-Thinking.md) | **Cache de prompt de Claude d'un tour à l'autre** : un point de relecture à la fin de l'historique, l'heure pour les deux points relus au tour suivant quand une personne attend en échanges fréquents (écriture facturée 2× et enregistrée par appel), la réflexion antérieure rendue au modèle qui l'a écrite quand il la garde sans la lier | 2026-10 |
 | [ADR-361](./architecture/ADR-361-Egress-Probe-Names-The-Failing-Step-And-Confirms-A-Cut.md) | **Sonde de sortie : l'étape nommée, la coupure confirmée** : résolution DNS puis connexion nommées à part, perte confirmée sur des essais espacés, réussite reprise ou lente signalée dégradée sans notification | 2026-10 |
 | [ADR-360](./architecture/ADR-360-Bounded-Discussion-Research-And-Accounted-Abstention.md) | **Recherche et abstention comptabilisées** : enveloppe finie, réservation discrétionnaire et usages conservés sur toutes les sorties ; implémentée sur les contrats natifs de l'application | 2026-10 |
@@ -492,6 +494,11 @@ Les ADR-001 à ADR-008 n'ont pas de fichier dédié : ils sont documentés inlin
 | [GoogleApiCallsUnaccounted.md](./runbooks/alerts/GoogleApiCallsUnaccounted.md) | Appels Google Maps Platform payants faits sans contexte de comptabilité (ADR-272) |
 | [LLMCacheWriteLifetimeUnreported.md](./runbooks/alerts/LLMCacheWriteLifetimeUnreported.md) | Écritures de cache Claude reçues en flux sans leur durée, facturées au tarif de cinq minutes (ADR-362) |
 | [PushWakeSweepStalled.md](./runbooks/alerts/PushWakeSweepStalled.md) | Réveils poussés mis en file et jamais servis — le balayage ne rend plus la main (ADR-304) |
+| [PasswordResetAbuse.md](./runbooks/alerts/PasswordResetAbuse.md) | Demandes de réinitialisation refusées au budget d'un compte, ou visant un administrateur (ADR-363) |
+| [RegistrationBurst.md](./runbooks/alerts/RegistrationBurst.md) | Inscriptions au-delà du seuil horaire, mot de passe et Google réunis (ADR-363) |
+| [TurnstileUnavailable.md](./runbooks/alerts/TurnstileUnavailable.md) | Vérification anti-robot sans réponse exploitable de Cloudflare : inscriptions et réinitialisations refusées, connexion maintenue (ADR-364) |
+| [DatabaseBoundReached.md](./runbooks/alerts/DatabaseBoundReached.md) | Une attente de verrou ou une transaction inactive terminée par les bornes PostgreSQL du moteur (AC-028) |
+| [ProductAggregatesStale.md](./runbooks/alerts/ProductAggregatesStale.md) | Aucun rollup produit horaire mené à son terme : le tableau 26 est figé (ADR-178, AC-006) |
 | [RadioNewsroomStalled.md](./runbooks/alerts/RadioNewsroomStalled.md) | Rédaction de la radio sans passe menée à son terme — passes en échec ou tâche arrêtée (ADR-324) |
 | [CriticalLatencyP99.md](./runbooks/alerts/CriticalLatencyP99.md) | Latence P99 critique |
 | [ServiceDown.md](./runbooks/alerts/ServiceDown.md) | Service indisponible |

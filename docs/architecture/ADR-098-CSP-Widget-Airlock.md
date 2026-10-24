@@ -144,3 +144,14 @@ Web in a same-origin module worker. `blob:` stays in `script-src` for the voice
 AudioWorklets (push-to-talk, the wake word's capture, the recording, the live
 player), which is the rule this ADR established; `'wasm-unsafe-eval'` stays for
 the wake word's runtime.
+
+### Amendment 2026-10-24: the Turnstile challenge host ([ADR-364](ADR-364-Turnstile-Bot-Check-On-The-Password-Doors.md))
+
+`https://challenges.cloudflare.com` joins `script-src` — Cloudflare's
+explicit-render loader, injected only when the instance publishes a site key —
+and `frame-src` — the challenge frame, the second external frame after the
+interactive-map embed. `connect-src` gains nothing: the widget's requests leave
+from its own frame. Measured before it was built on: a page served with the
+app policy, COOP `same-origin` and COEP `credentialless` — then `require-corp` —
+rendered Cloudflare's test widget and received its token in Chromium, Firefox
+and WebKit (6 of 6). The pins live in `apps/web/src/lib/__tests__/csp.test.ts`.

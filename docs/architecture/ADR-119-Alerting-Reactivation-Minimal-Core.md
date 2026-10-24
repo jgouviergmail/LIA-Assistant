@@ -125,3 +125,68 @@ webhook deliveries that day), but the two consumers around it did not say so:
    observations a histogram's p95 IS its slowest observation. Production's
    chat traffic peaks far below that, so on that instance the alert stays
    silent by construction — the price of a quantile that means what it says.
+
+## Amendment 2026-10-23 — one template; severity is the urgency, the component an audience
+
+Audit A07, measured before any change by the gate this amendment adds (each
+configuration rendered by the real entrypoint in the production image, then
+checked and routed by `amtool`). Point 2 of the Decision no longer holds as
+written: the entrypoint no longer selects between two templates.
+
+1. **The component routes were unreachable.** The two severity routes came
+   first with `continue: false`, so every loaded alert — all of them critical
+   or warning — stopped there: the agents' three warnings never reached the ML
+   team; in the email-only template the budget and security receivers could not
+   be reached by construction. Severity now fixes the URGENCY of the
+   backend team's notification and the component adds an AUDIENCE (owner
+   decision, 2026-10-22): both severity routes carry `continue: true`, and a
+   team route is rendered only for an address of its own — distinct from the
+   backend's, case ignored — so nobody is told the same thing twice. The
+   security Slack channel is used only when it is not the critical one,
+   PagerDuty pages from the critical route alone, and the PostgreSQL and Redis
+   routes are gone: they addressed the backend team, which the severity route
+   already reaches.
+2. **One optional channel could keep Alertmanager from starting.** The full
+   template was chosen as soon as Slack OR PagerDuty was set, with the other
+   left empty: Alertmanager refuses an empty PagerDuty key ("missing service
+   or routing key") and an empty Slack URL ("unsupported scheme"). There is
+   one template now; each optional block sits between `# @begin <name>` and
+   `# @end <name>` and is removed when its channel or team is not configured.
+3. **A value could break the rendering.** The values were substituted by `sed`
+   with `|` as delimiter: a password holding `|` stopped the entrypoint, `&`
+   was replaced by the matched pattern, a `'` ended its YAML scalar. They are
+   substituted literally now — `awk` reads them from `ENVIRON`, single quotes
+   doubled — and a value holding a line break is refused at startup.
+4. **What validates it.** `task test:alertmanager` (in `task ci` and in CI)
+   renders the 14 cases of `alertmanager/tests/routing_matrix.yml` through
+   `docker-entrypoint.sh --render-only` in the image `docker-compose.prod.yml`
+   pins, with its mounts and no network, runs `amtool check-config`, renders
+   every email template the config names with `amtool template render`
+   (`check-config` parses a template without executing it, and one failing at
+   render time fails its notification), routes each case's alerts with
+   `amtool config routes test` and reads the rendered values back. Measured
+   before the change: 12 of the 14 cases failed; after it, 4 of 4 mutants and a
+   template failing only at render time are caught. A Python re-implementation
+   of the rendering would have proven
+   the re-implementation, not the busybox `sed`/`awk` production runs. The
+   static contract it relies on (balanced blocks, placeholders both compose
+   files pass, identical mounts and image, the banner printing no address —
+   ADR-317) is held without Docker by `test_alertmanager_template_guard.py`.
+5. **What an email-only deployment — production — sees change.** Its receivers
+   are now the template's `critical` and `warning`: the same subjects, with the
+   HTML bodies of `templates/email.tmpl` the multi-channel mode always used,
+   where the email-only template sent Alertmanager's default body. The two
+   templates no route renders any more (`email.database.html`,
+   `email.redis.html`) are gone with their routes.
+6. **An audience is kept only with an alert that reaches it.** No alert,
+   loaded or dormant, matched the finance route (`component: llm` and a
+   Budget/Cost name — the dormant budget alerts carry `component: cost`): it is
+   gone with its receiver, `email.budget.html` and
+   `ALERTMANAGER_FINANCE_TEAM_EMAIL`; an audience returns with the alert that
+   feeds it. The security route has the same defect — no loaded alert carries
+   `component: oauth`, the dormant OAuth alerts carry `component: auth` — but
+   security is outside this audit: it stays as it was, routed in the matrix by
+   a synthetic alert, and reported to the owner.
+   `test_alertmanager_template_guard.py` holds the rule: an audience route no
+   loaded alert reaches fails the build unless it is declared dormant with its
+   reason, and a declared one that becomes reached must leave the declaration.

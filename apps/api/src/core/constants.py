@@ -1087,6 +1087,33 @@ PASSWORD_RESET_TOKEN_EXPIRE_HOURS = 1  # 1 hour for security
 JTI_BLACKLIST_REDIS_PREFIX = "jti:used:"
 JTI_BLACKLIST_TTL_SECONDS = 25 * 60 * 60  # 25 hours (24h token + 1h buffer)
 
+# Password-reset e-mails per account (ADR-363): at most one per interval and a
+# few per rolling day, whatever the requesting IP — the per-IP limiter alone let
+# rotating addresses send an account an unbounded number of e-mails.
+PASSWORD_RESET_ACCOUNT_INTERVAL_SECONDS_DEFAULT = 15 * 60
+PASSWORD_RESET_ACCOUNT_DAILY_MAX_DEFAULT = 3
+PASSWORD_RESET_ACCOUNT_DAILY_MAX_CEILING = 50
+PASSWORD_RESET_ACCOUNT_DAILY_WINDOW_SECONDS = 24 * 60 * 60
+PASSWORD_RESET_BUDGET_REDIS_PREFIX = "auth:password_reset_account"
+
+# Cloudflare Turnstile (ADR-364): an optional bot check on password sign-up,
+# sign-in and reset requests, with the operator's own widget keys (no default).
+# A token lives 300 s, is single-use and at most 2048 characters (Cloudflare).
+TURNSTILE_SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+TURNSTILE_VERIFY_TIMEOUT_SECONDS_DEFAULT = 3.0
+TURNSTILE_VERIFY_TIMEOUT_SECONDS_MAX = 15.0
+#: Siteverify attempts per check, under one idempotency key (Cloudflare's own advice).
+TURNSTILE_VERIFY_ATTEMPTS = 2
+TURNSTILE_TOKEN_MAX_LENGTH = 2048
+#: How long one verdict on whether Cloudflare answers stands for a sign-in that
+#: arrives WITHOUT a token (its widget could not load — an outage, or a script).
+TURNSTILE_REACHABILITY_TTL_SECONDS = 30.0
+#: The request header carrying the widget's token (never a ``CF-`` name: those are
+#: Cloudflare's, and its proxy may rewrite them).
+TURNSTILE_TOKEN_HEADER = "X-LIA-Turnstile-Response"
+TURNSTILE_FAILED_ERROR_CODE = "turnstile_failed"
+TURNSTILE_UNAVAILABLE_ERROR_CODE = "turnstile_unavailable"
+
 # ============================================================================
 # LLM & AGENTS
 # ============================================================================
@@ -1219,6 +1246,11 @@ DATABASE_MAX_OVERFLOW_DEFAULT = 15
 DATABASE_POOL_TIMEOUT_DEFAULT = 30  # Seconds to wait for connection (SQLAlchemy default)
 DATABASE_CONNECT_TIMEOUT_DEFAULT = 30  # Seconds libpq waits to ESTABLISH one connection
 DATABASE_POOL_RECYCLE_DEFAULT = 1800  # Recycle connections every 30min (avoid stale connections)
+# Bounds every connection of the application engine starts with (audit AC-028,
+# ADR-304). A lock wait no longer lasts as long as its holder; a transaction left
+# idle across a network call is ended by the server. 0 disables either one.
+DATABASE_LOCK_TIMEOUT_MS_DEFAULT = 30_000
+DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS_DEFAULT = 300_000
 
 # LangGraph PostgreSQL connection pools (ADR-111 — checkpointer & store scalability)
 # Replaces the former single persistent AsyncConnection per worker (audit S2/A7):
@@ -1694,14 +1726,14 @@ HTTP_MAX_KEEPALIVE_CONNECTIONS = 20  # Keep-alive connections in pool
 HTTP_MAX_CONNECTIONS = 100  # Maximum total connections
 
 # ============================================================================
-# OAUTH LOCK CONFIGURATION
+# OAUTH REFRESH DOOR (audit AC-029)
 # ============================================================================
 
-# Distributed lock parameters for OAuth token refresh
-# Prevents concurrent refresh attempts across multiple workers
-OAUTH_LOCK_TIMEOUT_SECONDS = 10  # Lock acquisition timeout
-OAUTH_LOCK_RETRY_INTERVAL_MS = 100  # Retry interval in milliseconds
-OAUTH_LOCK_MAX_BACKOFF_EXPONENT = 5  # Max exponent for exponential backoff (2^5 = 32x)
+# Longest one transition of the refresh door (the conditional write, the
+# verified revocation) waits for its row. The door writes on a session of its
+# own: a caller whose open transaction holds the row would otherwise wait on the
+# door while the door waits on it — a cycle PostgreSQL cannot detect (ADR-304).
+OAUTH_REFRESH_WRITE_LOCK_TIMEOUT_MS_DEFAULT = 2000
 
 # Distributed lock for scheduled jobs (APScheduler with multiple uvicorn workers)
 # Prevents duplicate job execution when running with --workers > 1
@@ -1926,9 +1958,6 @@ REDIS_KEY_OAUTH_STATE_PREFIX = "oauth:state:"
 # HITL (Human-in-the-Loop) keys
 REDIS_KEY_HITL_PENDING_PREFIX = "hitl_pending:"
 REDIS_KEY_HITL_REQUEST_TS_PREFIX = "hitl:request_ts:"
-
-# OAuth lock keys
-REDIS_KEY_OAUTH_LOCK_PREFIX = "oauth_lock:"
 
 # Pricing cache keys
 REDIS_KEY_MODEL_PRICE_PREFIX = "async_model_price_"
@@ -6898,9 +6927,16 @@ DISCUSSION_ATTENTION_RECENT_TURN_MINUTES_DEFAULT: int = 5
 DISCUSSION_ATTENTION_ALERT_GAP_MINUTES_DEFAULT: int = 0
 DISCUSSION_ATTENTION_OPENING_GAP_MINUTES_DEFAULT: int = 30
 DISCUSSION_ATTENTION_REMINDER_AHEAD_MINUTES_DEFAULT: int = 5
+#: An opening left unanswered holds the next one back this long, never past its own
+#: reply window (owner decision 2026-10-23: its whole 24-hour window silenced a day).
+DISCUSSION_ATTENTION_UNANSWERED_OPENING_MINUTES_DEFAULT: int = 60
 #: How long a compiled read restriction is reused for the same inputs.
 DISCUSSION_RULE_CACHE_HOURS_DEFAULT: int = 24
-#: An opening waits this long for a reply before it lapses.
+#: A refused compilation of read restrictions waits this many tick intervals before
+#: the same inputs are compiled again; each new refusal doubles the wait, up to
+#: ``DISCUSSION_RULE_CACHE_HOURS`` (owner decision Q4, 2026-10-22).
+DISCUSSION_RULE_REFUSAL_FIRST_WAIT_INTERVALS: int = 2
+#: An opening waits this long for a reply before it lapses; a newer opening closes it sooner.
 DISCUSSION_OPENING_PENDING_HOURS_DEFAULT: int = 24
 #: A pause (the settings' button and the "not now" reaction) lasts this long; the
 #: settings API publishes it, so every label states the configured duration.

@@ -5,7 +5,8 @@ running, how the last runs ended and which one last updated the context; each
 run's own ``message_token_summary`` row says what it cost (the chat meter's
 ledger, ADR-272); and the predicates a run asks before it starts say whether a
 ceiling stops the next one — the usage limit every model call asks, then the
-reservation's own. Amounts are never shown: a person needs to know THAT a
+reservation's own — and whether an opening still awaiting a reply holds it back
+(the attention gate's own). Amounts are never shown: a person needs to know THAT a
 ceiling stops LIA, not by how many cents.
 """
 
@@ -40,6 +41,7 @@ from src.domains.shared.discussion_directives import DirectiveBudgetExceeded
 from src.domains.usage_limits.schemas import UsageLimitStatus
 from src.domains.usage_limits.service import UsageLimitService
 from src.domains.users.models import User
+from src.infrastructure.proactive.discussion_attention import unanswered_opening
 from src.infrastructure.proactive.discussion_control import ControlSnapshot, preview_controls
 from src.infrastructure.proactive.discussion_run_setup import configured_limits, first_call_bound
 
@@ -55,7 +57,8 @@ async def read_activity(db: AsyncSession, owner: UUID, *, now: datetime) -> Disc
     Returns:
         The rebuild's state, the obstacle that holds it when the server knows
         one, the last rebuild, the last run that updated the context and the last
-        run, each with its cost, and the first ceiling that stops a run now.
+        run, each with its cost, the first ceiling that stops a run now, and the
+        opening still awaiting a reply that holds the next one back.
     """
     requested = bool(
         await db.scalar(
@@ -75,6 +78,7 @@ async def read_activity(db: AsyncSession, owner: UUID, *, now: datetime) -> Disc
         ),
         last_run=await _latest(db, owner, settled),
         budget=budget,
+        awaiting_reply=await unanswered_opening(db, owner, now=now),
     )
 
 

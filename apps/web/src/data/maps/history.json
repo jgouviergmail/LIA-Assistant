@@ -2679,6 +2679,20 @@
       "theme": "models",
       "functional": ["f.react", "f.costs", "f.llmconfig"],
       "technical": ["t.llmfactory", "t.pricing", "t.react"]
+    },
+    {
+      "adr": 363,
+      "date": "2026-10-23",
+      "theme": "security",
+      "functional": ["f.security", "f.admin"],
+      "technical": ["t.bff", "t.redis", "t.metrics", "t.alerts", "t.dashboards"]
+    },
+    {
+      "adr": 364,
+      "date": "2026-10-24",
+      "theme": "security",
+      "functional": ["f.security", "f.privacy"],
+      "technical": ["t.web", "t.bff", "t.metrics", "t.alerts", "t.dashboards"]
     }
   ]
 }

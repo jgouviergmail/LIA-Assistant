@@ -17,7 +17,7 @@ Created: 2025-11-20
 import base64
 import binascii
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
@@ -36,6 +36,10 @@ from src.core.constants import (
     MAX_REQUEST_BODY_BYTES_DEFAULT,
     NATIVE_APP_SCHEME_DEFAULT,
     NATIVE_HANDOFF_TTL_SECONDS_DEFAULT,
+    PASSWORD_RESET_ACCOUNT_DAILY_MAX_CEILING,
+    PASSWORD_RESET_ACCOUNT_DAILY_MAX_DEFAULT,
+    PASSWORD_RESET_ACCOUNT_DAILY_WINDOW_SECONDS,
+    PASSWORD_RESET_ACCOUNT_INTERVAL_SECONDS_DEFAULT,
     RATE_LIMIT_BURST_DEFAULT,
     RATE_LIMIT_GLOBAL_PER_MINUTE_DEFAULT,
     RATE_LIMIT_PER_MINUTE_DEFAULT,
@@ -43,6 +47,8 @@ from src.core.constants import (
     SESSION_COOKIE_NAME,
     SESSION_DURATION_DEFAULT,
     SESSION_DURATION_REMEMBER_ME,
+    TURNSTILE_VERIFY_TIMEOUT_SECONDS_DEFAULT,
+    TURNSTILE_VERIFY_TIMEOUT_SECONDS_MAX,
     WEB_RISK_CLEAN_TTL_SECONDS_DEFAULT,
     WEB_RISK_TIMEOUT_SECONDS_DEFAULT,
     JwtAlgorithm,
@@ -187,6 +193,42 @@ class SecuritySettings(BaseSettings):
         description="Burst allowance for rate limiting",
     )
 
+    # Password-reset e-mails per ACCOUNT, whatever IP asks (ADR-363). Spent only
+    # when an e-mail leaves; past the budget the request answers as usual and
+    # sends nothing.
+    password_reset_account_interval_seconds: int = Field(
+        default=PASSWORD_RESET_ACCOUNT_INTERVAL_SECONDS_DEFAULT,
+        ge=1,
+        le=PASSWORD_RESET_ACCOUNT_DAILY_WINDOW_SECONDS,
+        description="Shortest gap, in seconds, between two reset e-mails to one account",
+    )
+    password_reset_account_daily_max: int = Field(
+        default=PASSWORD_RESET_ACCOUNT_DAILY_MAX_DEFAULT,
+        ge=1,
+        le=PASSWORD_RESET_ACCOUNT_DAILY_MAX_CEILING,
+        description="Reset e-mails one account may receive per rolling 24 hours",
+    )
+
+    # Cloudflare Turnstile bot check on password sign-up, sign-in and reset requests
+    # (ADR-364). Off by default; the keys are the operator's own widget. Cloudflare
+    # unreachable: the sign-in proceeds, a sign-up or a reset request is refused.
+    turnstile_enabled: bool = Field(
+        default=False,
+        description="Require a Cloudflare Turnstile check on sign-up, sign-in and reset requests",
+    )
+    turnstile_site_key: str = Field(
+        default="", description="Public Turnstile site key, served to the sign-in pages"
+    )
+    turnstile_secret_key: str = Field(
+        default="", description="Turnstile secret key: server-side only, never logged"
+    )
+    turnstile_verify_timeout_seconds: float = Field(
+        default=TURNSTILE_VERIFY_TIMEOUT_SECONDS_DEFAULT,
+        gt=0,
+        le=TURNSTILE_VERIFY_TIMEOUT_SECONDS_MAX,
+        description="Timeout, in seconds, of one call to Cloudflare's siteverify",
+    )
+
     # Security
     secret_key: str = Field(
         ...,
@@ -205,6 +247,17 @@ class SecuritySettings(BaseSettings):
         ...,
         description="Fernet encryption key for sensitive data",
     )
+
+    @model_validator(mode="after")
+    def validate_turnstile_keys(self) -> SecuritySettings:
+        """Refuse to boot a bot check that cannot check anything (ADR-364)."""
+        if self.turnstile_enabled and not (
+            self.turnstile_site_key.strip() and self.turnstile_secret_key.strip()
+        ):
+            raise ValueError(
+                "TURNSTILE_ENABLED requires TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY"
+            )
+        return self
 
     @field_validator("fernet_key")
     @classmethod

@@ -123,6 +123,11 @@ EVIDENCE_RECIPES: dict[str, EvidenceRecipe] = {
                 events=("health_check_database_failed", "db_connection_budget_overcommit")
             ),
         ),
+        EvidenceRecipe(
+            "DatabaseBoundReached",
+            prom_queries=("db_bounds_reached", "dependency_up"),
+            logs=LogRecipe(events=("database_bound_reached",)),
+        ),
         EvidenceRecipe("RedisDown", prom_queries=("dependency_up",), logs=_REDIS_LOGS),
         EvidenceRecipe(
             "RedisConnectionPoolExhaustion", prom_queries=("dependency_up",), logs=_REDIS_LOGS
@@ -250,6 +255,47 @@ EVIDENCE_RECIPES: dict[str, EvidenceRecipe] = {
             "RadioNewsroomStalled",
             prom_queries=("radio_newsroom_ticks", "radio_newsroom_feed_readings"),
             logs=LogRecipe(events=("radio_newsroom_pass_failed", "radio_newsroom_pass")),
+        ),
+        # ---- product rollup (ADR-178, AC-006) ----------------------------
+        # No complete refresh: the job errors say whether the runs FAIL (the
+        # failure line names the query) or nothing runs at all (the scheduler).
+        EvidenceRecipe(
+            "ProductAggregatesStale",
+            prom_queries=("background_job_errors",),
+            logs=LogRecipe(events=("product_rollup_failed",)),
+        ),
+        # ---- account security (ADR-363) ----------------------------------
+        # The outcomes say what the reset route did (a budget spent on one
+        # account, an administrator named); the events name the account by id
+        # and the per-IP limiter's lines the source — never an e-mail address.
+        EvidenceRecipe(
+            "PasswordResetAbuse",
+            prom_queries=("password_reset_outcomes",),
+            logs=LogRecipe(
+                events=(
+                    "password_reset_throttled",
+                    "password_reset_refused",
+                    "ip_rate_limit_exceeded",
+                ),
+            ),
+        ),
+        # Which doors went unanswered, and why: Cloudflare silent (unanswered)
+        # or the instance's own secret refused (refused_the_server).
+        EvidenceRecipe(
+            "TurnstileUnavailable",
+            prom_queries=("turnstile_outcomes",),
+            logs=LogRecipe(
+                events=(
+                    "turnstile_siteverify_unanswered",
+                    "turnstile_siteverify_refused_the_server",
+                    "turnstile_unavailable_sign_in_proceeds",
+                ),
+            ),
+        ),
+        EvidenceRecipe(
+            "RegistrationBurst",
+            prom_queries=("account_registrations",),
+            logs=LogRecipe(events=("user_registered", "new_user_created_via_oauth")),
         ),
         # ---- sandbox egress (ADR-298) -----------------------------------
         # The proxy is the only door a network sandbox run has: down, every

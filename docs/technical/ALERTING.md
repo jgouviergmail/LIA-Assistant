@@ -37,10 +37,10 @@ All components run in both compose files. Config lives in:
 ```
 infrastructure/observability/
 ├── alertmanager/
-│   ├── docker-entrypoint.sh                 # env-var substitution at startup
-│   ├── alertmanager.yml.template            # full multi-channel template
-│   ├── alertmanager-email-only.yml.template # selected when Slack/PagerDuty unset
-│   ├── validate_config.py                   # offline template validation
+│   ├── docker-entrypoint.sh                 # renders the config at startup (--render-only: the gate)
+│   ├── alertmanager.yml.template            # THE template; optional blocks marked @begin/@end
+│   ├── lia-webhook-{route,receiver}.fragment # LIA self-diagnostics webhook, injected when set
+│   ├── tests/routing_matrix.yml             # cases of `task test:alertmanager`
 │   └── templates/email.tmpl                 # HTML email templates
 ├── blackbox/blackbox.yml                    # single http_2xx module
 └── prometheus/
@@ -50,15 +50,31 @@ infrastructure/observability/
     └── tests/alerts_core_test.yml           # promtool unit tests
 ```
 
-### Startup mode selection (entrypoint)
+### Rendering at startup (entrypoint)
 
 | Condition | Rendered config |
 |---|---|
 | SMTP vars missing | Minimal **log-only** (alerts visible in UI, no notification) |
-| SMTP set, Slack/PagerDuty empty | **Email-only** template ← production mode |
-| SMTP + any webhook set | Full multi-channel template |
+| SMTP set | The template, minus every block whose channel or team is not configured ← production: email only |
 
-The selected mode is printed in the container logs at startup (`Mode: Email only`).
+There is ONE template (audit A07): two used to diverge, and the email-only one
+had routes no alert could reach. Each optional block sits between
+`# @begin <name>` and `# @end <name>` and is removed when what it needs is
+missing, so a rendered config never holds an empty Slack URL or PagerDuty key
+(Alertmanager refuses to start on either — measured):
+
+| Block | Kept when |
+|---|---|
+| `slack-critical` / `slack-warning` | `ALERTMANAGER_SLACK_WEBHOOK_CRITICAL` / `_WARNING` is set |
+| `pagerduty` | `ALERTMANAGER_PAGERDUTY_ROUTING_KEY` is set |
+| `team-ml` | the ML team's address is set and is not the backend's (case ignored) |
+| `email-security` / `slack-security` | the security address is not the backend's / the security webhook is not the critical one |
+| `team-security` | `email-security` or `slack-security` is kept |
+
+Values reach the config literally — `&`, `|`, `\` and `'` included; a value
+holding a line break is refused at startup rather than rendered. The banner
+states each channel (`CONFIGURED` / `NOT CONFIGURED`) and each team (`ROUTED` /
+`NOT ROUTED`), never an address, a webhook or a key (ADR-317).
 
 ## Configuration
 
@@ -75,22 +91,39 @@ passed to the containers by docker-compose. Templates: section `[20]` of
 | `ALERTMANAGER_SMTP_AUTH_USERNAME` / `_PASSWORD` | SMTP credentials |
 | `ALERTMANAGER_BACKEND_TEAM_EMAIL` | notification recipient |
 
-**Optional:** `ALERTMANAGER_{FINANCE,SECURITY,ML}_TEAM_EMAIL` (default to backend email), `ALERTMANAGER_SLACK_WEBHOOK_*`, `ALERTMANAGER_PAGERDUTY_ROUTING_KEY` (setting any switches to the multi-channel template), `ALERTMANAGER_HOST_PORT` (default 9094), `BLACKBOX_PUBLIC_PROBE_URL` (public URL probe; leave empty in dev).
+**Optional:** `ALERTMANAGER_{SECURITY,ML}_TEAM_EMAIL` (a team is told in addition to the backend, and only on an address of its own), `ALERTMANAGER_SLACK_WEBHOOK_*`, `ALERTMANAGER_PAGERDUTY_ROUTING_KEY` (each adds its channel; one left empty renders nothing), `ALERTMANAGER_HOST_PORT` (default 9094), `BLACKBOX_PUBLIC_PROBE_URL` (public URL probe; leave empty in dev).
 
 **SMTP provider notes:**
 - **Gmail**: `smtp.gmail.com:587`, requires an App Password (2FA enabled), ~500 mails/day limit.
 - **Brevo / SendGrid / SES**: use the relay host and API-key-based credentials; prefer a dedicated sender identity so DMARC passes.
 - TLS is required (`smtp_require_tls: true` in the templates).
 
-## Routing & inhibition (email-only mode)
+## Routing & inhibition
 
-| Severity | group_wait | repeat_interval | Subject |
-|---|---|---|---|
-| critical | 10s | 30m | `[CRITICAL] LIA: <alertname>` |
-| warning | 1m | 2h | `[WARNING] LIA: <alertname>` |
-| llm budget (critical) | 5s | 15m | `[BUDGET] ...` |
+Severity fixes the URGENCY of the backend team's notification; the component
+adds an AUDIENCE (owner decision, 2026-10-22). Both severity routes carry
+`continue: true`, so a team route still sees the alert, and every loaded alert
+is `critical` or `warning` (`test_alerts_core_guard`): a team is told in
+addition to the backend, never instead of it.
 
-Resolved notifications are sent (`send_resolved: true`). Inhibition rules
+| Route | Matches | Receiver | Channels | group_wait / repeat |
+|---|---|---|---|---|
+| severity | `severity=critical` | `critical` | email + Slack critical + PagerDuty | 10s / 30m |
+| severity | `severity=warning` | `warning` | email + Slack warning | 1m / 2h |
+| team | `component` agents, hitl, hitl_streaming | `ml-team` | email | 1m / 1h |
+| team | `component=oauth`, critical | `security-team` | email and/or Slack security | 5s / 30m |
+
+An audience is kept only with an alert that reaches it. No alert, loaded or
+dormant, reached the finance route (the dormant budget alerts carry
+`component: cost`), so it is gone with `ALERTMANAGER_FINANCE_TEAM_EMAIL`. No
+loaded alert reaches the security route either (the dormant OAuth alerts carry
+`component: auth`): security being outside the A07 audit, it stays as it was,
+declared dormant in `test_alertmanager_template_guard.py` and reported to the
+owner (ADR-119 amendment 2026-10-23).
+
+PagerDuty pages from the critical route alone. The LIA webhook route, when
+configured, comes first and observes every critical and warning alert
+(`continue: true`). Resolved notifications are sent (`send_resolved: true`). Inhibition rules
 suppress noise: ServiceDown mutes API error/latency alerts, RedisDown mutes
 Redis warnings, PostgreSQLDown mutes connection-pool alerts, and any critical
 mutes the same alert's warning.
@@ -98,8 +131,11 @@ mutes the same alert's warning.
 ## Validation & testing
 
 ```bash
-# 1. Offline template validation (no containers needed)
-python infrastructure/observability/alertmanager/validate_config.py
+# 1. Rendering + routing matrix: each case of alertmanager/tests/routing_matrix.yml
+#    rendered by the real entrypoint in the production image (no network), then
+#    `amtool check-config`, every email template it names rendered, and
+#    `amtool config routes test` (audit A07; also in CI)
+task test:alertmanager
 
 # 2. Rule syntax + unit tests (thresholds pinned inside descriptions)
 docker run --rm --entrypoint promtool \

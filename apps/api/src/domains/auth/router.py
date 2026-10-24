@@ -30,10 +30,10 @@ from src.core.session_helpers import (
     create_authenticated_session_with_cookie,
 )
 from src.domains.auth.dependencies import (
-    rate_limit_login,
+    login_guard,
+    password_reset_request_guard,
     rate_limit_password_reset,
-    rate_limit_password_reset_request,
-    rate_limit_register,
+    register_guard,
 )
 from src.domains.auth.login_notification import (
     notify_new_login_if_unknown,
@@ -45,7 +45,6 @@ from src.domains.auth.preference_commands import (
     update_assistant_preferences,
 )
 from src.domains.auth.schemas import (
-    AuthFeaturesResponse,
     AuthResponseBFF,
     DebugPanelPreferenceRequest,
     DebugPanelPreferenceResponse,
@@ -70,6 +69,7 @@ from src.domains.auth.schemas import (
     OnboardingPreferenceResponse,
     PasswordResetConfirm,
     PasswordResetRequest,
+    PublicAuthFeaturesResponse,
     TokenRefreshRequest,
     TokensDisplayPreferenceRequest,
     TokensDisplayPreferenceResponse,
@@ -110,16 +110,16 @@ router = APIRouter(
 
 @router.get(
     "/features",
-    response_model=AuthFeaturesResponse,
+    response_model=PublicAuthFeaturesResponse,
     summary="Authentication capabilities",
     description="Publicly visible authentication capabilities of this instance "
     "(lets the frontend show/hide strong-auth UI).",
 )
-async def auth_features() -> AuthFeaturesResponse:
+async def auth_features() -> PublicAuthFeaturesResponse:
     """Expose which authentication features are mounted on this instance."""
-    from src.domains.auth.security_queries import effective_auth_features
+    from src.domains.auth.security_queries import public_auth_features
 
-    return effective_auth_features()
+    return public_auth_features()
 
 
 @router.post(
@@ -135,7 +135,7 @@ async def register(
     response: Response,
     http_request: Request,
     db: AsyncSession = Depends(get_db),
-    _rate_limit: None = Depends(rate_limit_register),
+    _guard: None = Depends(register_guard),
 ) -> AuthResponseBFF:
     """
     Register a new user with email and password using BFF Pattern.
@@ -198,7 +198,7 @@ async def login(
     response: Response,
     http_request: Request,
     db: AsyncSession = Depends(get_db),
-    _rate_limit: None = Depends(rate_limit_login),
+    _guard: None = Depends(login_guard),
     lia_session: str | None = Cookie(default=None),
 ) -> LoginResponseBFF:
     """
@@ -1145,12 +1145,12 @@ async def verify_email(
     "/request-password-reset",
     response_model=MessageResponse,
     summary="Request password reset",
-    description="Request password reset email. Always returns success to prevent email enumeration.",
+    description="Request a reset e-mail; same answer whatever the address (bot check: ADR-364).",
 )
 async def request_password_reset(
     data: PasswordResetRequest,
     db: AsyncSession = Depends(get_db),
-    _rate_limit: None = Depends(rate_limit_password_reset_request),
+    _guard: None = Depends(password_reset_request_guard),
 ) -> MessageResponse:
     """Request password reset email."""
     service = AuthService(db)

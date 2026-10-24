@@ -70,8 +70,7 @@ FLAGGED_FUNCTIONS = [
     ("validate_and_normalize_details_response", "domains\\agents\\tools\\contacts_validators.py"),
     ("format_single_response", "domains\\agents\\tools\\formatters.py"),
     ("invalidate_user", "domains\\agents\\utils\\contacts_cache.py"),
-    ("is_locked", "domains\\agents\\utils\\oauth_lock.py"),
-    ("force_release", "domains\\agents\\utils\\oauth_lock.py"),
+    # is_locked / force_release left with OAuthLock itself (audit AC-029, 2026-10-23).
     ("format_router_decision", "domains\\agents\\services\\streaming\\service.py"),
     ("health_check", "api\\v1\\routes.py"),
     ("root", "api\\v1\\routes.py"),

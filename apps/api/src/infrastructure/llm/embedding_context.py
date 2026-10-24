@@ -297,7 +297,7 @@ async def persist_embedding_tokens(
             run_id=run_id,
             user_id=UUID(context.user_id),
             session_id=context.session_id,
-            conversation_id=conv_uuid,  # type: ignore[arg-type]
+            conversation_id=conv_uuid,
             auto_commit=False,
         ) as tracker:
             # Record as embedding node (input tokens only, no output)

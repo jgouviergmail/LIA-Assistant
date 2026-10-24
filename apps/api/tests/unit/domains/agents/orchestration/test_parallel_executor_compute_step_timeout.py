@@ -17,6 +17,8 @@ executor's whole context.
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 
 from src.core.config import get_settings
@@ -46,22 +48,16 @@ class TestComputeStepTimeoutSubAgent:
     def test_planner_request_between_floor_and_ceiling_is_kept(self):
         """A planner request strictly between the floor and ceiling is preserved.
 
-        Floor and ceiling are read from Settings (never hardcoded — operators
-        can override the defaults via SUBAGENT_TOOL_TIMEOUT_SECONDS and
-        SUBAGENT_TOOL_MAX_TIMEOUT_SECONDS). The midpoint is the only value
-        guaranteed to fall strictly inside any (floor, ceiling) interval.
-        Skipped when floor == ceiling (no value exists strictly between).
+        The defaults collapse the interval (floor == ceiling), so this test used
+        to skip and the kept-as-is path never ran (audit AC-033). The ceiling is
+        now widened locally, relative to the configured floor: the interval
+        always exists, and no threshold is hard-coded.
         """
         s = get_settings()
         floor = s.subagent_tool_timeout_seconds
-        ceiling = s.subagent_tool_max_timeout_seconds
-        if floor >= ceiling:
-            pytest.skip(
-                f"Operator collapsed sub-agent floor/ceiling to {floor}/{ceiling}; "
-                "no value exists strictly between them to test the kept-as-is path."
-            )
-        midpoint = (floor + ceiling) / 2
-        assert compute_step_timeout("delegate_to_sub_agent_tool", midpoint) == midpoint
+        with patch.object(s, "subagent_tool_max_timeout_seconds", floor * 2):
+            midpoint = floor * 1.5
+            assert compute_step_timeout("delegate_to_sub_agent_tool", midpoint) == midpoint
 
     def test_planner_request_above_ceiling_is_capped(self):
         """Planner asked 999s → clamped to settings.subagent_tool_max_timeout_seconds."""

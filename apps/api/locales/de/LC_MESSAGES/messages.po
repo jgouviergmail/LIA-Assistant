@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LIA API 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-14 17:36+0000\n"
-"PO-Revision-Date: 2026-10-14 17:36+0000\n"
+"POT-Creation-Date: 2026-10-23 20:02+0000\n"
+"PO-Revision-Date: 2026-10-23 20:02+0000\n"
 "Last-Translator: Claude Code <noreply@anthropic.com>\n"
 "Language-Team: German\n"
 "Language: de\n"
@@ -404,6 +404,25 @@ msgstr "Link zum Zurücksetzen"
 
 msgid "Password reset"
 msgstr "Passwort zurücksetzen"
+
+msgid "Your LIA account has no password to reset"
+msgstr "Dein LIA-Konto hat kein Passwort zum Zurücksetzen"
+
+msgid "No password to reset"
+msgstr "Kein Passwort zum Zurücksetzen"
+
+msgid "Your account has no password: you sign in with {provider}."
+msgstr "Dein Konto hat kein Passwort: Du meldest dich mit {provider} an."
+
+msgid "To sign in, choose {provider} on the login page."
+msgstr "Um dich anzumelden, wähle auf der Anmeldeseite {provider}."
+
+msgid ""
+"If you did not make this request, you can ignore this email: nothing has "
+"changed on your account."
+msgstr ""
+"Wenn du diese Anfrage nicht gestellt hast, kannst du diese E-Mail "
+"ignorieren: An deinem Konto hat sich nichts geändert."
 
 msgid "Your LIA account is pending activation"
 msgstr "Dein LIA-Konto wartet auf Aktivierung"

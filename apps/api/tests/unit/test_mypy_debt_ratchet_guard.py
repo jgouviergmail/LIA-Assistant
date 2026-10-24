@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+from pathlib import Path
 
 import pytest
 
@@ -74,6 +75,18 @@ def test_ratchet_detects_a_new_exemption(monkeypatch: pytest.MonkeyPatch) -> Non
     poisoned = baseline | {("src.domains.brand_new.evil", "no-any-return")}
     monkeypatch.setattr(tool, "exemption_pairs", lambda: poisoned)
     assert tool._check() == 1
+
+
+def test_the_rewritten_baseline_keeps_unix_line_endings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The baseline is committed with LF: a Windows rewrite must not turn it into CRLF."""
+    tool = _load_tool()
+    target = tmp_path / ".mypy-debt-baseline.json"
+    monkeypatch.setattr(tool, "BASELINE", target)
+
+    assert tool._update() == 0
+    assert b"\r\n" not in target.read_bytes()
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -475,9 +475,9 @@ class SkillScriptExecutor:
             The script result, or a failure describing why it could not run.
         """
         try:
-            source = script_path.read_text(encoding="utf-8")
+            source = await asyncio.to_thread(script_path.read_text, encoding="utf-8")
         except OSError as exc:
-            logger.warning("skill_script_unreadable", skill_name=skill_name, error=str(exc))
+            logger.warning("skill_script_unreadable", skill_name=skill_name, errno=exc.errno)
             return ScriptResult(success=False, output="", error="Script could not be read")
 
         return await cls._run_source_in_container(
@@ -962,7 +962,7 @@ class SkillScriptExecutor:
                 execution_started=True,
             )
         except Exception as exc:
-            logger.error("skill_script_error", skill_name=skill_name, error=str(exc))
+            logger.error("skill_script_error", skill_name=skill_name, error_type=type(exc).__name__)
             return ScriptResult(
                 success=False,
                 output="",

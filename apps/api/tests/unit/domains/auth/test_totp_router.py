@@ -94,7 +94,7 @@ class TestLoginTwoStep:
                 response=Response(),
                 http_request=_fake_request(),
                 db=AsyncMock(spec=AsyncSession),
-                _rate_limit=None,
+                _guard=None,
                 lia_session=None,
             )
 
@@ -142,7 +142,7 @@ class TestLoginTwoStep:
                 response=Response(),
                 http_request=_fake_request(),
                 db=AsyncMock(spec=AsyncSession),
-                _rate_limit=None,
+                _guard=None,
                 lia_session=None,
             )
 

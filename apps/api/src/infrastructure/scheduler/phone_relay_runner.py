@@ -190,7 +190,9 @@ async def settle_owner_call(
 
     A turn that ran delivers the return (the chat holds it). Anything else
     hands the row to the notification path with the reason as its content:
-    dispatched now, and left ``PENDING`` for the reaper if the dispatch fails.
+    dispatched now, and left ``PENDING`` for the reaper unless the dispatch
+    reached a channel the person finds later — an SSE event alone reached an
+    open tab or nobody (audit AC-003).
     """
     if outcome in (RelayOutcome.ANSWERED, RelayOutcome.WAITING):
         await repo.mark_relay_delivered(call.id, outcome=outcome.value)
@@ -210,6 +212,7 @@ async def settle_owner_call(
             metadata={"call_status": PhoneCallStatus(call.status).value, "relay": outcome.value},
             db=db,
             title=phrases["self_call_title"],
+            require_durable=True,
         )
     except Exception as exc:  # noqa: BLE001 — PENDING stays for the reaper (T1)
         logger.warning(

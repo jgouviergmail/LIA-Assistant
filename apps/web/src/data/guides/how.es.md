@@ -6,7 +6,7 @@
 
 **Versión**: 5.6
 **Fecha**: 2026-10-23
-**Aplicación**: LIA v3.5.1
+**Aplicación**: LIA v3.6.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -72,8 +72,8 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Auto-hospedaje ARM64 | Docker multi-arch, embeddings semánticos (multilingües), Playwright chromium cross-platform |
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), credenciales cifradas con Fernet, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
-| Transparencia total | 630 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 360 ADRs, más de 66.000 pruebas automatizadas de backend y frontend, observabilidad nativa, HITL de 6 niveles |
+| Transparencia total | 634 métricas Prometheus, debug panel integrado, seguimiento token por token |
+| Fiabilidad en producción | 362 ADRs, más de 67.000 pruebas automatizadas de backend y frontend, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -91,11 +91,11 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | Más de 66.000 pruebas automatizadas con pytest y Vitest (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | Más de 67.000 pruebas automatizadas con pytest y Vitest (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures pytest | 1.391, de las cuales 58 compartidas mediante conftest |
 | Documentos de documentación | 835 |
-| ADRs (Architecture Decision Records) | 360 |
-| Métricas Prometheus | 630 definiciones |
+| ADRs (Architecture Decision Records) | 362 |
+| Métricas Prometheus | 634 definiciones |
 | Dashboards Grafana | 32 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -846,11 +846,11 @@ Para el correo, ese modelo unificado se mide, no se supone: los tres normalizers
 
 ### 13.3. Patrones reutilizables
 
-`BaseOAuthClient` (template method con 3 hooks), `BaseGoogleClient` (paginación via pageToken), `BaseMicrosoftClient` (OData). Circuit breaker, rate limiting Redis distribuido, refresh token con double-check pattern y Redis locking contra el thundering herd.
+`BaseOAuthClient` (template method con 3 hooks), `BaseGoogleClient` (paginación via pageToken), `BaseMicrosoftClient` (OData). Circuit breaker, rate limiting Redis distribuido, renovación de tokens por una única puerta (ADR-302): un solo intercambio por token entre llamantes y workers, ninguna transacción abierta durante la llamada al proveedor, una escritura condicionada al token de partida y un `invalid_grant` reverificado antes de desconectar un servicio.
 
 Para Google y Microsoft, el consentimiento se agrupa por cuenta del proveedor en lugar de repetirse por servicio. Una concesión gestiona los permisos aprobados y la renovación; Gmail, Calendar, Drive y sus equivalentes de Microsoft siguen siendo capacidades separadas que se pueden activar o desconectar. El retorno OAuth comprueba identidad y emisor esperados, estado y PKCE, sin sustituir silenciosamente otra cuenta.
 
-**Ninguna transacción queda abierta durante una llamada de red** (ADR-304). Un cliente de conector construido sobre la sesión de su llamante obligaría a esa sesión — y a su transacción — a seguir abierta mientras el proveedor responde, a veces durante minutos, quitando una conexión al pool durante toda la espera. Por eso un cliente nunca se construye sobre `ConnectorService(db)` — una guarda nombra el argumento del constructor, sin lista de excepciones —; una única puerta abre el cliente activo de una categoría en una sesión corta y lo cierra en todos los caminos; un job que conserva su sesión confirma sus lecturas antes de cada espera; cada operación de conector del turno de chat termina su transacción, y el sello de uso de una clave API es una fusión JSONB atómica aparte, con un tiempo de espera de bloqueo acotado. Los trabajos de fondo siguen la misma regla: un recordatorio se reclama solo, se confirma y luego se notifica sin transacción abierta; el flujo push de Drive avanza por comparar-e-intercambiar, en páginas acotadas en número y en tiempo; y solo el worker líder fija el webhook de Telegram.
+**Ninguna transacción queda abierta durante una llamada de red** (ADR-304). Un cliente de conector construido sobre la sesión de su llamante obligaría a esa sesión — y a su transacción — a seguir abierta mientras el proveedor responde, a veces durante minutos, quitando una conexión al pool durante toda la espera. Por eso un cliente nunca se construye sobre `ConnectorService(db)` — una guarda nombra el argumento del constructor, sin lista de excepciones —; una única puerta abre el cliente activo de una categoría en una sesión corta y lo cierra en todos los caminos; un job que conserva su sesión confirma sus lecturas antes de cada espera; cada operación de conector del turno de chat termina su transacción, y el sello de uso de una clave API es una fusión JSONB atómica aparte, con un tiempo de espera de bloqueo acotado. Los trabajos de fondo siguen la misma regla: un recordatorio se reclama solo, se confirma y luego se notifica sin transacción abierta; el flujo push de Drive avanza por comparar-e-intercambiar, en páginas acotadas en número y en tiempo; y solo el worker líder fija el webhook de Telegram. Y la base de datos acota lo que el código podría olvidar: cada conexión de la aplicación se abre con un límite de espera de bloqueo y otro de transacción inactiva, y cada límite alcanzado se cuenta y genera una alerta.
 
 ### 13.4. Dos caminos de autenticación
 
@@ -959,7 +959,7 @@ El filtro editorial elimina publicidad, patrocinios, descuentos e invitaciones a
 
 **Fase 1b — Enriquecimiento** (si `interest_topic`): `InterestContentGenerator` (Perplexity → Brave → Wikipedia) bajo timeout estricto, deduplicado contra los embeddings de notificaciones recientes. Totalmente fail-open: flag apagado, fallo o resultado vacío → el mensaje sale sin hechos.
 
-**Fase 2 — Generación** (si notify): LLM reescribe con personalidad + idioma del usuario. Cuando se han recuperado hechos, un bloque VERIFIED FACTS exige nombrar 1-2 elementos concretos sin inventar nunca, y los enlaces a las fuentes se añaden de forma determinista. Dispatch multi-canal. Una mención de interés se inscribe en el libro compartido (`InterestNotification(source='heartbeat')`): el tema descansa entonces para ambos flujos proactivos.
+**Fase 2 — Generación** (si notify): LLM reescribe con personalidad + idioma del usuario. Cuando se han recuperado hechos, un bloque VERIFIED FACTS exige nombrar 1-2 elementos concretos sin inventar nunca, y los enlaces a las fuentes se añaden de forma determinista. Dispatch multi-canal, que solo cuenta como entregado una vez archivado, enviado por push o por un canal el mensaje — nunca por un simple evento SSE (ADR-263). Una mención de interés se inscribe en el libro compartido (`InterestNotification(source='heartbeat')`): el tema descansa entonces para ambos flujos proactivos.
 
 Cada fuente está acotada por un presupuesto de tiempo y falla de forma independiente. Ese presupuesto cubre una parte de un bucle de eventos compartido con los demás recolectores — no es un tiempo de espera de base de datos: una lectura que trajera decenas de miles de filas en bruto para producir unas pocas decenas de números lo superaría en régimen nominal, congelando al worker durante la descodificación. Las señales de salud se apoyan por tanto en una agregación diaria calculada en la base de datos, y toda pérdida de fuente se cuenta y cronometra en vez de pasar en silencio — una fuente que falla desapareciendo no deja rastro en la propia notificación.
 
@@ -1115,6 +1115,8 @@ Diseño **fail-open**: los fallos de infraestructura no bloquean a los usuarios.
 | Rate Limiting / spoofing IP | Redis sliding window distribuido (Lua atómico); cadena proxy de confianza — puertos API vinculados a loopback (cloudflared = única entrada), uvicorn `--proxy-headers`, `request.client.host` validado como única fuente de IP (ningún bucket global compartido, XFF bruto nunca leído) Un techo global precede a cada ruta como verdadero middleware ASGI sobre ese mismo limitador compartido, de modo que un solo cliente no puede consumir toda la API; las sondas quedan exentas para no estrangular nunca la supervisión. |
 | Escáneres y relleno de credenciales | Admisión en ASGI puro, antes del enrutado: los 404 distintos en rutas desconocidas y las credenciales de inicio de sesión o MFA rechazadas se cuentan por IP de cliente canónica en ventanas deslizantes atómicas de Redis; superado el umbral, un bloqueo temporal fijo compartido por todos los workers de la API. Los errores ordinarios de recurso y de sesión nunca cuentan; los llamantes internos, las sondas de salud exactas y `OPTIONS` siguen admitidos; un fallo de Redis deja pasar el tráfico, visible en las métricas, la alerta de degradación y el diagnóstico (ADR-353). Cada 429 se registra una vez en WARNING con la IP de cliente canónica, el método, la ruta sin query, el estado y la duración — un campo de log, nunca una etiqueta de métrica (ADR-354) |
 | Texto hostil (ReDoS) | Los aplanadores Markdown/HTML — push, voz, comentarios de ticket, radio, tarjetas de correo — se ejecutan en el bucle de eventos: cada tramo emparejado está acotado (`MARKDOWN_SPAN_MAX_CHARS`) y ningún carácter pertenece a dos clases vecinas; pruebas de crecimiento (n y luego 4n) y de equivalencia exhaustiva, en la API y el navegador, mantienen la linealidad (ADR-326) |
+| Abuso del restablecimiento | Una sola decisión, aplicada al pedir el enlace y al usarlo: nada para un administrador o una cuenta eliminada, un aviso — nunca un enlace — para una cuenta que inicia sesión con Google sin contraseña; un presupuesto de correos por cuenta, pregunte la IP que pregunte; un enlace ligado a su cuenta y a una huella de su contraseña, retirado por cualquier cambio; con alerta (ADR-363) |
+| Bots en las puertas de la contraseña | Una verificación Cloudflare Turnstile opcional en el registro, el inicio de sesión y la solicitud de restablecimiento, tras el limitador por IP, válida solo para esa puerta de esa instancia; cuando Cloudflare no puede responder, solo pasa el inicio de sesión (ADR-364) |
 | Supply Chain | Cada entrada del build fijada por huella (GitHub Actions, imágenes, lenguajes, herramientas); vigilancia semanal de los avisos que publica cada dependencia y de los fines de soporte, cada hallazgo corregido o aceptado por escrito; actualización tras un plazo de prudencia que nunca retrocede, una corrección de seguridad convertida en mínimo (ADR-331); escaneo de secretos antes de cada push; un SBOM CycloneDX con cada release |
 
 ### 19.4. Durabilidad de los datos: copias de seguridad automatizadas (ADR-109)
@@ -1165,7 +1167,7 @@ El contenido de terceros viaja en un sobre que el modelo sabe que no debe obedec
 
 | Tecnología | Rol |
 |-------------|------|
-| Prometheus | 630 métricas custom (RED pattern) |
+| Prometheus | 634 métricas custom (RED pattern) |
 | Grafana | 32 dashboards production-ready |
 | Loki | Logs estructurados JSON agregados, recogidos por Grafana Alloy (el mismo enmascaramiento en la recogida) |
 | Tempo | Trazas distribuidas cross-service (OTLP gRPC), nombradas por la plantilla de la ruta |
@@ -1173,7 +1175,7 @@ El contenido de terceros viaja en un sobre que el modelo sabe que no debe obedec
 | Alertmanager | Núcleo de alertas vitales notificadas por correo (runbooks enlazados, umbrales por entorno) + webhook hacia LIA: cada alerta se convierte en un incidente dentro del producto (ADR-247) |
 | structlog | Logging estructurado con PII filtering |
 
-**Una métrica que no llega a ningún panel es una métrica sobre la que nadie actúa.** La distancia entre lo que el código emite y lo que un operador puede ver se mide, nunca se supone: `scripts/audit/measure_metric_coverage.py` analiza cada definición de métrica (por AST y no por expresión regular — una regex lee `ZoneInfo("UTC")` como una métrica `Info`) y coteja cada nombre con todos los paneles, reglas de registro y expresiones de alerta. 630 definidas; las que no llegan a nada figuran explícitamente en una base **que solo puede encogerse**, de modo que una métrica recién ciega hace fallar la compilación y una métrica que se vuelve visible debe salir de la lista — si no, la siguiente ciega ocupa su hueco en silencio. Sin esa guarda, una fuente de heartbeat que falla en abierto puede descartar parte de las señales de salud durante días sin que ninguna métrica lo advierta (ADR-148). Dos trampas que la guarda cierra por construcción — un contador con etiquetas que nunca se incrementó no expone **ninguna serie**, así que un panel que vigila un fallo raro necesita `or vector(0)` o mostrará «No data» donde el operador espera un cero verde; y la cobertura se lee únicamente de las **expresiones** de paneles y reglas, porque una métrica citada en un comentario no está cableada.
+**Una métrica que no llega a ningún panel es una métrica sobre la que nadie actúa.** La distancia entre lo que el código emite y lo que un operador puede ver se mide, nunca se supone: `scripts/audit/measure_metric_coverage.py` analiza cada definición de métrica (por AST y no por expresión regular — una regex lee `ZoneInfo("UTC")` como una métrica `Info`) y coteja cada nombre con todos los paneles, reglas de registro y expresiones de alerta. 634 definidas; las que no llegan a nada figuran explícitamente en una base **que solo puede encogerse**, de modo que una métrica recién ciega hace fallar la compilación y una métrica que se vuelve visible debe salir de la lista — si no, la siguiente ciega ocupa su hueco en silencio. Sin esa guarda, una fuente de heartbeat que falla en abierto puede descartar parte de las señales de salud durante días sin que ninguna métrica lo advierta (ADR-148). Dos trampas que la guarda cierra por construcción — un contador con etiquetas que nunca se incrementó no expone **ninguna serie**, así que un panel que vigila un fallo raro necesita `or vector(0)` o mostrará «No data» donde el operador espera un cero verde; y la cobertura se lee únicamente de las **expresiones** de paneles y reglas, porque una métrica citada en un comentario no está cableada.
 
 ### 20.2. Debug Panel integrado
 
@@ -1296,7 +1298,7 @@ Pre-push: escaneo de secretos     ───────────────�
 | Aspecto | Herramienta | Configuración |
 |--------|-------|---------------|
 | Formateo Python | Black | line-length=100 |
-| Linting Python | Ruff | E, W, F, I, B, C4, UP |
+| Linting Python | Ruff | E, W, F, I, B, C4, UP, ASYNC2 |
 | Type checking | MyPy | strict mode |
 | Commits | Conventional Commits | `feat(scope):`, `fix(scope):` |
 | Tests | pytest | `asyncio_mode = "auto"` |
@@ -1322,7 +1324,7 @@ El lock dice lo que se instala; queda decidir **cuándo una versión puede entra
 
 ### 22.4. La auditoría es pública — y reproducible
 
-El nivel de exigencia descrito en esta guía no es autodeclarado: una auditoría técnica 360° completa — **7,8/10 sobre 24 perímetros normalizados** de la matriz ISO/IEC 25010, hallazgos abiertos incluidos — está publicada en el repositorio ([informe completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), junto con el [protocolo de auditoría](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) que hace reproducible cada ciclo: commit fijado, requisitos de evidencia por perímetro, calificación anclada y un script versionado que mide el tamaño en SLOC lógicas. El informe termina con los comandos exactos para reproducir las mediciones tú mismo.
+El nivel de exigencia descrito en esta guía no es autodeclarado: una auditoría técnica 360° completa — **7,8/10 sobre 24 perímetros normalizados** de la matriz ISO/IEC 25010, hallazgos abiertos incluidos — está publicada en el repositorio ([informe completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), junto con el [protocolo de auditoría](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) que hace reproducible cada ciclo: commit fijado, requisitos de evidencia por perímetro, calificación anclada y un script versionado que mide el tamaño en SLOC lógicas. El informe termina con los comandos exactos para reproducir las mediciones tú mismo. Cada hallazgo que nombran los informes vive en un registro legible por máquina, verificado en cada construcción de la documentación: un cierre o una corrección lleva su prueba, y una versión se rechaza mientras un hallazgo prioritario haya superado su plazo.
 
 ### 22.5. Una garantía vale lo que mide
 
@@ -1603,7 +1605,7 @@ Dos reglas de interfaz se convirtieron en contratos de componentes en lugar de h
 
 ## 24. Arquitectura de decisiones (ADR)
 
-360 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+362 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -2019,8 +2021,8 @@ Los estudios de oMLX, llama.cpp y LM Studio y el mundo isométrico son trabajos 
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 360 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Las más de 66.000 pruebas automatizadas, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 362 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Las más de 67.000 pruebas automatizadas, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (800+ documentos), de los 360 ADRs y del changelog (v1.0 a v3.5.1). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (800+ documentos), de los 362 ADRs y del changelog (v1.0 a v3.6.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

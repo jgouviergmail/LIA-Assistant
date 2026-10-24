@@ -116,7 +116,10 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     "user_notifications": KeyScope.USER_RUNTIME,
     "sse:connection": KeyScope.USER_RUNTIME,
     "sse:streams": KeyScope.USER_RUNTIME,
-    "oauth_lock": KeyScope.USER_RUNTIME,
+    # The refresh door's verdict markers (audit AC-029): what the last attempt on a
+    # token ended with, read by the workers waiting for it. Never purged by a
+    # reset: a waiter would wait out its budget for a verdict already given.
+    "oauth_refresh": KeyScope.USER_RUNTIME,
     "oauth:health:notified": KeyScope.USER_RUNTIME,
     "oauth:state": KeyScope.USER_RUNTIME,
     "apikey:user": KeyScope.USER_RUNTIME,
@@ -124,6 +127,9 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     "ws_ticket": KeyScope.USER_RUNTIME,
     "usage_limit_ws_ticket": KeyScope.USER_RUNTIME,
     "hitl_rate_limit": KeyScope.USER_RUNTIME,
+    # The account's password-reset e-mail budget (ADR-363): a reset that freed
+    # it would hand an attacker a fresh budget.
+    "auth:password_reset_account": KeyScope.USER_RUNTIME,
     "health_metrics_ingest": KeyScope.USER_RUNTIME,
     "webauthn:reg": KeyScope.USER_RUNTIME,
     "webauthn:auth": KeyScope.USER_RUNTIME,

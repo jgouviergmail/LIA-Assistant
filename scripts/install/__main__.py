@@ -53,6 +53,7 @@ from scripts.install.envgen import (
     load_existing_generated_secrets,
     maps_environment,
     render_env,
+    turnstile_environment,
     write_atomic_private,
 )
 from scripts.install.host_paths import (
@@ -155,12 +156,14 @@ def _generate_artifacts(
     sandbox_image: str | None,
     image_lock: str | None,
     maps_settings: Mapping[str, str] | None = None,
+    turnstile_settings: Mapping[str, str] | None = None,
 ) -> str:
     """Render .env / override / image lock / Caddyfile, prepare host paths."""
     seed_digest = compute_seed_bundle_sha256(deps.root)
     environment = {
         **derive_environment(public, generated),
         **maps_environment(deps.root / ENV_FILE, maps_settings or {}),
+        **turnstile_environment(deps.root / ENV_FILE, turnstile_settings or {}),
     }
     # The minimal production template is the BASE of the user's `.env`: every
     # setting it carries survives into the installed instance. Reading it must
@@ -414,6 +417,8 @@ def run_install(argv: Sequence[str], deps: Deps) -> int:
                     log.add_secret(value)
                 for value in secrets.maps_settings.values():
                     log.add_secret(value)
+                for value in secrets.turnstile_settings.values():
+                    log.add_secret(value)
                 previous_state = _deploy_sequence(
                     deps, log, public, secrets, previous_state, seed_digest, sandbox_image
                 )
@@ -442,6 +447,8 @@ def run_install(argv: Sequence[str], deps: Deps) -> int:
             log.add_secret(value)
         for value in secrets.maps_settings.values():
             log.add_secret(value)
+        for value in secrets.turnstile_settings.values():
+            log.add_secret(value)
 
         generated = _load_or_generate_secrets(deps)
         image_lock, sandbox_image = prebuilt_pins(public)
@@ -453,6 +460,7 @@ def run_install(argv: Sequence[str], deps: Deps) -> int:
             sandbox_image=sandbox_image,
             image_lock=image_lock,
             maps_settings=secrets.maps_settings,
+            turnstile_settings=secrets.turnstile_settings,
         )
         state = _fresh_state(public, seed_digest, deps.root)
         state = with_step_completed(with_step_completed(state, Step.PREFLIGHT), Step.QUESTIONS)

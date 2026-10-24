@@ -15,11 +15,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, DEMO_SIGNUP_LIMIT_ERROR_CODE
 from src.core.exceptions import (
+    AuthenticationError,
     raise_email_already_exists,
     raise_invalid_credentials,
     raise_invalid_input,
     raise_oauth_flow_failed,
     raise_rate_limit_exceeded,
+    raise_token_invalid,
     raise_user_not_found,
 )
 from src.core.field_names import FIELD_IS_ACTIVE
@@ -31,6 +33,7 @@ from src.core.security import (
     create_verification_token,
     get_password_hash,
     mark_token_used,
+    reset_token_matches_account,
     verify_password,
     verify_single_use_token,
 )
@@ -41,6 +44,17 @@ from src.domains.auth.google_identity import (
     google_picture_after_sign_in,
 )
 from src.domains.auth.new_account_columns import new_account_columns
+from src.domains.auth.password_reset_policy import (
+    REFUSED_REQUEST_OUTCOMES,
+    ResetDecision,
+    ResetRequestOutcome,
+    ResetUseOutcome,
+    acquire_reset_send,
+    decide_reset,
+    record_reset_request,
+    record_reset_use,
+    sign_in_provider_label,
+)
 from src.domains.auth.repository import AuthRepository
 from src.domains.auth.schemas import (
     # Removed: AuthResponse, TokenResponse (BFF Pattern migration v0.3.0)
@@ -303,21 +317,55 @@ class AuthService:
         """
         Send password reset email to user.
 
+        The answer never depends on what was done, so nothing here reveals
+        whether an address has an account; what was done is counted instead
+        (``password_reset_requests_total``, ADR-363).
+
         Args:
             email: User email address
+        """
+        record_reset_request(await self._serve_password_reset_request(email))
+
+    async def _serve_password_reset_request(self, email: str) -> ResetRequestOutcome:
+        """Decide and send what a reset request deserves (ADR-363).
+
+        Args:
+            email: The address the request names.
+
+        Returns:
+            What was done, for the request counter.
         """
         user = await self.repository.get_by_email(email)
 
         # Don't reveal if email exists (security best practice)
         if not user:
             logger.warning("password_reset_requested_nonexistent_email", email=email)
-            return
+            return ResetRequestOutcome.UNKNOWN_ACCOUNT
 
-        # Generate reset token
-        reset_token = create_password_reset_token(email)
+        # Who may receive a link (ADR-363): an administrator or a deleted
+        # account gets nothing, a provider account without a password a notice.
+        decision = decide_reset(user)
+        refused = REFUSED_REQUEST_OUTCOMES.get(decision)
+        if refused is not None:
+            logger.warning("password_reset_refused", user_id=str(user.id), reason=decision.value)
+            return refused
+        # The account's budget, whatever IP asks (ADR-363): past it, the
+        # request answers as usual and nothing leaves.
+        if not await acquire_reset_send(user.id):
+            logger.info("password_reset_throttled", user_id=str(user.id))
+            return ResetRequestOutcome.THROTTLED
+        if decision is ResetDecision.NOTICE:
+            if await self._send_password_reset_notice(user):
+                return ResetRequestOutcome.NOTICE_SENT
+            return ResetRequestOutcome.SEND_FAILED
+
+        # Generate reset token, bound to this account and its password (ADR-363)
+        reset_token = create_password_reset_token(
+            email, user_id=user.id, hashed_password=user.hashed_password
+        )
 
         # Send reset email
-        await self._send_password_reset_email(
+        sent = await self._send_password_reset_email(
             email=email,
             token=reset_token,
             user_name=user.full_name,
@@ -325,6 +373,7 @@ class AuthService:
         )
 
         logger.info("password_reset_requested", user_id=str(user.id), email=email)
+        return ResetRequestOutcome.LINK_SENT if sent else ResetRequestOutcome.SEND_FAILED
 
     async def reset_password(self, token: str, new_password: str) -> UserResponse:
         """
@@ -341,16 +390,42 @@ class AuthService:
             HTTPException: If token is invalid, expired, or already used (PROD)
         """
         # Verify token + JTI check (DRY helper)
-        payload, jti = await verify_single_use_token(token, "password_reset")
+        try:
+            payload, jti = await verify_single_use_token(token, "password_reset")
+        except AuthenticationError:
+            record_reset_use(ResetUseOutcome.REJECTED_TOKEN)
+            raise
 
         email = str(payload.get("sub"))
         user = await self.repository.get_by_email(email)
 
         if not user:
+            record_reset_use(ResetUseOutcome.UNKNOWN_ACCOUNT)
             raise_user_not_found(email)
 
         # Type narrowing: user is User (not None) after check
         assert user is not None
+
+        # A link serves the account it was issued for, as it was then: a
+        # password changed since, or an account re-created at the same address,
+        # retires it (ADR-363). Refused like any invalid link.
+        if not reset_token_matches_account(
+            payload, user_id=user.id, email=user.email, hashed_password=user.hashed_password
+        ):
+            logger.warning("password_reset_token_stale", user_id=str(user.id))
+            record_reset_use(ResetUseOutcome.STALE_TOKEN)
+            raise_token_invalid("password reset token")
+
+        # The account must still be one a link may serve (same decision as the
+        # request): a link never outlives a deletion, a promotion to
+        # administrator, or a password the account no longer has.
+        decision = decide_reset(user)
+        if decision is not ResetDecision.LINK:
+            logger.warning(
+                "password_reset_refused_at_use", user_id=str(user.id), reason=decision.value
+            )
+            record_reset_use(ResetUseOutcome.INELIGIBLE)
+            raise_token_invalid("password reset token")
 
         # Hash new password and update
         hashed_password = get_password_hash(new_password)
@@ -367,6 +442,7 @@ class AuthService:
         await session_store.delete_all_user_sessions(str(user.id))
 
         logger.info("password_reset_completed", user_id=str(user.id), email=email)
+        record_reset_use(ResetUseOutcome.COMPLETED)
 
         return UserResponse.model_validate(user)
 
@@ -815,12 +891,15 @@ class AuthService:
 
     async def _send_password_reset_email(
         self, email: str, token: str, user_name: str | None, language: str
-    ) -> None:
+    ) -> bool:
         """Send password reset email via SMTP.
 
         ``language`` is the account's stored language, read here — the reset
         route is unauthenticated, so the declared language is the requester's,
         never the account's (ADR-323).
+
+        Returns:
+            True if the e-mail left.
         """
         from src.core.constants import EMAIL_RESET_PASSWORD_PATH
         from src.infrastructure.email import get_email_service
@@ -848,6 +927,37 @@ class AuthService:
                 "password_reset_email_failed",
                 email=email,
             )
+        return sent
+
+    async def _send_password_reset_notice(self, user: User) -> bool:
+        """Tell a provider account it has no password to reset (ADR-363).
+
+        Sent instead of a link, which would create a password on an account
+        that signs in with its provider. Carries no token at all.
+
+        Args:
+            user: The account; ``decide_reset`` sends a notice only to one
+                that has a provider and no password.
+
+        Returns:
+            True if the e-mail left.
+        """
+        from src.infrastructure.email import get_email_service
+
+        provider = user.oauth_provider
+        assert provider is not None  # decide_reset answers NOTICE for a provider account only
+
+        sent = await get_email_service().send_password_reset_notice(
+            user_email=user.email,
+            user_name=user.full_name,
+            provider=sign_in_provider_label(provider),
+            user_language=normalize_language(user.language),
+        )
+        if sent:
+            logger.info("password_reset_notice_sent", user_id=str(user.id))
+        else:
+            logger.error("password_reset_notice_failed", user_id=str(user.id))
+        return sent
 
     async def _notify_admins_of_new_registration(
         self, user_email: str, user_name: str | None, registration_method: str = "email"

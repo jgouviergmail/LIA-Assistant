@@ -158,11 +158,12 @@ class PublicAnswers:
 
 @dataclass(frozen=True)
 class SecretAnswers:
-    """Private inputs: LLM keys use stdin; Maps settings enter only private .env."""
+    """Private inputs: LLM keys use stdin; Maps and Turnstile settings enter only private .env."""
 
     admin_password: str
     provider_keys: Mapping[str, str]
     maps_settings: Mapping[str, str] = field(default_factory=dict, repr=False)
+    turnstile_settings: Mapping[str, str] = field(default_factory=dict, repr=False)
 
 
 @dataclass

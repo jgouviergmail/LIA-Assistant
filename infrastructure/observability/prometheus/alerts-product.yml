@@ -1,37 +1,24 @@
 # Product analytics alerts (ADR-178, dashboard 26) — PREPARED, NOT ACTIVE.
 #
-# ACTIVATION REQUIRES (do not skip):
+# DECISION 2026-10-23 (audit AC-006, amendment of ADR-178): the freshness alert
+# moved to alerts-core.yml (ProductAggregatesStale) — staleness needs no
+# baseline. The three behaviour alerts below stay unloaded, re-decided by
+# 2026-12-15 at the latest on a read-only measurement of production's product
+# series: a threshold set without the variance it must stand above alerts on
+# noise, and an instance serving a handful of accounts may never offer one.
+#
+# ACTIVATION REQUIRES (do not skip) — the conventions of alerts-core.yml:
 #   1. >= 4 weeks of production baseline on the product_* series (spec §8:
-#      startup thresholds must be recalibrated against measured variance).
-#   2. Add "alerts-product.yml" to rule_files in prometheus.yml.
-#   3. Mount this file in BOTH compose files (dev + prod), next to
-#      alerts-core.yml.
-# ADR-119 hygiene: every alert carries owner + runbook + dashboard; windows
-# and `for:` clauses are the anti-noise guards. No alert fires on a metric
-# whose data quality is red (the freshness alert gates the others in triage).
+#      startup thresholds must be recalibrated against measured variance),
+#      each threshold an ALERT_CORE_* variable of thresholds/{env}.env.
+#   2. A severity the routing knows (critical or warning — `high` reaches no
+#      severity route), `tier: core`, and a runbook under docs/runbooks/alerts/.
+#   3. Promtool cases in tests/alerts_core_test.yml and an evidence recipe
+#      (domains/diagnostics/evidence_recipes.py), then the rules moved into
+#      alerts-core.yml.template — the only rule file Prometheus loads (ADR-119).
+# No alert fires on a metric whose data quality is red.
 
 groups:
-  - name: product_freshness
-    rules:
-      - alert: ProductAggregatesStale
-        # DQ-04 / spec §8 "Critique": aggregates without a successful refresh
-        # for 2h — the rollup job is down or failing; every product number on
-        # dashboard 26 is suspect until this clears.
-        expr: (time() - max(product_metrics_last_refresh_timestamp_seconds)) > 7200
-        for: 15m
-        labels:
-          severity: critical
-          domain: product
-          owner: product
-        annotations:
-          summary: "Product aggregates have not refreshed for over 2 hours"
-          description: >
-            The product rollup job (SCHEDULER_JOB_PRODUCT_ROLLUP) has not
-            stamped a successful refresh in 2h (SLA). Check the API scheduler
-            logs (product_rollup_failed / product_rollup_completed) and
-            PostgreSQL availability. Dashboard: 26-product-value (row 00).
-          runbook: docs/technical/GRAFANA_DASHBOARDS.md#26---product-value-activation--retention-42-panels
-
   - name: product_value
     rules:
       - alert: ProductNorthStarDrop

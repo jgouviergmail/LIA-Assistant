@@ -20,6 +20,11 @@ from pathlib import Path
 
 from scripts.install.maps import MAPS_ENV_KEYS, validate_maps_settings
 from scripts.install.model import Exposure, PublicAnswers
+from scripts.install.turnstile import (
+    TURNSTILE_ENV_KEYS,
+    TURNSTILE_SWITCH,
+    validate_turnstile_settings,
+)
 
 #: Secrets the installer generates on a fresh install and MUST reuse after.
 GENERATED_SECRET_KEYS: tuple[str, ...] = (
@@ -137,6 +142,18 @@ def maps_environment(path: Path, provided: Mapping[str, str]) -> Mapping[str, st
         return validated
     existing = _parse_env(path) if path.is_file() else {}
     return {key: existing.get(key, "") for key in MAPS_ENV_KEYS}
+
+
+def turnstile_environment(path: Path, provided: Mapping[str, str]) -> Mapping[str, str]:
+    """Keep a skipped check as configured; a validated complete pair switches it on."""
+    validated = validate_turnstile_settings(provided)
+    if validated:
+        return {TURNSTILE_SWITCH: "true", **validated}
+    existing = _parse_env(path) if path.is_file() else {}
+    return {
+        TURNSTILE_SWITCH: existing.get(TURNSTILE_SWITCH, "false"),
+        **{key: existing.get(key, "") for key in TURNSTILE_ENV_KEYS},
+    }
 
 
 def derive_environment(public: PublicAnswers, generated: Mapping[str, str]) -> Mapping[str, str]:

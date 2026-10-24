@@ -36,7 +36,9 @@ apps/api/src/domains/connectors/
 ├── oauth_bulk.py                      # Grouped service and scope selection
 ├── oauth_bulk_service.py              # Shared consent and atomic grant activation
 ├── oauth_bulk_router.py               # Grouped authorize/callback routes
-├── oauth_grant_runtime.py              # Shared token refresh for linked connectors
+├── oauth_refresh.py                   # The one refresh door: one exchange per token (AC-029)
+├── oauth_refresh_exchange.py          # The refresh-token exchange, for every provider
+├── oauth_refresh_targets.py           # Token holders: a connector, a shared grant, Hue Remote
 ├── clients/
 │   ├── base_microsoft_client.py       # BaseMicrosoftClient(BaseOAuthClient): OData pagination, error parsing
 │   ├── microsoft_outlook_client.py    # MicrosoftOutlookClient: email search/read/send/reply/forward/trash

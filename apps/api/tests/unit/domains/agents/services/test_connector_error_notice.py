@@ -4,9 +4,9 @@ The module classifies TYPED connector exceptions (never string matching) into
 actionable notices and emits them on the LangGraph custom stream so the chat
 can render a "Reconnect" banner. Two real-world signals are covered:
 
-- ``ConnectorTokenExpiredError`` — raised by ``_refresh_oauth_token`` when the
-  refresh is rejected (``invalid_grant`` = revoked/expired token). This is the
-  dominant path in practice.
+- ``ConnectorTokenExpiredError`` — raised by the one OAuth refresh door
+  (``connectors/oauth_refresh.py``) when the refresh is rejected (``invalid_grant``
+  = revoked/expired token). This is the dominant path in practice.
 - ``ConnectorAPIError`` with upstream 401/403 — direct API auth failures.
 
 Anything else (500s, ValueError, timeouts) must classify to ``None``: a wrong

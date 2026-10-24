@@ -326,6 +326,15 @@ if [ -n "$PYTHON_FILES" ]; then
         # them in .env.example would invite a self-hoster to paste a real key
         # for a script only a measurement runs (2026-09-20).
         SCANNED_PY=$(echo "$SCANNED_PY" | grep -vE "apps/api/scripts/[a-z_]+/probe[a-z_]*[.]py$" || true)
+        # A REPOSITORY INSTRUMENT is not configuration either. `scripts/audit/`
+        # holds what a developer or the CI runs against the repository — the
+        # documentation audits, the findings register, the dependency watch,
+        # the diff coverage — and each reads ITS runner's environment: GitHub's
+        # `GITHUB_ACTIONS`, the base `DIFF_COVERAGE_BASE` the CI hands the diff
+        # coverage (it aborted the v3.6.0 commit, 2026-10-24). An instance never
+        # reads them; a runtime read of the same name is still caught, because
+        # the runtime file stays in the scan.
+        SCANNED_PY=$(echo "$SCANNED_PY" | grep -vE '^scripts/audit/' || true)
 
         # Search for os.environ / os.getenv references in those files.
         # Two shapes reach this scan and only one names a variable directly:

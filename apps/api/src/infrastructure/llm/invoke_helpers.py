@@ -112,8 +112,8 @@ def _ensure_node_metadata(config: RunnableConfig | None, node_name: str) -> Runn
     if config is None:
         config = {}
     if "metadata" not in config:
-        config["metadata"] = {}  # type: ignore[typeddict-item]
-    config["metadata"]["langgraph_node"] = node_name  # type: ignore[typeddict-item]
+        config["metadata"] = {}
+    config["metadata"]["langgraph_node"] = node_name
     return config
 
 
@@ -253,7 +253,7 @@ def enrich_config_with_node_metadata(
     logger.debug(
         "config_enriched_with_node_metadata",
         node_name=node_name,
-        has_other_metadata=len(config.get("metadata", {})) > 1,  # type: ignore[arg-type]
+        has_other_metadata=len(config.get("metadata", {})) > 1,
         callbacks_before_filter=len(existing_callbacks),
         callbacks_after_filter=len(filtered_callbacks),
         callbacks_final=len(config["callbacks"]),

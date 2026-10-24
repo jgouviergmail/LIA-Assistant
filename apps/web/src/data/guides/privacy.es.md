@@ -2,8 +2,8 @@
 
 > Tus datos. Tu asistente. Tus reglas.
 
-**Versión**: 1.1
-**Fecha**: 2026-10-12
+**Versión**: 1.2
+**Fecha**: 2026-10-24
 **Licencia**: AGPL-3.0 (código abierto)
 
 ---
@@ -137,6 +137,9 @@ Los controles de ocultación protegen los registros técnicos; no anonimizan aut
 - La autenticación se basa en cookies seguras (HttpOnly, Secure, SameSite)
 - El JavaScript del cliente no puede leer la cookie HttpOnly de sesión de la aplicación; las credenciales temporales de las sesiones de voz o avatares activadas en el navegador tienen un propósito distinto
 
+**Verificación anti-robot (opcional):**
+Cuando el operador la activa, las páginas de registro, inicio de sesión y restablecimiento de contraseña ejecutan Cloudflare Turnstile. En un marco servido por Cloudflare, analiza señales técnicas de tu navegador para distinguir a una persona de un script y entrega a la página un token de un solo uso que el servidor de LIA valida con Cloudflare. LIA no conserva nada de esas señales ni coloca ninguna cookie para esta verificación; Cloudflare las trata según su propia política de privacidad.
+
 **Registros seguros:**
 Los registros técnicos utilizan un formato JSON estructurado (mediante structlog), con reglas para omitir contenido citado del usuario y ocultar secretos e información personal reconocidos. Estos controles no convierten todos los almacenes de diagnóstico en anónimos.
 
@@ -224,7 +227,7 @@ LIA utiliza un número mínimo de cookies, exclusivamente funcionales:
 - No utiliza cookies publicitarias
 - No utiliza cookies de analítica de terceros (Google Analytics, etc.)
 - No utiliza píxeles de seguimiento
-- No utiliza fingerprinting del navegador
+- LIA no utiliza fingerprinting del navegador (la verificación anti-robot opcional de la sección 5 es la de Cloudflare)
 
 Las cookies utilizadas por LIA son estrictamente necesarias para el funcionamiento del servicio o están relacionadas con tu elección explícita (preferencia de idioma). Conforme a la Directiva ePrivacy, las cookies estrictamente necesarias no requieren consentimiento previo.
 

@@ -116,14 +116,16 @@ lecteurs historiques. Les anciennes connexions unitaires gardent un lien nul
 jusqu'à leur reconnexion explicite. Le schéma exact est dans
 [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md#2a-oauth_grants).
 
-[Le runtime du grant](../../apps/api/src/domains/connectors/oauth_grant_runtime.py)
-rafraîchit une fois les tokens d'un compte sous verrou PostgreSQL, puis
-synchronise les copies des services liés. Le
+[La porte de rafraîchissement](../../apps/api/src/domains/connectors/oauth_refresh.py)
+rafraîchit une fois les tokens d'un compte, sans transaction ouverte pendant
+l'appel au fournisseur, puis synchronise les copies des services liés par une
+écriture conditionnée ([ADR-302, amendement du 2026-10-23](../architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md)) ;
+les connexions historiques et Hue Remote passent par la même porte. Le
 [job proactif](../../apps/api/src/infrastructure/scheduler/token_refresh.py)
-ne traite chaque grant qu'une fois par passage. Les connexions historiques
-sans grant gardent leur chemin unitaire. Une panne réseau temporaire préserve
-le service ; un refus définitif du fournisseur marque les services concernés
-en erreur et permet la reconnexion explicite.
+ne traite chaque grant qu'une fois par passage. Une panne réseau temporaire
+préserve le service ; un refus définitif du fournisseur, revérifié contre le
+token stocké, marque les services concernés en erreur et permet la reconnexion
+explicite.
 
 La déconnexion d'un service retire seulement son accès local. Le dernier
 service lié supprime le grant local. Une déconnexion unitaire ne révoque pas

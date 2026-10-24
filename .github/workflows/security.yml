@@ -22,10 +22,14 @@ concurrency:
   group: security-${{ github.ref }}
   cancel-in-progress: true
 
+# Every job carries timeout-minutes (AC-033a): about twice its longest recent successful
+# run (measured 2026-10-23), never under ten minutes — a hang detector, not a performance
+# target. Held by apps/api/tests/unit/test_ci_job_timeouts_guard.py.
 jobs:
   codeql:
     name: CodeQL Analysis
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -55,6 +59,7 @@ jobs:
   dependency-audit:
     name: Dependency Audit
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -109,6 +114,7 @@ jobs:
   trivy:
     name: Trivy Scan
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -147,6 +153,7 @@ jobs:
   sbom:
     name: Generate SBOM
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

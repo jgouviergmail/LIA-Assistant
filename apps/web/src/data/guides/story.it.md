@@ -4,7 +4,7 @@
 
 **Versione**: 2.6
 **Data**: 2026-10-23
-**Applicazione**: LIA v3.5.1
+**Applicazione**: LIA v3.6.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | --- | --- |
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
 | Righe di codice sorgente (esclusi i test) — 58 domini funzionali | **1.003.000+** |
-| Test automatizzati inventariati; suite adeguate a commit e rilascio | **66.000+** |
-| Decisioni di architettura documentate (ADR) | **360** |
-| Versioni rilasciate a ritmo regolare | **287** |
+| Test automatizzati inventariati; suite adeguate a commit e rilascio | **67.000+** |
+| Decisioni di architettura documentate (ADR) | **362** |
+| Versioni rilasciate a ritmo regolare | **288** |
 | Lingue, parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **7,8/10** |
 
@@ -70,7 +70,7 @@ Il progetto è ora condotto con più agenti di sviluppo in parallelo — ciascun
 
 ## 4. Gli arbitraggi
 
-Tre decisioni strutturanti, tra le 360 documentate:
+Tre decisioni strutturanti, tra le 362 documentate:
 
 **Sovranità e reversibilità — nessuna dipendenza irreversibile dal fornitore.** I modelli IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelli locali via Ollama) stanno dietro un'astrazione unica: ogni utilizzo può cambiare fornitore per configurazione, con confronto dei costi. Stesso principio sul lato business: Google, Apple e Microsoft sono intercambiabili per categoria funzionale. L'auto-hosting ti dà il controllo del server; i dati dell'account risiedono nell'istanza e le credenziali dei connettori sono cifrate. I servizi remoti che scegli ricevono comunque i dati necessari per la loro parte della richiesta.
 
@@ -105,15 +105,19 @@ Il livello annunciato in questo documento risulta da un audit tecnico completo: 
 - Una documentazione mantenuta vera dai controlli: decisioni, mappe e cifre citate sono verificate contro le loro fonti a ogni modifica.
 - Un rilascio che esegue ciò che esegue uno sviluppatore: una CI snella sugli stessi task, installazione e rilascio testati in modo ermetico, migrazioni ripetute da un database vuoto.
 
+**Corretto dopo l'audit — in attesa della verifica del prossimo audit:**
+
+- Notifiche che dicono il vero: una notifica — di una chiamata, di un messaggio tra connessioni, di un incidente — conta come consegnata solo dopo un successo esplicito e duraturo.
+- Attese limitate: il database interrompe un'attesa di lock o una transazione inattiva prima che possa bloccare un account, e un rinnovo di token appartiene a un solo worker alla volta.
+- Un ciclo che si chiude: ogni rilievo è seguito in un registro pubblico con la sua età, la sua scadenza e la sua prova, e la soglia di copertura del backend vale per le suite unitarie e di integrazione insieme.
+- Allerte: ogni combinazione annunciata di canali di notifica è composta e testata, instradamento compreso.
+
 **Ciò che resta da fare — noto, pianificato:**
 
-- Stati durevoli che dicono il vero: un documento rielaborato dopo un subentro deve restare al suo proprietario attuale, e una notifica — di una chiamata, di un messaggio tra connessioni, di un incidente — deve contare come consegnata solo dopo un successo esplicito.
-- Attese limitate: il database deve interrompere un'attesa di lock o una transazione inattiva prima che possa bloccare un account, e un rinnovo di token deve appartenere a un solo worker alla volta.
-- Un ciclo che si chiude: ogni rilievo seguito con la sua età e la sua scadenza, e un margine di copertura del backend ripristinato.
-- Allerte: comporre e testare ogni combinazione annunciata di canali di notifica, instradamento compreso.
+- Un documento rielaborato dopo un subentro deve restare al suo proprietario attuale.
 - Il debito strutturale assoluto — funzioni centrali dense, domini interdipendenti, eccezioni di tipizzazione — ridotto lotto per lotto, guidato dalla misura.
 
-Il piano d'azione è organizzato in ondate, ciascuna con criteri di uscita misurabili. È il modo di rendere conto di questo progetto: non un livello proclamato, un livello misurato — scarti compresi.
+Il piano d'azione è organizzato in ondate, ciascuna con criteri di uscita misurabili; la prima è stata consegnata, e confermarne i risultati spetta al prossimo audit. È il modo di rendere conto di questo progetto: non un livello proclamato, un livello misurato — scarti compresi.
 
 Questa esigenza ha una conseguenza che il progetto ha imparato a proprie spese: **una suite di test verde non dimostra che una funzionalità funzioni**. Dimostra che ciò che è stato testato si comporta come è scritto. I difetti che sopravvivono ai controlli sono esattamente quelli su cui non sono mai stati interrogati — una capacità che nessuno invoca, una cifra che nessuno somma, una guardia che riconosce un nome anziché un meccanismo. Non sono quasi mai errori di codice: sono domande che non erano mai state poste.
 

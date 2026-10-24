@@ -2,8 +2,8 @@
 
 > Your data. Your assistant. Your rules.
 
-**Version**: 1.1
-**Date**: 2026-10-12
+**Version**: 1.2
+**Date**: 2026-10-24
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -137,6 +137,9 @@ Redaction controls protect technical logging; they do not automatically anonymiz
 - Authentication relies on secure cookies (HttpOnly, Secure, SameSite)
 - Client-side JavaScript cannot read the HttpOnly application session cookie; temporary credentials for enabled browser voice or avatar sessions have a different purpose
 
+**Anti-robot check (optional):**
+When the operator enables it, the sign-up, sign-in and password-reset pages run Cloudflare Turnstile. In a frame served by Cloudflare, it analyses technical signals from your browser to tell a person from a script, then hands the page a single-use token that LIA's server checks with Cloudflare. LIA keeps nothing of these signals and sets no cookie for this check; Cloudflare processes them under its own privacy policy.
+
 **Secure logging:**
 Technical logs use structured JSON format (via structlog), with rules to omit quoted user content and redact recognized secrets and personal information. These controls do not make every diagnostic store anonymous.
 
@@ -224,7 +227,7 @@ LIA uses a minimal number of cookies, exclusively functional:
 - No advertising cookies
 - No third-party analytics cookies (Google Analytics, etc.)
 - No tracking pixels
-- No browser fingerprinting
+- No browser fingerprinting by LIA (the optional anti-robot check of section 5 is Cloudflare's)
 
 The cookies used by LIA are either strictly necessary for the operation of the service or relate to your explicit choice (language preference). In accordance with the ePrivacy Directive, strictly necessary cookies do not require prior consent.
 

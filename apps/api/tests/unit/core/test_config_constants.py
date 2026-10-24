@@ -109,7 +109,9 @@ def test_verification_token_uses_constant():
 
 def test_password_reset_token_uses_constant():
     """Test that create_password_reset_token uses PASSWORD_RESET_TOKEN_EXPIRE_HOURS constant."""
-    token = create_password_reset_token("test@example.com")
+    from uuid import uuid4
+
+    token = create_password_reset_token("test@example.com", user_id=uuid4(), hashed_password=None)
 
     import jwt
 

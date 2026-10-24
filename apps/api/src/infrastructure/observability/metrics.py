@@ -110,41 +110,6 @@ web_risk_checks_total = Counter(
     ["outcome"],  # clean, flagged, error, cache_hit
 )
 
-# ============================================================================
-# OAUTH LOCK METRICS
-# ============================================================================
-
-oauth_lock_wait_duration_seconds = Histogram(
-    "oauth_lock_wait_duration_seconds",
-    "Time spent waiting to acquire OAuth lock",
-    ["connector_type"],  # gmail, google_contacts, etc.
-    buckets=[0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0],
-)
-
-oauth_lock_timeout_total = Counter(
-    "oauth_lock_timeout_total",
-    "Total OAuth lock acquisition timeouts",
-    ["connector_type"],
-)
-
-oauth_lock_acquired_total = Counter(
-    "oauth_lock_acquired_total",
-    "Total successful OAuth lock acquisitions",
-    ["connector_type"],
-)
-
-oauth_lock_released_total = Counter(
-    "oauth_lock_released_total",
-    "Total OAuth lock releases",
-    ["connector_type"],
-)
-
-oauth_lock_contention_total = Counter(
-    "oauth_lock_contention_total",
-    "Total lock contention events (multiple waiters)",
-    ["connector_type"],
-)
-
 # Note: All legacy button-based tool approval metrics removed - replaced by conversational HITL in metrics_agents.py
 # - tool_approval_pending_total (removed)
 # - tool_approval_response_time_seconds (removed)
@@ -175,10 +140,23 @@ connector_api_errors_total = Counter(
     ["connector_type", "error_type"],  # error_type: rate_limit, auth_error, network_error, etc.
 )
 
-connector_token_refresh_total = Counter(
-    "connector_token_refresh_total",
-    "Total OAuth token refresh operations",
-    ["connector_type", "status"],  # status: success, failure
+# The one refresh door (audit AC-029): what each attempt ended with, and how the
+# callers that did not run it obtained its result.
+oauth_refresh_outcomes_total = Counter(
+    "oauth_refresh_outcomes_total",
+    "OAuth token refresh attempts by what they ended with",
+    # kind: connector, grant, hue_remote; outcome: refreshed, fresh_already,
+    # write_lost, write_contended, revoked, revocation_superseded,
+    # revocation_contended, failed, inactive
+    ["kind", "outcome"],
+)
+
+oauth_refresh_flights_total = Counter(
+    "oauth_refresh_flights_total",
+    "OAuth token refreshes by how a caller obtained the result",
+    # how: claimed (ran it), waited (another worker ran it), unclaimed (no claim
+    # store: ran it), joined (another caller of this worker ran it)
+    ["kind", "how"],
 )
 
 connector_api_key_verification_total = Counter(

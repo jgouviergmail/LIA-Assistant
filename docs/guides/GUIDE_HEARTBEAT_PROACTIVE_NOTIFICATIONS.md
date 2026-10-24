@@ -867,7 +867,7 @@ def mock_settings(monkeypatch):
 3. Pour Telegram : `CHANNELS_ENABLED=true` et un binding actif existe ?
 
 **Logs a chercher** :
-- `proactive_notification_dispatched` : resume de tous les canaux (fcm_success, sse_sent, channel_sent)
+- `proactive_notification_dispatched` : resume de tous les canaux (fcm_success, sse_sent, archived, channel_sent) et `durably_delivered`, le seul verdict de livraison : archivee, poussee ou envoyee sur un canal externe. Un evenement SSE seul n'est pas une livraison : la notification compte alors comme un echec d'envoi (`dispatch_failed`)
 - `proactive_fcm_failed` : erreur FCM
 - `proactive_channels_failed` : erreur Telegram
 

@@ -29,6 +29,9 @@ env:
   DEEPSEEK_BASE_URL: http://fake-provider:18080/v1
   FAKE_PROVIDER_KEY: sk-fake-qualification-key
 
+# Every job carries timeout-minutes (AC-033a): about twice its longest recent successful
+# run (measured 2026-10-23), never under ten minutes — a hang detector, not a performance
+# target. Held by apps/api/tests/unit/test_ci_job_timeouts_guard.py.
 jobs:
   qualify:
     name: ${{ matrix.platform }} / ${{ matrix.mode }}
@@ -50,6 +53,7 @@ jobs:
             runner: ubuntu-24.04-arm
             mode: prebuilt
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -82,7 +82,16 @@ db_transaction_duration_seconds = Histogram(
     "Database transaction duration (session start to commit)",
     ["endpoint", "transaction_type"],
     # transaction_type: read, write
-    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0],
+    # The buckets past 10 s show the tail the engine's idle bound acts on (AC-028):
+    # with 10 s as the last one, 852 sessions of a production week had no length.
+    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0],
+)
+
+db_bound_reached_total = Counter(
+    "db_bound_reached_total",
+    "Statements or sessions the application engine's PostgreSQL bounds ended",
+    ["bound"],
+    # bound: lock_timeout, idle_in_transaction_timeout, statement_timeout
 )
 
 db_transaction_rollback_total = Counter(

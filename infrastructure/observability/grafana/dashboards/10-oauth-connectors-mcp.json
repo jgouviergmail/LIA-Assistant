@@ -484,68 +484,16 @@
     {
      "id": 11,
      "type": "timeseries",
-     "title": "Lock Wait Duration P95",
+     "title": "Refresh outcomes (by holder)",
      "datasource": {
       "type": "prometheus",
       "uid": "$datasource"
      },
-     "gridPos": {
-      "h": 8,
-      "w": 8,
-      "x": 0,
-      "y": 26
-     },
      "targets": [
       {
-       "expr": "histogram_quantile(0.95, sum by (le) (rate(oauth_lock_wait_duration_seconds_bucket[1h])))",
-       "legendFormat": "Lock Wait P95",
+       "expr": "sum by (kind, outcome) (rate(oauth_refresh_outcomes_total[$__rate_interval]))",
+       "legendFormat": "{{kind}} {{outcome}}",
        "refId": "A"
-      }
-     ],
-     "fieldConfig": {
-      "defaults": {
-       "unit": "s",
-       "custom": {
-        "fillOpacity": 10
-       }
-      },
-      "overrides": []
-     },
-     "options": {
-      "tooltip": {
-       "mode": "multi"
-      },
-      "legend": {
-       "displayMode": "list",
-       "placement": "bottom"
-      }
-     },
-     "description": "Time spent waiting to acquire OAuth lock. Shown: p95 percentile. Empty panel = zero events in the window (healthy)."
-    },
-    {
-     "id": 12,
-     "type": "timeseries",
-     "title": "Lock Contention/Timeout",
-     "datasource": {
-      "type": "prometheus",
-      "uid": "$datasource"
-     },
-     "gridPos": {
-      "h": 8,
-      "w": 8,
-      "x": 8,
-      "y": 26
-     },
-     "targets": [
-      {
-       "expr": "rate(oauth_lock_contention_total[$__rate_interval])",
-       "legendFormat": "Contention",
-       "refId": "A"
-      },
-      {
-       "expr": "rate(oauth_lock_timeout_total[$__rate_interval])",
-       "legendFormat": "Timeout",
-       "refId": "B"
       }
      ],
      "fieldConfig": {
@@ -566,7 +514,54 @@
        "placement": "bottom"
       }
      },
-     "description": "Total lock contention events (multiple waiters). Empty panel = zero events in the window (healthy)."
+     "description": "What each attempt of the one OAuth refresh door ended with, per token holder (connector, grant, hue_remote). refreshed = a new token stored; fresh_already = another caller had refreshed it. A token valid past the margin costs no attempt and is not counted here.",
+     "gridPos": {
+      "h": 8,
+      "w": 8,
+      "x": 0,
+      "y": 26
+     }
+    },
+    {
+     "id": 12,
+     "type": "timeseries",
+     "title": "Refresh coalescing (how callers got the token)",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "$datasource"
+     },
+     "targets": [
+      {
+       "expr": "sum by (kind, how) (rate(oauth_refresh_flights_total[$__rate_interval]))",
+       "legendFormat": "{{kind}} {{how}}",
+       "refId": "A"
+      }
+     ],
+     "fieldConfig": {
+      "defaults": {
+       "unit": "ops",
+       "custom": {
+        "fillOpacity": 10
+       }
+      },
+      "overrides": []
+     },
+     "options": {
+      "tooltip": {
+       "mode": "multi"
+      },
+      "legend": {
+       "displayMode": "list",
+       "placement": "bottom"
+      }
+     },
+     "description": "claimed = this worker ran the exchange; waited = another worker ran it and this one read its verdict; joined = another caller of this worker ran it; unclaimed = no claim store (Redis down): the conditional write still keeps one token.",
+     "gridPos": {
+      "h": 8,
+      "w": 8,
+      "x": 8,
+      "y": 26
+     }
     },
     {
      "id": 13,
@@ -770,21 +765,15 @@
     {
      "id": 18,
      "type": "timeseries",
-     "title": "Token Refresh",
+     "title": "Refresh refusals",
      "datasource": {
       "type": "prometheus",
       "uid": "$datasource"
      },
-     "gridPos": {
-      "h": 8,
-      "w": 12,
-      "x": 0,
-      "y": 43
-     },
      "targets": [
       {
-       "expr": "sum by (connector_type, status) (rate(connector_token_refresh_total[$__rate_interval]))",
-       "legendFormat": "{{connector_type}} ({{status}})",
+       "expr": "sum by (kind, outcome) (rate(oauth_refresh_outcomes_total{outcome=~\"revoked|failed|inactive\"}[$__rate_interval])) or vector(0)",
+       "legendFormat": "{{kind}} {{outcome}}",
        "refId": "A"
       }
      ],
@@ -793,7 +782,8 @@
        "unit": "ops",
        "custom": {
         "fillOpacity": 10
-       }
+       },
+       "noValue": "0"
       },
       "overrides": []
      },
@@ -806,7 +796,13 @@
        "placement": "bottom"
       }
      },
-     "description": "Total OAuth token refresh operations."
+     "description": "revoked = the provider refused the token still stored: the person must reconnect. failed = an outage or an unreadable answer: the holder stays active. inactive = the holder was gone or no longer active when the door re-read it.",
+     "gridPos": {
+      "h": 8,
+      "w": 12,
+      "x": 0,
+      "y": 43
+     }
     },
     {
      "id": 19,
@@ -1802,47 +1798,44 @@
     },
     {
      "id": 42,
-     "title": "Token lock acquire/release (by connector)",
      "type": "timeseries",
-     "datasource": "$datasource",
-     "description": "Distributed token-refresh lock lifecycle. Acquired without matching released signals leaked locks — cross-check with the existing contention/timeout panels.",
+     "title": "Refresh writes lost, superseded or contended",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "$datasource"
+     },
+     "targets": [
+      {
+       "expr": "sum by (kind, outcome) (rate(oauth_refresh_outcomes_total{outcome=~\"write_lost|revocation_superseded|write_contended|revocation_contended\"}[$__rate_interval])) or vector(0)",
+       "legendFormat": "{{kind}} {{outcome}}",
+       "refId": "A"
+      }
+     ],
+     "fieldConfig": {
+      "defaults": {
+       "unit": "ops",
+       "custom": {
+        "fillOpacity": 10
+       },
+       "noValue": "0"
+      },
+      "overrides": []
+     },
+     "options": {
+      "tooltip": {
+       "mode": "multi"
+      },
+      "legend": {
+       "displayMode": "list",
+       "placement": "bottom"
+      }
+     },
+     "description": "write_lost = another writer stored its token first (its token is served). revocation_superseded = an invalid_grant for a token rotated meanwhile: no disconnection. write_contended / revocation_contended = a caller's open transaction held the row past OAUTH_REFRESH_WRITE_LOCK_TIMEOUT_MS: expected 0, investigate the caller.",
      "gridPos": {
       "h": 8,
       "w": 12,
       "x": 0,
       "y": 103
-     },
-     "targets": [
-      {
-       "expr": "sum by (connector_type) (rate(oauth_lock_acquired_total[$__rate_interval]))",
-       "legendFormat": "acquired {{connector_type}}",
-       "refId": "A"
-      },
-      {
-       "expr": "sum by (connector_type) (rate(oauth_lock_released_total[$__rate_interval]))",
-       "legendFormat": "released {{connector_type}}",
-       "refId": "B"
-      }
-     ],
-     "fieldConfig": {
-      "defaults": {
-       "unit": "short",
-       "custom": {
-        "drawStyle": "line",
-        "lineInterpolation": "smooth",
-        "fillOpacity": 10
-       }
-      },
-      "overrides": []
-     },
-     "options": {
-      "legend": {
-       "displayMode": "list",
-       "placement": "bottom"
-      },
-      "tooltip": {
-       "mode": "multi"
-      }
      }
     },
     {

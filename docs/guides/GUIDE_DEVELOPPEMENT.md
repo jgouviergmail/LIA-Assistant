@@ -145,8 +145,8 @@ couverture de branches mesurée.
 
 | Script | Rôle | Tâche équivalente |
 |---|---|---|
-| `lint` | ESLint sur `src` | `task lint:frontend` (+ les 3 ratchets + `type-check`) |
-| `a11y:ratchet` / `react-hooks:ratchet` / `cc:ratchet` | Ratchets shrink-only | incluses dans `task lint:frontend` |
+| `lint` | ESLint sur `src` | `task lint:frontend` (+ les ratchets + `type-check`) |
+| `a11y:ratchet` / `react-hooks:ratchet` / `cc:ratchet` / `double-cast:ratchet` | Ratchets shrink-only | incluses dans `task lint:frontend` |
 | `type-check` | `tsc --noEmit --incremental false` | incluse dans `task lint:frontend` |
 | `test` / `test:watch` / `test:coverage` | Vitest | `task test:frontend` / `task test:frontend:coverage` |
 | `format` | Prettier sur `src` | `task format:frontend` |

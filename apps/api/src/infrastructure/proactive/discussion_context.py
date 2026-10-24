@@ -122,7 +122,7 @@ class NativeContextStore:
         """
         async with get_db_context() as db:
             state = await self._fenced_state(ContextRepository(db))
-            state.rule_cache = cache.model_dump(mode="json")
+            state.rule_cache = cache.stored()
 
     async def _fenced_state(self, repo: ContextRepository) -> ContextStateRecord:
         await repo._owner(self.owner)

@@ -2,8 +2,8 @@
 
 > Vos donnees. Votre assistant. Vos regles.
 
-**Version** : 1.1
-**Date** : 2026-10-12
+**Version** : 1.2
+**Date** : 2026-10-24
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -137,6 +137,9 @@ Des contrôles de masquage protègent les journaux techniques ; ils n'anonymisen
 - L'authentification repose sur des cookies securises (HttpOnly, Secure, SameSite)
 - Le JavaScript client ne peut pas lire le cookie HttpOnly de la session applicative ; les accès temporaires des sessions vocales ou d'avatar activées dans le navigateur ont un autre rôle
 
+**Vérification anti-robot (facultative) :**
+Lorsque l'opérateur l'active, les pages d'inscription, de connexion et de réinitialisation du mot de passe exécutent Cloudflare Turnstile. Dans un cadre servi par Cloudflare, cette vérification analyse des signaux techniques de votre navigateur pour distinguer une personne d'un script, puis remet à la page un jeton à usage unique que le serveur de LIA fait valider par Cloudflare. LIA ne conserve rien de ces signaux et ne dépose aucun cookie pour cette vérification ; Cloudflare les traite selon sa propre politique de confidentialité.
+
 **Journalisation securisee :**
 Les journaux techniques utilisent le format JSON structuré (via structlog), avec des règles pour omettre les propos de l'utilisateur et masquer les secrets et informations personnelles reconnus. Ces contrôles ne rendent pas chaque stockage de diagnostic anonyme.
 
@@ -224,7 +227,7 @@ LIA utilise un nombre minimal de cookies, exclusivement fonctionnels :
 - Aucun cookie publicitaire
 - Aucun cookie tiers d'analyse (Google Analytics, etc.)
 - Aucun pixel de suivi
-- Aucune empreinte numerique (fingerprinting)
+- Aucune empreinte numérique (fingerprinting) réalisée par LIA (la vérification anti-robot facultative de la section 5 est celle de Cloudflare)
 
 Les cookies utilises par LIA sont strictement necessaires au fonctionnement du service ou relevent de votre choix explicite (preference de langue). Conformement a la directive ePrivacy, les cookies strictement necessaires ne requierent pas de consentement prealable.
 

@@ -1,9 +1,11 @@
 """Where a document lives, and whether the caller may touch it (ADR-259).
 
-The only place that turns a ``RAGDocument`` row into a file path: the storage
+The place that turns a ``RAGDocument`` row into a file path: the storage
 root, the owner, the space, then the stored filename, each segment resolved
-and checked to stay inside the space directory. The ownership check is the
-one every document operation shares — reading, deleting, downloading, moving.
+and checked to stay inside the space directory — and, for the callers that
+delete, move or fingerprint a file, the stricter :func:`owned_document_path`
+that refuses a link anywhere on the way. The ownership check is the one every
+document operation shares — reading, deleting, downloading, moving.
 """
 
 from __future__ import annotations
@@ -88,6 +90,35 @@ def document_file_path(document: RAGDocument) -> Path:
         raise RuntimeError(
             "RAG storage path integrity violation: resolved file escapes the space directory"
         )
+    return path
+
+
+def owned_document_path(actor_id: uuid.UUID, space_id: uuid.UUID, filename: str) -> Path | None:
+    """The exact stored path of ``filename`` in the actor's space, or None when it is not that.
+
+    Stricter than :func:`document_file_path`, for the callers that delete, move or
+    fingerprint a file: a link on the account, the space or the file is refused
+    outright, and so is a filename that resolves outside its space — the two
+    ``resolve`` checks are what refuse a Windows junction, which ``is_symlink``
+    does not see. A file already gone keeps its exact path: the caller's open says so.
+    Every check is a filesystem call — an async caller runs this in a worker thread.
+
+    Args:
+        actor_id: The owner of the space.
+        space_id: The space holding the document.
+        filename: The stored filename, taken literally.
+
+    Returns:
+        The path, unresolved, or None when any check refuses it.
+    """
+    root = Path(settings.rag_spaces_storage_path).resolve()
+    account = root / str(actor_id)
+    scope = account / str(space_id)
+    path = scope / filename
+    if account.is_symlink() or scope.is_symlink() or path.is_symlink():
+        return None
+    if scope.resolve() != scope or path.resolve().parent != scope or path.name != filename:
+        return None
     return path
 
 

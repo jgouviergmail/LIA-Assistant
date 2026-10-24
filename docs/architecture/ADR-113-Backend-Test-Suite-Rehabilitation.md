@@ -105,3 +105,47 @@ run against the dev PostgreSQL + Redis):
   follow-up; the agents suite's 209 API-key skips (strategy: deterministic
   fake-LLM provider for plumbing tests + nightly `llm_live` tier for the
   small real-LLM core).
+
+## Amendment 2026-10-23 — the floor is held by the unit and integration suites together (AC-030b)
+
+Point 2 ran the integration suite with `--no-cov` "because the coverage gate
+belongs to the unit job". Measured on 2026-10-23, that premise had stopped
+describing what the suites test: the unit job alone covered 78.98 % of `src`,
+the SQL-bound domains sat far below the floor in it (sms 53.6 %, proactive
+discussions 70.7 %), and their integration tests, on a real PostgreSQL, covered
+them at 92.1 % and 82.4 %; the unit suite and those 460 tests alone already
+reached 80.53 %. A unit-only gate could only be met by simulating PostgreSQL in
+unit tests, which the test rules forbid. Owner decision, 2026-10-23: the floor
+applies to what the two suites execute together; its value does not change.
+
+- `task test:backend:unit:coverage` and `task test:backend:integration` each
+  measure into their own data file (`.coverage-unit`, `.coverage-integration`,
+  the integration task's second collection appending to its first) and hold no
+  floor: the `--cov-fail-under=0` sentinel overrides `addopts`. The agents suite
+  still measures nothing.
+- `task test:backend:coverage` combines the two files strictly (a missing one is
+  an error, never a partial total), writes `coverage.xml`, then holds the floor
+  with `coverage report --fail-under`, the comparison pytest-cov made
+  (precision 0). The diff gate (AC-030a) reads that report: a changed line either
+  suite executes is covered.
+- The data files stay outside coverage's implicit `<data file>.*` pattern: every
+  reporting command of coverage 7 combines such files on its own, non-strictly,
+  then deletes them, so a stale xdist worker file would be counted and a missing
+  suite would go unnoticed.
+- The report is rooted where pytest-cov roots it: `[tool.coverage.run] source`
+  names the tree every measuring command passes to `--cov`. Without it the
+  coverage CLI writes absolute paths under an empty root, which the diff gate
+  refuses.
+- Freshness, the limit this leaves: the diff gate refuses a report older than the
+  change, and the union's report is dated by its combination, not by the
+  measurement. CI measures both suites in the same run; locally, combining again
+  after a change without running the suites again yields a report that describes
+  the code before it (`task ci` always runs both). A check on the data files' dates
+  was not added: in CI they are downloaded artifacts, whose dates say nothing about
+  the checkout they are compared with.
+- CI: a `test-backend-coverage` job needs both test jobs, downloads their data
+  artifacts and runs the two gates. Locally, `task ci` runs them after the
+  integration suite; `task ci:fast`, which starts no service, holds neither.
+- Guards: `test_coverage_union_guard.py` (the wiring, in the Taskfile and in CI),
+  `test_task_ci_pytest_parity_guard.py` (one floor; a partial subset never holds
+  it), `test_diff_coverage_guard.py` (the gate runs after the combination).

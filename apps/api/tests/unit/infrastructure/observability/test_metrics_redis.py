@@ -98,6 +98,80 @@ class TestExtractKeyPrefix:
         assert prefix == "tenant_prod_user_search"
 
 
+_ACCOUNT = "c0ffee00-1234-4abc-8def-0123456789ab"
+_OTHER = "facade00-5678-4cde-9abc-ba9876543210"
+
+
+class TestExtractKeyPrefixDropsIdentifiers:
+    """A rate-limit key names who it throttles; the metric label never does.
+
+    Measured on production (2026-10-23): of 56 ``key_prefix`` series, 27 carried
+    a client IP and 25 an account id, because only purely numeric segments were
+    removed. Each case below is a key shape a limiter writes today.
+    """
+
+    def test_client_ipv4_is_dropped(self):
+        assert extract_key_prefix("auth:login:198.51.100.24") == "auth_login"
+
+    def test_client_ipv6_spanning_segments_is_dropped(self):
+        assert extract_key_prefix("http:global:2001:db8:85a3::8a2e:370:7334") == "http_global"
+
+    def test_full_ipv6_with_numeric_last_group_is_dropped(self):
+        key = "product:events:2001:db8:85a3:8d3:1319:8a2e:370:7348"
+        assert extract_key_prefix(key) == "product_events"
+
+    def test_account_id_in_the_middle_is_dropped(self):
+        assert extract_key_prefix(f"user:{_ACCOUNT}:google_calendar") == "user_google_calendar"
+
+    def test_account_id_after_a_literal_user_segment_is_dropped(self):
+        key = f"auth:webauthn_enroll:user:{_ACCOUNT}"
+        assert extract_key_prefix(key) == "auth_webauthn_enroll_user"
+
+    def test_every_account_id_of_a_key_is_dropped(self):
+        assert extract_key_prefix(f"ingestion:source:{_ACCOUNT}:{_OTHER}") == "ingestion_source"
+
+    def test_uppercase_account_id_is_dropped(self):
+        key = f"health_metrics_ingest:{_ACCOUNT.upper()}"
+        assert extract_key_prefix(key) == "health_metrics_ingest"
+
+    def test_bounded_name_with_digits_survives(self):
+        key = "ratelimit:embeddings:gemini-embedding-001"
+        assert extract_key_prefix(key) == "ratelimit_embeddings_gemini_embedding_001"
+
+    def test_hex_words_that_are_not_an_address_survive(self):
+        assert extract_key_prefix("cache:dead:beef") == "cache_dead_beef"
+
+    def test_no_production_shape_leaks_an_identifier(self):
+        keys = [
+            f"apikey:user:{_ACCOUNT}:brave_search",
+            f"apikey:user:{_ACCOUNT}:openweathermap",
+            f"apple_rate_limit:apple_calendar:{_ACCOUNT}",
+            "auth:mfa_verify:203.0.113.7",
+            "auth:native_callback:203.0.113.7",
+            "auth:password_reset:203.0.113.7",
+            "auth:password_reset_request:203.0.113.7",
+            "auth:register:203.0.113.7",
+            "http:global:203.0.113.7",
+            "product:events:203.0.113.7",
+            f"ingestion:user:{_ACCOUNT}",
+            f"user:{_ACCOUNT}:microsoft_outlook",
+        ]
+        assert [extract_key_prefix(key) for key in keys] == [
+            "apikey_user_brave_search",
+            "apikey_user_openweathermap",
+            "apple_rate_limit_apple_calendar",
+            "auth_mfa_verify",
+            "auth_native_callback",
+            "auth_password_reset",
+            "auth_password_reset_request",
+            "auth_register",
+            "http_global",
+            "product_events",
+            "ingestion_user",
+            "user_microsoft_outlook",
+        ]
+
+
 class TestRedisRateLimitMetrics:
     """Tests for Redis rate limiting Prometheus metrics."""
 

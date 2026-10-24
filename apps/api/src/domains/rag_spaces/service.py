@@ -45,7 +45,7 @@ from src.domains.rag_spaces.repository import (
 )
 from src.domains.rag_spaces.space_creation import SpaceCreationScope
 from src.domains.rag_spaces.space_mutation import publish_activation, source_update_values
-from src.domains.rag_spaces.upload_storage import write_uploaded_file
+from src.domains.rag_spaces.upload_storage import prepare_space_directory, write_uploaded_file
 from src.domains.users.repository import UserRepository
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_rag_spaces import rag_documents_total_count
@@ -465,17 +465,10 @@ class RAGSpaceService:
         # Generate UUID-based filename (anti-traversal)
         stored_filename = f"{uuid.uuid4().hex}{ext}"
 
-        # Write to disk. user_id/space_id are typed uuid.UUID upstream, so the
-        # segments cannot carry traversal sequences; the resolve+containment
-        # check is defense-in-depth (and survives future signature changes).
-        storage_root = Path(settings.rag_spaces_storage_path).resolve()
-        storage_dir = (storage_root / str(user_id) / str(space_id)).resolve()
-        if not storage_dir.is_relative_to(storage_root):
-            raise RuntimeError(
-                "RAG storage path integrity violation: resolved directory "
-                "escapes the storage root"
-            )
-        storage_dir.mkdir(parents=True, exist_ok=True)
+        # Write to disk, in a directory resolved and created off the loop.
+        storage_dir = await prepare_space_directory(
+            settings.rag_spaces_storage_path, user_id, space_id
+        )
         file_path = storage_dir / stored_filename
         # Offload the (potentially multi-MB) disk write so the event loop stays
         # free for concurrent requests (CA-4).

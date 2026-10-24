@@ -17,6 +17,7 @@ This test suite covers:
 """
 
 from datetime import UTC, datetime
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -24,6 +25,8 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.security.utils import create_password_reset_token as mint_reset_token
+from src.core.security.utils import verify_token
 from src.domains.auth.schemas import UserLoginRequest, UserRegisterRequest
 from src.domains.auth.service import AuthService
 from src.domains.users.models import User
@@ -32,6 +35,16 @@ from tests.fixtures.factories import UserFactory
 
 # Ensure all SQLAlchemy models are loaded so relationship() references resolve
 import_all_models()
+
+
+def _bound_reset_payload(user: User) -> dict[str, Any]:
+    """The verified payload of a real reset link issued for ``user`` (ADR-363)."""
+    payload = verify_token(
+        mint_reset_token(user.email, user_id=user.id, hashed_password=user.hashed_password)
+    )
+    assert payload is not None
+    return payload
+
 
 # ============================================================================
 # Fixtures
@@ -78,6 +91,11 @@ def _isolate_post_user_creation_services():
     with (
         patch("src.domains.skills.preference_service.SkillPreferenceService") as skill_cls,
         patch("src.domains.usage_limits.service.UsageLimitService") as limit_cls,
+        # The per-account reset budget lives in Redis (ADR-363): admitted here,
+        # held to the limiter's contract by an in-memory double in
+        # tests/unit/domains/auth, and run on the real Lua limiter in
+        # tests/integration/test_password_reset_budget_redis.py.
+        patch("src.domains.auth.service.acquire_reset_send", AsyncMock(return_value=True)),
     ):
         skill_cls.return_value.ensure_user_skills = AsyncMock()
         limit_cls.return_value.create_default_limits = AsyncMock()
@@ -558,7 +576,9 @@ class TestRequestPasswordReset:
 
         # Assert
         mock_repository.get_by_email.assert_called_once_with(email)
-        mock_create_token.assert_called_once_with(email)
+        mock_create_token.assert_called_once_with(
+            email, user_id=sample_user.id, hashed_password=sample_user.hashed_password
+        )
         # Verify email sent with new signature (includes user_name and language)
         mock_send_email.assert_called_once_with(
             email=email,
@@ -613,14 +633,9 @@ class TestResetPassword:
             patch("src.domains.auth.service.get_redis_session", return_value=mock_redis),
             patch("src.domains.auth.service.SessionStore", return_value=mock_session_store),
         ):
-            # verify_single_use_token returns (payload, jti) tuple
-            mock_verify.return_value = (
-                {
-                    "type": "password_reset",
-                    "sub": sample_user.email,
-                },
-                "test-jti-reset",
-            )
+            # verify_single_use_token returns (payload, jti): the payload of a
+            # real link issued for this account, as the writer shapes it.
+            mock_verify.return_value = (_bound_reset_payload(sample_user), "test-jti-reset")
             mock_hash.return_value = "new_hashed_password"
 
             # Act
@@ -1044,14 +1059,8 @@ class TestIntegrationScenarios:
             patch("src.domains.auth.service.get_redis_session", return_value=mock_redis),
             patch("src.domains.auth.service.SessionStore", return_value=mock_session_store),
         ):
-            # verify_single_use_token returns (payload, jti) tuple
-            mock_verify.return_value = (
-                {
-                    "type": "password_reset",
-                    "sub": email,
-                },
-                "test-jti-reset-flow",
-            )
+            # verify_single_use_token returns (payload, jti): a real bound link's payload
+            mock_verify.return_value = (_bound_reset_payload(sample_user), "test-jti-reset-flow")
 
             # Act - Request reset
             await service.request_password_reset(email)

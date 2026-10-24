@@ -37,10 +37,19 @@ step is executable by a human reviewer. A new audit cycle is triggered by a sing
    (`apps/api/tests/unit/test_file_size_ratchet_guard.py`, same SLOC semantics and
    exemptions): each audit cycle runs `task ratchet:update` so the caps follow the
    extractions — caps only go down, never up.
-6. **Register continuity.** Findings carry stable IDs across cycles (historically `R-…`,
-   `F-…`; `AC-…` since the V11 framework). Each new cycle starts by re-verifying every open
-   item of the previous register in the code before marking it resolved / partial / open.
-   Resolved items cite their proof (ADR, release, file). Since V11 every finding also
+6. **Register continuity.** Findings carry stable `AC-…` identifiers, held by
+   [`findings_register.json`](./findings_register.json) (historically `R-…`, `F-…`). The
+   identifiers have been stable only since **V13**: V11, V12 and V13 each numbered their
+   findings from `AC-001` again, so the register starts at V13 and lists V11/V12 as legacy
+   reports. A new finding takes the next free identifier; an identifier is **never** reused,
+   and a card a report published under another number is declared as an alias. Each new
+   cycle starts by re-verifying every open item of the register in the code before marking
+   it resolved / partial / open, and resolved items cite their proof (ADR, release, file,
+   execution). `scripts/audit/findings_register.py` holds the register to every report it
+   names, title for title (`task lint:docs`), and `task release:check` refuses an open P1
+   past its horizon unless its entry carries a dated, reasoned deferral. Between two
+   cycles, a fix is recorded as `remediated` with its proofs: the release gate stops
+   counting it, and only the next audit's verification closes it (or reopens it). Every finding also
    carries a level (major / moderate / minor), an effort estimate (E1–E5) and a
    self-contained resolution prompt executable by a coding AI.
 7. **Inline audit.** The audit is conducted in a single analysis context (no delegation of
@@ -122,13 +131,17 @@ assessment aligned on these referentials — it claims no accreditation or certi
    audit history (framework-labeled) · auditor note. **Public-content rule:** open findings
    are phrased as prioritized worksites; no exploitation-oriented detail, no internal line
    numbers — everything stated must be visible in the repository anyway.
-3. **Register** carried to the next cycle (IDs, statuses, proofs).
+3. **Register** carried to the next cycle (IDs, statuses, proofs):
+   [`findings_register.json`](./findings_register.json). The new report joins its
+   `reports`, each of its finding and closure cards is registered under its exact title,
+   and every status change cites its proof — `task lint:docs` fails until they agree.
 
 ## 5. Publication pipeline (the "update everything" checklist)
 
 Execute in this order — the figures rule is *constants first, then texts*:
 
-1. `docs/audit/README.md` — refresh scores, loop table, worksites, history row, audited
+1. `docs/audit/findings_register.json` first (the register the other surfaces summarize),
+   then `docs/audit/README.md` — refresh scores, loop table, worksites, history row, audited
    commit. Keep the section structure fixed.
 2. `apps/web/src/components/landing/constants.ts` — `auditScore`, `auditAreas`
    (single source of truth; update the provenance comment).

@@ -57,7 +57,7 @@ LEARNING_AND_RUNTIME = [
     f"sse:streams:{UID}",
     f"user:{UID}:sessions",
     f"user:{UID}:contacts_search",
-    f"oauth_lock:{UID}:GOOGLE_GMAIL",
+    f"oauth_refresh:connector:{UID}",
 ]
 PURGEABLE = [
     f"hitl_pending:{UID}",

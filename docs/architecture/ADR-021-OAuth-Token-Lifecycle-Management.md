@@ -466,7 +466,7 @@ Proactive Refresh (toutes 15 min)
 - **OAuth Flow**: `apps/api/src/core/oauth/flow_handler.py`
 - **Base OAuth Client**: `apps/api/src/domains/connectors/clients/base_oauth_client.py`
 - **Google Client**: `apps/api/src/domains/connectors/clients/base_google_client.py`
-- **OAuth Lock**: `apps/api/src/infrastructure/locks/oauth_lock.py`
+- **Refresh door** (depuis le 2026-10-23) : `apps/api/src/domains/connectors/oauth_refresh.py`
 - **Connector Service**: `apps/api/src/domains/connectors/service.py`
 - **Health Check Job**: `apps/api/src/infrastructure/scheduler/oauth_health.py`
 - **Health Check Hook**: `apps/web/src/hooks/useConnectorHealth.ts`
@@ -475,6 +475,19 @@ Proactive Refresh (toutes 15 min)
 ### Related Documentation
 - `docs/technical/OAUTH.md` - OAuth 2.1 flow details
 - `docs/technical/OAUTH_HEALTH_CHECK.md` - Health check system details
+
+## Amendement 2026-10-23 — Le verrou de rafraîchissement est remplacé par une porte unique
+
+**Amende** la protection contre les rafraîchissements concurrents décrite plus haut
+(`OAuthLock`, double lecture, `_refresh_oauth_token`) : le verrou ne gardait qu'un chemin
+de rafraîchissement sur quatre et les écritures étaient inconditionnelles (audit V14,
+AC-029). Tout rafraîchissement passe désormais par `ensure_fresh_credentials`
+(`apps/api/src/domains/connectors/oauth_refresh.py`) : un échange par jeton entre
+appelants et workers, aucune transaction ouverte pendant l'appel au fournisseur, une
+écriture conditionnée au jeton d'origine et bornée dans son attente de ligne, un
+`invalid_grant` revérifié avant toute déconnexion. `OAuthLock` et
+`ConnectorService._refresh_oauth_token` sont supprimés. Détail et preuves :
+[ADR-302, amendement du 2026-10-23](ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md).
 
 ---
 

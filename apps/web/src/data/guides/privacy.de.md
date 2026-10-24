@@ -2,8 +2,8 @@
 
 > Ihre Daten. Ihr Assistent. Ihre Regeln.
 
-**Version**: 1.1
-**Datum**: 2026-10-12
+**Version**: 1.2
+**Datum**: 2026-10-24
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -137,6 +137,9 @@ Kontrollen zur Schwärzung schützen die technische Protokollierung. Sie anonymi
 - Die Authentifizierung beruht auf sicheren Cookies (HttpOnly, Secure, SameSite)
 - Clientseitiges JavaScript kann das HttpOnly-Cookie der Anwendungssitzung nicht lesen; temporäre Zugangsdaten für aktivierte Sprach- oder Avatarsitzungen im Browser haben einen anderen Zweck
 
+**Anti-Roboter-Prüfung (optional):**
+Wenn der Betreiber sie aktiviert, führen die Seiten für Registrierung, Anmeldung und Passwort-Zurücksetzung Cloudflare Turnstile aus. In einem von Cloudflare bereitgestellten Rahmen werden technische Signale Ihres Browsers ausgewertet, um einen Menschen von einem Skript zu unterscheiden; anschließend erhält die Seite ein Einmal-Token, das der Server von LIA bei Cloudflare prüfen lässt. LIA speichert nichts von diesen Signalen und setzt für diese Prüfung kein Cookie; Cloudflare verarbeitet sie gemäß seiner eigenen Datenschutzrichtlinie.
+
 **Sichere Protokollierung:**
 Technische Protokolle verwenden ein strukturiertes JSON-Format (über structlog) mit Regeln, um zitierte Benutzerinhalte wegzulassen und erkannte Geheimnisse und personenbezogene Informationen zu schwärzen. Diese Kontrollen machen nicht jeden Diagnosespeicher anonym.
 
@@ -224,7 +227,7 @@ LIA verwendet eine minimale Anzahl ausschließlich funktionaler Cookies:
 - Keine Werbe-Cookies
 - Keine Analyse-Cookies von Drittanbietern (Google Analytics usw.)
 - Keine Tracking-Pixel
-- Kein Browser-Fingerprinting
+- Kein Browser-Fingerprinting durch LIA (die optionale Anti-Roboter-Prüfung aus Abschnitt 5 ist die von Cloudflare)
 
 Die von LIA verwendeten Cookies sind entweder für den Betrieb des Dienstes unbedingt erforderlich oder stehen im Zusammenhang mit Ihrer ausdrücklichen Auswahl (Sprachpräferenz). Nach der ePrivacy-Richtlinie benötigen unbedingt erforderliche Cookies keine vorherige Einwilligung.
 

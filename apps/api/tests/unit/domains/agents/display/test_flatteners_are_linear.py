@@ -10,17 +10,16 @@ newlines 14 s in the voice projection.
 The guard measures CPU GROWTH, never a wall-clock budget alone: each witness runs at
 n and at 4n, and a flattener may not take more than eight times longer on four
 times the text (linear grows ×4, quadratic ×16, the exponential one did not
-finish). Batched thread CPU timings exclude xdist scheduling pauses and absorb
-coarse CPU clocks. Sizes alternate, and the median paired growth keeps changing
-host load from becoming a growth curve. A floor keeps sub-millisecond ratios from
-judging noise; a separate elapsed-time ceiling still catches the absurdly slow.
+finish), measured by ``tests.support.cpu_growth`` — the one measurement the
+linearity guards share: the thread's CPU in batches, sizes interleaved, the median
+pair deciding, floors under which a ratio is noise. A separate elapsed-time ceiling
+still catches the absurdly slow.
 The witnesses are the ones that were slow —
 every one of them, so a rewrite that trades one for another is caught.
 """
 
 from __future__ import annotations
 
-import time
 from collections.abc import Callable
 
 import pytest
@@ -39,23 +38,13 @@ from src.domains.voice.expressive_cues import (
 )
 from src.domains.voice.sentence_streamer import is_speakable
 from src.domains.voice_sessions.projection import flatten_for_voice
+from tests.support.cpu_growth import CEILING_SECONDS, measure_growth
 
 pytestmark = pytest.mark.unit
 
 #: Characters at the small size; the large size is four times as many.
 SMALL = 8_000
-#: Below this many seconds at the large size, the ratio is noise and passes.
-FLOOR_SECONDS = 0.02
-#: The small measurement is read as at least this: under xdist on a loaded host
-#: a 3 ms run is not measurable to a factor of 8 (measured 2026-09-30: ×8.2 on
-#: a flattener whose exponent is 1.01). A quadratic flattener starting from this
-#: floor takes ×16 of it, twice what the criterion admits — still refused.
-SMALL_FLOOR_SECONDS = FLOOR_SECONDS / 4
-#: A flattener may take at most this many times longer on four times the text.
-MAX_GROWTH = 8.0
-#: Whatever the growth, the large size must stay under this (linear and fast).
-CEILING_SECONDS = 1.5
-#: Resolve per-call CPU time even when the host's CPU clock has coarse ticks.
+#: Calls averaged into each reading: a flattener's call is short.
 CPU_BATCH_CALLS = 16
 
 Flattener = Callable[[str], object]
@@ -137,49 +126,16 @@ WITNESSES: dict[str, Callable[[int], str]] = {
 }
 
 
-def _seconds(flatten: Flattener, text: str) -> tuple[float, float]:
-    """Per-call thread CPU time and single-call elapsed time."""
-    started_cpu = time.thread_time()
-    started_elapsed = time.perf_counter()
-    flatten(text)
-    elapsed = time.perf_counter() - started_elapsed
-    for _ in range(CPU_BATCH_CALLS - 1):
-        flatten(text)
-    return (time.thread_time() - started_cpu) / CPU_BATCH_CALLS, elapsed
-
-
-def _growth_seconds(
-    flatten: Flattener, small_text: str, large_text: str
-) -> tuple[float, float, float]:
-    """Median paired CPU growth and best large single-call elapsed time.
-
-    Interleave sizes: host load and CPU frequency must not differ between
-    three small batches at the start and three large batches much later.
-    """
-    samples = []
-    for _ in range(3):
-        small, _ = _seconds(flatten, small_text)
-        large, elapsed = _seconds(flatten, large_text)
-        samples.append((small, large, elapsed))
-    ordered = sorted(samples, key=lambda pair: pair[1] / max(pair[0], SMALL_FLOOR_SECONDS))
-    small, large, _ = ordered[1]
-    return small, large, min(pair[2] for pair in samples)
-
-
 @pytest.mark.parametrize("witness", list(WITNESSES), ids=list(WITNESSES))
 @pytest.mark.parametrize("name", list(FLATTENERS), ids=list(FLATTENERS))
 def test_a_flattener_grows_linearly_on_a_hostile_text(name: str, witness: str) -> None:
-    flatten = FLATTENERS[name]
     make = WITNESSES[witness]
-    small, large, elapsed = _growth_seconds(flatten, make(SMALL), make(4 * SMALL))
+    growth = measure_growth(FLATTENERS[name], make(SMALL), make(4 * SMALL), batch=CPU_BATCH_CALLS)
 
-    assert elapsed < CEILING_SECONDS, f"{name} on {witness!r}: {elapsed:.2f} s at {4 * SMALL} chars"
-    if large < FLOOR_SECONDS:
-        return
-    assert large <= MAX_GROWTH * max(small, SMALL_FLOOR_SECONDS), (
-        f"{name} on {witness!r} grows ×{large / max(small, SMALL_FLOOR_SECONDS):.1f} for ×4 the text "
-        f"({small * 1000:.1f} ms → {large * 1000:.1f} ms CPU): super-linear"
-    )
+    assert (
+        growth.elapsed < CEILING_SECONDS
+    ), f"{name} on {witness!r}: {growth.elapsed:.2f} s at {4 * SMALL} chars"
+    assert growth.linear, f"{name} on {witness!r}: {growth.describe()}: super-linear"
 
 
 def test_the_witnesses_are_the_ones_that_were_slow() -> None:
@@ -199,9 +155,11 @@ def test_the_criterion_catches_the_former_link_pattern() -> None:
 
     former = re.compile(r"<a\s+([^<>]*)>((?:(?!<a\b)[\s\S])*?)</a>", re.IGNORECASE)
     make = WITNESSES["unclosed <a then blanks"]
-    small, large, _ = _growth_seconds(lambda s: former.sub("", s), make(2_000), make(8_000))
+    growth = measure_growth(
+        lambda s: former.sub("", s), make(2_000), make(8_000), batch=CPU_BATCH_CALLS
+    )
 
-    assert large >= FLOOR_SECONDS, "the former pattern is too fast here to judge its growth"
-    assert large > MAX_GROWTH * max(
-        small, SMALL_FLOOR_SECONDS
-    ), f"the criterion would have let the former pattern pass ({large / max(small, SMALL_FLOOR_SECONDS):.1f})"
+    assert growth.judged, "the former pattern is too fast here to judge its growth"
+    assert (
+        not growth.linear
+    ), f"the criterion would have let the former pattern pass ({growth.describe()})"

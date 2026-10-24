@@ -1,7 +1,14 @@
 'use client';
 
 import { useId, type ReactNode } from 'react';
-import { Activity, AlertTriangle, CalendarClock, RefreshCw, type LucideIcon } from 'lucide-react';
+import {
+  Activity,
+  AlertTriangle,
+  CalendarClock,
+  MessageCircleQuestion,
+  RefreshCw,
+  type LucideIcon,
+} from 'lucide-react';
 import { useTranslation } from '@/i18n/client';
 import { getIntlLocale, type Language } from '@/i18n/settings';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +18,7 @@ import { lifecycleTone } from '@/lib/status-tone';
 import { discussionActivitySchema, type DiscussionActivity } from '@/types/proactive-discussions';
 
 type Budget = DiscussionActivity['budget'];
+type Awaiting = NonNullable<DiscussionActivity['awaiting_reply']>;
 type Run = NonNullable<DiscussionActivity['last_run']>;
 type RunStats = NonNullable<Run['stats']>;
 
@@ -171,10 +179,29 @@ function CeilingNotice({ lng, budget }: { lng: Language; budget: Budget }) {
   );
 }
 
+/** The opening still awaiting a reply, which holds the next one back: since and until when. */
+function AwaitingReplyNotice({ lng, awaiting }: { lng: Language; awaiting: Awaiting }) {
+  const { t } = useTranslation(lng);
+  return (
+    <p
+      role="status"
+      className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm"
+    >
+      <MessageCircleQuestion aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+      <span className="min-w-0">
+        {t('discussions.activity.awaiting_reply', {
+          since: moment(awaiting.since, lng),
+          until: moment(awaiting.until, lng),
+        })}
+      </span>
+    </p>
+  );
+}
+
 /**
- * First — only when one stops LIA — the ceiling reached; then when the context
- * was last rebuilt and last updated, and the last run with its own figures. As
- * measured.
+ * First — only when one stops LIA — the ceiling reached, then an opening still
+ * awaiting a reply; then when the context was last rebuilt and last updated, and
+ * the last run with its own figures. As measured.
  */
 export function DiscussionActivityPanel({
   lng,
@@ -185,13 +212,20 @@ export function DiscussionActivityPanel({
 }) {
   const parsed = discussionActivitySchema.safeParse(activity);
   if (!parsed.success) return null;
-  const { last_rebuild: rebuild, last_update: update, last_run: run, budget } = parsed.data;
+  const {
+    last_rebuild: rebuild,
+    last_update: update,
+    last_run: run,
+    budget,
+    awaiting_reply: awaiting,
+  } = parsed.data;
   const ceiling = budget.configured && budget.reached !== null;
   const dated = Boolean(rebuild || update || run);
-  if (!dated && !ceiling) return null;
+  if (!dated && !ceiling && !awaiting) return null;
   return (
     <div className="min-w-0 space-y-3">
       {ceiling && <CeilingNotice lng={lng} budget={budget} />}
+      {awaiting && <AwaitingReplyNotice lng={lng} awaiting={awaiting} />}
       {dated && (
         <div className="@container min-w-0 divide-y rounded-lg border bg-card">
           <ContextDates lng={lng} rebuild={rebuild} update={update} />

@@ -627,13 +627,13 @@ class ProactiveTaskRunner:
             user=user, result=result, target=target, db=db, run_id=run_id
         )
 
-        if not notification_result.success:
+        if not notification_result.durably_delivered:
             logger.warning(
                 "proactive_notification_dispatch_failed",
                 task_type=self.task.task_type,
                 user_id=str(user.id),
                 target_id=result.target_id,
-                error=notification_result.error,
+                sse_sent=notification_result.sse_sent,
             )
             stats.record_failure("dispatch_failed")
             # Written and paid for, delivered to nobody: billed all the same.
@@ -690,7 +690,7 @@ class ProactiveTaskRunner:
                 "proactive_on_notification_sent_failed",
                 task_type=self.task.task_type,
                 user_id=str(user.id),
-                error=str(e),
+                error_type=type(e).__name__,
             )
 
         logger.info(
@@ -726,8 +726,9 @@ class ProactiveTaskRunner:
                     run_id=run_id,
                 )
                 # The explicit result, never the absence of an exception: a
-                # dispatch that reached no channel is a notification nobody got.
-                notified.delivered = bool(notification_result.success)
+                # dispatch that reached no channel the person finds later — an
+                # SSE event alone — is a notification nobody got (audit AC-003).
+                notified.delivered = notification_result.durably_delivered
             return notification_result
         except BaseException:
             await self._bill(user, result, target, run_id, conversation_id=None, failed=True)

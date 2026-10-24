@@ -17,6 +17,7 @@ from sqlalchemy import or_, select, update
 from src.core.config import settings
 from src.core.i18n import normalize_language
 from src.core.i18n_api_messages import APIMessages
+from src.domains.account_export.archive_stream import run_disk_io
 from src.domains.account_export.builder import ExportTooLargeError, build_export_archive
 from src.domains.account_export.models import AccountExportJob, ExportJobStatus
 from src.domains.notifications.service import FCMNotificationService
@@ -70,7 +71,7 @@ async def _sweep_expired() -> None:
         )
         for job in result.scalars().all():
             if job.file_path:
-                Path(job.file_path).unlink(missing_ok=True)
+                await run_disk_io(Path(job.file_path).unlink, missing_ok=True)
             job.status = ExportJobStatus.EXPIRED.value
             job.file_path = None
             logger.info(
@@ -110,7 +111,7 @@ async def _build_next_pending() -> None:
         if accepted:
             await _notify_ready(user_id)
         else:
-            archive_path.unlink(missing_ok=True)
+            await run_disk_io(archive_path.unlink, missing_ok=True)
     except ExportTooLargeError as exc:
         logger.warning("account_export_too_large", job_id=str(job_id), error=str(exc))
         await _finish_job(

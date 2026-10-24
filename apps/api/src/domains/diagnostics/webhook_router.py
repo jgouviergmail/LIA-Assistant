@@ -123,6 +123,11 @@ async def _ingest_firing_alert(
     )
     if not created:
         return 0
+    # The incident is the record and the notification a best-effort notice:
+    # durable FIRST, like the self-check's. Committed only after it, an
+    # incident whose notification failed in the database was rolled back in
+    # silence — a COMMIT on an aborted transaction raises nothing.
+    await db.commit()
     from src.infrastructure.observability.metrics_diagnostics import (
         diagnostics_incidents_total,
     )

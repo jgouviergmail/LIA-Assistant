@@ -19,6 +19,7 @@ from src.domains.connectors.clients.base_google_client import (
 )
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
+from tests.helpers.oauth_refresh_io import ServedCredentials
 
 
 # Mock concrete implementation for testing
@@ -59,8 +60,7 @@ def expired_credentials():
 def mock_connector_service():
     """Provide mock connector service."""
     service = Mock()
-    service.get_connector_credentials = AsyncMock()
-    service._refresh_oauth_token = AsyncMock()
+    service.read_connector_credentials = AsyncMock()
     service.db = AsyncMock()
     return service
 
@@ -217,143 +217,94 @@ class TestTokenRefresh:
         access_token = await client._ensure_valid_token()
 
         assert access_token == valid_credentials.access_token
-        client.connector_service.get_connector_credentials.assert_not_called()
+        client.connector_service.read_connector_credentials.assert_not_called()
 
     @pytest.mark.asyncio
-    @patch("src.domains.connectors.clients.base_oauth_client.get_redis_session")
-    @patch("src.domains.connectors.clients.base_oauth_client.OAuthLock")
-    async def test_refresh_token_when_expired(
-        self, mock_oauth_lock, mock_redis_session, client, expired_credentials
+    async def test_an_expired_token_is_replaced_by_what_the_door_serves(
+        self, client, expired_credentials
     ):
-        """Test token refresh when credentials expired (Lines 238-289)."""
+        """The client refreshes nothing itself: the service hands the stored token to the
+        one refresh door (audit AC-029), and the client keeps what comes back."""
         client.credentials = expired_credentials
-
-        # Mock Redis session
-        mock_redis = AsyncMock()
-        mock_redis_session.return_value = mock_redis
-
-        # Mock OAuthLock context manager
-        mock_lock_context = AsyncMock()
-        mock_lock_context.__aenter__ = AsyncMock()
-        mock_lock_context.__aexit__ = AsyncMock()
-        mock_oauth_lock.return_value = mock_lock_context
-
-        # Mock double-check returns expired credentials
-        client.connector_service.get_connector_credentials.return_value = expired_credentials
-
-        # Mock connector repository
-        mock_connector = Mock()
-        mock_repo = Mock()
-        mock_repo.get_by_user_and_type = AsyncMock(return_value=mock_connector)
-
-        # Mock DB context manager
-        mock_db = AsyncMock()
-        mock_db.__aenter__ = AsyncMock(return_value=mock_db)
-        mock_db.__aexit__ = AsyncMock()
-        client.connector_service.db = mock_db
-
-        # Mock refreshed credentials
-        refreshed_creds = ConnectorCredentials(
+        refreshed = ConnectorCredentials(
             access_token="new_access_token",
             refresh_token="valid_refresh_token",
             expires_at=datetime.now(UTC) + timedelta(hours=1),
             token_type="Bearer",
         )
-        client.connector_service._refresh_oauth_token = AsyncMock(return_value=refreshed_creds)
-
-        with patch(
-            "src.domains.connectors.repository.ConnectorRepository",
-            return_value=mock_repo,
-        ):
-            # Lines 238-289 executed: token expired, refresh with lock
-            access_token = await client._ensure_valid_token()
-
-        assert access_token == "new_access_token"
-        assert client.credentials == refreshed_creds
-
-    @pytest.mark.asyncio
-    @patch("src.domains.connectors.clients.base_oauth_client.get_redis_session")
-    @patch("src.domains.connectors.clients.base_oauth_client.OAuthLock")
-    async def test_refresh_token_already_refreshed_by_another_process(
-        self, mock_oauth_lock, mock_redis_session, client, expired_credentials
-    ):
-        """Test token refresh skipped when another process already refreshed."""
-        client.credentials = expired_credentials
-
-        # Mock Redis session
-        mock_redis = AsyncMock()
-        mock_redis_session.return_value = mock_redis
-
-        # Mock OAuthLock context manager
-        mock_lock_context = AsyncMock()
-        mock_lock_context.__aenter__ = AsyncMock()
-        mock_lock_context.__aexit__ = AsyncMock()
-        mock_oauth_lock.return_value = mock_lock_context
-
-        # Mock double-check returns fresh credentials (another process refreshed)
-        fresh_creds = ConnectorCredentials(
-            access_token="already_refreshed_token",
-            refresh_token="valid_refresh_token",
-            expires_at=datetime.now(UTC) + timedelta(hours=1),
-            token_type="Bearer",
-        )
-        client.connector_service.get_connector_credentials.return_value = fresh_creds
+        served = ServedCredentials(refreshed)
+        client.connector_service.read_connector_credentials.return_value = served
 
         access_token = await client._ensure_valid_token()
 
-        # Should use fresh credentials without refreshing
-        assert access_token == "already_refreshed_token"
-        assert client.credentials == fresh_creds
-        client.connector_service._refresh_oauth_token.assert_not_called()
+        assert access_token == "new_access_token"
+        assert client.credentials == refreshed
+        assert served.asked == 1, "the client must ask the door for a fresh token, once"
+        client.connector_service.read_connector_credentials.assert_awaited_once_with(
+            client.user_id, client.connector_type
+        )
 
     @pytest.mark.asyncio
-    @patch("src.domains.connectors.clients.base_oauth_client.get_redis_session")
-    @patch("src.domains.connectors.clients.base_oauth_client.OAuthLock")
     async def test_refresh_token_raises_404_when_connector_not_found(
-        self, mock_oauth_lock, mock_redis_session, client, expired_credentials
+        self, client, expired_credentials
     ):
-        """Test token refresh raises 404 when the connector row is gone (Lines 433-438).
-
-        Root cause of the former skip: the DB context manager was mocked with a
-        plain ``Mock()``, which does not support the ``__aenter__``/``__aexit__``
-        magic-method protocol, so ``async with self.connector_service.db``
-        raised a TypeError instead of exercising the 404 branch. Mirrors the
-        working async-CM pattern of the sibling 400 test: an ``AsyncMock`` DB
-        whose ``__aexit__`` returns ``False`` so the ResourceNotFoundError is
-        not swallowed by the ``async with``.
-        """
+        """No credentials and no row: the connector is gone (404)."""
         client.credentials = expired_credentials
-
-        mock_redis = AsyncMock()
-        mock_redis_session.return_value = mock_redis
-
-        mock_lock_context = AsyncMock()
-        mock_lock_context.__aenter__ = AsyncMock()
-        mock_lock_context.__aexit__ = AsyncMock(return_value=False)
-        mock_oauth_lock.return_value = mock_lock_context
-
-        # Double-check returns still-expired credentials -> proceed to the DB block.
-        client.connector_service.get_connector_credentials.return_value = expired_credentials
-
-        # Connector row no longer exists -> repo returns None -> 404 (before the
-        # missing-credentials 400 check, which comes later in the method).
+        client.connector_service.read_connector_credentials.return_value = None
         mock_repo = Mock()
         mock_repo.get_by_user_and_type = AsyncMock(return_value=None)
 
-        mock_db = AsyncMock()
-        mock_db.__aenter__ = AsyncMock(return_value=mock_db)
-        mock_db.__aexit__ = AsyncMock(return_value=False)  # Don't suppress exceptions
-        client.connector_service.db = mock_db
-
-        with patch(
-            "src.domains.connectors.repository.ConnectorRepository",
-            return_value=mock_repo,
-        ):
+        with patch("src.domains.connectors.repository.ConnectorRepository", return_value=mock_repo):
             with pytest.raises(HTTPException) as exc_info:
                 await client._ensure_valid_token()
 
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
-        client.connector_service._refresh_oauth_token.assert_not_called()
+
+
+class TestARefreshOfAnOwnedUnit:
+    """A unit of work that owns its session is OVER before the door is asked (ADR-304)."""
+
+    @pytest.mark.asyncio
+    async def test_the_unit_ends_before_the_token_endpoint_is_called(
+        self, user_id, expired_credentials, valid_credentials
+    ):
+        from collections.abc import AsyncIterator
+        from contextlib import asynccontextmanager
+
+        from src.domains.connectors.session_scope import ConnectorUnitOfWork
+
+        order: list[str] = []
+
+        class _Stored:
+            async def fresh(self) -> ConnectorCredentials:
+                order.append("door")
+                return valid_credentials
+
+        async def read(*_args: object) -> _Stored:
+            order.append("read")
+            return _Stored()
+
+        unit_service = Mock()
+        unit_service.read_connector_credentials = AsyncMock(side_effect=read)
+
+        class _OwnedUnit(ConnectorUnitOfWork):
+            owns_units = True
+
+            @asynccontextmanager
+            async def unit_of_work(self) -> AsyncIterator[Mock]:
+                order.append("unit:open")
+                yield unit_service
+                order.append("unit:over")
+
+        client = MockGoogleClient(
+            user_id=user_id,
+            credentials=expired_credentials,
+            connector_service=_OwnedUnit(),
+            rate_limit_per_second=10,
+        )
+
+        assert await client._ensure_valid_token() == valid_credentials.access_token
+        assert order == ["unit:open", "read", "unit:over", "door"]
 
 
 class TestMakeRequest:
@@ -687,212 +638,71 @@ class TestMakeRequest:
 
 
 class TestTokenRefreshBugFixes:
-    """Tests for OAuth token refresh bug fixes (Bug #1 and #3)."""
+    """Bug #1 and #3: a refresh must use the STORED refresh token, never a stale one.
+
+    Since the one refresh door (audit AC-029) this is structural: the client hands the
+    door nothing of its own, the service reads the row and the door exchanges what is
+    stored. Proven here through the real service and the real door.
+    """
 
     @pytest.mark.asyncio
-    @patch("src.domains.connectors.clients.base_oauth_client.get_redis_session")
-    @patch("src.domains.connectors.clients.base_oauth_client.OAuthLock")
-    async def test_refresh_token_uses_fresh_credentials_not_stale(
-        self, mock_oauth_lock, mock_redis_session, client, expired_credentials
-    ):
-        """
-        Test that _ensure_valid_token uses fresh_credentials from DB,
-        not the stale self.credentials (Bug #1 fix verification).
+    async def test_the_exchange_uses_the_stored_token_not_the_stale_one(self, user_id, monkeypatch):
+        from src.core.security import encrypt_data
+        from src.domains.connectors.models import Connector, ConnectorStatus
+        from src.domains.connectors.service import ConnectorService
+        from tests.helpers.oauth_refresh_io import install_scripted_door
 
-        Scenario: Another process rotated the refresh_token while we were waiting.
-        We must use the rotated token from DB, not the stale one in memory.
-        """
-        # Client starts with old credentials (stale refresh_token)
-        old_credentials = ConnectorCredentials(
-            access_token="old_access",
-            refresh_token="OLD_refresh_token_v1",  # STALE token
+        stale = ConnectorCredentials(
+            access_token="stale_access",
+            refresh_token="refresh_token_v1",
             expires_at=datetime.now(UTC) - timedelta(hours=1),
             token_type="Bearer",
         )
-        client.credentials = old_credentials
-
-        # Mock Redis session
-        mock_redis = AsyncMock()
-        mock_redis_session.return_value = mock_redis
-
-        # Mock OAuthLock context manager
-        mock_lock_context = AsyncMock()
-        mock_lock_context.__aenter__ = AsyncMock()
-        mock_lock_context.__aexit__ = AsyncMock()
-        mock_oauth_lock.return_value = mock_lock_context
-
-        # Fresh credentials from DB have a DIFFERENT refresh_token (simulating rotation)
-        # but are still expired, so refresh is needed
-        fresh_creds_with_rotated_token = ConnectorCredentials(
-            access_token="still_expired_access",
-            refresh_token="NEW_refresh_token_v2",  # ROTATED token from DB
-            expires_at=datetime.now(UTC) - timedelta(minutes=1),  # Still expired
+        # Another process rotated the refresh token; the stored access token expires too.
+        stored = ConnectorCredentials(
+            access_token="stored_access",
+            refresh_token="refresh_token_v2",
+            expires_at=datetime.now(UTC) - timedelta(minutes=1),
             token_type="Bearer",
         )
-        client.connector_service.get_connector_credentials.return_value = (
-            fresh_creds_with_rotated_token
+        row = Connector(
+            id=uuid4(),
+            user_id=user_id,
+            connector_type=ConnectorType.GOOGLE_GMAIL,
+            status=ConnectorStatus.ACTIVE,
+            scopes=[],
+            credentials_encrypted=encrypt_data(stored.model_dump_json()),
+        )
+        service = ConnectorService(AsyncMock())
+        service.repository.get_by_user_and_type = AsyncMock(return_value=row)
+        door = install_scripted_door(monkeypatch, row)
+        client = MockGoogleClient(
+            user_id=user_id,
+            credentials=stale,
+            connector_service=service,
+            rate_limit_per_second=10,
         )
 
-        # Mock connector repository
-        mock_connector = Mock()
-        mock_repo = Mock()
-        mock_repo.get_by_user_and_type = AsyncMock(return_value=mock_connector)
+        await client._ensure_valid_token()
 
-        # Mock DB context manager
-        mock_db = AsyncMock()
-        mock_db.__aenter__ = AsyncMock(return_value=mock_db)
-        mock_db.__aexit__ = AsyncMock()
-        client.connector_service.db = mock_db
-
-        # Track which credentials are passed to _refresh_oauth_token
-        captured_credentials = []
-
-        async def capture_refresh_call(connector, credentials):
-            captured_credentials.append(credentials)
-            return ConnectorCredentials(
-                access_token="final_new_access",
-                refresh_token="NEW_refresh_token_v2",
-                expires_at=datetime.now(UTC) + timedelta(hours=1),
-                token_type="Bearer",
-            )
-
-        client.connector_service._refresh_oauth_token = capture_refresh_call
-
-        with patch(
-            "src.domains.connectors.repository.ConnectorRepository",
-            return_value=mock_repo,
-        ):
-            await client._ensure_valid_token()
-
-        # CRITICAL ASSERTION: Verify fresh_credentials (v2) was used, not self.credentials (v1)
-        assert len(captured_credentials) == 1
-        assert captured_credentials[0].refresh_token == "NEW_refresh_token_v2"
-        assert captured_credentials[0].refresh_token != old_credentials.refresh_token
+        assert door.exchanged == ["refresh_token_v2"]
 
     @pytest.mark.asyncio
-    @patch("src.domains.connectors.clients.base_oauth_client.get_redis_session")
-    @patch("src.domains.connectors.clients.base_oauth_client.OAuthLock")
     async def test_refresh_token_raises_400_when_no_fresh_credentials(
-        self, mock_oauth_lock, mock_redis_session, client, expired_credentials
+        self, client, expired_credentials
     ):
-        """
-        Test that _ensure_valid_token raises 400 when fresh_credentials is None.
-
-        This handles the edge case where get_connector_credentials returns None
-        (e.g., connector was deleted between initial check and refresh).
-        """
+        """A row that exists but serves no credentials is a 400, never a silent pass."""
         client.credentials = expired_credentials
-
-        # Mock Redis session
-        mock_redis = AsyncMock()
-        mock_redis_session.return_value = mock_redis
-
-        # Mock OAuthLock context manager
-        mock_lock_context = AsyncMock()
-        mock_lock_context.__aenter__ = AsyncMock()
-        mock_lock_context.__aexit__ = AsyncMock(return_value=False)  # Don't suppress exceptions
-        mock_oauth_lock.return_value = mock_lock_context
-
-        # Fresh credentials is None (connector deleted or credentials missing)
-        client.connector_service.get_connector_credentials.return_value = None
-
-        # Mock connector repository (connector exists but no credentials)
-        mock_connector = Mock()
+        client.connector_service.read_connector_credentials.return_value = None
         mock_repo = Mock()
-        mock_repo.get_by_user_and_type = AsyncMock(return_value=mock_connector)
+        mock_repo.get_by_user_and_type = AsyncMock(return_value=Mock())
 
-        # Mock DB context manager - ensure exceptions are not suppressed
-        mock_db = AsyncMock()
-        mock_db.__aenter__ = AsyncMock(return_value=mock_db)
-        mock_db.__aexit__ = AsyncMock(return_value=False)  # Don't suppress exceptions
-        client.connector_service.db = mock_db
-
-        with patch(
-            "src.domains.connectors.repository.ConnectorRepository",
-            return_value=mock_repo,
-        ):
+        with patch("src.domains.connectors.repository.ConnectorRepository", return_value=mock_repo):
             with pytest.raises(HTTPException) as exc_info:
                 await client._ensure_valid_token()
 
         assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
         assert "No credentials found" in exc_info.value.detail
-
-    @pytest.mark.asyncio
-    @patch("src.domains.connectors.clients.base_oauth_client.get_redis_session")
-    @patch("src.domains.connectors.clients.base_oauth_client.OAuthLock")
-    async def test_refresh_token_race_condition_with_rotation(
-        self, mock_oauth_lock, mock_redis_session, client
-    ):
-        """
-        Test race condition scenario where another process rotated the refresh_token
-        between initial check and lock acquisition (Bug #3 verification).
-
-        Scenario:
-        1. Client has self.credentials with refresh_token_v1
-        2. Lock acquired
-        3. Double-check: get_connector_credentials returns credentials with refresh_token_v2
-           (another process did a refresh with rotation while we were waiting for lock)
-        4. Those fresh credentials are still expired (edge case)
-        5. We should use refresh_token_v2 for the refresh, NOT refresh_token_v1
-        """
-        # Client starts with old credentials
-        old_credentials = ConnectorCredentials(
-            access_token="old_access",
-            refresh_token="refresh_token_v1",  # OLD token
-            expires_at=datetime.now(UTC) - timedelta(hours=1),
-            token_type="Bearer",
-        )
-        client.credentials = old_credentials
-
-        # Mock Redis
-        mock_redis = AsyncMock()
-        mock_redis_session.return_value = mock_redis
-        mock_lock_context = AsyncMock()
-        mock_lock_context.__aenter__ = AsyncMock()
-        mock_lock_context.__aexit__ = AsyncMock()
-        mock_oauth_lock.return_value = mock_lock_context
-
-        # After lock acquired, DB returns credentials with NEW refresh_token
-        # (another process rotated it), but still expired
-        rotated_but_expired = ConnectorCredentials(
-            access_token="rotated_access",
-            refresh_token="refresh_token_v2",  # NEW token from rotation
-            expires_at=datetime.now(UTC) - timedelta(minutes=1),  # Still expired
-            token_type="Bearer",
-        )
-        client.connector_service.get_connector_credentials.return_value = rotated_but_expired
-
-        # Mock connector
-        mock_connector = Mock()
-        mock_repo = Mock()
-        mock_repo.get_by_user_and_type = AsyncMock(return_value=mock_connector)
-        mock_db = AsyncMock()
-        mock_db.__aenter__ = AsyncMock(return_value=mock_db)
-        mock_db.__aexit__ = AsyncMock()
-        client.connector_service.db = mock_db
-
-        # Track which refresh_token is used
-        used_refresh_tokens = []
-
-        async def track_refresh(connector, credentials):
-            used_refresh_tokens.append(credentials.refresh_token)
-            return ConnectorCredentials(
-                access_token="final_access",
-                refresh_token="refresh_token_v3",
-                expires_at=datetime.now(UTC) + timedelta(hours=1),
-                token_type="Bearer",
-            )
-
-        client.connector_service._refresh_oauth_token = track_refresh
-
-        with patch(
-            "src.domains.connectors.repository.ConnectorRepository",
-            return_value=mock_repo,
-        ):
-            await client._ensure_valid_token()
-
-        # CRITICAL: Must use v2 (from DB after lock), not v1 (stale self.credentials)
-        assert used_refresh_tokens == ["refresh_token_v2"]
 
 
 # ============================================================================

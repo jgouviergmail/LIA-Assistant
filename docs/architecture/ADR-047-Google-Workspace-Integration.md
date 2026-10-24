@@ -661,3 +661,11 @@ class ClientRegistry:
 ---
 
 **Fin de ADR-047** - Google Workspace Integration Decision Record.
+
+## Amendment 2026-10-23 — Token refresh through the one door
+
+**Amends** the client refresh flow described above: the client takes no lock and no
+longer calls `_refresh_oauth_token`, which is deleted. It reads the stored token in its
+unit of work, then asks the one refresh door
+(`apps/api/src/domains/connectors/oauth_refresh.py`) for a fresh token once the unit is
+over (V14 audit, AC-029; [ADR-302, 2026-10-23 amendment](ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md)).

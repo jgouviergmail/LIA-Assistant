@@ -1,10 +1,9 @@
 """
 Locks configuration module.
 
-Contains settings for distributed locking (Redis-backed). Currently focused
-on the OAuth refresh lock — a per-(user, connector) mutual exclusion that
-prevents concurrent token refreshes from racing each other and burning the
-refresh token.
+Contains the bounds of the locks the application waits on. Today: the OAuth
+refresh door's bounded wait for a row (audit AC-029) — the per-(user,
+connector) Redis lock it replaced guarded one refresh path of four.
 
 Phase: v1.21 — Timeout centralization (Vague 2)
 Created: 2026-05-15
@@ -16,27 +15,29 @@ from __future__ import annotations
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
-from src.core.constants import OAUTH_LOCK_TIMEOUT_SECONDS
+from src.core.constants import OAUTH_REFRESH_WRITE_LOCK_TIMEOUT_MS_DEFAULT
 
 
 class LocksSettings(BaseSettings):
-    """Settings for distributed lock acquisition."""
+    """Settings for the locks the application waits on."""
 
     # ========================================================================
-    # OAuth Refresh Lock
+    # OAuth refresh door (audit AC-029)
     # ========================================================================
 
-    oauth_lock_timeout_seconds: int = Field(
-        default=OAUTH_LOCK_TIMEOUT_SECONDS,
-        ge=1,
-        le=120,
+    oauth_refresh_write_lock_timeout_ms: int = Field(
+        default=OAUTH_REFRESH_WRITE_LOCK_TIMEOUT_MS_DEFAULT,
+        ge=100,
+        le=10_000,
         description=(
-            "Maximum time a caller waits to acquire the per-(user, connector) "
-            "OAuth refresh lock. Beyond this, the caller gives up and a "
-            "Prometheus oauth_lock_timeout_total counter is incremented. "
-            "Symptom if too low: legitimate concurrent refresh attempts "
-            "fail and surface as transient OAuth errors. Symptom if too "
-            "high: a hung refresh blocks unrelated requests for the same "
-            "connector for a long time."
+            "Longest one transition of the OAuth refresh door (the conditional "
+            "write of a refreshed token, the verified revocation) waits for its "
+            "row, in milliseconds. The door writes on a session of its own, so a "
+            "caller whose open transaction holds the row would otherwise wait on "
+            "the door forever. Past the bound a write is abandoned (the caller is "
+            "served the new token unstored) and a revocation is reported as a "
+            "failure, never as a disconnection. Symptom if too low: legitimate "
+            "brief contention loses a refreshed token's write. Symptom if too "
+            "high: a caller holding its connector row waits that long."
         ),
     )

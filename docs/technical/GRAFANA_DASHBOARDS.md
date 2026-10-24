@@ -2,7 +2,7 @@
 
 **Document de reference technique - Observabilite Production avec Grafana**
 
-> **Version 5.0** | 2026-10-22 (panel counts re-measured 2026-10-22) | 32 dashboards, 847 panels (rows excluded)
+> **Version 5.0** | 2026-10-22 (panel counts re-measured 2026-10-23) | 32 dashboards, 851 panels (rows excluded)
 
 ---
 
@@ -146,8 +146,8 @@ Dans le fichier de provisioning, un `$` litteral s'ecrit `$$` (sinon `$__tags` e
 | 10 | OAuth, Connectors & MCP | `10-oauth-connectors-mcp` | lia, oauth, connectors, mcp || 50 | Flux OAuth, performance OAuth, sante connecteurs, APIs Google, serveurs MCP, formes de requetes contacts/email |
 | 11 | Voice & WebSocket | `11-voice-websocket` | lia, voice, tts, stt, websocket || 25 | TTS (including socket sessions answered over HTTP, ADR-345), streaming audio, STT, WebSocket |
 | 12 | Channels / Telegram | `12-channels` | lia, channels, telegram || 13 | Flux messages, bindings et securite, fonctionnalites canal |
-| 13 | Proactive & Heartbeat | `13-proactive-heartbeat` | lia, proactive, heartbeat || 39 | Vue d'ensemble taches, notifications et couts, eligibilite et feedback, presence en lecture et reveils push (ADR-214/261), moments anticipes (ADR-281), ce que le job nocturne des habitudes a appris (ADR-214 c), reveils push mis en file ET servis (ADR-304) |
-| 14 | Data Registry & Checkpoints | `14-registry-checkpoints` | lia, registry, checkpoints || 26 | Data registry, moteur de requetes, checkpoints LangGraph, recherche hybride, sante repository |
+| 13 | Proactive & Heartbeat | `13-proactive-heartbeat` | lia, proactive, heartbeat || 41 | Vue d'ensemble taches, notifications et couts, eligibilite et feedback, presence en lecture et reveils push (ADR-214/261), moments anticipes (ADR-281), ce que le job nocturne des habitudes a appris (ADR-214 c), reveils push mis en file ET servis (ADR-304), passages et taille des tables d'execution des discussions proactives (ADR-358, AC-034) |
+| 14 | Data Registry & Checkpoints | `14-registry-checkpoints` | lia, registry, checkpoints || 24 | Data registry, moteur de requetes, checkpoints LangGraph, cache BM25 de la recherche hybride, sante repository |
 | 15 | LangGraph Framework Deep Dive | `15-langgraph-deep` | lia, langgraph, framework || 35 | Execution graphe, gestion d'etat, latence par etage (TTFT), integration Langfuse (repliee, requiert LANGFUSE_ENABLED) |
 | 16 | Recording Rules & Alerts Health | `16-meta-health` | lia, meta, operational || 40 | Sante des recording rules, sante des alertes, validation et securite, integrite du registre d'outils, auto-diagnostic (verdicts, incidents, duree du tick, cout LLM, sources de preuves lues), pipeline d'observabilite (Alloy, Loki, Tempo, Prometheus) |
 | 17 | User Analytics & Geo | `17-user-analytics-geo` | lia, users, analytics, geo || 27 | Vue geographique (Geomap), engagement utilisateur, patterns d'activite, usage outils et agents, qualite et cout conversations, logs geo detailles |
@@ -255,13 +255,13 @@ TTS : requetes et latence p95 par voix, taux et types d'erreurs, et les sessions
 
 Flux de messages Telegram (entrants/sortants, types), bindings utilisateur-canal (OTP, etat), securite (rate limiting, tentatives invalides), fonctionnalites canal (voix, HITL clavier, formatage).
 
-### 13 - Proactive & Heartbeat (39 panels)
+### 13 - Proactive & Heartbeat (41 panels)
 
-Taches proactives (selections, generations, envois), notifications heartbeat (volume, cout LLM de la decision + redaction), eligibilite (fenetres horaires, quotas, cooldowns, dedup), feedback utilisateur. Sections repliees : presence en lecture et reveils push (ADR-214/261) ; moments anticipes (ADR-281) ; **ce que le job nocturne des habitudes a appris** (ADR-214 c) — utilisateurs profiles, duree p95 du job, fenetres rejetees par raison, lignes miroir et habitudes recurrentes synchronisees par action (`user_habits_synced_total`, `recurring_habits_synced_total`), blocs ambiants, ticks ecartes et echappees du rythme par balayage et par raison (`heartbeat_ticks_deferred_total{task_type, reason}`, `heartbeat_rhythm_escapes_total{task_type, reason}`), offres de routine declarees ou seulement etiquetees (`heartbeat_habit_offers_total{outcome}`) — tous avec `or vector(0)`, un compteur qui n'a jamais tire n'expose aucune serie. Les reveils push MIS EN FILE (`push_wakes_enqueued_total{provider}`) sont traces a cote de ceux SERVIS (`push_wakes_total`) : des reveils en file et aucun servi sur la fenetre `ALERT_CORE_PUSH_WAKE_STALL_WINDOW` declenchent l'alerte noyau `PushWakeSweepStalled` (ADR-304, runbook dedie). Un dernier panneau compte les passages des **discussions proactives** par issue sur 24 h (ADR-358).
+Taches proactives (selections, generations, envois), notifications heartbeat (volume, cout LLM de la decision + redaction), eligibilite (fenetres horaires, quotas, cooldowns, dedup), feedback utilisateur. Sections repliees : presence en lecture et reveils push (ADR-214/261) ; moments anticipes (ADR-281) ; **ce que le job nocturne des habitudes a appris** (ADR-214 c) — utilisateurs profiles, duree p95 du job, fenetres rejetees par raison, lignes miroir et habitudes recurrentes synchronisees par action (`user_habits_synced_total`, `recurring_habits_synced_total`), blocs ambiants, ticks ecartes et echappees du rythme par balayage et par raison (`heartbeat_ticks_deferred_total{task_type, reason}`, `heartbeat_rhythm_escapes_total{task_type, reason}`), offres de routine declarees ou seulement etiquetees (`heartbeat_habit_offers_total{outcome}`) — tous avec `or vector(0)`, un compteur qui n'a jamais tire n'expose aucune serie. Les reveils push MIS EN FILE (`push_wakes_enqueued_total{provider}`) sont traces a cote de ceux SERVIS (`push_wakes_total`) : des reveils en file et aucun servi sur la fenetre `ALERT_CORE_PUSH_WAKE_STALL_WINDOW` declenchent l'alerte noyau `PushWakeSweepStalled` (ADR-304, runbook dedie). Un panneau compte les passages des **discussions proactives** par issue sur 24 h (ADR-358) ; la derniere section dit ce qu'occupent leurs **tables d'execution** — passages, ouvertures, envois, reservations et compartiments de budget, qui ne partent qu'avec le compte — en octets (`proactive_discussion_table_bytes`) et en lignes (`proactive_discussion_table_rows`, estimation du planificateur, comptage exact a defaut) : aucune retention n'est livree, elle se decide sur ce chiffre (AC-034).
 
-### 14 - Data Registry & Checkpoints (26 panels)
+### 14 - Data Registry & Checkpoints (24 panels)
 
-Data registry (items par type, taille, operations CRUD), moteur de requetes (latence, filtres), checkpoints LangGraph (duree sauvegarde et chargement, taille payload, frequence), recherche hybride (BM25 + semantic OpenAI embeddings, scores, latence). Section repliee : sante du repository de conversations (erreurs par version, cache de resolution d'id).
+Data registry (items par type, taille, operations CRUD), moteur de requetes (latence, filtres), checkpoints LangGraph (duree sauvegarde et chargement, taille payload, frequence), cache de l'index BM25 de la recherche hybride des espaces RAG (taux de succes, taille) — les panneaux d'une recherche hybride de souvenirs, supprimee, sont retires (AC-006). Section repliee : sante du repository de conversations (erreurs par version, cache de resolution d'id).
 
 ### 15 - LangGraph Framework Deep Dive (35 panels)
 
@@ -321,7 +321,7 @@ Cockpit produit (ADR-178, spec `docs/superpowers/specs/2026-07-29-product-dashbo
 
 La telemetrie client (Phase 4) alimente les familles `product_client_events_total` (funnel anonyme borne : landing, inscription, demo, PWA), `product_search_total` (recherche des reglages) et `product_web_vital_seconds`/`_ratio` (LCP/CLS) via `POST /api/v1/product/events` — endpoint a auth optionnelle, rate-limite par IP, schema borne par enums, emetteur frontend inerte sans `NEXT_PUBLIC_PRODUCT_TELEMETRY`.
 
-**Datasources** : Prometheus + `postgres-product-readonly` (role `grafana_product_reader`, SELECT sur les 7 vues produit uniquement, `statement_timeout` 10s — cree par `task db:create-grafana-reader`). Alertes produit : `alerts-product.yml` prepare mais NON monte (baseline 4 semaines requise, ADR-119).
+**Datasources** : Prometheus + `postgres-product-readonly` (role `grafana_product_reader`, SELECT sur les 7 vues produit uniquement, `statement_timeout` 10s — cree par `task db:create-grafana-reader`). Alertes produit : la fraicheur (`ProductAggregatesStale`) est dans `alerts-core.yml` depuis le 2026-10-23 ; les trois alertes de comportement de `alerts-product.yml` restent NON montees, re-decidees au plus tard le 2026-12-15 sur une mesure de la production (ADR-178, amendement du 2026-10-23).
 
 ### 27 - Meetings (11 panels)
 

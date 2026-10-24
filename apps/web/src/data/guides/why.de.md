@@ -4,7 +4,7 @@
 
 **Version**: 6.6
 **Datum**: 2026-10-23
-**Anwendung**: LIA v3.5.1
+**Anwendung**: LIA v3.6.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -361,7 +361,7 @@ Transparenz ist kein technisches Gadget. Sie verändert die Beziehung zu deinem 
 
 ---
 
-Diese Transparenz erstreckt sich auf die Qualität des Systems selbst. Das vollständige technische Audit — Bewertungen, Methode, Stärken und was noch zu verbessern bleibt — ist im Repository veröffentlicht, mit dem Protokoll, um es erneut durchzuführen, und den Befehlen, um die Messungen zu überprüfen: [vollständiger Audit-Bericht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md). Du musst den Zahlen auf dieser Seite nicht glauben; du kannst sie überprüfen.
+Diese Transparenz erstreckt sich auf die Qualität des Systems selbst. Das vollständige technische Audit — Bewertungen, Methode, Stärken und was noch zu verbessern bleibt — ist im Repository veröffentlicht, mit dem Protokoll, um es erneut durchzuführen, und den Befehlen, um die Messungen zu überprüfen: [vollständiger Audit-Bericht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md). Du musst den Zahlen auf dieser Seite nicht glauben; du kannst sie überprüfen. Jeder Befund wird in einem öffentlichen Register bis zu seinem Nachweis verfolgt, und eine Version wird verweigert, solange ein vorrangiger Befund seine Frist überschritten hat.
 
 Dieselbe Ehrlichkeit gilt für den Nutzen selbst: LIA misst, ob sie wirklich hilft — ein Ergebnis zählt erst, wenn du es validiert hast, explizit oder indem eine Aktion unkorrigiert blieb — und diese Messung lebt in derselben lokalen Datenbank wie deine Daten, ohne je eine Analytics-Plattform von Dritten einzubeziehen.
 
@@ -401,7 +401,7 @@ Dieselbe Anforderung gilt für das, was LIA aus deinen Vorgaben behält: Jede da
 
 ### 6.8. Eine Oberfläche, die das Produkt beschreibt, wird daran gemessen
 
-Transparenz hat einen Ausfallmodus, den niemand bemerkt: einen Bildschirm, der leise aufhört, die Wahrheit zu sagen. Nichts geht kaputt, kein Test wird rot, und die Seite, die es gab, um aktuell zu sein, wird zur unaktuellsten der Anwendung. Die Fähigkeitskarte — die Seite, die beantwortet, _was kann mein Assistent für mich tun?_ — wird deshalb nicht mehr von Hand gepflegt: Jede Fähigkeit, die die Plattform ein- oder ausschalten kann, muss dort ihren deklarierten Platz haben, und eine Fähigkeit, die ohne diese Entscheidung ausgeliefert wird, verhindert den Start der Anwendung. Dieselbe Überzeugung, eine Stufe weiter: Was ein Bildschirm über deine Daten behauptet, muss **exakt oder abwesend** sein. Eine Zählung ist die Zahl, die die Datenbank liefert, nie eine Länge, die gerade zur Hand war; und solange eine Antwort unterwegs ist oder wenn sie fehlgeschlagen ist, sagt die Karte lieber nichts, als zu raten. „Nichts eingerichtet“ ist eine Aussage über dein Konto — eine, bei der man sich besser sicher ist, bevor man sie ausspricht. Die FAQ folgt demselben Anspruch: Jede Funktion, die eine Person nutzen kann, hat dort ihren Abschnitt — 498 Fragen in sechs Sprachen —, und ein übersetzter Abschnitt, den die Anzeigereihenfolge vergäße, lässt die Tests scheitern, statt unsichtbar zu bleiben.
+Transparenz hat einen Ausfallmodus, den niemand bemerkt: einen Bildschirm, der leise aufhört, die Wahrheit zu sagen. Nichts geht kaputt, kein Test wird rot, und die Seite, die es gab, um aktuell zu sein, wird zur unaktuellsten der Anwendung. Die Fähigkeitskarte — die Seite, die beantwortet, _was kann mein Assistent für mich tun?_ — wird deshalb nicht mehr von Hand gepflegt: Jede Fähigkeit, die die Plattform ein- oder ausschalten kann, muss dort ihren deklarierten Platz haben, und eine Fähigkeit, die ohne diese Entscheidung ausgeliefert wird, verhindert den Start der Anwendung. Dieselbe Überzeugung, eine Stufe weiter: Was ein Bildschirm über deine Daten behauptet, muss **exakt oder abwesend** sein. Eine Zählung ist die Zahl, die die Datenbank liefert, nie eine Länge, die gerade zur Hand war; und solange eine Antwort unterwegs ist oder wenn sie fehlgeschlagen ist, sagt die Karte lieber nichts, als zu raten. „Nichts eingerichtet“ ist eine Aussage über dein Konto — eine, bei der man sich besser sicher ist, bevor man sie ausspricht. Die FAQ folgt demselben Anspruch: Jede Funktion, die eine Person nutzen kann, hat dort ihren Abschnitt — 500 Fragen in sechs Sprachen —, und ein übersetzter Abschnitt, den die Anzeigereihenfolge vergäße, lässt die Tests scheitern, statt unsichtbar zu bleiben.
 
 Transparenz gilt auch für die inneren Regeln des Assistenten. Eine Grenze, die das System durchsetzt, muss dem veröffentlicht werden, den sie betrifft: Erkennt das Gewohnheitslernen nichts, zeigen die Einstellungen die tatsächlich verlangte Schwelle — strenger am Wochenende, wo weniger Tage beobachtet werden — statt eines unerklärten Schweigens. Und wenn sich eine Einstellung selbst justiert, wie die Schwelle, die entscheidet, ob eine Journalnotiz in eine Antwort einfließt, dann innerhalb strikter Grenzen, ein kleiner Schritt pro Tag, mit Notausschalter und gezählten Anpassungen: Ein lernendes System ist nur akzeptabel, wenn es beobachtbar und abschaltbar bleibt.
 

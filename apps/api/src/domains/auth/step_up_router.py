@@ -29,6 +29,10 @@ from src.core.session_dependencies import (
 )
 from src.core.session_freshness import step_up_valid_until
 from src.domains.auth.dependencies import create_user_rate_limiter
+from src.domains.auth.password_reset_policy import (
+    recovery_without_password,
+    sign_in_provider_label,
+)
 from src.domains.auth.schemas import (
     StepUpPasswordRequest,
     StepUpStatusResponse,
@@ -99,6 +103,10 @@ async def step_up_status(
         methods=methods,
         password_set=password_set,
         step_up_valid_until=valid_until,
+        password_recovery=recovery_without_password(user),
+        sign_in_provider=(
+            sign_in_provider_label(user.oauth_provider) if user.oauth_provider else None
+        ),
     )
 
 
@@ -186,8 +194,8 @@ async def step_up_webauthn_verify(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Disable password sign-in (A8 guards)",
     description="Explicitly disable password sign-in. Requires a fresh step-up AND at "
-    "least 2 active passkeys. Email password-reset remains available as the "
-    "documented escape hatch.",
+    "least 2 active passkeys. What a password reset leaves the account afterwards is "
+    "published by GET /auth/step-up/status (password_recovery, ADR-363).",
 )
 async def disable_password(
     user: User = Depends(require_recent_step_up),

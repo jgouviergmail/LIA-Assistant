@@ -6,6 +6,8 @@ the deploy must still open after it. The token below was minted by python-jose
 3.5.0, with the claims the application writes, before the library changed.
 """
 
+from uuid import uuid4
+
 import pytest
 
 from src.core.config import settings
@@ -41,7 +43,9 @@ def test_a_link_sent_before_the_swap_still_opens() -> None:
 
 @pytest.mark.usefixtures("recorded_secret")
 def test_a_token_minted_now_is_read_back() -> None:
-    payload = verify_token(create_password_reset_token("person@example.com"))
+    payload = verify_token(
+        create_password_reset_token("person@example.com", user_id=uuid4(), hashed_password=None)
+    )
 
     assert payload is not None
     assert (payload["sub"], payload["type"]) == ("person@example.com", "password_reset")

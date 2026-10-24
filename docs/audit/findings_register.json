@@ -1,0 +1,1438 @@
+{
+  "$comment": "Machine-readable register of the quality audit findings (AC-NNN). Stable identifiers since V13; maintained by hand, verified by scripts/audit/findings_register.py (task lint:docs; --strict in task release:check). Procedure: docs/audit/AUDIT_PROTOCOL.md section 1.6.",
+  "schema_version": 1,
+  "horizon_days": {
+    "H0": 7,
+    "H1": 28,
+    "H2": 90
+  },
+  "reports": {
+    "V13": {
+      "file": "docs/audit/AUDIT_CODEBASE_2026-08-02_CONSOLIDE_V13.html",
+      "date": "2026-08-02"
+    },
+    "V14": {
+      "file": "docs/audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14.html",
+      "date": "2026-10-22"
+    },
+    "V14R": {
+      "file": "docs/audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14-revision.html",
+      "date": "2026-10-22"
+    }
+  },
+  "legacy_reports": {
+    "V11": {
+      "file": "docs/audit/AUDIT_CODEBASE_2026-07-16_CONSOLIDE_V11.html",
+      "reason": "AC numbering renumbered from one report to the next; V13 restarted the register."
+    },
+    "V12": {
+      "file": "docs/audit/AUDIT_CODEBASE_2026-07-24_CONSOLIDE_V12.html",
+      "reason": "AC numbering renumbered from one report to the next; V13 restarted the register."
+    }
+  },
+  "findings": [
+    {
+      "id": "AC-001",
+      "level": "major",
+      "priority": "P0",
+      "effort": "E3",
+      "horizon": null,
+      "status": "closed",
+      "opened_on": "2026-08-02",
+      "appearances": [
+        {
+          "report": "V13",
+          "article": "ac-001",
+          "kind": "finding",
+          "title": "AC-001 — Leadership scheduler non protégé par le propriétaire"
+        },
+        {
+          "report": "V14R",
+          "article": "clos-v13-ac-001",
+          "kind": "closure",
+          "title": "V13 AC-001 — Leadership du scheduler protégé par le propriétaire"
+        }
+      ],
+      "aliases": [],
+      "closure": {
+        "on": "2026-10-22",
+        "report": "V14R",
+        "proof": [
+          "docs/audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14-revision.html#clos-v13-ac-001",
+          "apps/api/src/infrastructure/scheduler/leader_elector.py"
+        ]
+      },
+      "remediation": null,
+      "deferral": null,
+      "note": null
+    },
+    {
+      "id": "AC-002",
+      "level": "major",
+      "priority": "P1",
+      "effort": "E4",
+      "horizon": "H1",
+      "status": "open",
+      "opened_on": "2026-08-02",
+      "appearances": [
+        {
+          "report": "V13",
+          "article": "ac-002",
+          "kind": "finding",
+          "title": "AC-002 — Fencing incomplet des jobs et reapers RAG"
+        },
+        {
+          "report": "V14",
+          "article": "AC-002",
+          "kind": "finding",
+          "title": "AC-002 — Protéger la fin des traitements RAG contre un ancien propriétaire"
+        },
+        {
+          "report": "V14R",
+          "article": "ac-002",
+          "kind": "finding",
+          "title": "AC-002 — Fencer de bout en bout les traitements de documents RAG téléversés"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": null,
+      "deferral": null,
+      "note": "Outside the 2026-10-23 remediation wave (owner decision)."
+    },
+    {
+      "id": "AC-003",
+      "level": "major",
+      "priority": "P1",
+      "effort": "E3",
+      "horizon": "H0",
+      "status": "remediated",
+      "opened_on": "2026-08-02",
+      "appearances": [
+        {
+          "report": "V13",
+          "article": "ac-003",
+          "kind": "finding",
+          "title": "AC-003 — Une notification téléphonique peut être marquée livrée après échec total"
+        },
+        {
+          "report": "V14",
+          "article": "AC-003",
+          "kind": "finding",
+          "title": "AC-003 — Conditionner l'accusé de livraison téléphonique au résultat explicite"
+        },
+        {
+          "report": "V14R",
+          "article": "ac-003",
+          "kind": "finding",
+          "title": "AC-003 — Ne déduire aucun état « livré » de l'absence d'exception (5 appelants, dont l'alerte d'incident)"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": {
+        "on": "2026-10-23",
+        "report": null,
+        "proof": [
+          "apps/api/src/infrastructure/proactive/notification.py",
+          "apps/api/tests/unit/test_durable_delivery_guard.py",
+          "apps/api/tests/unit/infrastructure/proactive/test_notification_durable.py",
+          "apps/api/tests/helpers/notifications.py",
+          "apps/api/tests/integration/domains/telephony/test_notification_reaper_durability.py",
+          "apps/api/tests/integration/domains/diagnostics/test_admin_notification_isolation_pg.py",
+          "docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md"
+        ]
+      },
+      "deferral": null,
+      "note": "One delivery verdict (durably_delivered: archived, pushed or sent on a channel; an SSE event alone is not, owner decision 2026-10-22). The five consumers require it; the three readers of the former success field read it; failures are counted on a session of their own. Residual, written in the ADR-263 amendment: the dispatcher still archives on its caller's session."
+    },
+    {
+      "id": "AC-004",
+      "level": "major",
+      "priority": "P1",
+      "effort": "E3",
+      "horizon": "H1",
+      "status": "remediated",
+      "opened_on": "2026-08-02",
+      "appearances": [
+        {
+          "report": "V13",
+          "article": "ac-004",
+          "kind": "finding",
+          "title": "AC-004 — Génération et routage Alertmanager incompatibles avec le contrat documenté"
+        },
+        {
+          "report": "V14",
+          "article": "AC-004",
+          "kind": "finding",
+          "title": "AC-004 — Composer et valider toutes les combinaisons Alertmanager annoncées"
+        },
+        {
+          "report": "V14R",
+          "article": "ac-004",
+          "kind": "finding",
+          "title": "AC-004 — Composer Alertmanager selon les canaux configurés et rendre les routes spécialisées atteignables"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": {
+        "on": "2026-10-23",
+        "report": null,
+        "proof": [
+          "infrastructure/observability/alertmanager/alertmanager.yml.template",
+          "infrastructure/observability/alertmanager/docker-entrypoint.sh",
+          "infrastructure/observability/alertmanager/tests/routing_matrix.yml",
+          "scripts/observability/alertmanager_matrix.py",
+          "apps/api/tests/unit/test_alertmanager_template_guard.py",
+          "docs/architecture/ADR-119-Alerting-Reactivation-Minimal-Core.md"
+        ]
+      },
+      "deferral": null,
+      "note": "One template; each optional block (Slack, PagerDuty, a team) is removed at rendering when its channel or team is not configured, so no empty key or URL is rendered (measured: Alertmanager refused to start with Slack alone or PagerDuty alone). Severity routes carry continue: true and a team route is rendered only for an address of its own (owner decision Q3); values are substituted literally, a line break refused. Proven by task test:alertmanager (also in CI): 14 cases rendered by the real entrypoint in the production image without network, amtool check-config, every email template rendered, routes test; 4 of 4 mutants and a template failing only at render time caught; it was red on 12 of 14 cases before the change."
+    },
+    {
+      "id": "AC-005",
+      "level": "moderate",
+      "priority": "P1",
+      "effort": "E3",
+      "horizon": "H1",
+      "status": "open",
+      "opened_on": "2026-08-02",
+      "appearances": [
+        {
+          "report": "V13",
+          "article": "ac-005",
+          "kind": "finding",
+          "title": "AC-005 — Réindexation RAG : verrou ownerless et résidu de troisième génération"
+        },
+        {
+          "report": "V14",
+          "article": "AC-005",
+          "kind": "finding",
+          "title": "AC-005 — Donner un propriétaire au verrou global de réindexation"
+        },
+        {
+          "report": "V14R",
+          "article": "ac-005",
+          "kind": "finding",
+          "title": "AC-005 — Donner un propriétaire au verrou global de réindexation"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": null,
+      "deferral": null,
+      "note": "Outside the 2026-10-23 remediation wave (owner decision)."
+    },
+    {
+      "id": "AC-006",
+      "level": "moderate",
+      "priority": "P2",
+      "effort": "E2",
+      "horizon": "H1",
+      "status": "remediated",
+      "opened_on": "2026-08-02",
+      "appearances": [
+        {
+          "report": "V13",
+          "article": "ac-006",
+          "kind": "finding",
+          "title": "AC-006 — Deux panneaux Produit sans métriques et preuve repository incomplète"
+        },
+        {
+          "report": "V14R",
+          "article": "ac-006",
+          "kind": "finding",
+          "title": "AC-006 — Résoudre chaque panneau vers un producteur réel et statuer sur les règles d'alerte dormantes"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": {
+        "on": "2026-10-23",
+        "report": null,
+        "proof": [
+          "apps/api/tests/unit/test_metric_producer_guard.py",
+          "scripts/audit/measure_metric_coverage.py",
+          "apps/api/src/domains/product/repository.py",
+          "apps/api/tests/integration/domains/product/test_validated_outcome_value_pg.py",
+          "infrastructure/observability/grafana/dashboards/26-product-value.json",
+          "infrastructure/observability/prometheus/alerts-core.yml.template",
+          "infrastructure/observability/prometheus/tests/alerts_core_test.yml",
+          "docs/runbooks/alerts/ProductAggregatesStale.md",
+          "ADR-178"
+        ]
+      },
+      "deferral": null,
+      "note": "Omitted by V14, reopened by the revision. A reverse guard (also run by task lint:observability) resolves every series a Prometheus panel or a loaded rule reads to a metric the code defines, a recording rule or a declared external producer whose scrape job is configured; it was red on exactly the four orphan panels before the change. The two product panels read two gauges the hourly rollup computes in PostgreSQL over the North Star's useful set (tested on real PostgreSQL) - an observation histogram was rejected, since an outcome rejected after its validation cannot be taken back out of one; the two hybrid memory search panels were removed, their producer gone since v1.25.30 (ADR-168). Decision on alerts-product.yml: the freshness alert joined the core as ProductAggregatesStale (warning, runbook, promtool cases, evidence recipe); the three behaviour alerts stay unloaded and are re-decided by 2026-12-15 on a read-only measurement of production (ADR-178 amendment 2026-10-23). The coverage ratchet reads only the rule files prometheus.yml loads; measured, no metric was wired by a dormant rule alone (baseline unchanged)."
+    },
+    {
+      "id": "AC-007",
+      "level": "moderate",
+      "priority": "P1",
+      "effort": "E2",
+      "horizon": "H0",
+      "status": "remediated",
+      "opened_on": "2026-08-02",
+      "appearances": [
+        {
+          "report": "V13",
+          "article": "ac-007",
+          "kind": "finding",
+          "title": "AC-007 — Les tâches annulées ne sont pas drainées avant fermeture des ressources"
+        },
+        {
+          "report": "V14",
+          "article": "AC-007",
+          "kind": "finding",
+          "title": "AC-007 — Attendre la fin de l'annulation des tâches avant de fermer leurs ressources"
+        },
+        {
+          "report": "V14R",
+          "article": "ac-007",
+          "kind": "finding",
+          "title": "AC-007 — Attendre la fin de l'annulation des tâches avant de fermer leurs ressources"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": {
+        "on": "2026-10-23",
+        "report": null,
+        "proof": [
+          "apps/api/src/infrastructure/async_utils.py",
+          "apps/api/tests/unit/infrastructure/test_async_utils_shutdown_join.py",
+          "apps/api/tests/unit/test_graceful_shutdown_budget_guard.py"
+        ]
+      },
+      "deferral": null,
+      "note": "A05: after its timeout, the shutdown cancels the background tasks still running, then joins them for at most BACKGROUND_TASKS_CANCEL_JOIN_TIMEOUT_S, so what a cancellation runs — a claim released, a file closed, a final status written — happens before the pools it needs are closed; a task that will not stop is named. The join is counted in the stop budget."
+    },
+    {
+      "id": "AC-008",
+      "level": "minor",
+      "priority": "P2",
+      "effort": "E1",
+      "horizon": "H0",
+      "status": "remediated",
+      "opened_on": "2026-08-02",
+      "appearances": [
+        {
+          "report": "V13",
+          "article": "ac-008",
+          "kind": "finding",
+          "title": "AC-008 — Cycle de vie incomplet de PhilipsHueClient"
+        },
+        {
+          "report": "V14",
+          "article": "AC-008",
+          "kind": "finding",
+          "title": "AC-008 — Fermer les clients Hue dans les deux chemins de test de connexion"
+        },
+        {
+          "report": "V14R",
+          "article": "ac-008",
+          "kind": "finding",
+          "title": "AC-008 — Fermer les clients Hue créés pour un test de connexion"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": {
+        "on": "2026-10-23",
+        "report": null,
+        "proof": [
+          "apps/api/src/domains/connectors/service.py",
+          "apps/api/src/domains/connectors/router.py",
+          "apps/api/tests/unit/domains/connectors/test_hue_client_closed.py"
+        ]
+      },
+      "deferral": null,
+      "note": "A04: the local activation and the connection test close the Philips Hue client they build on every path — success, the bridge's refusal, a cancellation — in a finally, before the activation's own writes."
+    },
+    {
+      "id": "AC-009",
+      "level": "moderate",
+      "priority": "P1",
+      "effort": "E2",
+      "horizon": null,
+      "status": "closed",
+      "opened_on": "2026-08-02",
+      "appearances": [
+        {
+          "report": "V13",
+          "article": "ac-009",
+          "kind": "finding",
+          "title": "AC-009 — Gate unitaire rapide xdist non déterministe"
+        },
+        {
+          "report": "V14R",
+          "article": "clos-v13-ac-009",
+          "kind": "closure",
+          "title": "V13 AC-009 — Porte unitaire rapide xdist non déterministe"
+        }
+      ],
+      "aliases": [],
+      "closure": {
+        "on": "2026-10-22",
+        "report": "V14R",
+        "proof": [
+          "docs/audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14-revision.html#clos-v13-ac-009",
+          "apps/api/pyproject.toml",
+          "V14R:R07"
+        ]
+      },
+      "remediation": null,
+      "deferral": null,
+      "note": null
+    },
+    {
+      "id": "AC-010",
+      "level": "moderate",
+      "priority": "P2",
+      "effort": "E5",
+      "horizon": "H2",
+      "status": "open",
+      "opened_on": "2026-08-02",
+      "appearances": [
+        {
+          "report": "V13",
+          "article": "ac-010",
+          "kind": "finding",
+          "title": "AC-010 — Hotspots backend au-delà des seuils de maîtrise"
+        },
+        {
+          "report": "V14",
+          "article": "AC-010",
+          "kind": "finding",
+          "title": "AC-010 — Réduire la complexité absolue des points centraux"
+        },
+        {
+          "report": "V14R",
+          "article": "ac-010",
+          "kind": "finding",
+          "title": "AC-010 — Réduire la complexité absolue des points centraux d'orchestration"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": null,
+      "deferral": null,
+      "note": null
+    },
+    {
+      "id": "AC-011",
+      "level": "moderate",
+      "priority": "P2",
+      "effort": "E4",
+      "horizon": "H2",
+      "status": "open",
+      "opened_on": "2026-08-02",
+      "appearances": [
+        {
+          "report": "V13",
+          "article": "ac-011",
+          "kind": "finding",
+          "title": "AC-011 — Couplage bidirectionnel aux frontières de domaines"
+        },
+        {
+          "report": "V14",
+          "article": "AC-011",
+          "kind": "finding",
+          "title": "AC-011 — Réduire les dépendances réciproques entre domaines"
+        },
+        {
+          "report": "V14R",
+          "article": "ac-011",
+          "kind": "finding",
+          "title": "AC-011 — Défaire les dépendances réciproques des deux concentrateurs users et agents"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": null,
+      "deferral": null,
+      "note": null
+    },
+    {
+      "id": "AC-012",
+      "level": "moderate",
+      "priority": "P2",
+      "effort": "E4",
+      "horizon": "H0",
+      "status": "open",
+      "opened_on": "2026-08-02",
+      "appearances": [
+        {
+          "report": "V13",
+          "article": "ac-012",
+          "kind": "finding",
+          "title": "AC-012 — Dette typée masquée par les exemptions MyPy"
+        },
+        {
+          "report": "V14",
+          "article": "AC-012",
+          "kind": "finding",
+          "title": "AC-012 — Résorber les diagnostics MyPy neutralisés par lots cohérents"
+        },
+        {
+          "report": "V14R",
+          "article": "ac-012",
+          "kind": "finding",
+          "title": "AC-012 — Résorber les diagnostics MyPy neutralisés, en commençant par les exemptions mortes"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": {
+        "on": "2026-10-23",
+        "report": null,
+        "proof": [
+          "apps/api/pyproject.toml",
+          "apps/api/.mypy-debt-baseline.json",
+          "apps/api/src/domains/conversations/message_tokens.py",
+          "apps/api/tests/unit/domains/conversations/test_messages_with_tokens.py"
+        ]
+      },
+      "deferral": null,
+      "note": "H0 for the dead exemptions, then H2 for the rest. Partial: the dead disabled codes and the unused ignores are gone (A14a); the conversation service's exemption is gone (A14b) — of its 10 hidden diagnostics, 4 lay in a loader nothing called since its flag was removed (deleted, with its tests), 6 in the live loader, typed once its post-processing (pinned first by characterization tests) became one module. The debt baseline went from 81 to 76 pairs; the rest stays for H2."
+    },
+    {
+      "id": "AC-013",
+      "level": "moderate",
+      "priority": "P2",
+      "effort": "E4",
+      "horizon": "H2",
+      "status": "open",
+      "opened_on": "2026-08-02",
+      "appearances": [
+        {
+          "report": "V13",
+          "article": "ac-013",
+          "kind": "finding",
+          "title": "AC-013 — Dette structurelle frontend et règles React différées"
+        },
+        {
+          "report": "V14",
+          "article": "AC-013",
+          "kind": "finding",
+          "title": "AC-013 — Réduire la dette React Hooks et les composants complexes"
+        },
+        {
+          "report": "V14R",
+          "article": "ac-013",
+          "kind": "finding",
+          "title": "AC-013 — Réduire la dette React Hooks et les composants complexes"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": {
+        "on": "2026-10-23",
+        "report": null,
+        "proof": [
+          "apps/web/src/components/psyche/AssistantAvatar.tsx",
+          "apps/web/src/components/psyche/avatar-transitions.ts",
+          "apps/web/.react-hooks-baseline.json",
+          "apps/web/.cc-baseline.json"
+        ]
+      },
+      "deferral": null,
+      "note": "Pilot (A15): one hotspot cleared; the rest of the React debt stays frozen by its ratchets."
+    },
+    {
+      "id": "AC-014",
+      "level": "moderate",
+      "priority": "P3",
+      "effort": "E3",
+      "horizon": null,
+      "status": "closed",
+      "opened_on": "2026-08-02",
+      "appearances": [
+        {
+          "report": "V13",
+          "article": "ac-014",
+          "kind": "finding",
+          "title": "AC-014 — Couverture frontend agrégée présentée comme per-file"
+        },
+        {
+          "report": "V14R",
+          "article": "clos-v13-ac-014",
+          "kind": "closure",
+          "title": "V13 AC-014 — Couverture frontend agrégée présentée comme par fichier"
+        }
+      ],
+      "aliases": [],
+      "closure": {
+        "on": "2026-10-22",
+        "report": "V14R",
+        "proof": [
+          "docs/audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14-revision.html#clos-v13-ac-014",
+          "apps/web/vitest.config.mts",
+          "V14R:R13"
+        ]
+      },
+      "remediation": null,
+      "deferral": null,
+      "note": "V14 reused this identifier for another subject, registered as AC-040."
+    },
+    {
+      "id": "AC-015",
+      "level": "moderate",
+      "priority": "P3",
+      "effort": "E4",
+      "horizon": null,
+      "status": "closed",
+      "opened_on": "2026-08-02",
+      "appearances": [
+        {
+          "report": "V13",
+          "article": "ac-015",
+          "kind": "finding",
+          "title": "AC-015 — Absence de voie de preuve réaliste pour le bas niveau voix/WebAudio"
+        },
+        {
+          "report": "V14R",
+          "article": "clos-v13-ac-015",
+          "kind": "closure",
+          "title": "V13 AC-015 — Voie de preuve réaliste voix/WebAudio"
+        }
+      ],
+      "aliases": [],
+      "closure": {
+        "on": "2026-10-22",
+        "report": "V14R",
+        "proof": [
+          "docs/audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14-revision.html#clos-v13-ac-015",
+          "scripts/browser/run-native-media.sh",
+          "V14:T13g"
+        ]
+      },
+      "remediation": null,
+      "deferral": null,
+      "note": null
+    },
+    {
+      "id": "AC-016",
+      "level": "minor",
+      "priority": "P5",
+      "effort": "E1",
+      "horizon": null,
+      "status": "closed",
+      "opened_on": "2026-08-02",
+      "appearances": [
+        {
+          "report": "V13",
+          "article": "ac-016",
+          "kind": "finding",
+          "title": "AC-016 — Nom accessible du Dialog générique codé en français"
+        },
+        {
+          "report": "V14R",
+          "article": "clos-v13-ac-016",
+          "kind": "closure",
+          "title": "V13 AC-016 — Nom accessible du Dialog générique codé en français"
+        }
+      ],
+      "aliases": [],
+      "closure": {
+        "on": "2026-10-22",
+        "report": "V14R",
+        "proof": [
+          "docs/audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14-revision.html#clos-v13-ac-016",
+          "apps/web/src/components/ui/dialog.tsx"
+        ]
+      },
+      "remediation": null,
+      "deferral": null,
+      "note": null
+    },
+    {
+      "id": "AC-017",
+      "level": "moderate",
+      "priority": "P3",
+      "effort": "E3",
+      "horizon": null,
+      "status": "partially_closed",
+      "opened_on": "2026-08-02",
+      "appearances": [
+        {
+          "report": "V13",
+          "article": "ac-017",
+          "kind": "finding",
+          "title": "AC-017 — Rebuild non immuable et dépendance frontend indirecte"
+        },
+        {
+          "report": "V14R",
+          "article": "clos-v13-ac-017",
+          "kind": "closure",
+          "title": "V13 AC-017 — Rebuild non immuable et dépendance frontend indirecte"
+        }
+      ],
+      "aliases": [],
+      "closure": {
+        "on": "2026-10-22",
+        "report": "V14R",
+        "proof": [
+          "docs/audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14-revision.html#clos-v13-ac-017",
+          "apps/api/Dockerfile.prod",
+          "apps/web/Dockerfile.prod"
+        ]
+      },
+      "remediation": null,
+      "deferral": null,
+      "note": null
+    },
+    {
+      "id": "AC-018",
+      "level": "minor",
+      "priority": "P3",
+      "effort": "E2",
+      "horizon": null,
+      "status": "closed",
+      "opened_on": "2026-08-02",
+      "appearances": [
+        {
+          "report": "V13",
+          "article": "ac-018",
+          "kind": "finding",
+          "title": "AC-018 — Gardes CI susceptibles de dériver sans omission actuelle"
+        },
+        {
+          "report": "V14R",
+          "article": "clos-v13-ac-018",
+          "kind": "closure",
+          "title": "V13 AC-018 — Gardes CI susceptibles de dériver"
+        }
+      ],
+      "aliases": [],
+      "closure": {
+        "on": "2026-10-22",
+        "report": "V14R",
+        "proof": [
+          "docs/audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14-revision.html#clos-v13-ac-018",
+          "scripts/audit/check_ci_parity.py",
+          ".github/workflows/ci.yml",
+          "V14:T01"
+        ]
+      },
+      "remediation": null,
+      "deferral": null,
+      "note": null
+    },
+    {
+      "id": "AC-019",
+      "level": "minor",
+      "priority": "P5",
+      "effort": "E1",
+      "horizon": null,
+      "status": "partially_closed",
+      "opened_on": "2026-08-02",
+      "appearances": [
+        {
+          "report": "V13",
+          "article": "ac-019",
+          "kind": "finding",
+          "title": "AC-019 — Fraîcheur sémantique documentaire incomplète"
+        },
+        {
+          "report": "V14R",
+          "article": "clos-v13-ac-019",
+          "kind": "closure",
+          "title": "V13 AC-019 — Fraîcheur sémantique documentaire incomplète"
+        }
+      ],
+      "aliases": [],
+      "closure": {
+        "on": "2026-10-22",
+        "report": "V14R",
+        "proof": [
+          "docs/audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14-revision.html#clos-v13-ac-019",
+          "scripts/audit/doc_facts.py",
+          "V14R:R10"
+        ]
+      },
+      "remediation": null,
+      "deferral": null,
+      "note": "Residual tracked by AC-032."
+    },
+    {
+      "id": "AC-020",
+      "level": "minor",
+      "priority": "P5",
+      "effort": "E1",
+      "horizon": null,
+      "status": "closed",
+      "opened_on": "2026-08-02",
+      "appearances": [
+        {
+          "report": "V13",
+          "article": "ac-020",
+          "kind": "finding",
+          "title": "AC-020 — Dépendance SlowAPI explicitement orpheline"
+        },
+        {
+          "report": "V14R",
+          "article": "clos-v13-ac-020",
+          "kind": "closure",
+          "title": "V13 AC-020 — Dépendance SlowAPI orpheline"
+        }
+      ],
+      "aliases": [],
+      "closure": {
+        "on": "2026-10-22",
+        "report": "V14R",
+        "proof": [
+          "docs/audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14-revision.html#clos-v13-ac-020",
+          "apps/api/requirements.txt"
+        ]
+      },
+      "remediation": null,
+      "deferral": null,
+      "note": null
+    },
+    {
+      "id": "AC-021",
+      "level": "moderate",
+      "priority": "P1",
+      "effort": "E3",
+      "horizon": null,
+      "status": "closed",
+      "opened_on": "2026-10-22",
+      "appearances": [
+        {
+          "report": "V14",
+          "article": "AC-021",
+          "kind": "finding",
+          "title": "AC-021 — Réaligner les oracles E2E sur les interactions effectivement décidées"
+        },
+        {
+          "report": "V14R",
+          "article": "clos-ac-021",
+          "kind": "closure",
+          "title": "AC-021 — Réaligner les oracles E2E sur les interactions décidées"
+        }
+      ],
+      "aliases": [],
+      "closure": {
+        "on": "2026-10-22",
+        "report": "V14R",
+        "proof": [
+          "docs/audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14-revision.html#clos-ac-021",
+          "apps/web/e2e/playwright.config.ts",
+          "V14R:R14",
+          "V14R:R15"
+        ]
+      },
+      "remediation": null,
+      "deferral": null,
+      "note": "Confirmed on 2026-10-23 by the controlled replay the revision asked for: the production bundle of the merged state served on its own port, the hermetic suite in the official Playwright image under the native-media wrapper (virtual audio sink, local STUN), no retry — 690 passed, 1 skipped by design (a dev-runtime HMR test), 0 failed."
+    },
+    {
+      "id": "AC-022",
+      "level": null,
+      "priority": null,
+      "effort": null,
+      "horizon": null,
+      "status": "unpublished",
+      "opened_on": null,
+      "appearances": [],
+      "aliases": [],
+      "closure": null,
+      "remediation": null,
+      "deferral": null,
+      "note": "Identifier allocated by V14 and never published (revision continuity table)."
+    },
+    {
+      "id": "AC-023",
+      "level": "moderate",
+      "priority": "P2",
+      "effort": "E3",
+      "horizon": "H1",
+      "status": "remediated",
+      "opened_on": "2026-10-22",
+      "appearances": [
+        {
+          "report": "V14",
+          "article": "AC-023",
+          "kind": "finding",
+          "title": "AC-023 — Borner la répétition d'une compilation sémantiquement refusée"
+        },
+        {
+          "report": "V14R",
+          "article": "ac-023",
+          "kind": "finding",
+          "title": "AC-023 — Borner la répétition payante d'une compilation de règles sémantiquement refusée"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": {
+        "on": "2026-10-23",
+        "report": null,
+        "proof": [
+          "apps/api/src/domains/proactive_discussions/rule_controls.py",
+          "apps/api/src/infrastructure/proactive/discussion_runner.py",
+          "apps/api/tests/unit/domains/proactive_discussions/test_rule_controls.py",
+          "apps/api/tests/unit/infrastructure/proactive/test_discussion_read_controls.py",
+          "ADR-359"
+        ]
+      },
+      "deferral": null,
+      "note": "A refused compilation of the read rules (a denial quoting words the person never wrote) is cached under the inputs' signature as a refusal that reads nothing; the run settles skipped with the reason rules_refused (a NOTHING_INTERPRETED outcome, a sentence in six languages) instead of failed. The same inputs are compiled again only after DISCUSSION_RULE_REFUSAL_FIRST_WAIT_INTERVALS tick intervals, then twice as long at each refusal, up to the cache lifetime (owner decision Q4); other inputs, or inputs that compiled last, start from one refusal. Measured before the change: the refusal raised before the cache was written, so every tick paid the compiler again for the same inputs."
+    },
+    {
+      "id": "AC-024",
+      "level": "moderate",
+      "priority": "P2",
+      "effort": "E2",
+      "horizon": null,
+      "status": "closed",
+      "opened_on": "2026-10-22",
+      "appearances": [
+        {
+          "report": "V14",
+          "article": "AC-024",
+          "kind": "finding",
+          "title": "AC-024 — Restaurer le focus après une suppression SMS groupée"
+        },
+        {
+          "report": "V14R",
+          "article": "clos-ac-024",
+          "kind": "closure",
+          "title": "AC-024 — Restaurer le focus après une suppression SMS groupée"
+        }
+      ],
+      "aliases": [],
+      "closure": {
+        "on": "2026-10-22",
+        "report": "V14R",
+        "proof": [
+          "docs/audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14-revision.html#clos-ac-024",
+          "apps/web/src/components/sms/SmsErasure.tsx",
+          "V14R:R11",
+          "V14R:R15",
+          "V14R:R25"
+        ]
+      },
+      "remediation": null,
+      "deferral": null,
+      "note": null
+    },
+    {
+      "id": "AC-025",
+      "level": "minor",
+      "priority": "P2",
+      "effort": "E1",
+      "horizon": null,
+      "status": "closed",
+      "opened_on": "2026-10-22",
+      "appearances": [
+        {
+          "report": "V14",
+          "article": "AC-025",
+          "kind": "finding",
+          "title": "AC-025 — Préserver le vocabulaire naturel dans la recherche des réglages"
+        },
+        {
+          "report": "V14R",
+          "article": "clos-ac-025",
+          "kind": "closure",
+          "title": "AC-025 — Préserver le vocabulaire naturel dans la recherche des réglages"
+        }
+      ],
+      "aliases": [],
+      "closure": {
+        "on": "2026-10-22",
+        "report": "V14R",
+        "proof": [
+          "docs/audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14-revision.html#clos-ac-025",
+          "apps/web/locales/fr/translation.json",
+          "apps/web/src/lib/__tests__/settings-search.test.ts",
+          "V14R:R11",
+          "V14R:R25"
+        ]
+      },
+      "remediation": null,
+      "deferral": null,
+      "note": null
+    },
+    {
+      "id": "AC-026",
+      "level": null,
+      "priority": null,
+      "effort": null,
+      "horizon": null,
+      "status": "unpublished",
+      "opened_on": null,
+      "appearances": [],
+      "aliases": [],
+      "closure": null,
+      "remediation": null,
+      "deferral": null,
+      "note": "Identifier allocated by V14 and never published (revision continuity table)."
+    },
+    {
+      "id": "AC-027",
+      "level": "minor",
+      "priority": "P2",
+      "effort": "E1",
+      "horizon": "H0",
+      "status": "remediated",
+      "opened_on": "2026-10-22",
+      "appearances": [
+        {
+          "report": "V14",
+          "article": "AC-027",
+          "kind": "finding",
+          "title": "AC-027 — Écarter les bundles de capture du contexte Docker de production"
+        },
+        {
+          "report": "V14R",
+          "article": "ac-027",
+          "kind": "finding",
+          "title": "AC-027 — Écarter les bundles de capture du contexte Docker de production"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": {
+        "on": "2026-10-23",
+        "report": null,
+        "proof": [
+          ".dockerignore",
+          "apps/api/tests/unit/test_dockerignore_next_dists_guard.py"
+        ]
+      },
+      "deferral": null,
+      "note": "A03: the root .dockerignore leaves out every .next-* directory, aligned on .gitignore and on the screenshot tool's output, so a proof dist never enters the production build context; a guard holds the pattern."
+    },
+    {
+      "id": "AC-028",
+      "level": "major",
+      "priority": "P1",
+      "effort": "E2",
+      "horizon": "H0",
+      "status": "remediated",
+      "opened_on": "2026-10-22",
+      "appearances": [
+        {
+          "report": "V14R",
+          "article": "ac-028",
+          "kind": "finding",
+          "title": "AC-028 — Borner côté PostgreSQL l'attente de verrou et les transactions inactives"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": {
+        "on": "2026-10-23",
+        "report": null,
+        "proof": [
+          "apps/api/src/infrastructure/database/server_bounds.py",
+          "apps/api/src/infrastructure/database/session.py",
+          "apps/api/tests/unit/infrastructure/database/test_server_bounds.py",
+          "apps/api/tests/integration/infrastructure/test_server_bounds_pg.py",
+          "infrastructure/observability/prometheus/alerts-core.yml.template",
+          "docs/architecture/ADR-304-No-Transaction-Across-A-Network-Call.md"
+        ]
+      },
+      "deferral": null,
+      "note": "Every application connection starts with lock_timeout and idle_in_transaction_session_timeout (DATABASE_LOCK_TIMEOUT_MS, DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS; 0 = the server's own; the migration engine and the LangGraph pools carry neither; SET LOCAL still tightens one per transaction). The engine counts each bound reached in handle_error (db_bound_reached_total, alert DatabaseBoundReached): by SQLSTATE, except the idle end that asyncpg reports with none (measured), recognised by the idle span the engine kept. Calibration was limited: production keeps no transaction-length or lock-wait series of the exporter, so the bounds are conservative and the tail is now measured (buckets to 600 s)."
+    },
+    {
+      "id": "AC-029",
+      "level": "moderate",
+      "priority": "P1",
+      "effort": "E2",
+      "horizon": "H0",
+      "status": "remediated",
+      "opened_on": "2026-10-22",
+      "appearances": [
+        {
+          "report": "V14R",
+          "article": "ac-029",
+          "kind": "finding",
+          "title": "AC-029 — Rendre propriétaire le verrou de rafraîchissement OAuth et l'aligner sur sa section critique"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": {
+        "on": "2026-10-23",
+        "report": null,
+        "proof": [
+          "apps/api/src/domains/connectors/oauth_refresh.py",
+          "apps/api/src/domains/connectors/oauth_refresh_exchange.py",
+          "apps/api/src/domains/connectors/oauth_refresh_targets.py",
+          "apps/api/tests/unit/domains/connectors/test_oauth_refresh.py",
+          "apps/api/tests/unit/domains/connectors/test_oauth_refresh_exchange.py",
+          "apps/api/tests/integration/domains/connectors/test_oauth_refresh_pg.py",
+          "apps/api/tests/integration/domains/connectors/test_client_session_ownership.py",
+          "apps/api/tests/unit/test_refresh_grant_single_sender_guard.py",
+          "docs/architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md"
+        ]
+      },
+      "deferral": null,
+      "note": "The lock is not made an owner: it is gone. One refresh door for legacy connectors, shared grants and Hue Remote: one exchange per token (single flight in a worker, an owner-token claim across workers, a published verdict), no transaction across the provider call, a write conditioned on the token it started from and bounded in its wait for the row, invalid_grant re-verified before a disconnection. Residual, written in the ADR-302 amendment: callers reading through get_connector_credentials on a session they hold keep their read transaction during a rare refresh."
+    },
+    {
+      "id": "AC-030",
+      "level": "moderate",
+      "priority": "P1",
+      "effort": "E3",
+      "horizon": "H1",
+      "status": "remediated",
+      "opened_on": "2026-10-22",
+      "appearances": [
+        {
+          "report": "V14R",
+          "article": "ac-030",
+          "kind": "finding",
+          "title": "AC-030 — Arrêter l'érosion de la couverture backend (marge 0,66 point)"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": {
+        "on": "2026-10-23",
+        "report": null,
+        "proof": [
+          "scripts/audit/diff_coverage.py",
+          "apps/api/tests/unit/test_diff_coverage_guard.py",
+          "apps/api/tests/unit/test_coverage_union_guard.py",
+          ".github/workflows/ci.yml",
+          "Taskfile.yml",
+          "docs/architecture/ADR-113-Backend-Test-Suite-Rehabilitation.md"
+        ]
+      },
+      "deferral": null,
+      "note": "The lines a change adds or modifies are held at the floor (AC-030a, diff_coverage.py, in CI). The margin (AC-030b): measured on 2026-10-23, the unit suite alone covered 78.97 % of src and the SQL-bound domains sat far below the floor in it (sms 53.6 %, proactive discussions 70.7 %), while their integration tests on a real PostgreSQL covered them at 92.1 % and 82.4 %: meeting the floor in unit tests would have meant simulating PostgreSQL, which the test rules forbid. Owner decision 2026-10-23: the floor, unchanged, applies to what the unit and integration suites execute together, and the diff gate reads that union. Each suite measures into its own data file, combined strictly (a missing one is an error) outside coverage's implicit pattern; measured by the canonical commands, the union covers 87.47 % of src. Tests were added only where neither suite covered (the feedback route through HTTP, the reply receipts)."
+    },
+    {
+      "id": "AC-031",
+      "level": "moderate",
+      "priority": "P1",
+      "effort": "E1",
+      "horizon": "H0",
+      "status": "remediated",
+      "opened_on": "2026-10-22",
+      "appearances": [
+        {
+          "report": "V14R",
+          "article": "ac-031",
+          "kind": "finding",
+          "title": "AC-031 — Fermer la boucle d'amélioration : registre continu, âge des constats et échéances"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": {
+        "on": "2026-10-23",
+        "report": null,
+        "proof": [
+          "docs/audit/findings_register.json",
+          "scripts/audit/findings_register.py",
+          "apps/api/tests/unit/test_findings_register_guard.py",
+          "docs/audit/AUDIT_PROTOCOL.md",
+          "Taskfile.yml"
+        ]
+      },
+      "deferral": null,
+      "note": "Register, its verifier in task lint:docs and the release gate (task release:check --strict)."
+    },
+    {
+      "id": "AC-032",
+      "level": "minor",
+      "priority": "P2",
+      "effort": "E1",
+      "horizon": "H1",
+      "status": "remediated",
+      "opened_on": "2026-10-22",
+      "appearances": [
+        {
+          "report": "V14R",
+          "article": "ac-032",
+          "kind": "finding",
+          "title": "AC-032 — Réaligner la documentation des seuils et doctrines de test sur la source de vérité"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": {
+        "on": "2026-10-23",
+        "report": null,
+        "proof": [
+          "docs/guides/GUIDE_TESTING.md",
+          "scripts/audit/doc_facts.py",
+          "apps/api/tests/unit/test_doc_facts_guard.py",
+          "apps/api/pyproject.toml",
+          "apps/web/vitest.config.mts"
+        ]
+      },
+      "deferral": null,
+      "note": "One doctrine in GUIDE_TESTING; doc_facts holds the backend and frontend floors."
+    },
+    {
+      "id": "AC-033",
+      "level": "minor",
+      "priority": "P2",
+      "effort": "E2",
+      "horizon": "H1",
+      "status": "remediated",
+      "opened_on": "2026-10-22",
+      "appearances": [
+        {
+          "report": "V14R",
+          "article": "ac-033",
+          "kind": "finding",
+          "title": "AC-033 — Fiabiliser le banc de tests : délais, oracle temporel et tests jamais exécutés"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": {
+        "on": "2026-10-23",
+        "report": null,
+        "proof": [
+          "apps/api/pyproject.toml",
+          "apps/api/tests/unit/test_hung_test_watchdog_guard.py",
+          "apps/api/tests/unit/test_ci_job_timeouts_guard.py",
+          "apps/api/tests/unit/domains/telephony/test_wiring.py",
+          "apps/api/tests/unit/domains/agents/orchestration/test_parallel_executor_compute_step_timeout.py",
+          "apps/api/tests/support/cpu_growth.py",
+          "apps/api/tests/unit/test_cpu_growth_support.py"
+        ]
+      },
+      "deferral": null,
+      "note": "A hung test is interrupted with its stack, every workflow job is time-bounded, the two never-run tests run (L2). The CPU linearity oracle (A12): three guards carried their own copy of the same criterion and one timed a single call per size on time.thread_time, which Windows advances by 15.6 ms ticks; they now share tests/support/cpu_growth.py (the thread's cycle-precise clock, interleaved pairs, the median pair, the floors), pinned on a scripted clock and refused a real quadratic function — sized so its small run clears the small floor, under which the criterion was measured to pass a quadratic function (1.5 ms to 26.5 ms read x5.3). A wall-clock oracle found flaky under the full suite (a held claim's refresh count after a fixed sleep) waits for the refresher instead."
+    },
+    {
+      "id": "AC-034",
+      "level": "minor",
+      "priority": "P3",
+      "effort": "E2",
+      "horizon": "H2",
+      "status": "remediated",
+      "opened_on": "2026-10-22",
+      "appearances": [
+        {
+          "report": "V14R",
+          "article": "ac-034",
+          "kind": "finding",
+          "title": "AC-034 — Donner une rétention ou une mesure de croissance aux tables d'exécution des discussions proactives"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": {
+        "on": "2026-10-23",
+        "report": null,
+        "proof": [
+          "apps/api/src/infrastructure/database/table_volume.py",
+          "apps/api/src/domains/proactive_discussions/volume.py",
+          "apps/api/tests/unit/domains/proactive_discussions/test_discussion_volume.py",
+          "infrastructure/observability/grafana/dashboards/13-proactive-heartbeat.json",
+          "ADR-358"
+        ]
+      },
+      "deferral": null,
+      "note": "The finding asks for a retention or a growth measurement; the measurement ships (AC-034a). The five execution tables are read by the transparency registers' own reader, moved to infrastructure/database/table_volume.py, from one declaration of their names checked against the declared models, published per table (proactive_discussion_table_rows, proactive_discussion_table_bytes) and drawn on dashboard 13. No growth alert ships before a baseline; the retention itself (AC-034b) is decided on the measured growth, outside this wave."
+    },
+    {
+      "id": "AC-035",
+      "level": "minor",
+      "priority": "P3",
+      "effort": "E2",
+      "horizon": "H2",
+      "status": "remediated",
+      "opened_on": "2026-10-22",
+      "appearances": [
+        {
+          "report": "V14R",
+          "article": "ac-035",
+          "kind": "finding",
+          "title": "AC-035 — Sortir les E/S disque bloquantes des fonctions asynchrones et outiller la règle"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": {
+        "on": "2026-10-23",
+        "report": null,
+        "proof": [
+          "apps/api/pyproject.toml",
+          "apps/api/src/infrastructure/multipart_upload.py",
+          "apps/api/src/domains/voice/stt/audio_file.py",
+          "apps/api/tests/unit/domains/voice/test_stt_file_upload_off_loop.py",
+          "apps/api/tests/unit/infrastructure/test_multipart_upload.py",
+          "apps/api/tests/unit/domains/account_export/test_publication.py",
+          "apps/api/tests/unit/domains/account_export/test_export_disk_off_loop.py",
+          "apps/api/tests/unit/domains/rag_spaces/test_owned_document_path.py"
+        ]
+      },
+      "deferral": null,
+      "note": "Ruff ASYNC2 is selected for src with no baseline and no noqa (tests are exempt by path: the rule guards the served loop). The three STT file uploads stream a multipart body framed byte for byte as httpx frames it, every read in a worker thread through LocalFileRead: measured before the fix, every read ran on the loop and a witness task never ran during one; after it, the file is closed on an answer, a refusal and a cancellation, after the read in flight. The 12 path sites moved their whole step off the loop (the export fence renames inside its cleanup so a cancelled rename publishes nothing; the three copies of the stored-document path check became owned_document_path). Residual, measured by an AST census: Ruff types no path a helper returned, and 82 plausible synchronous filesystem calls sit in async bodies out of its reach. Nearly all are the brief metadata calls the finding ruled out (stat, resolve, a stored file's open, an unlink); two move content — the browser screenshot write in agents/api/service.py and a skill directory's rmtree in skills/router.py — proposed as a follow-up."
+    },
+    {
+      "id": "AC-036",
+      "level": "minor",
+      "priority": "P3",
+      "effort": "E2",
+      "horizon": "H2",
+      "status": "remediated",
+      "opened_on": "2026-10-22",
+      "appearances": [
+        {
+          "report": "V14R",
+          "article": "ac-036",
+          "kind": "finding",
+          "title": "AC-036 — Aligner les gabarits d'environnement sur les défauts du code ou justifier chaque écart"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": {
+        "on": "2026-10-23",
+        "report": null,
+        "proof": [
+          "apps/api/tests/unit/test_env_template_parity_guard.py",
+          ".env.example",
+          ".env.prod.example",
+          ".env.min.prod.example",
+          "docs/guides/GUIDE_CONFIG_ARCHITECTURE.md"
+        ]
+      },
+      "deferral": null,
+      "note": "Owner rule: the database overrides the environment, which overrides the code's constants. Every template line states the code's default, omits the key, or says why it differs; a guard holds it, refuses a stated (default: X) the code contradicts (29 per complete template did) and loads each template, its secrets filled in, through the settings' validators. Owner decision 2026-10-23: the two complete templates carry production's proven tunable values (never a secret, an identifier, an address, a host or an environment's identity); the eight features of the initial decision are on, the analytics and the opt-ins documented on 2026-08-06 (MFA, peers, paid telephony, the arousal-relaxation safeguard) stay at the code's default, each annotated; the BACKGROUND_RUNS_ENABLED line left the minimal template. The proven-in-production annotations list where the code's defaults lag behind production: moving those defaults is the owner's call, outside this wave."
+    },
+    {
+      "id": "AC-037",
+      "level": "minor",
+      "priority": "P3",
+      "effort": "E3",
+      "horizon": "H2",
+      "status": "remediated",
+      "opened_on": "2026-10-22",
+      "appearances": [
+        {
+          "report": "V14R",
+          "article": "ac-037",
+          "kind": "finding",
+          "title": "AC-037 — Faire respecter les contrats de production par le code de test"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": {
+        "on": "2026-10-23",
+        "report": null,
+        "proof": [
+          "apps/web/scripts/double-cast.mjs",
+          "apps/web/scripts/check-double-cast-ratchet.mjs",
+          "apps/web/.double-cast-baseline.json",
+          "apps/web/src/__tests__/double-cast-ratchet.test.ts",
+          "Taskfile.yml"
+        ]
+      },
+      "deferral": null,
+      "note": "Ratchet of double assertions per file (tests, e2e, production; --update only lowers); the first backend test modules under strict MyPy in task lint:backend."
+    },
+    {
+      "id": "AC-038",
+      "level": "minor",
+      "priority": "P3",
+      "effort": "E2",
+      "horizon": "H2",
+      "status": "open",
+      "opened_on": "2026-10-22",
+      "appearances": [
+        {
+          "report": "V14R",
+          "article": "ac-038",
+          "kind": "finding",
+          "title": "AC-038 — Ramener CLAUDE.md (et son miroir AGENTS.md) à des règles et des pointeurs"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": null,
+      "deferral": null,
+      "note": null
+    },
+    {
+      "id": "AC-039",
+      "level": "minor",
+      "priority": "P3",
+      "effort": "E4",
+      "horizon": "H2",
+      "status": "open",
+      "opened_on": "2026-10-22",
+      "appearances": [
+        {
+          "report": "V14R",
+          "article": "ac-039",
+          "kind": "finding",
+          "title": "AC-039 — Appliquer ou amender la règle de langue de la documentation"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": {
+        "on": "2026-10-23",
+        "report": null,
+        "proof": [
+          "CLAUDE.md",
+          "scripts/audit/doc_language.py",
+          "scripts/audit/doc_language_baseline.json",
+          "apps/api/tests/unit/test_doc_language_guard.py"
+        ]
+      },
+      "deferral": null,
+      "note": "AC-039a remediated (amended rule, shrink-only ratchet of French documents); AC-039b, the translation of the entry points, is outside the 2026-10-23 wave."
+    },
+    {
+      "id": "AC-040",
+      "level": "minor",
+      "priority": "P2",
+      "effort": "E2",
+      "horizon": "H2",
+      "status": "remediated",
+      "opened_on": "2026-10-22",
+      "appearances": [
+        {
+          "report": "V14",
+          "article": "AC-014",
+          "kind": "finding",
+          "title": "AC-014 — Réintégrer les primitives devenues interactives dans la mesure de couverture"
+        },
+        {
+          "report": "V14R",
+          "article": "ac-014",
+          "kind": "finding",
+          "title": "AC-014 — Réintégrer dans la couverture les primitives d'interface devenues comportementales"
+        }
+      ],
+      "aliases": [
+        "V14:AC-014",
+        "V14R:AC-014"
+      ],
+      "closure": null,
+      "remediation": {
+        "on": "2026-10-23",
+        "report": null,
+        "proof": [
+          "apps/web/coverage-exclusions.mjs",
+          "apps/web/scripts/decision-points.mjs",
+          "apps/web/src/__tests__/coverage-exclusions.guard.test.ts",
+          "apps/web/vitest.config.mts",
+          "apps/web/src/components/ui/__tests__/dropdown-menu.test.tsx",
+          "apps/web/src/components/ui/__tests__/separator.test.tsx"
+        ]
+      },
+      "deferral": null,
+      "note": "Ten of the fourteen excluded primitives held a decision point or a hook and re-entered the measure; four remain, each with its reason, held by a guard. Thresholds unchanged; the ui glob stays above them."
+    }
+  ]
+}

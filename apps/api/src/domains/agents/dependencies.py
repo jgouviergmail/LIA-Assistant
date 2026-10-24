@@ -105,9 +105,16 @@ class ConcurrencySafeConnectorService(ConnectorUnitOfWork):
     async def get_connector_credentials(
         self, user_id: UUID, connector_type: ConnectorType
     ) -> ConnectorCredentials | None:
-        """Thread-safe wrapper for get_connector_credentials (OAuth connectors)."""
+        """Read under the lock, then refresh with neither the lock nor a transaction held.
+
+        The read ends its transaction like every operation of the turn. A refresh,
+        when the token needs one, runs AFTER it, on the refresh door's own sessions
+        (audit AC-029): a parallel tool never waits on another's token endpoint, and
+        the turn's session never sits in a transaction while the provider answers.
+        """
         async with self._operation():
-            return await self._service.get_connector_credentials(user_id, connector_type)
+            stored = await self._service.read_connector_credentials(user_id, connector_type)
+        return None if stored is None else await stored.fresh()
 
     async def get_api_key_credentials(
         self, user_id: UUID, connector_type: ConnectorType

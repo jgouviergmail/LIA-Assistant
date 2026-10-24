@@ -22,10 +22,14 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Every job carries timeout-minutes (AC-033a): about twice its longest recent successful
+# run (measured 2026-10-23), never under ten minutes — a hang detector, not a performance
+# target. Held by apps/api/tests/unit/test_ci_job_timeouts_guard.py.
 jobs:
   lint-backend:
     name: Lint Backend
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -62,6 +66,7 @@ jobs:
   lint-frontend:
     name: Lint Frontend
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -105,6 +110,7 @@ jobs:
     # docs/a11y/AT_CAMPAIGN.md. See apps/web/e2e/README.md.
     name: E2E + a11y smoke (Playwright)
     runs-on: ubuntu-24.04
+    timeout-minutes: 80
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
     steps:
@@ -169,6 +175,7 @@ jobs:
   test-backend:
     name: Test Backend
     runs-on: ubuntu-24.04
+    timeout-minutes: 140
     needs: lint-backend
 
     services:
@@ -232,6 +239,8 @@ jobs:
           pip install --upgrade pip
           pip install --require-hashes --no-binary urllib3-future -r requirements-dev.lock.txt
 
+      # The unit suite's coverage data: half of what the test-backend-coverage
+      # job floors (AC-030b).
       - name: Run fast unit tests with coverage
         run: task test:backend:unit:coverage
 
@@ -255,18 +264,21 @@ jobs:
       - name: Hermetic installer gate (ADR-215)
         run: task test:install:hermetic
 
-      - name: Archive backend coverage
-        if: always()
+      # Read by the test-backend-coverage job of this run only. A dot-file stays
+      # out of an artifact unless asked for (upload-artifact v4.4).
+      - name: Upload unit coverage data
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: backend-coverage
-          path: apps/api/coverage.xml
-          retention-days: 7
+          name: backend-coverage-unit
+          path: apps/api/.coverage-unit
+          include-hidden-files: true
+          retention-days: 1
           if-no-files-found: error
 
   test-backend-integration:
     name: Test Backend Integration
     runs-on: ubuntu-24.04
+    timeout-minutes: 90
     needs: lint-backend
 
     services:
@@ -337,8 +349,8 @@ jobs:
       # Integration suite — wired into CI 2026-07 after the audit found it ran
       # in NO job (and had silently rotted, like the agents suite before it).
       # e2e/benchmark/multiprocess stay out of PR CI; slow is included (these
-      # tests run nowhere else). --no-cov: the coverage gate applies to the
-      # unit job only.
+      # tests run nowhere else). It measures into its own data file: the
+      # test-backend-coverage job floors it with the unit suite's (AC-030b).
       - name: Install Task
         uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
         with:
@@ -360,9 +372,85 @@ jobs:
       - name: Run integration tests
         run: task test:backend:integration
 
+      - name: Upload integration coverage data
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: backend-coverage-integration
+          path: apps/api/.coverage-integration
+          include-hidden-files: true
+          retention-days: 1
+          if-no-files-found: error
+
+  # AC-030b (owner decision 2026-10-23): the backend floor holds what the unit
+  # AND integration suites execute together. The SQL-bound domains are tested
+  # on a real PostgreSQL, which the unit job cannot see.
+  test-backend-coverage:
+    name: Backend Coverage (unit + integration)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: [test-backend, test-backend-integration]
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: apps/api/requirements-dev.lock.txt
+
+      - name: Install Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create venv and install dependencies
+        working-directory: ./apps/api
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install --require-hashes --no-binary urllib3-future -r requirements-dev.lock.txt
+
+      - name: Download unit coverage data
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: backend-coverage-unit
+          path: apps/api
+
+      - name: Download integration coverage data
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: backend-coverage-integration
+          path: apps/api
+
+      - name: Coverage floor on both suites
+        run: task test:backend:coverage
+
+      # AC-030a: the lines this change adds or modifies are covered at least at
+      # the floor, by either suite. The base is the pull request's base, or the
+      # commit the push started from; empty on a manual run, where the gate says
+      # so and passes.
+      - name: Diff coverage gate (changed lines at the floor)
+        env:
+          DIFF_COVERAGE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: task test:backend:diff-coverage
+
+      - name: Archive backend coverage
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: backend-coverage
+          path: apps/api/coverage.xml
+          retention-days: 7
+          if-no-files-found: error
+
   migration-replay:
     name: Migration Replay (from scratch)
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     needs: lint-backend
     defaults:
       run:
@@ -439,6 +527,7 @@ jobs:
   test-frontend:
     name: Test Frontend
     runs-on: ubuntu-24.04
+    timeout-minutes: 40
     needs: lint-frontend
 
     steps:
@@ -485,6 +574,7 @@ jobs:
   code-hygiene:
     name: Code Hygiene
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -555,6 +645,7 @@ jobs:
   docker-build:
     name: Docker Build
     runs-on: ubuntu-24.04
+    timeout-minutes: 90
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -617,6 +708,7 @@ jobs:
   installer-py310:
     name: Installer Python 3.10 floor (ADR-215)
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -637,6 +729,7 @@ jobs:
   observability:
     name: Observability Config
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -713,9 +806,17 @@ jobs:
           promtool test rules \
             infrastructure/observability/prometheus/tests/alerts_core_test.yml
 
+      - name: Alertmanager rendering and routing matrix (A07)
+        # The real entrypoint renders each case in the image production pins,
+        # with no network; amtool checks the config and routes the oracle
+        # alerts. The image is pulled on purpose: its busybox shell is what
+        # runs the rendering in production, so it is what is under test.
+        run: task test:alertmanager
+
   secret-scan:
     name: Secret Scan
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

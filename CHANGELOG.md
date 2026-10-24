@@ -5,6 +5,221 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.6.0] - 2026-10-24
+
+**Password doors robots cannot hammer, tokens renewed once, every audit finding followed to its proof.**
+A password reset now answers for one account — capped per account whoever asks, bound
+to the password it would replace, never a way into an account that signs in with
+Google; an operator can put Cloudflare Turnstile on sign-up, sign-in and reset; a
+discussion left unanswered holds the next one for an hour, not a day; and the V14
+audit's remediation wave lands — one refresh door for every OAuth token, a database
+that bounds its own lock waits and idle transactions, a notification filed delivered
+only once it is, alerts that reach their teams, and a public register that follows
+every finding to its proof.
+
+### Security
+
+- 🔐 **A password reset answers for one account** (ADR-363). Who may receive a link
+  is ONE decision (`auth/password_reset_policy.decide_reset`), applied when the link
+  is asked for AND when it is used: a deleted account or an administrator receives
+  nothing — the attempt is alerted instead —, an account that signs in with a
+  provider and has no password receives a notice naming it, never a link that would
+  create a password, and every other account a link. An account's e-mail budget holds
+  whatever address asks (`PASSWORD_RESET_ACCOUNT_INTERVAL_SECONDS`,
+  `PASSWORD_RESET_ACCOUNT_DAILY_MAX`, on the existing `RedisRateLimiter`, in a
+  `USER_RUNTIME` key family a conversation reset never frees), the short window asked
+  first so hammering the route cannot spend a victim's day. A link carries the
+  account id and an HMAC of the stored password hash: a password changed since, or an
+  account re-created at the address, retires it. The Security settings state the real
+  way back (`password_recovery` on `GET /auth/step-up/status`, ADR-143 amendment).
+  `password_reset_requests_total` and `password_reset_confirmations_total{outcome}`
+  (every series present at zero), dashboard 09, two core alerts — `PasswordResetAbuse`
+  and `RegistrationBurst`, their thresholds per environment
+  (`ALERT_CORE_PASSWORD_RESET_THROTTLED_PER_HOUR`, `ALERT_CORE_REGISTRATIONS_PER_HOUR`) —
+  with their runbooks, promtool cases and evidence recipes; a rate-limit `key_prefix`
+  label carries no client address and no account id.
+- 🗝️ **An administrator's way back is server-side** (ADR-363 amendment):
+  `python -m scripts.data.set_password --email …` (`task db:set-password`) sets the
+  password, then signs every device out. The first administrator of a self-hosted
+  instance has a password and, under the new rule, no reset link: this is its way back.
+- 🤖 **A Cloudflare Turnstile anti-robot check on the password doors** (ADR-364), off
+  until the operator brings a widget (`TURNSTILE_ENABLED`, `TURNSTILE_SITE_KEY`,
+  `TURNSTILE_SECRET_KEY`; the boot refuses the switch without both keys). Sign-up,
+  sign-in and the reset request carry a token (`X-LIA-Turnstile-Response`), checked
+  after the per-IP limiter (`auth/turnstile_gate.py`), valid only for THIS door on
+  THIS instance's pages. `TurnstileClient` never raises and bounds each of its two
+  attempts whole (`TURNSTILE_VERIFY_TIMEOUT_SECONDS`). When Cloudflare gives no usable
+  answer only the sign-in proceeds —
+  a tokenless one too, while the server's own view of Cloudflare confirms the outage
+  (`TURNSTILE_REACHABILITY_TTL_SECONDS`, one shared probe); a sign-up or a reset
+  request is refused `turnstile_unavailable`, a refused token `turnstile_failed`, and a
+  testing key in production counts as no answer (`TurnstileUnavailable` alert,
+  `ALERT_CORE_TURNSTILE_UNAVAILABLE_PER_15M`). The
+  site key reaches the sign-in pages alone (`PublicAuthFeaturesResponse`), the widget
+  runs `interaction-only` in the page's theme and language, the CSP admits Cloudflare's
+  challenge host (ADR-098 amendment), and the privacy policy (v1.2) names the check in
+  six languages.
+- 📦 **Three dependency advisories closed before the tag**: `zod` 4.6.7 (GHSA-mrhx-c7xc-m3w5,
+  high, fixed from 4.6.6 — validation of an oversized constrained collection could exhaust
+  memory), raised as the manifest's floor (ADR-331), and `vitest` / `@vitest/coverage-v8` 4.1.12 for two
+  moderate `@vitest/mocker` advisories (GHSA-qxg6-89mg-rqv8, GHSA-xp26-3454-mjgp) of the
+  test toolchain.
+
+### Added
+
+- 💬 **A discussion left unanswered holds the next one for an hour, not a day**
+  (ADR-358 and ADR-359 amendments): `DISCUSSION_ATTENTION_UNANSWERED_OPENING_MINUTES`
+  (60; the 24-hour reply window is unchanged), the next publication supersedes an
+  opening still pending — after binding any reply a channel archived meanwhile —, a run
+  that never starts names why on its counter outcome and in `discussion_run_not_started`,
+  and the activity panel says when LIA is waiting for your reply
+  (`DiscussionActivity.awaiting_reply`).
+- 📋 **A public register of the audit findings** (AC-031):
+  `docs/audit/findings_register.json`, verified by `scripts/audit/findings_register.py`
+  in `task lint:docs` — every AC finding of the reports exists in it, a closure or a
+  remediation carries its proof — and `task release:check` refuses a P1 past its
+  horizon unless deferred. This release remediates eighteen findings of the V14
+  revision; they await the next audit's verification.
+- 🧰 **The installer offers the anti-robot check** (ADR-364): on an instance reached on a
+  public domain it asks for the Turnstile site key and secret key together — both or
+  neither, hidden at the prompt, refused when they are Cloudflare's testing keys — writes
+  them and `TURNSTILE_ENABLED=true` to the private `.env` alone, never re-asks them on a
+  resume and keeps an operator's configuration on a run that skips them
+  (`scripts/install/turnstile.py`).
+- 📈 **The discussion tables are measured before any retention** (ADR-358 amendment,
+  AC-034a): `proactive_discussion_table_rows` and `proactive_discussion_table_bytes`,
+  drawn on dashboard 13, before a retention rule is decided.
+
+### Changed
+
+- 🔄 **One refresh door for every OAuth token** (ADR-302 amendment, AC-029; notes in
+  ADR-021, ADR-029 and ADR-047). Legacy connectors, shared grants and Hue Remote renew
+  through `connectors/oauth_refresh.py`: one exchange per token across callers and
+  workers (a single flight in a worker, an owner-token claim across workers, a
+  published verdict — an unexpected failure included), no transaction open across the
+  provider call, a write conditioned on the token it started from and bounded in its
+  wait for the row (`OAUTH_REFRESH_WRITE_LOCK_TIMEOUT_MS`), an `invalid_grant`
+  re-verified before anyone is disconnected; a caller that owns its session reads
+  (`read_connector_credentials`), then asks `fresh()`. `OAuthLock` and
+  `OAuthGrantRuntime` are gone, `oauth_refresh_outcomes_total{kind,outcome}` and
+  `oauth_refresh_flights_total{kind,how}` replace the lock series and
+  `connector_token_refresh_total` on dashboard 10, and only `oauth_refresh_exchange.py`
+  sends `grant_type=refresh_token` (guarded).
+- 🗄️ **The database bounds its own waits** (ADR-304 amendment, AC-028): every
+  application connection starts with `DATABASE_LOCK_TIMEOUT_MS` (30 s) and
+  `DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS` (5 min) (`database/server_bounds.py`; the
+  migration engine carries none); each bound reached is counted
+  (`db_bound_reached_total`), drawn on dashboard 03 and alerted (`DatabaseBoundReached`,
+  with its evidence recipe).
+- 📬 **A notification is delivered when it is** (ADR-263 amendment, AC-003):
+  `NotificationResult.durably_delivered` — archived, pushed or sent on a channel, never
+  an SSE event alone — is the one verdict. The five consumers that file « delivered »
+  (the phone reapers, the return synthesis, the phone relay, peer messages,
+  diagnostics) pass `require_durable=True`, count a failure on a session of their own
+  and read the archive only after its commit (guard `test_durable_delivery_guard.py`).
+- 🔔 **Alerts reach their teams** (ADR-119 amendment, A07, AC-004): ONE Alertmanager
+  template whose optional blocks disappear when unconfigured; severity routes continue
+  to the team receivers, deduplicated; an audience route no loaded alert reaches fails
+  the build unless it is declared dormant with its reason — the security route is,
+  until a loaded alert carries its component; `task test:alertmanager` runs the
+  production image's real entrypoint against a routing matrix with amtool.
+- 📊 **Every panel reads a produced series** (ADR-178 amendment, AC-006): a reverse
+  guard, panel → producer, in `lint:observability`. Dashboard 26's cost and latency
+  panels read two gauges the hourly rollup computes in PostgreSQL over the North Star's
+  useful set (`product_outcome_cost_eur_mean`, `product_outcome_latency_p50_seconds`);
+  dashboard 14 loses its two hybrid-search panels, whose producer left in v1.25.30
+  (ADR-168), and its row becomes « BM25 Index Cache (RAG Spaces) ». The product
+  freshness alert `ProductAggregatesStale` joins the loaded core (warning,
+  `ALERT_CORE_PRODUCT_AGGREGATES_STALE_SECONDS`, its runbook); the three product
+  behaviour alerts stay unloaded, re-decided by 2026-12-15 on a read-only measurement
+  of production.
+- 🧵 **Nothing blocking on the event loop** (AC-035): Ruff ASYNC2 enforced on `src`,
+  its fifteen sites fixed; speech-to-text uploads stream through
+  `infrastructure/multipart_upload.py`.
+- 🧪 **The coverage floor holds where the code is executed** (ADR-113 amendment, AC-030,
+  AC-032): the floor applies to the unit and integration suites together
+  (`task test:backend:coverage`, combined strictly), the lines a change adds are held
+  at the floor in CI (`task test:backend:diff-coverage`), and the doctrine is written
+  once, in `GUIDE_TESTING.md`.
+- 🌐 **Every new document is in English** (AC-039a): the frozen list of French
+  documents only shrinks (`scripts/audit/doc_language.py`, in `task lint:docs`;
+  `task docs:language:update` removes a translated or deleted document from it, never
+  adds one).
+- ⚙️ **An env template states the code's default, or why it differs** (AC-036, guard
+  `test_env_template_parity_guard.py`): every line states the default, omits the key,
+  or says why it differs (`# … — differs from default: <reason>`). `.env.example` and
+  `.env.prod.example` now carry the values production runs: a configuration copied
+  from them switches on, among others, account export, detached generation,
+  self-diagnosis, the Live mode, Gmail push and push wakes, learned habits, open loops
+  and moments, the register's hash chain, the sandbox's network runs and the ReAct
+  cross-turn cache, with production's budgets and bounds — a discussion run may spend
+  5.00 USD instead of 0.10, the radio 4 EUR a day instead of 2 —, while product
+  analytics stays off, written as differing from production. The minimal template the
+  installer starts from no longer switches detached chat generation off (ADR-117): a
+  new guided installation runs it, like the code's default and production, and
+  `BACKGROUND_RUNS_ENABLED=false` still brings back the inline path. A running
+  instance's `.env` is untouched.
+
+### Fixed
+
+- 🚀 The web image's build no longer misses a module a type-checked test imports:
+  `prepare-prod.ps1` stages them (`$webImportedModules`), and
+  `test_prepare_prod_web_imports_guard.py` derives the list from the imports and refuses
+  a stale entry.
+- 🛑 The graceful shutdown waits, bounded, for the tasks it cancels (A05); Hue clients
+  are closed on every path (A04); the Docker build context leaves out `.next-*` dists
+  (A03); a refused rule set is cached with an exponential wait instead of being retried
+  every pass (A16, reason `rules_refused`); the peer message delivery commits its reads
+  before the model answers (ADR-304); error logs carry an error's type, never its text
+  (ADR-317).
+- 🧰 The pre-commit hook's `.env.example` check no longer asks for what a repository
+  instrument reads: `scripts/audit/` reads its runner's environment (GitHub's
+  `GITHUB_ACTIONS`, the `DIFF_COVERAGE_BASE` the CI hands the diff coverage), never an
+  instance's, so it leaves the scan by location — a runtime read of the same name is
+  still caught.
+
+### Removed
+
+- 🧹 `OAuthLock`, `OAuthGrantRuntime` and `OAUTH_LOCK_TIMEOUT_SECONDS`, with the five
+  `oauth_lock_*` series and `connector_token_refresh_total`;
+  `NotificationResult.success` and `error`; `cancel_all_background_tasks`; the finance
+  alert route, its receiver, its e-mail template and `ALERTMANAGER_FINANCE_TEAM_EMAIL`
+  — no loaded or dormant alert ever reached it (the dormant budget alerts carry
+  `component: cost`), so the variable can leave an `.env.alerting`; the e-mail-only
+  Alertmanager template, its Python validator and webhook matrix (superseded by
+  `task test:alertmanager`); dashboard 14's two `memory_hybrid_search_*` panels; six
+  dead MyPy codes and twelve unused ignores (A14a).
+
+### Tests
+
+- 🛡️ Guards for the findings register, the diff coverage, the coverage union, the
+  durable delivery, the single refresh sender, the env template parity, the document
+  language, the `as unknown as` ratchet (AC-037) and the web bundle's imports; a pytest
+  watchdog (`faulthandler_timeout`) and `timeout-minutes` on every CI job (AC-033a); two
+  tests that never ran now run (AC-033b); one CPU-growth oracle for every linearity
+  guard (ADR-326 amendment, A12); five UI primitives back in the frontend coverage
+  (A13, AC-040); `AssistantAvatar`'s decisions extracted (A15); the
+  `conversations.service` MyPy override removed (A14b, partial).
+- 🔢 `llms.txt` quotes its metric, ADR and release counts through the release tooling:
+  three `CountSurface` entries in `scripts/release/version_surfaces.py`, kept by
+  `task release:sync-counts` and refused stale by the version-surface guard — it still
+  said 630 metrics, 360 ADRs and 286 releases.
+- 🔢 Test inventory: 53,014 backend tests collected across 3,542 files and 14,114
+  frontend tests across 1,128 files; the installer suite runs 285.
+
+### Documentation
+
+- 📚 ADR-363 and ADR-364, and amendments of ADR-021, ADR-029, ADR-047, ADR-098,
+  ADR-113, ADR-119, ADR-143, ADR-178, ADR-263, ADR-302, ADR-304, ADR-326, ADR-358 and
+  ADR-359; the `PasswordResetAbuse`, `RegistrationBurst` and `TurnstileUnavailable`
+  runbooks; the authentication, security, CI/CD, diagnostics and proactive-discussions
+  documents; the audit protocol and public report point at the register; the FAQ and
+  its knowledge corpus, the privacy policy, the public presentations and the living
+  maps, in six languages.
+- 📏 Public counters re-measured at the source: 67,000+ inventoried tests, 634
+  Prometheus metrics, 362 ADRs and 288 releases — `llms.txt` and the Story page's
+  meta description now quote theirs through the release tooling.
+
 ## [3.5.1] - 2026-10-23
 
 **Notifications that no longer repeat themselves.**

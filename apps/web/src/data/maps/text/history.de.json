@@ -1902,6 +1902,16 @@
       "title": "Claudes Cache, von einer Runde zur nächsten wieder gelesen",
       "summary": "Die nächste Runde liest den ganzen Verlauf jetzt aus dem Cache, statt ihn neu zu schreiben, und was sie lesen wird, bleibt eine Stunde lang erhalten, wenn eine Person wartet und häufig austauscht. Diese einstündigen Schreibvorgänge werden zu ihrem richtigen Preis abgerechnet, und das Nachdenken einer früheren Runde geht an das Claude-Modell zurück, das es geschrieben hat — sofern dieses Modell es wieder lesen kann.",
       "src": "ba46216e9d0f"
+    },
+    "363": {
+      "title": "Ein Passwort-Reset, begrenzt pro Konto und an das Konto gebunden",
+      "summary": "Jedes Konto erhält jetzt höchstens wenige Reset-E-Mails, egal von welcher Adresse sie angefordert werden, und ein Link gilt nur für das Konto und das Passwort, für die er ausgestellt wurde. Ein Konto, das sich mit Google anmeldet, erhält statt eines Links einen Hinweis, ein Administrator erhält nichts, und eine Welle von Anfragen oder Registrierungen alarmiert den Betreiber.",
+      "src": "72083d5c2a74"
+    },
+    "364": {
+      "title": "Eine Anti-Roboter-Prüfung an den Passwort-Türen",
+      "summary": "Registrierung, Anmeldung mit Passwort und Anfragen zum Zurücksetzen verlangen jetzt das Token einer Cloudflare-Turnstile-Prüfung, das der Server bestätigen lässt: Ein Skript, das die API ohne Browser aufruft, wird abgewiesen. Die meisten Besucher sehen nichts, und wenn Cloudflare nicht antwortet, geht nur die Anmeldung durch — ein neues Konto oder eine Zurücksetzungs-E-Mail warten.",
+      "src": "5f218ef296be"
     }
   }
 }

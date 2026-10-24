@@ -29,7 +29,6 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
-import httpx
 import pytest
 from fastapi import HTTPException
 
@@ -42,6 +41,7 @@ from src.domains.connectors.models import (
     ConnectorStatus,
     ConnectorType,
 )
+from src.domains.connectors.oauth_refresh_exchange import RefreshRefusal, RefreshRefused
 from src.domains.connectors.schemas import (
     GOOGLE_CONTACTS_SCOPES,
     ConnectorCredentials,
@@ -53,6 +53,7 @@ from src.domains.connectors.schemas import (
     ConnectorUpdate,
 )
 from src.domains.connectors.service import ConnectorService
+from tests.helpers.oauth_refresh_io import fresh_token, install_scripted_door
 
 # Test Fixtures and Helpers
 
@@ -446,55 +447,37 @@ class TestCredentialManagement:
     """Tests for credential refresh and revocation."""
 
     @pytest.mark.asyncio
-    @patch("src.core.security.authorization.check_resource_ownership_by_user_id")
-    @patch("src.core.security.decrypt_data")
-    @patch("src.core.security.encrypt_data")
-    async def test_refresh_connector_credentials_success(
-        self, mock_encrypt, mock_decrypt, mock_check_ownership
-    ):
-        """Test refresh_connector_credentials refreshes token (Lines 188-232)."""
+    async def test_refresh_connector_credentials_success(self, monkeypatch: pytest.MonkeyPatch):
+        """A manual refresh goes through the one door, forced, then re-reads its row."""
         mock_db = AsyncMock()
         service = ConnectorService(mock_db)
-
         user_id = uuid.uuid4()
         connector_id = uuid.uuid4()
-
-        # Mock connector
+        # Still valid: only the force makes the door exchange it.
+        encrypted = create_encrypted_credentials(
+            {
+                "access_token": "old_access",
+                "refresh_token": "refresh_token_123",
+                "token_type": "Bearer",
+                "expires_at": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
+            }
+        )
         mock_connector = create_mock_connector(
             connector_id=connector_id,
             user_id=user_id,
             connector_type=ConnectorType.GOOGLE_GMAIL,
             status=ConnectorStatus.ACTIVE,
             scopes=[],
-            credentials_encrypted="old_encrypted",
+            credentials_encrypted=encrypted,
         )
         service.repository.get_by_id = AsyncMock(return_value=mock_connector)
+        door = install_scripted_door(monkeypatch, mock_connector)
 
-        # Mock credentials
-        old_credentials = ConnectorCredentials(
-            access_token="old_access",
-            refresh_token="refresh_token_123",
-            token_type="Bearer",
-            expires_at=datetime.now(UTC),
-        )
-        new_credentials = ConnectorCredentials(
-            access_token="new_access",
-            refresh_token="refresh_token_123",
-            token_type="Bearer",
-            expires_at=datetime.now(UTC) + timedelta(hours=1),
-        )
-
-        mock_decrypt.return_value = old_credentials.model_dump_json()
-        mock_encrypt.return_value = "new_encrypted"
-        service._refresh_oauth_token = AsyncMock(return_value=new_credentials)
-
-        # Lines 188-232 executed: Decrypt → refresh → encrypt
         result = await service.refresh_connector_credentials(user_id, connector_id)
 
         assert result is not None
-        service._refresh_oauth_token.assert_called_once()
-        mock_decrypt.assert_called_once()
-        mock_encrypt.assert_called_once()
+        assert door.exchanged == ["refresh_token_123"]
+        mock_db.refresh.assert_awaited_once_with(mock_connector)
 
     @pytest.mark.asyncio
     @patch("httpx.AsyncClient")
@@ -1232,7 +1215,9 @@ class TestGetConnectorCredentialsEdgeCases:
     """Tests for get_connector_credentials edge cases."""
 
     @pytest.mark.asyncio
-    async def test_get_connector_credentials_token_expired_refreshes(self):
+    async def test_get_connector_credentials_token_expired_refreshes(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
         """Test expired token triggers refresh (Lines 536-537)."""
         mock_db = AsyncMock()
         service = ConnectorService(mock_db)
@@ -1259,20 +1244,12 @@ class TestGetConnectorCredentialsEdgeCases:
         )
         service.repository.get_by_user_and_type = AsyncMock(return_value=mock_connector)
 
-        # Mock refresh to return new credentials
-        new_credentials = ConnectorCredentials(
-            access_token="new_access_token",
-            refresh_token="refresh_token_123",
-            token_type="Bearer",
-            expires_at=datetime.now(UTC) + timedelta(hours=1),
-        )
-        service._refresh_oauth_token = AsyncMock(return_value=new_credentials)
+        door = install_scripted_door(monkeypatch, mock_connector, answer=fresh_token("new"))
 
-        # Lines 536-537 executed: Token expiration check → refresh
         result = await service.get_connector_credentials(user_id, connector_type)
 
-        assert result is not None
-        service._refresh_oauth_token.assert_called_once()
+        assert result is not None and result.access_token == "new"
+        assert door.exchanged == ["refresh_token_123"]
 
     @pytest.mark.asyncio
     async def test_get_connector_credentials_not_active_returns_none(self):
@@ -1324,353 +1301,129 @@ class TestGetConnectorCredentialsEdgeCases:
         assert exc_info.value.status_code in [400, 500]
 
 
-class TestRefreshOAuthToken:
-    """Tests for _refresh_oauth_token error paths."""
+class TestAnExpiringTokenThroughTheDoor:
+    """What the service answers when the one refresh door cannot refresh (audit AC-029).
 
-    @pytest.mark.asyncio
-    async def test_refresh_oauth_token_no_refresh_token_raises(self):
-        """Test refresh fails when no refresh token (Lines 558-566)."""
-        mock_db = AsyncMock()
-        service = ConnectorService(mock_db)
+    The exchange, its retries and its refusals are proven in
+    ``tests/unit/domains/connectors/test_oauth_refresh_exchange.py``; the door's rules
+    in ``test_oauth_refresh.py``; the stores on PostgreSQL. Here: what reaches the caller.
+    """
 
-        # Mock connector
-        mock_connector = create_mock_connector(
+    @staticmethod
+    def _expired_connector(refresh_token: str | None = "refresh_token_123") -> Connector:
+        data: dict[str, object] = {
+            "access_token": "old_access_token",
+            "token_type": "Bearer",
+            "expires_at": (datetime.now(UTC) - timedelta(hours=1)).isoformat(),
+        }
+        if refresh_token is not None:
+            data["refresh_token"] = refresh_token
+        return create_mock_connector(
             connector_type=ConnectorType.GOOGLE_GMAIL,
             status=ConnectorStatus.ACTIVE,
             scopes=[],
+            credentials_encrypted=create_encrypted_credentials(data),
         )
-
-        # Create credentials WITHOUT refresh_token
-        credentials = ConnectorCredentials(
-            access_token="access_token_123",
-            refresh_token=None,  # NO REFRESH TOKEN
-            token_type="Bearer",
-            expires_at=datetime.now(UTC),
-        )
-
-        # Lines 558-566 executed: No refresh token → raise invalid_input
-        with pytest.raises(Exception) as exc_info:
-            await service._refresh_oauth_token(mock_connector, credentials)
-
-        assert exc_info.value.status_code == 400  # invalid_input
 
     @pytest.mark.asyncio
-    @patch("httpx.AsyncClient")
-    async def test_refresh_oauth_token_network_error_retries_then_fails(self, mock_httpx_client):
-        """Test network error triggers retries then fails (Lines 588-601)."""
-        mock_db = AsyncMock()
-        service = ConnectorService(mock_db)
-
-        # Mock connector
-        mock_connector = create_mock_connector(
-            connector_type=ConnectorType.GOOGLE_GMAIL,
-            status=ConnectorStatus.ACTIVE,
-            scopes=[],
-        )
-
-        # Create credentials with refresh_token
-        credentials = ConnectorCredentials(
-            access_token="access_token_123",
-            refresh_token="refresh_token_456",
-            token_type="Bearer",
-            expires_at=datetime.now(UTC),
-        )
-
-        # Mock HTTP client to raise network error (triggers tenacity retry)
-        mock_client = AsyncMock()
-        mock_client.post = AsyncMock(side_effect=httpx.RequestError("Network unreachable"))
-        mock_httpx_client.return_value.__aenter__.return_value = mock_client
-
-        # Mock repository update for ERROR marking
-        service.repository.update = AsyncMock()
-
-        # Lines 588-601 executed: Network error → retry → fail
-        with pytest.raises(Exception) as exc_info:
-            await service._refresh_oauth_token(mock_connector, credentials)
-
-        # A network outage is temporary: retry, but keep the connector usable.
-        assert mock_client.post.call_count >= 2  # At least 2 attempts
-        assert exc_info.value.status_code == 400  # invalid_input
-        service.repository.update.assert_not_called()
-        mock_db.commit.assert_not_called()
-
-    @pytest.mark.asyncio
-    @patch("httpx.AsyncClient")
-    async def test_refresh_oauth_token_http_status_error_retries(self, mock_httpx_client):
-        """Test HTTP error triggers retries (Lines 588-601)."""
-        mock_db = AsyncMock()
-        service = ConnectorService(mock_db)
-
-        # Mock connector
-        mock_connector = create_mock_connector(
-            connector_type=ConnectorType.GOOGLE_GMAIL,
-            status=ConnectorStatus.ACTIVE,
-            scopes=[],
-        )
-
-        # Create credentials with refresh_token
-        credentials = ConnectorCredentials(
-            access_token="access_token_123",
-            refresh_token="refresh_token_456",
-            token_type="Bearer",
-            expires_at=datetime.now(UTC),
-        )
-
-        # Mock HTTP client to raise HTTPStatusError (triggers tenacity retry)
-        mock_response = MagicMock()
-        mock_response.status_code = 503  # Service unavailable
-        mock_response.request = MagicMock()
-
-        mock_client = AsyncMock()
-        mock_client.post = AsyncMock(
-            side_effect=httpx.HTTPStatusError(
-                "Service unavailable", request=mock_response.request, response=mock_response
-            )
-        )
-        mock_httpx_client.return_value.__aenter__.return_value = mock_client
-
-        # Mock repository update
-        service.repository.update = AsyncMock()
-
-        # Lines 588-601 executed: HTTP error → retry → fail
-        with pytest.raises(Exception) as exc_info:
-            await service._refresh_oauth_token(mock_connector, credentials)
-
-        # Verify retries occurred
-        assert mock_client.post.call_count >= 2
-        assert exc_info.value.status_code == 400  # invalid_input
-        service.repository.update.assert_not_called()
-        mock_db.commit.assert_not_called()
-
-    @pytest.mark.asyncio
-    @patch("httpx.AsyncClient")
-    async def test_refresh_oauth_token_transient_503_preserves_active_status(
-        self, mock_httpx_client
+    async def test_a_token_without_a_refresh_token_is_refused(
+        self, monkeypatch: pytest.MonkeyPatch
     ):
-        mock_db = AsyncMock()
-        service = ConnectorService(mock_db)
-        connector = create_mock_connector(
-            connector_type=ConnectorType.GOOGLE_GMAIL, status=ConnectorStatus.ACTIVE, scopes=[]
-        )
-        credentials = ConnectorCredentials(access_token="old", refresh_token="refresh")
-        response = MagicMock(status_code=503, text="Unavailable")
-        response.json.return_value = {"error": "temporarily_unavailable"}
-        mock_client = AsyncMock()
-        mock_client.post = AsyncMock(return_value=response)
-        mock_httpx_client.return_value.__aenter__.return_value = mock_client
-        service.repository.update = AsyncMock()
+        from src.core.exceptions import ValidationError
 
-        with pytest.raises(Exception) as error:
-            await service._refresh_oauth_token(connector, credentials)
-
-        assert error.value.status_code == 400
-        service.repository.update.assert_not_called()
-        mock_db.commit.assert_not_called()
-
-    @pytest.mark.asyncio
-    @patch("httpx.AsyncClient")
-    async def test_refresh_oauth_token_malformed_success_preserves_credentials(
-        self, mock_httpx_client
-    ):
-        mock_db = AsyncMock()
-        service = ConnectorService(mock_db)
-        connector = create_mock_connector(
-            connector_type=ConnectorType.GOOGLE_GMAIL, status=ConnectorStatus.ACTIVE, scopes=[]
-        )
-        credentials = ConnectorCredentials(access_token="old", refresh_token="refresh")
-        response = MagicMock(status_code=200)
-        response.json.return_value = {"access_token": "new", "expires_in": "broken"}
-        mock_client = AsyncMock()
-        mock_client.post = AsyncMock(return_value=response)
-        mock_httpx_client.return_value.__aenter__.return_value = mock_client
-        service.repository.update_credentials = AsyncMock()
-
-        with pytest.raises(Exception) as error:
-            await service._refresh_oauth_token(connector, credentials)
-
-        assert error.value.status_code == 400
-        service.repository.update_credentials.assert_not_called()
-        mock_db.commit.assert_not_called()
-
-    @pytest.mark.asyncio
-    @patch("httpx.AsyncClient")
-    async def test_refresh_oauth_token_non_200_status_marks_error(self, mock_httpx_client):
-        """Test non-200 status marks connector as ERROR (Lines 603-617)."""
-        mock_db = AsyncMock()
-        service = ConnectorService(mock_db)
-
-        # Mock connector
-        mock_connector = create_mock_connector(
-            connector_type=ConnectorType.GOOGLE_GMAIL,
-            status=ConnectorStatus.ACTIVE,
-            scopes=[],
-        )
-
-        # Create credentials with refresh_token
-        credentials = ConnectorCredentials(
-            access_token="access_token_123",
-            refresh_token="refresh_token_456",
-            token_type="Bearer",
-            expires_at=datetime.now(UTC),
-        )
-
-        # A confirmed invalid_grant requires interactive reconnection.
-        mock_response = MagicMock()  # Use MagicMock, not AsyncMock for response
-        mock_response.status_code = 400
-        mock_response.text = "Invalid refresh token"
-        mock_response.json.return_value = {"error": "invalid_grant"}
-
-        mock_client = AsyncMock()
-        mock_client.post = AsyncMock(return_value=mock_response)
-        mock_httpx_client.return_value.__aenter__.return_value = mock_client
-
-        # Mock repository update
-        service.repository.update = AsyncMock()
-
-        # Lines 603-617 executed: Non-200 → mark ERROR + commit
-        with patch(
-            "src.domains.connectors.service.invalidate_oauth_connector_cache",
-            new_callable=AsyncMock,
-        ) as invalidate:
-            with pytest.raises((HTTPException, ValueError, RuntimeError)):
-                await service._refresh_oauth_token(mock_connector, credentials)
-
-        # Verify connector marked as ERROR and repository updated
-        service.repository.update.assert_called_once()
-        # Verify commit was called (once for ERROR status update)
-        assert mock_db.commit.call_count >= 1
-        invalidate.assert_awaited_once_with(mock_connector.user_id)
-
-    @pytest.mark.asyncio
-    @patch("httpx.AsyncClient")
-    async def test_refresh_oauth_token_unknown_provider_error_does_not_log_secret(
-        self, mock_httpx_client
-    ):
+        connector = self._expired_connector(refresh_token=None)
         service = ConnectorService(AsyncMock())
-        connector = create_mock_connector(
-            connector_type=ConnectorType.GOOGLE_GMAIL,
-            status=ConnectorStatus.ACTIVE,
-            scopes=[],
-        )
-        response = MagicMock(status_code=400)
-        response.json.return_value = {"error": "secret-from-provider"}
-        client = AsyncMock()
-        client.post.return_value = response
-        mock_httpx_client.return_value.__aenter__.return_value = client
-        service.repository.update = AsyncMock()
+        service.repository.get_by_user_and_type = AsyncMock(return_value=connector)
+        door = install_scripted_door(monkeypatch, connector)
 
-        with patch("src.domains.connectors.service.logger") as mock_logger:
-            with pytest.raises(Exception):
-                await service._refresh_oauth_token(
-                    connector, ConnectorCredentials(access_token="old", refresh_token="refresh")
-                )
+        with pytest.raises(ValidationError):
+            await service.get_connector_credentials(connector.user_id, connector.connector_type)
 
-        assert "secret-from-provider" not in str(mock_logger.error.call_args_list)
-        service.repository.update.assert_not_awaited()
+        assert door.exchanged == []
 
     @pytest.mark.asyncio
-    @patch("httpx.AsyncClient")
-    async def test_refresh_oauth_token_success_updates_credentials(self, mock_httpx_client):
-        """Test successful refresh updates credentials (Lines 619-640)."""
-        mock_db = AsyncMock()
-        service = ConnectorService(mock_db)
+    async def test_a_revoked_grant_asks_the_person_to_reconnect(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        from src.core.exceptions import ConnectorTokenExpiredError
 
-        # Mock connector
-        mock_connector = create_mock_connector(
-            connector_type=ConnectorType.GOOGLE_GMAIL,
-            status=ConnectorStatus.ACTIVE,
-            scopes=[],
+        connector = self._expired_connector()
+        service = ConnectorService(AsyncMock())
+        service.repository.get_by_user_and_type = AsyncMock(return_value=connector)
+        door = install_scripted_door(
+            monkeypatch,
+            connector,
+            answer=RefreshRefused(RefreshRefusal.REVOKED, status_code=400),
         )
 
-        # Create credentials with refresh_token
-        credentials = ConnectorCredentials(
-            access_token="old_access_token",
-            refresh_token="refresh_token_456",
-            token_type="Bearer",
-            expires_at=datetime.now(UTC),
-        )
+        with pytest.raises(ConnectorTokenExpiredError):
+            await service.get_connector_credentials(connector.user_id, connector.connector_type)
 
-        # Mock HTTP client to return successful token response
-        mock_response = MagicMock()  # Use MagicMock for sync response
-        mock_response.status_code = 200
-        mock_response.json = MagicMock(
-            return_value={
-                "access_token": "new_access_token",
-                "token_type": "Bearer",
-                "expires_in": 3600,
-                "scope": "https://www.googleapis.com/auth/gmail.readonly",
-            }
-        )
-
-        mock_client = AsyncMock()
-        mock_client.post = AsyncMock(return_value=mock_response)
-        mock_httpx_client.return_value.__aenter__.return_value = mock_client
-
-        # Mock repository update_credentials
-        service.repository.update_credentials = AsyncMock()
-
-        # Lines 619-640 executed: Success → update credentials + commit
-        result = await service._refresh_oauth_token(mock_connector, credentials)
-
-        assert result is not None
-        assert result.access_token == "new_access_token"
-        assert result.refresh_token == "refresh_token_456"  # Preserved
-        service.repository.update_credentials.assert_called_once()
-        mock_db.commit.assert_called_once()
+        # Disconnected only by the door's conditional revocation, on its own session.
+        assert connector.status == ConnectorStatus.ERROR
+        service.db.commit.assert_not_awaited()
+        assert door.exchanged == ["refresh_token_123"]
 
     @pytest.mark.asyncio
-    @patch("httpx.AsyncClient")
-    async def test_refresh_oauth_token_updates_expires_at(self, mock_httpx_client):
-        """Test refresh updates expires_at correctly (Lines 622-625)."""
-        mock_db = AsyncMock()
-        service = ConnectorService(mock_db)
+    async def test_an_outage_keeps_the_connector_and_says_oauth(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        from src.core.exceptions import ValidationError
 
-        # Mock connector
-        mock_connector = create_mock_connector(
-            connector_type=ConnectorType.GOOGLE_GMAIL,
-            status=ConnectorStatus.ACTIVE,
-            scopes=[],
+        connector = self._expired_connector()
+        service = ConnectorService(AsyncMock())
+        service.repository.get_by_user_and_type = AsyncMock(return_value=connector)
+        door = install_scripted_door(
+            monkeypatch, connector, answer=RefreshRefused(RefreshRefusal.TRANSIENT)
         )
 
-        # Create credentials with refresh_token
-        credentials = ConnectorCredentials(
-            access_token="old_access_token",
-            refresh_token="refresh_token_456",
-            token_type="Bearer",
-            expires_at=datetime.now(UTC),
+        with pytest.raises(ValidationError, match="OAuth"):
+            await service.get_connector_credentials(connector.user_id, connector.connector_type)
+
+        assert door.session.execute.await_count == 0  # nothing written, nothing revoked
+
+
+class TestAReadNeverWaitsOnTheProvider:
+    """Reading and refreshing are two moments (ADR-304): a caller that OWNS its session
+    ends it after the read, and only then asks the door for a fresh token."""
+
+    @pytest.mark.asyncio
+    async def test_reading_the_stored_credentials_calls_no_provider(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        connector = TestAnExpiringTokenThroughTheDoor._expired_connector()
+        service = ConnectorService(AsyncMock())
+        service.repository.get_by_user_and_type = AsyncMock(return_value=connector)
+        door = install_scripted_door(monkeypatch, connector, answer=fresh_token("issued"))
+
+        stored = await service.read_connector_credentials(
+            connector.user_id, connector.connector_type
         )
 
-        # Mock HTTP client to return token response with expires_in
-        expires_in_seconds = 7200  # 2 hours
-        mock_response = MagicMock()  # Use MagicMock for sync response
-        mock_response.status_code = 200
-        mock_response.json = MagicMock(
-            return_value={
-                "access_token": "new_access_token",
-                "token_type": "Bearer",
-                "expires_in": expires_in_seconds,
-                "scope": "https://www.googleapis.com/auth/gmail.readonly",
-            }
+        assert stored is not None
+        assert door.exchanged == []
+        assert (await stored.fresh()).access_token == "issued"
+        assert door.exchanged == ["refresh_token_123"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("row", ["missing", "inactive"])
+    async def test_nothing_servable_reads_as_nothing(self, row: str):
+        connector = (
+            None if row == "missing" else create_mock_connector(status=ConnectorStatus.ERROR)
         )
+        service = ConnectorService(AsyncMock())
+        service.repository.get_by_user_and_type = AsyncMock(return_value=connector)
 
-        mock_client = AsyncMock()
-        mock_client.post = AsyncMock(return_value=mock_response)
-        mock_httpx_client.return_value.__aenter__.return_value = mock_client
+        assert await service.read_connector_credentials(uuid4(), ConnectorType.GOOGLE_GMAIL) is None
 
-        # Mock repository update_credentials
-        service.repository.update_credentials = AsyncMock()
+    @pytest.mark.asyncio
+    async def test_a_revoked_connector_is_refused_at_the_read(self):
+        connector = create_mock_connector(status=ConnectorStatus.REVOKED)
+        service = ConnectorService(AsyncMock())
+        service.repository.get_by_user_and_type = AsyncMock(return_value=connector)
 
-        # Lines 622-625 executed: expires_at calculation
-        before_refresh = datetime.now(UTC)
-        result = await service._refresh_oauth_token(mock_connector, credentials)
-        datetime.now(UTC)
-
-        assert result is not None
-        assert result.expires_at is not None
-
-        # Verify expires_at is approximately now + expires_in (within 10 seconds tolerance)
-        expected_expiry = before_refresh + timedelta(seconds=expires_in_seconds)
-        assert abs((result.expires_at - expected_expiry).total_seconds()) < 10
+        with pytest.raises(ConnectorRevokedError):
+            await service.read_connector_credentials(connector.user_id, connector.connector_type)
 
 
 # ========================================
@@ -2379,7 +2132,9 @@ class TestGetConnectorCredentialsSafetyMargin:
     """
 
     @pytest.mark.asyncio
-    async def test_get_connector_credentials_refreshes_with_safety_margin(self):
+    async def test_get_connector_credentials_refreshes_with_safety_margin(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
         """
         Test that get_connector_credentials triggers refresh when token expires
         within the safety margin (5 minutes), even if not yet expired.
@@ -2420,18 +2175,22 @@ class TestGetConnectorCredentialsSafetyMargin:
             token_type="Bearer",
             expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
-        service._refresh_oauth_token = AsyncMock(return_value=new_credentials)
+        door = install_scripted_door(
+            monkeypatch, mock_connector, answer=fresh_token(new_credentials.access_token)
+        )
 
         # Act: Get credentials (should trigger refresh due to safety margin)
         result = await service.get_connector_credentials(user_id, connector_type)
 
         # Assert: Refresh was triggered (Bug #2 fix)
         assert result is not None
-        service._refresh_oauth_token.assert_called_once()
+        assert door.exchanged == ["refresh_token_123"]
         assert result.access_token == "new_access_token"
 
     @pytest.mark.asyncio
-    async def test_get_connector_credentials_no_refresh_when_valid(self):
+    async def test_get_connector_credentials_no_refresh_when_valid(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
         """
         Test that get_connector_credentials does NOT refresh when token
         is valid and outside the safety margin.
@@ -2463,18 +2222,20 @@ class TestGetConnectorCredentialsSafetyMargin:
         service.repository.get_by_user_and_type = AsyncMock(return_value=mock_connector)
 
         # Mock refresh (should NOT be called)
-        service._refresh_oauth_token = AsyncMock()
+        door = install_scripted_door(monkeypatch, mock_connector)
 
         # Act: Get credentials (should NOT trigger refresh)
         result = await service.get_connector_credentials(user_id, connector_type)
 
         # Assert: No refresh triggered
         assert result is not None
-        service._refresh_oauth_token.assert_not_called()
+        assert door.exchanged == []
         assert result.access_token == "valid_access_token"
 
     @pytest.mark.asyncio
-    async def test_get_connector_credentials_refreshes_exactly_at_margin_boundary(self):
+    async def test_get_connector_credentials_refreshes_exactly_at_margin_boundary(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
         """
         Test edge case: token expires exactly at the margin boundary (5 minutes).
         Should still trigger refresh.
@@ -2515,14 +2276,16 @@ class TestGetConnectorCredentialsSafetyMargin:
             token_type="Bearer",
             expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
-        service._refresh_oauth_token = AsyncMock(return_value=new_credentials)
+        door = install_scripted_door(
+            monkeypatch, mock_connector, answer=fresh_token(new_credentials.access_token)
+        )
 
         # Act
         result = await service.get_connector_credentials(user_id, connector_type)
 
         # Assert: Refresh triggered at boundary
         assert result is not None
-        service._refresh_oauth_token.assert_called_once()
+        assert door.exchanged == ["refresh_token_123"]
 
 
 async def _revoke_three_connectors_of_two_people(

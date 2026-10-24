@@ -21,7 +21,11 @@ from src.core.i18n import normalize_language
 from src.core.i18n_diagnostics import get_incident_notification
 from src.domains.diagnostics.repository import DiagnosticsRepository
 from src.infrastructure.cache.redis import get_redis_cache
-from src.infrastructure.proactive.notification import NotificationDispatcher
+from src.infrastructure.database.session import get_db_context
+from src.infrastructure.proactive.notification import (
+    NotificationDispatcher,
+    NotificationNotDelivered,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -71,7 +75,7 @@ async def _cooldown_acquired(correlation_key: str) -> bool:
         )
         return bool(acquired)
     except Exception as exc:
-        logger.warning("diagnostics_notify_cooldown_unavailable", error=str(exc))
+        logger.warning("diagnostics_notify_cooldown_unavailable", error_type=type(exc).__name__)
         return True
 
 
@@ -90,10 +94,14 @@ async def notify_admins_of_incident(
         correlation_key: Deduplication identity (cooldown key).
         severity: 'critical' or 'warning'.
         title: Incident human title.
-        db: Caller's session (the caller owns the transaction).
+        db: Caller's session: it reads the audience and records ``notified_at``,
+            and the caller commits it. Each admin's notification runs on a
+            session of its own, so none of them can abort it.
 
     Returns:
-        Number of superusers notified (0 when the cooldown is active).
+        Number of superusers a durable channel reached — archived, pushed or
+        sent on an external channel; an SSE event alone is not counted (audit
+        AC-003). 0 when the cooldown is active.
     """
     if not await _cooldown_acquired(correlation_key):
         logger.debug("diagnostics_notify_cooldown_active", correlation_key=correlation_key)
@@ -114,16 +122,26 @@ async def notify_admins_of_incident(
             title=title,
         )
         try:
-            await dispatcher.dispatch(
-                user=admin,
-                content=body,
-                task_type=DIAGNOSTICS_TASK_TYPE,
-                target_id=str(incident_id),
-                metadata={"severity": severity, "correlation_key": correlation_key},
-                db=db,
-                title=notif_title,
-            )
+            # On a session of its own: an archive failing in the database aborts
+            # the transaction it ran on (measured on PostgreSQL: 25P02 on every
+            # later statement), and shared, that was every later admin's and
+            # the caller's.
+            async with get_db_context() as admin_db:
+                await dispatcher.dispatch(
+                    user=admin,
+                    content=body,
+                    task_type=DIAGNOSTICS_TASK_TYPE,
+                    target_id=str(incident_id),
+                    metadata={"severity": severity, "correlation_key": correlation_key},
+                    db=admin_db,
+                    title=notif_title,
+                    require_durable=True,
+                )
             sent += 1
+        except NotificationNotDelivered:
+            # Nothing this admin finds later received it: not counted, so the
+            # incident is never marked notified on its strength alone.
+            logger.warning("diagnostics_notify_not_delivered", user_id=str(admin.id))
         except Exception:
             # One admin's broken channel must not starve the others.
             logger.exception("diagnostics_notify_dispatch_failed", user_id=str(admin.id))

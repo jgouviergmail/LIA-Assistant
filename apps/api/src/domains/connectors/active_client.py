@@ -9,10 +9,11 @@ a transaction for as long as the provider answered: measured in production on
 2026-09-22 as ``idle in transaction`` sessions of 11 to 330 seconds.
 
 ``open_active_client`` reads everything a surface needs in ONE short session
-of its own — the provider, the credentials, and, when asked, the owner's
+of its own — the provider, the stored credentials, and, when asked, the owner's
 configured default container (``owner_defaults``) — closes it, and only then
-builds the client, on a ``DetachedConnectorService``: a token refresh opens its
-own session for the length of the refresh. The caller holds nothing.
+freshens the token (the refresh door runs on sessions of its own, audit AC-029)
+and builds the client, on a ``DetachedConnectorService``. The caller holds
+nothing, and nothing of the door's waits on the token endpoint in a transaction.
 
 **Every refusal is NAMED** (``ClientUnavailable``), and the caller decides what
 it means: « connect a calendar » and « your connection expired » are two
@@ -30,12 +31,14 @@ from uuid import UUID
 
 from src.domains.connectors.clients.registry import ClientRegistry
 from src.domains.connectors.models import ConnectorType
+from src.domains.connectors.oauth_refresh_targets import StoredCredentials
 from src.domains.connectors.preferences.owner_defaults import (
     OwnerContainer,
     read_owner_container_name,
 )
 from src.domains.connectors.provider_authority import resolve_active_connector_fresh
 from src.domains.connectors.provider_resolver import resolve_active_connector
+from src.domains.connectors.schemas import AppleCredentials
 from src.domains.connectors.service import ConnectorService
 from src.domains.connectors.session_scope import DetachedConnectorService
 
@@ -68,7 +71,8 @@ class ActiveClient:
 @dataclass(frozen=True, slots=True)
 class _Opening:
     connector_type: ConnectorType
-    credentials: Any
+    #: Apple's are static; an OAuth token is freshened once the session is closed.
+    credentials: AppleCredentials | StoredCredentials
     preferred_name: str | None
 
 
@@ -101,7 +105,12 @@ async def open_active_client(
     if client_class is None:
         yield ClientUnavailable.NO_CLIENT
         return
-    client = client_class(user_id, opening.credentials, connectors)
+    credentials = (
+        await opening.credentials.fresh()
+        if isinstance(opening.credentials, StoredCredentials)
+        else opening.credentials
+    )
+    client = client_class(user_id, credentials, connectors)
     try:
         yield ActiveClient(
             client=client,
@@ -130,10 +139,10 @@ async def _read_opening(
     )
     if connector_type is None:
         return ClientUnavailable.NO_CONNECTOR
-    credentials: Any = (
+    credentials: AppleCredentials | StoredCredentials | None = (
         await service.get_apple_credentials(user_id, connector_type)
         if connector_type.is_apple
-        else await service.get_connector_credentials(user_id, connector_type)
+        else await service.read_connector_credentials(user_id, connector_type)
     )
     if not credentials:
         return ClientUnavailable.NO_CREDENTIALS

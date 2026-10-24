@@ -453,7 +453,9 @@ async def deliver_shared_image(shared: SharedImage) -> bool:
         shared: The committed share.
 
     Returns:
-        Whether any road (archive, live event, push) delivered it.
+        Whether a road the recipient finds later (the chat's archive, a push,
+        an external channel) delivered it — a live event alone is not one
+        (audit AC-003).
     """
     from src.infrastructure.database import get_db_context
     from src.infrastructure.proactive.notification import NotificationDispatcher
@@ -488,7 +490,7 @@ async def deliver_shared_image(shared: SharedImage) -> bool:
             error_type=type(exc).__name__,
         )
         return False
-    return result.success
+    return result.durably_delivered
 
 
 __all__ = [

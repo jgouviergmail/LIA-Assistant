@@ -21,6 +21,7 @@ from src.domains.peers.constants import PEER_IMAGE_TASK_TYPE, PROACTIVE_PEER_IMA
 from src.domains.peers.image_share import SharedImage, deliver_shared_image, shared_image_body
 from src.domains.peers.router import share_image_with_connection
 from src.domains.peers.schemas import ImageShareCreate
+from src.infrastructure.proactive.notification import NotificationResult
 
 pytestmark = pytest.mark.unit
 
@@ -84,7 +85,7 @@ class TestTheDelivery:
     async def test_the_card_is_the_generated_image_card(self) -> None:
         shared = _shared("Pour toi")
         delivered, dispatch = await self._deliver(
-            shared, dispatch=AsyncMock(return_value=SimpleNamespace(success=True))
+            shared, dispatch=AsyncMock(return_value=NotificationResult(archived=True))
         )
 
         assert delivered is True
@@ -109,6 +110,15 @@ class TestTheDelivery:
     async def test_a_dispatch_failure_is_reported_never_raised(self) -> None:
         delivered, _dispatch = await self._deliver(
             _shared(), dispatch=AsyncMock(side_effect=RuntimeError("redis down"))
+        )
+
+        assert delivered is False
+
+    async def test_a_live_event_alone_is_not_reported_as_delivered(self) -> None:
+        """The sender reads « delivered »: an SSE event alone left no bubble in the
+        recipient's chat and no push — only their gallery holds it (audit AC-003)."""
+        delivered, _dispatch = await self._deliver(
+            _shared(), dispatch=AsyncMock(return_value=NotificationResult(sse_sent=True))
         )
 
         assert delivered is False

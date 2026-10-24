@@ -1,26 +1,20 @@
 """Post-ACK cleanup of the exact old file only; missing/changed files are never invented."""
 
 import asyncio
-from pathlib import Path
 from uuid import UUID
 
-from src.core.config import settings
+from src.domains.rag_spaces.document_access import owned_document_path
 from src.infrastructure.file_transfer import LocalFileRead
 
 
 async def cleanup_deleted_document_file(
     actor_id: UUID, space_id: UUID, filename: str, expected_digest: str | None
 ) -> bool:
-    root = Path(settings.rag_spaces_storage_path).resolve()
-    account = root / str(actor_id)
-    scope = account / str(space_id)
-    path = scope / filename
-    if account.is_symlink() or scope.is_symlink() or path.is_symlink():
-        return False
-    if scope.resolve() != scope or path.resolve().parent != scope or path.name != filename:
+    path = await asyncio.to_thread(owned_document_path, actor_id, space_id, filename)
+    if path is None:
         return False
     try:
-        reader = LocalFileRead.open(path)
+        reader = await LocalFileRead.async_open(path)
     except FileNotFoundError:
         return True
     except OSError, ValueError:

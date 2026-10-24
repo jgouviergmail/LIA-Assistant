@@ -41,12 +41,11 @@ class TestNotificationResult:
     """Tests for the NotificationResult dataclass."""
 
     def test_channel_sent_default_zero(self) -> None:
-        result = NotificationResult(success=True)
+        result = NotificationResult()
         assert result.channel_sent == 0
 
-    def test_failure_has_zero_channel_sent(self) -> None:
-        result = NotificationResult.failure("test error")
-        assert result.channel_sent == 0
+    def test_a_result_no_channel_answered_is_no_delivery(self) -> None:
+        assert not NotificationResult().durably_delivered
 
 
 # =============================================================================

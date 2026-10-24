@@ -53,7 +53,9 @@ async def dispatch_proactive_notification(
             more than once — each is its own claimed action (ADR-263).
 
     Returns:
-        True when at least one channel accepted it.
+        True when a channel the person finds later accepted it — archived,
+        pushed or sent on an external channel; an SSE event alone is not one
+        (audit AC-003).
     """
     # Imported here, not at module level: this module is imported at boot to
     # claim the seam, and pulling the whole notification stack in at that
@@ -80,8 +82,9 @@ async def dispatch_proactive_notification(
                 run_id=run_id,
             )
             # The explicit result, never the absence of an exception: a
-            # dispatch that reached no channel is a notification nobody got.
-            delivered = bool(result.success)
+            # dispatch that reached no channel the person finds later is a
+            # notification nobody got.
+            delivered = result.durably_delivered
             notified.delivered = delivered
             return delivered
     except Exception as dispatch_error:  # noqa: BLE001 — never undoes a durable write
@@ -90,7 +93,7 @@ async def dispatch_proactive_notification(
             task_type=task_type,
             target_id=target_id,
             user_id=str(getattr(user, "id", "")),
-            error=str(dispatch_error),
+            error_type=type(dispatch_error).__name__,
         )
         return False
 

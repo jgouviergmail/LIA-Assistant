@@ -371,3 +371,18 @@ preserving its label, closes each emitted pair per message and preserves code
 line breaks at cuts. A prefix made only of whitespace that would fill an empty
 part is discarded: Telegram cannot display an empty message. These boundaries
 are also asserted using the actual Markdown formatter as the producer.
+
+## Amendment 2026-10-23 — one measurement for every linearity guard
+
+Audit A12: three guards carried their own copy of the growth criterion — the
+flatteners, the machine-tag filter, the compaction's URL trimming — and the last one
+timed a single call per size on `time.thread_time`, which Windows advances by 15.6 ms
+ticks, so its ratio judged noise. They now share
+[`tests/support/cpu_growth.py`](../../apps/api/tests/support/cpu_growth.py): the
+thread's cycle-precise clock, interleaved pairs whose median decides, the same floors
+and the same ×8, batched where a caller's calls are short. Its arithmetic is pinned on a
+scripted clock and it refuses a real quadratic function
+(`tests/unit/test_cpu_growth_support.py`), sized so its small run clears the small
+floor: under that floor the small run reads as the floor itself, and a quadratic
+function was measured to pass (1.5 ms to 26.5 ms read ×5.3) — a witness has to be
+sized with that in mind, which the helper says.

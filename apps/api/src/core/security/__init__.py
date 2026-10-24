@@ -29,6 +29,7 @@ from src.core.security.utils import (
     get_password_hash,
     is_token_used,
     mark_token_used,
+    reset_token_matches_account,
     verify_password,
     verify_single_use_token,
     verify_state_token,
@@ -64,4 +65,6 @@ __all__ = [
     "mark_token_used",
     # Single-use token verification (DRY helper)
     "verify_single_use_token",
+    # Password-reset token bound to its account (ADR-363)
+    "reset_token_matches_account",
 ]

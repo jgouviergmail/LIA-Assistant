@@ -1471,7 +1471,7 @@ class TestProviderClientLifecycle:
             heartbeat_context_emails_max=5,
         )
         service = MagicMock()
-        service.get_connector_credentials = AsyncMock(return_value=MagicMock())
+        service.read_connector_credentials = AsyncMock(return_value=MagicMock())
         service.get_apple_credentials = AsyncMock(return_value=MagicMock())
         open_sessions: list[int] = []
         units = {"open": 0}

@@ -2,8 +2,8 @@
 
 > I tuoi dati. Il tuo assistente. Le tue regole.
 
-**Versione**: 1.1
-**Data**: 2026-10-12
+**Versione**: 1.2
+**Data**: 2026-10-24
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -137,6 +137,9 @@ I controlli di oscuramento proteggono i log tecnici; non anonimizzano automatica
 - L'autenticazione si basa su cookie sicuri (HttpOnly, Secure, SameSite)
 - Il JavaScript lato client non può leggere il cookie HttpOnly della sessione dell'applicazione; le credenziali temporanee per le sessioni vocali o degli avatar abilitate nel browser hanno uno scopo diverso
 
+**Verifica anti-robot (facoltativa):**
+Quando l'operatore la attiva, le pagine di registrazione, accesso e reimpostazione della password eseguono Cloudflare Turnstile. In un riquadro servito da Cloudflare, analizza segnali tecnici del tuo browser per distinguere una persona da uno script, poi consegna alla pagina un token monouso che il server di LIA fa verificare a Cloudflare. LIA non conserva nulla di questi segnali e non imposta alcun cookie per questa verifica; Cloudflare li tratta secondo la propria informativa sulla privacy.
+
 **Log sicuri:**
 I log tecnici utilizzano un formato JSON strutturato (tramite structlog), con regole per omettere i contenuti citati dell'utente e oscurare segreti e informazioni personali riconosciuti. Questi controlli non rendono anonimo ogni archivio diagnostico.
 
@@ -224,7 +227,7 @@ LIA utilizza un numero minimo di cookie, esclusivamente funzionali:
 - Nessun cookie pubblicitario
 - Nessun cookie di analisi di terze parti (Google Analytics, ecc.)
 - Nessun pixel di tracciamento
-- Nessuna rilevazione dell'impronta del browser (fingerprinting)
+- Nessuna rilevazione dell'impronta del browser (fingerprinting) da parte di LIA (la verifica anti-robot facoltativa della sezione 5 è quella di Cloudflare)
 
 I cookie utilizzati da LIA sono strettamente necessari al funzionamento del servizio oppure riguardano una tua scelta esplicita (preferenza linguistica). In conformità alla direttiva ePrivacy, i cookie strettamente necessari non richiedono un consenso preventivo.
 

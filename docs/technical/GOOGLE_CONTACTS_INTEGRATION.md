@@ -274,50 +274,30 @@ client = GooglePeopleClient(
 await client.close()
 ```
 
-### OAuth Token Refresh (Redis Lock)
+### OAuth Token Refresh (une seule porte)
 
-**Problème** : Multiples coroutines simultanées peuvent tenter de refresh le token.
+**Problème** : plusieurs coroutines — et plusieurs workers — peuvent tenter de
+rafraîchir le même token. Ce n'est pas un gaspillage mais un danger : un fournisseur
+qui fait tourner son refresh token répond `invalid_grant` au second échange.
 
-**Solution** : Redis lock distribué avec double-check pattern.
+**Solution** : le client ne rafraîchit rien lui-même. Il lit le token stocké dans son
+unité de travail, puis demande un token frais à la porte unique
+(`connectors/oauth_refresh.py`, [ADR-302, amendement du 2026-10-23](../architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md)) :
 
 ```python
-async def _refresh_token_if_needed(self) -> str:
-    """Refresh OAuth token if expired, using Redis lock."""
-    from datetime import UTC, datetime
-
-    # Check if token expired
-    if self.credentials.expires_at and self.credentials.expires_at < datetime.now(UTC):
-        # Use Redis lock to prevent multiple refresh attempts
-        redis_session = await get_redis_session()
-        async with OAuthLock(redis_session, self.user_id, ConnectorType.GOOGLE_CONTACTS):
-            # Double-check token still expired (another coroutine might have refreshed)
-            fresh_credentials = await self.connector_service.get_connector_credentials(
-                self.user_id, ConnectorType.GOOGLE_CONTACTS
-            )
-
-            if (
-                fresh_credentials
-                and fresh_credentials.expires_at
-                and fresh_credentials.expires_at > datetime.now(UTC)
-            ):
-                logger.debug("oauth_token_already_refreshed_by_another_process")
-                self.credentials = fresh_credentials
-                return str(fresh_credentials.access_token)
-
-            # Refresh token
-            refreshed_credentials = await self.connector_service._refresh_oauth_token(
-                connector, self.credentials
-            )
-            self.credentials = refreshed_credentials
-
-    return self.credentials.access_token
+async with connector_unit_of_work(self.connector_service) as service:
+    stored = await service.read_connector_credentials(self.user_id, self.connector_type)
+# L'unité est terminée : aucune transaction n'attend le point de jeton (ADR-304).
+self.credentials = await stored.fresh()
 ```
 
 **Pattern** :
-1. Acquérir lock Redis (`OAuthLock`)
-2. Double-check token encore expiré (évite refresh redondant)
-3. Refresh si nécessaire
-4. Release lock automatique (context manager)
+1. Un token encore valide au-delà de la marge est servi tel quel (aucune lecture,
+   aucune réclamation, aucun échange).
+2. Sinon, un seul échange par token : les appels d'un worker rejoignent le même vol,
+   les workers se coordonnent par une réclamation Redis et lisent le verdict publié.
+3. L'écriture n'aboutit que sur le token d'origine ; sinon le token du gagnant est servi.
+4. `invalid_grant` ne déconnecte que si le token refusé est toujours celui stocké.
 
 ### Rate Limiting (600 req/min)
 
@@ -1044,26 +1024,23 @@ class TestSearchContactsTool:
 
 **Symptôme** : Logs montrent refresh continu du token.
 
-**Cause** : Race condition entre coroutines, lock Redis non acquis.
+**Cause** : chaque rafraîchissement passe par la porte unique, qui compte ses issues.
 
-**Solution** :
+**Solution** : lire `oauth_refresh_outcomes_total{kind, outcome}` et
+`oauth_refresh_flights_total{kind, how}` (tableau 10), et les journaux
+`oauth_refresh_concluded` (champs `kind`, `outcome`). Des `fresh_already` répétés
+signalent des appelants qui relisent un token déjà rafraîchi ; des
+`write_contended` signalent un appelant dont la transaction ouverte tient la ligne du
+connecteur.
 
 ```python
-# Vérifier OAuthLock acquisition
-import structlog
-logger = structlog.get_logger(__name__)
-
-async with OAuthLock(redis_session, user_id, ConnectorType.GOOGLE_CONTACTS):
-    logger.info("oauth_lock_acquired", user_id=str(user_id))
-    # Refresh logic
-    logger.info("oauth_lock_released", user_id=str(user_id))
-
-# Si lock jamais acquis, vérifier Redis connectivity
+# Les réclamations et verdicts de la porte vivent dans Redis : sans Redis, chaque
+# worker échange seul et l'écriture conditionnée garde un seul token.
 try:
     await redis_session.ping()
     logger.info("redis_connection_ok")
 except Exception as e:
-    logger.error("redis_connection_failed", error=str(e))
+    logger.error("redis_connection_failed", error_type=type(e).__name__)
 ```
 
 ### Problème 2: Cache Toujours Miss

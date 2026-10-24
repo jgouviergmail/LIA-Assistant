@@ -81,6 +81,7 @@ _ALLOWED = re.compile(
     r"|excalidraw\.com"  # public MCP server in the sample config
     r"|agentskills\.io"  # the skills standard this implements
     r"|openweathermap\.org"  # public weather API
+    r"|challenges\.cloudflare\.com"  # Cloudflare Turnstile's siteverify (ADR-364)
     r"|lia-assistant\.com"  # the project's generic sender, not a host
     r")",
     re.IGNORECASE,

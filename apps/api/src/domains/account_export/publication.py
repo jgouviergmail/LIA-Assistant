@@ -6,6 +6,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.domains.account_export.archive_stream import run_disk_io
 from src.domains.account_export.models import AccountExportJob
 from src.domains.users.models import User
 
@@ -39,12 +40,14 @@ async def publish_archive(
     if job is None or job.status != "running":
         raise ExportInvalidatedError("export_invalidated")
     # Same filesystem, atomic rename; persist its cleanup pointer in this fence.
-    if final_path.exists():
+    # Each disk call runs in a worker thread that a cancellation waits for (AC-035),
+    # so a rename that landed is taken back whenever the fence does not close.
+    if await run_disk_io(final_path.exists):
         raise ExportInvalidatedError("export_already_exists")
-    tmp_path.replace(final_path)
     try:
+        await run_disk_io(tmp_path.replace, final_path)
         job.file_path = str(final_path)
         await db.flush()
     except BaseException:
-        final_path.unlink(missing_ok=True)
+        await run_disk_io(final_path.unlink, missing_ok=True)
         raise

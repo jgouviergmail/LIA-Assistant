@@ -15,6 +15,7 @@ import src.domains.telephony.reapers as rp
 import src.domains.telephony.router as rt
 from src.core.config import settings
 from src.domains.telephony.models import CallKind, PhoneCallOutcome, PhoneCallStatus
+from tests.helpers.notifications import ScriptedChannels, scripted_dispatcher, sse_only
 
 
 def _install_reaper_db(monkeypatch, repo_cls) -> dict:
@@ -71,13 +72,17 @@ async def test_retention_reaper_purges_and_commits(monkeypatch) -> None:
     assert db_captured["committed"] is True
 
 
-def _install_notification_reaper(monkeypatch, *, pending, user, dispatch_error=None) -> dict:
+def _install_notification_reaper(
+    monkeypatch, *, pending, user, channels: ScriptedChannels | None = None
+) -> dict:
     """Wire the notification reaper's collaborators to in-memory fakes.
 
-    Returns a dict recording the dispatched target_ids and the delivered/failed
-    call_ids so a test can assert the recovery outcome.
+    The dispatcher is the REAL one over scripted channels (audit AC-003): the
+    reaper is judged on what a dispatch actually answers. Returns a dict
+    recording the dispatched target_ids and the delivered/failed call_ids.
     """
-    actions: dict = {"dispatched": [], "delivered": [], "failed": []}
+    channels = channels if channels is not None else ScriptedChannels()
+    actions: dict = {"channels": channels, "delivered": [], "failed": []}
 
     class _Repo:
         def __init__(self, db) -> None:  # noqa: ANN001
@@ -100,13 +105,6 @@ def _install_notification_reaper(monkeypatch, *, pending, user, dispatch_error=N
             actions["stale_relay_cutoff"] = max_age_cutoff
             return 0
 
-    class _Dispatcher:
-        async def dispatch(self, **kwargs):
-            if dispatch_error is not None:
-                raise dispatch_error
-            actions["dispatched"].append(kwargs["target_id"])
-            return None
-
     @contextlib.asynccontextmanager
     async def _ctx():
         async def _get(_model, _ident):
@@ -120,9 +118,14 @@ def _install_notification_reaper(monkeypatch, *, pending, user, dispatch_error=N
     monkeypatch.setattr(rp, "TelephonyRepository", _Repo)
     monkeypatch.setattr(rp, "get_db_context", _ctx)
     monkeypatch.setattr(
-        "src.infrastructure.proactive.notification.NotificationDispatcher", _Dispatcher
+        "src.infrastructure.proactive.notification.NotificationDispatcher",
+        scripted_dispatcher(channels),
     )
     return actions
+
+
+def _dispatched(actions: dict) -> list[str]:
+    return [sent.target_id for sent in actions["channels"].sent]
 
 
 def _pending_call(call_id=None, user_id=None):
@@ -143,23 +146,39 @@ async def test_notification_reaper_recovers_pending(monkeypatch) -> None:
 
     await rp.telephony_notification_reaper()
 
-    assert actions["dispatched"] == [str(call.id)]
+    assert _dispatched(actions) == [str(call.id)]
     assert actions["delivered"] == [call.id]
     assert actions["failed"] == []
 
 
 @pytest.mark.unit
 async def test_notification_reaper_transient_failure_is_bounded(monkeypatch) -> None:
-    """A dispatch failure records a bounded failure and does NOT mark delivered."""
+    """A dispatch that reached nobody records a bounded failure, never a delivery."""
     call = _pending_call()
     user = SimpleNamespace(id=call.user_id, language="fr")
+    channels = ScriptedChannels(archive_error=RuntimeError("boom"), sse=False)
     actions = _install_notification_reaper(
-        monkeypatch, pending=[call], user=user, dispatch_error=RuntimeError("boom")
+        monkeypatch, pending=[call], user=user, channels=channels
     )
 
     await rp.telephony_notification_reaper()
 
-    assert actions["dispatched"] == []
+    assert actions["delivered"] == []
+    assert actions["failed"] == [call.id]
+
+
+@pytest.mark.unit
+async def test_notification_reaper_never_files_an_sse_event_as_delivered(monkeypatch) -> None:
+    """An SSE event alone reached an open tab or nobody: the row stays to retry (AC-003)."""
+    call = _pending_call()
+    user = SimpleNamespace(id=call.user_id, language="fr")
+    actions = _install_notification_reaper(
+        monkeypatch, pending=[call], user=user, channels=sse_only()
+    )
+
+    await rp.telephony_notification_reaper()
+
+    assert _dispatched(actions) == [str(call.id)]
     assert actions["delivered"] == []
     assert actions["failed"] == [call.id]
 
@@ -172,7 +191,7 @@ async def test_notification_reaper_skips_when_user_gone(monkeypatch) -> None:
 
     await rp.telephony_notification_reaper()
 
-    assert actions["dispatched"] == []
+    assert _dispatched(actions) == []
     assert actions["delivered"] == [call.id]  # closed without a dispatch
 
 
@@ -180,11 +199,8 @@ async def test_notification_reaper_skips_when_user_gone(monkeypatch) -> None:
 async def test_notification_reaper_noop_when_nothing_pending(monkeypatch) -> None:
     actions = _install_notification_reaper(monkeypatch, pending=[], user=None)
     await rp.telephony_notification_reaper()
-    assert {k: v for k, v in actions.items() if k != "stale_relay_cutoff"} == {
-        "dispatched": [],
-        "delivered": [],
-        "failed": [],
-    }
+    assert _dispatched(actions) == []
+    assert actions["delivered"] == [] and actions["failed"] == []
 
 
 @pytest.mark.unit

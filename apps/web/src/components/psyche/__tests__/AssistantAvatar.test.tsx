@@ -203,3 +203,83 @@ describe('AssistantAvatar mood-ring ping (I6)', () => {
     expect(container.querySelector('.animate-mood-ping')).toBeNull();
   });
 });
+
+/**
+ * jsdom fires no animation event, so one is dispatched, carrying its animation
+ * name. Without `AnimationEvent` in `window`, React DOM listens to the prefixed
+ * `webkitAnimationEnd`: both names are sent, React hears exactly one of them.
+ */
+function endAnimation(element: Element, animationName: string): void {
+  for (const type of ['animationend', 'webkitAnimationEnd']) {
+    const event = new Event(type, { bubbles: true });
+    Object.defineProperty(event, 'animationName', { value: animationName });
+    act(() => {
+      element.dispatchEvent(event);
+    });
+  }
+}
+
+function only(container: HTMLElement, selector: string): Element {
+  const found = container.querySelectorAll(selector);
+  if (found.length === 0) throw new Error(`${selector} missing`);
+  return found[found.length - 1];
+}
+
+describe('AssistantAvatar transitions remember the previous snapshot (A15)', () => {
+  const serene: PsycheStateSummary = { ...PSYCHE, mood_label: 'serene' };
+
+  it('clears the ping when its own animation ends, and only then', () => {
+    const { container, rerender } = render(<AssistantAvatar psycheState={PSYCHE} animateEmoji />);
+    rerender(<AssistantAvatar psycheState={serene} animateEmoji />);
+    const ringElement = only(container, '.animate-mood-ping');
+
+    endAnimation(ringElement, 'pulse');
+    expect(container.querySelector('.animate-mood-ping')).not.toBeNull();
+    endAnimation(ringElement, 'mood-ping');
+    expect(container.querySelector('.animate-mood-ping')).toBeNull();
+  });
+
+  it('skips a snapshot without psyche: the mood before it is the previous one', () => {
+    const { container, rerender } = render(<AssistantAvatar psycheState={PSYCHE} animateEmoji />);
+    rerender(<AssistantAvatar psycheState={null} animateEmoji />);
+    rerender(<AssistantAvatar psycheState={PSYCHE} animateEmoji />);
+    expect(container.querySelector('.animate-mood-ping')).toBeNull();
+
+    rerender(<AssistantAvatar psycheState={null} animateEmoji />);
+    rerender(<AssistantAvatar psycheState={serene} animateEmoji />);
+    expect(container.querySelector('.animate-mood-ping')).not.toBeNull();
+  });
+
+  it('does not ping when the live flag arrives on an unchanged mood', () => {
+    const { container, rerender } = render(<AssistantAvatar psycheState={PSYCHE} />);
+    rerender(<AssistantAvatar psycheState={PSYCHE} animateEmoji />);
+    expect(container.querySelector('.animate-mood-ping')).toBeNull();
+  });
+
+  it('clears the burst when the last particle ends', () => {
+    const strongTenderness = { ...PSYCHE, active_emotion: 'tenderness', emotion_intensity: 0.9 };
+    const { container, rerender } = render(<AssistantAvatar psycheState={PSYCHE} animateEmoji />);
+    rerender(<AssistantAvatar psycheState={strongTenderness} animateEmoji />);
+    const particles = container.querySelectorAll('.animate-particle-up');
+    expect(particles).toHaveLength(3);
+
+    endAnimation(particles[0], 'particle-up');
+    expect(container.querySelectorAll('.animate-particle-up')).toHaveLength(3);
+    endAnimation(particles[2], 'particle-up');
+    expect(container.querySelector('.animate-particle-up')).toBeNull();
+  });
+
+  it('forgets the emotion across a snapshot without one: no burst after a gap', () => {
+    const strongTenderness = { ...PSYCHE, active_emotion: 'tenderness', emotion_intensity: 0.9 };
+    const { container, rerender } = render(<AssistantAvatar psycheState={PSYCHE} animateEmoji />);
+    rerender(<AssistantAvatar psycheState={{ ...PSYCHE, active_emotion: null }} animateEmoji />);
+    rerender(<AssistantAvatar psycheState={strongTenderness} animateEmoji />);
+    expect(container.querySelector('.animate-particle-up')).toBeNull();
+  });
+
+  it('does not burst when only the intensity of the same emotion rises', () => {
+    const { container, rerender } = render(<AssistantAvatar psycheState={PSYCHE} animateEmoji />);
+    rerender(<AssistantAvatar psycheState={{ ...PSYCHE, emotion_intensity: 0.95 }} animateEmoji />);
+    expect(container.querySelector('.animate-particle-up')).toBeNull();
+  });
+});

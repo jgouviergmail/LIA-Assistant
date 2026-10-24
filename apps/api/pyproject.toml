@@ -1,6 +1,6 @@
 [project]
 name = "lia-api"
-version = "3.5.1"
+version = "3.6.0"
 description = "LIA Assistant - AI conversational assistant with multi-agent orchestration"
 license = "AGPL-3.0-or-later"
 authors = [
@@ -68,6 +68,7 @@ select = [
     "B",  # flake8-bugbear
     "C4", # flake8-comprehensions
     "UP", # pyupgrade
+    "ASYNC2", # flake8-async: blocking file, process, sleep and HTTP calls in async code (AC-035)
 ]
 ignore = [
     "E501",  # line too long (handled by black)
@@ -84,7 +85,9 @@ ignore = [
 "alembic/*" = ["F401", "E501", "I001"]  # Alembic migrations - ignore import order
 "alembic/versions/*" = ["F401", "E501", "I001"]
 "src/domains/*/models.py" = ["F821"]  # SQLAlchemy forward references
-"tests/**/*.py" = ["B017"]  # pytest.raises(Exception) is acceptable in tests
+# pytest.raises(Exception) is acceptable in tests; ASYNC2 guards the SERVED event loop
+# (every request of a worker), while a test's blocking call holds only its own loop.
+"tests/**/*.py" = ["B017", "ASYNC2"]
 "scripts/**/*.py" = ["E402", "B007", "F401"]  # Scripts may have late imports and unused vars
 
 [tool.mypy]
@@ -169,7 +172,7 @@ disable_error_code = ["name-defined"]
 # trigger literal-required/index/typeddict-item false positives.
 [[tool.mypy.overrides]]
 module = ["src.domains.agents.nodes.*"]
-disable_error_code = ["literal-required", "index", "arg-type", "operator", "attr-defined", "no-untyped-def", "no-any-return", "var-annotated", "misc", "union-attr", "dict-item", "return-value", "call-overload", "assignment"]
+disable_error_code = ["literal-required", "index", "arg-type", "operator", "attr-defined", "no-any-return", "var-annotated", "misc", "union-attr", "dict-item", "return-value", "call-overload", "assignment"]
 
 [[tool.mypy.overrides]]
 module = ["src.domains.agents.graph"]
@@ -196,7 +199,7 @@ disable_error_code = ["no-any-return", "no-untyped-def", "arg-type", "misc", "as
 # redundant — dropping it would surface unused-ignore on those lines.
 [[tool.mypy.overrides]]
 module = ["src.domains.agents.tools.*"]
-disable_error_code = ["no-any-return", "no-untyped-def", "arg-type", "misc", "call-arg", "assignment", "return-value", "var-annotated", "index", "operator", "union-attr", "attr-defined"]
+disable_error_code = ["no-any-return", "no-untyped-def", "arg-type", "misc", "call-arg", "assignment", "return-value", "var-annotated", "index", "union-attr", "attr-defined"]
 
 [[tool.mypy.overrides]]
 module = ["src.domains.agents.utils.*"]
@@ -204,17 +207,13 @@ disable_error_code = ["no-any-return", "no-untyped-def", "arg-type", "assignment
 
 [[tool.mypy.overrides]]
 module = ["src.domains.agents.graphs.base_agent_builder"]
-disable_error_code = ["arg-type", "dict-item", "index", "union-attr", "attr-defined"]
+disable_error_code = ["arg-type", "dict-item", "index", "attr-defined"]
 
 [[tool.mypy.overrides]]
 module = ["src.domains.agents.services.hitl.*"]
-disable_error_code = ["no-any-return", "arg-type", "var-annotated", "operator", "unused-ignore", "attr-defined", "call-overload"]
+disable_error_code = ["no-any-return", "operator", "attr-defined"]
 
 # Domain services with dynamic payloads / provider variance.
-[[tool.mypy.overrides]]
-module = ["src.domains.conversations.service"]
-disable_error_code = ["arg-type", "assignment", "index", "operator", "attr-defined"]
-
 [[tool.mypy.overrides]]
 module = ["src.domains.connectors.clients.*"]
 disable_error_code = ["no-any-return", "no-untyped-def", "arg-type", "call-arg", "assignment", "var-annotated"]
@@ -223,7 +222,7 @@ disable_error_code = ["no-any-return", "no-untyped-def", "arg-type", "call-arg",
 # false positives) and use dynamic callback patterns.
 [[tool.mypy.overrides]]
 module = ["src.infrastructure.llm.*"]
-disable_error_code = ["no-any-return", "arg-type", "assignment", "override", "union-attr", "unused-ignore"]
+disable_error_code = ["no-any-return", "arg-type", "assignment", "override", "union-attr"]
 
 # NOTE (F020): the exemption surface was ratcheted from 481 → 91 (module, code)
 # pairs. Modules removed entirely from the blocks above now type-check under
@@ -237,12 +236,29 @@ disable_error_code = ["no-any-return", "arg-type", "assignment", "override", "un
 # Full-suite AST audits intermittently hit a native iterator error with SysMonitor.
 # Use the supported C tracer; test selection and coverage thresholds stay below.
 core = "ctrace"
+# The measured tree, the one every measuring command passes to --cov. The
+# coverage CLI that writes the union's report (test:backend:coverage, AC-030b)
+# roots it here as pytest-cov does; without it the report carries absolute
+# paths under an empty root, which the diff gate refuses.
+source = ["src"]
 
 [tool.pytest.ini_options]
 minversion = "9.0"
-# Coverage gate ratchet doctrine: +2 points per release, never lowered
-# (see docs/guides/GUIDE_TESTING.md and ADR-113). Keep in sync with ci.yml.
+# Coverage floor: when it moves is the ratchet doctrine, written once in
+# docs/guides/GUIDE_TESTING.md (section « Doctrine des planchers de couverture »).
+# Taskfile.yml repeats the value in test:backend:coverage, the floor CI runs on the
+# unit and integration suites together (AC-030b, ADR-151);
+# test_task_ci_pytest_parity_guard.py holds the two equal.
 addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=78"
+# A test that hangs is interrupted with every thread's stack instead of freezing
+# the run (AC-033a; under xdist the worker ends, the test fails, the run goes on).
+# Generous by design (the slowest test measured 90 s, sequential under coverage,
+# 2026-10-23): a test that legitimately needs longer passes its own
+# `-o faulthandler_timeout=N`. pytest's own pdb suspends the bound; an IDE
+# debugger that attaches without it passes `-o faulthandler_timeout=0`.
+# Guarded by test_hung_test_watchdog_guard.py.
+faulthandler_timeout = 600
+faulthandler_exit_on_timeout = true
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"

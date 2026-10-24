@@ -1902,6 +1902,16 @@
       "title": "La caché de Claude releída de un turno al siguiente",
       "summary": "El turno siguiente relee ahora todo el historial desde la caché en lugar de volver a escribirlo, y lo que releerá se conserva una hora cuando una persona espera e intercambia a menudo. Esas escrituras de una hora se facturan a su precio justo, y el razonamiento de un turno anterior vuelve al modelo Claude que lo escribió, allí donde ese modelo puede releerlo.",
       "src": "ba46216e9d0f"
+    },
+    "363": {
+      "title": "Un restablecimiento de contraseña limitado por cuenta y ligado a ella",
+      "summary": "Cada cuenta recibe ahora como mucho unos pocos correos de restablecimiento, sea cual sea la dirección que los pida, y un enlace solo sirve a la cuenta y a la contraseña para las que se emitió. Una cuenta que inicia sesión con Google recibe un aviso en lugar de un enlace, un administrador no recibe nada, y una oleada de solicitudes o de registros alerta al operador.",
+      "src": "72083d5c2a74"
+    },
+    "364": {
+      "title": "Una verificación anti-robot en las puertas de la contraseña",
+      "summary": "El registro, el inicio de sesión con contraseña y las solicitudes de restablecimiento exigen ahora el token de una verificación Cloudflare Turnstile, que el servidor hace validar: un script que llama a la API sin navegador es rechazado. La mayoría de los visitantes no ve nada y, si Cloudflare no responde, solo pasa el inicio de sesión: una cuenta nueva o un correo de restablecimiento esperan.",
+      "src": "5f218ef296be"
     }
   }
 }

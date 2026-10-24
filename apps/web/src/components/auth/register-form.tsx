@@ -7,12 +7,15 @@ import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { getLanguageFromPath, buildLocalizedPath } from '@/utils/i18n-path-utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthFeatures } from '@/hooks/useWebAuthn';
+import { useTurnstileDoor } from '@/hooks/useTurnstileDoor';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { logger } from '@/lib/logger';
+import { turnstileErrorKey } from '@/lib/turnstile';
 import { useTranslation } from 'react-i18next';
+import { TurnstileWidget } from './TurnstileWidget';
 import { getBrowserTimezone, formatTimezoneDisplay } from '@/utils/timezone';
 import { getBrowserLanguageForBackend } from '@/utils/locale-mapping';
 import { validatePassword, getPasswordRequirementChecks } from '@/lib/password-validation';
@@ -22,7 +25,8 @@ import { Check, X } from 'lucide-react';
  * i18n key for a failed registration.
  *
  * The backend answers a structured `detail.error` rather than a sentence, so
- * an explicable refusal stays explicable in six languages. Anything else — a
+ * an explicable refusal stays explicable in six languages: the demonstrator's
+ * daily ceiling, a refused or unavailable bot check (ADR-364). Anything else — a
  * network drop, a duplicate address, a 500 — keeps the generic message: a
  * visitor cannot act on those, and inventing a specific cause would be worse
  * than saying nothing precise.
@@ -31,9 +35,8 @@ export function registrationErrorKey(error: unknown): string {
   const detail = (error as { data?: { detail?: { error?: unknown } } })?.data?.detail;
   const code = typeof detail?.error === 'string' ? detail.error : undefined;
 
-  return code === 'demo_signup_limit_reached'
-    ? 'auth.errors.demo_signup_limit_reached'
-    : 'auth.errors.registration_failed';
+  if (code === 'demo_signup_limit_reached') return 'auth.errors.demo_signup_limit_reached';
+  return turnstileErrorKey(error) ?? 'auth.errors.registration_failed';
 }
 
 export function RegisterForm() {
@@ -56,6 +59,7 @@ export function RegisterForm() {
   const [language, setLanguage] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const botCheck = useTurnstileDoor('register');
 
   // Detect timezone and language on mount
   useEffect(() => {
@@ -92,6 +96,12 @@ export function RegisterForm() {
       return;
     }
 
+    if (!botCheck.ready) {
+      // Waiting cannot load a widget that failed: say which it is.
+      setError(t(botCheck.failed ? 'auth.turnstile.load_failed' : 'auth.turnstile.required'));
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -102,7 +112,8 @@ export function RegisterForm() {
         rememberMe,
         timezone || undefined,
         language || undefined,
-        termsRequired ? termsAccepted : undefined
+        termsRequired ? termsAccepted : undefined,
+        botCheck.token
       );
       router.push('/registration-success');
     } catch (err) {
@@ -120,6 +131,8 @@ export function RegisterForm() {
       setError(t(registrationErrorKey(err)));
     } finally {
       setIsLoading(false);
+      // The API spent the token, whatever it answered (ADR-364).
+      botCheck.spent();
     }
   };
 
@@ -250,6 +263,16 @@ export function RegisterForm() {
               </Link>
             </label>
           </div>
+        )}
+
+        {botCheck.siteKey && (
+          <TurnstileWidget
+            siteKey={botCheck.siteKey}
+            action="register"
+            onToken={botCheck.onToken}
+            onFailure={botCheck.onFailure}
+            resetSignal={botCheck.resetSignal}
+          />
         )}
 
         <Button type="submit" className="w-full" isLoading={isLoading}>

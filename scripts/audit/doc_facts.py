@@ -4,7 +4,9 @@
 ``doc_audit.py`` proves the documentation *navigates* correctly (no broken link,
 no stale code path). It cannot see a sentence that is well-formed and false.
 This module covers that second class: the numbers documents state about the
-system — stack versions and the enforced coverage floor.
+system — stack versions and the enforced coverage floors (the backend's, and
+since 2026-10-23 the frontend's global floor: the testing guide had quoted a
+stale 64/58/58/65 for months against an enforced 85/80/83/87, audit AC-032).
 
 Why it exists (measured 2026-08-27, on a tree where ``task lint:docs`` was green)
 --------------------------------------------------------------------------------
@@ -47,6 +49,10 @@ sentence means "the 1.x generation" rather than a specific release, write
 ``LangGraph 1.x`` — no digit after the dot, nothing to keep up to date, and the
 statement stays true across every minor bump. Prefer that to ``1.0+``, which
 reads as a minimum and is checked like any other quoted value.
+
+The frontend floor is quoted ``statements 85 / branches 80 / functions 83 /
+lines 87``: the four axes, in vitest's order, as integers, in prose. A
+measurement keeps its decimals, which is how the scan tells the two apart.
 
 HISTORICAL documents (``docs/architecture/ADR-*``, ``docs/superpowers/``) are
 out of scope by construction: they record what was true when they were written,
@@ -190,15 +196,17 @@ def _single(pattern: re.Pattern[str], text: str, what: str) -> str:
     return values.pop()
 
 
-_COV_FAIL_UNDER = re.compile(r"--cov-fail-under=(?P<value>\d+)")
+# Both spellings of a floor: pytest-cov's ``--cov-fail-under`` and coverage's own
+# ``coverage report --fail-under``, where the Taskfile combines the two suites.
+_COV_FAIL_UNDER = re.compile(r"--(?:cov-)?fail-under=(?P<value>\d+)")
 _REQUIRES_PYTHON = re.compile(r'requires-python\s*=\s*">=(?P<value>\d+\.\d+)')
 
 
 def floor_values(text: str) -> set[str]:
-    """Every ``--cov-fail-under`` value in ``text`` that states a real floor.
+    """Every floor value in ``text`` (``--cov-fail-under`` or ``--fail-under``).
 
     ``--cov-fail-under=0`` is excluded: it is the idiom for "no gate on this
-    targeted run", never a claim that the floor is zero. Without this, a
+    run", never a claim that the floor is zero. Without this, a
     Taskfile gaining one targeted command would make the source read as
     ambiguous and abort ``task lint:docs`` for a reason unrelated to any
     document.
@@ -219,9 +227,11 @@ def floor_values(text: str) -> set[str]:
 def _coverage_floor(root: Path) -> str:
     """The enforced backend coverage floor, cross-validated across its owners.
 
-    ``pyproject.toml`` carries the default and ``Taskfile.yml`` the CI command.
-    Both are read and required to agree: taking only one would let the other
-    drift unnoticed, which is exactly what happened to
+    ``pyproject.toml`` carries the default and ``Taskfile.yml`` the gate CI runs:
+    ``coverage report --fail-under`` in ``test:backend:coverage``, over the unit
+    and integration suites together (AC-030b), whose measuring commands pass
+    the sentinel. Both are read and required to agree: taking only one would
+    let the other drift unnoticed, which is exactly what happened to
     ``test_task_ci_pytest_parity_guard`` when ADR-151 moved the pytest commands
     out of ``ci.yml`` and left its comparison loop iterating over nothing.
 
@@ -241,7 +251,7 @@ def _coverage_floor(root: Path) -> str:
     }
     for name, values in owners.items():
         if not values:
-            raise SourceError(f"cannot read the coverage floor from {name}: no --cov-fail-under")
+            raise SourceError(f"cannot read the coverage floor from {name}: it states none")
         if len(values) > 1:
             raise SourceError(f"{name} states several coverage floors: {sorted(values)}")
 
@@ -253,6 +263,77 @@ def _coverage_floor(root: Path) -> str:
             "Align them before documenting either."
         )
     return next(iter(stated.values()))
+
+
+#: The axes of the frontend floor, in the order vitest declares them and the
+#: documentation quotes them.
+_FRONTEND_AXES: tuple[str, ...] = ("statements", "branches", "functions", "lines")
+_FRONTEND_CONFIG = "apps/web/vitest.config.mts"
+_THRESHOLDS_OPEN = re.compile(r"\bthresholds\s*:\s*\{")
+_FRONTEND_AXIS_LINE = re.compile(
+    r"^(?P<axis>statements|branches|functions|lines)\s*:\s*(?P<value>\d+)\s*,?$"
+)
+
+
+def _frontend_floor(root: Path) -> dict[str, str]:
+    """The frontend GLOBAL coverage floor, axis by axis.
+
+    ``coverage.thresholds`` holds the global floor as its direct keys and the
+    per-glob locks as objects nested inside it, so the block is walked by brace
+    depth and only depth-one axes are read: a glob's own ``statements: 97`` is
+    a different guarantee. Comments are dropped before braces are counted, since
+    the block's measurement notes are prose.
+
+    Args:
+        root: Repository root.
+
+    Returns:
+        ``{axis: value}`` for the four axes.
+
+    Raises:
+        SourceError: If the configuration declares no thresholds block or
+            several, omits an axis, or declares one twice.
+    """
+    text = _read(root, _FRONTEND_CONFIG)
+    openings = list(_THRESHOLDS_OPEN.finditer(text))
+    if len(openings) != 1:
+        raise SourceError(
+            f"{_FRONTEND_CONFIG} must declare exactly one coverage thresholds block, "
+            f"found {len(openings)}"
+        )
+    depth = 0
+    floor: dict[str, str] = {}
+    for line in text[openings[0].start() :].splitlines():
+        code = line.split("//", 1)[0]
+        match = _FRONTEND_AXIS_LINE.match(code.strip()) if depth == 1 else None
+        if match is not None:
+            axis = match.group("axis")
+            if axis in floor:
+                raise SourceError(f"{_FRONTEND_CONFIG} declares the global {axis} floor twice")
+            floor[axis] = match.group("value")
+        depth += code.count("{") - code.count("}")
+        if depth <= 0:
+            break
+    missing = [axis for axis in _FRONTEND_AXES if axis not in floor]
+    if missing:
+        raise SourceError(f"{_FRONTEND_CONFIG} declares no global floor for {missing}")
+    return floor
+
+
+def _frontend_axis(axis: str) -> Callable[[Path], str]:
+    """Build a resolver for one axis of the frontend global floor.
+
+    Args:
+        axis: One of :data:`_FRONTEND_AXES`.
+
+    Returns:
+        A resolver returning that axis' floor.
+    """
+
+    def resolve(root: Path) -> str:
+        return _frontend_floor(root)[axis]
+
+    return resolve
 
 
 def _python_version(root: Path) -> str:
@@ -468,11 +549,34 @@ def _version_pattern(name: str, digits: str = r"\d+(?:\.\d+){1,2}") -> re.Patter
     return re.compile(rf"(?<![A-Za-z]){name}{_SEP}v?(?P<value>{digits})(?![\d.])")
 
 
+def _frontend_floor_pattern(axis: str) -> re.Pattern[str]:
+    """Discovery regex for one axis inside the frontend floor's written shape.
+
+    A floor is quoted ``statements 85 / branches 80 / functions 83 / lines 87``:
+    the four axes, in vitest's order, as integers. Requiring the whole sequence
+    and integers is what tells a floor from a measurement
+    (``statements 86.68 / …``), which keeps its decimals and stays free to
+    differ (ADR-185: a measurement is never replaced by a threshold).
+
+    Args:
+        axis: The axis whose number this pattern captures.
+
+    Returns:
+        A compiled pattern exposing a ``value`` group on that axis.
+    """
+    parts = [
+        rf"{name}{_SEP}(?P<value>\d+)" if name == axis else rf"{name}{_SEP}\d+"
+        for name in _FRONTEND_AXES
+    ]
+    # The last number may end a sentence (« lines 87. »), never a decimal (« 87.5 »).
+    return re.compile(r"(?<![A-Za-z])" + r"\s*/\s*".join(parts) + r"(?!\d|[.,]\d)")
+
+
 FACTS: tuple[Fact, ...] = (
     Fact(
         key="coverage_floor",
         label="backend coverage floor",
-        source="apps/api/pyproject.toml + Taskfile.yml (--cov-fail-under)",
+        source="apps/api/pyproject.toml + Taskfile.yml (--cov-fail-under / --fail-under)",
         resolve=_coverage_floor,
         # Only phrases that unambiguously name the ENFORCED FLOOR — a guarantee.
         # A measured percentage ("HITL services: ~75% coverage") is a different
@@ -484,12 +588,22 @@ FACTS: tuple[Fact, ...] = (
         # "plancher de couverture" and "ratchet couverture" are deliberately NOT
         # here: both introduce ADR narratives quoting the value of their day.
         pattern=re.compile(
-            r"--cov-fail-under=(?P<value>\d+)"
+            r"--(?:cov-)?fail-under=(?P<value>\d+)"
             rf"|[Cc]overage (?:threshold|floor){_THRESHOLD_GAP}(?P<value2>\d+)\s*%"
             rf"|[Ss]euil de couverture{_THRESHOLD_GAP}(?P<value3>\d+)\s*%"
             rf"|[Cc]ouverture backend{_THRESHOLD_GAP}(?P<value4>\d+)\s*%"
             r"|[Cc]overage \((?P<value5>\d+)\s*%\)"
         ),
+    ),
+    *(
+        Fact(
+            key=f"frontend_floor_{axis}",
+            label=f"frontend floor {axis}",
+            source=f"{_FRONTEND_CONFIG} (coverage.thresholds, global {axis})",
+            resolve=_frontend_axis(axis),
+            pattern=_frontend_floor_pattern(axis),
+        )
+        for axis in _FRONTEND_AXES
     ),
     Fact(
         key="python",
@@ -773,9 +887,7 @@ def rewrite_document(path: Path, edits: list[tuple[int, int, str]]) -> bool:
     return True
 
 
-def fact_documents(
-    root: Path, tracked: tuple[frozenset[str], frozenset[str]] | None
-) -> list[Path]:
+def fact_documents(root: Path, tracked: tuple[frozenset[str], frozenset[str]] | None) -> list[Path]:
     """Collect the corpus this module audits.
 
     The navigated documentation (``doc_audit.doc_files``, one definition shared

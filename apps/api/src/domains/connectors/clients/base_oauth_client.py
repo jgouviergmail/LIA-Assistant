@@ -46,9 +46,7 @@ from src.core.exceptions import (
 from src.core.i18n_api_messages import APIMessages
 from src.core.read_budget import source_http_hooks
 from src.domains.connectors.schemas import ConnectorCredentials
-from src.domains.connectors.session_scope import connector_unit_of_work, owns_session
-from src.infrastructure.cache.redis import get_redis_session
-from src.infrastructure.locks import OAuthLock
+from src.domains.connectors.session_scope import connector_unit_of_work
 from src.infrastructure.rate_limiting import RedisRateLimiter, get_rate_limiter
 from src.infrastructure.resilience import CircuitBreaker, CircuitBreakerError, get_circuit_breaker
 
@@ -374,10 +372,14 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
 
     async def _refresh_access_token(self) -> str:
         """
-        Refresh the OAuth access token using Redis lock to prevent race conditions.
+        Obtain a valid access token through the one refresh door (audit AC-029).
 
-        Provider-agnostic: delegates actual token exchange to connector_service._refresh_oauth_token()
-        which handles provider-specific differences (Google, Microsoft, etc.).
+        ``read_connector_credentials`` reads the stored token inside the connector's
+        unit of work; once the unit is over, ``fresh()`` hands it to the door, which
+        refreshes it at most once at a time across this worker's callers and every
+        other worker — so a token another worker already refreshed is served as it
+        is, with no exchange (the « double check » this method used to perform under
+        a lock that guarded one path of four).
 
         Returns:
             Valid access token string.
@@ -409,52 +411,24 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
             refresh_margin_seconds=OAUTH_TOKEN_REFRESH_MARGIN_SECONDS,
         )
 
-        # Use Redis lock to prevent multiple refresh attempts. The writes run
-        # through the one seam that never closes a caller's session (ADR-304).
-        redis_session = await get_redis_session()
-        async with (
-            OAuthLock(redis_session, self.user_id, self.connector_type),
-            connector_unit_of_work(self.connector_service) as service,
-        ):
-            # Double-check token still needs refresh (another coroutine might have refreshed)
-            fresh_credentials = await service.get_connector_credentials(
-                self.user_id, self.connector_type
-            )
+        # The read runs through the one seam that never closes a caller's session
+        # (ADR-304); the door's own reads and writes run on sessions of its own.
+        async with connector_unit_of_work(self.connector_service) as service:
+            stored = await service.read_connector_credentials(self.user_id, self.connector_type)
+            if stored is None:
+                from src.domains.connectors.repository import ConnectorRepository
 
-            # Check if fresh credentials are valid with same safety margin
-            if fresh_credentials and fresh_credentials.expires_at:
-                fresh_threshold = datetime.now(UTC) + timedelta(
-                    seconds=OAUTH_TOKEN_REFRESH_MARGIN_SECONDS
+                # Used, never entered: entering an AsyncSession closes it and
+                # expunges the caller's rows.
+                connector = await ConnectorRepository(service.db).get_by_user_and_type(
+                    self.user_id, self.connector_type
                 )
-                if fresh_credentials.expires_at > fresh_threshold:
-                    logger.debug(
-                        "oauth_token_already_refreshed_by_another_process",
-                        user_id=str(self.user_id),
+                if not connector:
+                    raise ResourceNotFoundError(
+                        resource_type="connector",
+                        detail=f"{connector_type_value} connector not found",
                         connector_type=connector_type_value,
-                        new_expires_at=fresh_credentials.expires_at.isoformat(),
                     )
-                    self.credentials = fresh_credentials
-                    return str(fresh_credentials.access_token)
-
-            # Refresh token
-            from src.domains.connectors.repository import ConnectorRepository
-
-            # Get connector from DB — on the unit of work's session, which is
-            # the caller's own and is therefore used, never entered (entering
-            # an AsyncSession closes it and expunges the caller's rows).
-            connector = await ConnectorRepository(service.db).get_by_user_and_type(
-                self.user_id, self.connector_type
-            )
-
-            if not connector:
-                raise ResourceNotFoundError(
-                    resource_type="connector",
-                    detail=f"{connector_type_value} connector not found",
-                    connector_type=connector_type_value,
-                )
-
-            # Ensure we have fresh credentials to use for refresh
-            if not fresh_credentials:
                 logger.error(
                     "oauth_token_refresh_no_credentials",
                     user_id=str(self.user_id),
@@ -465,31 +439,11 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                     connector_type=connector_type_value,
                 )
 
-            if owns_session(self.connector_service):
-                # The token endpoint is a network call: a session nobody shares
-                # ends its reads' transaction before it, so no pooled
-                # connection waits on the provider. A caller's transaction is
-                # the caller's to end (ADR-304).
-                await service.db.commit()
-
-            # Refresh via connector service using fresh_credentials from DB
-            refreshed_credentials = await service._refresh_oauth_token(connector, fresh_credentials)
-            self.credentials = refreshed_credentials
-            with suppress(Exception):
-                from src.infrastructure.observability.metrics import (
-                    connector_token_refresh_total,
-                )
-
-                connector_token_refresh_total.labels(
-                    connector_type=connector_type_value, status="success"
-                ).inc()
-            logger.info(
-                "oauth_token_refreshed_success",
-                user_id=str(self.user_id),
-                connector_type=connector_type_value,
-            )
-
-        return self.credentials.access_token
+        # Asked once the unit is over: a session the unit owns is released by then,
+        # so no pooled connection waits on the token endpoint.
+        fresh_credentials = await stored.fresh()
+        self.credentials = fresh_credentials
+        return str(fresh_credentials.access_token)
 
     async def _ensure_valid_token(self) -> str:
         """

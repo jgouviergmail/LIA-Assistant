@@ -5,7 +5,7 @@ Tests that the inheritance hierarchy works correctly with real clients.
 """
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -35,8 +35,7 @@ class TestGoogleClientInheritance:
     def mock_connector_service(self, valid_credentials):
         """Mock ConnectorService."""
         service = MagicMock()
-        service._refresh_oauth_token = AsyncMock(return_value=valid_credentials)
-        service.get_connector_credentials = AsyncMock(return_value=None)
+        service.read_connector_credentials = AsyncMock(return_value=None)
         service.db = MagicMock()
         service.db.__aenter__ = AsyncMock(return_value=MagicMock())
         service.db.__aexit__ = AsyncMock(return_value=None)
@@ -53,35 +52,25 @@ class TestGoogleClientInheritance:
         # Verify inheritance
         assert issubclass(GooglePeopleClient, BaseGoogleClient)
 
-        # Create instance with proper mocks
-        mock_redis = MagicMock()
-        mock_redis.get = AsyncMock(return_value=None)
-        mock_redis.set = AsyncMock(return_value=True)
-        mock_redis.set = AsyncMock(return_value=True)
+        client = GooglePeopleClient(
+            user_id=user_id,
+            credentials=valid_credentials,
+            connector_service=mock_connector_service,
+        )
 
-        with patch(
-            "src.domains.connectors.clients.base_oauth_client.get_redis_session",
-            return_value=mock_redis,
-        ):
-            client = GooglePeopleClient(
-                user_id=user_id,
-                credentials=valid_credentials,
-                connector_service=mock_connector_service,
-            )
+        # Verify it has base class attributes
+        assert hasattr(client, "user_id")
+        assert hasattr(client, "credentials")
+        assert hasattr(client, "_rate_limit_per_second")
+        assert hasattr(client, "api_base_url")
+        assert hasattr(client, "connector_type")
 
-            # Verify it has base class attributes
-            assert hasattr(client, "user_id")
-            assert hasattr(client, "credentials")
-            assert hasattr(client, "_rate_limit_per_second")
-            assert hasattr(client, "api_base_url")
-            assert hasattr(client, "connector_type")
+        # Verify correct connector type
+        from src.domains.connectors.models import ConnectorType
 
-            # Verify correct connector type
-            from src.domains.connectors.models import ConnectorType
+        assert client.connector_type == ConnectorType.GOOGLE_CONTACTS
 
-            assert client.connector_type == ConnectorType.GOOGLE_CONTACTS
-
-            await client.close()
+        await client.close()
 
     @pytest.mark.asyncio
     async def test_google_gmail_client_inherits_base(
@@ -94,35 +83,25 @@ class TestGoogleClientInheritance:
         # Verify inheritance
         assert issubclass(GoogleGmailClient, BaseGoogleClient)
 
-        # Create instance with proper mocks
-        mock_redis = MagicMock()
-        mock_redis.get = AsyncMock(return_value=None)
-        mock_redis.set = AsyncMock(return_value=True)
-        mock_redis.set = AsyncMock(return_value=True)
+        client = GoogleGmailClient(
+            user_id=user_id,
+            credentials=valid_credentials,
+            connector_service=mock_connector_service,
+        )
 
-        with patch(
-            "src.domains.connectors.clients.base_oauth_client.get_redis_session",
-            return_value=mock_redis,
-        ):
-            client = GoogleGmailClient(
-                user_id=user_id,
-                credentials=valid_credentials,
-                connector_service=mock_connector_service,
-            )
+        # Verify it has base class attributes
+        assert hasattr(client, "user_id")
+        assert hasattr(client, "credentials")
+        assert hasattr(client, "_rate_limit_per_second")
+        assert hasattr(client, "api_base_url")
+        assert hasattr(client, "connector_type")
 
-            # Verify it has base class attributes
-            assert hasattr(client, "user_id")
-            assert hasattr(client, "credentials")
-            assert hasattr(client, "_rate_limit_per_second")
-            assert hasattr(client, "api_base_url")
-            assert hasattr(client, "connector_type")
+        # Verify correct connector type
+        from src.domains.connectors.models import ConnectorType
 
-            # Verify correct connector type
-            from src.domains.connectors.models import ConnectorType
+        assert client.connector_type == ConnectorType.GOOGLE_GMAIL
 
-            assert client.connector_type == ConnectorType.GOOGLE_GMAIL
-
-            await client.close()
+        await client.close()
 
     @pytest.mark.asyncio
     async def test_clients_share_common_methods(
@@ -132,33 +111,32 @@ class TestGoogleClientInheritance:
         from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
         from src.domains.connectors.clients.google_people_client import GooglePeopleClient
 
-        with patch("src.domains.connectors.clients.base_oauth_client.get_redis_session"):
-            people_client = GooglePeopleClient(
-                user_id=user_id,
-                credentials=valid_credentials,
-                connector_service=mock_connector_service,
-            )
+        people_client = GooglePeopleClient(
+            user_id=user_id,
+            credentials=valid_credentials,
+            connector_service=mock_connector_service,
+        )
 
-            gmail_client = GoogleGmailClient(
-                user_id=user_id,
-                credentials=valid_credentials,
-                connector_service=mock_connector_service,
-            )
+        gmail_client = GoogleGmailClient(
+            user_id=user_id,
+            credentials=valid_credentials,
+            connector_service=mock_connector_service,
+        )
 
-            # Both should have these inherited methods
-            common_methods = [
-                "_get_client",
-                "_make_request",
-                "_ensure_valid_token",
-                "close",
-            ]
+        # Both should have these inherited methods
+        common_methods = [
+            "_get_client",
+            "_make_request",
+            "_ensure_valid_token",
+            "close",
+        ]
 
-            for method in common_methods:
-                assert hasattr(people_client, method), f"GooglePeopleClient missing {method}"
-                assert hasattr(gmail_client, method), f"GoogleGmailClient missing {method}"
+        for method in common_methods:
+            assert hasattr(people_client, method), f"GooglePeopleClient missing {method}"
+            assert hasattr(gmail_client, method), f"GoogleGmailClient missing {method}"
 
-            await people_client.close()
-            await gmail_client.close()
+        await people_client.close()
+        await gmail_client.close()
 
 
 @pytest.mark.integration
@@ -180,8 +158,7 @@ class TestClientRateLimiting:
     @pytest.fixture
     def mock_connector_service(self, valid_credentials):
         service = MagicMock()
-        service._refresh_oauth_token = AsyncMock(return_value=valid_credentials)
-        service.get_connector_credentials = AsyncMock(return_value=None)
+        service.read_connector_credentials = AsyncMock(return_value=None)
         service.db = MagicMock()
         service.db.__aenter__ = AsyncMock(return_value=MagicMock())
         service.db.__aexit__ = AsyncMock(return_value=None)
@@ -195,36 +172,26 @@ class TestClientRateLimiting:
         from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
         from src.domains.connectors.clients.google_people_client import GooglePeopleClient
 
-        # Create proper mock for Redis
-        mock_redis = MagicMock()
-        mock_redis.get = AsyncMock(return_value=None)
-        mock_redis.set = AsyncMock(return_value=True)
-        mock_redis.set = AsyncMock(return_value=True)
+        people_client = GooglePeopleClient(
+            user_id=user_id,
+            credentials=valid_credentials,
+            connector_service=mock_connector_service,
+        )
 
-        with patch(
-            "src.domains.connectors.clients.base_oauth_client.get_redis_session",
-            return_value=mock_redis,
-        ):
-            people_client = GooglePeopleClient(
-                user_id=user_id,
-                credentials=valid_credentials,
-                connector_service=mock_connector_service,
-            )
+        gmail_client = GoogleGmailClient(
+            user_id=user_id,
+            credentials=valid_credentials,
+            connector_service=mock_connector_service,
+        )
 
-            gmail_client = GoogleGmailClient(
-                user_id=user_id,
-                credentials=valid_credentials,
-                connector_service=mock_connector_service,
-            )
+        # Rate limiters should be independent (different last request times)
+        # Each client has its own _last_request_time
+        assert people_client._last_request_time == gmail_client._last_request_time == 0.0
+        # But they are independent objects
+        assert people_client is not gmail_client
 
-            # Rate limiters should be independent (different last request times)
-            # Each client has its own _last_request_time
-            assert people_client._last_request_time == gmail_client._last_request_time == 0.0
-            # But they are independent objects
-            assert people_client is not gmail_client
-
-            await people_client.close()
-            await gmail_client.close()
+        await people_client.close()
+        await gmail_client.close()
 
 
 @pytest.mark.integration

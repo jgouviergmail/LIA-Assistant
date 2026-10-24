@@ -406,72 +406,11 @@ class AuthService:
 
         return UserResponse.model_validate(user)
 
-    async def request_password_reset(self, email: str) -> None:
-        """
-        Send password reset email to user.
-
-        Args:
-            email: User email address
-        """
-        user = await self.repository.get_by_email(email)
-
-        # Don't reveal if email exists (security best practice)
-        if not user:
-            logger.warning("password_reset_requested_nonexistent_email", email=email)
-            return
-
-        # Type narrowing: user is User (not None) after check
-        assert user is not None
-
-        # Create password reset token
-        reset_token = create_password_reset_token(user.email)
-
-        # Send password reset email
-        await self._send_password_reset_email(user.email, reset_token)
-
-        logger.info("password_reset_requested", user_id=str(user.id), email=user.email)
-
-    async def confirm_password_reset(self, token: str, new_password: str) -> UserResponse:
-        """
-        Confirm password reset with token and new password.
-
-        Args:
-            token: Password reset JWT token
-            new_password: New password (plain text - will be hashed)
-
-        Returns:
-            Updated UserResponse
-
-        Raises:
-            HTTPException: If token is invalid or expired
-        """
-        payload = verify_token(token)
-
-        if not payload or payload.get("type") != "password_reset":
-            raise_token_invalid("password reset token")
-
-        # Type narrowing: payload is dict (not None) after check
-        assert payload is not None
-
-        email = str(payload.get("sub"))
-        user = await self.repository.get_by_email(email)
-
-        if not user:
-            raise_user_not_found(email)
-
-        # Type narrowing: user is User (not None) after check
-        assert user is not None
-
-        # Hash new password
-        hashed_password = get_password_hash(new_password)
-
-        # Update password
-        user = await self.repository.update_password(user, hashed_password)
-        await self.db.commit()
-
-        logger.info("password_reset_confirmed", user_id=str(user.id), email=user.email)
-
-        return UserResponse.model_validate(user)
+    # Password reset (ADR-363) is not reproduced here: request_password_reset,
+    # _serve_password_reset_request, reset_password and their two senders decide who
+    # receives a link, hold each account's e-mail budget and bind the token to its
+    # account. See « Password-reset links: who receives one, how often, and what binds
+    # it (ADR-363) » below, and apps/api/src/domains/auth/service.py for the code.
 
     # ========================================================================
     # Private Helper Methods
@@ -485,16 +424,6 @@ class AuthService:
             "verification_email_sent",
             email=email,
             verification_url=verification_url,
-        )
-
-    async def _send_password_reset_email(self, email: str, token: str) -> None:
-        """Send password reset email (placeholder - implement with email service)."""
-        # TODO: Implement with EmailService
-        reset_url = f"{settings.frontend_url}/reset-password?token={token}"
-        logger.info(
-            "password_reset_email_sent",
-            email=email,
-            reset_url=reset_url,
         )
 ```
 
@@ -2090,6 +2019,63 @@ JTI_BLACKLIST_TTL_SECONDS = 25 * 60 * 60  # 25h (token 24h + 1h buffer)
 
 **Pourquoi PROD only ?** En développement, pouvoir réutiliser les tokens facilite les tests manuels.
 
+### Password-reset links: who receives one, how often, and what binds it (ADR-363)
+
+- **Who** — one decision (`domains/auth/password_reset_policy.decide_reset`), applied when a
+  link is requested AND when it is used: a deleted account and an administrator receive
+  nothing; an account that signs in with a provider and has no password receives a notice
+  saying how it signs in, with no token; an account with a password, or with passkeys only
+  (ADR-143, A8), receives the link.
+- **How often** — each account has an e-mail budget whatever IP asks (`acquire_reset_send`:
+  `PASSWORD_RESET_ACCOUNT_INTERVAL_SECONDS`, then `PASSWORD_RESET_ACCOUNT_DAILY_MAX` over a
+  rolling day; Redis family `auth:password_reset_account`, `USER_RUNTIME`). The per-IP
+  limiter stays in front of the route, and the response never changes.
+- **What binds it** — the token carries the account id and an HMAC of the stored password
+  hash (`password_fingerprint`); `reset_token_matches_account` checks both, so a password
+  changed since, or an account re-created at the address, retires the link — in every
+  environment, where the JTI check above runs in production only.
+- **What the settings say** — `GET /auth/step-up/status` publishes what the same decision
+  leaves the account once it holds no password (`password_recovery`: `email_link`,
+  `provider`, `none`; `sign_in_provider`), and the Security page's password block states
+  it beside a password already off and in the dialog that turns one off.
+- **What is counted** — `password_reset_requests_total{outcome}` and
+  `password_reset_confirmations_total{outcome}` (dashboard 09; alerts `PasswordResetAbuse`
+  and `RegistrationBurst`, runbooks in `docs/runbooks/alerts/`).
+- **An administrator's password** is set from the server, never by e-mail:
+  `python -m scripts.data.set_password --email <address>` inside the API container (asked
+  twice, hidden; the account is then signed out of every device).
+
+### The bot check at the password doors (ADR-364)
+
+- **Where** — `POST /auth/register`, `POST /auth/login` and
+  `POST /auth/request-password-reset` carry the Cloudflare Turnstile widget's token in
+  `X-LIA-Turnstile-Response`. Each is a guard (`domains/auth/dependencies.py`): the per-IP
+  limiter first, then the check (`domains/auth/turnstile_gate.py`).
+- **What passes** — a token Cloudflare vouches for (`TurnstileClient`, two attempts under
+  one idempotency key), made for THAT door (`action`) on this instance's pages
+  (`hostname` = the host of `FRONTEND_URL` or of an origin in `CORS_ORIGINS`). No token, an
+  oversized one or a refused one: 403 `turnstile_failed`, at every door.
+- **When Cloudflare gives no usable answer** (an outage, or a refusal of the server's own
+  secret): only the sign-in proceeds; a sign-up or a reset request is refused, 503
+  `turnstile_unavailable`. An outage reaches the browser too, so a sign-in WITHOUT a token
+  (its widget could not load — the form sends it anyway) proceeds only while Cloudflare
+  does not answer the server either: the worker's latest verdict stands
+  `TURNSTILE_REACHABILITY_TTL_SECONDS`, otherwise one shared question about an empty token
+  decides. The page says it: the sign-in's widget failure tells the visitor they can
+  still sign in, and a tokenless sign-in refused while Cloudflare answers the API asks
+  them to allow `challenges.cloudflare.com` in their browser.
+- **Cloudflare's testing keys** — their answers carry no `action` and name `example.com`
+  (measured 2026-10-24), so only their verdict is read, and only outside production (to
+  try the chain end to end). In production a testing-key answer is no usable answer: a
+  testing secret there voids the check, and like a mistyped secret it must not lock the
+  sign-in (`turnstile_testing_key_in_production`, at ERROR).
+- **Configuration** — off by default; `TURNSTILE_ENABLED`, `TURNSTILE_SITE_KEY`,
+  `TURNSTILE_SECRET_KEY` (the operator's own widget; the boot refuses the check on without
+  both keys), `TURNSTILE_VERIFY_TIMEOUT_SECONDS`. The site key reaches the pages through
+  `GET /auth/features` (`turnstile_site_key`).
+- **Counted** — `turnstile_verifications_total{action, outcome}` (dashboard 09; alert
+  `TurnstileUnavailable`).
+
 ---
 
 ### Password Security
@@ -2684,7 +2670,7 @@ import requests
 
 # 1. User forgot password, requests reset
 reset_request = requests.post(
-    "https://api.lia-assistant.com/api/v1/auth/request-reset",
+    "https://api.lia-assistant.com/api/v1/auth/request-password-reset",
     json={"email": "alice@example.com"},
 )
 
@@ -2692,14 +2678,16 @@ print(reset_request.status_code)  # 200
 print(reset_request.json())
 # {"message": "If email exists, password reset link has been sent"}
 
-# Note: Message doesn't reveal if email exists (security best practice)
+# Note: Message doesn't reveal if email exists (security best practice).
+# An account that signs in with Google and has no password receives a notice
+# instead of a link, an administrator receives nothing (ADR-363).
 
 # 2. User receives email with reset link
 # https://app.lia-assistant.com/reset-password?token=eyJhbGci...
 
 # 3. User submits new password
 confirm_reset = requests.post(
-    "https://api.lia-assistant.com/api/v1/auth/confirm-reset",
+    "https://api.lia-assistant.com/api/v1/auth/reset-password",
     json={
         "token": "eyJhbGci...",
         "new_password": "NewSecureP@ssw0rd456",

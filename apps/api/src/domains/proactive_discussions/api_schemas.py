@@ -177,6 +177,15 @@ class BudgetState(DiscussionValue):
 RebuildObstacle = Literal["controls_over_budget", "ceiling_reached"]
 
 
+class AwaitingReply(DiscussionValue):
+    """An opening still awaiting the person's reply, which holds the next one back."""
+
+    since: AwareDatetime = Field(description="When the opening was published.")
+    until: AwareDatetime = Field(
+        description="When it stops holding the next opening, unless the person answers first."
+    )
+
+
 class DiscussionActivity(DiscussionValue):
     """The producer's work as the settings page shows it, never inferred client-side."""
 
@@ -195,3 +204,7 @@ class DiscussionActivity(DiscussionValue):
         default=None, description="The latest settled run, whatever its kind."
     )
     budget: BudgetState = Field(description="Whether a ceiling stops a run now.")
+    awaiting_reply: AwaitingReply | None = Field(
+        default=None,
+        description="The opening awaiting a reply that holds the next one back now, if any.",
+    )

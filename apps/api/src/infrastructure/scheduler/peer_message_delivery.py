@@ -26,7 +26,9 @@ counters never see them. LLM config: reuses the ``heartbeat_message`` slot
 Failure taxonomy (typed codes, never raw exception text): ``llm_error`` /
 ``dispatch_error`` count as attempts (retry until the cap, then ``failed`` +
 sender notice); ``cancelled_*`` codes end the message silently for the
-recipient and notify the sender neutrally.
+recipient and notify the sender neutrally. A dispatch that reached no channel
+the recipient finds later — an SSE event alone — is a ``dispatch_error`` too,
+never a delivery (audit AC-003).
 """
 
 from __future__ import annotations
@@ -276,8 +278,15 @@ async def _cancel_and_notify(
     recipient: User | None,
     db: AsyncSession,
 ) -> str:
-    """Cancel a claimed message and give the sender a neutral notice."""
+    """Cancel a claimed message and give the sender a neutral notice.
+
+    The cancel is committed before the notice: the notice is best-effort, and a
+    notice whose archive failed in the database aborted the transaction the
+    cancel was pending in — the sweep's COMMIT then rolled it back in silence,
+    and the message was claimed again ten minutes later.
+    """
     await repo.cancel_message(message.id, cancel_code)
+    await db.commit()
     if sender is not None and cancel_code != "cancelled_sender_gone":
         await _notify_sender(
             sender,
@@ -292,32 +301,40 @@ async def _cancel_and_notify(
 
 
 async def _record_retryable_failure(
-    repo: PeersRepository,
     message: PeerMessage,
     error_code: str,
     log_event: str,
     exc: Exception,
     sender: User,
     recipient: User,
-    db: AsyncSession,
 ) -> str:
-    """Record one real delivery failure; notify the sender only at the cap."""
-    status = await repo.mark_message_failed(
-        message.id, error_code, max_attempts=settings.peers_delivery_max_attempts
-    )
-    logger.warning(
-        log_event,
-        message_id=str(message.id),
-        error_type=type(exc).__name__,
-        status=status,
-    )
-    if status == "failed":
-        await _notify_sender(
-            sender,
-            ProactiveMessages.peer_message_failed_body(recipient.full_name or "?", sender.language),
-            message,
-            db,
+    """Record one real delivery failure; notify the sender only at the cap.
+
+    On a session of its own: a database error in the dispatch's archive aborts
+    the claim session's transaction (measured on PostgreSQL: 25P02 on the next
+    statement, and a COMMIT that rolls back in silence), and a failure that
+    cannot be counted never reaches its cap — the message would be retried for
+    ever.
+    """
+    async with get_db_context() as accounting:
+        status = await PeersRepository(accounting).mark_message_failed(
+            message.id, error_code, max_attempts=settings.peers_delivery_max_attempts
         )
+        logger.warning(
+            log_event,
+            message_id=str(message.id),
+            error_type=type(exc).__name__,
+            status=status,
+        )
+        if status == "failed":
+            await _notify_sender(
+                sender,
+                ProactiveMessages.peer_message_failed_body(
+                    recipient.full_name or "?", sender.language
+                ),
+                message,
+                accounting,
+            )
     return status
 
 
@@ -348,19 +365,15 @@ async def deliver_claimed_message(message: PeerMessage, db: AsyncSession) -> str
     relay_count = await repo.count_messages_today_for_pair(
         message.sender_id, message.recipient_id, now=now
     )
+    # The model answers with no transaction open (ADR-304): the reads above are
+    # committed, so no pooled connection sits idle in a transaction while it answers.
+    await db.commit()
     try:
         generated = await _generate_delivery_text(message, sender, recipient, relay_count)
         text, usage, model_name = generated.text, generated.usage, generated.model_name
     except Exception as exc:  # noqa: BLE001 — typed retryable failure
         return await _record_retryable_failure(
-            repo,
-            message,
-            "llm_error",
-            "peers_delivery_generation_failed",
-            exc,
-            sender,
-            recipient,
-            db,
+            message, "llm_error", "peers_delivery_generation_failed", exc, sender, recipient
         )
 
     # Spec §9: the sender pays — tracked BEFORE dispatch so a dispatch retry
@@ -398,17 +411,11 @@ async def deliver_claimed_message(message: PeerMessage, db: AsyncSession) -> str
             },
             db=db,
             title=ProactiveMessages.notification_title(PEER_MESSAGE_TASK_TYPE, recipient.language),
+            require_durable=True,
         )
     except Exception as exc:  # noqa: BLE001 — typed retryable failure
         return await _record_retryable_failure(
-            repo,
-            message,
-            "dispatch_error",
-            "peers_delivery_dispatch_failed",
-            exc,
-            sender,
-            recipient,
-            db,
+            message, "dispatch_error", "peers_delivery_dispatch_failed", exc, sender, recipient
         )
 
     # The rendered text is recorded, not discarded (ADR-186): the recipient's

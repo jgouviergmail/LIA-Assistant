@@ -44,7 +44,7 @@ async def test_proactive_refresh_deduplicates_linked_connectors(
         async def get_active_oauth_connectors(self) -> list[Connector]:
             return connectors
 
-    async def process(connector: Connector, threshold: object, db: object) -> str:
+    async def process(connector: Connector, threshold: object) -> str:
         calls.append(connector.id)
         return "refreshed"
 

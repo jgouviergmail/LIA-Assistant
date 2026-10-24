@@ -162,14 +162,33 @@ describe('AuthProvider — signing in', () => {
       await context().login('user@test.dev', 'Sup3rSecret!!', true);
     });
 
-    expect(post).toHaveBeenCalledWith('/auth/login', {
-      email: 'user@test.dev',
-      password: 'Sup3rSecret!!',
-      remember_me: true,
-      // A4: no push permission granted in jsdom → attestation token absent.
-      fcm_token: null,
-    });
+    expect(post).toHaveBeenCalledWith(
+      '/auth/login',
+      {
+        email: 'user@test.dev',
+        password: 'Sup3rSecret!!',
+        remember_me: true,
+        // A4: no push permission granted in jsdom → attestation token absent.
+        fcm_token: null,
+      },
+      // No bot-check token, no header (ADR-364).
+      undefined
+    );
     expect(identity(rendered)).toBe('user@test.dev');
+  });
+
+  it('sends the bot check token in its header (ADR-364)', async () => {
+    const rendered = await settled(renderAuth());
+
+    await act(async () => {
+      await rendered.result.current.login('user@test.dev', 'Sup3rSecret!!', false, 'token-1');
+    });
+
+    expect(post).toHaveBeenCalledWith(
+      '/auth/login',
+      expect.objectContaining({ email: 'user@test.dev' }),
+      { headers: { 'X-LIA-Turnstile-Response': 'token-1' } }
+    );
   });
 
   it('attests the device with its FCM token when push permission is already granted', async () => {
@@ -183,7 +202,8 @@ describe('AuthProvider — signing in', () => {
 
     expect(post).toHaveBeenCalledWith(
       '/auth/login',
-      expect.objectContaining({ fcm_token: 'fcm-token-abc' })
+      expect.objectContaining({ fcm_token: 'fcm-token-abc' }),
+      undefined
     );
   });
 
@@ -240,7 +260,11 @@ describe('AuthProvider — signing in', () => {
     });
 
     // The login must proceed with a null token — never block on push plumbing.
-    expect(post).toHaveBeenCalledWith('/auth/login', expect.objectContaining({ fcm_token: null }));
+    expect(post).toHaveBeenCalledWith(
+      '/auth/login',
+      expect.objectContaining({ fcm_token: null }),
+      undefined
+    );
   });
 
   it('defaults to a short session', async () => {
@@ -253,7 +277,8 @@ describe('AuthProvider — signing in', () => {
 
     expect(post).toHaveBeenCalledWith(
       '/auth/login',
-      expect.objectContaining({ remember_me: false })
+      expect.objectContaining({ remember_me: false }),
+      undefined
     );
   });
 
@@ -283,14 +308,41 @@ describe('AuthProvider — registering', () => {
       );
     });
 
-    expect(post).toHaveBeenCalledWith('/auth/register', {
-      email: 'new@test.dev',
-      password: 'Sup3rSecret!!',
-      full_name: 'Jean Dupont',
-      remember_me: true,
-      timezone: 'Europe/Paris',
-      language: 'fr',
+    expect(post).toHaveBeenCalledWith(
+      '/auth/register',
+      {
+        email: 'new@test.dev',
+        password: 'Sup3rSecret!!',
+        full_name: 'Jean Dupont',
+        remember_me: true,
+        timezone: 'Europe/Paris',
+        language: 'fr',
+      },
+      undefined
+    );
+  });
+
+  it('sends the bot check token in its header (ADR-364)', async () => {
+    const rendered = await settled(renderAuth());
+
+    await act(async () => {
+      await rendered.result.current.register(
+        'new@test.dev',
+        'Sup3rSecret!!',
+        undefined,
+        false,
+        undefined,
+        undefined,
+        undefined,
+        'token-1'
+      );
     });
+
+    expect(post).toHaveBeenCalledWith(
+      '/auth/register',
+      expect.objectContaining({ email: 'new@test.dev' }),
+      { headers: { 'X-LIA-Turnstile-Response': 'token-1' } }
+    );
   });
 
   it('lets the optional fields through as undefined', async () => {
@@ -301,14 +353,18 @@ describe('AuthProvider — registering', () => {
       await context().register('new@test.dev', 'Sup3rSecret!!');
     });
 
-    expect(post).toHaveBeenCalledWith('/auth/register', {
-      email: 'new@test.dev',
-      password: 'Sup3rSecret!!',
-      full_name: undefined,
-      remember_me: false,
-      timezone: undefined,
-      language: undefined,
-    });
+    expect(post).toHaveBeenCalledWith(
+      '/auth/register',
+      {
+        email: 'new@test.dev',
+        password: 'Sup3rSecret!!',
+        full_name: undefined,
+        remember_me: false,
+        timezone: undefined,
+        language: undefined,
+      },
+      undefined
+    );
   });
 
   it('propagates a refused registration', async () => {

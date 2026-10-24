@@ -1,7 +1,7 @@
 """Real SQL/claims/context/finance/archive flow; sources, model and transports fictional."""
 
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import AsyncMock, Mock
 
@@ -30,6 +30,9 @@ from src.infrastructure.proactive import (
     discussion_context,
     discussion_run_setup,
     discussion_runner,
+)
+from src.infrastructure.proactive.discussion_attention import (
+    attention_hold as real_attention_hold,
 )
 
 pytestmark = pytest.mark.integration
@@ -191,8 +194,8 @@ async def producer(async_engine, discussion_owner, monkeypatch):
         "discussion_readers",
         lambda **kwargs: {key: FakeSource() for key in SourceKey},
     )
-    monkeypatch.setattr(discussion_run_setup, "attention_available", AsyncMock(return_value=True))
-    monkeypatch.setattr(discussion_attention, "attention_available", AsyncMock(return_value=True))
+    monkeypatch.setattr(discussion_run_setup, "attention_hold", AsyncMock(return_value=None))
+    monkeypatch.setattr(discussion_attention, "attention_hold", AsyncMock(return_value=None))
     monkeypatch.setattr(conversation_service, "arm_after_archive", AsyncMock())
     for name in (
         "discussion_owner_daily_budget_usd",
@@ -278,12 +281,9 @@ async def test_manual_rebuild_builds_empty_context_outside_discussion_hours_with
 ):
     from src.domains.proactive_discussions.context_store.repository import ContextRepository
 
-    monkeypatch.setattr(
-        discussion_run_setup, "attention_available", AsyncMock(return_value=not busy)
-    )
-    monkeypatch.setattr(
-        discussion_attention, "attention_available", AsyncMock(return_value=not busy)
-    )
+    hold = "recent_turn" if busy else None
+    monkeypatch.setattr(discussion_run_setup, "attention_hold", AsyncMock(return_value=hold))
+    monkeypatch.setattr(discussion_attention, "attention_hold", AsyncMock(return_value=hold))
     async with producer() as db:
         await DiscussionRepository(db).update_policy(
             discussion_owner,
@@ -293,7 +293,8 @@ async def test_manual_rebuild_builds_empty_context_outside_discussion_hours_with
         state = await ContextRepository(db).request_rebuild(
             discussion_owner, expected_epoch=0, now=discussion_runner.datetime.now(UTC)
         )
-    assert await discussion_runner.run_for_owner(discussion_owner) == "ineligible"
+    # Busy, the attention says so first; free, the closed window refuses the claim.
+    assert await discussion_runner.run_for_owner(discussion_owner) == (hold or "claim_refused")
     assert FakeModel.calls == []
     assert (
         await discussion_runner.run_for_owner(discussion_owner, rebuild_epoch=state.context_epoch)
@@ -302,9 +303,10 @@ async def test_manual_rebuild_builds_empty_context_outside_discussion_hours_with
     assert FakeModel.calls == ["context"]
     # The person asked for this rebuild: its spend is theirs, not LIA's initiative.
     assert FakeModel.sources == ["user"]
+    # Served, the request no longer stands: the claim is refused.
     assert (
         await discussion_runner.run_for_owner(discussion_owner, rebuild_epoch=state.context_epoch)
-        == "ineligible"
+        == "claim_refused"
     )
     assert FakeModel.calls == ["context"]
     async with producer() as db:
@@ -461,7 +463,8 @@ async def test_model_defer_suppresses_repeated_paid_evaluation_until_retry_after
     assert await discussion_runner.run_for_owner(discussion_owner) == "skipped"
     assert FakeModel.calls == ["context", "decision"]
     calls = list(FakeModel.calls)
-    assert await discussion_runner.run_for_owner(discussion_owner) == "ineligible"
+    # The deferral refuses the claim until its retry instant.
+    assert await discussion_runner.run_for_owner(discussion_owner) == "claim_refused"
     assert FakeModel.calls == calls
 
 
@@ -1240,3 +1243,97 @@ async def test_a_reservation_that_refuses_to_release_funds_stops_the_run_as_skip
         )
     assert run.state == "skipped"
     assert spend.state == "settled" and spend.actual_usd == Decimal(0)
+
+
+async def test_a_run_that_never_starts_says_why_on_the_counter_and_in_the_log(
+    producer, discussion_owner, monkeypatch
+):
+    """« ineligible » lumped six causes: the run that never starts names its own."""
+    from prometheus_client import REGISTRY
+    from structlog.testing import capture_logs
+
+    def seen() -> float:
+        return (
+            REGISTRY.get_sample_value(
+                "proactive_discussion_runs_total",
+                {"kind": "opening", "outcome": "pending_opening"},
+            )
+            or 0.0
+        )
+
+    monkeypatch.setattr(
+        discussion_run_setup, "attention_hold", AsyncMock(return_value="pending_opening")
+    )
+    before = seen()
+    with capture_logs() as logs:
+        assert await discussion_runner.run_for_owner(discussion_owner) == "pending_opening"
+    assert seen() == before + 1
+    assert [
+        (entry["user_id"], entry["rebuild"], entry["reason"])
+        for entry in logs
+        if entry["event"] == "discussion_run_not_started"
+    ] == [(str(discussion_owner), False, "pending_opening")]
+    assert FakeModel.calls == []
+
+
+async def test_a_published_opening_holds_the_next_run_back(producer, discussion_owner, monkeypatch):
+    """The real gate: the opening the first run published is what the second meets."""
+
+    class NoApproval:
+        def __init__(self, redis_client, ttl_seconds):
+            self.redis = redis_client
+
+        async def has_interrupt(self, thread_id):
+            return False
+
+    # Redis is the external level the gate reads last; nothing streams, nothing waits.
+    monkeypatch.setattr(discussion_attention, "get_redis_cache", AsyncMock(return_value=object()))
+    monkeypatch.setattr(discussion_attention, "get_active_run", AsyncMock(return_value=None))
+    monkeypatch.setattr(discussion_attention, "HITLStore", NoApproval)
+    monkeypatch.setattr(discussion_run_setup, "attention_hold", real_attention_hold)
+    assert await discussion_runner.run_for_owner(discussion_owner) == "completed"
+    calls = list(FakeModel.calls)
+    assert await discussion_runner.run_for_owner(discussion_owner) == "pending_opening"
+    assert FakeModel.calls == calls
+
+
+async def test_the_page_says_an_opening_awaits_a_reply_and_until_when(producer, discussion_owner):
+    assert (await _activity(producer, discussion_owner)).awaiting_reply is None
+    assert await discussion_runner.run_for_owner(discussion_owner) == "completed"
+    async with producer() as db:
+        opening = await db.scalar(
+            select(DiscussionOpeningRecord).where(
+                DiscussionOpeningRecord.user_id == discussion_owner
+            )
+        )
+    awaiting = (await _activity(producer, discussion_owner)).awaiting_reply
+    assert awaiting is not None
+    hold = timedelta(minutes=settings.discussion_attention_unanswered_opening_minutes)
+    assert (awaiting.since, awaiting.until) == (
+        opening.created_at,
+        min(opening.created_at + hold, opening.expires_at),
+    )
+
+
+async def test_a_capability_switched_off_names_itself(producer, discussion_owner, monkeypatch):
+    from src.core.exceptions import AuthorizationError
+
+    async def switched_off(db, capability):
+        raise AuthorizationError()
+
+    monkeypatch.setattr(discussion_run_setup, "require_capability_fresh", switched_off)
+    assert await discussion_runner.run_for_owner(discussion_owner) == "capability_disabled"
+    assert FakeModel.calls == []
+
+
+async def test_a_claim_lost_before_its_reservation_says_so(producer, discussion_owner, monkeypatch):
+    monkeypatch.setattr(
+        discussion_run_setup.SpendRepository, "reserve", AsyncMock(return_value="stale_claim")
+    )
+    assert await discussion_runner.run_for_owner(discussion_owner) == "stale_claim"
+    assert FakeModel.calls == []
+    async with producer() as db:
+        run = await db.scalar(
+            select(DiscussionRun).where(DiscussionRun.user_id == discussion_owner)
+        )
+    assert (run.state, run.reason) == ("skipped", "stale_claim")

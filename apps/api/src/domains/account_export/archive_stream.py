@@ -170,7 +170,7 @@ async def write_streaming_archive(
                 await run_disk_io(sink.rows, batch)
             await run_disk_io(sink.end_table)
         await run_disk_io(sink.files, owner)
-    if path.stat().st_size > settings.account_export_max_bytes:
+    if (await run_disk_io(path.stat)).st_size > settings.account_export_max_bytes:
         raise ExportTooLargeError("export_too_large")
 
 

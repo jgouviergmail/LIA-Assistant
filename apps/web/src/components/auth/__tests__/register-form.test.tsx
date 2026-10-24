@@ -34,6 +34,23 @@ vi.mock('@/utils/locale-mapping', () => ({ getBrowserLanguageForBackend: () => '
 vi.mock('@/lib/logger', () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
+// Cloudflare's widget stands in as a button that « solves » the check (ADR-364).
+vi.mock('../TurnstileWidget', () => ({
+  TurnstileWidget: ({
+    action,
+    onToken,
+    onFailure,
+  }: {
+    action: string;
+    onToken: (t: string) => void;
+    onFailure: () => void;
+  }) => (
+    <>
+      <button type="button" onClick={() => onToken('token-1')}>{`solve-${action}`}</button>
+      <button type="button" onClick={() => onFailure()}>{`fail-${action}`}</button>
+    </>
+  ),
+}));
 
 import { RegisterForm, registrationErrorKey } from '../register-form';
 
@@ -113,7 +130,9 @@ describe('RegisterForm — submission', () => {
         'fr',
         // Seventh argument: terms acceptance, undefined where nothing is
         // required of the visitor.
-        undefined
+        undefined,
+        // Eighth: the bot check's token — none where the instance runs no check.
+        null
       )
     );
     expect(push).toHaveBeenCalledWith('/registration-success');
@@ -132,7 +151,8 @@ describe('RegisterForm — submission', () => {
         true,
         'Europe/Paris',
         'fr',
-        undefined
+        undefined,
+        null
       )
     );
   });
@@ -221,6 +241,70 @@ describe('RegisterForm — a demonstrator asks for the terms', () => {
   });
 });
 
+
+describe('RegisterForm — the bot check (ADR-364)', () => {
+  beforeEach(() => {
+    authFeatures.value = {
+      ...authFeatures.value,
+      turnstile_site_key: '1x00000000000000000000AA',
+    } as typeof authFeatures.value;
+  });
+
+  afterEach(() => {
+    authFeatures.value = {
+      mfa_enabled: false,
+      federated_signin_enabled: true,
+      terms_required: false,
+      terms_version: '',
+    };
+  });
+
+  it('waits for the token of the sign-up door before sending anything', async () => {
+    const { user } = renderWithProviders(<RegisterForm />);
+    await fill(user);
+
+    await user.click(screen.getByRole('button', { name: SUBMIT }));
+
+    expect(await screen.findByText('auth.turnstile.required')).toBeInTheDocument();
+    expect(register).not.toHaveBeenCalled();
+  });
+
+  it('keeps waiting when the widget could not load: a sign-up can wait', async () => {
+    const { user } = renderWithProviders(<RegisterForm />);
+    await fill(user);
+
+    await user.click(screen.getByRole('button', { name: 'fail-register' }));
+    await user.click(screen.getByRole('button', { name: SUBMIT }));
+
+    // Said as a failure, never « wait »: waiting cannot load it.
+    expect(await screen.findByText('auth.turnstile.load_failed')).toBeInTheDocument();
+    expect(screen.queryByText('auth.turnstile.required')).toBeNull();
+    expect(register).not.toHaveBeenCalled();
+  });
+
+  it('sends the token once the check is solved', async () => {
+    const { user } = renderWithProviders(<RegisterForm />);
+    await fill(user);
+
+    await user.click(screen.getByRole('button', { name: 'solve-register' }));
+    await user.click(screen.getByRole('button', { name: SUBMIT }));
+
+    await waitFor(() => expect(register).toHaveBeenCalled());
+    expect(register.mock.calls[0][7]).toBe('token-1');
+  });
+
+  it('says the check is unavailable rather than « registration failed »', async () => {
+    register.mockRejectedValue({ data: { detail: { error: 'turnstile_unavailable' } } });
+    const { user } = renderWithProviders(<RegisterForm />);
+    await fill(user);
+
+    await user.click(screen.getByRole('button', { name: 'solve-register' }));
+    await user.click(screen.getByRole('button', { name: SUBMIT }));
+
+    expect(await screen.findByText('auth.errors.turnstile_unavailable')).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+  });
+});
 
 describe('registrationErrorKey — an explicable refusal stays explicable', () => {
   /**

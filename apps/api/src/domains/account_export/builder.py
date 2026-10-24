@@ -29,6 +29,7 @@ from src.domains.account_export.archive_stream import (
     ExportTooLargeError as ExportTooLargeError,
 )
 from src.domains.account_export.archive_stream import (
+    run_disk_io,
     write_streaming_archive,
 )
 from src.domains.account_export.publication import (
@@ -453,14 +454,26 @@ def _render_markdown(
     return renderer(rows, resolve_language(language)) if renderer else None
 
 
+def _prepare_exports_dir(exports_dir: Path) -> None:
+    """The account's export directory, created private and never reached through a link."""
+    if exports_dir.is_symlink():
+        raise ExportInvalidatedError("invalid_export_directory")
+    exports_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+
+
+def _discard_build(tmp_path: Path, final_path: Path | None) -> None:
+    """Remove what a build that did not complete left: its working file, its published one."""
+    tmp_path.unlink(missing_ok=True)
+    if final_path is not None:
+        final_path.unlink(missing_ok=True)
+
+
 async def build_export_archive(user_id: UUID, job_id: UUID) -> tuple[Path, int]:
     """Stream a complete archive on the destination filesystem, with bounded RAM."""
     profile = await _fetch_user_profile(user_id)
     tables = exportable_tables()
     exports_dir = Path(settings.exports_storage_path) / str(user_id)
-    if exports_dir.is_symlink():
-        raise ExportInvalidatedError("invalid_export_directory")
-    exports_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    await run_disk_io(_prepare_exports_dir, exports_dir)
     final_path = exports_dir / f"{job_id}.zip"
     tmp_path = exports_dir / f".{job_id}.building.zip"
     published = False
@@ -485,11 +498,10 @@ async def build_export_archive(user_id: UUID, job_id: UUID) -> tuple[Path, int]:
             )
             published = True
     except BaseException:
-        tmp_path.unlink(missing_ok=True)
-        if published:
-            final_path.unlink(missing_ok=True)
+        # ONE disk call: run_disk_io sees it through a cancellation re-delivered meanwhile.
+        await run_disk_io(_discard_build, tmp_path, final_path if published else None)
         raise
-    size = final_path.stat().st_size
+    size = (await run_disk_io(final_path.stat)).st_size
     logger.info(
         "account_export_archive_built",
         user_id=str(user_id),

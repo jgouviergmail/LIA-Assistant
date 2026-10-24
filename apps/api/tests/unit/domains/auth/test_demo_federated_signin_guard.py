@@ -38,6 +38,7 @@ def _demo_mode(enabled: bool) -> object:
     fake = MagicMock()
     fake.demo_mode_enabled = enabled
     fake.demo_terms_version = "2026-08-06"
+    fake.turnstile_enabled = False
     return fake
 
 

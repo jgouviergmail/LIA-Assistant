@@ -11,16 +11,19 @@ from __future__ import annotations
 import contextlib
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
 
 import src.infrastructure.scheduler.phone_relay_runner as runner
 from src.core.config import settings
+from src.domains.telephony.models import PhoneCallStatus
 from src.domains.telephony.schemas import SelfCallRelay
 from src.infrastructure.scheduler import voice_relay
 from src.infrastructure.scheduler.out_of_turn_run import RunContext, RunOutcome, RunResult
 from src.infrastructure.scheduler.phone_relay_runner import RelayOutcome, RelayRequest, run_relay
+from tests.helpers.notifications import ScriptedChannels, scripted_dispatcher, sse_only
 
 
 def _request(**overrides: Any) -> RelayRequest:
@@ -267,3 +270,82 @@ def test_every_fallback_outcome_has_a_sentence_in_every_language() -> None:
         assert phrases.get("relay_unanswered"), language
         assert phrases.get("relay_call_failed"), language
         assert phrases.get("self_call_title"), language
+
+
+class _SettleRepo:
+    """The outbox transitions ``settle_owner_call`` drives, in order."""
+
+    def __init__(self, *, fallback_claimed: bool = True) -> None:
+        self.fallback_claimed = fallback_claimed
+        self.transitions: list[str] = []
+
+    async def mark_relay_delivered(self, call_id: Any, *, outcome: str) -> None:
+        self.transitions.append(f"relay_delivered:{outcome}")
+
+    async def mark_relay_fallback(self, call_id: Any, *, content: str, outcome: str) -> bool:
+        self.transitions.append(f"fallback:{outcome}")
+        return self.fallback_claimed
+
+    async def mark_notification_delivered(self, call_id: Any) -> None:
+        self.transitions.append("notification_delivered")
+
+
+async def _settle(
+    monkeypatch: pytest.MonkeyPatch,
+    outcome: RelayOutcome,
+    channels: ScriptedChannels,
+    *,
+    fallback_claimed: bool = True,
+) -> _SettleRepo:
+    """Settle one owner call through the REAL dispatcher over scripted channels."""
+    monkeypatch.setattr(runner, "NotificationDispatcher", scripted_dispatcher(channels))
+    repo = _SettleRepo(fallback_claimed=fallback_claimed)
+    await runner.settle_owner_call(
+        repo=repo,  # type: ignore[arg-type]
+        call=SimpleNamespace(id=uuid4(), status=PhoneCallStatus.COMPLETED),  # type: ignore[arg-type]
+        user=SimpleNamespace(id=uuid4(), language="fr"),  # type: ignore[arg-type]
+        relay=SelfCallRelay(owner_confirmed=False, relay_message="", summary="S"),
+        outcome=outcome,
+        language="fr",
+        db=SimpleNamespace(commit=AsyncMock()),  # type: ignore[arg-type]
+    )
+    return repo
+
+
+@pytest.mark.unit
+class TestSettleOwnerCall:
+    """The fallback path of an owner call: never « delivered » without a delivery (AC-003)."""
+
+    async def test_a_relay_that_ran_is_delivered_without_a_dispatch(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        channels = ScriptedChannels()
+        repo = await _settle(monkeypatch, RelayOutcome.ANSWERED, channels)
+
+        assert repo.transitions == ["relay_delivered:answered"]
+        assert channels.sent == []
+
+    async def test_a_fallback_that_reached_the_person_is_delivered(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        channels = ScriptedChannels()
+        repo = await _settle(monkeypatch, RelayOutcome.UNANSWERED, channels)
+
+        assert repo.transitions == ["fallback:unanswered", "notification_delivered"]
+        assert [sent.target_id for sent in channels.sent] != []
+
+    async def test_a_fallback_that_reached_nobody_stays_pending_for_the_reaper(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        repo = await _settle(monkeypatch, RelayOutcome.UNANSWERED, sse_only())
+
+        assert repo.transitions == ["fallback:unanswered"]
+
+    async def test_a_fallback_settled_meanwhile_dispatches_nothing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        channels = ScriptedChannels()
+        repo = await _settle(monkeypatch, RelayOutcome.UNANSWERED, channels, fallback_claimed=False)
+
+        assert repo.transitions == ["fallback:unanswered"]
+        assert channels.sent == []

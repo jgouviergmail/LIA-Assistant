@@ -14,16 +14,9 @@ import httpx
 import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from tenacity import (
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential,
-)
 
 from src.core.config import settings
 from src.core.exceptions import (
-    ConnectorTokenExpiredError,
     raise_invalid_input,
     raise_oauth_flow_failed,
     raise_oauth_state_mismatch,
@@ -33,7 +26,6 @@ from src.core.exceptions import (
 from src.core.field_names import FIELD_CONNECTOR_TYPE, FIELD_STATUS, FIELD_USER_ID
 from src.core.i18n import normalize_language
 from src.core.i18n_api_messages import APIMessages
-from src.core.read_budget import source_http_hooks
 from src.core.security import (
     # OAuth helpers moved to src.core.oauth module (v0.4.0 refactoring)
     decrypt_data,
@@ -54,9 +46,12 @@ from src.domains.connectors.models import (
     get_connector_display_name,
 )
 from src.domains.connectors.oauth_bulk import bulk_reconnect_provider
-from src.domains.connectors.oauth_grant_runtime import (
-    OAuthGrantRuntime,
-    invalidate_oauth_connector_cache,
+from src.domains.connectors.oauth_refresh import ensure_fresh_credentials
+from src.domains.connectors.oauth_refresh_targets import (
+    GrantTokenTarget,
+    StoredCredentials,
+    hue_remote_target,
+    legacy_connector_target,
 )
 from src.domains.connectors.removal_commands import (
     ConnectorRemovalSnapshot,
@@ -332,24 +327,14 @@ class ConnectorService:
                 connector_type=connector.connector_type.value,
             )
 
+        # Through the one refresh door (audit AC-029): a manual refresh JOINS a refresh
+        # in flight, and the door writes on its own session — re-read the row after.
         if connector.oauth_grant_id:
-            await OAuthGrantRuntime(self.db).credentials_for(connector, force=True)
-            await self.db.refresh(connector)
-            return ConnectorResponse.model_validate(connector)
-
-        # Decrypt credentials, refresh, then re-encrypt
-        from src.core.security import decrypt_data, encrypt_data
-        from src.domains.connectors.schemas import ConnectorCredentials
-
-        credentials_json = decrypt_data(connector.credentials_encrypted)
-        credentials = ConnectorCredentials.model_validate_json(credentials_json)
-
-        # Refresh the OAuth token
-        refreshed_credentials = await self._refresh_oauth_token(connector, credentials)
-
-        # Re-encrypt and store
-        connector.credentials_encrypted = encrypt_data(refreshed_credentials.model_dump_json())
-        await self.db.flush()
+            await ensure_fresh_credentials(GrantTokenTarget(connector), force=True)
+        elif connector.connector_type == ConnectorType.PHILIPS_HUE:
+            await ensure_fresh_credentials(hue_remote_target(connector), force=True)
+        else:
+            await ensure_fresh_credentials(legacy_connector_target(connector), force=True)
         await self.db.refresh(connector)
 
         logger.info(
@@ -680,7 +665,12 @@ class ConnectorService:
         self, user_id: UUID, connector_type: ConnectorType
     ) -> ConnectorCredentials | None:
         """
-        Get decrypted credentials for a connector.
+        Get decrypted credentials for a connector, refreshed through the one door.
+
+        Reads on this service's session, then asks the refresh door (audit AC-029),
+        which runs on sessions of its own. A caller that OWNS its session calls the two
+        halves itself — ``read_connector_credentials``, end the session, then
+        ``fresh()`` — so its transaction never waits on the token endpoint (ADR-304).
 
         Args:
             user_id: User UUID
@@ -690,7 +680,32 @@ class ConnectorService:
             ConnectorCredentials or None if not found/inactive
 
         Raises:
-            HTTPException: If connector is revoked or has errors
+            ConnectorRevokedError: The connector is revoked.
+            ConnectorTokenExpiredError: The person's consent is gone.
+            ValidationError: The stored credentials are unreadable, or the refresh failed.
+        """
+        stored = await self.read_connector_credentials(user_id, connector_type)
+        return None if stored is None else await stored.fresh()
+
+    async def read_connector_credentials(
+        self, user_id: UUID, connector_type: ConnectorType
+    ) -> StoredCredentials | None:
+        """
+        Read a connector's stored credentials on this service's session — and call nothing.
+
+        No provider is asked: a refresh, when the token needs one, happens in
+        ``StoredCredentials.fresh()``, on the refresh door's own sessions.
+
+        Args:
+            user_id: User UUID
+            connector_type: Type of connector
+
+        Returns:
+            The stored credentials, or None if not found/inactive
+
+        Raises:
+            ConnectorRevokedError: The connector is revoked.
+            ValidationError: The stored credentials cannot be decrypted.
         """
         connector = await self.repository.get_by_user_and_type(user_id, connector_type)
 
@@ -710,50 +725,32 @@ class ConnectorService:
             return None
 
         if connector.oauth_grant_id:
-            from src.core.card_composition import ensure_composition_account
-
-            credentials = await OAuthGrantRuntime(self.db).credentials_for(connector)
-            ensure_composition_account(user_id, connector_type.value, credentials.account_binding)
-            return credentials
-
-        # Decrypt credentials
-        try:
-            decrypted_json = decrypt_data(connector.credentials_encrypted)
-            credentials = ConnectorCredentials.model_validate_json(decrypted_json).model_copy(
-                update={"account_binding": None}
+            grant_target = GrantTokenTarget(connector)
+            return StoredCredentials(
+                grant_target, await grant_target.current(self.db), user_id, connector_type
             )
+
+        from src.core.card_composition import ensure_composition_account
+
+        target = legacy_connector_target(connector)
+        try:
+            current = target.stored(connector)
         except Exception as e:
             logger.error(
                 "connector_credentials_decryption_failed",
                 connector_id=str(connector.id),
-                error=str(e),
+                error_type=type(e).__name__,
             )
             raise_invalid_input(
                 "Failed to decrypt connector credentials",
                 connector_id=str(connector.id),
             )
-
-        from src.core.card_composition import ensure_composition_account
-        from src.domains.connectors.legacy_oauth_binding import bind_legacy_oauth_account
-
-        credentials = bind_legacy_oauth_account(connector, credentials)
-        ensure_composition_account(user_id, connector_type.value, credentials.account_binding)
-
+        ensure_composition_account(
+            user_id, connector_type.value, current.credentials.account_binding
+        )
         # Provider failures belong outside the decryption handler: a temporary
         # outage must retain its own error contract and keep the row ACTIVE.
-        if credentials.expires_at:
-            from src.core.constants import OAUTH_TOKEN_REFRESH_MARGIN_SECONDS
-
-            refresh_threshold = datetime.now(UTC) + timedelta(
-                seconds=OAUTH_TOKEN_REFRESH_MARGIN_SECONDS
-            )
-            if credentials.expires_at < refresh_threshold:
-                credentials = await self._refresh_oauth_token(connector, credentials)
-
-        from src.core.card_composition import ensure_composition_account
-
-        ensure_composition_account(user_id, connector_type.value, credentials.account_binding)
-        return credentials
+        return StoredCredentials(target, current, user_id, connector_type)
 
     # =========================================================================
     # APPLE iCLOUD METHODS
@@ -885,6 +882,10 @@ class ConnectorService:
             logger.warning("hue_local_activation_failed", error_type=type(e).__name__)
             logger.debug("hue_local_activation_failed_debug", error=str(e), exc_info=True)
             raise_external_service_connection_error(service="Philips Hue Bridge")
+        finally:
+            # Closed on every path — the bridge's refusal and a cancellation included —
+            # and before the activation's own writes (audit A04).
+            await test_client.close()
 
         await self._lock_activation(user_id, [ConnectorType.PHILIPS_HUE])
 
@@ -1247,209 +1248,6 @@ class ConnectorService:
         return await probe_connection(apple_id, app_password, services)
 
     # Private helper methods
-
-    def _get_oauth_refresh_config(self, connector_type: ConnectorType) -> dict[str, Any]:
-        """
-        Get provider-specific OAuth token refresh configuration.
-
-        Data-driven approach (no if/else chain) for Open/Closed principle.
-
-        Args:
-            connector_type: The connector type to get config for.
-
-        Returns:
-            Dict with token_url, client_id, client_secret, include_scope.
-        """
-        if connector_type.is_google:
-            return {
-                "token_url": "https://oauth2.googleapis.com/token",
-                "client_id": settings.google_client_id,
-                "client_secret": settings.google_client_secret,
-                "include_scope": False,
-            }
-        if connector_type.is_microsoft:
-            from src.core.constants import MICROSOFT_OAUTH_TOKEN_ENDPOINT
-
-            return {
-                "token_url": MICROSOFT_OAUTH_TOKEN_ENDPOINT.format(
-                    tenant=settings.microsoft_tenant_id
-                ),
-                "client_id": settings.microsoft_client_id,
-                "client_secret": settings.microsoft_client_secret,
-                "include_scope": True,  # Microsoft REQUIRES scope in refresh
-            }
-        raise ValueError(f"Unknown OAuth provider for {connector_type.value}")
-
-    async def _refresh_oauth_token(
-        self, connector: Connector, credentials: ConnectorCredentials
-    ) -> ConnectorCredentials:
-        """
-        Refresh OAuth access token using refresh token.
-
-        Provider-aware: supports Google and Microsoft token endpoints
-        with provider-specific configuration.
-
-        Args:
-            connector: Connector model instance
-            credentials: Current credentials with refresh_token
-
-        Returns:
-            Updated ConnectorCredentials with new access_token
-
-        Raises:
-            HTTPException: If refresh fails after retries
-        """
-        if connector.oauth_grant_id:
-            return await OAuthGrantRuntime(self.db).credentials_for(connector)
-
-        from src.core.card_composition import ensure_composition_account
-        from src.domains.connectors.legacy_oauth_binding import bind_legacy_oauth_account
-
-        credentials = bind_legacy_oauth_account(connector, credentials)
-        ensure_composition_account(
-            connector.user_id, connector.connector_type.value, credentials.account_binding
-        )
-
-        if not credentials.refresh_token:
-            logger.error(
-                "oauth_refresh_missing_refresh_token",
-                connector_id=str(connector.id),
-                connector_type=connector.connector_type.value,
-                user_id=str(connector.user_id),
-                expires_at=credentials.expires_at.isoformat() if credentials.expires_at else None,
-            )
-            raise_invalid_input(
-                APIMessages.no_refresh_token_available(),
-                connector_id=str(connector.id),
-            )
-
-        # Get provider-specific refresh configuration
-        refresh_config = self._get_oauth_refresh_config(connector.connector_type)
-
-        # Build refresh request data
-        refresh_data: dict[str, str] = {
-            "refresh_token": credentials.refresh_token,
-            "client_id": refresh_config["client_id"],
-            "client_secret": refresh_config["client_secret"],
-            "grant_type": "refresh_token",
-        }
-
-        # Microsoft REQUIRES scope parameter in refresh token request
-        if refresh_config["include_scope"] and connector.scopes:
-            refresh_data["scope"] = " ".join(connector.scopes)
-
-        token_url = refresh_config["token_url"]
-
-        @retry(
-            retry=retry_if_exception_type((httpx.RequestError, httpx.HTTPStatusError)),
-            stop=stop_after_attempt(3),
-            wait=wait_exponential(multiplier=1, min=2, max=10),
-            reraise=True,
-        )
-        async def _refresh_token_with_retry() -> httpx.Response:
-            """Refresh OAuth token with retry logic for network resilience."""
-            async with httpx.AsyncClient(
-                event_hooks=source_http_hooks(connector.user_id),
-                timeout=settings.http_timeout_oauth,
-                follow_redirects=False,
-            ) as client:
-                response = await client.post(token_url, data=refresh_data)
-                if response.status_code == 429 or response.status_code >= 500:
-                    response.raise_for_status()
-                return response
-
-        try:
-            logger.debug(
-                "oauth_token_refresh_starting",
-                connector_id=str(connector.id),
-                connector_type=connector.connector_type.value,
-            )
-            token_response = await _refresh_token_with_retry()
-        except (httpx.RequestError, httpx.HTTPStatusError) as e:
-            logger.error(
-                "oauth_token_refresh_network_failure",
-                connector_id=str(connector.id),
-                connector_type=connector.connector_type.value,
-                user_id=str(connector.user_id),
-                error=str(e),
-                error_type=type(e).__name__,
-            )
-            raise_invalid_input(
-                APIMessages.oauth_token_refresh_failed(),
-                connector_id=str(connector.id),
-            )
-
-        if token_response.status_code != 200:
-            # Only a definitive provider rejection requires user reconnection.
-            try:
-                error_json = token_response.json()
-                error_code = error_json.get("error") if isinstance(error_json, dict) else None
-            except ValueError:
-                error_code = None
-
-            logger.error(
-                "oauth_token_refresh_rejected",
-                connector_id=str(connector.id),
-                connector_type=connector.connector_type.value,
-                user_id=str(connector.user_id),
-                status_code=token_response.status_code,
-                error_code=(
-                    error_code
-                    if error_code in {"invalid_grant", "interaction_required", "invalid_client"}
-                    else None
-                ),
-            )
-            if error_code in {"invalid_grant", "interaction_required"}:
-                await self.repository.update(connector, {FIELD_STATUS: ConnectorStatus.ERROR})
-                await self.db.commit()
-                await invalidate_oauth_connector_cache(connector.user_id)
-                raise ConnectorTokenExpiredError(
-                    APIMessages.refresh_token_revoked(),
-                    connector_type=connector.connector_type.value,
-                    connector_id=str(connector.id),
-                    response_status_code=token_response.status_code,
-                )
-            raise_invalid_input(
-                APIMessages.oauth_token_refresh_failed(), connector_id=str(connector.id)
-            )
-
-        try:
-            token_data = token_response.json()
-        except ValueError:
-            raise_invalid_input(
-                APIMessages.oauth_token_refresh_failed(), connector_id=str(connector.id)
-            )
-        if not isinstance(token_data, dict):
-            raise_invalid_input(
-                APIMessages.oauth_token_refresh_failed(), connector_id=str(connector.id)
-            )
-        new_credentials = OAuthGrantRuntime._parse_success(token_data, credentials)
-        # Provider token rotation keeps this connection generation. Reconnection
-        # constructs fresh credentials and therefore starts a new generation.
-        new_credentials = new_credentials.model_copy(
-            update={
-                "legacy_account_generation": credentials.legacy_account_generation,
-                "account_binding": credentials.account_binding,
-            }
-        )
-        new_refresh_token = token_data.get("refresh_token")
-        if new_refresh_token and new_refresh_token != credentials.refresh_token:
-            logger.info("oauth_refresh_token_rotated", connector_id=str(connector.id))
-
-        # Encrypt and store new credentials
-        encrypted_credentials = encrypt_data(new_credentials.model_dump_json())
-        await self.repository.update_credentials(connector, encrypted_credentials)
-        await self.db.commit()
-        await invalidate_oauth_connector_cache(connector.user_id)
-
-        logger.info(
-            "oauth_token_refreshed",
-            connector_id=str(connector.id),
-            expires_in_seconds=token_data.get("expires_in", 3599),
-            refresh_token_updated=bool(new_refresh_token),
-        )
-
-        return new_credentials
 
     async def _revoke_oauth_token(self, connector: Connector) -> None:
         """A service-scoped unlink only drops local access, never provider-wide consent."""

@@ -401,6 +401,38 @@ tests:
               description: "300 MaxConnectionsError in 10 minutes at the rate limiter (threshold: 5). Every Redis-backed path (SSE streams, caches, rate limiting, scheduler leadership) is failing intermittently: raise REDIS_MAX_CONNECTIONS or find what is pinning connections."
               runbook: "docs/runbooks/alerts/RedisConnectionPoolExhaustion.md"
 
+  # ===== DatabaseBoundReached: idle transactions ended by the server =====
+  # Any end fires (zero is the threshold): each names a caller that held a
+  # transaction idle across a network call (ADR-304). Linear over the whole [15m]
+  # window, so increase() is exactly 15.
+  - interval: 1m
+    input_series:
+      - series: 'db_bound_reached_total{bound="idle_in_transaction_timeout"}'
+        values: '0+1x20'
+    alert_rule_test:
+      - eval_time: 16m
+        alertname: DatabaseBoundReached
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: postgresql
+              tier: core
+              bound: idle_in_transaction_timeout
+            exp_annotations:
+              summary: "A PostgreSQL bound ended a statement or a session (idle_in_transaction_timeout)"
+              description: "15 statement(s) or session(s) ended by the application engine's idle_in_transaction_timeout bound in 15 minutes. lock_timeout: a statement waited for a lock past DATABASE_LOCK_TIMEOUT_MS. idle_in_transaction_timeout: a session sat idle inside a transaction past DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS and the server ended it (ADR-304). statement_timeout: a statement outlived a timeout its caller set. Find the caller with database_bound_reached in the API log."
+              runbook: "docs/runbooks/alerts/DatabaseBoundReached.md"
+
+  # ===== …and a quiet engine stays silent =====
+  - interval: 1m
+    input_series:
+      - series: 'db_bound_reached_total{bound="lock_timeout"}'
+        values: '0x20'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: DatabaseBoundReached
+        exp_alerts: []
+
   # ===== …but transient blips stay silent — this buys the threshold of 5 =====
   # Three isolated errors in ten minutes: an occasional timeout under a brief
   # burst, not an exhausted pool. Other error_type values never count.
@@ -1295,3 +1327,203 @@ tests:
     - eval_time: 40m
       alertname: PhoneIngestionDeliveryUncertain
       exp_alerts: []
+
+  # ===== ProductAggregatesStale: no product rollup completed for over 2 hours (ADR-178) =====
+  # The stamp is a Unix time and promtool's clock starts at 0: a stamp frozen at
+  # 0 is exactly as old as the evaluation instant. Past 2 hours the rule pends,
+  # fifteen minutes later it fires.
+  - interval: 1m
+    input_series:
+      - series: 'product_metrics_last_refresh_timestamp_seconds{refresh_job="product_rollup"}'
+        values: '0x160'
+    alert_rule_test:
+      - eval_time: 2h20m
+        alertname: ProductAggregatesStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: product
+              tier: core
+            exp_annotations:
+              summary: "The product aggregates were last refreshed 2h 20m 0s ago"
+              description: "No product rollup has completed for longer than 7200 seconds: every run failed, or the job is not running (no scheduler leader). Every figure of dashboard 26 is as old as its last refresh. Read background_job_errors_total{job_name=\"product_analytics_rollup\"} — a failed run logs product_rollup_failed in the API; nothing at all means the scheduler."
+              runbook: "docs/runbooks/alerts/ProductAggregatesStale.md"
+
+  # ===== …an hourly rollup that keeps refreshing stays silent =====
+  - interval: 1h
+    input_series:
+      - series: 'product_metrics_last_refresh_timestamp_seconds{refresh_job="product_rollup"}'
+        values: '0+3600x4'
+    alert_rule_test:
+      - eval_time: 3h
+        alertname: ProductAggregatesStale
+        exp_alerts: []
+
+  # ===== …a deployment that never refreshed has no stamp and never fires =====
+  - interval: 1m
+    input_series:
+      - series: 'up{job="lia-api"}'
+        values: '1x160'
+    alert_rule_test:
+      - eval_time: 2h20m
+        alertname: ProductAggregatesStale
+        exp_alerts: []
+
+  # ===== PasswordResetAbuse: an account's budget refused three requests in an hour (ADR-363) =====
+  # Every outcome exposes its series at zero from the start, so the opening
+  # request of a burst is seen by increase(). Three refusals pass the threshold
+  # of two at minute 4; five minutes later the alert fires.
+  - interval: 1m
+    input_series:
+      - series: 'password_reset_requests_total{outcome="throttled"}'
+        values: '0 0 1 2 3x20'
+      - series: 'password_reset_requests_total{outcome="refused_superuser"}'
+        values: '0x24'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: PasswordResetAbuse
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: auth
+              tier: core
+            exp_annotations:
+              summary: "3 password-reset requests refused in the last hour"
+              description: "Over the last hour, more than 2 password-reset requests were refused by an account's own e-mail budget, or at least one named an administrator account (never sent a link). Someone is aiming the reset route at an account: nothing was sent past the budget, so the account is not taken by this alone. Read the API's password_reset_throttled and password_reset_refused events, and the client addresses in ip_rate_limit_exceeded; block the source at the edge if it persists."
+              runbook: "docs/runbooks/alerts/PasswordResetAbuse.md"
+
+  # ===== …two refusals in an hour (a person who clicked three times) stay silent =====
+  - interval: 1m
+    input_series:
+      - series: 'password_reset_requests_total{outcome="throttled"}'
+        values: '0 0 1 2x21'
+      - series: 'password_reset_requests_total{outcome="refused_superuser"}'
+        values: '0x24'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: PasswordResetAbuse
+        exp_alerts: []
+
+  # ===== …ONE request naming an administrator is enough =====
+  - interval: 1m
+    input_series:
+      - series: 'password_reset_requests_total{outcome="throttled"}'
+        values: '0x24'
+      - series: 'password_reset_requests_total{outcome="refused_superuser"}'
+        values: '0 1x23'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: PasswordResetAbuse
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: auth
+              tier: core
+            exp_annotations:
+              summary: "1 password-reset requests refused in the last hour"
+              description: "Over the last hour, more than 2 password-reset requests were refused by an account's own e-mail budget, or at least one named an administrator account (never sent a link). Someone is aiming the reset route at an account: nothing was sent past the budget, so the account is not taken by this alone. Read the API's password_reset_throttled and password_reset_refused events, and the client addresses in ip_rate_limit_exceeded; block the source at the edge if it persists."
+              runbook: "docs/runbooks/alerts/PasswordResetAbuse.md"
+
+  # ===== RegistrationBurst: twelve password sign-ups in an hour (ADR-363) =====
+  # No Google series at all: the "or vector(0)" keeps the sum alive.
+  - interval: 1m
+    input_series:
+      - series: 'user_registrations_total{provider="password",status="success"}'
+        values: '0 3 6 9 12x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: RegistrationBurst
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: auth
+              tier: core
+            exp_annotations:
+              summary: "12 accounts created in the last hour"
+              description: "More than 10 accounts were created in the last hour, password and Google sign-ups together. A new account stays inactive until an administrator activates it, but each password sign-up sends a verification e-mail to the address it names. Sort the admin user list by creation date, read the user_registered and new_user_created_via_oauth events, delete the throwaway accounts and block the source at the edge if it persists."
+              runbook: "docs/runbooks/alerts/RegistrationBurst.md"
+
+  # ===== …password and Google sign-ups are counted together =====
+  - interval: 1m
+    input_series:
+      - series: 'user_registrations_total{provider="password",status="success"}'
+        values: '0 3 6x22'
+      - series: 'oauth_user_creation_total{provider="google"}'
+        values: '0 3 6x22'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: RegistrationBurst
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: auth
+              tier: core
+            exp_annotations:
+              summary: "12 accounts created in the last hour"
+              description: "More than 10 accounts were created in the last hour, password and Google sign-ups together. A new account stays inactive until an administrator activates it, but each password sign-up sends a verification e-mail to the address it names. Sort the admin user list by creation date, read the user_registered and new_user_created_via_oauth events, delete the throwaway accounts and block the source at the edge if it persists."
+              runbook: "docs/runbooks/alerts/RegistrationBurst.md"
+
+  # ===== …an ordinary day stays silent, and so does a deployment that never registered anyone =====
+  - interval: 1m
+    input_series:
+      - series: 'user_registrations_total{provider="password",status="success"}'
+        values: '0 1 2x22'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: RegistrationBurst
+        exp_alerts: []
+  - interval: 1m
+    input_series:
+      - series: 'up{job="lia-api"}'
+        values: '1x24'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: RegistrationBurst
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: PasswordResetAbuse
+        exp_alerts: []
+
+  # ===== TurnstileUnavailable: three bot checks Cloudflare did not answer in 15 minutes (ADR-364) =====
+  # Every (action, outcome) series exists at zero from the start, so the first
+  # unanswered check is seen by increase(); doors are summed.
+  - interval: 1m
+    input_series:
+      - series: 'turnstile_verifications_total{action="login",outcome="unavailable"}'
+        values: '0 0 1 2x21'
+      - series: 'turnstile_verifications_total{action="register",outcome="unavailable"}'
+        values: '0 0 0 1x21'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: TurnstileUnavailable
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: auth
+              tier: core
+            exp_annotations:
+              summary: "3 bot checks Cloudflare did not answer in the last 15 minutes"
+              description: "Cloudflare Turnstile did not answer more than 2 bot checks in 15 minutes: sign-ins proceed unverified, while sign-ups and password-reset requests are refused until it answers. Read the API's turnstile_siteverify_unanswered and turnstile_siteverify_refused_the_server events — the second means the instance's own secret or request is wrong (TURNSTILE_SECRET_KEY)."
+              runbook: "docs/runbooks/alerts/TurnstileUnavailable.md"
+
+  # ===== …two unanswered checks (a blip) stay silent, and so do refused tokens =====
+  - interval: 1m
+    input_series:
+      - series: 'turnstile_verifications_total{action="login",outcome="unavailable"}'
+        values: '0 0 1 2x21'
+      - series: 'turnstile_verifications_total{action="register",outcome="rejected"}'
+        values: '0 5 10 20x21'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: TurnstileUnavailable
+        exp_alerts: []
+
+  # ===== …an instance with the check switched off never fires =====
+  - interval: 1m
+    input_series:
+      - series: 'up{job="lia-api"}'
+        values: '1x24'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: TurnstileUnavailable
+        exp_alerts: []

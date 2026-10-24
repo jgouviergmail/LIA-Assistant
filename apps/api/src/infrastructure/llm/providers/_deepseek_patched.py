@@ -42,7 +42,7 @@ from typing import Any
 
 from langchain_core.language_models import LanguageModelInput
 from langchain_core.messages import AIMessage
-from langchain_deepseek import ChatDeepSeek  # type: ignore[import-not-found]
+from langchain_deepseek import ChatDeepSeek
 
 
 class ChatDeepSeekPatched(ChatDeepSeek):

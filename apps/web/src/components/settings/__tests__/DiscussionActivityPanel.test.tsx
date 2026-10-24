@@ -90,7 +90,19 @@ const base: DiscussionActivity = {
   last_update: opening,
   last_run: opening,
   budget: { configured: true, reached: null, resets_at: null },
+  awaiting_reply: null,
 };
+
+// An opening published at 09:22 that holds the next one back until 10:22.
+const awaiting = { since: '2026-10-23T09:22:29Z', until: '2026-10-23T10:22:29Z' };
+
+/** An instant as the panel promises to write it: the reader's short date and time. */
+function shown(value: string, lng: Language): string {
+  return new Date(value).toLocaleString(lng === 'fr' ? 'fr-FR' : 'en-US', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  });
+}
 
 /** The figure a definition list states under one label. */
 function figure(label: string): string | null | undefined {
@@ -226,6 +238,36 @@ describe.each(['en', 'fr'] as const)('discussion activity in %s', lng => {
     expect(status.textContent).toMatch(sentence(messages.ceiling[reached]));
     // A day ceiling names the day it renews; a quota or a run ceiling promises none.
     expect(/\d/.test(status.textContent ?? '')).toBe(resets_at !== null);
+  });
+
+  it('says an opening awaits a reply, since when and until when, before the dated facts', () => {
+    render(<DiscussionActivityPanel lng={lng} activity={{ ...base, awaiting_reply: awaiting }} />);
+    const notice = screen.getByRole('status');
+    expect(notice.textContent).toBe(
+      messages.activity.awaiting_reply
+        .replace('{{since}}', shown(awaiting.since, lng))
+        .replace('{{until}}', shown(awaiting.until, lng))
+    );
+    const firstFact = screen.getByText(messages.activity.rebuilt_at, { selector: 'dt' });
+    expect(notice.compareDocumentPosition(firstFact) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
+  });
+
+  it('puts a ceiling that stops LIA before the reply an opening awaits', () => {
+    render(
+      <DiscussionActivityPanel
+        lng={lng}
+        activity={{
+          ...base,
+          budget: { configured: true, reached: 'owner_day', resets_at: '2026-10-24T00:00:00Z' },
+          awaiting_reply: awaiting,
+        }}
+      />
+    );
+    const [first, second] = screen.getAllByRole('status');
+    expect(first.textContent).toMatch(sentence(messages.ceiling.owner_day));
+    expect(second.textContent).toMatch(sentence(messages.activity.awaiting_reply));
   });
 
   it('shows nothing before any run when no ceiling is reached', () => {

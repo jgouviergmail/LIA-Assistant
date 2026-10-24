@@ -1,11 +1,12 @@
 """Prepare an exclusive destination copy after consent; keep originals through unknown SQL ACK."""
 
+import asyncio
 import os
 from dataclasses import dataclass
 from pathlib import Path
 from uuid import UUID
 
-from src.core.config import settings
+from src.domains.rag_spaces.document_access import owned_document_path
 from src.domains.rag_spaces.document_deletion_cleanup import cleanup_deleted_document_file
 from src.infrastructure.file_transfer import LocalFileRead
 
@@ -27,20 +28,26 @@ def _path(actor_id: UUID, space_id: UUID, filename: str) -> Path:
         or any(ord(character) < 32 for character in filename)
     ):
         raise ValueError("Choose a literal stored filename")
-    root = Path(settings.rag_spaces_storage_path).resolve()
-    account = root / str(actor_id)
-    scope = account / str(space_id)
-    selected = scope / filename
-    if (
-        account.is_symlink()
-        or scope.is_symlink()
-        or selected.is_symlink()
-        or scope.resolve() != scope
-        or selected.resolve().parent != scope
-        or selected.name != filename
-    ):
+    selected = owned_document_path(actor_id, space_id, filename)
+    if selected is None:
         raise ValueError("Document relocation requires an exact owned regular-file path")
     return selected
+
+
+def destination_taken(actor_id: UUID, space_id: UUID, filename: str) -> bool:
+    """Whether a move would land on an existing entry — run it in a worker thread."""
+    return os.path.lexists(_path(actor_id, space_id, filename))
+
+
+def _staging_paths(
+    actor_id: UUID, source_space_id: UUID, target_space_id: UUID, filename: str
+) -> tuple[Path, Path]:
+    """Both exact paths, the destination still free — run it in a worker thread."""
+    source = _path(actor_id, source_space_id, filename)
+    destination = _path(actor_id, target_space_id, filename)
+    if os.path.lexists(destination):
+        raise FileExistsError("Document destination already exists")
+    return source, destination
 
 
 async def rollback_staged_file(staged: StagedDocumentFile) -> bool:
@@ -79,10 +86,9 @@ async def stage_document_file(
 ) -> StagedDocumentFile | None:
     if source_space_id == target_space_id or file_size < 0:
         raise ValueError("Choose distinct owned spaces and a nonnegative observed size")
-    source = _path(actor_id, source_space_id, filename)
-    destination = _path(actor_id, target_space_id, filename)
-    if os.path.lexists(destination):
-        raise FileExistsError("Document destination already exists")
+    source, destination = await asyncio.to_thread(
+        _staging_paths, actor_id, source_space_id, target_space_id, filename
+    )
     try:
         reader = LocalFileRead.open(source)
     except FileNotFoundError:

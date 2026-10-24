@@ -400,9 +400,13 @@
       "id": "t.voiceinfra",
       "layer": "l.integrations",
       "icon": "mic",
-      "paths": ["apps/api/src/domains/voice", "apps/api/src/infrastructure/media"],
+      "paths": [
+        "apps/api/src/domains/voice",
+        "apps/api/src/infrastructure/media",
+        "apps/api/src/infrastructure/multipart_upload.py"
+      ],
       "domains": ["voice"],
-      "infra": ["media"],
+      "infra": ["media", "multipart_upload"],
       "deps": ["t.pricing"]
     },
     {

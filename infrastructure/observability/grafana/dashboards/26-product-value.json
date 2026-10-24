@@ -361,7 +361,7 @@
       "title": "Cost per useful outcome (7d)",
       "type": "stat",
       "datasource": "$datasource",
-      "description": "COST-05: mean EUR cost per validated outcome (histogram avg). EUR only — sourced from message_token_summary. n/a while no outcome is validated yet — the pipeline is live (ADR-178): gauges refresh with the rollup (first run minutes after boot, then hourly). ",
+      "description": "COST-05: mean EUR cost of the outcomes validated in the last 7 days, computed in PostgreSQL by the hourly rollup (product_outcome_cost_eur_mean). EUR only — backfilled from message_token_summary. n/a while no outcome is validated yet.",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -370,7 +370,7 @@
       },
       "targets": [
         {
-          "expr": "sum(increase(product_outcome_cost_eur_sum[7d])) / sum(increase(product_outcome_cost_eur_count[7d]))",
+          "expr": "sum(product_outcome_cost_eur_mean{window=\"7d\"})",
           "legendFormat": " ",
           "refId": "A"
         }
@@ -406,7 +406,7 @@
       "title": "Time to useful outcome (p50, 7d)",
       "type": "stat",
       "datasource": "$datasource",
-      "description": "OUT-16: median seconds from request to validated outcome. n/a while no outcome is validated yet — the pipeline is live (ADR-178): gauges refresh with the rollup (first run minutes after boot, then hourly). ",
+      "description": "OUT-16: median request-to-answer latency of the outcomes validated in the last 7 days, computed in PostgreSQL by the hourly rollup (product_outcome_latency_p50_seconds). n/a while no outcome is validated yet.",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -415,7 +415,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(product_outcome_duration_seconds_bucket[7d])))",
+          "expr": "sum(product_outcome_latency_p50_seconds{window=\"7d\"})",
           "legendFormat": " ",
           "refId": "A"
         }

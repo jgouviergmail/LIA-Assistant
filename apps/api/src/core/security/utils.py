@@ -8,10 +8,13 @@ Security features (PROD only):
   Prevents token reuse attacks. Tokens are blacklisted in Redis after first use.
 """
 
+import base64
+import hashlib
+import hmac
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import bcrypt
 import jwt
@@ -177,14 +180,87 @@ def create_verification_token(
     )
 
 
+#: The claims a password-reset token carries beyond the JWT ones (ADR-363): the
+#: account it was issued for and the fingerprint of that account's password at
+#: issue time. Written by ``create_password_reset_token``, read by
+#: ``reset_token_matches_account`` alone.
+_RESET_CLAIM_ACCOUNT = "uid"
+_RESET_CLAIM_PASSWORD_FINGERPRINT = "pfp"
+#: Domain separation: this HMAC is never mistaken for another use of the secret.
+_PASSWORD_FINGERPRINT_CONTEXT = b"lia:password-reset:password-fingerprint:v1:"
+
+
+def password_fingerprint(hashed_password: str | None) -> str:
+    """Fingerprint of an account's stored password, keyed by the instance secret.
+
+    A token is readable by whoever holds it, so it carries this HMAC and never
+    the hash: nobody without the secret can compute it, and any change of the
+    stored password — a reset, a first password on a passwordless account —
+    changes it, which retires every link issued before (ADR-363).
+
+    Args:
+        hashed_password: The stored bcrypt hash, or None for an account
+            without a password.
+
+    Returns:
+        A URL-safe, unpadded base64 digest of 16 bytes.
+    """
+    material = _PASSWORD_FINGERPRINT_CONTEXT + (hashed_password or "").encode("utf-8")
+    digest = hmac.new(settings.secret_key.encode("utf-8"), material, hashlib.sha256).digest()
+    return base64.urlsafe_b64encode(digest[:16]).decode("ascii").rstrip("=")
+
+
+def reset_token_matches_account(
+    payload: dict[str, Any],
+    *,
+    user_id: UUID,
+    email: str,
+    hashed_password: str | None,
+) -> bool:
+    """Whether a verified reset token was issued for this account, as it is now.
+
+    A token minted before the binding carries neither claim and matches no
+    account: such a link is at most an hour old when the binding ships.
+
+    Args:
+        payload: The decoded token, already verified for signature, type and
+            expiry.
+        user_id: The account the token is about to act on.
+        email: That account's address.
+        hashed_password: That account's stored hash, or None.
+
+    Returns:
+        True only when the account, the address and the password fingerprint
+        all match the ones the token was issued for.
+    """
+    claimed_password = payload.get(_RESET_CLAIM_PASSWORD_FINGERPRINT)
+    if not isinstance(claimed_password, str):
+        return False
+    return (
+        payload.get(_RESET_CLAIM_ACCOUNT) == str(user_id)
+        and payload.get("sub") == email
+        and hmac.compare_digest(
+            claimed_password.encode("utf-8"),
+            password_fingerprint(hashed_password).encode("utf-8"),
+        )
+    )
+
+
 def create_password_reset_token(
-    email: str, expires_hours: int = PASSWORD_RESET_TOKEN_EXPIRE_HOURS
+    email: str,
+    *,
+    user_id: UUID,
+    hashed_password: str | None,
+    expires_hours: int = PASSWORD_RESET_TOKEN_EXPIRE_HOURS,
 ) -> str:
     """
-    Create a password reset token.
+    Create a password reset token bound to its account (ADR-363).
 
     Args:
         email: User email address
+        user_id: The account the link is issued for
+        hashed_password: That account's stored hash, or None — fingerprinted,
+            never copied
         expires_hours: Token expiration in hours (default: 1 hour for security)
 
     Returns:
@@ -199,6 +275,8 @@ def create_password_reset_token(
         "type": "password_reset",
         "exp": expire,
         "iat": datetime.now(UTC),
+        _RESET_CLAIM_ACCOUNT: str(user_id),
+        _RESET_CLAIM_PASSWORD_FINGERPRINT: password_fingerprint(hashed_password),
     }
 
     # JTI for single-use tokens (PROD only)

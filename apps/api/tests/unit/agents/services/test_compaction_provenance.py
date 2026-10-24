@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import re
 import time
-from statistics import median
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -38,6 +37,7 @@ from src.core.constants import (
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.services.compaction_service import CompactionService
 from src.domains.agents.utils.content_wrapper import wrap_external_content
+from tests.support.cpu_growth import CEILING_SECONDS, measure_growth
 
 pytestmark = [pytest.mark.unit]
 
@@ -434,20 +434,18 @@ def test_a_long_url_tail_is_trimmed_with_linear_cpu_growth(
 ) -> None:
     """Unpaired punctuation on an external URL cannot freeze compaction.
 
-    Measure paired thread CPU growth, as the text-flattener guard does: four
-    times the text must cost at most eight times the work. The URL survives
-    whole, and scheduling pauses cannot become evidence of quadratic work.
+    Four times the text must cost at most eight times the work, measured as every
+    linearity guard measures it (``tests.support.cpu_growth``: the thread's CPU,
+    interleaved pairs, the median one deciding). The URL survives whole.
     """
     url = "https://example.org/path"
-    messages = {size: HumanMessage(content=url + closing * size) for size in (16_000, 64_000)}
-    paired_growth = []
-    for pair in range(3):
-        seconds = {}
-        for size in ((16_000, 64_000) if pair % 2 == 0 else (64_000, 16_000)):
-            started = time.thread_time()
-            trusted, external = service._extract_identifiers_by_provenance([messages[size]])
-            seconds[size] = time.thread_time() - started
-            assert trusted == [url] and external == []
-        assert seconds[64_000] < 1.5, seconds
-        paired_growth.append(seconds[64_000] / max(seconds[16_000], 0.005))
-    assert median(paired_growth) <= 8.0, paired_growth
+    small, large = (HumanMessage(content=url + closing * size) for size in (16_000, 64_000))
+    for message in (small, large):
+        assert service._extract_identifiers_by_provenance([message]) == ([url], [])
+
+    growth = measure_growth(
+        lambda message: service._extract_identifiers_by_provenance([message]), small, large
+    )
+
+    assert growth.elapsed < CEILING_SECONDS, growth.describe()
+    assert growth.linear, growth.describe()

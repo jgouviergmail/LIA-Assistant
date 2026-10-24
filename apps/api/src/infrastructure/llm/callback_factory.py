@@ -221,7 +221,7 @@ class CallbackFactory:
         """
         try:
             # Lazy import to avoid circular dependencies
-            from langfuse.langchain import CallbackHandler  # type: ignore[import-not-found]
+            from langfuse.langchain import CallbackHandler
 
             # Create singleton handler (reads config from os.environ)
             self._handler = CallbackHandler()

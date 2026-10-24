@@ -130,7 +130,11 @@ x86 server or workstation works equally well.
   afterwards in the Admin UI.
 - **An administrator email address** — this becomes your login.
 - **A password** meeting the backend policy: at least 10 characters, 2
-  uppercase letters, 2 digits, and 2 special characters.
+  uppercase letters, 2 digits, and 2 special characters. An administrator is
+  never reset by e-mail
+  ([ADR-363](../architecture/ADR-363-Password-Reset-Bounded-Per-Account-And-Bound-To-It.md)):
+  if you forget it, set a new one from the server with the `set_password`
+  command of the [Day-2 commands](#day-2-commands).
 - **How people will reach LIA** — a LAN address, or a domain name if you want
   HTTPS (see §4.2).
 
@@ -320,6 +324,43 @@ mandatory environment setting, Compose service, seed or boot step. Existing
 connections continue working until a person chooses the grouped flow. The
 [platform setup guide](../GETTING_STARTED.md#external-platform-setup) lists
 the complete callback set.
+
+**An anti-robot check on the password doors** (Cloudflare Turnstile,
+[ADR-364](../architecture/ADR-364-Turnstile-Bot-Check-On-The-Password-Doors.md))
+stays off until you create your own widget; it adds no Compose service or boot
+step, and Cloudflare's Free plan covers it. When LIA is reached on a public
+domain, the guided installer asks for the widget's two keys — give both or leave
+both empty; Cloudflare's testing keys are refused — and writes them with
+`TURNSTILE_ENABLED=true` to the private `.env`. On an instance already running
+— a reconfiguration asks no secret — set them by hand as below. In the
+Cloudflare dashboard, open *Turnstile*, add a widget in *Managed* mode and list
+the hosts your pages are served from — the host of `FRONTEND_URL`, and of any
+other web origin you added to `CORS_ORIGINS`. Cloudflare asks for a domain
+name, so the check suits an instance on a public domain, not one reached by its
+LAN address; a widget takes up to ten hostnames and a domain covers its
+subdomains, so an instance and its demonstrator can share one. Then add to
+`.env`:
+
+```bash
+TURNSTILE_ENABLED=true
+TURNSTILE_SITE_KEY=<the widget's site key>
+TURNSTILE_SECRET_KEY=<the widget's secret key>
+```
+
+and recreate the API so it reads them (`liac restart` keeps the old
+environment): `liac up -d --no-build --force-recreate api`, with the file list
+you start it with. The web needs no rebuild — the sign-in pages read the site
+key from the API — and the API refuses to start with the check on and a key
+missing. From then on the sign-up, sign-in and password-reset forms carry a
+single-use token the API checks with Cloudflare; most visitors never see the
+widget. When Cloudflare does not answer, the sign-in still goes through — even
+when the widget could not load in the browser — while sign-ups and reset
+requests are refused until it answers again: the core alert
+`TurnstileUnavailable` (with observability) and its
+[runbook](../runbooks/alerts/TurnstileUnavailable.md) say what to check, and how
+to switch the check off meanwhile. A visitor whose browser blocks
+`challenges.cloudflare.com` while your server reaches it is refused until they
+allow it. The Google sign-in button is not covered yet.
 
 **Observability** (`observability = yes`) adds twelve containers — Prometheus,
 Grafana, Loki, Tempo, Alertmanager, the exporters and Portainer — all bound to
@@ -567,6 +608,10 @@ liac logs -f api        # follow the API
 liac restart api        # restart one service
 liac stop               # stop everything (data is preserved)
 liac up -d --no-build   # start it again
+
+# Set a forgotten password (asked twice, hidden), then sign the account out of
+# every device — the only way back for an administrator
+liac exec api python -m scripts.data.set_password --email you@example.com
 ```
 
 ### Removing an installation

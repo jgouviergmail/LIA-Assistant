@@ -262,6 +262,26 @@ async def _sync_ledger_volume_from_db(db: AsyncSession) -> None:
         ledger_bytes.labels(table=volume.table).set(volume.size_bytes)
 
 
+async def _sync_discussion_volume_from_db(db: AsyncSession) -> None:
+    """Transport what the proactive discussions' execution tables occupy (AC-034a).
+
+    They leave only with the account: their retention is decided on this figure,
+    like the registers' (AC-034b).
+
+    Args:
+        db: Session of the periodic sync.
+    """
+    from src.domains.proactive_discussions.volume import discussion_volume
+    from src.infrastructure.observability.metrics_proactive_discussions import (
+        proactive_discussion_table_bytes,
+        proactive_discussion_table_rows,
+    )
+
+    for volume in await discussion_volume(db):
+        proactive_discussion_table_rows.labels(table=volume.table).set(volume.rows)
+        proactive_discussion_table_bytes.labels(table=volume.table).set(volume.size_bytes)
+
+
 async def _sync_ledger_chain_from_db(db: AsyncSession) -> None:
     """Publish the notary's backlog and the width of its window.
 
@@ -353,7 +373,7 @@ async def update_lifetime_metrics() -> None:
                 try:
                     await _sync_channel_bindings_from_db(db)
                 except Exception as exc:
-                    logger.warning("channel_bindings_sync_failed", error=str(exc))
+                    logger.warning("channel_bindings_sync_failed", error_type=type(exc).__name__)
 
                 # ADR-263: the effect ledger's only DB-backed gauge. Isolated
                 # like its neighbours — an operator losing this number must not
@@ -361,21 +381,28 @@ async def update_lifetime_metrics() -> None:
                 try:
                     await _sync_effect_orphans_from_db(db)
                 except Exception as exc:
-                    logger.warning("effect_orphans_sync_failed", error=str(exc))
+                    logger.warning("effect_orphans_sync_failed", error_type=type(exc).__name__)
 
                 # ADR-263 lot 4: what the transparency registers occupy. Same
                 # isolation, same reason.
                 try:
                     await _sync_ledger_volume_from_db(db)
                 except Exception as exc:
-                    logger.warning("ledger_volume_sync_failed", error=str(exc))
+                    logger.warning("ledger_volume_sync_failed", error_type=type(exc).__name__)
+
+                # AC-034a: the proactive discussions' execution tables, read the
+                # same way. Same isolation; a failure is logged by its type.
+                try:
+                    await _sync_discussion_volume_from_db(db)
+                except Exception as exc:
+                    logger.warning("discussion_volume_sync_failed", error_type=type(exc).__name__)
 
                 # ADR-263 lot 5: the notary's backlog and the width of the
                 # window in which a rewrite leaves no trace. Same isolation.
                 try:
                     await _sync_ledger_chain_from_db(db)
                 except Exception as exc:
-                    logger.warning("ledger_chain_sync_failed", error=str(exc))
+                    logger.warning("ledger_chain_sync_failed", error_type=type(exc).__name__)
 
                 # Refresh DB connection-pool gauges (F27, 2026-07): this used
                 # to run on EVERY HTTP request in PrometheusMiddleware — a
@@ -417,7 +444,6 @@ async def update_lifetime_metrics() -> None:
 
             logger.error(
                 "lifetime_metrics_update_failed",
-                error=str(e),
                 error_type=type(e).__name__,
                 error_count=_error_count,
                 exc_info=True,

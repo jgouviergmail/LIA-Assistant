@@ -826,6 +826,7 @@ async with OAuthLock(redis, user_id, connector_type):
 - ✅ Redis SETNX distributed lock
 - ✅ Token rotation handling
 - Historique : la révocation par connecteur décrite dans cet ADR a été amendée par [ADR-302](ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md) ; une déconnexion unitaire ne révoque plus l'autorisation fournisseur.
+- Historique : le verrou Redis de rafraîchissement (`OAuthLock`) est remplacé par la porte unique de rafraîchissement ([ADR-302, amendement du 2026-10-23](ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md)).
 
 ---
 
@@ -1102,7 +1103,7 @@ end
 **Impact**:
 - ✅ DB isolation (sessions vs cache)
 - ✅ Sliding window rate limiting (Lua atomic)
-- ✅ SETNX distributed locks (OAuthLock)
+- ✅ SETNX distributed locks (le verrou OAuth est retiré le 2026-10-23 : [ADR-302](ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md))
 - ✅ Single-use OAuth state tokens
 - ✅ Cache helpers with TTL
 
@@ -1742,7 +1743,7 @@ async with OAuthLock(redis, user_id, connector_type):
 - ✅ 5 services (Gmail, Calendar, Contacts, Drive, Tasks)
 - ✅ Centralized OAuth scopes
 - ✅ Redis distributed rate limiting (sliding window)
-- ✅ Token refresh avec double-check locking
+- ✅ Token refresh avec double-check locking (par la porte unique depuis le 2026-10-23 : [ADR-302](ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md))
 - ✅ Connector invalidation sur 401
 - ✅ Client registry auto-discovery
 
@@ -3036,7 +3037,7 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 ### ADR-113: Backend Test Suite Rehabilitation — job integration, fin des quarantaines, ratchet couverture
 
-**Status**: ✅ IMPLEMENTED (2026-07-08)
+**Status**: ✅ IMPLEMENTED (2026-07-08) — amendé le 2026-10-23 (AC-030b : le plancher porte sur les tests unitaires et d'intégration ensemble, combinés strictement ; la porte du diff lit ce total)
 **Fichier**: `docs/architecture/ADR-113-Backend-Test-Suite-Rehabilitation.md`
 
 **Décision**: **Réhabilitation complète de la suite de tests backend** — clôt les constats §3.12 et reco #4 de l'audit 2026-07 : `tests/integration/` (250 tests) ne tournait dans AUCUN job CI et avait pourri en silence (53 échecs mesurés sur 243, comme la suite agents avant elle), 13 fichiers Testcontainers étaient mal classés sous `tests/unit/` (l'audit en voyait 10 ; +`test_messages_search`, `test_feedback_persistence`, `test_checkpointer` — ce dernier ne tournait NULLE PART : skip win32 en local, désélection `-m` en CI), dont 10 quarantainés par une liste `--ignore` dans ci.yml **prouvée 100 % redondante** (collecte byte-identique avec/sans : 8916 tests). Reclassement des 13 (222 tests) vers `tests/integration/`, suppression de la liste, et interdiction explicite des quarantaines `--ignore` sans marker ni ticket. **Nouveau job `test-backend-integration`** (465 tests, `-m "not e2e and not benchmark and not multiprocess"`, slow inclus car ne tournant nulle part ailleurs, `--no-cov`) branché sur les services PG+Redis existants via **`TEST_DATABASE_URL`** — seule variable DB qui survit au `load_dotenv(.env.test, override=True)` du conftest ; `_detect_environment` l'honore explicitement avec fallback Testcontainers inchangé, credentials du service alignés sur `.env.test` pour les tests lisant `settings.database_url` en direct (checkpointer), branche « optimisation localhost » morte supprimée (règle docstring/code). Taxonomie des 53 échecs réparés : ~35 = UNE cause (rate-limiter auth 10 logins/min/IP non gaté par `RATE_LIMIT_ENABLED`, saturé par les fixtures `authenticated_client` — purge des buckets `auth:*` par le client Redis du limiter dans `tests/integration/conftest.py` + reset du singleton, zéro changement produit) ; 3×500 = extension PG `unaccent` créée par les migrations mais absente du conftest ; ~4 asserts i18n anglais en dur (l'API répond localisé) → assertions via le catalogue `APIMessages` ; ~10 tests obsolètes réécrits contre l'API actuelle (handlers connecteurs `*_stateless`, callback Gmail 302-redirect, schéma `ModelPriceCreate` 14 champs, cycle de vie compte pending-activation, MissingGreenlet sur attribut expiré, setup home-location sans connecteur Places). **Bug produit trouvé et corrigé au passage** : le handler custom `RequestValidationError` sérialisait `exc.errors()` brut (objets `ValueError` dans `ctx`) → **500 au lieu de 422 sur toute erreur de validation issue d'un `field_validator`** ; corrigé par `jsonable_encoder` (pattern du handler FastAPI par défaut). **Ratchet couverture 43→45 %** (pyproject + ci.yml synchrones, couverture réelle mesurée 52,31 % en CI Linux), doctrine « +2 points par release, jamais de baisse » vers l'objectif 75 % documentée dans GUIDE_TESTING.md. **6 tests llm_cache skippés « implementation changed » réparés, pas supprimés** (le code testé est vivant : mocks re-déclenchant le vrai chemin d'échec str(), patches sur le vrai site d'import `metrics_agents`, `estimate_cost_usd` devenu async). Dettes signalées hors périmètre : `test_metrics_langgraph_state.py` (module skippé « not implemented »), `test_database_session.py:66`, routes auth qui ne résolvent pas Accept-Language (réponses toujours FR), messages du validateur mot de passe en français inline, 209 skips suite agents (stratégie : provider fake-LLM déterministe pour le plumbing + tier nightly `llm_live` avec secret pour le petit noyau LLM réel). Suit [ADR-112](#adr-112-python-dependency-locking--lockfiles-universels-via-uv).
@@ -3088,6 +3089,8 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 **Décision**: **Réactivation de la chaîne d'alerte, éteinte le 2026-01-16 sans ADR** — ~71 règles maintenues et 22 runbooks dormaient, personne n'était notifié d'un incident (seul signal : digest logwatch quotidien), MTTR DORA immesurable. Choix : **règles évaluées par Prometheus + Alertmanager dédié (e-mail)** plutôt que Grafana unified alerting (rejeté : évaluation déplacée dans un Grafana taillé au plus juste, pas d'équivalent `promtool test rules`, SPOF silencieux). **Noyau de 13 alertes** (`alerts-core.yml` : Service/Database/Redis Down, disque, mémoire conteneur, restart-loop, 5xx, latence SSE p95, backup, endpoint public, expiration certificat, 2 méta) plutôt que réactiver les 71 legacy : l'audit a prouvé que **les seuils rendus legacy sont corrompus** (multiplicateurs aveugles ×1.5/×3/×7.5 appliqués à des pourcentages bornés — `DiskSpaceCritical` prod à 147 % de disque, littéralement impossible à déclencher ; recalibration obligatoire avant toute réactivation). Seuils `ALERT_CORE_*` dans `thresholds/{env}.env` (règle « paramétrable = .env ») et **descriptions référençant les mêmes variables Jinja2 que les expressions** (le bug de dérive « seuil: 95% » affiché vs 147 réel ne peut plus se reproduire) ; chaque alerte annote son runbook `docs/runbooks/alerts/` (4 nouveaux : RedisDown, BackupFailed, PublicEndpointDown, AlertmanagerDown). **blackbox-exporter** (64M) sonde ce qu'aucun exporter ne voyait : webhook healthcheck du sidecar backup (ADR-109) et URL publique de bout en bout (edge Cloudflare → tunnel systemd → web) — cible injectée au démarrage depuis `BLACKBOX_PUBLIC_PROBE_URL` (.env) dans un file_sd, le domaine réel ne rentre jamais dans le repo public, variable vide = sonde désactivée (défaut dev). Consolidation : config Alertmanager unifiée sous `infrastructure/observability/alertmanager/` (doublon orphelin supprimé, entrypoint email-only automatique conservé), 22 scripts one-shot/archives 2025-11 supprimés (récupérables via git), alertes custom jamais chargées regroupées sous `prometheus/alerts/`. Limites RPi5 : Alertmanager 128M/0.25 cpu, blackbox 64M/0.1 cpu. Limitation assumée : `AlertmanagerDown` ne peut pas s'auto-notifier (visible Prometheus UI + logwatch ; dead-man's-switch externe = durcissement futur). Validation : `promtool check config/rules` + tests unitaires de règles `promtool test rules`, E2E dev (stop Redis → e-mail reçu → resolved). Suit [ADR-118](#adr-118-import-de-skill-piloté-par-le-chat--livraison-directe-du-skill-generator--pipeline-dimport-durci).
 
 **Amendement 2026-10-18** : le rapport quotidien de l'hôte s'ouvre sur une section « Supervision LIA » lue dans les systèmes qui ont enregistré la journée — alertes déclenchées, santé de la chaîne, alertes actives, incidents ouverts, redémarrages, pics mémoire, sondes —, chaque source illisible nommée, et le tunnel compte chaque requête en échec une fois, par côté. `SSELatencyP95High` n'observe plus que les tours qu'une personne attend (`streaming/latency_sli.py`, garde AST) et ne s'évalue qu'à partir de `ALERT_CORE_SSE_TTFT_MIN_OBSERVATIONS` tours en dix minutes : en deçà, un p95 n'est que l'observation la plus lente.
+
+**Amendement 2026-10-23** : un seul gabarit Alertmanager ; la gravité fixe l'urgence de l'équipe backend, le composant ajoute un public (audit A07, décision du propriétaire). Mesuré avant tout changement par la porte ajoutée : les routes de composant étaient inatteignables (routes de gravité en tête, `continue: false`), un seul canal optionnel renseigné laissait une clé PagerDuty ou une URL Slack vide que Alertmanager refuse au démarrage, et un `|` dans une valeur cassait le rendu. Désormais : routes de gravité en `continue: true`, route d'équipe rendue seulement pour une adresse distincte de celle du backend, blocs optionnels `# @begin`/`# @end` retirés au rendu, valeurs substituées littéralement (`awk`/`ENVIRON`), saut de ligne refusé ; `task test:alertmanager` rend 14 cas par le vrai entrypoint dans l'image de production, sans réseau, puis `amtool` vérifie et route. Un public n'est gardé qu'avec une alerte qui l'atteint : la route finance, qu'aucune alerte chargée ou dormante n'atteignait, est retirée avec `ALERTMANAGER_FINANCE_TEAM_EMAIL` ; la route sécurité, dans le même cas mais hors du périmètre de l'audit, est déclarée dormante et signalée au propriétaire.
 
 ### ADR-120: Expansion sémantique pilotée par l'évidence & garde runtime des paramètres
 
@@ -3588,6 +3591,8 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 **Fichier**: `docs/architecture/ADR-178-Product-Value-Dashboard.md`
 
 **Décision**: LIA n'avait aucune vue produit (25 dashboards techniques, zéro réponse à « combien d'utilisateurs obtiennent un résultat utile, à quel coût, reviennent-ils ? »). **Retenu — architecture 100 % native Grafana + Prometheus + PostgreSQL, aucune plateforme analytics tierce** (Langfuse dev-only, non référencé). PostgreSQL = vérité produit durable : contexte borné `domains/product/` (`product_outcomes` 1 ligne/`result_id`, états E1/E2/E3 **mutables** — un E2 exige 24 h sans correction/réversion — donc **North Star jamais calculée depuis Prometheus**, un Counter ne se dé-compte pas ; `product_events` inclus en v1 sur arbitrage). Prometheus = transport borné : compteurs + **gauges DB-backed** (pattern `lifetime_metrics.py`), histogrammes ≤ 2 labels (le PDF v1.1 aurait produit ~23 k séries × 26 domaines sur RPi5), label `refresh_job` (jamais `job`, réservé au scrape), coûts **EUR uniquement** (source `message_token_summary.total_cost_eur`). Dashboard `26-product-value` (convention `<numero>-<slug>`, titre anglais) : 42 panels en trois états — LIVE (séries existantes), PRE-WIRED (futur nom `product_*`, rend « n/a » puis s'allume sans retouche JSON), TEXT (source pas encore née). Datasource `postgres-product-readonly` provisionnée env-interpolée ; rôle `grafana_product_reader` créé par script + task (jamais un mot de passe en migration), `GRANT SELECT` sur les seules surfaces produit + `statement_timeout`. Purge GDPR câblée (`user_data_map` + `account_deletion_service`), rétention brute 180 j (`PRODUCT_OUTCOMES_RETENTION_DAYS`), `device_class` **dérivé** de l'`os_family` de session (ADR-144, aucune capture nouvelle), écritures hors chemin SSE, alertes produit différées après 4 semaines de baseline (hygiène ADR-119). **Alternatives écartées** : plateforme tierce (philosophie locale-first, PII) ; North Star depuis les compteurs (états mutables) ; `MATERIALIZED VIEW` (refresh verrouillant) ; capture client de `device_class` (contraire ADR-144) ; uid `lia-product-value` (viole la convention).
+
+**Amendement 2026-10-23** : chaque panneau lit une série produite (audit AC-006). Les deux panneaux « pré-câblés » du tableau 26 lisent deux jauges calculées en base par le rollup sur l'ensemble utile (`product_outcome_cost_eur_mean`, `product_outcome_latency_p50_seconds`) ; l'alerte de fraîcheur `ProductAggregatesStale` passe dans le cœur, les trois alertes de comportement restent non chargées, re-décidées au plus tard le 2026-12-15 sur une mesure de la production ; la garde de couverture ne lit plus que les règles chargées, et une garde inverse exige un producteur pour chaque série lue.
 
 ### ADR-179 : Sortie structurée — chokepoint unique gardé par AST et plancher de budget de complétion sous raisonnement
 
@@ -4786,6 +4791,8 @@ graph TD
 
 **Amendement 2026-10-15** : une attente du fournisseur ne réserve pas l'autorisation — les activations unitaires et groupées relisent un propriétaire actif puis verrouillent les configurations globales dans un ordre stable avant grants et connecteurs (`ConnectorService._lock_activation`, aussi pour un passage à `ACTIVE`) ; la désactivation administrative prend les mêmes verrous, ligne absente comprise, et les sondes Apple et Hue Remote relisent l'autorisation avant de persister.
 
+**Amendement 2026-10-23** : une seule porte de rafraîchissement pour les jetons hérités, les grants et Hue Remote (`connectors/oauth_refresh.py`, audit AC-029) — un échange par jeton entre appelants et workers, aucune transaction ouverte pendant l'appel au fournisseur, une écriture conditionnée au jeton d'origine et bornée dans son attente de ligne, un `invalid_grant` revérifié avant toute déconnexion ; `OAuthLock` et le runtime du grant sont supprimés.
+
 ---
 
 ### ADR-301 : sessions vocales — une politique par mode, quelle que soit la ligne
@@ -5065,6 +5072,8 @@ graph TD
 
 **Amendement 2026-10-15** : le rognage des identifiants de la compaction et le découpage des messages Telegram restent linéaires (un compte des crochets, un parcours par index), gardés par une mesure CPU à une taille et au quadruple ; Telegram referme chaque paire de mise en forme par message et garde les sauts de ligne du code aux coupes.
 
+**Amendement 2026-10-23** : une seule mesure de croissance pour toutes les gardes de linéarité (`tests/support/cpu_growth.py` : CPU du thread précis au cycle, paires alternées dont la médiane décide, mêmes planchers, même ×8) ; la copie de la compaction mesurait un appel par taille sur `time.thread_time`, que Windows fait avancer par pas de 15,6 ms (audit A12).
+
 ---
 
 ### ADR-327 : une skill écrite ailleurs est lue comme une donnée, et la bibliothèque installe depuis le dépôt ce que l'aperçu a montré
@@ -5321,17 +5330,25 @@ graph TD
 
 **File**: [ADR-358-Independent-Proactive-Discussions-And-Native-Delivery.md](ADR-358-Independent-Proactive-Discussions-And-Native-Delivery.md)
 
-**Status**: Accepted, 2026-10-20 — implemented on the native application contracts; amended 2026-10-21 (cold review, production measurement) and 2026-10-22 (operator tick capacity); its SMS privacy rule withdrawn on 2026-10-23 (ADR-357 amendment). Device display and perceived conversational quality remain product-pilot qualifications.
+**Status**: Accepted, 2026-10-20 — implemented on the native application contracts; amended 2026-10-21 (cold review, production measurement), 2026-10-22 (operator tick capacity) and 2026-10-23 (execution tables measured; an unanswered opening's bounded hold); its SMS privacy rule withdrawn on 2026-10-23 (ADR-357 amendment). Device display and perceived conversational quality remain product-pilot qualifications.
 
 **Decision**: Personal conversational initiative has its own policy, cadence and owner-fenced runs. One assistant archive, logical opening and outbox intent share an atomic publication boundary, followed by native eligible delivery. Human turns, approvals and alerts keep priority; the existing notification engine remains independent. API, internal tools, accessible settings and lifecycle gates are required before activation.
+
+**Amendment 2026-10-23**: the five execution tables, which leave only with the account, are measured by the transparency registers' own reader (rows and bytes per table, dashboard 13) from one declaration of their names; no growth alert ships before a baseline, and the retention is decided on the measured growth (audit AC-034).
+
+**Amendment 2026-10-23 b**: an unanswered opening holds the next one back for `DISCUSSION_ATTENTION_UNANSWERED_OPENING_MINUTES` (an hour by default, owner decision), never past its reply window, and a newer opening supersedes it; a run that never starts names the hold or the refusal on its counter outcome and in a `discussion_run_not_started` line; the settings say when an opening awaits a reply, and until when.
 
 ### ADR-359: Longitudinal discussion context and user control
 
 **File**: [ADR-359-Longitudinal-Discussion-Context-And-User-Control.md](ADR-359-Longitudinal-Discussion-Context-And-User-Control.md)
 
-**Status**: Accepted, 2026-10-20 — implemented on the native application contracts; amended four times on 2026-10-21 and on 2026-10-22.
+**Status**: Accepted, 2026-10-20 — implemented on the native application contracts; amended four times on 2026-10-21, on 2026-10-22 and twice on 2026-10-23.
 
 **Decision**: Typed source observations support episodes and qualified patterns in PostgreSQL, with explicit temporal uncertainty, coverage and current authority. The portrait remains an independent whole source. A visible derived base supports purge and persistent reversible usage exclusions; procedural directives and immediate correction guards constrain initiative before model use. A rebuilt generation cannot undo a human exclusion or restore a purged context implicitly.
+
+**Amendment 2026-10-23**: a refused reading of the person's rules (a denial quoting words they never wrote) is cached under the inputs' signature: the run reads nothing and says so (`rules_refused`), and the same inputs are compiled again only after a wait that doubles at each refusal, up to the cache's lifetime — before, every tick paid the compiler again to be refused again (audit A16).
+
+**Amendment 2026-10-23 b**: the settings page says when an opening awaits a reply, and until when it holds the next one, read through the attention gate's own predicate (ADR-358 amendment 2026-10-23 b).
 
 ### ADR-360: Bounded discussion research and accounted abstention
 
@@ -5356,3 +5373,19 @@ graph TD
 **Status**: Accepted, 2026-10-22. Amends ADR-306 (payload rules 2 and 3, the five-minute lifetime only, the per-call write count), ADR-308 and ADR-311 (a fourth effect of frequent exchanges), ADR-309.
 
 **Decision**: In a tool loop the last block before the current question is a cache read point (`mark_history_end`): Claude writes an entry only at a breakpoint, so the next turn used to find the static prefix alone and re-write its whole history (measured: 1,685 tokens re-written against 439). For a turn a person waits for, in frequent exchanges, the static prefix and the history's end are written for the hour (`PROMPT_CACHE_EXTENDED_TTL_ENABLED`, a write at 2x instead of 1.25x; the rolling breakpoint keeps five minutes), declared by an ambient scope around the ReAct model call: on production 77 to 78 % of next turns came within the hour, 49 to 59 % within five minutes. An hour-long write is billed at its price on every path — a streamed response names it at its start only, which a stream hook copies — and recorded per call (`token_usage_logs.cache_write_tokens`, `cache_write_extended_tokens`). An earlier turn's thinking goes back to the Claude model that wrote it when that generation keeps prior thinking without binding it (`ClaudeSurface.preserves_prior_turn_thinking`, `PRIOR_TURN_THINKING_REPLAY_ENABLED`), decided on LangChain's messages; every other earlier block is removed under a counted reason.
+
+### ADR-363: A password reset is bounded per account, bound to the account, and never a door for a federated or administrator account
+
+**File**: [ADR-363-Password-Reset-Bounded-Per-Account-And-Bound-To-It.md](ADR-363-Password-Reset-Bounded-Per-Account-And-Bound-To-It.md)
+
+**Status**: Accepted, 2026-10-23. Amends ADR-143 (the A8 passkey escape hatch, kept for an account that may hold a password), ADR-260 (a `USER_RUNTIME` family), ADR-119 (two core alerts).
+
+**Decision**: One decision says who may receive a reset link, applied when it is asked for and when it is used (`password_reset_policy.decide_reset`): a deleted account and an administrator get nothing, an account that signs in with a provider and has no password gets a notice saying how it signs in, an account with a password or with passkeys only gets the link. Each account has an e-mail budget whatever IP asks (`acquire_reset_send`; the short window is asked first, so a refused attempt never spends the day). A link carries the account id and an HMAC of the stored hash (`reset_token_matches_account`): a password changed since, or an account re-created at the address, retires it. What the route did is counted on bounded outcomes (`password_reset_requests_total`, `password_reset_confirmations_total`), drawn on dashboard 09 and alerted by `PasswordResetAbuse` and `RegistrationBurst`; a rate-limit metric label no longer carries an account id or a client address (`extract_key_prefix`).
+
+### ADR-364: A Cloudflare Turnstile bot check guards the password doors; only the sign-in rides through an outage
+
+**File**: [ADR-364-Turnstile-Bot-Check-On-The-Password-Doors.md](ADR-364-Turnstile-Bot-Check-On-The-Password-Doors.md)
+
+**Status**: Accepted, 2026-10-24. Amends ADR-363 (its rejected CAPTCHA), ADR-098 (the CSP opens `https://challenges.cloudflare.com` to scripts and frames), ADR-119 (one core alert).
+
+**Decision**: The sign-up, password sign-in and reset-request routes carry the Turnstile widget's token (`X-LIA-Turnstile-Response`) and each is a guard: the per-IP limiter first, then the check (`turnstile_gate.require_turnstile`), which asks Cloudflare's siteverify (`TurnstileClient`: never raises, two attempts under one idempotency key) and passes a token only if it was made for that door on this instance's pages. When Cloudflare gives no usable answer — an outage, or a refusal of the server's own secret — only the sign-in proceeds (owner decision); a sign-up or a reset request is refused 503 `turnstile_unavailable`, a refused token 403 `turnstile_failed` everywhere. Off by default with the operator's own keys; the site key reaches the sign-in pages through `GET /auth/features` alone; the web loads the explicit-render script once, in `interaction-only` mode. Counted (`turnstile_verifications_total`), drawn on dashboard 09, alerted by `TurnstileUnavailable`; the privacy policy says it, in six languages.

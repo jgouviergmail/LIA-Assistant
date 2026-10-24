@@ -15,9 +15,11 @@ from fastapi import HTTPException
 
 from src.core.constants import STEP_UP_ERROR_CODE
 from src.core.session_dependencies import require_recent_step_up
+from src.domains.auth.password_reset_policy import PasswordRecovery
 from src.domains.auth.schemas import StepUpPasswordRequest
 from src.infrastructure.cache.session_store import SessionStore, UserSession
 from src.infrastructure.database.registry import import_all_models
+from tests.fixtures.factories import UserFactory
 
 import_all_models()
 
@@ -177,6 +179,55 @@ class TestStepUpStatus:
 
         assert result.methods == ["password"]
         assert result.password_set is True
+
+    @pytest.mark.parametrize(
+        ("password", "provider", "superuser", "recovery", "label"),
+        [
+            (False, None, False, PasswordRecovery.EMAIL_LINK, None),
+            (False, "google", False, PasswordRecovery.PROVIDER, "Google"),
+            (True, "google", False, PasswordRecovery.PROVIDER, "Google"),
+            (False, "google", True, PasswordRecovery.NONE, "Google"),
+            (True, None, True, PasswordRecovery.NONE, None),
+        ],
+        ids=[
+            "passkeys-only",
+            "google-only",
+            "google-with-password",
+            "google-administrator",
+            "administrator-with-password",
+        ],
+    )
+    async def test_publishes_the_way_back_the_reset_decision_leaves(
+        self,
+        password: bool,
+        provider: str | None,
+        superuser: bool,
+        recovery: PasswordRecovery,
+        label: str | None,
+    ) -> None:
+        """The Security settings state the recovery that really exists (ADR-363).
+
+        Before, they promised the e-mail reset to every account without a
+        password — the Google accounts and the administrators included, whom the
+        reset decision now sends a notice or nothing.
+        """
+        from src.domains.auth.step_up_router import step_up_status
+
+        user = UserFactory.create(is_superuser=superuser, oauth_provider=provider)
+        if not password:
+            user.hashed_password = None
+
+        with patch("src.domains.auth.step_up_router.settings") as mock_settings:
+            mock_settings.mfa_enabled = False
+            result = await step_up_status(
+                user=user,
+                db=AsyncMock(),
+                store=MagicMock(),
+                lia_session=None,
+            )
+
+        assert result.password_recovery is recovery
+        assert result.sign_in_provider == label
 
 
 @pytest.mark.unit

@@ -42,7 +42,7 @@ from src.domains.proactive_discussions.llm_contracts import (
 from src.domains.proactive_discussions.policy import effective_sources, validate_decision
 from src.domains.proactive_discussions.publication_types import OpeningDraft
 from src.domains.proactive_discussions.repository import DiscussionRepository
-from src.domains.proactive_discussions.rule_controls import RuleCache, restricted_sources
+from src.domains.proactive_discussions.rule_controls import cache_compilation
 from src.domains.proactive_discussions.run_types import RunReason, SettledRunState
 from src.domains.proactive_discussions.schemas import (
     DeferDecision,
@@ -186,17 +186,21 @@ class DiscussionAct:
             update={"sources": tuple(key for key in current.sources if key in self.policy.sources)}
         )
 
-    async def apply_read_controls(self) -> None:
+    async def apply_read_controls(self) -> bool:
         """Narrow the run's sources by the person's statements, compiled at most daily.
 
         The compilation is cached under a signature of its inputs (the controls, the
         consented sources and the prompt version, never the policy's revision counter);
         a fresh one spends a context call, so the run keeps one pass less for its
-        context. An abstention leaves no source to read.
+        context. An abstention leaves no source to read, and so does a refusal: the
+        same inputs are not compiled again before its wait ends.
+
+        Returns:
+            False when the reading of the person's rules was refused: nothing is read.
         """
         controls = self.setup.controls
         if not controls.supports:
-            return
+            return True
         signature = rule_cache_signature(controls, self.policy)
         cached = await self.store.read_rule_cache()
         now = datetime.now(UTC)
@@ -209,13 +213,21 @@ class DiscussionAct:
                 ensure_ascii=False,
             )
             compiled = await self.model.compile_rules(content)
-            allowed = restricted_sources(compiled, controls.supports, self.policy.sources)
-            cached = RuleCache(
+            cached = cache_compilation(
+                compiled,
+                controls.supports,
+                self.policy.sources,
                 signature=signature,
-                expires_at=now + timedelta(hours=settings.discussion_rule_cache_hours),
-                denied=tuple(key for key in self.policy.sources if key not in allowed),
-                abstain=compiled.abstain,
+                previous=cached,
+                now=now,
             )
+            if cached.refused:
+                logger.info(
+                    "discussion_rules_refused",
+                    user_id=str(self.setup.claim.owner_id),
+                    run_id=str(self.setup.claim.run_id),
+                    refusals=cached.refusals,
+                )
             await self.store.save_rule_cache(cached)
             # The compilation spent one of the run's context calls.
             self.context_passes = self.permit.context_calls - 1
@@ -227,6 +239,7 @@ class DiscussionAct:
         self.policy = self.policy.model_copy(update={"sources": allowed})
         self.store.policy = self.policy
         self.store.sources = effective_sources(self.policy, frozenset(SourceKey))
+        return not cached.refused
 
     async def weather_allowance(self) -> None:
         """Reserve the upper cost of one paid weather read before it is made.
@@ -255,8 +268,9 @@ class DiscussionAct:
         """Build the run's context: rules, then stored proofs read again, then the loop.
 
         Returns:
-            The context result; not ready when the prompt cannot fit, no source is left
-            after the person's rules, or the loop found nothing usable.
+            The context result; not ready when the prompt cannot fit, the reading of
+            the person's rules was refused, no source is left after their rules, or
+            the loop found nothing usable.
         """
         await self.authority.check()
         if not fits_context(
@@ -271,7 +285,8 @@ class DiscussionAct:
             )
         ):
             return ContextResult(False, outcome="prompt_full")
-        await self.apply_read_controls()
+        if not await self.apply_read_controls():
+            return ContextResult(False, outcome="rules_refused")
         if not self.policy.sources:
             return ContextResult(False, outcome="no_source")
         result = await self._loop()
@@ -588,6 +603,13 @@ async def _run_for_owner(owner: UUID, *, rebuild_epoch: int | None) -> str:
         return "budget_unconfigured"
     setup = await _open_run(owner, limits, rebuild_epoch)
     if not isinstance(setup, DiscussionRunSetup):
+        # A refusal before the claim leaves no run row: this line and the counter name it.
+        logger.info(
+            "discussion_run_not_started",
+            user_id=str(owner),
+            rebuild=rebuild_epoch is not None,
+            reason=setup,
+        )
         return setup
 
     async def issue(amount: Decimal, committed: Decimal) -> None:

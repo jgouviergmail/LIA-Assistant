@@ -305,3 +305,45 @@ async def test_link_lifetimes_stated_are_the_lifetimes_enforced(
     _subject, text, _html = _sent(relay)
     assert PASSWORD_RESET_TOKEN_EXPIRE_HOURS == 1, "the reset e-mail says « 1 hour »"
     assert "expires in 1 hour" in text
+
+
+# ---------------------------------------------------------------------------
+# The reset notice: a provider account is told how it signs in (ADR-363)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_the_reset_notice_tells_a_french_account_how_it_signs_in(
+    service: EmailService, relay: MagicMock
+) -> None:
+    await service.send_password_reset_notice("ana@example.com", "Ana", "Google", user_language="fr")
+
+    subject, text, html = _sent(relay)
+    assert subject == "Ton compte LIA n'a pas de mot de passe à réinitialiser"
+    assert f"Ton compte n'a pas de mot de passe{NBSP}: tu te connectes avec Google." in text
+    assert f"Lien de connexion{NBSP}: https://app.example.com/login" in text
+    assert "reset-password" not in text and "reset-password" not in html
+
+
+@pytest.mark.asyncio
+async def test_the_reset_notice_speaks_chinese_to_a_chinese_account(
+    service: EmailService, relay: MagicMock
+) -> None:
+    await service.send_password_reset_notice("ana@example.com", "Ana", "Google", user_language="zh")
+
+    subject, text, _html = _sent(relay)
+    assert subject == "你的 LIA 账户没有可重置的密码"
+    assert "你的账户没有密码：你通过 Google 登录。" in text
+
+
+@pytest.mark.asyncio
+async def test_the_reset_notice_escapes_the_name_a_person_typed(
+    service: EmailService, relay: MagicMock
+) -> None:
+    await service.send_password_reset_notice(
+        "ana@example.com", "<b>Ana</b>", "Google", user_language="en"
+    )
+
+    _subject, _text, html = _sent(relay)
+    assert "&lt;b&gt;Ana&lt;/b&gt;" in html
+    assert "<b>Ana</b>" not in html

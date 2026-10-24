@@ -347,7 +347,7 @@ class TestNoTransactionLeftOpen:
         from src.domains.connectors.models import ConnectorType
 
         service = await tool_deps.get_connector_service()
-        service._service.get_connector_credentials = AsyncMock(return_value=None)
+        service._service.read_connector_credentials = AsyncMock(return_value=None)
         await service.get_connector_credentials(uuid.uuid4(), ConnectorType.GOOGLE_GMAIL)
         mock_db_session.commit.assert_awaited_once()
         mock_db_session.rollback.assert_not_awaited()
@@ -382,6 +382,28 @@ class TestNoTransactionLeftOpen:
         service = await tool_deps.get_connector_service()
         assert service.db is mock_db_session
 
+    async def test_a_refresh_holds_neither_the_lock_nor_the_turn_transaction(
+        self, tool_deps, mock_db_session
+    ) -> None:
+        """The token endpoint answers in up to tens of seconds: a parallel tool must not
+        wait on it, nor the turn's session sit in a transaction meanwhile (AC-029)."""
+        from src.domains.connectors.models import ConnectorType
+
+        service = await tool_deps.get_connector_service()
+        seen: list[tuple[bool, int]] = []
+
+        class _Stored:
+            async def fresh(self) -> str:
+                seen.append((service._lock.locked(), mock_db_session.commit.await_count))
+                return "fresh-credentials"
+
+        service._service.read_connector_credentials = AsyncMock(return_value=_Stored())
+
+        served = await service.get_connector_credentials(uuid.uuid4(), ConnectorType.GOOGLE_GMAIL)
+
+        assert served == "fresh-credentials"
+        assert seen == [(False, 1)], "the door ran under the lock or before the read's commit"
+
 
 class TestConnectorClientUnitOfWork:
     """A client's own writes run on a session of their own, never the turn's (ADR-304)."""
@@ -405,7 +427,7 @@ class TestConnectorClientUnitOfWork:
 
         monkeypatch.setattr(session_scope, "get_db_context", _own)
         service = await tool_deps.get_connector_service()
-        service._service.get_connector_credentials = AsyncMock(return_value=None)
+        service._service.read_connector_credentials = AsyncMock(return_value=None)
         assert owns_session(service), "a client may end its unit's transaction early"
         order: list[str] = []
         inside = asyncio.Event()

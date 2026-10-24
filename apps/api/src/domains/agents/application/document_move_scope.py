@@ -1,6 +1,6 @@
 """Source movement refusals, exact personal space capacity and normalized SQL postcondition."""
 
-import os
+import asyncio
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -21,7 +21,7 @@ from src.domains.agents.application.space_update import _source_row
 from src.domains.agents.application.space_update_schemas import SpaceUpdateTarget
 from src.domains.agents.effects.digest import payload_digest
 from src.domains.rag_spaces.document_access import raise_document_managed
-from src.domains.rag_spaces.document_move_files import _path
+from src.domains.rag_spaces.document_move_files import destination_taken
 from src.domains.rag_spaces.document_ops import document_move_refusal
 from src.domains.rag_spaces.models import RAGChunk, RAGDocument
 from src.domains.rag_spaces.reindex import get_reindex_status
@@ -65,7 +65,7 @@ async def document_move_selection(
             raise CommandRejected("BUSY")
         if refusal is not None:
             raise_document_managed(document.source_type)
-        if os.path.lexists(_path(actor_id, target.id, document.filename)):
+        if await asyncio.to_thread(destination_taken, actor_id, target.id, document.filename):
             raise CommandRejected("STALE_STATE")
     if source.serving_embedding_model or target.serving_embedding_model:
         raise CommandRejected("BUSY")

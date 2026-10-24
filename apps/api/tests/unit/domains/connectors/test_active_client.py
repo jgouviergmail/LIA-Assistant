@@ -24,7 +24,11 @@ from src.domains.connectors.active_client import (
     ClientUnavailable,
     open_active_client,
 )
+from src.domains.connectors.models import ConnectorType
+from src.domains.connectors.oauth_refresh import Refreshed, StoredToken
+from src.domains.connectors.oauth_refresh_targets import StoredCredentials
 from src.domains.connectors.preferences.owner_defaults import CALENDAR
+from src.domains.connectors.schemas import ConnectorCredentials
 
 pytestmark = pytest.mark.unit
 
@@ -54,10 +58,63 @@ def _type(*, apple: bool = False) -> MagicMock:
     return connector_type
 
 
-def _service(credentials: Any = "creds") -> MagicMock:
+_TOKEN = ConnectorCredentials(access_token="creds")
+
+
+class _ValidToken:
+    """A holder whose token is valid: the door's fast path only asks whether it expires.
+
+    Each ask notes how many sessions of ours were open at that moment.
+    """
+
+    kind = "connector"
+    flight_key = "connector:active-client-test"
+    user_id = USER
+
+    def __init__(self) -> None:
+        self.sessions_open_when_asked: list[int] = []
+
+    def needs_refresh(self, credentials: ConnectorCredentials, refresh_before: Any) -> bool:
+        self.sessions_open_when_asked.append(_Units.open)
+        return False
+
+    async def read(self, db: Any) -> StoredToken[ConnectorCredentials] | None:
+        raise AssertionError("a valid token the caller holds costs no read")
+
+    async def exchange(self, credentials: ConnectorCredentials) -> Refreshed[ConnectorCredentials]:
+        raise AssertionError("a valid token is never exchanged")
+
+    async def write_if_unchanged(self, db: Any, expected: str, refreshed: Any) -> bool:
+        raise AssertionError("a valid token is never written")
+
+    async def revoke_if_unchanged(self, db: Any, expected: str) -> bool:
+        raise AssertionError("a valid token is never revoked")
+
+    def inactive_error(self) -> Exception:
+        return AssertionError("inactive")
+
+    def revoked_error(self, status_code: int | None) -> Exception:
+        return AssertionError("revoked")
+
+    def failed_error(self) -> Exception:
+        return AssertionError("failed")
+
+
+def _stored(credentials: ConnectorCredentials = _TOKEN) -> StoredCredentials:
+    return StoredCredentials(
+        _ValidToken(),
+        StoredToken("ciphertext", credentials, True),
+        USER,
+        ConnectorType.GOOGLE_CALENDAR,
+    )
+
+
+def _service(credentials: Any = _TOKEN) -> MagicMock:
     service = MagicMock()
     service.db = MagicMock()
-    service.get_connector_credentials = AsyncMock(return_value=credentials)
+    service.read_connector_credentials = AsyncMock(
+        return_value=None if credentials is None else _stored(credentials)
+    )
     service.get_apple_credentials = AsyncMock(return_value=credentials)
     return service
 
@@ -116,8 +173,20 @@ async def test_the_session_is_closed_before_the_caller_touches_the_client() -> N
             assert _Units.open == 0, "a session was still open while the provider is called"
             assert opened.client is client
         # The client writes through the detached service, never a caller session.
-        assert cls.call_args.args == (USER, "creds", units)
+        assert cls.call_args.args == (USER, _TOKEN, units)
     client.close.assert_awaited_once()
+
+
+async def test_the_token_is_freshened_once_the_reading_session_is_closed() -> None:
+    """A refresh is a network call: the door is asked with no session of ours open."""
+    fresh = ConnectorCredentials(access_token="fresh-access")
+    service = _service(credentials=fresh)
+    holder = service.read_connector_credentials.return_value.target
+    with _patched(resolved=_type(), service=service) as (units, cls, _client, _read):
+        async with open_active_client("calendar", USER) as opened:
+            assert isinstance(opened, ActiveClient)
+    assert holder.sessions_open_when_asked == [0]
+    assert cls.call_args.args == (USER, fresh, units)
 
 
 async def test_the_client_is_closed_even_when_the_callers_body_raises() -> None:
@@ -134,7 +203,7 @@ async def test_an_apple_provider_reads_its_own_credentials_shape() -> None:
         async with open_active_client("calendar", USER) as opened:
             assert isinstance(opened, ActiveClient)
     service.get_apple_credentials.assert_awaited_once()
-    service.get_connector_credentials.assert_not_awaited()
+    service.read_connector_credentials.assert_not_awaited()
 
 
 async def test_the_owners_default_is_read_in_the_same_short_session() -> None:

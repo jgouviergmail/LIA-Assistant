@@ -13,6 +13,9 @@ Phase: PHASE 2.4 - Redis Rate Limiter Observability
 Created: 2025-11-22
 """
 
+import ipaddress
+import re
+
 from prometheus_client import Counter, Gauge, Histogram
 
 # ============================================================================
@@ -77,17 +80,47 @@ redis_lua_script_executions_total = Counter(
 )
 
 
+#: An account id as the limiters write it (``str(uuid)``), any case.
+_UUID_SEGMENT = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.IGNORECASE
+)
+
+
+def _is_address(text: str) -> bool:
+    """Whether ``text`` is an IPv4 or IPv6 address."""
+    try:
+        ipaddress.ip_address(text)
+    except ValueError:
+        return False
+    return True
+
+
+def _without_address_tail(parts: list[str]) -> list[str]:
+    """Drop the client address a per-client key ends with.
+
+    An IPv6 address contains the ``:`` the key is split on, so it is found as
+    the longest tail of segments that parses as one address.
+    """
+    for start in range(len(parts)):
+        if _is_address(":".join(parts[start:])):
+            return parts[:start]
+    return parts
+
+
 def extract_key_prefix(key: str) -> str:
     """
     Extract rate limit key prefix to avoid high cardinality.
 
-    Transforms full keys into prefixes for metrics labeling:
-    - "user:123:contacts_search" → "user_contacts_search"
-    - "api:gmail:send" → "api_gmail_send"
-    - "endpoint:/api/v1/contacts" → "endpoint_contacts"
+    A rate-limit key names who it throttles — a client IP, an account id — and
+    a metric label must never do so: it would grow with every visitor and put
+    an identifier in Prometheus (measured on production 2026-10-23: 27 of 56
+    series carried an IP, 25 an account id). Numeric segments, account ids and
+    the trailing client address are dropped; the bounded words are kept:
 
-    This prevents cardinality explosion (thousands of user IDs)
-    while maintaining useful grouping for monitoring.
+    - "user:123:contacts_search" → "user_contacts_search"
+    - "auth:login:203.0.113.7" → "auth_login"
+    - "user:<uuid>:google_calendar" → "user_google_calendar"
+    - "endpoint:/api/v1/contacts" → "endpoint__api_v1_contacts"
 
     Args:
         key: Full rate limit key
@@ -98,15 +131,18 @@ def extract_key_prefix(key: str) -> str:
     Examples:
         >>> extract_key_prefix("user:123:contacts_search")
         'user_contacts_search'
+        >>> extract_key_prefix("http:global:2001:db8:85a3::8a2e:370:7334")
+        'http_global'
         >>> extract_key_prefix("api:gmail:send")
         'api_gmail_send'
-        >>> extract_key_prefix("endpoint:/api/v1/contacts")
-        'endpoint_contacts'
     """
     parts = key.split(":")
     if len(parts) >= 2:
-        # Remove numeric IDs (user:123 → user, api:gmail → api_gmail)
-        prefix_parts = [p for p in parts if not p.isdigit()]
+        prefix_parts = [
+            p
+            for p in _without_address_tail(parts)
+            if not p.isdigit() and not _is_address(p) and not _UUID_SEGMENT.fullmatch(p)
+        ]
         # Join with underscore for Prometheus label compatibility
         return "_".join(prefix_parts).replace("/", "_").replace("-", "_")
     return "unknown"

@@ -358,7 +358,7 @@ def get_llm(
             "reasoning_effort",  # OpenAI o-series/GPT-5 only
         ]:
             if key in config_override:
-                value = config_override.get(key)  # type: ignore[misc]
+                value = config_override.get(key)
                 if value is not None:
                     override_dict[key] = value
 
@@ -366,7 +366,7 @@ def get_llm(
         logger.debug(
             "llm_factory_using_override_config_legacy",
             llm_type=llm_type,
-            override_keys=list(config_override.keys()),  # type: ignore[union-attr]
+            override_keys=list(config_override.keys()),
             converted=True,
         )
 

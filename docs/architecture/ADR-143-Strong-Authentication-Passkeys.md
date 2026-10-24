@@ -62,3 +62,17 @@ Chromium refuses every WebAuthn ceremony on an origin with an untrusted certific
 - `MFASettings` module in the Settings MRO; 6 new env vars documented ×2 example files.
 - The e2e suite gains a Chromium CDP virtual-authenticator ceremony proof (hermetic, mocked API).
 - Follow-ups tracked in the program doc: D2 sessions UI reuses `auth_methods` + FCM attestation (A4); D3 export requires Lot 3 step-up.
+
+## Amendment 2026-10-23 (ADR-363)
+
+The A8 recovery path stands, now as a decision of its own: an account that disabled its
+password for passkeys still receives a reset link (`password_reset_policy.decide_reset`).
+Two kinds of account no longer do: an administrator (never reset by e-mail; an attempt
+raises `PasswordResetAbuse`) and an account that signs in with a provider and has no
+password (it is sent a notice instead — a link would create a password outside the
+provider's protection; an A8 account that also signs in with Google is one of them, and
+Google is its way back). The Security settings state which way back remains, from the
+same decision (`password_recovery` on the step-up status). Every link is bound to its
+account and to the stored password, and each account's reset e-mails are budgeted
+whatever IP asks — see
+[ADR-363](ADR-363-Password-Reset-Bounded-Per-Account-And-Bound-To-It.md).

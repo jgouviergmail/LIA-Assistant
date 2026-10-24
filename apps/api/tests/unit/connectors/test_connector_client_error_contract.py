@@ -82,8 +82,7 @@ def expired_credentials() -> ConnectorCredentials:
 def mock_connector_service() -> Mock:
     """Provide mock connector service."""
     service = Mock()
-    service.get_connector_credentials = AsyncMock()
-    service._refresh_oauth_token = AsyncMock()
+    service.read_connector_credentials = AsyncMock()
     service.db = AsyncMock()
     return service
 
@@ -248,9 +247,8 @@ class TestOAuthTokenRefreshMapping:
     async def _run_refresh(self, client, expired_credentials, connector_row):
         """Drive _ensure_valid_token through the refresh path with a mocked repo."""
         client.credentials = expired_credentials
-        client.connector_service.get_connector_credentials.return_value = (
-            None if connector_row is not None else expired_credentials
-        )
+        # The service serves nothing: the row (or its absence) decides 400 against 404.
+        client.connector_service.read_connector_credentials.return_value = None
 
         mock_db_session = Mock()
 
@@ -268,25 +266,9 @@ class TestOAuthTokenRefreshMapping:
         mock_repo = Mock()
         mock_repo.get_by_user_and_type = AsyncMock(return_value=connector_row)
 
-        mock_lock_context = AsyncMock()
-        mock_lock_context.__aenter__ = AsyncMock(return_value=None)
-        # return_value=False is REQUIRED: a bare AsyncMock returns a truthy
-        # MagicMock from __aexit__, which silently suppresses the exception.
-        mock_lock_context.__aexit__ = AsyncMock(return_value=False)
-
-        with (
-            patch(
-                "src.domains.connectors.clients.base_oauth_client.get_redis_session",
-                new=AsyncMock(),
-            ),
-            patch(
-                "src.domains.connectors.clients.base_oauth_client.OAuthLock",
-                return_value=mock_lock_context,
-            ),
-            patch(
-                "src.domains.connectors.repository.ConnectorRepository",
-                return_value=mock_repo,
-            ),
+        with patch(
+            "src.domains.connectors.repository.ConnectorRepository",
+            return_value=mock_repo,
         ):
             await client._ensure_valid_token()
 

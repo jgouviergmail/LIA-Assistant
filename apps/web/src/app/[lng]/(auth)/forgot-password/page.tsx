@@ -6,7 +6,10 @@ import { Mail, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { TurnstileWidget } from '@/components/auth/TurnstileWidget';
+import { useTurnstileDoor } from '@/hooks/useTurnstileDoor';
 import { apiClient } from '@/lib/api-client';
+import { turnstileErrorKey, turnstileHeaders } from '@/lib/turnstile';
 import { useTranslation, Trans } from 'react-i18next';
 
 type Status = 'form' | 'loading' | 'success';
@@ -16,19 +19,41 @@ export default function ForgotPasswordPage() {
   const [status, setStatus] = useState<Status>('form');
   const [email, setEmail] = useState('');
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const botCheck = useTurnstileDoor('password_reset');
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErrorMessage('');
+    if (!botCheck.ready) {
+      // Waiting cannot load a widget that failed: say which it is.
+      setErrorMessage(
+        t(botCheck.failed ? 'auth.turnstile.load_failed' : 'auth.turnstile.required')
+      );
+      return;
+    }
     setStatus('loading');
 
     try {
-      await apiClient.post('/auth/request-password-reset', { email });
+      await apiClient.post(
+        '/auth/request-password-reset',
+        { email },
+        turnstileHeaders(botCheck.token)
+      );
       setStatus('success');
-    } catch {
-      // API always returns success to prevent email enumeration
-      // but we still show success message
-      setStatus('success');
+    } catch (error) {
+      // The answer never says whether the address has an account: every failure
+      // shows the same confirmation — except a refused or unavailable bot check,
+      // which is about the visitor, not the address (ADR-364).
+      const botCheckRefusal = turnstileErrorKey(error);
+      if (botCheckRefusal) {
+        setErrorMessage(t(botCheckRefusal));
+        setStatus('form');
+      } else {
+        setStatus('success');
+      }
+    } finally {
+      // The API spent the token, whatever it answered.
+      botCheck.spent();
     }
   }
 
@@ -82,6 +107,16 @@ export default function ForgotPasswordPage() {
             required
           />
         </div>
+
+        {botCheck.siteKey && (
+          <TurnstileWidget
+            siteKey={botCheck.siteKey}
+            action="password_reset"
+            onToken={botCheck.onToken}
+            onFailure={botCheck.onFailure}
+            resetSignal={botCheck.resetSignal}
+          />
+        )}
 
         <Button type="submit" className="w-full" disabled={status === 'loading'}>
           {status === 'loading'

@@ -31,6 +31,7 @@ from src.core.constants import (
     MAX_REQUEST_BODY_EXEMPT_PATHS,
     RATE_LIMIT_GLOBAL_EXEMPT_PATHS,
     RATE_LIMIT_GLOBAL_WINDOW_SECONDS,
+    TURNSTILE_TOKEN_HEADER,
 )
 from src.core.http_scan import ScanProtectionMiddleware
 from src.core.i18n import language_from_header, language_scope
@@ -733,6 +734,9 @@ def setup_middleware(app: FastAPI) -> None:
             # list of OAuth paths in the web client, and a path allowlist rots.
             NATIVE_CLIENT_HEADER,
             APPLICATION_DEVICE_HEADER,
+            # The Turnstile widget's token on the password doors (ADR-364): those
+            # JSON POSTs already pay a preflight, so allowing it costs nothing.
+            TURNSTILE_TOKEN_HEADER,
         ],
         # A bounded CSV preview must withhold a cut record across API origins.
         expose_headers=["X-Request-ID", "X-Preview-Truncated", "Retry-After"],

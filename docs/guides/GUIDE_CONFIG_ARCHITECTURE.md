@@ -434,6 +434,36 @@ REDIS_URL=redis://localhost:6379
 
 ---
 
+## Env templates: the code's default, or a written reason (AC-036)
+
+The owner's rule (2026-10-22): **the database overrides the environment, which overrides
+the code's constants**. A template (`.env.example`, `.env.prod.example`,
+`.env.min.prod.example`) sits at the environment's level: a value it states replaces the
+constant for whoever copies it. Every template line therefore does one of three things:
+
+- it states the **code's default**;
+- it **omits** the key (the default applies);
+- it says **why it differs**: `# … — differs from default: <reason>`, inline, or on the
+  comment line just above when the value is empty (an inline comment after an empty value
+  would become the value).
+
+Since 2026-10-23 the two complete templates carry the values **production has proven**
+(`.env.prod`), hence the reason « proven in production »: their list is where the code's
+defaults lag behind production. The features one switches on knowingly stay at the code's
+default, each with a « differs from production » reason — the product analytics (owner
+decision of 2026-10-23) and the opt-ins of the
+[2026-08-06 spec](../superpowers/specs/2026-08-06-config-defaults-vs-production.md) (MFA,
+peers, paid telephony, the `PSYCHE_AD_RELAXATION` safeguard). Production never supplies a
+secret, an identifier, an address, a host, a fact of its host, or an environment's
+identity (`DEBUG`, `NODE_ENV`, `ENVIRONMENT`…).
+
+`apps/api/tests/unit/test_env_template_parity_guard.py` holds the rule: a value that
+differs from the default without a reason fails, a `(default: X)` a comment states must be
+the code's (29 per complete template no longer were), and each template, its secrets
+filled in, must be a configuration the settings' validators accept.
+
+---
+
 ## Références
 
 - **[ADR-009: Config Module Split](../architecture/ADR-009-Config-Module-Split.md)** - Décision architecturale

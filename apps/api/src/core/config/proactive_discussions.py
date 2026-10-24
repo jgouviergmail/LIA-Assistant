@@ -19,6 +19,7 @@ from src.core.constants import (
     DISCUSSION_ATTENTION_OPENING_GAP_MINUTES_DEFAULT,
     DISCUSSION_ATTENTION_RECENT_TURN_MINUTES_DEFAULT,
     DISCUSSION_ATTENTION_REMINDER_AHEAD_MINUTES_DEFAULT,
+    DISCUSSION_ATTENTION_UNANSWERED_OPENING_MINUTES_DEFAULT,
     DISCUSSION_BACKOFF_MINUTES_DEFAULT,
     DISCUSSION_CONTEXT_CALLS_PER_RUN_DEFAULT,
     DISCUSSION_CONTEXT_FACTS_PER_PASS_DEFAULT,
@@ -199,6 +200,15 @@ class ProactiveDiscussionSettings(BaseSettings):
         le=1440,
         description="Minutes between two openings, whatever became of the first.",
     )
+    discussion_attention_unanswered_opening_minutes: int = Field(
+        default=DISCUSSION_ATTENTION_UNANSWERED_OPENING_MINUTES_DEFAULT,
+        ge=0,
+        le=1440,
+        description=(
+            "Minutes an opening left unanswered holds the next one back, never past its "
+            "reply window; 0 leaves only the gap between openings."
+        ),
+    )
     discussion_attention_reminder_ahead_minutes: int = Field(
         default=DISCUSSION_ATTENTION_REMINDER_AHEAD_MINUTES_DEFAULT,
         ge=0,
@@ -315,7 +325,10 @@ class ProactiveDiscussionSettings(BaseSettings):
         default=DISCUSSION_OPENING_PENDING_HOURS_DEFAULT,
         ge=1,
         le=720,
-        description="Hours an opening waits for a reply before it lapses.",
+        description=(
+            "Hours an opening waits for a reply before it lapses; a newer opening closes it "
+            "sooner."
+        ),
     )
     discussion_pause_hours: int = Field(
         default=DISCUSSION_PAUSE_HOURS_DEFAULT,

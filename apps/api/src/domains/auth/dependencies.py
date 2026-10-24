@@ -1,5 +1,8 @@
 """
-Authentication rate limiting dependencies.
+Authentication rate limiting dependencies, and the password doors.
+
+The doors (``login_guard``, ``register_guard``, ``password_reset_request_guard``)
+compose a per-IP limiter with the Turnstile bot check (ADR-364).
 
 This module provides rate limiting for authentication endpoints to prevent:
 - Brute force attacks on login
@@ -22,6 +25,7 @@ from src.core.constants import (
 )
 from src.core.exceptions import raise_rate_limit_exceeded
 from src.core.session_dependencies import get_current_active_session
+from src.domains.auth.turnstile_gate import TurnstileAction, require_turnstile
 from src.domains.users.models import User
 from src.infrastructure.rate_limiting.ip_limiter import create_ip_rate_limiter
 from src.infrastructure.rate_limiting.redis_limiter import get_rate_limiter
@@ -91,10 +95,33 @@ rate_limit_password_reset = create_auth_rate_limiter(
     max_calls=5,  # Token brute force protection
 )
 
-rate_limit_forgot_password = create_auth_rate_limiter(
-    action="forgot_password",
-    max_calls=3,  # Same as password_reset_request
-)
+# The Turnstile bot check of each password door (ADR-364), and the door itself:
+# the per-IP limiter first — a flood is refused locally before it costs a call
+# to Cloudflare — then the check. FastAPI resolves them in this order.
+turnstile_login = require_turnstile(TurnstileAction.LOGIN)
+turnstile_register = require_turnstile(TurnstileAction.REGISTER)
+turnstile_password_reset = require_turnstile(TurnstileAction.PASSWORD_RESET)
+
+
+async def login_guard(
+    _rate_limit: None = Depends(rate_limit_login),
+    _bot_check: None = Depends(turnstile_login),
+) -> None:
+    """The password sign-in door: per-IP limiter, then the bot check."""
+
+
+async def register_guard(
+    _rate_limit: None = Depends(rate_limit_register),
+    _bot_check: None = Depends(turnstile_register),
+) -> None:
+    """The sign-up door: per-IP limiter, then the bot check."""
+
+
+async def password_reset_request_guard(
+    _rate_limit: None = Depends(rate_limit_password_reset_request),
+    _bot_check: None = Depends(turnstile_password_reset),
+) -> None:
+    """The reset-request door: per-IP limiter, then the bot check."""
 
 
 def create_user_rate_limiter(

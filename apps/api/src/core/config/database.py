@@ -15,6 +15,8 @@ from pydantic_settings import BaseSettings
 
 from src.core.constants import (
     DATABASE_CONNECT_TIMEOUT_DEFAULT,
+    DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS_DEFAULT,
+    DATABASE_LOCK_TIMEOUT_MS_DEFAULT,
     DATABASE_MAX_CONNECTIONS_DEFAULT,
     DATABASE_MAX_OVERFLOW_DEFAULT,
     DATABASE_POOL_RECYCLE_DEFAULT,
@@ -69,6 +71,32 @@ class DatabaseSettings(BaseSettings):
             "(connect_timeout). Bounds a stalled TCP handshake (e.g. a freshly "
             "published Docker port black-holing the SYN) with an explicit "
             "policy instead of kernel TCP behavior (LangGraph pools)."
+        ),
+    )
+
+    # Server-side bounds of the application engine (audit AC-028, ADR-304). They
+    # travel as connection settings, so a transaction's own ``SET LOCAL`` still
+    # tightens one for itself (the OAuth refresh door does). The migration engine
+    # and the LangGraph pools do not carry them.
+    database_lock_timeout_ms: int = Field(
+        default=DATABASE_LOCK_TIMEOUT_MS_DEFAULT,
+        ge=0,
+        le=600_000,
+        description=(
+            "Longest a statement of the application waits for a lock, in milliseconds "
+            "(PostgreSQL lock_timeout; 0 = leave the server's own setting). Past it the "
+            "statement fails with SQLSTATE 55P03 instead of waiting as long as the holder."
+        ),
+    )
+    database_idle_in_transaction_timeout_ms: int = Field(
+        default=DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS_DEFAULT,
+        ge=0,
+        le=3_600_000,
+        description=(
+            "Longest a session of the application may sit idle inside a transaction, in "
+            "milliseconds (PostgreSQL idle_in_transaction_session_timeout; 0 = leave the "
+            "server's own setting). Past it the server ends the session: a transaction "
+            "held open across a network call (ADR-304) no longer pins a connection."
         ),
     )
 

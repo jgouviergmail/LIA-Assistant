@@ -16,13 +16,13 @@ in ``llm_model_pricing``; this service only returns the duration.
 
 from __future__ import annotations
 
-import io
-from typing import Any, BinaryIO
+from typing import Any
 
 import httpx
 import structlog
 
 from src.core.constants import OPENAI_STT_DIARIZE_MODEL_DEFAULT
+from src.domains.voice.stt.audio_file import open_audio_file
 from src.domains.voice.stt.exceptions import STTProviderError
 from src.domains.voice.stt.protocol import STTFileResult, STTResult, TranscriptWord
 from src.domains.voice.vendor_refusal import (
@@ -31,7 +31,9 @@ from src.domains.voice.vendor_refusal import (
     refusal_from_body,
     retry_after_of,
 )
+from src.infrastructure.file_transfer import LocalFileRead
 from src.infrastructure.media.wav import wav_bytes
+from src.infrastructure.multipart_upload import FormFile, multipart_upload
 
 logger = structlog.get_logger(__name__)
 
@@ -74,7 +76,7 @@ class OpenAISttService:
             return STTResult(text="", audio_duration_seconds=0.0, language_code=language)
         wav = wav_bytes(pcm_int16_bytes, sample_rate)
         result = await self._post(
-            io.BytesIO(wav),
+            wav,
             "audio.wav",
             "audio/wav",
             diarize=False,
@@ -97,16 +99,14 @@ class OpenAISttService:
         language: str | None,
         timeout_seconds: float,
     ) -> STTFileResult:
-        """Transcribe a whole file; diarization when the model supports it."""
-        try:
-            handle = open(path, "rb")  # noqa: SIM115 — streamed by httpx, closed below
-        except OSError as e:
-            raise STTProviderError(
-                code="provider_http_error", message=f"Audio file unreadable: {e.__class__.__name__}"
-            ) from e
+        """Transcribe a whole file; diarization when the model supports it.
+
+        The file is streamed from disk, every read in a worker thread (AC-035).
+        """
+        audio = await open_audio_file(path)
         try:
             return await self._post(
-                handle,
+                audio,
                 path.rsplit("/", 1)[-1],
                 mime_type,
                 diarize=diarize and self.supports_diarization,
@@ -114,11 +114,11 @@ class OpenAISttService:
                 timeout_seconds=timeout_seconds,
             )
         finally:
-            handle.close()
+            await audio.close()
 
     async def _post(
         self,
-        stream: BinaryIO,
+        audio: bytes | LocalFileRead,
         filename: str,
         mime_type: str,
         *,
@@ -128,7 +128,7 @@ class OpenAISttService:
     ) -> STTFileResult:
         data = self._request_data(diarize=diarize, language=language)
         response = await self._send(
-            stream, filename, mime_type, data=data, timeout_seconds=timeout_seconds
+            audio, filename, mime_type, data=data, timeout_seconds=timeout_seconds
         )
         self._raise_for_status(response)
         result = self._parse_payload(self._json_payload(response), language=language)
@@ -155,7 +155,7 @@ class OpenAISttService:
 
     async def _send(
         self,
-        stream: BinaryIO,
+        audio: bytes | LocalFileRead,
         filename: str,
         mime_type: str,
         *,
@@ -165,10 +165,11 @@ class OpenAISttService:
         """POST the multipart request; transport failures become classified errors."""
         url = f"{self._base_url}/audio/transcriptions"
         headers = {"Authorization": f"Bearer {self._api_key}"}
+        upload = multipart_upload(data, FormFile("file", filename, mime_type), audio)
         try:
             async with httpx.AsyncClient(timeout=timeout_seconds) as client:
                 return await client.post(
-                    url, headers=headers, files={"file": (filename, stream, mime_type)}, data=data
+                    url, headers={**headers, **upload.headers}, content=upload.content
                 )
         except httpx.TimeoutException as e:
             raise STTProviderError(

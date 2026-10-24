@@ -496,7 +496,7 @@ async def lifespan(app: FastAPI):
 - **Session Store**: `apps/api/src/infrastructure/cache/session_store.py`
 - **Redis Helpers**: `apps/api/src/infrastructure/cache/redis_helpers.py`
 - **Rate Limiter**: `apps/api/src/infrastructure/rate_limiting/redis_limiter.py`
-- **OAuth Lock**: `apps/api/src/infrastructure/locks/oauth_lock.py`
+- **OAuth refresh coordination** (since 2026-10-23): `apps/api/src/domains/connectors/oauth_refresh.py`
 - **Redis Metrics**: `apps/api/src/infrastructure/observability/metrics_redis.py`
 
 ### Runbooks
@@ -506,3 +506,12 @@ async def lifespan(app: FastAPI):
 ---
 
 **Fin de ADR-029** - Redis Multi-Purpose Architecture Decision Record.
+
+## Amendment 2026-10-23 — The `oauth_lock` lock is removed
+
+**Amends** the « locks » use: `OAuthLock` and its key family `oauth_lock:{user}:{type}`
+are deleted (V14 audit, AC-029). Workers refreshing the same OAuth token coordinate
+through an owner-token claim (`run_shared_flight`) and one verdict marker per token
+(family `oauth_refresh`, declared in `apps/api/src/infrastructure/cache/key_families.py`);
+callers of one worker share a refresh through `run_single_flight`. See
+[ADR-302, 2026-10-23 amendment](ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md).

@@ -392,6 +392,44 @@ instant, the way a stored proof is
 ([revalidation](../../apps/api/src/infrastructure/proactive/discussion_revalidation.py));
 still unreached, the run stops as `evidence_page_missing`, never as a change.
 
+## Amendment 2026-10-23 — a refused reading of the rules waits, and says so
+
+Audit A16, read in the code before any change: the read-rule compiler's answer is
+refused whole when one denial quotes words the person never wrote
+(`restricted_sources`), and that refusal raised before anything was cached — the run
+settled `failed` with no deferral, so every tick (`DISCUSSION_INTERVAL_MINUTES`) paid
+the compiler again for the same inputs, to be refused again.
+
+1. **A refusal is cached under the inputs' signature**
+   ([rule controls](../../apps/api/src/domains/proactive_discussions/rule_controls.py):
+   `RuleCache.refused` and `refusals`, read with their defaults from a cache stored
+   before them, and left out of a compilation's stored form, so a rolled-back release —
+   whose values forbid an unknown field — still reads every cache but a refusal). The
+   run reads nothing — the entry abstains and denies nothing, so a
+   reader trusting either field reads nothing — and settles `skipped` with the reason
+   `rules_refused`, a context outcome of `NOTHING_INTERPRETED` shown in the settings in
+   six languages; a rebuild ending on it is no completed rebuild.
+2. **The wait doubles at each refusal of the same inputs** (owner decision Q4,
+   2026-10-22): `DISCUSSION_RULE_REFUSAL_FIRST_WAIT_INTERVALS` tick intervals, then
+   twice as long each time, up to `DISCUSSION_RULE_CACHE_HOURS`. Other inputs — the
+   person edited their rules or their sources — or inputs that compiled last time start
+   again from one refusal. `cache_compilation` decides what a fresh compilation leaves
+   cached, `refusal_wait` how long a refusal waits, and `RuleCompilationRefused` names
+   the refusal.
+
+## Amendment 2026-10-23 b — the page says when an opening awaits a reply
+
+The panel of amendment d says which ceiling stops LIA. It said nothing of what refused
+seventeen ticks in a row on production that day: an opening left unanswered, which held
+the next one for its whole reply window — now bounded
+([ADR-358 amendment 2026-10-23 b](ADR-358-Independent-Proactive-Discussions-And-Native-Delivery.md)).
+The activity publishes `awaiting_reply` — when the opening was published, when it stops
+holding the next one — from the attention gate's own predicate
+([`unanswered_opening`](../../apps/api/src/infrastructure/proactive/discussion_attention.py)),
+so the page never announces a wait no run would observe, nor hides one; the « Context »
+panel draws it in one sentence under a ceiling's, in the six languages. A reply ends the
+wait at once, even one not bound to the opening yet.
+
 ## References
 
 - [How a run works, and what its context keeps](../technical/PROACTIVE_DISCUSSIONS.md)

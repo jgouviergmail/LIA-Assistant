@@ -171,6 +171,7 @@ async def test_activity_reads_a_requested_rebuild_and_a_closed_allowance(
         "last_update": None,
         "last_run": None,
         "budget": {"configured": False, "reached": None, "resets_at": None},
+        "awaiting_reply": None,
     }
     await async_client.post(
         "/api/v1/proactive-discussions/context/rebuild", json={"expected_epoch": 0}

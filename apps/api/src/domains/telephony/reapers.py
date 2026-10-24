@@ -107,6 +107,8 @@ async def telephony_notification_reaper() -> None:
                 skipped += 1
                 continue
             try:
+                # Durable or nothing (AC-003): a dispatch that reached no channel the
+                # person finds later is a failure this reaper exists to retry.
                 await NotificationDispatcher().dispatch(
                     user=user,
                     content=payload.get("content", ""),
@@ -115,9 +117,18 @@ async def telephony_notification_reaper() -> None:
                     metadata={"call_status": call_status, "recovered": True},
                     db=db,
                     title=payload.get("title"),
+                    require_durable=True,
                 )
             except Exception as exc:  # noqa: BLE001 — one failure must not stop the batch
-                await repo.record_notification_failure(call_id, max_attempts=max_attempts)
+                # Counted on a session of its own: a database error in the
+                # dispatch's archive aborts ``db``'s transaction (measured on
+                # PostgreSQL: 25P02 on the next statement, and a COMMIT that
+                # rolls back in silence), and an attempt that cannot be counted
+                # never reaches its cap — the row would be retried for ever.
+                async with get_db_context() as accounting:
+                    await TelephonyRepository(accounting).record_notification_failure(
+                        call_id, max_attempts=max_attempts
+                    )
                 logger.warning(
                     "telephony_notification_recover_failed",
                     call_id=str(call_id),

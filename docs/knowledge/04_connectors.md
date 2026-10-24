@@ -261,8 +261,10 @@ For Google services, you can also revoke access from:
 Several reasons can explain a connector error:
 
 **🔄 Expired token:**
-Access tokens are renewed automatically. If the provider has revoked or expired
-the refresh token, click **Reconnect** to authorize again.
+Access tokens are renewed automatically — once, even when several features need
+them at the same moment — and a service is marked in error only after the provider
+confirmed its refusal. If the provider has revoked or expired the refresh token,
+click **Reconnect** to authorize again.
 
 **🚫 Permissions revoked:**
 If you revoked access from Google, reconnect.

@@ -550,6 +550,16 @@ async def get_current_superuser_session(
     return user
 ```
 
+### 1 bis. Bot check at the password doors (ADR-364)
+
+Quand l'opérateur l'active (`TURNSTILE_ENABLED`, ses propres clés), l'inscription, la
+connexion par mot de passe et la demande de réinitialisation exigent le jeton d'un widget
+Cloudflare Turnstile, que le serveur fait valider (`domains/auth/turnstile_gate.py`) après
+le limiteur par IP. Si Cloudflare ne donne aucune réponse exploitable, seule la connexion
+passe ; un jeton refusé l'est partout. Détails :
+[ADR-364](../architecture/ADR-364-Turnstile-Bot-Check-On-The-Password-Doors.md) et
+[AUTHENTICATION.md](AUTHENTICATION.md).
+
 ### 2. JTI Single-Use Tokens (PROD only)
 
 En production, les tokens de vérification d'email et de réinitialisation de mot de passe utilisent un **JTI (JWT ID) unique** pour garantir qu'ils ne peuvent être utilisés qu'une seule fois.
@@ -565,6 +575,8 @@ Token Generation (create_verification_token / create_password_reset_token):
 │    - exp: expiration timestamp                                   │
 │    - iat: issued at timestamp                                    │
 │    - jti: UUID (PROD only) ← Unique identifier for single-use    │
+│    - uid, pfp: account id + password fingerprint                 │
+│      (password_reset only, ADR-363)                              │
 └─────────────────────────────────────────────────────────────────┘
 
 Token Verification (verify_single_use_token):
@@ -576,6 +588,10 @@ Token Verification (verify_single_use_token):
 │  5. After success: add JTI to Redis blacklist (PROD only)        │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+Un jeton de réinitialisation porte en plus `uid` et `pfp`, que `reset_password` confronte au
+compte trouvé par l'adresse (`reset_token_matches_account`, ADR-363) — dans tous les
+environnements : un mot de passe changé depuis l'émission retire le lien, même sans la liste JTI.
 
 #### Implémentation
 

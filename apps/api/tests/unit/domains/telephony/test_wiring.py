@@ -1,11 +1,16 @@
-"""Flag-ON wiring guards for telephony P4 (skipped when the feature is off).
+"""Wiring guards for telephony P4.
 
-Run with ``TELEPHONY_ENABLED=true`` to assert the webhook + calls routes mount
-and the return-path import chain (LLM factory + notification dispatcher) resolves.
-The LLM-type registry parity guard runs unconditionally.
+The routes are flag-gated and the flag is off by default, so the route guard
+switches it on for one reload of the routes module, then reloads the module
+back. It used to skip unless ``TELEPHONY_ENABLED=true``, which is not the
+default: it never ran in CI (audit AC-033). The LLM-type registry parity guard
+and the scheduler wiring guard run unconditionally.
 """
 
 from __future__ import annotations
+
+import importlib
+from unittest.mock import patch
 
 import pytest
 
@@ -22,27 +27,42 @@ def test_telephony_synthesis_llm_type_registered() -> None:
     assert set(LLM_TYPES_REGISTRY) == set(LLM_DEFAULTS)
 
 
+def _paths_with_telephony(enabled: bool) -> set[str]:
+    from src.api.v1 import routes as routes_module
+
+    try:
+        with patch.object(settings, "telephony_enabled", enabled):
+            router = importlib.reload(routes_module).api_router
+            return {route.path for route in served_routes(router) if route.path}
+    finally:
+        importlib.reload(routes_module)
+
+
 @pytest.mark.unit
-@pytest.mark.skipif(
-    not getattr(settings, "telephony_enabled", False),
-    reason="telephony disabled — routes are flag-gated",
-)
 def test_telephony_routes_mounted() -> None:
     """Webhook + calls endpoints are mounted, and the return path imports cleanly."""
-    import src.domains.telephony.return_synthesis  # noqa: F401 — get_llm + dispatcher chain
-    from src.api.v1.routes import api_router
-    from src.domains.telephony.reapers import (  # noqa: F401
-        telephony_notification_reaper,
-        telephony_retention_reaper,
-        telephony_stale_call_reaper,
-    )
+    # The return path's import chain (LLM factory + notification dispatcher).
+    importlib.import_module("src.domains.telephony.return_synthesis")
+    reapers = importlib.import_module("src.domains.telephony.reapers")
+    for reaper in ("telephony_notification_reaper", "telephony_retention_reaper"):
+        assert callable(getattr(reapers, reaper))
+    assert callable(reapers.telephony_stale_call_reaper)
 
-    paths = {route.path for route in served_routes(api_router) if route.path}
+    paths = _paths_with_telephony(enabled=True)
+
     assert any(p.endswith("/telephony/webhook") for p in paths)
     assert any(p.endswith("/telephony/calls") for p in paths)
     # The live tool call-back (lot 7) mounts with the feature, and hides itself
     # behind its own flag at request time.
     assert any(p.endswith("/telephony/tools/{tool_name}") for p in paths)
+
+
+@pytest.mark.unit
+def test_the_telephony_routes_stay_unmounted_when_the_flag_is_off() -> None:
+    """The flag still gates the mount: the guard above is not vacuous."""
+    paths = _paths_with_telephony(enabled=False)
+
+    assert not any(p.endswith("/telephony/webhook") for p in paths)
 
 
 def test_notification_reaper_is_wired_into_the_scheduler() -> None:

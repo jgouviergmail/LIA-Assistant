@@ -10,12 +10,13 @@ authored by it.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
 import pytest
 
-from tests._git_sandbox import isolated_git_env, run_git
+from tests._git_sandbox import isolate_from_the_running_repository, isolated_git_env, run_git
 
 pytestmark = pytest.mark.unit
 
@@ -39,6 +40,32 @@ def test_an_inherited_repository_is_never_written(
 
     assert (outer / ".git" / "config").read_text(encoding="utf-8") == before
     assert "guard" in (inner / ".git" / "config").read_text(encoding="utf-8")
+
+
+def test_a_script_under_test_never_inherits_the_hook_s_repository(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A script that runs git itself sees the throwaway repository, not the hook's."""
+    outer = tmp_path / "outer"
+    subprocess.run(
+        ["git", "init", "-q", str(outer)], check=True, capture_output=True, env=isolated_git_env()
+    )
+    monkeypatch.setenv("GIT_DIR", str(outer / ".git"))
+    monkeypatch.setenv("GIT_INDEX_FILE", str(outer / ".git" / "index"))
+    inner = tmp_path / "inner"
+    inner.mkdir()
+    run_git(inner, "init", "-q")
+
+    isolate_from_the_running_repository(monkeypatch)
+    toplevel = subprocess.run(
+        ["git", "-C", str(inner), "rev-parse", "--show-toplevel"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert "GIT_DIR" not in os.environ and "GIT_INDEX_FILE" not in os.environ
+    assert Path(toplevel.stdout.strip()).resolve() == inner.resolve()
 
 
 def test_a_caller_s_overrides_still_reach_git(tmp_path: Path) -> None:

@@ -18,22 +18,21 @@ from __future__ import annotations
 
 import time
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING
 from uuid import UUID
 
 import structlog
-
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import SCHEDULER_JOB_TOKEN_REFRESH
 from src.core.security import decrypt_data
 from src.domains.connectors.models import Connector
-from src.domains.connectors.oauth_grant_runtime import OAuthGrantRuntime
+from src.domains.connectors.oauth_refresh import ensure_fresh_credentials
+from src.domains.connectors.oauth_refresh_targets import (
+    GrantTokenTarget,
+    legacy_connector_target,
+)
 from src.domains.connectors.repository import ConnectorRepository
 from src.domains.connectors.schemas import ConnectorCredentials
-from src.domains.connectors.service import ConnectorService
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.database import get_db_context
 from src.infrastructure.locks import SchedulerLock
@@ -84,83 +83,77 @@ async def refresh_expiring_tokens() -> None:
     error_count = 0
     skipped_count = 0
 
-    async with get_db_context() as db:
-        try:
-            # Get all active OAuth connectors using repository pattern
-            repository = ConnectorRepository(db)
-            connectors = await repository.get_active_oauth_connectors()
+    try:
+        # Read on a short session, closed before the first token endpoint: the
+        # refreshes run through the door, which opens sessions of its own (ADR-304).
+        async with get_db_context() as db:
+            connectors = await ConnectorRepository(db).get_active_oauth_connectors()
 
-            if not connectors:
-                logger.debug("token_refresh_no_connectors")
-                _record_duration(start_time)
-                return
+        if not connectors:
+            logger.debug("token_refresh_no_connectors")
+            _record_duration(start_time)
+            return
 
-            logger.info(
-                "token_refresh_starting",
-                total_connectors=len(connectors),
-                margin_seconds=settings.oauth_proactive_refresh_margin_seconds,
-            )
+        logger.info(
+            "token_refresh_starting",
+            total_connectors=len(connectors),
+            margin_seconds=settings.oauth_proactive_refresh_margin_seconds,
+        )
 
-            # Calculate refresh threshold using settings
-            refresh_threshold = datetime.now(UTC) + timedelta(
-                seconds=settings.oauth_proactive_refresh_margin_seconds
-            )
+        # Calculate refresh threshold using settings
+        refresh_threshold = datetime.now(UTC) + timedelta(
+            seconds=settings.oauth_proactive_refresh_margin_seconds
+        )
 
-            # Process each connector
-            seen_grants: set[UUID] = set()
-            for connector in connectors:
-                if connector.oauth_grant_id:
-                    if connector.oauth_grant_id in seen_grants:
-                        skipped_count += 1
-                        continue
-                    seen_grants.add(connector.oauth_grant_id)
-                result = await _process_connector(connector, refresh_threshold, db)
-                if result == "refreshed":
-                    refreshed_count += 1
-                elif result == "error":
-                    error_count += 1
-                else:
+        # Process each connector
+        seen_grants: set[UUID] = set()
+        for connector in connectors:
+            if connector.oauth_grant_id:
+                if connector.oauth_grant_id in seen_grants:
                     skipped_count += 1
+                    continue
+                seen_grants.add(connector.oauth_grant_id)
+            result = await _process_connector(connector, refresh_threshold)
+            if result == "refreshed":
+                refreshed_count += 1
+            elif result == "error":
+                error_count += 1
+            else:
+                skipped_count += 1
 
-            # Commit any pending changes
-            await db.commit()
+        # Record metrics and log completion
+        duration = _record_duration(start_time)
+        logger.info(
+            "token_refresh_completed",
+            refreshed=refreshed_count,
+            errors=error_count,
+            skipped=skipped_count,
+            total=len(connectors),
+            duration_seconds=round(duration, 3),
+        )
 
-            # Record metrics and log completion
-            duration = _record_duration(start_time)
-            logger.info(
-                "token_refresh_completed",
-                refreshed=refreshed_count,
-                errors=error_count,
-                skipped=skipped_count,
-                total=len(connectors),
-                duration_seconds=round(duration, 3),
-            )
+    except Exception as e:
+        background_job_errors_total.labels(job_name=_JOB_NAME).inc()
+        duration = _record_duration(start_time)
 
-        except Exception as e:
-            background_job_errors_total.labels(job_name=_JOB_NAME).inc()
-            duration = _record_duration(start_time)
-
-            logger.error(
-                "token_refresh_failed",
-                error=str(e),
-                error_type=type(e).__name__,
-                duration_seconds=round(duration, 3),
-            )
-            raise
+        logger.error(
+            "token_refresh_failed",
+            error_type=type(e).__name__,
+            duration_seconds=round(duration, 3),
+        )
+        raise
 
 
 async def _process_connector(
     connector: Connector,
     refresh_threshold: datetime,
-    db: AsyncSession,
 ) -> str:
     """
-    Process a single connector for token refresh.
+    Process a single connector for token refresh, through the one refresh door.
 
     Args:
-        connector: Connector to check and potentially refresh
+        connector: Connector to check and potentially refresh (read on a closed session)
         refresh_threshold: Datetime threshold - refresh if expires before this
-        db: Database session
 
     Returns:
         "refreshed" if token was refreshed
@@ -195,13 +188,18 @@ async def _process_connector(
             expires_in_seconds=round(time_until_expiry),
         )
 
+        # The scheduler's proactive margin is larger than the on-demand one: the door
+        # applies it to the token it re-reads, so another worker's fresh token is no
+        # second exchange (audit AC-029).
         if connector.oauth_grant_id:
-            # The scheduler's proactive margin is larger than the on-demand
-            # margin. Apply it under the grant lock to avoid a false success.
-            await OAuthGrantRuntime(db).credentials_for(connector, refresh_before=refresh_threshold)
+            await ensure_fresh_credentials(
+                GrantTokenTarget(connector), refresh_before=refresh_threshold
+            )
         else:
-            service = ConnectorService(db)
-            await service._refresh_oauth_token(connector, credentials)
+            target = legacy_connector_target(connector)
+            await ensure_fresh_credentials(
+                target, current=target.stored(connector), refresh_before=refresh_threshold
+            )
 
         logger.info(
             "token_refresh_success",
@@ -217,7 +215,6 @@ async def _process_connector(
             connector_id=str(connector.id),
             connector_type=connector.connector_type.value,
             user_id=str(connector.user_id),
-            error=str(e),
             error_type=type(e).__name__,
         )
         return "error"
@@ -240,7 +237,6 @@ def _decrypt_credentials(connector: Connector) -> ConnectorCredentials | None:
         logger.error(
             "token_refresh_decrypt_failed",
             connector_id=str(connector.id),
-            error=str(e),
             error_type=type(e).__name__,
         )
         return None

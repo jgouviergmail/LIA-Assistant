@@ -34,12 +34,17 @@ This directory contains operational runbooks for troubleshooting and resolving i
 | **AgentsRouterLatencyHigh** | Warning | Agents | Delayed routing | [AgentsRouterLatencyHigh.md](../runbooks/alerts/AgentsRouterLatencyHigh.md) |
 | **CheckpointSaveSlowCritical** | Warning | Agents | Slow state persistence | [CheckpointSaveSlowCritical.md](../runbooks/alerts/CheckpointSaveSlowCritical.md) |
 | **PKCEValidationFailures** | Warning | Authentication | Auth failures | [PKCEValidationFailures.md](../runbooks/alerts/PKCEValidationFailures.md) |
+| **PasswordResetAbuse** | Warning | Authentication | Reset requests refused at an account's budget, or naming an administrator | [PasswordResetAbuse.md](../runbooks/alerts/PasswordResetAbuse.md) |
+| **RegistrationBurst** | Warning | Authentication | Sign-ups beyond the hourly threshold | [RegistrationBurst.md](../runbooks/alerts/RegistrationBurst.md) |
+| **TurnstileUnavailable** | Warning | Authentication | Sign-ups and reset requests refused, sign-in kept | [TurnstileUnavailable.md](../runbooks/alerts/TurnstileUnavailable.md) |
 | **DatabaseDown** | Critical | Database | Total outage | [DatabaseDown.md](../runbooks/alerts/DatabaseDown.md) |
 | **ServiceDown** | Critical | API | Total outage | [ServiceDown.md](../runbooks/alerts/ServiceDown.md) |
 | **DailyCostBudgetExceeded** | Warning | LLM | Budget overrun | [DailyCostBudgetExceeded.md](../runbooks/alerts/DailyCostBudgetExceeded.md) |
 | **AgentsStreamingErrorRateHigh** | Warning | Agents | Streaming UX broken | [AgentsStreamingErrorRateHigh.md](../runbooks/alerts/AgentsStreamingErrorRateHigh.md) |
 | **HighConversationResetRate** | Warning | Agents | Context loss | [HighConversationResetRate.md](../runbooks/alerts/HighConversationResetRate.md) |
 | **HighDatabaseConnections** | Warning | Database | Preventive alert | [HighDatabaseConnections.md](../runbooks/alerts/HighDatabaseConnections.md) |
+| **DatabaseBoundReached** | Warning | Database | One operation ended by a PostgreSQL bound | [DatabaseBoundReached.md](../runbooks/alerts/DatabaseBoundReached.md) |
+| **ProductAggregatesStale** | Warning | Product | Dashboard 26 figures stale | [ProductAggregatesStale.md](../runbooks/alerts/ProductAggregatesStale.md) |
 
 ---
 
@@ -54,6 +59,7 @@ This directory contains operational runbooks for troubleshooting and resolving i
 - [CriticalDatabaseConnections.md](../runbooks/alerts/CriticalDatabaseConnections.md) - Pool >85%
 - [HighDatabaseConnections.md](../runbooks/alerts/HighDatabaseConnections.md) - Pool >70%
 - [DatabaseDown.md](../runbooks/alerts/DatabaseDown.md) - PostgreSQL unreachable
+- [DatabaseBoundReached.md](../runbooks/alerts/DatabaseBoundReached.md) - A lock wait or an idle transaction ended by the engine's bounds
 
 ### LLM (Anthropic Claude)
 - [LLMAPIFailureRateHigh.md](../runbooks/alerts/LLMAPIFailureRateHigh.md) - API failures >3%
@@ -67,6 +73,12 @@ This directory contains operational runbooks for troubleshooting and resolving i
 
 ### Authentication (OAuth/PKCE)
 - [PKCEValidationFailures.md](../runbooks/alerts/PKCEValidationFailures.md) - PKCE failures >5%
+- [PasswordResetAbuse.md](../runbooks/alerts/PasswordResetAbuse.md) - Reset requests refused at an account's budget, or naming an administrator
+- [RegistrationBurst.md](../runbooks/alerts/RegistrationBurst.md) - Sign-ups beyond the hourly threshold
+- [TurnstileUnavailable.md](../runbooks/alerts/TurnstileUnavailable.md) - The anti-robot check gets no usable answer from Cloudflare
+
+### Product analytics
+- [ProductAggregatesStale.md](../runbooks/alerts/ProductAggregatesStale.md) - No hourly product rollup completed: dashboard 26 is stale
 
 ### Infrastructure (Docker/System)
 - [DiskSpaceCritical.md](../runbooks/alerts/DiskSpaceCritical.md) - Disk <10% free
@@ -94,6 +106,11 @@ This directory contains operational runbooks for troubleshooting and resolving i
 5. [AgentsStreamingErrorRateHigh.md](../runbooks/alerts/AgentsStreamingErrorRateHigh.md)
 6. [HighConversationResetRate.md](../runbooks/alerts/HighConversationResetRate.md)
 7. [HighDatabaseConnections.md](../runbooks/alerts/HighDatabaseConnections.md)
+8. [DatabaseBoundReached.md](../runbooks/alerts/DatabaseBoundReached.md)
+9. [ProductAggregatesStale.md](../runbooks/alerts/ProductAggregatesStale.md)
+10. [PasswordResetAbuse.md](../runbooks/alerts/PasswordResetAbuse.md)
+11. [RegistrationBurst.md](../runbooks/alerts/RegistrationBurst.md)
+12. [TurnstileUnavailable.md](../runbooks/alerts/TurnstileUnavailable.md)
 
 ---
 

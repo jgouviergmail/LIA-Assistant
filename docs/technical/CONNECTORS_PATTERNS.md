@@ -475,33 +475,23 @@ except Exception as e:
 ### Automatic Token Refresh
 
 ```python
-# BaseGoogleClient - Automatic token refresh with Redis locking
+# BaseOAuthClient - the client refreshes nothing itself (audit AC-029)
 
 async def _refresh_access_token(self) -> str:
+    """Obtain a valid access token through the one refresh door.
+
+    The read runs in the client's unit of work; the door is asked once the unit is
+    over, so no transaction waits on the token endpoint (ADR-304). The door
+    (connectors/oauth_refresh.py) exchanges each token at most once at a time across
+    callers and workers, writes only over the token it started from, and treats
+    invalid_grant as a revocation only when the refused token is still the stored one.
     """
-    Refresh OAuth token with race condition protection.
-
-    Features:
-        - 5-minute safety margin before expiration
-        - Redis lock to prevent concurrent refresh
-        - Double-check pattern (verify after lock acquisition)
-    """
-    if not self._token_needs_refresh():
-        return self.credentials["access_token"]
-
-    # Acquire Redis lock (prevents thundering herd)
-    async with OAuthLock(self.redis, self.user_id):
-        # Double-check (another process may have refreshed)
-        if not self._token_needs_refresh():
-            return self.credentials["access_token"]
-
-        # Perform refresh
-        new_tokens = await self.connector_service._refresh_oauth_token(
-            self.user_id, self.connector_type
-        )
-
-        self.credentials.update(new_tokens)
-        return new_tokens["access_token"]
+    async with connector_unit_of_work(self.connector_service) as service:
+        stored = await service.read_connector_credentials(self.user_id, self.connector_type)
+        if stored is None:
+            ...  # 404 when the row is gone, 400 when it holds no credentials
+    self.credentials = await stored.fresh()
+    return str(self.credentials.access_token)
 ```
 
 ### Token Refresh Safety Margin

@@ -27,6 +27,9 @@ SCRIPTS: dict[str, str] = {
     "measure_sloc.py": "files=",
     "measure_cc.py": "functions=",
     "measure_coupling.py": "domains=",
+    "findings_register.py": "findings_register:",
+    "doc_language.py": "doc_language:",
+    "diff_coverage.py": "diff_coverage:",
 }
 
 

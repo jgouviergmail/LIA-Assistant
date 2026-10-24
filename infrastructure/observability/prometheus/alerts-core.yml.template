@@ -236,6 +236,23 @@ groups:
           description: "{{ $value | humanize }} MaxConnectionsError in 10 minutes at the rate limiter (threshold: <<<ALERT_CORE_REDIS_POOL_EXHAUSTED_10M>>>). Every Redis-backed path (SSE streams, caches, rate limiting, scheduler leadership) is failing intermittently: raise REDIS_MAX_CONNECTIONS or find what is pinning connections."
           runbook: "docs/runbooks/alerts/RedisConnectionPoolExhaustion.md"
 
+      # AC-028 / ADR-304. Every connection of the application engine starts with two
+      # server-side bounds (DATABASE_LOCK_TIMEOUT_MS, DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS).
+      # Each one that ends a statement or a session names a caller holding a lock or a
+      # transaction too long: zero is the honest threshold.
+      - alert: DatabaseBoundReached
+        expr: |
+          sum by (bound) (increase(db_bound_reached_total[15m])) > 0
+        for: 0m
+        labels:
+          severity: warning
+          component: postgresql
+          tier: core
+        annotations:
+          summary: "A PostgreSQL bound ended a statement or a session ({{ $labels.bound }})"
+          description: "{{ $value | humanize }} statement(s) or session(s) ended by the application engine's {{ $labels.bound }} bound in 15 minutes. lock_timeout: a statement waited for a lock past DATABASE_LOCK_TIMEOUT_MS. idle_in_transaction_timeout: a session sat idle inside a transaction past DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS and the server ended it (ADR-304). statement_timeout: a statement outlived a timeout its caller set. Find the caller with database_bound_reached in the API log."
+          runbook: "docs/runbooks/alerts/DatabaseBoundReached.md"
+
       # ADR-220. A completed LLM call whose result carries no token usage is a
       # hole in the ledger: token_usage_logs, the daily spend ceiling and every
       # cost dashboard silently miss that spend. This is exactly how a missing
@@ -693,3 +710,76 @@ groups:
           summary: "A phone notice has an uncertain delivery result"
           description: "The worker will not resend automatically. Inspect the content-free delivery state and effect attempt chain; a transport acceptance does not prove a device displayed or read it."
           runbook: "docs/runbooks/alerts/PhoneIngestionDeliveryUncertain.md"
+
+  # The product dashboard's figures are as fresh as the hourly rollup that
+  # computes them in PostgreSQL (ADR-178): a rollup that stops leaves every
+  # number of dashboard 26 standing, stale, with nothing to say so. Moved here
+  # from the unloaded alerts-product.yml (audit AC-006): staleness needs no
+  # production baseline, the product behaviour alerts do.
+  - name: core_product
+    interval: 1m
+    rules:
+      - alert: ProductAggregatesStale
+        expr: |
+          (time() - max(product_metrics_last_refresh_timestamp_seconds)) > <<<ALERT_CORE_PRODUCT_AGGREGATES_STALE_SECONDS>>>
+        for: 15m
+        labels:
+          severity: warning
+          component: product
+          tier: core
+        annotations:
+          summary: "The product aggregates were last refreshed {{ $value | humanizeDuration }} ago"
+          description: "No product rollup has completed for longer than <<<ALERT_CORE_PRODUCT_AGGREGATES_STALE_SECONDS>>> seconds: every run failed, or the job is not running (no scheduler leader). Every figure of dashboard 26 is as old as its last refresh. Read background_job_errors_total{job_name=\"product_analytics_rollup\"} — a failed run logs product_rollup_failed in the API; nothing at all means the scheduler."
+          runbook: "docs/runbooks/alerts/ProductAggregatesStale.md"
+
+  # ===== ACCOUNT SECURITY (ADR-363) =====
+  # The reset route is public by nature, and a page asks for nothing more than
+  # an address: on 2026-10-23 a script aimed it at the administrator's account
+  # from rotating addresses, and nothing told anyone — the owner found out from
+  # the e-mails. The counters carry a bounded outcome only, never an account.
+  - name: core_auth
+    interval: 1m
+    rules:
+      - alert: PasswordResetAbuse
+        expr: |
+          (round(sum(increase(password_reset_requests_total{outcome="throttled"}[1h]))) > <<<ALERT_CORE_PASSWORD_RESET_THROTTLED_PER_HOUR>>>)
+          or
+          (round(sum(increase(password_reset_requests_total{outcome="refused_superuser"}[1h]))) > 0)
+        for: 5m
+        labels:
+          severity: warning
+          component: auth
+          tier: core
+        annotations:
+          summary: "{{ $value | humanize }} password-reset requests refused in the last hour"
+          description: "Over the last hour, more than <<<ALERT_CORE_PASSWORD_RESET_THROTTLED_PER_HOUR>>> password-reset requests were refused by an account's own e-mail budget, or at least one named an administrator account (never sent a link). Someone is aiming the reset route at an account: nothing was sent past the budget, so the account is not taken by this alone. Read the API's password_reset_throttled and password_reset_refused events, and the client addresses in ip_rate_limit_exceeded; block the source at the edge if it persists."
+          runbook: "docs/runbooks/alerts/PasswordResetAbuse.md"
+
+      - alert: RegistrationBurst
+        expr: |
+          round(
+            (sum(increase(user_registrations_total{status="success"}[1h])) or vector(0))
+            + (sum(increase(oauth_user_creation_total[1h])) or vector(0))
+          ) > <<<ALERT_CORE_REGISTRATIONS_PER_HOUR>>>
+        for: 5m
+        labels:
+          severity: warning
+          component: auth
+          tier: core
+        annotations:
+          summary: "{{ $value | humanize }} accounts created in the last hour"
+          description: "More than <<<ALERT_CORE_REGISTRATIONS_PER_HOUR>>> accounts were created in the last hour, password and Google sign-ups together. A new account stays inactive until an administrator activates it, but each password sign-up sends a verification e-mail to the address it names. Sort the admin user list by creation date, read the user_registered and new_user_created_via_oauth events, delete the throwaway accounts and block the source at the edge if it persists."
+          runbook: "docs/runbooks/alerts/RegistrationBurst.md"
+
+      - alert: TurnstileUnavailable
+        expr: |
+          round(sum(increase(turnstile_verifications_total{outcome="unavailable"}[15m]))) > <<<ALERT_CORE_TURNSTILE_UNAVAILABLE_PER_15M>>>
+        for: 5m
+        labels:
+          severity: warning
+          component: auth
+          tier: core
+        annotations:
+          summary: "{{ $value | humanize }} bot checks Cloudflare did not answer in the last 15 minutes"
+          description: "Cloudflare Turnstile did not answer more than <<<ALERT_CORE_TURNSTILE_UNAVAILABLE_PER_15M>>> bot checks in 15 minutes: sign-ins proceed unverified, while sign-ups and password-reset requests are refused until it answers. Read the API's turnstile_siteverify_unanswered and turnstile_siteverify_refused_the_server events — the second means the instance's own secret or request is wrong (TURNSTILE_SECRET_KEY)."
+          runbook: "docs/runbooks/alerts/TurnstileUnavailable.md"

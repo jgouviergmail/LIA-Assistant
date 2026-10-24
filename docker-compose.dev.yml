@@ -458,7 +458,6 @@ services:
     volumes:
       - ./infrastructure/observability/alertmanager/docker-entrypoint.sh:/docker-entrypoint.sh:ro
       - ./infrastructure/observability/alertmanager/alertmanager.yml.template:/etc/alertmanager/alertmanager.yml.template:ro
-      - ./infrastructure/observability/alertmanager/alertmanager-email-only.yml.template:/etc/alertmanager/alertmanager-email-only.yml.template:ro
       - ./infrastructure/observability/alertmanager/lia-webhook-route.fragment:/etc/alertmanager/lia-webhook-route.fragment:ro
       - ./infrastructure/observability/alertmanager/lia-webhook-receiver.fragment:/etc/alertmanager/lia-webhook-receiver.fragment:ro
       - ./infrastructure/observability/alertmanager/templates:/etc/alertmanager/templates:ro

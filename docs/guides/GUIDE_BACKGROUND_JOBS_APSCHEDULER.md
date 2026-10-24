@@ -475,11 +475,11 @@ await leader_elector.shutdown() # Stop the scheduler, release the lock, before t
 
 **Bail perdu ou non vérifiable** (amendement 2026-10-13 d'[ADR-046](../architecture/ADR-046-Background-Job-Scheduling.md)) : un leader dont le renouvellement trouve le bail aux mains d'un autre worker, ou ne peut plus confirmer sa propriété auprès de Redis, s'efface — son scheduler passe en pause (un job en cours se termine, aucun ne démarre) et il attend de nouveau le bail comme au démarrage ; réélu, il reprend (`resume()`). Le renouvellement tolère un intervalle de retard. À l'arrêt, `pause_jobs()` passe en premier et `shutdown()` arrête le scheduler juste après le drainage, avant le relais push, Langfuse et les pools que ses jobs utilisent.
 
-**Trois variantes de locks SETNX** dans LIA :
+**Trois variantes de réclamations SETNX** dans LIA :
 
 | Lock | Module | Comportement | Cas d'usage |
 |------|--------|--------------|-------------|
-| `OAuthLock` | `infrastructure/locks/oauth_lock.py` | Blocking retry avec backoff | Refresh token OAuth |
+| Porte de rafraîchissement OAuth | `domains/connectors/oauth_refresh.py` | Réclamation à jeton propriétaire ; les autres workers attendent le verdict publié, dans un budget borné | Refresh token OAuth (audit AC-029) |
 | `SchedulerLock` | `infrastructure/locks/scheduler_lock.py` | Non-blocking skip | Déduplication per-job |
 | `SchedulerLeaderElector` | `infrastructure/scheduler/leader_elector.py` | Non-blocking + background re-election | Instance unique scheduler |
 

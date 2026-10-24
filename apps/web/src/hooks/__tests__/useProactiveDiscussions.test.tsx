@@ -63,6 +63,7 @@ const idle: DiscussionActivity = {
   last_update: null,
   last_run: null,
   budget: { configured: false, reached: null, resets_at: null },
+  awaiting_reply: null,
 };
 let server: DiscussionSettings;
 let activity: DiscussionActivity;

@@ -14,6 +14,10 @@ from sqlalchemy.pool import QueuePool
 
 from src.core.config import settings
 from src.infrastructure.database.errors import database_error_fields
+from src.infrastructure.database.server_bounds import (
+    engine_server_settings,
+    install_bound_counter,
+)
 from src.infrastructure.observability.metrics_database import (
     db_connection_pool_checkedout,
     db_connection_pool_exhausted_total,
@@ -79,7 +83,11 @@ engine = create_async_engine(
     pool_timeout=settings.database_pool_timeout,  # Fail-fast if pool exhausted
     pool_recycle=settings.database_pool_recycle,  # Avoid stale connections
     pool_pre_ping=True,  # Validate connections before use (recommended)
+    # Every connection starts bounded on the server: a lock wait, an idle
+    # transaction (audit AC-028, ADR-304). Counted where they end a statement.
+    connect_args={"server_settings": engine_server_settings()},
 )
+install_bound_counter(engine)
 
 # Create async session factory
 AsyncSessionLocal = async_sessionmaker(

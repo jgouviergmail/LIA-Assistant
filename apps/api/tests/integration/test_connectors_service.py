@@ -13,23 +13,30 @@ This test suite covers:
 - Permission checks and ownership validation
 """
 
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
 import pytest_asyncio
 from fastapi import HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from src.core.exceptions import ConnectorTokenExpiredError
-from src.core.security import decrypt_data, encrypt_data
+from src.core.security import decrypt_data
+from src.domains.connectors import oauth_refresh_targets
 from src.domains.connectors.models import (
     Connector,
     ConnectorGlobalConfig,
     ConnectorStatus,
     ConnectorType,
+)
+from src.domains.connectors.oauth_refresh_exchange import (
+    RefreshedToken,
+    RefreshRefusal,
+    RefreshRefused,
 )
 from src.domains.connectors.schemas import (
     ConnectorCredentials,
@@ -38,6 +45,8 @@ from src.domains.connectors.schemas import (
 )
 from src.domains.connectors.service import ConnectorService
 from tests.fixtures.factories import ConnectorFactory, UserFactory
+from tests.helpers.committed_users import commit_owner
+from tests.helpers.oauth_refresh_io import commit_expired_connector
 
 # Requires a real database (external via TEST_DATABASE_URL or Testcontainers).
 # Run manually with: pytest tests/integration/test_connectors_service.py -v
@@ -46,6 +55,36 @@ pytestmark = pytest.mark.integration
 # ============================================================================
 # Fixtures
 # ============================================================================
+
+
+_GMAIL_READ = "https://www.googleapis.com/auth/gmail.readonly"
+
+
+def _issuing(access: str, sent: list[str]) -> Callable[..., Awaitable[RefreshedToken]]:
+    """A provider that issues ``access`` and notes the refresh token it was sent."""
+
+    async def provider(*_args: object, refresh_token: str, **_kwargs: object) -> RefreshedToken:
+        sent.append(refresh_token)
+        return RefreshedToken(
+            access_token=access,
+            refresh_token=refresh_token,
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+            reported_scopes=frozenset(),
+        )
+
+    return provider
+
+
+async def _revoked(*_args: object, **_kwargs: object) -> RefreshedToken:
+    raise RefreshRefused(RefreshRefusal.REVOKED, status_code=400)
+
+
+async def _stored_access_token(engine: AsyncEngine, connector_id: UUID) -> str:
+    async with AsyncSession(engine) as reader:
+        row = await reader.get(Connector, connector_id)
+    assert row is not None
+    stored = ConnectorCredentials.model_validate_json(decrypt_data(row.credentials_encrypted))
+    return stored.access_token
 
 
 @pytest_asyncio.fixture
@@ -420,48 +459,22 @@ class TestGetConnectorCredentials:
         assert credentials is None
 
     async def test_get_credentials_expired_refreshes_token(
-        self, service, sample_user, async_session
+        self, async_engine: AsyncEngine, committed_user_ids: list[UUID], monkeypatch
     ):
-        """Test that expired credentials trigger token refresh."""
-        # Create connector with expired token
-        expired_time = datetime.now(UTC) - timedelta(hours=1)
-        credentials_data = {
-            "access_token": "old-token",
-            "refresh_token": "refresh-token",
-            "token_type": "Bearer",
-            "expires_at": expired_time.isoformat(),
-        }
-        connector = Connector(
-            user_id=sample_user.id,
-            connector_type=ConnectorType.GOOGLE_GMAIL,
-            status=ConnectorStatus.ACTIVE,
-            scopes=["https://www.googleapis.com/auth/gmail.readonly"],
-            credentials_encrypted=encrypt_data(
-                ConnectorCredentials(**credentials_data).model_dump_json()
-            ),
-            connector_metadata={},
-        )
-        async_session.add(connector)
-        await async_session.commit()
-        await async_session.refresh(connector)
+        """An expired token is exchanged through the one door, which stores the new one."""
+        owner = await commit_owner(async_engine, committed_user_ids)
+        connector = await commit_expired_connector(async_engine, owner, scopes=[_GMAIL_READ])
+        sent: list[str] = []
+        monkeypatch.setattr(oauth_refresh_targets, "exchange_refresh_token", _issuing("new", sent))
 
-        # Mock the refresh method
-        new_credentials = ConnectorCredentials(
-            access_token="new-token",
-            refresh_token="refresh-token",
-            token_type="Bearer",
-            expires_at=datetime.now(UTC) + timedelta(hours=1),
-        )
-
-        with patch.object(
-            service, "_refresh_oauth_token", return_value=new_credentials
-        ) as mock_refresh:
-            credentials = await service.get_connector_credentials(
-                sample_user.id, ConnectorType.GOOGLE_GMAIL
+        async with AsyncSession(async_engine) as caller:
+            credentials = await ConnectorService(caller).get_connector_credentials(
+                owner, ConnectorType.GOOGLE_GMAIL
             )
 
-            mock_refresh.assert_called_once()
-            assert credentials.access_token == "new-token"
+        assert credentials is not None and credentials.access_token == "new"
+        assert sent == ["refresh-1"]
+        assert await _stored_access_token(async_engine, connector.id) == "new"
 
     async def test_get_credentials_decryption_error_raises(
         self, service, sample_user, async_session
@@ -495,31 +508,24 @@ class TestRefreshConnectorCredentials:
     """Test ConnectorService.refresh_connector_credentials()"""
 
     async def test_refresh_credentials_success(
-        self, service, sample_user, sample_connector, async_session
+        self, async_engine: AsyncEngine, committed_user_ids: list[UUID], monkeypatch
     ):
-        """Test successfully refreshing credentials."""
-        new_credentials = ConnectorCredentials(
-            access_token="new-access-token",
-            refresh_token="test-refresh-token",
-            token_type="Bearer",
-            expires_at=datetime.now(UTC) + timedelta(hours=1),
+        """A manual refresh exchanges through the door and answers with the re-read row."""
+        owner = await commit_owner(async_engine, committed_user_ids)
+        connector = await commit_expired_connector(async_engine, owner, scopes=[_GMAIL_READ])
+        sent: list[str] = []
+        monkeypatch.setattr(
+            oauth_refresh_targets, "exchange_refresh_token", _issuing("new-access-token", sent)
         )
 
-        with patch.object(
-            service, "_refresh_oauth_token", return_value=new_credentials
-        ) as mock_refresh:
-            result = await service.refresh_connector_credentials(
-                sample_user.id, sample_connector.id
+        async with AsyncSession(async_engine) as caller:
+            result = await ConnectorService(caller).refresh_connector_credentials(
+                owner, connector.id
             )
 
-            mock_refresh.assert_called_once()
-            assert result.id == sample_connector.id
-
-            # Verify credentials were updated
-            await async_session.refresh(sample_connector)
-            decrypted = decrypt_data(sample_connector.credentials_encrypted)
-            creds = ConnectorCredentials.model_validate_json(decrypted)
-            assert creds.access_token == "new-access-token"
+        assert result.id == connector.id
+        assert sent == ["refresh-1"]
+        assert await _stored_access_token(async_engine, connector.id) == "new-access-token"
 
     async def test_refresh_credentials_not_found(self, service, sample_user):
         """Test refreshing non-existent connector raises 404."""
@@ -540,85 +546,36 @@ class TestRefreshConnectorCredentials:
 
 
 # ============================================================================
-# Test: _refresh_oauth_token (private method)
+# Test: a refusal of the refresh door, through the service
 # ============================================================================
 
 
 @pytest.mark.asyncio
-class TestRefreshOAuthToken:
-    """Test ConnectorService._refresh_oauth_token()"""
+class TestARefusalThroughTheService:
+    """What the service answers when the provider refuses, on committed rows.
 
-    async def test_refresh_oauth_token_success(self, service, sample_connector, async_session):
-        """Test successful OAuth token refresh."""
-        credentials = ConnectorCredentials(
-            access_token="old-token",
-            refresh_token="refresh-token-123",
-            token_type="Bearer",
-            expires_at=datetime.now(UTC) - timedelta(hours=1),
-        )
+    The exchange's own answers (a rotated or kept refresh token, a missing lifetime, an
+    outage, an unreadable success) are proven by
+    ``tests/unit/domains/connectors/test_oauth_refresh_exchange.py``; a token without a
+    refresh token by ``tests/unit/connectors/test_connector_service.py``.
+    """
 
-        # Mock HTTP response
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "access_token": "new-access-token",
-            "expires_in": 3600,
-            "token_type": "Bearer",
-        }
+    async def test_a_definitive_invalid_grant_disconnects(
+        self, async_engine: AsyncEngine, committed_user_ids: list[UUID], monkeypatch
+    ):
+        owner = await commit_owner(async_engine, committed_user_ids)
+        connector = await commit_expired_connector(async_engine, owner, scopes=[_GMAIL_READ])
+        monkeypatch.setattr(oauth_refresh_targets, "exchange_refresh_token", _revoked)
 
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_client.return_value.__aenter__.return_value.post = AsyncMock(
-                return_value=mock_response
-            )
-
-            new_credentials = await service._refresh_oauth_token(sample_connector, credentials)
-
-            assert new_credentials.access_token == "new-access-token"
-            assert new_credentials.refresh_token == "refresh-token-123"
-            assert new_credentials.expires_at > datetime.now(UTC)
-
-    async def test_refresh_oauth_token_no_refresh_token(self, service, sample_connector):
-        """Test refresh fails when no refresh token available."""
-        credentials = ConnectorCredentials(
-            access_token="token",
-            refresh_token=None,
-            token_type="Bearer",
-        )
-
-        with pytest.raises(HTTPException) as exc_info:
-            await service._refresh_oauth_token(sample_connector, credentials)
-
-        assert exc_info.value.status_code == 400
-
-    async def test_refresh_oauth_token_http_error(self, service, sample_connector, async_session):
-        """Test refresh handles HTTP errors from provider."""
-        credentials = ConnectorCredentials(
-            access_token="token",
-            refresh_token="refresh-token",
-            token_type="Bearer",
-        )
-
-        # Only a definitive invalid_grant changes the connector to ERROR.
-        mock_response = MagicMock()
-        mock_response.status_code = 400
-        mock_response.text = "invalid_grant"
-        mock_response.json.return_value = {"error": "invalid_grant"}
-
-        # First verify connector status before the error
-        await async_session.refresh(sample_connector)
-
-        with patch("src.domains.connectors.service.httpx.AsyncClient") as mock_client:
-            mock_client.return_value.__aenter__.return_value.post = AsyncMock(
-                return_value=mock_response
-            )
-
-            # The provider definitively rejected the refresh token.
+        async with AsyncSession(async_engine) as caller:
             with pytest.raises(ConnectorTokenExpiredError):
-                await service._refresh_oauth_token(sample_connector, credentials)
+                await ConnectorService(caller).get_connector_credentials(
+                    owner, ConnectorType.GOOGLE_GMAIL
+                )
 
-            # Verify connector status was updated to ERROR
-            await async_session.refresh(sample_connector)
-            assert sample_connector.status == ConnectorStatus.ERROR
+        async with AsyncSession(async_engine) as reader:
+            row = await reader.get(Connector, connector.id)
+        assert row is not None and row.status == ConnectorStatus.ERROR
 
 
 # ============================================================================

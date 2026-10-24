@@ -1018,6 +1018,20 @@ tasks:
           --entrypoint promtool prom/prometheus:v3.13.3@sha256:6976aa8a60fec930796ce5772b8d12da7a318a5daa8d40d69c5c7819a05eeed7
           test rules /cfg/tests/alerts_core_test.yml
 
+  test:alertmanager:
+    # Every case of infrastructure/observability/alertmanager/tests/routing_matrix.yml
+    # is rendered by the REAL docker-entrypoint.sh in the image production pins
+    # (read from docker-compose.prod.yml, with its mounts), with no network, then
+    # checked by `amtool check-config` and routed by `amtool config routes test`
+    # (audit A07). The busybox sed/awk the entrypoint runs on is what is under
+    # test, so a Python re-implementation of the rendering could not stand in.
+    desc: Alertmanager rendering + routing matrix in the production image (A07, needs Docker)
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python scripts/observability/alertmanager_matrix.py
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/observability/alertmanager_matrix.py
+        platforms: [linux, darwin]
+
   lint:i18n:
     desc: Validate frontend i18n key parity across all 6 languages (en reference)
     cmds:
@@ -1027,7 +1041,7 @@ tasks:
         platforms: [linux, darwin]
 
   lint:docs:
-    desc: Audit documentation drift (broken links + quoted facts vs their sources)
+    desc: Audit documentation drift (links, quoted facts, AGENTS mirror, maps, findings register, language)
     cmds:
       # Two complementary drift classes, one task so CI needs no new step:
       #   doc_audit  — does the documentation NAVIGATE correctly (links, paths)?
@@ -1061,6 +1075,19 @@ tasks:
         platforms: [windows]
       - cmd: apps/api/.venv/bin/python scripts/audit/doc_maps.py
         platforms: [linux, darwin]
+      # The audit findings register (AC-031) agrees with every report it names;
+      # an open P1 past its horizon is a WARNING here and a failure in
+      # `release:check` (--strict) unless the entry carries a dated deferral.
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/findings_register.py
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/findings_register.py
+        platforms: [linux, darwin]
+      # Documentation language (AC-039a): a NEW document is written in English,
+      # and the frozen list of French documents only shrinks.
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/doc_language.py
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/doc_language.py
+        platforms: [linux, darwin]
 
   lint:docs:preview:
     desc: "Same audit, but as CI will see it AFTER `git add` (moved/new files included)"
@@ -1083,6 +1110,20 @@ tasks:
       - cmd: apps/api/.venv/Scripts/python scripts/audit/doc_maps.py --include-unstaged
         platforms: [windows]
       - cmd: apps/api/.venv/bin/python scripts/audit/doc_maps.py --include-unstaged
+        platforms: [linux, darwin]
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/doc_language.py --include-unstaged
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/doc_language.py --include-unstaged
+        platforms: [linux, darwin]
+
+  docs:language:update:
+    # Shrink-only: removes a translated or deleted document from the frozen list
+    # and never adds one. A moved French document: `-- --rename OLD NEW`.
+    desc: Remove translated or deleted documents from the frozen French list (never adds)
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/doc_language.py --update {{.CLI_ARGS}}
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/doc_language.py --update {{.CLI_ARGS}}
         platforms: [linux, darwin]
 
   docs:sync-agents:
@@ -1129,11 +1170,15 @@ tasks:
         platforms: [linux, darwin]
 
   lint:observability:
-    desc: Validate Grafana dashboards + Prometheus rules (structural, F025)
+    desc: Validate Grafana dashboards + Prometheus rules (structural, F025; every series read has a producer, AC-006)
     cmds:
       - cmd: apps/api/.venv/Scripts/python scripts/observability/validate_observability.py
         platforms: [windows]
       - cmd: apps/api/.venv/bin/python scripts/observability/validate_observability.py
+        platforms: [linux, darwin]
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/measure_metric_coverage.py --producers
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/measure_metric_coverage.py --producers
         platforms: [linux, darwin]
 
   lint:cycles:
@@ -1155,6 +1200,63 @@ tasks:
   lint:backend:
     desc: Lint backend code
     dir: "{{.API_DIR}}"
+    vars:
+      # AC-037: the first test modules held to strict MyPy with no exemption —
+      # test code obeys the production contracts. A module joins once typed and
+      # never leaves (MyPy only checks src otherwise).
+      TYPED_TESTS: >-
+        tests/_git_sandbox.py tests/_repo_paths.py tests/_routes.py
+        tests/unit/test_findings_register_guard.py tests/unit/test_doc_language_guard.py
+        tests/unit/test_diff_coverage_guard.py tests/unit/test_ci_job_timeouts_guard.py
+        tests/unit/test_hung_test_watchdog_guard.py tests/unit/test_git_sandbox.py
+        tests/helpers/notifications.py tests/unit/test_durable_delivery_guard.py
+        tests/unit/infrastructure/proactive/test_notification_durable.py
+        tests/integration/domains/telephony/test_notification_reaper_durability.py
+        tests/integration/domains/diagnostics/test_admin_notification_isolation_pg.py
+        tests/helpers/redis_double.py
+        tests/unit/domains/connectors/test_oauth_refresh_exchange.py
+        tests/unit/domains/connectors/test_oauth_refresh.py
+        tests/integration/domains/connectors/test_oauth_refresh_pg.py
+        tests/helpers/oauth_refresh_io.py tests/helpers/committed_users.py
+        tests/unit/test_refresh_grant_single_sender_guard.py
+        tests/integration/domains/connectors/test_client_session_ownership.py
+        tests/integration/test_oauth_shared_grants.py
+        tests/integration/infrastructure/test_server_bounds_pg.py
+        tests/unit/infrastructure/database/test_server_bounds.py
+        tests/unit/domains/connectors/test_hue_client_closed.py
+        tests/unit/infrastructure/test_async_utils_shutdown_join.py
+        tests/unit/test_dockerignore_next_dists_guard.py
+        tests/unit/infrastructure/test_multipart_upload.py
+        tests/unit/domains/voice/test_stt_file_upload_off_loop.py
+        tests/unit/domains/account_export/test_publication.py
+        tests/unit/domains/account_export/test_export_disk_off_loop.py
+        tests/unit/domains/rag_spaces/test_owned_document_path.py
+        tests/unit/domains/agents/application/test_peer_image_files.py
+        tests/unit/domains/skills/test_executor_script_read.py
+        tests/unit/test_alertmanager_template_guard.py
+        tests/unit/test_metric_producer_guard.py
+        tests/integration/domains/product/test_validated_outcome_value_pg.py
+        tests/unit/domains/proactive_discussions/test_discussion_volume.py
+        tests/support/thread_clock.py tests/support/cpu_growth.py
+        tests/unit/test_cpu_growth_support.py
+        tests/unit/domains/agents/display/test_flatteners_are_linear.py
+        tests/unit/domains/agents/services/streaming/test_machine_tags.py
+        tests/unit/domains/conversations/test_messages_with_tokens.py
+        tests/unit/test_env_template_parity_guard.py
+        tests/unit/infrastructure/proactive/test_discussion_read_controls.py
+        tests/unit/test_coverage_union_guard.py
+        tests/integration/domains/conversations/test_response_feedback_route.py
+        tests/unit/domains/proactive_discussions/test_reply_receipts.py
+        tests/unit/core/security/test_password_reset_token.py
+        tests/unit/domains/auth/reset_budget_fakes.py
+        tests/unit/domains/auth/test_password_reset_policy.py
+        tests/unit/domains/auth/test_password_reset_flow.py
+        tests/unit/scripts/test_set_password_cli.py
+        tests/integration/test_password_reset_budget_redis.py
+        tests/integration/test_set_password_db.py
+        tests/unit/core/config/test_turnstile_settings.py
+        tests/unit/domains/auth/test_turnstile_gate.py
+        tests/unit/infrastructure/external/test_turnstile_client.py
     cmds:
       - cmd: .venv/Scripts/ruff check src tests
         platforms: [windows]
@@ -1168,18 +1270,24 @@ tasks:
         platforms: [windows]
       - cmd: .venv/bin/mypy src --config-file=pyproject.toml
         platforms: [linux, darwin]
+      - cmd: .venv/Scripts/mypy --strict --config-file=pyproject.toml --no-warn-unused-configs --follow-imports=silent {{.TYPED_TESTS}}
+        platforms: [windows]
+      - cmd: .venv/bin/mypy --strict --config-file=pyproject.toml --no-warn-unused-configs --follow-imports=silent {{.TYPED_TESTS}}
+        platforms: [linux, darwin]
 
   lint:frontend:
     # Mirrors the CI job `lint-frontend` step for step. The three ratchets were
     # CI-only until 2026-07-25, which is how a one-line a11y fix redded the
     # complexity ratchet one commit after passing every local gate.
-    desc: Lint frontend code (eslint + tsc + a11y/react-hooks/complexity ratchets)
+    desc: Lint frontend code (eslint + tsc + a11y/react-hooks/complexity/double-cast ratchets)
     dir: "{{.WEB_DIR}}"
     cmds:
       - pnpm lint
       - pnpm a11y:ratchet
       - pnpm react-hooks:ratchet
       - pnpm cc:ratchet
+      # AC-037: `as unknown as` per file may only go down (tests, e2e, production).
+      - pnpm double-cast:ratchet
       - pnpm type-check
 
   format:
@@ -1267,19 +1375,23 @@ tasks:
         platforms: [windows]
       - cmd: .venv/bin/python scripts/integration_preflight.py
         platforms: [linux, darwin]
-      - cmd: LIA_REQUIRE_DB=1 .venv/Scripts/pytest tests/integration/ -v --tb=short --no-cov -m "not e2e and not benchmark and not multiprocess"
+      # AC-030b: the suite measures into ITS data file, half of what
+      # test:backend:coverage floors; the --cov-fail-under=0 sentinel keeps
+      # pyproject's floor off this partial subset (F022).
+      - cmd: LIA_REQUIRE_DB=1 COVERAGE_FILE=.coverage-integration .venv/Scripts/pytest tests/integration/ -v --tb=short --cov=src --cov-fail-under=0 -m "not e2e and not benchmark and not multiprocess"
         platforms: [windows]
-      - cmd: LIA_REQUIRE_DB=1 .venv/bin/pytest tests/integration/ -v --tb=short --no-cov -m "not e2e and not benchmark and not multiprocess"
+      - cmd: LIA_REQUIRE_DB=1 COVERAGE_FILE=.coverage-integration .venv/bin/pytest tests/integration/ -v --tb=short --cov=src --cov-fail-under=0 -m "not e2e and not benchmark and not multiprocess"
         platforms: [linux, darwin]
       # F006: integration-marked tests co-located under tests/unit / tests/agents
       # run in this services-equipped job (they'd otherwise run in no job), and
       # the marker-coverage guard mirrors exactly this collection. ONE block on
       # purpose: a second, identical invocation was added on 2026-07-25 on the
       # false premise that this one was missing, and ran the whole collection
-      # twice here AND in CI (which now calls this task).
-      - cmd: LIA_REQUIRE_DB=1 .venv/Scripts/pytest tests/unit/ tests/agents/ -v --tb=short --no-cov -m "integration and not e2e and not benchmark and not multiprocess"
+      # twice here AND in CI (which now calls this task). It APPENDS to the
+      # file the collection above started fresh.
+      - cmd: LIA_REQUIRE_DB=1 COVERAGE_FILE=.coverage-integration .venv/Scripts/pytest tests/unit/ tests/agents/ -v --tb=short --cov=src --cov-append --cov-fail-under=0 -m "integration and not e2e and not benchmark and not multiprocess"
         platforms: [windows]
-      - cmd: LIA_REQUIRE_DB=1 .venv/bin/pytest tests/unit/ tests/agents/ -v --tb=short --no-cov -m "integration and not e2e and not benchmark and not multiprocess"
+      - cmd: LIA_REQUIRE_DB=1 COVERAGE_FILE=.coverage-integration .venv/bin/pytest tests/unit/ tests/agents/ -v --tb=short --cov=src --cov-append --cov-fail-under=0 -m "integration and not e2e and not benchmark and not multiprocess"
         platforms: [linux, darwin]
 
   test:backend:exhaustive:
@@ -1303,16 +1415,61 @@ tasks:
         platforms: [linux, darwin]
 
   test:backend:unit:coverage:
-    # Measured 2026-10-03 after card/native/preview qualification: 80.36%.
-    # Floor 78 keeps >=2 percentage points of headroom; the same floor is
-    # enforced in pyproject.toml. The fast task trades coverage for xdist
-    # within the pre-commit budget; this task reproduces the CI coverage gate.
-    desc: Backend unit tests with coverage and the CI floor (mirrors the CI job step)
+    # The CI unit step, verbatim. It measures into ITS data file and holds no
+    # floor (the --cov-fail-under=0 sentinel overrides pyproject's addopts):
+    # the floor is test:backend:coverage's, over this suite and the
+    # integration suite together (AC-030b). The fast task trades coverage for
+    # xdist within the pre-commit budget.
+    desc: Backend unit tests with coverage data (mirrors the CI job step; floored by test:backend:coverage)
     dir: "{{.API_DIR}}"
     cmds:
-      - cmd: .venv/Scripts/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=78
+      - cmd: COVERAGE_FILE=.coverage-unit .venv/Scripts/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=term-missing --cov-fail-under=0
         platforms: [windows]
-      - cmd: .venv/bin/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=78
+      - cmd: COVERAGE_FILE=.coverage-unit .venv/bin/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=term-missing --cov-fail-under=0
+        platforms: [linux, darwin]
+
+  test:backend:coverage:
+    # AC-030b (owner decision 2026-10-23): the floor holds what the unit AND
+    # integration suites execute together; the SQL-bound domains are tested
+    # on a real PostgreSQL, which a unit-only measure cannot see. Run both
+    # suites first: a missing data file fails the strict combination, never
+    # a partial total. The suites' files stay outside coverage's implicit
+    # `<data file>.*` pattern, which every reporting command combines
+    # non-strictly then deletes (test_coverage_union_guard.py). The floor is
+    # pyproject.toml's, repeated here once (test_task_ci_pytest_parity_guard.py
+    # holds the two equal); when it moves is the ratchet doctrine of
+    # docs/guides/GUIDE_TESTING.md, never restated here. The xml comes before
+    # the floor, so a missed floor can still be read. The report is as recent as
+    # the suites' data, not as this task: after a change, run both suites again
+    # (`task ci` does) before trusting the diff gate locally.
+    desc: Coverage floor on the unit and integration suites together (run both suites first)
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python -m coverage combine --keep --data-file=.coverage-combined .coverage-unit .coverage-integration
+        platforms: [windows]
+      - cmd: .venv/bin/python -m coverage combine --keep --data-file=.coverage-combined .coverage-unit .coverage-integration
+        platforms: [linux, darwin]
+      - cmd: .venv/Scripts/python -m coverage xml --data-file=.coverage-combined -o coverage.xml
+        platforms: [windows]
+      - cmd: .venv/bin/python -m coverage xml --data-file=.coverage-combined -o coverage.xml
+        platforms: [linux, darwin]
+      - cmd: .venv/Scripts/python -m coverage report --data-file=.coverage-combined --format=total --fail-under=78
+        platforms: [windows]
+      - cmd: .venv/bin/python -m coverage report --data-file=.coverage-combined --format=total --fail-under=78
+        platforms: [linux, darwin]
+
+  test:backend:diff-coverage:
+    # AC-030a: the global floor let new code land below it unseen. The lines a
+    # change adds or modifies under apps/api/src must be covered at least at
+    # that floor. Reads the coverage.xml test:backend:coverage writes, over
+    # both suites (AC-030b); CI hands over the base commit in
+    # DIFF_COVERAGE_BASE, locally it is where the branch left origin/main
+    # (uncommitted edits and new modules included).
+    desc: Changed backend lines covered at least at the floor (run test:backend:coverage first)
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/diff_coverage.py
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/diff_coverage.py
         platforms: [linux, darwin]
 
   test:backend:agents:
@@ -1395,13 +1552,20 @@ tasks:
   # half; the editorial half (CHANGELOG, FAQ, README theme, measured stats) is
   # printed as a reminder, never written.
   release:check:
-    desc: "Release surfaces: report any version/count drift (read-only)"
+    desc: "Release surfaces: report any version/count drift, refuse an overdue P1 audit finding (read-only)"
     env:
       PYTHONUTF8: "1"  # F047: UTF-8 output regardless of the Windows console code page
     cmds:
       - cmd: apps/api/.venv/Scripts/python scripts/release/bump_surfaces.py --check
         platforms: [windows]
       - cmd: apps/api/.venv/bin/python scripts/release/bump_surfaces.py --check
+        platforms: [linux, darwin]
+      # A release does not ship past an open P1 audit finding whose horizon has
+      # elapsed, unless its register entry carries a dated, reasoned deferral
+      # (owner decision 2026-10-22, AC-031).
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/findings_register.py --strict
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/findings_register.py --strict
         platforms: [linux, darwin]
 
   release:bump:
@@ -1551,6 +1715,11 @@ tasks:
     desc: Create admin user for first-time setup
     cmds:
       - docker compose -f docker-compose.dev.yml exec -T api python -m scripts.data.create_admin {{.CLI_ARGS}}
+
+  db:set-password:
+    desc: "Set an account's password from the server (ADR-363 — an administrator is never reset by e-mail; password piped on stdin)"
+    cmds:
+      - docker compose -f docker-compose.dev.yml exec -T api python -m scripts.data.set_password {{.CLI_ARGS}}
 
   db:create-grafana-reader:
     desc: Create/refresh the read-only Grafana product role (ADR-178 — GRANT on product views only)
@@ -2426,6 +2595,8 @@ tasks:
     desc: CI gates that need no service (~10 min) — run this before pushing
     cmds:
       - task: lint
+      # The unit suite's coverage only: the floor and the diff gate need the
+      # integration suite's data too (AC-030b), so they run in `task ci`.
       - task: test:backend:unit:coverage
       - task: test:markers
       - task: test:frontend:coverage
@@ -2447,8 +2618,11 @@ tasks:
       - task: ci:fast
       - task: test:backend:agents
       - task: test:backend:integration
+      - task: test:backend:coverage
+      - task: test:backend:diff-coverage
       - task: db:migrate:replay-check
       - task: test:alerts
+      - task: test:alertmanager
       - task: test:e2e
       - task: security:scan
 

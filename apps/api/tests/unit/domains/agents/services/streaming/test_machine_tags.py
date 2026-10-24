@@ -26,7 +26,7 @@ from src.domains.agents.api.schemas import ChatStreamChunk
 from src.domains.agents.services.streaming.machine_tags import MachineTagFilter
 from src.domains.agents.services.streaming.service import StreamingService
 from src.domains.voice.sentence_streamer import ProgressiveSentenceStreamer
-from tests.support.thread_clock import thread_time
+from tests.support.cpu_growth import measure_growth
 
 pytestmark = pytest.mark.unit
 
@@ -313,21 +313,12 @@ class TestTheSelectionIsHandedOverWhole:
         assert self._declared(_chunked(TAIL, 4)) == []
 
 
-#: Characters at the small size; the large size is four times as many.
+#: Characters at the small size; the large size is four times as many. The growth is
+#: the flatteners' criterion, measured by ``tests.support.cpu_growth`` (ADR-326): the
+#: THREAD's CPU, never the wall — measured 2026-10-16 with every core saturated, the
+#: fastest of three wall runs read a linear witness at ×8.6 and ×10.2 in 2 runs of 10,
+#: its cycle counter at ×3.88 to ×4.12 throughout.
 SMALL = 6_000
-#: Below this many seconds of CPU at the large size, the ratio is noise and passes.
-FLOOR_SECONDS = 0.02
-#: The small size is read as at least this, the flatteners' floor: a quadratic filter
-#: starting from it still takes ×16 of it, twice what the criterion admits.
-SMALL_FLOOR_SECONDS = FLOOR_SECONDS / 4
-#: The same criterion as the flatteners' guard (ADR-326): ×4 the text, at most ×8 the time.
-MAX_GROWTH = 8.0
-#: Paired samples, the sizes alternating so a change of load meets both; the median
-#: pair decides. Each reads the THREAD's CPU (``tests.support.thread_clock``): the wall
-#: clock counts the time the thread waited for a processor as work. Measured 2026-10-16
-#: with every core saturated: the fastest of three wall runs read a linear witness at
-#: ×8.6 and ×10.2 in 2 runs of 10, its cycle counter at ×3.88 to ×4.12 throughout.
-SAMPLES = 3
 
 #: Each witness keeps the filter in one of its states for the whole text.
 HOSTILE: dict[str, Callable[[int], str]] = {
@@ -361,49 +352,15 @@ DELIVERIES: dict[str, Callable[[str], None]] = {
 }
 
 
-def _cpu_seconds(run: Callable[[str], None], text: str) -> float:
-    started = thread_time()
-    run(text)
-    return thread_time() - started
-
-
-def _growth(run: Callable[[str], None], small_text: str, large_text: str) -> float | None:
-    """The criterion's one measure, shared with the guard that proves it can fail.
-
-    The median of SAMPLES paired growths, as the flatteners' guard measures it.
-    Measured one size after the other, a change of load lands on one size alone:
-    with every core saturated, the minima of a quadratic filter's sizes taken in
-    turn read ×5.4 at worst, under the ×8 the criterion must refuse (2026-10-16).
-
-    Args:
-        run: Runs the filter over one text.
-        small_text: The small size.
-        large_text: Four times the small size.
-
-    Returns:
-        The growth of the thread's CPU, or None when the large size costs under
-        ``FLOOR_SECONDS`` — a ratio of noise, which the criterion does not judge.
-    """
-    samples = []
-    for _ in range(SAMPLES):
-        samples.append((_cpu_seconds(run, small_text), _cpu_seconds(run, large_text)))
-    samples.sort(key=lambda pair: pair[1] / max(pair[0], SMALL_FLOOR_SECONDS))
-    small, large = samples[SAMPLES // 2]
-    if large < FLOOR_SECONDS:
-        return None
-    return large / max(small, SMALL_FLOOR_SECONDS)
-
-
 class TestLinearByConstruction:
     """However the answer is cut, each character costs O(1)."""
 
     @pytest.mark.parametrize("delivery", list(DELIVERIES), ids=list(DELIVERIES))
     @pytest.mark.parametrize("witness", list(HOSTILE), ids=list(HOSTILE))
     def test_the_filter_grows_linearly(self, witness: str, delivery: str) -> None:
-        growth = _growth(DELIVERIES[delivery], HOSTILE[witness](SMALL), HOSTILE[witness](4 * SMALL))
-        if growth is None:
-            return
-        assert growth <= MAX_GROWTH, f"{witness}: ×{growth:.1f} for ×4 the text — super-linear"
+        make = HOSTILE[witness]
+        growth = measure_growth(DELIVERIES[delivery], make(SMALL), make(4 * SMALL))
+        assert growth.linear, f"{witness}: {growth.describe()} — super-linear"
 
     def test_the_criterion_refuses_a_filter_that_rescans_the_answer(self) -> None:
         """A guard that could not fail proves nothing: the naive repair — keep the
@@ -421,7 +378,7 @@ class TestLinearByConstruction:
 
         # Half the sizes: quadratic work at ×4 is already ×16, twice what is admitted.
         small_text, large_text = "<lia_ton " * (SMALL // 18), "<lia_ton " * (4 * SMALL // 18)
-        growth = _growth(rescanning, small_text, large_text)
+        growth = measure_growth(rescanning, small_text, large_text)
         # Above the floor too: a criterion whose sizes sink under it passes vacuously.
-        assert growth is not None, "the quadratic filter ran under the floor: sizes too small"
-        assert growth > MAX_GROWTH, f"×{growth:.1f} for a quadratic filter: the criterion is blind"
+        assert growth.judged, "the quadratic filter ran under the floor: sizes too small"
+        assert not growth.linear, f"{growth.describe()} for a quadratic filter: blind"

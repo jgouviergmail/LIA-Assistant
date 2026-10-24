@@ -12,7 +12,7 @@ from functools import lru_cache
 from html import escape
 from uuid import UUID
 
-from sqlalchemy import String, select
+from sqlalchemy import ColumnElement, String, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
@@ -60,18 +60,7 @@ async def synchronize_replies(db: AsyncSession, owner: UUID, *, now: datetime) -
         return
     reply = await db.scalar(
         select(ConversationMessage)
-        .where(
-            ConversationMessage.conversation_id == opening.conversation_id,
-            ConversationMessage.role == "user",
-            ConversationMessage.hidden.is_(False),
-            ConversationMessage.message_metadata[CONTROLS_APPLIED].astext.is_distinct_from("true"),
-            ConversationMessage.created_at > opening.created_at,
-            # Only while the opening was open: a later message answers something else.
-            ConversationMessage.created_at <= opening.expires_at,
-            ConversationMessage.message_metadata[FIELD_IS_AUTOMATED_SOURCE].astext.is_distinct_from(
-                "true"
-            ),
-        )
+        .where(*_reply_to(opening))
         .order_by(ConversationMessage.created_at, ConversationMessage.id)
         .limit(1)
     )
@@ -81,6 +70,42 @@ async def synchronize_replies(db: AsyncSession, owner: UUID, *, now: datetime) -
     elif opening.expires_at <= now:
         opening.state = "expired"
     await db.flush()
+
+
+def _reply_to(opening: DiscussionOpeningRecord) -> tuple[ColumnElement[bool], ...]:
+    """What makes a message a genuine reply to ``opening``: one predicate, two readers.
+
+    The person's own visible words in its conversation, written while it was open
+    (a later message answers something else), never a routine's question.
+    """
+    return (
+        ConversationMessage.conversation_id == opening.conversation_id,
+        ConversationMessage.role == "user",
+        ConversationMessage.hidden.is_(False),
+        ConversationMessage.message_metadata[CONTROLS_APPLIED].astext.is_distinct_from("true"),
+        ConversationMessage.created_at > opening.created_at,
+        ConversationMessage.created_at <= opening.expires_at,
+        ConversationMessage.message_metadata[FIELD_IS_AUTOMATED_SOURCE].astext.is_distinct_from(
+            "true"
+        ),
+    )
+
+
+async def has_reply(db: AsyncSession, opening: DiscussionOpeningRecord) -> bool:
+    """Whether the person answered ``opening``, even by a reply not bound to it yet.
+
+    A read: only :func:`synchronize_replies` binds a reply.
+
+    Args:
+        db: The session to read with.
+        opening: The opening.
+
+    Returns:
+        True when a genuine reply exists.
+    """
+    return (
+        await db.scalar(select(ConversationMessage.id).where(*_reply_to(opening)).limit(1))
+    ) is not None
 
 
 async def pending_controls(

@@ -621,90 +621,6 @@ class TestGetAuditLogs:
 
 
 # ============================================================================
-# get_messages_with_tokens Tests
-# ============================================================================
-
-
-class TestGetMessagesWithTokens:
-    """Test get_messages_with_tokens method."""
-
-    async def test_returns_empty_for_no_conversation(self, service, sample_user, async_session):
-        """Test returns empty list when no conversation exists."""
-        messages = await service.get_messages_with_tokens(
-            user_id=sample_user.id,
-            limit=50,
-            db=async_session,
-        )
-
-        assert len(messages) == 0
-
-    async def test_enriches_messages_with_token_data(
-        self, service, sample_user, sample_conversation, async_session
-    ):
-        """Test messages enriched with token data."""
-        run_id = "test-run-123"
-
-        # Create message with run_id
-        await service.archive_message(
-            conversation_id=sample_conversation.id,
-            role="assistant",
-            content="Response",
-            metadata={"run_id": run_id},
-            db=async_session,
-        )
-
-        # Create token summary
-        token_summary = MessageTokenSummary(
-            user_id=sample_user.id,
-            session_id=f"session_{sample_conversation.id}",
-            run_id=run_id,
-            conversation_id=sample_conversation.id,
-            total_prompt_tokens=100,
-            total_completion_tokens=50,
-            total_cached_tokens=20,
-            total_cost_eur=Decimal("0.05"),
-        )
-        async_session.add(token_summary)
-        await async_session.commit()
-
-        messages = await service.get_messages_with_tokens(
-            user_id=sample_user.id,
-            limit=10,
-            db=async_session,
-        )
-
-        assert len(messages) == 1
-        assert messages[0]["tokens_in"] == 100
-        assert messages[0]["tokens_out"] == 50
-        assert messages[0]["tokens_cache"] == 20
-
-    async def test_handles_messages_without_tokens(
-        self, service, sample_user, sample_conversation, async_session
-    ):
-        """Test handles messages without token data gracefully."""
-        # Create message without run_id
-        await service.archive_message(
-            conversation_id=sample_conversation.id,
-            role="user",
-            content="Query",
-            metadata=None,
-            db=async_session,
-        )
-        await async_session.commit()
-
-        messages = await service.get_messages_with_tokens(
-            user_id=sample_user.id,
-            limit=10,
-            db=async_session,
-        )
-
-        assert len(messages) == 1
-        assert messages[0]["tokens_in"] is None
-        assert messages[0]["tokens_out"] is None
-        assert messages[0]["cost_eur"] is None
-
-
-# ============================================================================
 # get_messages_with_tokens_v2 Tests
 # ============================================================================
 
@@ -760,6 +676,30 @@ class TestGetMessagesWithTokensV2:
         assert len(messages) == 1
         assert messages[0]["tokens_in"] == 200
         assert messages[0]["tokens_out"] == 100
+
+    async def test_handles_messages_without_tokens(
+        self, service, sample_user, sample_conversation, async_session
+    ):
+        """A message without a run carries no token data, and that is no error."""
+        await service.archive_message(
+            conversation_id=sample_conversation.id,
+            role="user",
+            content="Query",
+            metadata=None,
+            db=async_session,
+        )
+        await async_session.commit()
+
+        messages = await service.get_messages_with_tokens_v2(
+            user_id=sample_user.id,
+            limit=10,
+            db=async_session,
+        )
+
+        assert len(messages) == 1
+        assert messages[0]["tokens_in"] is None
+        assert messages[0]["tokens_out"] is None
+        assert messages[0]["cost_eur"] is None
 
 
 # ============================================================================

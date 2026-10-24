@@ -104,3 +104,42 @@ absent de prod) ; rien n'est retiré de LIA, le dashboard ne le référence pas.
 - Le dictionnaire des métriques produit (nom, formule, dénominateur, source,
   owner, version) vit dans `docs/superpowers/specs/2026-07-29-product-dashboard-program.md`
   puis `docs/technical/GRAFANA_DASHBOARDS.md` §26.
+
+## Amendement 2026-10-23 — chaque panneau lit une série produite ; décision sur les alertes produit
+
+Audit AC-006, mesuré avant toute correction par la garde inverse qu'il ajoute
+(`tests/unit/test_metric_producer_guard.py`, exécutée aussi par
+`task lint:observability` : `measure_metric_coverage.py --producers`) :
+
+1. **Deux panneaux « pré-câblés » ne s'allumaient jamais.** « Cost per useful
+   outcome (7d) » et « Time to useful outcome (p50, 7d) » lisaient des
+   histogrammes (`product_outcome_cost_eur_*`, `product_outcome_duration_seconds_bucket`)
+   qu'aucun code ne produisait. Ils lisent désormais deux jauges que le rollup
+   horaire calcule dans PostgreSQL sur le MÊME ensemble utile que
+   `count_useful_users` — toujours `validated`, validé dans la fenêtre :
+   `product_outcome_cost_eur_mean{window}` et
+   `product_outcome_latency_p50_seconds{window}` (`validated_outcome_value`, testé
+   sur PostgreSQL réel). Un histogramme observé à la validation a été écarté :
+   un résultat rejeté après sa validation ne se décompte pas d'un histogramme, un
+   passage E2 → E1 l'aurait compté deux fois, et le coût n'est connu qu'au
+   rattrapage du rollup — la règle de cet ADR (« la vérité produit est en base »)
+   tranche.
+2. **Décision sur `alerts-product.yml`.** L'alerte de fraîcheur
+   (`ProductAggregatesStale`) passe dans `alerts-core.yml` : elle ne demande
+   aucune baseline, et sans elle un rollup arrêté laisse le tableau 26 faux sans
+   rien pour le dire (gravité `warning`, seuil
+   `ALERT_CORE_PRODUCT_AGGREGATES_STALE_SECONDS`, fiche
+   `docs/runbooks/alerts/ProductAggregatesStale.md`, cas promtool, recette de
+   preuves). Les trois alertes de comportement restent non chargées et sont
+   **re-décidées au plus tard le 2026-12-15**, sur une mesure en lecture seule des
+   séries produit de la production : un seuil posé sans la variance qu'il doit
+   dépasser alerte sur du bruit, et une instance de quelques comptes peut ne
+   jamais en offrir. Leur activation suit alors les conventions du cœur
+   (gravité `critical`/`warning` — `high` n'atteint aucune route —, `tier: core`,
+   fiche, cas promtool, recette, seuils `ALERT_CORE_*`), écrites en tête du
+   fichier.
+3. **La garde de couverture ne lit plus que les règles chargées**
+   (`coverage_rule_files()` = le `rule_files` de `prometheus.yml`) : onze fichiers
+   étaient lus, dont sept dormants, si bien qu'une métrique vue seulement par une
+   règle qui ne s'évalue jamais aurait compté comme câblée (aucune ne l'était,
+   mesuré).

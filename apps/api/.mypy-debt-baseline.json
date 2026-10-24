@@ -1,6 +1,6 @@
 {
   "_comment": "MyPy exemption ratchet baseline (audit F020). Shrink-only: measure_mypy_debt.py --check fails on any NEW (module, code) pair. Regenerate with --update ONLY after removing exemptions.",
-  "exempted_modules": 13,
+  "exempted_modules": 12,
   "suppressed_errors_informational": 808,
   "pairs": [
     [
@@ -64,10 +64,6 @@
       "index"
     ],
     [
-      "src.domains.agents.graphs.base_agent_builder",
-      "union-attr"
-    ],
-    [
       "src.domains.agents.nodes.*",
       "arg-type"
     ],
@@ -102,10 +98,6 @@
     [
       "src.domains.agents.nodes.*",
       "no-any-return"
-    ],
-    [
-      "src.domains.agents.nodes.*",
-      "no-untyped-def"
     ],
     [
       "src.domains.agents.nodes.*",
@@ -189,15 +181,7 @@
     ],
     [
       "src.domains.agents.services.hitl.*",
-      "arg-type"
-    ],
-    [
-      "src.domains.agents.services.hitl.*",
       "attr-defined"
-    ],
-    [
-      "src.domains.agents.services.hitl.*",
-      "call-overload"
     ],
     [
       "src.domains.agents.services.hitl.*",
@@ -206,14 +190,6 @@
     [
       "src.domains.agents.services.hitl.*",
       "operator"
-    ],
-    [
-      "src.domains.agents.services.hitl.*",
-      "unused-ignore"
-    ],
-    [
-      "src.domains.agents.services.hitl.*",
-      "var-annotated"
     ],
     [
       "src.domains.agents.tools.*",
@@ -246,10 +222,6 @@
     [
       "src.domains.agents.tools.*",
       "no-untyped-def"
-    ],
-    [
-      "src.domains.agents.tools.*",
-      "operator"
     ],
     [
       "src.domains.agents.tools.*",
@@ -316,26 +288,6 @@
       "var-annotated"
     ],
     [
-      "src.domains.conversations.service",
-      "arg-type"
-    ],
-    [
-      "src.domains.conversations.service",
-      "assignment"
-    ],
-    [
-      "src.domains.conversations.service",
-      "attr-defined"
-    ],
-    [
-      "src.domains.conversations.service",
-      "index"
-    ],
-    [
-      "src.domains.conversations.service",
-      "operator"
-    ],
-    [
       "src.infrastructure.llm.*",
       "arg-type"
     ],
@@ -354,10 +306,6 @@
     [
       "src.infrastructure.llm.*",
       "union-attr"
-    ],
-    [
-      "src.infrastructure.llm.*",
-      "unused-ignore"
     ]
   ]
 }

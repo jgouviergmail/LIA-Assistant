@@ -1,142 +1,90 @@
 # ===================================================================
 # AlertManager Configuration - LIA
 # ===================================================================
-# Production-ready configuration with multi-channel routing
+# Rendered at startup by docker-entrypoint.sh (audit A07):
+#   - each block between `# @begin <name>` and `# @end <name>` is removed
+#     when the channel or the team it serves is not configured — the table
+#     is in the entrypoint — so a rendered config never holds an empty Slack
+#     URL, an empty PagerDuty key, or a team told what the backend is told;
+#   - every placeholder is replaced by its variable LITERALLY, its single
+#     quotes doubled: each one sits inside a single-quoted YAML scalar.
 #
-# Environment Variables Required (substituted via docker-entrypoint.sh):
-#   - ALERTMANAGER_SMTP_FROM
-#   - ALERTMANAGER_SMTP_SMARTHOST
-#   - ALERTMANAGER_SMTP_AUTH_USERNAME
-#   - ALERTMANAGER_SMTP_AUTH_PASSWORD
-#   - ALERTMANAGER_BACKEND_TEAM_EMAIL
-#   - ALERTMANAGER_FINANCE_TEAM_EMAIL
-#   - ALERTMANAGER_SECURITY_TEAM_EMAIL
-#   - ALERTMANAGER_ML_TEAM_EMAIL
-#   - ALERTMANAGER_SLACK_WEBHOOK_CRITICAL (optional)
-#   - ALERTMANAGER_SLACK_WEBHOOK_WARNING (optional)
-#   - ALERTMANAGER_SLACK_WEBHOOK_SECURITY (optional)
-#   - ALERTMANAGER_PAGERDUTY_ROUTING_KEY (optional)
+# Severity fixes the URGENCY of the backend team's notification (channels,
+# grouping, repetition); the component adds an AUDIENCE — a team with an
+# address of its own is told too (owner decision Q3, 2026-10-22). Every
+# loaded alert is critical or warning (test_alerts_core_guard), so the two
+# severity routes see all of them; a team route never stands in for them.
+#
+# Variables (substituted by docker-entrypoint.sh):
+#   ALERTMANAGER_SMTP_FROM, ALERTMANAGER_SMTP_SMARTHOST,
+#   ALERTMANAGER_SMTP_AUTH_USERNAME, ALERTMANAGER_SMTP_AUTH_PASSWORD,
+#   ALERTMANAGER_BACKEND_TEAM_EMAIL (required with SMTP);
+#   ALERTMANAGER_{ML,SECURITY}_TEAM_EMAIL,
+#   ALERTMANAGER_SLACK_WEBHOOK_{CRITICAL,WARNING,SECURITY},
+#   ALERTMANAGER_PAGERDUTY_ROUTING_KEY (optional).
 # ===================================================================
 
 global:
-  # Time to wait before sending a notification about resolved alert
   resolve_timeout: 5m
-
-  # SMTP configuration for email notifications
   smtp_from: '${ALERTMANAGER_SMTP_FROM}'
   smtp_smarthost: '${ALERTMANAGER_SMTP_SMARTHOST}'
   smtp_auth_username: '${ALERTMANAGER_SMTP_AUTH_USERNAME}'
   smtp_auth_password: '${ALERTMANAGER_SMTP_AUTH_PASSWORD}'
   smtp_require_tls: true
 
-# Templates for notification messages
 templates:
   - '/etc/alertmanager/templates/*.tmpl'
 
 # ===================================================================
-# ROUTING CONFIGURATION
+# ROUTING
 # ===================================================================
 route:
-  # Default receiver if no route matches
+  # Reached only by an alert no child route matches.
   receiver: 'default-email'
-
-  # Group alerts by these labels to reduce notification spam
   group_by: ['alertname', 'component', 'severity']
-
-  # Wait time before sending first notification for a group
   group_wait: 30s
-
-  # Wait time before sending notification about new alerts added to a group
   group_interval: 5m
-
-  # Minimum wait time before re-sending notifications for an alert
   repeat_interval: 4h
 
-  # ===== CHILD ROUTES WITH SPECIFIC ROUTING LOGIC =====
   routes:
-    # ------------------------------------------------
-    # CRITICAL SEVERITY - Multi-channel + Fastest delivery
-    # ------------------------------------------------
+    # ----- URGENCY: the backend team, by severity ---------------------
     - match:
         severity: critical
-      receiver: 'critical-multi-channel'
-      group_wait: 10s           # Send faster for critical alerts
+      receiver: 'critical'
+      group_wait: 10s
       group_interval: 2m
-      repeat_interval: 30m      # Repeat more frequently if not resolved
-      continue: false           # Don't evaluate other routes
+      repeat_interval: 30m
+      continue: true
 
-    # ------------------------------------------------
-    # WARNING SEVERITY - Email + Slack
-    # ------------------------------------------------
     - match:
         severity: warning
-      receiver: 'warning-email-slack'
+      receiver: 'warning'
       group_wait: 1m
       group_interval: 10m
       repeat_interval: 2h
-      continue: false
+      continue: true
 
-    # ------------------------------------------------
-    # COMPONENT-SPECIFIC ROUTING
-    # ------------------------------------------------
-
-    # LLM Budget Alerts (critical for cost control) → Finance team
-    - match:
-        component: llm
-      match_re:
-        alertname: '.*(Budget|Cost).*'
-      receiver: 'llm-budget-finance'
+    # ----- AUDIENCE: a team with an address of its own ----------------
+    # @begin team-ml
+    - match_re:
+        component: '(agents|hitl|hitl_streaming)'
+      receiver: 'ml-team'
       group_by: ['alertname', 'severity']
-      group_wait: 5s            # Immediate notification for budget alerts
-      repeat_interval: 15m
-      continue: false
-
-    # Agent Performance Alerts → ML team (business hours only)
-    - match:
-        component: agents
-      receiver: 'agents-ml-team'
-      group_by: ['alertname', 'intention']
       group_wait: 1m
       repeat_interval: 1h
-      continue: false
-
-    # Database Alerts → Backend team with DB label
-    - match:
-        component: postgresql
-      receiver: 'database-backend-team'
-      group_by: ['alertname', 'datname']
-      continue: false
-
-    # Redis Alerts → Backend team with Redis label
-    - match:
-        component: redis
-      receiver: 'redis-backend-team'
-      group_by: ['alertname']
-      continue: false
-
-    # OAuth Security Alerts → Security team + Immediate attention
+    # @end team-ml
+    # @begin team-security
     - match:
         component: oauth
         severity: critical
-      receiver: 'security-team-critical'
+      receiver: 'security-team'
       group_wait: 5s
       repeat_interval: 30m
-      continue: false
-
-    # HITL/Streaming Alerts → ML team
-    - match_re:
-        component: '(hitl|hitl_streaming)'
-      receiver: 'hitl-ml-team'
-      group_by: ['alertname', 'severity']
-      group_wait: 30s
-      repeat_interval: 4h
-      continue: false
+    # @end team-security
 
 # ===================================================================
-# INHIBITION RULES
+# INHIBITION
 # ===================================================================
-# Prevent notification spam by inhibiting lower-priority alerts
-# when higher-priority alerts are firing
 inhibit_rules:
   # If service is down, don't alert on high error rate or latency
   - source_match:
@@ -192,10 +140,9 @@ inhibit_rules:
     equal: ['alertname', 'component']
 
 # ===================================================================
-# RECEIVERS CONFIGURATION
+# RECEIVERS
 # ===================================================================
 receivers:
-  # ===== DEFAULT RECEIVER =====
   - name: 'default-email'
     email_configs:
       - to: '${ALERTMANAGER_BACKEND_TEAM_EMAIL}'
@@ -204,18 +151,15 @@ receivers:
         html: '{{ template "email.default.html" . }}'
         send_resolved: true
 
-  # ===== CRITICAL MULTI-CHANNEL =====
-  # Email + Slack + PagerDuty for critical alerts
-  - name: 'critical-multi-channel'
-    # Email notification
+  # ----- critical: email, then Slack and PagerDuty when configured -----
+  - name: 'critical'
     email_configs:
       - to: '${ALERTMANAGER_BACKEND_TEAM_EMAIL}'
         headers:
           Subject: '[CRITICAL] LIA: {{ .GroupLabels.alertname }}'
         html: '{{ template "email.critical.html" . }}'
         send_resolved: true
-
-    # Slack notification (if webhook configured)
+    # @begin slack-critical
     slack_configs:
       - api_url: '${ALERTMANAGER_SLACK_WEBHOOK_CRITICAL}'
         channel: '#alerts-critical'
@@ -231,8 +175,8 @@ receivers:
           {{ end }}
         send_resolved: true
         color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
-
-    # PagerDuty notification (if routing key configured)
+    # @end slack-critical
+    # @begin pagerduty
     pagerduty_configs:
       - routing_key: '${ALERTMANAGER_PAGERDUTY_ROUTING_KEY}'
         description: '[{{ .GroupLabels.severity }}] {{ .GroupLabels.alertname }} - {{ .GroupLabels.component }}'
@@ -242,16 +186,17 @@ receivers:
           summary: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
         severity: 'critical'
         send_resolved: true
+    # @end pagerduty
 
-  # ===== WARNING EMAIL + SLACK =====
-  - name: 'warning-email-slack'
+  # ----- warning: email, then Slack when configured -----
+  - name: 'warning'
     email_configs:
       - to: '${ALERTMANAGER_BACKEND_TEAM_EMAIL}'
         headers:
           Subject: '[WARNING] LIA: {{ .GroupLabels.alertname }}'
         html: '{{ template "email.warning.html" . }}'
         send_resolved: true
-
+    # @begin slack-warning
     slack_configs:
       - api_url: '${ALERTMANAGER_SLACK_WEBHOOK_WARNING}'
         channel: '#alerts-warning'
@@ -264,89 +209,29 @@ receivers:
           {{ end }}
         send_resolved: true
         color: 'warning'
+    # @end slack-warning
 
-  # ===== LLM BUDGET → FINANCE TEAM =====
-  - name: 'llm-budget-finance'
-    email_configs:
-      - to: '${ALERTMANAGER_FINANCE_TEAM_EMAIL},${ALERTMANAGER_BACKEND_TEAM_EMAIL}'
-        headers:
-          Subject: '[BUDGET ALERT] LLM Cost: {{ .GroupLabels.alertname }}'
-        html: '{{ template "email.budget.html" . }}'
-        send_resolved: true
-
-    slack_configs:
-      - api_url: '${ALERTMANAGER_SLACK_WEBHOOK_WARNING}'
-        channel: '#alerts-llm-budget'
-        title: ':money_with_wings: LLM Budget Alert: {{ .GroupLabels.alertname }}'
-        text: |-
-          {{ range .Alerts }}
-          *Budget Alert:* {{ .Labels.alertname }}
-          *Severity:* {{ .Labels.severity }}
-          {{ if .Annotations.current_cost }}*Current Cost:* {{ .Annotations.current_cost }}{{ end }}
-          {{ if .Annotations.budget_limit }}*Budget Limit:* {{ .Annotations.budget_limit }}{{ end }}
-          *Summary:* {{ .Annotations.summary }}
-          {{ end }}
-        send_resolved: true
-        color: 'danger'
-
-  # ===== AGENTS → ML TEAM =====
-  - name: 'agents-ml-team'
+  # ----- teams: told IN ADDITION to the backend, never instead -----
+  # @begin team-ml
+  - name: 'ml-team'
     email_configs:
       - to: '${ALERTMANAGER_ML_TEAM_EMAIL}'
         headers:
-          Subject: '[AGENTS SLA] {{ .GroupLabels.alertname }}'
+          Subject: '[AGENTS] {{ .GroupLabels.alertname }}'
         html: '{{ template "email.agents.html" . }}'
         send_resolved: true
-
-    slack_configs:
-      - api_url: '${ALERTMANAGER_SLACK_WEBHOOK_WARNING}'
-        channel: '#alerts-agents'
-        title: ':robot_face: Agent Alert: {{ .GroupLabels.alertname }}'
-        text: |-
-          {{ range .Alerts }}
-          *Agent:* {{ .Labels.alertname }}
-          *Component:* {{ .Labels.component }}
-          *Summary:* {{ .Annotations.summary }}
-          {{ if .Annotations.runbook }}*Runbook:* {{ .Annotations.runbook }}{{ end }}
-          {{ end }}
-        send_resolved: true
-
-  # ===== HITL → ML TEAM =====
-  - name: 'hitl-ml-team'
+  # @end team-ml
+  # @begin team-security
+  - name: 'security-team'
+    # @begin email-security
     email_configs:
-      - to: '${ALERTMANAGER_ML_TEAM_EMAIL}'
-        headers:
-          Subject: '[HITL] {{ .GroupLabels.alertname }}'
-        html: '{{ template "email.agents.html" . }}'
-        send_resolved: true
-
-  # ===== DATABASE → BACKEND TEAM =====
-  - name: 'database-backend-team'
-    email_configs:
-      - to: '${ALERTMANAGER_BACKEND_TEAM_EMAIL}'
-        headers:
-          Subject: '[DATABASE] {{ .GroupLabels.alertname }}'
-        html: '{{ template "email.database.html" . }}'
-        send_resolved: true
-
-  # ===== REDIS → BACKEND TEAM =====
-  - name: 'redis-backend-team'
-    email_configs:
-      - to: '${ALERTMANAGER_BACKEND_TEAM_EMAIL}'
-        headers:
-          Subject: '[REDIS] {{ .GroupLabels.alertname }}'
-        html: '{{ template "email.redis.html" . }}'
-        send_resolved: true
-
-  # ===== SECURITY → SECURITY TEAM =====
-  - name: 'security-team-critical'
-    email_configs:
-      - to: '${ALERTMANAGER_SECURITY_TEAM_EMAIL},${ALERTMANAGER_BACKEND_TEAM_EMAIL}'
+      - to: '${ALERTMANAGER_SECURITY_TEAM_EMAIL}'
         headers:
           Subject: '[SECURITY CRITICAL] OAuth Alert: {{ .GroupLabels.alertname }}'
         html: '{{ template "email.security.html" . }}'
         send_resolved: true
-
+    # @end email-security
+    # @begin slack-security
     slack_configs:
       - api_url: '${ALERTMANAGER_SLACK_WEBHOOK_SECURITY}'
         channel: '#alerts-security'
@@ -361,9 +246,5 @@ receivers:
           {{ end }}
         send_resolved: true
         color: 'danger'
-
-    pagerduty_configs:
-      - routing_key: '${ALERTMANAGER_PAGERDUTY_ROUTING_KEY}'
-        description: 'Security Alert: {{ .GroupLabels.alertname }}'
-        severity: 'critical'
-        send_resolved: true
+    # @end slack-security
+  # @end team-security

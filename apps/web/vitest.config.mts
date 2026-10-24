@@ -2,6 +2,8 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 
+import { LOGIC_FREE_PRIMITIVES } from './coverage-exclusions.mjs';
+
 export default defineConfig({
   // Each checkout owns its cache even when node_modules is a shared junction.
   cacheDir: fileURLToPath(new URL('../../.tmp/vite-cache', import.meta.url)),
@@ -37,34 +39,15 @@ export default defineConfig({
       exclude: [
         'src/**/*.d.ts',
         'src/**/__tests__/**',
-        // Trivial shadcn/ui primitives: thin re-exports of a Radix primitive or
-        // a single HTML element with `cn()` class merging and no branching,
-        // state, derived data or own interaction handlers. Testing them asserts
-        // Radix behaviour or className strings — coverage theatre — so they are
-        // out of the measured perimeter (chantier couverture frontend, Lot 0).
-        // Primitives that DO carry real logic/variants (button, badge, card,
-        // status-badge, alert, info-box, avatar, pagination, search-input,
-        // select, image-lightbox, inline-place-carousel, loading-spinner,
-        // animated-emoji) stay in and are tested.
-        'src/components/ui/separator.tsx',
-        'src/components/ui/slider.tsx',
-        'src/components/ui/switch.tsx',
-        'src/components/ui/label.tsx',
-        'src/components/ui/tooltip.tsx',
-        'src/components/ui/accordion.tsx',
-        'src/components/ui/tabs.tsx',
-        'src/components/ui/dialog.tsx',
-        'src/components/ui/alert-dialog.tsx',
-        'src/components/ui/dropdown-menu.tsx',
-        'src/components/ui/input.tsx',
-        'src/components/ui/textarea.tsx',
-        'src/components/ui/skeleton.tsx',
-        'src/components/ui/toaster.tsx',
+        // Primitives with no logic of their own, each with its reason. The
+        // claim is CHECKED by src/__tests__/coverage-exclusions.guard.test.ts:
+        // no decision point, no hook (audit AC-040 — ten of fourteen did hold
+        // one and re-entered the measure on 2026-10-23).
+        ...LOGIC_FREE_PRIMITIVES.map(entry => entry.file),
       ],
-      // Ratchet doctrine (same as the backend coverage gate): thresholds are
-      // set just under the MEASURED value at the time they were locked, they
-      // only ever go UP when new tests land, and they never go down — lowering
-      // one to make CI pass is treated as a regression to fix, not a knob.
+      // Ratchet doctrine, one rule for the backend and the frontend:
+      // docs/guides/GUIDE_TESTING.md, section « Doctrine des planchers de
+      // couverture ». The global floor below is quoted there, held by doc_facts.
       // NOTE (verified empirically on vitest 4.1): the global floor is
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.

@@ -91,34 +91,62 @@ def plain_text_for_notification(text: str) -> str:
 @dataclass
 class NotificationResult:
     """
-    Result of notification dispatch.
+    Result of notification dispatch: what each channel answered.
+
+    Whether the notification was DELIVERED has one reading,
+    :attr:`durably_delivered`. The dispatcher used to compute a ``success`` that
+    an SSE event alone made true, and three readers filed « delivered » on it
+    (audit AC-003); a reader after something narrower reads the channel it means.
 
     Attributes:
-        success: Whether notification was sent successfully
         fcm_success: Number of successful FCM deliveries
         fcm_failed: Number of failed FCM deliveries
         sse_sent: Whether SSE was published
-        archived: Whether message was archived
+        archived: Whether the message was archived — committed, when the
+            dispatcher commits it
         channel_sent: Number of channel messages sent (Telegram, etc.)
-        error: Error message if dispatch failed
         conversation_id: Conversation ID where message was archived
         message_id: Message ID in conversation archive
     """
 
-    success: bool
     fcm_success: int = 0
     fcm_failed: int = 0
     sse_sent: bool = False
     archived: bool = False
     channel_sent: int = 0
-    error: str | None = None
     conversation_id: UUID | None = None
     message_id: UUID | None = None
 
-    @classmethod
-    def failure(cls, error: str) -> NotificationResult:
-        """Create a failure result."""
-        return cls(success=False, error=error)
+    @property
+    def durably_delivered(self) -> bool:
+        """Whether the person can still find the notification later.
+
+        Archived in the conversation, delivered as a push, or sent on an external
+        channel. A live SSE event alone is not durable: it reaches an open tab or
+        nobody (owner decision 2026-10-22, audit AC-003).
+        """
+        return self.archived or self.fcm_success > 0 or self.channel_sent > 0
+
+
+class NotificationNotDelivered(Exception):
+    """A dispatch that had to be durable reached no durable channel.
+
+    Raised by ``dispatch(..., require_durable=True)`` so that a consumer about to
+    write a « delivered » state takes its existing failure path instead. Carries
+    the result, and names in its message which channels answered — never the
+    content.
+
+    Attributes:
+        result: The dispatch's verdict.
+    """
+
+    def __init__(self, result: NotificationResult) -> None:
+        super().__init__(
+            "notification not durably delivered "
+            f"(archived={result.archived}, fcm_success={result.fcm_success}, "
+            f"channel_sent={result.channel_sent}, sse_sent={result.sse_sent})"
+        )
+        self.result = result
 
 
 async def send_notification_to_channels(
@@ -285,6 +313,7 @@ class NotificationDispatcher:
         run_id: str | None = None,
         commit_before_notification: bool = True,
         push_enabled: bool = True,
+        require_durable: bool = False,
     ) -> NotificationResult:
         """
         Dispatch notification via all enabled channels.
@@ -303,11 +332,18 @@ class NotificationDispatcher:
                 FCM notification before message is visible in database.
             push_enabled: Whether to send push notifications (FCM, Telegram).
                 When False, only archive + SSE are used. Defaults to True.
+            require_durable: The caller writes a durable « delivered » state
+                from this dispatch: raise unless it was archived, pushed or sent
+                on an external channel (``NotificationResult.durably_delivered``).
 
         Returns:
             NotificationResult with dispatch status for each channel
+
+        Raises:
+            NotificationNotDelivered: ``require_durable`` was set and no durable
+                channel delivered the notification.
         """
-        result = NotificationResult(success=True)
+        result = NotificationResult()
 
         # Generate title if not provided
         if title is None:
@@ -339,9 +375,6 @@ class NotificationDispatcher:
                     metadata=full_metadata,
                     db=db,
                 )
-                result.archived = archive_result.get("archived", False)
-                result.conversation_id = archive_result.get("conversation_id")
-                result.message_id = archive_result.get("message_id")
 
                 # CRITICAL: Commit BEFORE sending external notifications
                 # This ensures the message is visible in the database before
@@ -351,12 +384,19 @@ class NotificationDispatcher:
                 if commit_before_notification:
                     await db.commit()
 
+                # Recorded only once committed: a failed commit kept no row, and
+                # « archived » is what ``durably_delivered`` trusts (audit AC-003).
+                # Without the commit, the row joins the caller's transaction.
+                result.archived = archive_result.get("archived", False)
+                result.conversation_id = archive_result.get("conversation_id")
+                result.message_id = archive_result.get("message_id")
+
             except Exception as e:
                 logger.warning(
                     "proactive_archive_failed",
                     task_type=task_type,
                     user_id=str(user.id),
-                    error=str(e),
+                    error_type=type(e).__name__,
                 )
 
         # 2. Send FCM Push (external notification) — skip if push_enabled=False
@@ -378,7 +418,7 @@ class NotificationDispatcher:
                     "proactive_fcm_failed",
                     task_type=task_type,
                     user_id=str(user.id),
-                    error=str(e),
+                    error_type=type(e).__name__,
                 )
 
         # 3. Publish to Redis for SSE (real-time in-app)
@@ -398,7 +438,7 @@ class NotificationDispatcher:
                     "proactive_sse_failed",
                     task_type=task_type,
                     user_id=str(user.id),
-                    error=str(e),
+                    error_type=type(e).__name__,
                 )
 
         # 4. Send via external channels (Telegram, etc.) — skip if push_enabled=False
@@ -420,21 +460,15 @@ class NotificationDispatcher:
                     "proactive_channels_failed",
                     task_type=task_type,
                     user_id=str(user.id),
-                    error=str(e),
+                    error_type=type(e).__name__,
                 )
-
-        # Determine overall success
-        # Consider successful if at least one channel worked
-        result.success = (
-            result.sse_sent or result.archived or result.fcm_success > 0 or result.channel_sent > 0
-        )
 
         logger.info(
             "proactive_notification_dispatched",
             task_type=task_type,
             user_id=str(user.id),
             target_id=target_id[:12] if target_id else None,
-            success=result.success,
+            durably_delivered=result.durably_delivered,
             fcm_success=result.fcm_success,
             fcm_failed=result.fcm_failed,
             sse_sent=result.sse_sent,
@@ -442,6 +476,8 @@ class NotificationDispatcher:
             channel_sent=result.channel_sent,
         )
 
+        if require_durable and not result.durably_delivered:
+            raise NotificationNotDelivered(result)
         return result
 
     async def _send_fcm(

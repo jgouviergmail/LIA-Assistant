@@ -18,6 +18,19 @@ vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ login, verifyMfa }),
 }));
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+// The bot check is not under test here (ADR-364): no check to pass.
+vi.mock('@/hooks/useTurnstileDoor', () => ({
+  useTurnstileDoor: () => ({
+    siteKey: null,
+    token: null,
+    ready: true,
+    failed: false,
+    onToken: () => undefined,
+    onFailure: () => undefined,
+    resetSignal: 0,
+    spent: () => undefined,
+  }),
+}));
 vi.mock('@/hooks/useLocalizedRouter', () => ({
   useLocalizedRouter: () => ({ push }),
 }));

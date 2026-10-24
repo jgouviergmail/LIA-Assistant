@@ -66,3 +66,46 @@ Tas V8 borné sous la limite dans l'image (`NODE_OPTIONS=--max-old-space-size=32
 ## Conséquences
 
 Les copies de construction de client passent par la porte ou par une unité détachée, et les clients qu'aucun chemin ne fermait (mails et tâches du briefing, outils « pairs », préchauffage et recherche de contacts, réunions, disponibilités téléphoniques, découverte Hue, balayage des canaux push) le sont sur tous les chemins. Deux gardes AST (une session empruntée n'est jamais entrée ; un client n'est jamais construit sur une session). Preuves sur PostgreSQL réel — propriété de session d'un client, avance du jeton Drive par comparer-et-échanger, tampon de clé API, opérations du tour, réclamations de rappels à deux acteurs — et sur Redis réel pour la file de réveils. Le ratchet de complexité descend de 319 à 317 fonctions au-dessus du seuil.
+
+## Amendement 2026-10-23 — Le serveur borne aussi : verrou et transaction inactive (audit AC-028)
+
+**Amende** la décision : jusqu'ici, rien côté serveur ne disait qu'une session vit moins
+longtemps que les requêtes qu'elle sert. Une attente de verrou durait autant que son
+détenteur ; une transaction laissée ouverte pendant un appel réseau restait ouverte le temps
+de l'appel.
+
+**Décision.** Chaque connexion du moteur de l'application démarre avec deux bornes
+PostgreSQL, envoyées à la connexion (`apps/api/src/infrastructure/database/server_bounds.py`,
+`server_settings` d'asyncpg) : `lock_timeout` = `DATABASE_LOCK_TIMEOUT_MS` et
+`idle_in_transaction_session_timeout` = `DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS` (0 laisse le
+réglage du serveur). Ce sont des valeurs par défaut de connexion : une transaction se resserre
+elle-même par `SET LOCAL` (la porte de rafraîchissement OAuth le fait), jamais l'inverse. Le
+moteur des migrations n'en porte aucune — une migration peut tenir un verrou plus longtemps
+qu'une requête ne doit l'attendre —, ni les pools psycopg de LangGraph. Aucun
+`statement_timeout` global.
+
+**Compter.** `handle_error` voit chaque échec du moteur, pas seulement ceux des dépôts, et
+compte `db_bound_reached_total{bound}` : `55P03` et `57014` par leur SQLSTATE, jamais par le
+message. La fin d'une transaction inactive fait exception, MESURÉE sur PostgreSQL 16 : asyncpg
+la remonte comme une déconnexion nue, sans SQLSTATE (le 25P03 du serveur n'atteint pas le
+client). Le moteur garde donc, par connexion, l'instant où sa transaction est devenue inactive,
+et une déconnexion qui suit une inactivité au-delà de la borne est cette borne. Une connexion
+invalidée n'est jamais relue : lire son `info` la revaliderait, et le rollback qui suit une
+déconnexion levait alors `PendingRollbackError` (trouvé par le test PostgreSQL). Alerte
+`DatabaseBoundReached` (seuil zéro), panneau du tableau 03, fiche
+[DatabaseBoundReached](../runbooks/alerts/DatabaseBoundReached.md) ; les seaux de
+`db_transaction_duration_seconds` vont désormais jusqu'à 600 s.
+
+**Calibration.** La prod ne garde que quatre séries de l'exporteur PostgreSQL — aucune durée de
+transaction ni attente de verrou — et la base n'a pas été lue directement (décision du
+propriétaire). Sur sept jours de `db_transaction_duration_seconds`, 852 sessions sur 540 263
+dépassaient 10 s, alors le dernier seau : leur durée était inconnue. Le pire cas de dev sur
+quinze jours (53,5 s inactive en transaction, le 2026-10-07) n'est plus explicable, ses séries
+ayant expiré. Les bornes retenues le 2026-10-23 sont donc prudentes — 30 s et 300 s, plus de
+cinq fois ce pire cas — et la queue devient mesurable : elles se réévaluent sur le P99,9 après
+déploiement.
+
+**Preuves.** Sur PostgreSQL réel : une attente de verrou refusée dans sa borne et comptée, une
+transaction inactive terminée par le serveur, comptée, puis le pool qui sert de nouveau, un
+`SET LOCAL` prioritaire, et le moteur des sessions qui démarre borné — la suite d'intégration
+tourne désormais sous les bornes de production. Tests unitaires et quatre mutants tués.

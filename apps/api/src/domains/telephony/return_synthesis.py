@@ -480,6 +480,9 @@ async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None
                 },
                 db=db,
                 title=phrases["title"],
+                # Durable or nothing (AC-003): the outbox row stays PENDING for the
+                # reaper unless the return reached a channel the person finds later.
+                require_durable=True,
             )
         except Exception as exc:  # noqa: BLE001 — a dispatch failure must NOT lose the return
             # The call result + PENDING outbox record are already committed; leave

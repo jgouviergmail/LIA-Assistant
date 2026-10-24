@@ -1522,6 +1522,14 @@
     "362": {
       "title": "Le cache de Claude relu d'un tour à l'autre",
       "summary": "Le tour suivant relit désormais tout l'historique depuis le cache au lieu de le réécrire, et ce qu'il relira reste gardé une heure quand une personne attend et échange souvent. Ces écritures d'une heure sont facturées à leur juste prix, et la réflexion d'un tour précédent est rendue au modèle Claude qui l'a écrite, là où il peut la relire."
+    },
+    "363": {
+      "title": "Une réinitialisation de mot de passe bornée par compte et liée à lui",
+      "summary": "Chaque compte reçoit désormais au plus quelques e-mails de réinitialisation, quelle que soit l'adresse qui les demande, et un lien ne sert que le compte et le mot de passe pour lesquels il a été émis. Un compte qui se connecte avec Google reçoit un avis à la place d'un lien, un administrateur ne reçoit rien, et une rafale de demandes ou d'inscriptions prévient l'exploitant."
+    },
+    "364": {
+      "title": "Une vérification anti-robot aux portes du mot de passe",
+      "summary": "L'inscription, la connexion par mot de passe et la demande de réinitialisation exigent désormais le jeton d'une vérification Cloudflare Turnstile, que le serveur fait valider : un script qui appelle l'API sans navigateur est refusé. La plupart des visiteurs ne voient rien, et si Cloudflare ne répond pas, seule la connexion passe — une inscription ou un e-mail de réinitialisation attendent."
     }
   }
 }

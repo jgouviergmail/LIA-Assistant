@@ -202,6 +202,63 @@ delivery attempt is settled as uncertain once its proofs are stale
 (`DISCUSSION_DELIVERY_PROOF_MAX_AGE_MINUTES`): the code held a second constant equal to
 it, so raising the freshness cut a slow delivery's remaining pushes at five minutes.
 
+## Amendment 2026-10-23 — the execution tables are measured before any retention
+
+Audit AC-034, read in the code: `discussion_runs`, `discussion_openings`,
+`discussion_outbox`, `discussion_spend_reservations` and `discussion_budget_buckets`
+leave only with the account, and nothing measured them — the volume gauges covered the
+transparency registers alone. They are now read by the registers' own reader, moved to
+[`infrastructure/database/table_volume.py`](../../apps/api/src/infrastructure/database/table_volume.py)
+(the planner's estimate, an exact count where it has none, the real size with its
+indexes), from ONE declaration of their names (`DISCUSSION_TABLES` in
+[`proactive_discussions/volume.py`](../../apps/api/src/domains/proactive_discussions/volume.py),
+each checked against the declared models). They are published per table as
+`proactive_discussion_table_rows` and `proactive_discussion_table_bytes`, a `table`
+label bounded by that declaration, and drawn on dashboard 13. **No growth alert ships**:
+a threshold set before any baseline alerts on an intuition, and the registers'
+`TransparencyRegisterGrowth` reads `lia_ledger_bytes`, which these tables do not join.
+The retention (AC-034b) and any alert are decided on the measured growth.
+
+## Amendment 2026-10-23 b — an unanswered opening holds the next one for a while, and a run that never starts says why
+
+Measured on production the same day, read-only: an opening published at 09:22 UTC
+stayed `pending` — the person wrote nothing in the conversation after it, the only
+`user` row being a routine's (`is_automated_source`) — and every tick after it, 17 up
+to 18:46 UTC across a redeployment, was refused by the attention gate before its claim.
+Nothing said so: a refusal before the claim writes no row and no log, its counter
+outcome `ineligible` lumped six causes, and the settings showed « Last run 11:22 »
+alone. One owner decision and two corrections:
+
+- **The hold is bounded.** An opening left unanswered holds the next opening run for
+  `DISCUSSION_ATTENTION_UNANSWERED_OPENING_MINUTES` (an hour by default, owner decision),
+  never past its reply window: it used to hold it for that whole window
+  (`DISCUSSION_OPENING_PENDING_HOURS`), which silenced a day. The reply window keeps its
+  meaning — a reply within it still binds to the opening, and this decision's rule
+  against attaching a late, unrelated reply stands — so the two durations are two
+  settings. A reply frees the person at once, even one not bound yet:
+  [`unanswered_opening`](../../apps/api/src/infrastructure/proactive/discussion_attention.py)
+  reads the binding's own predicate (`_reply_to` in
+  [replies](../../apps/api/src/domains/proactive_discussions/replies.py)). The next run
+  can now meet the previous opening still pending, so the
+  [publication](../../apps/api/src/domains/proactive_discussions/publication_repository.py)
+  closes it first — superseded, its deadline brought to the publication instant — while
+  one past its window keeps its own deadline; the one-pending-opening index refused the
+  insert otherwise. A reply is bound to it in the same transaction before it closes: a
+  channel archiving under no conversation lock could otherwise land one after the run's
+  last check and see it filed as a lapse. Its undelivered push needs nothing: the
+  delivery's own check never sends an opening that is no longer pending.
+- **A run that never starts names why.** The gate returns the first hold it meets
+  (`AttentionHold`: `recent_turn`, `pending_opening`, `recent_alert`, `recent_opening`,
+  `reminder_due`, `turn_streaming`, `approval_pending`) instead of a boolean, and the
+  [run setup](../../apps/api/src/infrastructure/proactive/discussion_run_setup.py) returns
+  it, or `capability_disabled`, `claim_refused` or `stale_claim`. The counter's `outcome`
+  carries it — dashboard 13 already groups by outcome — and one
+  `discussion_run_not_started` line (account id, whether it was a rebuild, reason)
+  states it.
+- **The settings say it.** The activity publishes `awaiting_reply` (since, until) from
+  the gate's own predicate, and the « Context » panel draws it in one sentence, under a
+  ceiling's, in the six languages; the FAQ and the help corpus state the hour.
+
 ## References
 
 - [How a run works, and what its context keeps](../technical/PROACTIVE_DISCUSSIONS.md)

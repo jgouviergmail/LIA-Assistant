@@ -130,6 +130,37 @@ class TestWebhookBehaviour:
         assert opened["fingerprint"] == "abc123"
         assert opened["evidence"]["runbook"] == "docs/runbooks/alerts/RedisDown.md"
 
+    async def test_an_incident_is_committed_before_its_notification(
+        self, client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The incident is the record, the notification a best-effort notice.
+
+        Committed only after it, an incident whose admin archive failed in the
+        database was rolled back in silence: a COMMIT on an aborted transaction
+        raises nothing (measured on PostgreSQL), and Alertmanager had its 200.
+        """
+        from unittest.mock import AsyncMock
+
+        events: list[str] = []
+        session = AsyncMock()
+        session.commit.side_effect = lambda: events.append("commit")
+
+        @asynccontextmanager
+        async def fake_db() -> Any:
+            yield session
+
+        async def notify(**_: Any) -> int:
+            events.append("notify")
+            return 1
+
+        monkeypatch.setattr(webhook_module, "get_db_context", fake_db)
+        monkeypatch.setattr(webhook_module, "notify_admins_of_incident", notify)
+
+        response = await client.post(_URL, json=_payload(), headers=_HEADER)
+
+        assert response.status_code == 200
+        assert events[:2] == ["commit", "notify"]
+
     async def test_resolved_alert_resolves_the_incident(self, client: httpx.AsyncClient) -> None:
         response = await client.post(_URL, json=_payload(status="resolved"), headers=_HEADER)
         assert response.status_code == 200

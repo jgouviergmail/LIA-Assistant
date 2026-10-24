@@ -1,0 +1,186 @@
+# ===================================================================
+# Alertmanager rendering and routing matrix (audit A07)
+# ===================================================================
+# Run by `task test:alertmanager` (scripts/observability/alertmanager_matrix.py):
+# each case renders the config through docker-entrypoint.sh --render-only, in
+# the production image with no network, then `amtool check-config` validates
+# it and `amtool config routes test` routes each alert below. Receivers are
+# listed in ROUTING ORDER — the order amtool reports them in.
+#
+# `alerts` name loaded alerts of alerts-core.yml (their labels are read from
+# the file) or synthetic ones carrying their own labels: no loaded alert
+# reaches the security route today — declared dormant, with its reason, by
+# test_alertmanager_template_guard.py — and it is rendered.
+# `configs` lists, per receiver, the notification kinds it holds once
+# rendered; `values` pins rendered values to the exact variable typed.
+# ===================================================================
+
+synthetic_alerts:
+  OAuthTokenRefreshFailing: {severity: critical, component: oauth, tier: core}
+
+smtp: &smtp
+  ALERTMANAGER_SMTP_SMARTHOST: smtp.example.invalid:587
+  ALERTMANAGER_SMTP_FROM: alerts@example.invalid
+  ALERTMANAGER_SMTP_AUTH_USERNAME: alerts@example.invalid
+  ALERTMANAGER_SMTP_AUTH_PASSWORD: proof-password
+  ALERTMANAGER_BACKEND_TEAM_EMAIL: backend@example.invalid
+
+webhook: &webhook
+  ALERTMANAGER_LIA_WEBHOOK_URL: http://api:8000/api/v1/internal/diagnostics/alert-webhook
+  ALERTMANAGER_LIA_WEBHOOK_SECRET: proof-webhook-secret
+
+teams: &teams
+  ALERTMANAGER_ML_TEAM_EMAIL: ml@example.invalid
+  ALERTMANAGER_SECURITY_TEAM_EMAIL: security@example.invalid
+
+cases:
+  - name: no-smtp
+    env: {}
+    alerts:
+      DatabaseDown: [default-log]
+      SSELatencyP95High: [default-log]
+
+  - name: no-smtp-with-webhook
+    env: {<<: *webhook}
+    alerts:
+      DatabaseDown: [lia-api-webhook]
+      EmbeddingOperationsFailing: [lia-api-webhook]
+
+  # Production today: SMTP alone. Every loaded alert reaches the backend team,
+  # the warnings included; no team, Slack or PagerDuty block is rendered.
+  - name: smtp-only
+    env: {<<: *smtp}
+    alerts:
+      DatabaseDown: [critical]
+      RedisDown: [critical]
+      RedisConnectionPoolExhaustion: [critical]
+      SSELatencyP95High: [warning]
+      LLMCallsWithoutUsage: [warning]
+      EmbeddingOperationsFailing: [warning]
+      OAuthTokenRefreshFailing: [critical]
+    configs:
+      critical: [email]
+      warning: [email]
+    absent: [ml-team, security-team]
+
+  - name: smtp-with-webhook
+    env: {<<: [*smtp, *webhook]}
+    alerts:
+      DatabaseDown: [lia-api-webhook, critical]
+      SSELatencyP95High: [lia-api-webhook, warning]
+
+  # A team with an address of its own is told IN ADDITION to the backend.
+  - name: distinct-teams
+    env: {<<: [*smtp, *teams]}
+    alerts:
+      DatabaseDown: [critical]
+      SSELatencyP95High: [warning, ml-team]
+      LLMCallsWithoutUsage: [warning, ml-team]
+      EmbeddingOperationsFailing: [warning]
+      OAuthTokenRefreshFailing: [critical, security-team]
+    configs:
+      ml-team: [email]
+      security-team: [email]
+
+  # A team address that IS the backend's (whatever its case) adds nobody.
+  - name: teams-sharing-the-backend-address
+    env:
+      <<: *smtp
+      ALERTMANAGER_ML_TEAM_EMAIL: Backend@Example.invalid
+      ALERTMANAGER_SECURITY_TEAM_EMAIL: BACKEND@EXAMPLE.INVALID
+    alerts:
+      SSELatencyP95High: [warning]
+      OAuthTokenRefreshFailing: [critical]
+    absent: [ml-team, security-team]
+
+  - name: every-channel
+    env:
+      <<: [*smtp, *teams, *webhook]
+      ALERTMANAGER_SLACK_WEBHOOK_CRITICAL: https://hooks.slack.example.invalid/critical
+      ALERTMANAGER_SLACK_WEBHOOK_WARNING: https://hooks.slack.example.invalid/warning
+      ALERTMANAGER_SLACK_WEBHOOK_SECURITY: https://hooks.slack.example.invalid/security
+      ALERTMANAGER_PAGERDUTY_ROUTING_KEY: proof-routing-key
+    alerts:
+      DatabaseDown: [lia-api-webhook, critical]
+      SSELatencyP95High: [lia-api-webhook, warning, ml-team]
+      OAuthTokenRefreshFailing: [lia-api-webhook, critical, security-team]
+    configs:
+      critical: [email, slack, pagerduty]
+      warning: [email, slack]
+      security-team: [email, slack]
+      ml-team: [email]
+
+  # Each optional channel alone: nothing empty is ever rendered.
+  - name: slack-critical-only
+    env:
+      <<: *smtp
+      ALERTMANAGER_SLACK_WEBHOOK_CRITICAL: https://hooks.slack.example.invalid/critical
+    alerts:
+      DatabaseDown: [critical]
+    configs:
+      critical: [email, slack]
+      warning: [email]
+
+  - name: pagerduty-only
+    env:
+      <<: *smtp
+      ALERTMANAGER_PAGERDUTY_ROUTING_KEY: proof-routing-key
+    alerts:
+      DatabaseDown: [critical]
+    configs:
+      critical: [email, pagerduty]
+      warning: [email]
+
+  - name: slack-warning-only
+    env:
+      <<: *smtp
+      ALERTMANAGER_SLACK_WEBHOOK_WARNING: https://hooks.slack.example.invalid/warning
+    alerts:
+      SSELatencyP95High: [warning]
+    configs:
+      critical: [email]
+      warning: [email, slack]
+
+  # The security channel is the critical one: posting there twice adds nothing.
+  - name: security-slack-is-the-critical-one
+    env:
+      <<: *smtp
+      ALERTMANAGER_SLACK_WEBHOOK_CRITICAL: https://hooks.slack.example.invalid/shared
+      ALERTMANAGER_SLACK_WEBHOOK_SECURITY: https://hooks.slack.example.invalid/shared
+    alerts:
+      OAuthTokenRefreshFailing: [critical]
+    absent: [security-team]
+
+  # A security channel of its own, but no address of its own: the channel alone.
+  - name: security-slack-of-its-own
+    env:
+      <<: *smtp
+      ALERTMANAGER_SECURITY_TEAM_EMAIL: backend@example.invalid
+      ALERTMANAGER_SLACK_WEBHOOK_SECURITY: https://hooks.slack.example.invalid/security
+    alerts:
+      OAuthTokenRefreshFailing: [critical, security-team]
+    configs:
+      security-team: [slack]
+
+  # A value reaches the config exactly as typed: `&`, `|`, `\` and `'`.
+  - name: special-characters
+    env:
+      <<: [*smtp, *webhook]
+      ALERTMANAGER_SMTP_AUTH_PASSWORD: "p&ss|w\\rd'q&&"
+      ALERTMANAGER_SMTP_AUTH_USERNAME: "user|&name"
+      ALERTMANAGER_BACKEND_TEAM_EMAIL: "o'brien@example.invalid"
+      ALERTMANAGER_LIA_WEBHOOK_SECRET: "s&cr|t\\'x"
+    alerts:
+      DatabaseDown: [lia-api-webhook, critical]
+    values:
+      global.smtp_auth_password: "p&ss|w\\rd'q&&"
+      global.smtp_auth_username: "user|&name"
+      receiver.critical.email_configs.0.to: "o'brien@example.invalid"
+      receiver.lia-api-webhook.webhook_configs.0.http_config.authorization.credentials: "s&cr|t\\'x"
+
+  # A line break would end its YAML scalar and write a line of its own.
+  - name: line-break-is-refused
+    env:
+      <<: *smtp
+      ALERTMANAGER_SMTP_AUTH_PASSWORD: "first\nsecond"
+    refused: true

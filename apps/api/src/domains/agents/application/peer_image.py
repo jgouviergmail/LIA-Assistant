@@ -48,6 +48,16 @@ def _file_digest(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
+def _source_digest(source: Attachment) -> str:
+    """The stored image's digest, its path resolved too — run it in a worker thread."""
+    return _file_digest(_source_file(source))
+
+
+def _names_the_copy(row: Attachment, target: Path) -> bool:
+    """Whether a gallery row points to the copied file — run it in a worker thread."""
+    return _source_file(row) == target.resolve()
+
+
 async def _image_access(db: AsyncSession, actor_id: UUID) -> None:
     await require_application_tools(db)
     await require_capability_fresh(db, PlatformCapability.PEERS)
@@ -85,7 +95,7 @@ async def _image_selection(
         .execution_options(populate_existing=True)
     )
     source = await _shareable_source(db, actor_id, request.attachment_id, datetime.now(UTC))
-    digest = await asyncio.to_thread(_file_digest, _source_file(source))
+    digest = await asyncio.to_thread(_source_digest, source)
     return PeerImageSelection(
         request=request,
         peer_id=card.peer_id,
@@ -175,7 +185,7 @@ async def _verify_saved_copy(
     actual_copy = await db.scalar(
         select(Attachment).where(Attachment.id == copy.id).execution_options(populate_existing=True)
     )
-    if actual_copy is None or _source_file(actual_copy) != target.resolve():
+    if actual_copy is None or not await asyncio.to_thread(_names_the_copy, actual_copy, target):
         raise ValueError("Source gallery must point to the copied file")
     if actual_copy.expires_at is None or actual_copy.expires_at <= datetime.now(UTC):
         raise ValueError("The recipient copy must have its own live expiry")

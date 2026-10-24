@@ -96,7 +96,10 @@ consentement Microsoft réel n'est revendiqué ici.
 - `apps/api/src/domains/connectors/oauth_bulk.py`
 - `apps/api/src/domains/connectors/oauth_bulk_service.py`
 - `apps/api/src/domains/connectors/oauth_identity.py`
-- `apps/api/src/domains/connectors/oauth_grant_runtime.py`
+- `apps/api/src/domains/connectors/oauth_refresh.py` (la porte de rafraîchissement,
+  amendement du 2026-10-23)
+- `apps/api/src/domains/connectors/oauth_refresh_exchange.py`
+- `apps/api/src/domains/connectors/oauth_refresh_targets.py`
 - `apps/api/src/infrastructure/scheduler/token_refresh.py`
 - `apps/web/src/components/settings/connectors/hooks/useBulkConnect.ts`
 - `apps/web/src/hooks/useBulkReconnect.ts`
@@ -141,3 +144,78 @@ la persistance. Une révocation survenue pendant l'appel Hue empêche le stockag
 local ; elle ne peut pas annuler une whitelist déjà acceptée par le bridge.
 Les preuves PostgreSQL utilisent des sessions indépendantes et des fournisseurs
 simulés, sans revendiquer un nouveau consentement externe réel.
+
+## Amendement 2026-10-23 — Une seule porte de rafraîchissement, aucun verrou pendant l'appel
+
+**Amende** le point 3 (audit V14, AC-029). Il disait « sous verrou de ligne » : le
+runtime du grant gardait le grant verrouillé (`FOR UPDATE`) pendant l'appel au point de
+jeton du fournisseur, ce qu'ADR-304, postérieure, interdit. Les jetons hérités avaient
+quatre chemins de rafraîchissement, dont un seul sous un verrou Redis, et Hue Remote un
+POST sans verrou ni marge ; tous écrivaient sans condition. Deux rafraîchissements
+simultanés d'un même jeton sont un danger, pas un gaspillage : un fournisseur qui fait
+tourner son refresh token répond `invalid_grant` au second, et ce refus déconnectait une
+personne dont le consentement était intact.
+
+**Décision.** Un seul chemin, `ensure_fresh_credentials`
+(`connectors/oauth_refresh.py`), pour les jetons hérités, les grants et Hue Remote ; un
+seul échange (`oauth_refresh_exchange.py`, seul module autorisé à envoyer
+`grant_type=refresh_token`, garde `test_refresh_grant_single_sender_guard.py`) ; une
+cible par magasin (`oauth_refresh_targets.py`), qui garde le format de chacun.
+
+1. **Un échange par jeton.** Dans un processus, les appels concurrents rejoignent un même
+   vol (`run_single_flight`) ; entre processus, un seul prend la réclamation Redis
+   (`run_shared_flight`), dont la durée et le budget d'attente sont dérivés de la
+   politique de relance de l'échange et de la borne d'écriture, jamais d'un littéral.
+   Chaque tentative publie `<tentative>:<verdict>`, un échec qu'elle n'attendait pas
+   compris (sans quoi l'attendant d'un autre processus attendait la réclamation entière,
+   ~40 s aux défauts) ; un attendant n'accepte qu'un verdict publié après le début de son
+   attente. Un rafraîchissement forcé rejoint un rafraîchissement en cours.
+2. **Aucune transaction pendant l'appel.** La porte n'utilise jamais la session de son
+   appelant : elle lit sur une session courte, appelle le fournisseur sans transaction
+   ouverte, puis écrit sur une autre. Un appelant qui POSSÈDE sa session lit en deux
+   temps — `ConnectorService.read_connector_credentials`, fin de sa transaction, puis
+   `StoredCredentials.fresh()` : le client OAuth, l'emballage du tour du chat (qui
+   relâche aussi son verrou avant la porte) et `open_active_client`.
+   `get_connector_credentials` enchaîne les deux pour un appelant qui prête sa session.
+3. **Une écriture conditionnée et bornée.** L'écriture verrouille le grant puis ses
+   liens, dans l'ordre de l'amendement du 2026-10-15, et n'aboutit que si le chiffré lu
+   au départ est toujours celui stocké et le propriétaire toujours actif ; sinon le
+   jeton du gagnant est servi. Elle attend sa ligne au plus
+   `OAUTH_REFRESH_WRITE_LOCK_TIMEOUT_MS` (`SET LOCAL lock_timeout`) : un appelant dont la
+   transaction ouverte tient la ligne attendrait la porte, qui attendrait son verrou —
+   un cycle que PostgreSQL ne voit pas. Passé la borne (SQLSTATE lu, jamais le message),
+   le demandeur reçoit le jeton que le fournisseur vient d'émettre, non stocké, et les
+   attendants reçoivent un échec, jamais le jeton périmé resté stocké. Une écriture
+   commencée survit à l'annulation de l'appelant (`write_through_cancellation`).
+4. **`invalid_grant` est revérifié.** Les services liés ne passent en `ERROR` que si le
+   chiffré stocké est toujours celui qui a été refusé : un refus causé par une rotation
+   faite ailleurs n'est pas une révocation. Une révocation que la borne empêche de
+   vérifier est rapportée comme un échec, jamais comme une déconnexion.
+5. **L'admission est celle de chaque appelant.** Les services d'un grant partagent son
+   rafraîchissement, mais savoir si un appelant peut être servi reste la question de SON
+   lien. Un service détaché du grant pendant un rafraîchissement est refusé pour
+   lui-même : un appelant qui rejoint ce vol, ou qui lit le verdict publié par un autre
+   worker, redemande une fois pour son propre lien, et deux refus visant d'autres
+   porteurs sont rapportés comme un échec — jamais comme un « reconnectez » pour un lien
+   qu'il tient encore.
+6. **Ce qui disparaît.** `OAuthGrantRuntime`, `OAuthLock` (sa famille de clés Redis,
+   ses cinq séries, `connector_token_refresh_total` et `OAUTH_LOCK_TIMEOUT_SECONDS`).
+   Le tableau 10 lit `oauth_refresh_outcomes_total{kind, outcome}` et
+   `oauth_refresh_flights_total{kind, how}`.
+
+**Preuves.** Tests unitaires écrits avant le code, passes de mutation (porte,
+magasins, transitions bornées, lecture en deux temps), et tests sur un vrai PostgreSQL
+et un vrai Redis : un échange pour deux workers, `invalid_grant` après une rotation
+faite ailleurs, écritures conditionnelles sur la colonne de statut, ligne tenue par
+l'appelant (la porte rend la main dans sa borne), session d'une unité hors transaction au
+moment de l'échange. Observé ensuite sur Docker dev (2026-10-23) : de vrais échanges par
+la porte, côté appelant (le tableau de bord : une autorisation partagée Google et deux
+jetons de connecteur) comme côté ordonnanceur (deux jetons Microsoft), tous `refreshed`.
+
+**Résidu assumé.** Les appelants qui lisent par `get_connector_credentials` sur une
+session qu'ils tiennent gardent leur transaction de lecture pendant un rafraîchissement :
+rare, borné par l'échange, sans verrou de ligne. Une écriture contestée sert le jeton
+émis sans le stocker : chez un fournisseur qui invaliderait l'ancien refresh token à
+chaque rotation, le rafraîchissement suivant lirait `invalid_grant` sur un chiffré
+inchangé et déconnecterait la personne. Google ne fait pas tourner ses refresh tokens et
+Microsoft laisse l'ancien valide ; le pont Hue n'est pas mesuré.

@@ -13,6 +13,7 @@ from src.core.exceptions import AuthorizationError
 from src.domains.auth.models import WebAuthnCredential
 from src.domains.auth.schemas import (
     AuthFeaturesResponse,
+    PublicAuthFeaturesResponse,
     StepUpStatusResponse,
     TOTPStatusResponse,
     WebAuthnCredentialResponse,
@@ -44,6 +45,14 @@ def effective_auth_features() -> AuthFeaturesResponse:
     )
 
 
+def public_auth_features() -> PublicAuthFeaturesResponse:
+    """The capabilities plus the bot check's site key, for the sign-in pages only."""
+    return PublicAuthFeaturesResponse(
+        **effective_auth_features().model_dump(),
+        turnstile_site_key=settings.turnstile_site_key if settings.turnstile_enabled else None,
+    )
+
+
 def methods_for_account(user: User, *, has_passkeys: bool, has_totp: bool) -> list[str]:
     methods: list[str] = []
     if user.hashed_password is not None:
@@ -63,8 +72,32 @@ def assert_security_projection_coverage() -> None:
             AuthFeaturesResponse,
             {"mfa_enabled", "terms_required", "terms_version", "federated_signin_enabled"},
         ),
+        # Reviewed 2026-10-24 (ADR-364): the site key is served to the sign-in pages
+        # by GET /auth/features alone — the chat's read keeps AuthFeaturesResponse.
+        (
+            PublicAuthFeaturesResponse,
+            {
+                "mfa_enabled",
+                "terms_required",
+                "terms_version",
+                "federated_signin_enabled",
+                "turnstile_site_key",
+            },
+        ),
         (TOTPStatusResponse, {"active", "confirmed_at", "backup_codes_remaining"}),
-        (StepUpStatusResponse, {"methods", "password_set", "step_up_valid_until"}),
+        # Reviewed 2026-10-23 (ADR-363): password_recovery and sign_in_provider stay out
+        # of the chat's security read — available_methods already names the provider,
+        # and the rule they state is the knowledge corpus's to tell.
+        (
+            StepUpStatusResponse,
+            {
+                "methods",
+                "password_set",
+                "step_up_valid_until",
+                "password_recovery",
+                "sign_in_provider",
+            },
+        ),
         (
             WebAuthnCredentialResponse,
             {"id", "label", "device_type", "backed_up", "transports", "created_at", "last_used_at"},

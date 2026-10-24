@@ -25,7 +25,7 @@ Example:
 
 import asyncio
 from collections.abc import Awaitable, Callable, Coroutine
-from typing import Any
+from typing import Any, Final
 
 from src.infrastructure.observability.logging import get_logger
 
@@ -34,6 +34,12 @@ logger = get_logger(__name__)
 # Global set to keep strong references to background tasks
 # Prevents garbage collection while tasks are running
 _background_tasks: set[asyncio.Task] = set()
+
+# How long a shutdown waits for the tasks it CANCELLED to finish their cancellation
+# (audit A05): what a cancellation runs — a finally releasing a claim, closing a file,
+# writing a final status — needs the loop, and the pools it uses close right after.
+# Counted in the stop budget (test_graceful_shutdown_budget_guard.py).
+BACKGROUND_TASKS_CANCEL_JOIN_TIMEOUT_S: Final[float] = 5.0
 
 # Per-run_id registry for tasks that should be awaited before SSE done chunk.
 # Enables the SSE done event to include tokens from background extraction tasks
@@ -122,7 +128,10 @@ async def wait_all_background_tasks(timeout: float = 30.0) -> int:
     Wait for all background tasks to complete.
 
     Useful for graceful shutdown to ensure all background work
-    (like memory extraction) completes before the process exits.
+    (like memory extraction) completes before the process exits. Tasks still
+    running at ``timeout`` are cancelled, then JOINED for at most
+    ``BACKGROUND_TASKS_CANCEL_JOIN_TIMEOUT_S`` so their cancellation runs before
+    the shutdown closes what it needs; one that will not stop is named.
 
     Args:
         timeout: Maximum time to wait in seconds (default 30s)
@@ -159,9 +168,19 @@ async def wait_all_background_tasks(timeout: float = 30.0) -> int:
                 completed=len(done),
                 pending=len(pending),
             )
-            # Cancel pending tasks
+            # Cancel pending tasks, then join them: a cancellation is a request, and
+            # returning before it ran let the shutdown close what its cleanup needs.
             for task in pending:
                 task.cancel()
+            _, unjoined = await asyncio.wait(
+                pending, timeout=BACKGROUND_TASKS_CANCEL_JOIN_TIMEOUT_S
+            )
+            if unjoined:
+                logger.warning(
+                    "background_tasks_not_joined",
+                    count=len(unjoined),
+                    task_names=sorted(task.get_name() for task in unjoined),
+                )
         else:
             logger.info(
                 "background_tasks_completed",
@@ -247,29 +266,6 @@ def get_active_background_tasks_count() -> int:
         Count of active background tasks
     """
     return len(_background_tasks)
-
-
-def cancel_all_background_tasks() -> int:
-    """
-    Cancel all active background tasks.
-
-    Use with caution - only for emergency shutdown scenarios.
-
-    Returns:
-        Number of tasks cancelled
-    """
-    count = len(_background_tasks)
-
-    for task in _background_tasks:
-        if not task.done():
-            task.cancel()
-
-    logger.warning(
-        "background_tasks_cancelled",
-        count=count,
-    )
-
-    return count
 
 
 def _report_cancelled_write_failure(task: asyncio.Future[None], label: str) -> None:

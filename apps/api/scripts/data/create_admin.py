@@ -11,7 +11,8 @@ Usage (from within the API container):
 
 The installer's atomic path is ``scripts.data.bootstrap_install`` (one stdin
 JSON document, admin + provider keys in one transaction); this tool remains
-for manual recovery only.
+for creating or promoting the administrator by hand. It never changes an
+existing password: a forgotten one is set with ``scripts.data.set_password``.
 """
 
 from __future__ import annotations

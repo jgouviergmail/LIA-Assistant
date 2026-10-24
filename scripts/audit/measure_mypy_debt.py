@@ -128,9 +128,7 @@ def _measure_suppressed_errors() -> tuple[int, dict[str, int], dict[int, list[st
     for key, value in mypy.items():
         if key in ("overrides", "plugins") or isinstance(value, (list, dict)):
             continue
-        lines.append(
-            f"{key} = {str(value).lower() if isinstance(value, bool) else value}"
-        )
+        lines.append(f"{key} = {str(value).lower() if isinstance(value, bool) else value}")
     lines.append("plugins = pydantic.mypy")
     for override in mypy["overrides"]:
         modules = override["module"]
@@ -145,11 +143,7 @@ def _measure_suppressed_errors() -> tuple[int, dict[str, int], dict[int, list[st
                 elif isinstance(value, str):
                     lines.append(f"{key} = {value}")
 
-    mypy_exe = (
-        API_DIR
-        / ".venv"
-        / ("Scripts/mypy.exe" if sys.platform == "win32" else "bin/mypy")
-    )
+    mypy_exe = API_DIR / ".venv" / ("Scripts/mypy.exe" if sys.platform == "win32" else "bin/mypy")
     with tempfile.NamedTemporaryFile(
         "w", suffix=".ini", delete=False, dir=API_DIR, encoding="utf-8"
     ) as handle:
@@ -219,17 +213,13 @@ def _report(measure_errors: bool) -> None:
 
 def _check() -> int:
     if not BASELINE.exists():
-        print(
-            f"error: baseline missing ({BASELINE}); run --update first", file=sys.stderr
-        )
+        print(f"error: baseline missing ({BASELINE}); run --update first", file=sys.stderr)
         return 2
     baseline = _json_to_pairs(json.loads(BASELINE.read_text(encoding="utf-8"))["pairs"])
     current = exemption_pairs()
     added = current - baseline
     if added:
-        print(
-            f"::error::MyPy exemption ratchet: {len(added)} NEW exemption(s) added (F020):"
-        )
+        print(f"::error::MyPy exemption ratchet: {len(added)} NEW exemption(s) added (F020):")
         for module, code in sorted(added):
             print(f"  + [{module}] disables '{code}'")
         print("New MyPy exemptions are forbidden. Fix the type errors instead, or")
@@ -238,9 +228,7 @@ def _check() -> int:
         return 1
     removed = baseline - current
     if removed:
-        print(
-            f"MyPy exemption surface shrank by {len(removed)} pair(s) — lower the baseline:"
-        )
+        print(f"MyPy exemption surface shrank by {len(removed)} pair(s) — lower the baseline:")
         print("  python scripts/audit/measure_mypy_debt.py --update")
     print(f"OK: {len(current)} exemption pairs, all within baseline ({len(baseline)}).")
     return 0
@@ -268,10 +256,10 @@ def _update() -> int:
             payload["suppressed_errors_informational"] = prior.get(
                 "suppressed_errors_informational"
             )
-    BASELINE.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    print(
-        f"baseline written: {len(pairs)} pairs, {payload['exempted_modules']} modules"
-    )
+    # LF on every platform: the baseline is committed, and a Windows rewrite in CRLF
+    # would differ from the repository's copy in every line.
+    BASELINE.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8", newline="\n")
+    print(f"baseline written: {len(pairs)} pairs, {payload['exempted_modules']} modules")
     return 0
 
 

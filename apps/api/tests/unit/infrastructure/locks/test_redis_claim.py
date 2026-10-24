@@ -138,7 +138,11 @@ class TestHeldClaim:
         redis = FakeRedis()
 
         async def _work() -> None:
-            await asyncio.sleep(self._REFRESH * 5)
+            # Wait for the refresher, not for a clock: five periods of sleep counted on
+            # Windows' 15.6 ms timer ticks, and a loaded host gave them one refresh.
+            async with asyncio.timeout(5):
+                while redis.ops["refresh"] < 2:
+                    await asyncio.sleep(self._REFRESH)
             assert redis.store["k"] == "holder"
 
         await self._hold(redis, _work)

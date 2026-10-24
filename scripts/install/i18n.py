@@ -16,6 +16,14 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "Google Cloud map ID matching that browser key (hidden; required only with the Maps key; no DEMO_MAP_ID in production)",
         "fr": "Cloud map ID Google correspondant à cette clé navigateur (masqué ; requis seulement avec la clé Maps ; pas de DEMO_MAP_ID en production)",
     },
+    "question.turnstile_site_key": {
+        "en": "Optional anti-robot check on sign-up, sign-in and password reset: Cloudflare Turnstile site key of a widget created for your sites (hidden; leave BOTH Turnstile answers empty to skip; never a Cloudflare testing key)",
+        "fr": "Vérification anti-robot facultative à l'inscription, à la connexion et à la réinitialisation : clé de site Cloudflare Turnstile d'un widget créé pour vos sites (masquée ; laissez les DEUX réponses Turnstile vides pour passer ; jamais une clé de test Cloudflare)",
+    },
+    "question.turnstile_secret_key": {
+        "en": "Cloudflare Turnstile secret key of that widget (hidden; required only with the site key; stays in the private .env)",
+        "fr": "Clé secrète Cloudflare Turnstile de ce widget (masquée ; requise seulement avec la clé de site ; reste dans le .env privé)",
+    },
     "question.wizard_language": {
         "en": "Installer language (en/fr)",
         "fr": "Langue de l'installateur (en/fr)",

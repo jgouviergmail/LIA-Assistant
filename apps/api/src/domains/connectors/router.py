@@ -1843,6 +1843,10 @@ async def test_hue_connection(
         raise_connector_not_found(connector_id=current_user.id)
 
     client = PhilipsHueClient(current_user.id, credentials, DetachedConnectorService())
-    bridge_info = await client.test_connection()
+    try:
+        bridge_info = await client.test_connection()
+    finally:
+        # A per-instance transport left open is a leak under load (audit A04).
+        await client.close()
     data = bridge_info.get("data", [{}])
     return {"success": True, "bridge": data[0] if data else {}}

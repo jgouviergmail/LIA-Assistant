@@ -993,3 +993,58 @@ the sandbox's network permission.
 
 Guards: `TestOnePredicateForEveryQuestion`, `test_a_confirmation_nobody_can_give_is_never_asked`
 and its ticket control.
+
+## Amendment 2026-10-23 — a notification is delivered when the person can still find it
+
+**Amends:** the settle of a notification (« SETTLED from an EXPLICIT result ») and every
+consumer that files a delivery from a dispatch. Audit V13/V14 AC-003; owner decision
+2026-10-22: an SSE event alone reaches an open tab or nobody, so it is not a delivery.
+
+Measured before the change:
+
+- `NotificationDispatcher.dispatch` absorbs every channel failure and RETURNS its verdict.
+  Five consumers filed « delivered » without reading it: the telephony reaper, the
+  call-return synthesis, the owner-call relay, the peer message delivery and the
+  diagnostics incident alert. The three readers that did read it read `success`, which an
+  SSE event alone made true: this register's settle in the proactive runner and in the
+  notification sink, and the « delivered » a shared image answers its sender.
+- `archived` was recorded before the archive's commit: a commit that failed still read
+  as archived.
+- On PostgreSQL, an archive whose statement fails aborts its caller's transaction: every
+  later statement fails (25P02) and a COMMIT rolls back in silence. A failure path that
+  wrote on that session never counted its attempt, so the row was retried for ever and
+  the rest of the batch died behind it.
+
+Decision:
+
+1. **One delivery verdict**: `NotificationResult.durably_delivered` — archived, pushed, or
+   sent on an external channel. `success` and `error` are gone, so no reader can pick the
+   wider one again, and `archived` is recorded once its commit succeeded.
+2. **A consumer that files « delivered » requires it**: `dispatch(..., require_durable=True)`
+   raises `NotificationNotDelivered` unless the verdict holds, and the consumer's existing
+   failure path does the rest — the reaper counts an attempt, a call return or a relay
+   stays PENDING, a peer message is a retryable `dispatch_error`, an admin is not counted
+   and `notified_at` follows the count.
+3. **A failure is counted on a session of its own** (the reaper, the peer delivery), each
+   admin is notified on a session of its own, and a durable state is committed BEFORE the
+   best-effort notice that follows it: the webhook's opened incident (as the self-check
+   already did) and a peer message's cancel — left pending, a notice whose archive failed
+   aborted it, and the cancelled message was claimed again ten minutes later.
+4. **This register settles a notification from `durably_delivered`** (the runner, the
+   notification sink), and a sweep's target hook — the heartbeat's audit record, the
+   interests' deduplication — runs only after a durable delivery: an undelivered
+   notification spends no cooldown.
+
+Left as it is, in writing: the dispatcher still archives on its caller's session, so a
+database error in the archive aborts that caller's transaction at every dispatch site.
+The sites whose failure path writes are handled above. Moving the archive to a session of
+its own would change the dispatcher's transaction contract — a voice session closing wants
+the archive inside its own transaction — and that is the owner's decision.
+
+Guards: `test_durable_delivery_guard.py` (every discarded dispatch requires durability or is
+a declared best-effort notice with its reason; a dispatcher is recognised by what built it,
+not by a word in its name), `test_notification_durable.py` (the verdict,
+the failed commit), the consumers' tests over the REAL dispatcher on scripted channels
+(`tests/helpers/notifications.py`), and on PostgreSQL
+`test_notification_reaper_durability.py` (retried up to the cap, an archive failing in SQL
+still counted) and `test_admin_notification_isolation_pg.py`.

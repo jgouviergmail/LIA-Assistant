@@ -5,7 +5,7 @@
 **Version**: 4.1 (2026-07-17)
 **Status**: Production-Ready
 **Architecture**: Prometheus + Grafana + Loki + Tempo + AlertManager
-**Total Metrics**: 630 definitions in the backend's metric modules
+**Total Metrics**: 634 definitions in the backend's metric modules
 **Dashboards**: one JSON per dashboard in `infrastructure/observability/grafana/dashboards/`, catalogued with their panels in [GRAFANA_DASHBOARDS.md](../technical/GRAFANA_DASHBOARDS.md)
 **Alert Rules**: the active core set, `alerts-core.yml` (ADR-119; legacy set pending recalibration)
 **Recording Rules**: 86 optimized rules
@@ -47,7 +47,7 @@ Observability is the ability to measure the internal states of a system by exami
 
 | Component | Purpose | Metrics | Retention | Port |
 |-----------|---------|---------|-----------|------|
-| **Prometheus** | Metrics collection & storage | 630 custom metrics (scraped from :9091) | 15 days (dev), 7 (prod) | 9090 |
+| **Prometheus** | Metrics collection & storage | 634 custom metrics (scraped from :9091) | 15 days (dev), 7 (prod) | 9090 |
 | **Grafana** | Visualization & dashboards | catalogued in [GRAFANA_DASHBOARDS.md](../technical/GRAFANA_DASHBOARDS.md) | N/A (queries only) | 3000 |
 | **Loki** | Log aggregation & storage | N/A (logs, not metrics) | 7 days | 3100 |
 | **Tempo** | Distributed tracing | Trace spans | 7 days | 3200 |
@@ -210,7 +210,7 @@ AlertManager receives alert
         ↓ (Deduplication, grouping, inhibition)
 Routing tree evaluation
         ↓ (Label matching)
-Receiver selection (critical/warning/budget/agents/security)
+Receiver selection (critical/warning, then the agents/security audiences)
         ↓ (Template rendering)
 Multi-channel notification
         ↓
@@ -813,13 +813,16 @@ overrides:
 
 ### 5. AlertManager (Alert Routing & Notification)
 
-**Location**: `infrastructure/observability/prometheus/alertmanager/`
+**Location**: `infrastructure/observability/alertmanager/`
 
 **Purpose**: Handle alerts from Prometheus, deduplicate, group, and route to notification channels.
 
-For exhaustive documentation, see: AlertManager README
+Operational guide, rendering and the routing actually deployed: [ALERTING.md](../technical/ALERTING.md).
 
 #### Alert Rules Summary
+
+The groups below are the **legacy 2025-11 catalog**, not loaded: Prometheus
+loads `alerts-core.yml` alone (ADR-119).
 
 **Total**: 57 alert rules across 9 groups
 
@@ -837,35 +840,29 @@ For exhaustive documentation, see: AlertManager README
 
 #### Routing Tree
 
+Severity fixes the urgency (the backend team); the component adds an audience
+(a team with an address of its own, told in addition). Every block for a
+channel or a team that is not configured is left out at rendering.
+
 ```
-Default route → default-email
+Default route → default-email (an alert no child matches)
 │
-├─ severity: critical → critical-multi-channel (Email + Slack + PagerDuty)
+├─ (LIA webhook, when configured: every critical/warning, continue)
+├─ severity: critical → critical (Email + Slack critical + PagerDuty), continue
+├─ severity: warning → warning (Email + Slack warning), continue
 │
-├─ severity: warning → warning-email-slack (Email + Slack)
-│
-├─ component: llm, severity: critical → llm-budget-critical (Finance + Ops)
-│
-├─ component: agents → agents-performance (Agents team)
-│
-├─ component: postgresql → database-team (Database team)
-│
-├─ component: redis → redis-team (Redis team)
-│
-└─ component: oauth, severity: critical → security-team (Security + PagerDuty)
+├─ component: agents | hitl | hitl_streaming → ml-team (Email)
+└─ component: oauth, severity: critical → security-team (Email and/or Slack security)
 ```
 
 #### Email Templates
 
-**8 specialized templates** (426 lines total):
+**Specialized templates** (`templates/email.tmpl`):
 1. `email.default.html` - Generic alerts
 2. `email.critical.html` - High-priority alerts (red header, action checklist)
 3. `email.warning.html` - Warning alerts (orange header)
-4. `email.budget.html` - LLM cost budget alerts (budget breakdown chart)
-5. `email.agents.html` - Agent SLA violations (runbook emphasis)
-6. `email.database.html` - PostgreSQL alerts
-7. `email.redis.html` - Redis alerts
-8. `email.security.html` - OAuth security incidents (security warning box)
+4. `email.agents.html` - Agent SLA violations (runbook emphasis)
+5. `email.security.html` - OAuth security incidents (security warning box)
 
 ---
 

@@ -968,7 +968,7 @@ The `handle_callback()` token exchange supports both `application/json` and `app
 
 ### OAuth Refresh Distributed Lock
 
-Token refresh uses a Redis distributed lock (`mcp_oauth_refresh_lock:{server_id}`, TTL `MCP_OAUTH_REFRESH_LOCK_TTL_SECONDS` = 15s) to prevent concurrent requests from simultaneously refreshing the same token. If the lock is already held, the request re-reads fresh credentials instead of refreshing. This follows the same pattern as the Google `OAuthLock` in `infrastructure/locks/`.
+Token refresh uses a Redis distributed lock (`mcp_oauth_refresh_lock:{server_id}`, TTL `MCP_OAUTH_REFRESH_LOCK_TTL_SECONDS` = 15s) to prevent concurrent requests from simultaneously refreshing the same token. If the lock is already held, the request re-reads fresh credentials instead of refreshing. An MCP server's tokens are not a connector's: connector tokens go through the one refresh door, `domains/connectors/oauth_refresh.py` ([ADR-302, 2026-10-23 amendment](../architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md)).
 
 ### Canonical aliases and diagnostic compatibility
 

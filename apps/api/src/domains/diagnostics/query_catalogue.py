@@ -310,6 +310,50 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             external_metrics=(),
         ),
         NamedQuery(
+            query_id="password_reset_outcomes",
+            title="Password-reset requests and link uses by outcome (ADR-363)",
+            promql_template=(
+                "label_replace(sum by (outcome) (increase("
+                "password_reset_requests_total[{window_minutes}m])),"
+                ' "side", "request", "", "")'
+                " or "
+                "label_replace(sum by (outcome) (increase("
+                "password_reset_confirmations_total[{window_minutes}m])),"
+                ' "side", "use", "", "")'
+            ),
+            params=(_WINDOW,),
+            unit="count",
+            lia_metrics=("password_reset_requests_total", "password_reset_confirmations_total"),
+            external_metrics=(),
+        ),
+        NamedQuery(
+            query_id="turnstile_outcomes",
+            title="Turnstile bot checks by door and outcome (ADR-364)",
+            promql_template=(
+                "sum by (action, outcome) (increase("
+                "turnstile_verifications_total[{window_minutes}m]))"
+            ),
+            params=(_WINDOW,),
+            unit="count",
+            lia_metrics=("turnstile_verifications_total",),
+            external_metrics=(),
+        ),
+        NamedQuery(
+            query_id="account_registrations",
+            title="Accounts created, password and Google sign-ups (ADR-363)",
+            promql_template=(
+                'label_replace(sum(increase(user_registrations_total{status="success"}'
+                '[{window_minutes}m])), "route", "password", "", "")'
+                " or "
+                "label_replace(sum(increase(oauth_user_creation_total[{window_minutes}m])),"
+                ' "route", "google", "", "")'
+            ),
+            params=(_WINDOW,),
+            unit="count",
+            lia_metrics=("user_registrations_total", "oauth_user_creation_total"),
+            external_metrics=(),
+        ),
+        NamedQuery(
             query_id="dependency_up",
             title="Scrape-target availability",
             promql_template="up",
@@ -317,6 +361,17 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             unit="bool",
             lia_metrics=(),
             external_metrics=("up",),
+        ),
+        NamedQuery(
+            query_id="db_bounds_reached",
+            title="PostgreSQL bounds reached by bound (AC-028)",
+            promql_template=(
+                "sum by (bound) (increase(db_bound_reached_total[{window_minutes}m]))"
+            ),
+            params=(_WINDOW,),
+            unit="count",
+            lia_metrics=("db_bound_reached_total",),
+            external_metrics=(),
         ),
         NamedQuery(
             query_id="sandbox_egress_runs_by_outcome",

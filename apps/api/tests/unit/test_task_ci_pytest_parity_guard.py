@@ -45,6 +45,10 @@ _PYTEST_M = re.compile(_RUNNER + r'\s+tests/(unit|agents|integration)/[^\n]*?-m\
 # The full flag tail of every ``pytest tests/<root>/`` command (post line-join).
 _PYTEST_CMD = re.compile(_RUNNER + r"\s+tests/(unit|agents|integration)/([^\n]*)")
 _COV_FAIL_UNDER = re.compile(r"--cov-fail-under=(\d+)")
+# Every spelling of a floor a command can hold: pytest-cov's, and coverage's own.
+_FLOOR = re.compile(r"--(?:cov-)?fail-under=(\d+)")
+# "No gate on this run": a measuring command's sentinel, never a floor.
+_NO_FLOOR = "0"
 
 
 def _markers_by_root(text: str) -> dict[str, set[frozenset[str]]]:
@@ -143,18 +147,30 @@ def test_every_test_root_is_still_driven_by_a_task() -> None:
 
 
 def test_partial_subsets_never_enforce_the_global_coverage_gate() -> None:
-    """agents + integration commands run a partial subset, so they must use
-    ``--no-cov`` and never carry ``--cov-fail-under`` — otherwise the command exits
+    """agents + integration commands run a partial subset: they never hold the floor.
+
+    pyproject's ``addopts`` carries ``--cov-fail-under``, so a subset held to it exits
     1 despite all tests passing (the trap the Taskfile comment warns about; F022).
-    Functional selection is separated from the coverage threshold here."""
+    The agents suite measures nothing (``--no-cov``). The integration suite measures,
+    because the floor is held by unit and integration together (AC-030b,
+    ``test_coverage_union_guard.py``), so it passes the ``--cov-fail-under=0``
+    sentinel instead. Functional selection is separated from the coverage threshold
+    here."""
     for name, path in (("Taskfile.yml", TASKFILE), ("ci.yml", CI_WORKFLOW)):
         for root, tail in _pytest_commands(path.read_text(encoding="utf-8")):
-            if root in ("agents", "integration"):
+            if root == "agents":
                 assert "--no-cov" in tail, (
                     f"{name}: tests/{root}/ command must pass --no-cov (partial subset, "
                     f"F022): pytest tests/{root}/{tail.strip()}"
                 )
-                assert "--cov-fail-under" not in tail, (
+            if root == "integration":
+                assert "--no-cov" in tail or "--cov-fail-under=0" in tail, (
+                    f"{name}: tests/{root}/ measures without the --cov-fail-under=0 sentinel, "
+                    f"so it is held to the floor alone (F022): pytest tests/{root}/{tail.strip()}"
+                )
+            if root in ("agents", "integration"):
+                floors = [value for value in _COV_FAIL_UNDER.findall(tail) if value != "0"]
+                assert not floors, (
                     f"{name}: tests/{root}/ must NOT enforce --cov-fail-under on a partial "
                     f"subset (F022): pytest tests/{root}/{tail.strip()}"
                 )
@@ -259,10 +275,13 @@ def test_no_task_runs_the_same_collection_twice() -> None:
 
 
 def test_coverage_threshold_has_a_single_source_of_truth() -> None:
-    """Every executable copy of ``--cov-fail-under`` must equal pyproject's default.
+    """Every executable copy of the floor must equal pyproject's default.
 
     The coverage threshold is one governed number (ratchet doctrine), not several
-    that can silently drift.
+    that can silently drift. Since AC-030b the Taskfile holds it in
+    ``coverage report --fail-under`` (``test:backend:coverage``, the union of the
+    two suites), and its measuring commands pass the ``--cov-fail-under=0``
+    sentinel, which states no floor and is not a copy.
 
     This guard was VACUOUS from ADR-151 until 2026-08-27. It compared
     ``pyproject.toml`` against ``ci.yml`` only — and ADR-151 had moved every
@@ -284,7 +303,9 @@ def test_coverage_threshold_has_a_single_source_of_truth() -> None:
     copies: list[tuple[str, str]] = []
     for name, path in (("Taskfile.yml", TASKFILE), ("ci.yml", CI_WORKFLOW)):
         copies.extend(
-            (name, value) for value in _COV_FAIL_UNDER.findall(path.read_text(encoding="utf-8"))
+            (name, value)
+            for value in _FLOOR.findall(path.read_text(encoding="utf-8"))
+            if value != _NO_FLOOR
         )
 
     assert copies, (

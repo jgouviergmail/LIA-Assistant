@@ -30,6 +30,7 @@ from src.domains.shared.proactive_sink import (
     notifier_is_installed,
     send_proactive_notification,
 )
+from src.infrastructure.proactive.notification import NotificationResult
 
 pytestmark = pytest.mark.unit
 
@@ -146,7 +147,7 @@ class TestTheAdapter:
 
         effect, claim = self._effect()
         dispatcher = MagicMock()
-        dispatcher.dispatch = AsyncMock(return_value=MagicMock(success=True))
+        dispatcher.dispatch = AsyncMock(return_value=NotificationResult(archived=True))
 
         with (
             patch(
@@ -180,7 +181,7 @@ class TestTheAdapter:
             yield MagicMock()
 
         dispatcher = MagicMock()
-        dispatcher.dispatch = AsyncMock(return_value=MagicMock(success=True))
+        dispatcher.dispatch = AsyncMock(return_value=NotificationResult(archived=True))
         with (
             patch(
                 "src.infrastructure.proactive.notification.NotificationDispatcher",
@@ -208,7 +209,7 @@ class TestTheAdapter:
 
         effect, claim = self._effect()
         dispatcher = MagicMock()
-        dispatcher.dispatch = AsyncMock(return_value=MagicMock(success=False))
+        dispatcher.dispatch = AsyncMock(return_value=NotificationResult())
 
         with (
             patch(
@@ -221,6 +222,38 @@ class TestTheAdapter:
             ),
         ):
             delivered = await dispatch_proactive_notification(**_payload())
+
+        assert delivered is False
+        assert effect.delivered is False
+
+    async def test_a_live_event_alone_is_not_a_delivery(self) -> None:
+        """An SSE event alone reached an open tab or nobody (audit AC-003): the
+        real dispatcher's verdict, over channels where only that event left."""
+        from types import SimpleNamespace
+        from uuid import uuid4
+
+        from src.infrastructure.proactive.notification_sink import (
+            dispatch_proactive_notification,
+        )
+        from tests.helpers.notifications import scripted_dispatcher, sse_only
+
+        effect, claim = self._effect()
+        with (
+            patch(
+                "src.infrastructure.proactive.notification.NotificationDispatcher",
+                new=scripted_dispatcher(sse_only()),
+            ),
+            patch(
+                "src.domains.agents.effects.out_of_turn_effects.proactive_notification_effect",
+                claim,
+            ),
+        ):
+            delivered = await dispatch_proactive_notification(
+                **_payload(
+                    db=SimpleNamespace(commit=AsyncMock()),
+                    user=SimpleNamespace(id=uuid4(), language="fr"),
+                )
+            )
 
         assert delivered is False
         assert effect.delivered is False

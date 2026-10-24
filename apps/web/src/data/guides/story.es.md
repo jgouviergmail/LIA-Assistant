@@ -4,7 +4,7 @@
 
 **Versión**: 2.6
 **Fecha**: 2026-10-23
-**Aplicación**: LIA v3.5.1
+**Aplicación**: LIA v3.6.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | --- | --- |
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
 | Líneas de código fuente (sin tests) — 58 dominios funcionales | **1.003.000+** |
-| Pruebas automatizadas inventariadas; suites adecuadas para cada commit y entrega | **66.000+** |
-| Decisiones de arquitectura documentadas (ADR) | **360** |
-| Versiones entregadas a ritmo regular | **287** |
+| Pruebas automatizadas inventariadas; suites adecuadas para cada commit y entrega | **67.000+** |
+| Decisiones de arquitectura documentadas (ADR) | **362** |
+| Versiones entregadas a ritmo regular | **288** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **7,8/10** |
 
@@ -70,7 +70,7 @@ El proyecto se conduce ahora con varios agentes de desarrollo en paralelo — ca
 
 ## 4. Los arbitrajes
 
-Tres decisiones estructurantes, entre las 360 documentadas:
+Tres decisiones estructurantes, entre las 362 documentadas:
 
 **Soberanía y reversibilidad — ninguna dependencia irreversible de proveedor.** Los modelos de IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelos locales vía Ollama) están detrás de una abstracción única: cada uso puede cambiar de proveedor por configuración, con comparación de costes. Mismo principio del lado del negocio: Google, Apple y Microsoft son intercambiables por categoría funcional. El autoalojamiento te da control del servidor; los datos de la cuenta se guardan en la instancia y las credenciales de los conectores están cifradas. Los servicios remotos que eliges siguen recibiendo los datos necesarios para su parte de la solicitud.
 
@@ -105,15 +105,19 @@ El nivel anunciado en este documento resulta de una auditoría técnica completa
 - Una documentación que los controles mantienen verdadera: decisiones, mapas y cifras citadas se verifican contra sus fuentes en cada cambio.
 - Una entrega que ejecuta lo que ejecuta un desarrollador: una CI ligera sobre las mismas tareas, instalación y entrega probadas de forma hermética, migraciones repetidas desde una base vacía.
 
+**Corregido desde la auditoría — pendiente de la verificación de la próxima auditoría:**
+
+- Notificaciones que dicen la verdad: una notificación — de una llamada, de un mensaje entre conexiones, de un incidente — solo cuenta como entregada tras un éxito explícito y duradero.
+- Esperas acotadas: la base de datos corta una espera de bloqueo o una transacción inactiva antes de que pueda congelar una cuenta, y una renovación de token pertenece a un solo worker a la vez.
+- Un ciclo que se cierra: cada hallazgo se sigue en un registro público con su antigüedad, su plazo y su prueba, y el umbral de cobertura del backend se cumple sobre las suites unitarias y de integración juntas.
+- Alertas: cada combinación anunciada de canales de notificación está compuesta y probada, enrutamiento incluido.
+
 **Lo que queda por hacer — conocido, planificado:**
 
-- Estados duraderos que dicen la verdad: un documento reprocesado tras una toma de relevo debe quedar en manos de su propietario actual, y una notificación — de una llamada, de un mensaje entre conexiones, de un incidente — solo debe contar como entregada tras un éxito explícito.
-- Esperas acotadas: la base de datos debe cortar una espera de bloqueo o una transacción inactiva antes de que pueda congelar una cuenta, y una renovación de token debe pertenecer a un solo worker a la vez.
-- Un ciclo que se cierra: cada hallazgo seguido con su antigüedad y su plazo, y un margen de cobertura del backend restablecido.
-- Alertas: componer y probar cada combinación anunciada de canales de notificación, enrutamiento incluido.
+- Un documento reprocesado tras una toma de relevo debe quedar en manos de su propietario actual.
 - La deuda estructural absoluta — funciones centrales densas, dominios interdependientes, excepciones de tipado — reducida lote a lote, guiada por la medición.
 
-El plan de acción está organizado en olas, cada una con criterios de salida medibles. Es la forma de rendir cuentas de este proyecto: no un nivel proclamado, un nivel medido — desviaciones incluidas.
+El plan de acción está organizado en olas, cada una con criterios de salida medibles; la primera ya se ha entregado, y confirmar sus resultados corresponde a la próxima auditoría. Es la forma de rendir cuentas de este proyecto: no un nivel proclamado, un nivel medido — desviaciones incluidas.
 
 Esta exigencia tiene una consecuencia que el proyecto aprendió a su costa: **una suite de pruebas en verde no demuestra que una función sirva**. Demuestra que lo probado se comporta como está escrito. Los defectos que sobreviven a las barreras son precisamente aquellos por los que nunca se les preguntó — una capacidad que nadie invoca, una cifra que nadie suma, una guardia que reconoce un nombre en lugar de un mecanismo. Casi nunca son errores de código: son preguntas que nunca se habían hecho.
 

@@ -1981,7 +1981,92 @@
           "mode": "multi"
         }
       },
-      "description": "Every run of the proactive discussions producer (ADR-358), an opening run or a rebuild the person asked for. completed published (or rebuilt); skipped abstained or deferred on a backoff; failed and error need a look; controls_over_budget means the person's rules or recent replies cannot be read whole, so the run defers (ADR-359) until the reply guards lapse or memory acknowledges them."
+      "description": "Every run of the proactive discussions producer (ADR-358), an opening run or a rebuild the person asked for. completed published (or rebuilt); skipped abstained or deferred on a backoff; failed and error need a look; controls_over_budget means the person's rules or recent replies cannot be read whole, so the run defers (ADR-359) until the reply guards lapse or memory acknowledges them. A run that never started names why (ADR-358 amendment 2026-10-23 b): the first attention hold met (recent_turn, pending_opening — an opening still awaiting a reply —, recent_alert, recent_opening, reminder_due, turn_streaming, approval_pending), capability_disabled, claim_refused (window, pause, daily maximum, a deferral, a live lease), stale_claim, budget_exhausted or usage_limit_reached."
+    },
+    {
+      "id": 60,
+      "title": "Proactive discussions — execution tables (AC-034)",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 105
+      },
+      "panels": []
+    },
+    {
+      "id": 61,
+      "title": "Execution tables — size",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 106
+      },
+      "targets": [
+        {
+          "expr": "max by (table) (proactive_discussion_table_bytes)",
+          "legendFormat": "{{table}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "What the proactive discussions' execution tables occupy (audit AC-034a): runs, openings, outbox, spend reservations and budget buckets, which leave only with the account. No retention ships; it is decided on this figure (AC-034b). Bytes per table, indexes included (pg_total_relation_size)."
+    },
+    {
+      "id": 62,
+      "title": "Execution tables — rows",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 106
+      },
+      "targets": [
+        {
+          "expr": "max by (table) (proactive_discussion_table_rows)",
+          "legendFormat": "{{table}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "What the proactive discussions' execution tables occupy (audit AC-034a): runs, openings, outbox, spend reservations and budget buckets, which leave only with the account. No retention ships; it is decided on this figure (AC-034b). Rows per table: the planner's estimate, an exact count where it has none."
     }
   ]
 }

@@ -167,6 +167,12 @@ FERNET_KEY=fake-fernet
         # "Cannot find module .../copy-ort-runtime.mjs" (2026-10-01 deploy).
         New-Item -ItemType Directory (Join-Path $proj "apps/web/scripts") -Force | Out-Null
         Set-Content (Join-Path $proj "apps/web/scripts/copy-ort-runtime.mjs") "// ORT_SENTINEL"
+        # Modules the tests under src/ import, which `next build` type-checks:
+        # left out of the bundle, the build failed on "Cannot find module
+        # '../../scripts/double-cast.mjs'" (2026-10-24 deploy).
+        Set-Content (Join-Path $proj "apps/web/coverage-exclusions.mjs") "// COVERAGE_SENTINEL"
+        Set-Content (Join-Path $proj "apps/web/scripts/decision-points.mjs") "// DECISION_SENTINEL"
+        Set-Content (Join-Path $proj "apps/web/scripts/double-cast.mjs") "// CAST_SENTINEL"
 
         # Real git repo → prepare-prod's `git rev-parse HEAD` yields a
         # deterministic, assertable provenance SHA. autocrlf off: silence
@@ -696,6 +702,17 @@ Describe "deploy-prod.ps1 bundle + transfer sequence (hermetic, deploy step fail
         (Join-Path $prod "apps/web/scripts/copy-ort-runtime.mjs") | Should -Exist
         Get-Content (Join-Path $prod "apps/web/scripts/copy-ort-runtime.mjs") -Raw |
             Should -Match "ORT_SENTINEL"
+    }
+
+    It "stages the modules a type-checked file under src/ imports" {
+        # `next build` type-checks the tests under src/ too; the unit guard
+        # test_prepare_prod_web_imports_guard.py derives this list from their imports.
+        Get-Content (Join-Path $prod "apps/web/coverage-exclusions.mjs") -Raw |
+            Should -Match "COVERAGE_SENTINEL"
+        Get-Content (Join-Path $prod "apps/web/scripts/decision-points.mjs") -Raw |
+            Should -Match "DECISION_SENTINEL"
+        Get-Content (Join-Path $prod "apps/web/scripts/double-cast.mjs") -Raw |
+            Should -Match "CAST_SENTINEL"
     }
 
     It "stages every script apps/web's build command names" {

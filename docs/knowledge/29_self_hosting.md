@@ -24,7 +24,7 @@ It asks its questions — in English or French — then does the whole job in on
 • creates your administrator account and stores your provider keys encrypted
 • restarts the server so every process uses them, runs a verifier, and prints a report containing no secret
 
-**❓ What it asks:** how LIA will be reached, your administrator e-mail and name, the application's default language, a DeepSeek and an OpenAI key (the shipped configuration uses both; every model can be changed afterwards), an optional Google Gemini key (memory recall, searches by meaning and image analysis run on it; the final report says what stays degraded without it), and whether to enable a few optional features — the monitoring stack, self-diagnostics, the script sandbox, the Live voice mode, the personal radio and the speaking avatar. Each stays off unless you answer yes.
+**❓ What it asks:** how LIA will be reached, your administrator e-mail and name, the application's default language, a DeepSeek and an OpenAI key (the shipped configuration uses both; every model can be changed afterwards), an optional Google Gemini key (memory recall, searches by meaning and image analysis run on it; the final report says what stays degraded without it), and whether to enable a few optional features — the monitoring stack, self-diagnostics, the script sandbox, the Live voice mode, the personal radio and the speaking avatar. Each stays off unless you answer yes. It also offers two optional pairs of keys, each given whole or left empty: a Google Maps browser key with its Cloud map ID, for interactive place maps, and — when LIA is reached on a public domain — a Cloudflare Turnstile site key and secret key, for an anti-robot check on sign-up, sign-in and password reset.
 
 For an unattended install, the same answers can come from a file: `./install.sh --non-interactive --answers answers.env`. To change these choices later — how LIA is reached, the optional features — run `./install.sh --reconfigure`: each question shows the answer in force, which Enter keeps, and your data, keys, administrator and secrets stay as they are. Before anything changes, the settings your new answers would rewrite are listed with their current and new values, and nothing is applied unless you confirm; if the new configuration does not come back — or you interrupt it — the previous one is put back.
 
@@ -58,7 +58,7 @@ Yes, by construction.
 • **The resume state** keeps only non-secret facts and fingerprints
 • **An answers file** for an unattended install is read once, never copied, and refused if other users can read it
 
-Your administrator password must meet the instance's password policy; the installer states the rule when it asks.
+Your administrator password must meet the instance's password policy; the installer states the rule when it asks. An administrator account is never reset by email: if you forget its password, set a new one from the server with the `set_password` command the self-hosting guide gives (it also signs the account out of every device).
 
 One thing never to do: change the generated encryption key by hand. Everything encrypted with it would become unreadable.
 

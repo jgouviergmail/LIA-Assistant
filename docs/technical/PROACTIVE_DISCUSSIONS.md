@@ -29,12 +29,19 @@ the code's, so this page names settings and never restates their numbers.
    `DISCUSSION_DIRECTIVES_MAX_TOKENS` and live reply guards within
    `DISCUSSION_REPLY_GUARD_MAX_ROWS` and `DISCUSSION_REPLY_GUARD_MAX_TOKENS`, read
    whole or the run defers), the person's **attention** for an opening (no turn
-   written lately, no pending or recent opening, no reminder about to ring, no turn
-   streaming, no approval waiting — each delay a `DISCUSSION_ATTENTION_*` setting),
-   then the **claim** (one run per account, under a lease), the person's **usage
+   written lately, no opening still awaiting a reply — it holds the next one back for
+   `DISCUSSION_ATTENTION_UNANSWERED_OPENING_MINUTES`, never past its reply window
+   `DISCUSSION_OPENING_PENDING_HOURS` — no recent opening, no reminder about to ring,
+   no turn streaming, no approval waiting — each delay a `DISCUSSION_ATTENTION_*`
+   setting), then the **claim** (one run per account, under a lease), the person's **usage
    limit** — the verdict every model call asks, asked before any source is read: a
    refused run settles `usage_limit_reached` and the next tick asks again — and the
-   **reservation** (below).
+   **reservation** (below). A run refused before its claim writes no row: its outcome
+   on `proactive_discussion_runs_total` and the `discussion_run_not_started` log line
+   name why — the first attention hold met (`recent_turn`, `pending_opening`,
+   `recent_alert`, `recent_opening`, `reminder_due`, `turn_streaming`,
+   `approval_pending`), `capability_disabled` or `claim_refused` (the window, a pause,
+   the daily maximum, a deferral, a live lease, a rebuild no longer requested).
 3. **The context** is built (next section). A rebuild stops here. An opening run reads
    its facts again before and after each paid call and before its decision, one read
    per page and operation shared by the facts that ask for it; a rebuild does not,
@@ -50,8 +57,11 @@ the code's, so this page names settings and never restates their numbers.
 4. **The decision** (`discussion_decision` slot): engage, defer or skip, on the
    ready context and the openings already made (none is repeated).
 5. **The wording** (`discussion_message` slot), then **publication**: the opening is
-   archived in the conversation, and delivery starts at once, re-checking that its
-   proofs are still fresh (`DISCUSSION_DELIVERY_PROOF_MAX_AGE_MINUTES`, also the longest
+   archived in the conversation — an earlier opening still pending is closed first,
+   superseded once any reply written to it is bound (one past its reply window keeps its
+   deadline) — and delivery starts at
+   once, re-checking that its proofs are still fresh
+   (`DISCUSSION_DELIVERY_PROOF_MAX_AGE_MINUTES`, also the longest
    a delivery attempt may last before it is settled as uncertain) and its sources still
    allowed. The publication settles the run in its own transaction, so it writes the
    run's reason (`published`) and counts. A provider that asks to wait defers the run
@@ -84,11 +94,25 @@ while either panel is open, and the context list once a run updated it. Spending
 never quantified there: when one stops LIA, one sentence says which — the instance's
 daily budget, the person's usage limit, a run ceiling below one call, the account's
 day, the instance's day for discussions — in the order a run meets them, with the day
-it renews when it is a day.
+it renews when it is a day. Below it, when an opening still awaits a reply and holds the
+next one back, one sentence says since when and until when — read through the attention
+gate's own predicate (`unanswered_opening`), so the page never announces a wait no run
+would observe, nor hides one.
 
 ## The context
 
 ### Reading
+
+Before any page is read, the person's statements that restrict reading (« never read
+my SMS », in a procedural memory or a reply) are **compiled** into the sources they
+deny ([rule controls](../../apps/api/src/domains/proactive_discussions/rule_controls.py)),
+at most once per `DISCUSSION_RULE_CACHE_HOURS` for the same rules, sources and prompt.
+Every denial must quote the person's own words: one that does not refuses the whole
+compilation, and the run reads nothing and says so (`rules_refused`). The refusal is
+cached too — the same inputs are compiled again only after
+`DISCUSSION_RULE_REFUSAL_FIRST_WAIT_INTERVALS` tick intervals, then twice as long at
+each new refusal, up to `DISCUSSION_RULE_CACHE_HOURS` — so a tick never pays the
+compiler again for an answer it has just refused (ADR-359 amendment 2026-10-23).
 
 A pass reads the **recent page** of each readable source — a source the person
 allowed, the instance serves and the account can reach, with its dependencies; health
@@ -227,3 +251,10 @@ billed to the account like a run, its proposals prepared as the publication prep
 them, with nothing written to the discussion tables; `--paid-weather` reads the paid
 weather source as a run does
 ([harness](../../apps/api/scripts/proactive_discussions/measure_context.py)).
+
+What the **execution tables** occupy — runs, openings, outbox, spend reservations and
+budget buckets, which leave only with the account — is published per table on
+dashboard 13 (`proactive_discussion_table_rows`, `proactive_discussion_table_bytes`,
+read like the transparency registers: the planner's estimate, an exact count where it
+has none, the real size with its indexes). No retention ships and no growth alert: both
+are decided on that measurement (ADR-358 amendment 2026-10-23).

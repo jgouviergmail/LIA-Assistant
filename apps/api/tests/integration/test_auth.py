@@ -439,8 +439,10 @@ class TestPasswordReset:
         """Test resetting password with valid token."""
         from src.core.security import create_password_reset_token
 
-        # Create reset token
-        reset_token = create_password_reset_token(test_user.email)
+        # Create a reset token bound to the account and its password (ADR-363)
+        reset_token = create_password_reset_token(
+            test_user.email, user_id=test_user.id, hashed_password=test_user.hashed_password
+        )
 
         # Reset password
         response = await async_client.post(

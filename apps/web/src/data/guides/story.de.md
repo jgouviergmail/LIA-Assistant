@@ -4,7 +4,7 @@
 
 **Version**: 2.6
 **Datum**: 2026-10-23
-**Anwendung**: LIA v3.5.1
+**Anwendung**: LIA v3.6.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
 | Quellcodezeilen (ohne Tests) — 58 Fachdomänen | **1.003.000+** |
-| Inventarisierte automatisierte Tests; passende Suiten für Commit und Release | **66.000+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **360** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **287** |
+| Inventarisierte automatisierte Tests; passende Suiten für Commit und Release | **67.000+** |
+| Dokumentierte Architekturentscheidungen (ADR) | **362** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **288** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **7,8/10** |
 
@@ -70,7 +70,7 @@ Das Projekt wird inzwischen mit mehreren Entwicklungsagenten parallel geführt �
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 360 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 362 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Selbsthosting gibt dir die Kontrolle über den Server; Kontodaten liegen auf der Instanz und Konnektor-Zugangsdaten sind verschlüsselt. Die gewählten externen Dienste erhalten weiterhin die Daten, die sie für ihren Teil einer Anfrage benötigen.
 
@@ -105,15 +105,19 @@ Das in diesem Dokument beanspruchte Niveau stammt aus einem vollständigen techn
 - Eine Dokumentation, die Prüfungen wahr halten: Entscheidungen, Karten und zitierte Zahlen werden bei jeder Änderung gegen ihre Quellen geprüft.
 - Eine Auslieferung, die ausführt, was ein Entwickler ausführt: eine schlanke CI auf denselben Tasks, hermetisch getestete Installation und Auslieferung, Migrationen von einer leeren Datenbank aus wiederholt.
 
+**Seit dem Audit behoben — die Prüfung durch das nächste Audit steht aus:**
+
+- Benachrichtigungen, die die Wahrheit sagen: Eine Benachrichtigung — zu einem Anruf, einer Nachricht zwischen Verbindungen, einem Vorfall — gilt nur nach einem ausdrücklichen, dauerhaften Erfolg als zugestellt.
+- Begrenzte Wartezeiten: Die Datenbank bricht ein Warten auf eine Sperre oder eine untätige Transaktion ab, bevor sie ein Konto einfrieren kann, und eine Token-Erneuerung gehört immer nur einem Worker.
+- Eine Schleife, die sich schließt: Jeder Befund wird in einem öffentlichen Register mit seinem Alter, seiner Frist und seinem Nachweis verfolgt, und die Mindestabdeckung des Backends gilt für die Unit- und Integrationssuiten zusammen.
+- Alarme: Jede angekündigte Kombination von Benachrichtigungskanälen ist zusammengesetzt und getestet, Routing inklusive.
+
 **Was noch zu tun ist — bekannt, geplant:**
 
-- Dauerhafte Zustände, die die Wahrheit sagen: Ein nach einer Übernahme neu verarbeitetes Dokument muss bei seinem aktuellen Eigentümer bleiben, und eine Benachrichtigung — zu einem Anruf, einer Nachricht zwischen Verbindungen, einem Vorfall — darf nur nach einem ausdrücklichen Erfolg als zugestellt gelten.
-- Begrenzte Wartezeiten: Die Datenbank muss ein Warten auf eine Sperre oder eine untätige Transaktion abbrechen, bevor sie ein Konto einfrieren kann, und eine Token-Erneuerung darf immer nur einem Worker gehören.
-- Eine Schleife, die sich schließt: jeder Befund mit seinem Alter und seiner Frist verfolgt, und eine wiederhergestellte Reserve der Backend-Abdeckung.
-- Alarme: jede angekündigte Kombination von Benachrichtigungskanälen zusammensetzen und testen, Routing inklusive.
+- Ein nach einer Übernahme neu verarbeitetes Dokument muss bei seinem aktuellen Eigentümer bleiben.
 - Die absolute Strukturschuld — dichte zentrale Funktionen, voneinander abhängige Domänen, Typisierungsausnahmen — Schritt für Schritt abbauen, gesteuert durch Messung.
 
-Der Maßnahmenplan ist in Wellen organisiert, jede mit messbaren Abschlusskriterien. So legt dieses Projekt Rechenschaft ab: kein proklamiertes Niveau, ein gemessenes — Lücken inklusive.
+Der Maßnahmenplan ist in Wellen organisiert, jede mit messbaren Abschlusskriterien; die erste ist ausgeliefert, und ihre Ergebnisse zu bestätigen, bleibt dem nächsten Audit überlassen. So legt dieses Projekt Rechenschaft ab: kein proklamiertes Niveau, ein gemessenes — Lücken inklusive.
 
 Dieser Anspruch hat eine Folge, die das Projekt auf die harte Tour gelernt hat: **Eine grüne Testsuite beweist nicht, dass eine Funktion funktioniert.** Sie beweist, dass sich das Getestete so verhält, wie es geschrieben wurde. Die Fehler, die die Prüfungen überleben, sind genau jene, nach denen nie gefragt wurde — eine Fähigkeit, die niemand aufruft, eine Zahl, die niemand zusammenzählt, eine Wache, die einen Namen erkennt statt eines Mechanismus. Das sind fast nie Programmierfehler: Es sind Fragen, die nie gestellt worden waren.
 

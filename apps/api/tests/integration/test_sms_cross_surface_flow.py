@@ -155,7 +155,7 @@ async def test_one_source_has_consistent_archive_tools_relations_home_delivery_a
     sent = await ProactiveTaskRunner(task, dispatcher=dispatch)._dispatch_notification(
         user, result, target, db
     )
-    assert sent.success and "10h30" in dispatch._send_fcm.await_args.kwargs["body"]
+    assert sent.durably_delivered and "10h30" in dispatch._send_fcm.await_args.kwargs["body"]
     dispatch._send_channels.assert_awaited_once()
     await task.on_notification_sent(user.id, target, result)
     assert await fetch_sms_context(user.id, user, settings) is None

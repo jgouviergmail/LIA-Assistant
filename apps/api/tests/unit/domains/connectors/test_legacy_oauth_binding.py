@@ -6,7 +6,6 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 from uuid import UUID
 
-import httpx
 import pytest
 from langchain_core.messages import AIMessage
 
@@ -24,8 +23,12 @@ from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
 from src.domains.connectors.discussion_authority import require_reader_authority
 from src.domains.connectors.legacy_oauth_binding import bind_legacy_oauth_account
 from src.domains.connectors.models import Connector, ConnectorStatus, ConnectorType
+from src.domains.connectors.oauth_refresh import ensure_fresh_credentials
+from src.domains.connectors.oauth_refresh_exchange import RefreshedToken
+from src.domains.connectors.oauth_refresh_targets import legacy_connector_target
 from src.domains.connectors.schemas import ConnectorCredentials
 from src.domains.connectors.service import ConnectorService
+from tests.helpers.oauth_refresh_io import install_scripted_door
 
 pytestmark = pytest.mark.unit
 USER = UUID(int=1)
@@ -188,33 +191,19 @@ async def test_real_legacy_refresh_preserves_binding_after_database_round_trip(
     row = connector(current, provider=provider)
     service = install_service(row)
     original = await service.get_connector_credentials(USER, provider)
-    http = AsyncMock()
-    http.__aenter__.return_value = http
-    response = {"access_token": "new-access", "expires_in": 3600}
-    if rotate_refresh:
-        response["refresh_token"] = "legitimately-rotated-refresh"
-    http.post.return_value = httpx.Response(200, json=response)
-    monkeypatch.setattr("src.domains.connectors.service.httpx.AsyncClient", lambda **kwargs: http)
-    monkeypatch.setattr(
-        service,
-        "_get_oauth_refresh_config",
-        lambda _: {
-            "client_id": "client",
-            "client_secret": "secret",
-            "include_scope": False,
-            "token_url": "https://oauth.example.test/token",
-        },
+    install_scripted_door(
+        monkeypatch,
+        row,
+        answer=RefreshedToken(
+            access_token="new-access",
+            refresh_token="legitimately-rotated-refresh" if rotate_refresh else "old-refresh",
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+            reported_scopes=frozenset(),
+        ),
     )
-    monkeypatch.setattr(
-        "src.domains.connectors.service.invalidate_oauth_connector_cache", AsyncMock()
-    )
-
-    async def update(row, encrypted):
-        row.credentials_encrypted = encrypted
-        return row
-
-    service.repository.update_credentials.side_effect = update
-    refreshed = await service._refresh_oauth_token(row, original)
+    # Forced: the token is valid for an hour, and the rotation is what is under test.
+    target = legacy_connector_target(row)
+    refreshed = await ensure_fresh_credentials(target, current=target.stored(row), force=True)
     assert refreshed.account_binding == original.account_binding
     stored = ConnectorCredentials.model_validate_json(decrypt_data(row.credentials_encrypted))
     assert stored.account_binding is None
@@ -227,14 +216,16 @@ async def test_real_legacy_refresh_preserves_binding_after_database_round_trip(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("provider", [ConnectorType.GOOGLE_GMAIL, ConnectorType.MICROSOFT_OUTLOOK])
 @pytest.mark.parametrize("expired", [False, True])
-async def test_reconnected_legacy_account_is_refused_before_any_provider_action(provider, expired):
+async def test_reconnected_legacy_account_is_refused_before_any_provider_action(
+    provider, expired, monkeypatch
+):
     original_credentials = ConnectorCredentials(
         access_token="old-access", refresh_token="first-account"
     )
     row = connector(original_credentials, provider=provider)
     service = install_service(row)
     original = await service.get_connector_credentials(USER, provider)
-    service._refresh_oauth_token = AsyncMock()
+    door = install_scripted_door(monkeypatch, row)
     # A fresh OAuth callback supplies no stored generation, even on the same row.
     row.credentials_encrypted = encrypt_data(
         ConnectorCredentials(
@@ -257,7 +248,7 @@ async def test_reconnected_legacy_account_is_refused_before_any_provider_action(
         with pytest.raises(CardCompositionUnavailable):
             await service.get_connector_credentials(USER, provider)
         service.repository.update_credentials.assert_not_awaited()
-        service._refresh_oauth_token.assert_not_awaited()
+        assert door.exchanged == []
     finally:
         card_composition_ctx.reset(token)
 

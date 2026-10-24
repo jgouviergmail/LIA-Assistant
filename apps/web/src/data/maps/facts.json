@@ -1,7 +1,7 @@
 {
-  "version": "3.5.1",
-  "releaseDate": "2026-10-23",
-  "releases": 287,
+  "version": "3.6.0",
+  "releaseDate": "2026-10-24",
+  "releases": 288,
   "milestones": [
     {
       "version": "1.0.0",
@@ -248,12 +248,12 @@
       "date": "2026-10-23"
     },
     {
-      "version": "3.5.1",
-      "date": "2026-10-23"
+      "version": "3.6.0",
+      "date": "2026-10-24"
     }
   ],
   "domains": 58,
-  "infra": 54,
+  "infra": 55,
   "adrFiles": {
     "1": "ADR-001-LangGraph-Orchestration.md",
     "2": "ADR-002-BFF-Pattern-Authentication.md",
@@ -614,6 +614,8 @@
     "359": "ADR-359-Longitudinal-Discussion-Context-And-User-Control.md",
     "360": "ADR-360-Bounded-Discussion-Research-And-Accounted-Abstention.md",
     "361": "ADR-361-Egress-Probe-Names-The-Failing-Step-And-Confirms-A-Cut.md",
-    "362": "ADR-362-Claude-Cross-Turn-Cache-History-Read-Point-Hour-Lifetime-And-Prior-Thinking.md"
+    "362": "ADR-362-Claude-Cross-Turn-Cache-History-Read-Point-Hour-Lifetime-And-Prior-Thinking.md",
+    "363": "ADR-363-Password-Reset-Bounded-Per-Account-And-Bound-To-It.md",
+    "364": "ADR-364-Turnstile-Bot-Check-On-The-Password-Doors.md"
   }
 }

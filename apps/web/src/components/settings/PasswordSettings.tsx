@@ -22,16 +22,45 @@ import { useApiQuery } from '@/hooks/useApiQuery';
 import { usePasskeys } from '@/hooks/useWebAuthn';
 import { logger } from '@/lib/logger';
 
+/** What a reset request leaves the account once it holds no password (ADR-363). */
+type PasswordRecovery = 'email_link' | 'provider' | 'none';
+
 interface StepUpStatus {
   methods: string[];
   password_set: boolean;
   step_up_valid_until: string | null;
+  password_recovery: PasswordRecovery;
+  sign_in_provider: string | null;
 }
 
 /**
+ * The way back the copy states, beside a password already off and in the
+ * dialog that turns one off: the provider the account signs in with (an
+ * administrator's included), nothing for an administrator without one,
+ * otherwise the email reset link.
+ */
+function wayBack(status: StepUpStatus | undefined): PasswordRecovery {
+  if (status?.sign_in_provider) return 'provider';
+  return status?.password_recovery === 'none' ? 'none' : 'email_link';
+}
+
+const OFF_DESCRIPTION: Record<PasswordRecovery, string> = {
+  email_link: 'settings.security.password.description_disabled',
+  provider: 'settings.security.password.description_provider',
+  none: 'settings.security.password.description_no_recovery',
+};
+
+const DISABLE_DESCRIPTION: Record<PasswordRecovery, string> = {
+  email_link: 'settings.security.password.disable_description',
+  provider: 'settings.security.password.disable_description_provider',
+  none: 'settings.security.password.disable_description_no_recovery',
+};
+
+/**
  * Password sign-in block (arbitration A8): explicit disabling, allowed only
- * with ≥ 2 active passkeys, behind a fresh step-up. Email reset remains the
- * documented recovery path — stated in the UI copy, never silent.
+ * with ≥ 2 active passkeys, behind a fresh step-up. What remains to recover
+ * the account is the reset decision's own answer (ADR-363), read from the
+ * step-up status and stated in the UI copy, never silent.
  */
 export function PasswordSettings() {
   const { t } = useTranslation();
@@ -45,6 +74,8 @@ export function PasswordSettings() {
 
   const passwordSet = Boolean(status?.password_set);
   const eligible = passwordSet && passkeys.length >= 2;
+  const recovery = wayBack(status);
+  const withProvider = { provider: status?.sign_in_provider ?? '' };
 
   const handleDisable = async () => {
     setBusy(true);
@@ -81,7 +112,7 @@ export function PasswordSettings() {
           <p className="text-sm text-muted-foreground">
             {passwordSet
               ? t('settings.security.password.description_enabled')
-              : t('settings.security.password.description_disabled')}
+              : t(OFF_DESCRIPTION[recovery], withProvider)}
           </p>
           {passwordSet && !eligible && (
             <p className="text-xs text-muted-foreground">
@@ -107,7 +138,7 @@ export function PasswordSettings() {
           <AlertDialogHeader>
             <AlertDialogTitle>{t('settings.security.password.disable_title')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t('settings.security.password.disable_description')}
+              {t(DISABLE_DESCRIPTION[recovery], withProvider)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

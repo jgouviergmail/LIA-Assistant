@@ -795,7 +795,7 @@
         {
           "id": 18,
           "type": "timeseries",
-          "title": "Tx Duration P95",
+          "title": "Tx Duration P95 / P99.9",
           "datasource": {
             "type": "prometheus",
             "uid": "$datasource"
@@ -811,6 +811,11 @@
               "expr": "histogram_quantile(0.95, sum by (le) (rate(db_transaction_duration_seconds_bucket[$__rate_interval])))",
               "legendFormat": "Tx P95",
               "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.999, sum by (le) (rate(db_transaction_duration_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "Tx P99.9",
+              "refId": "B"
             }
           ],
           "fieldConfig": {
@@ -828,7 +833,7 @@
               "placement": "bottom"
             }
           },
-          "description": "Database transaction duration (session start to commit). Shown: p95 percentile."
+          "description": "Database transaction duration (session start to commit). Shown: p95 and p99.9. The buckets reach 600 s since AC-028, so the tail the idle-in-transaction bound acts on has a length (it stopped at 10 s before)."
         },
         {
           "id": 19,
@@ -981,6 +986,48 @@
             }
           },
           "description": "Size of checkpoints table in bytes."
+        },
+        {
+          "id": 31,
+          "type": "timeseries",
+          "title": "Bounds reached (by bound)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 75
+          },
+          "targets": [
+            {
+              "expr": "sum by (bound) (increase(db_bound_reached_total[$__rate_interval])) or vector(0)",
+              "legendFormat": "{{bound}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "noValue": "0",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "Statements or sessions the application engine's PostgreSQL bounds ended (AC-028). lock_timeout = a statement waited for a lock past DATABASE_LOCK_TIMEOUT_MS; idle_in_transaction_timeout = a session sat idle inside a transaction past DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS and the server ended it (ADR-304); statement_timeout = a statement outlived a timeout its own caller set. Expected 0: each one names a caller to fix (database_bound_reached in the API log)."
         }
       ]
     },

@@ -60,6 +60,9 @@ SECRETS = {
     "provider_key_gemini": "",
     "maps_browser_key": "",
     "maps_map_id": "",
+    # Asked on a domain exposure only (ADR-364), left empty: skipped.
+    "turnstile_site_key": "",
+    "turnstile_secret_key": "",
 }
 
 

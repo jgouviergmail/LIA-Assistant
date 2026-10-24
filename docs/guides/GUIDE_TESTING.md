@@ -1,7 +1,6 @@
 # Guide Pratique : Tests et Qualité
 
 **Version** : 1.2
-**Dernière mise à jour** : 2026-03-08
 **Statut** : ✅ Stable
 
 ---
@@ -2071,59 +2070,93 @@ invocation pytest sans `--no-cov`. Pour lancer un sous-ensemble de tests
 (un fichier, un dossier), ajoutez `--no-cov` — sinon la couverture du
 sous-ensemble échoue mécaniquement sous le seuil global.
 
-### Doctrine du seuil de couverture (ratchet)
+### Doctrine des planchers de couverture (cliquet)
 
-Le seuil CI est un **cliquet** (ratchet) : il ne descend jamais, et on le
-**relève après tout lot améliorant la couverture** (ainsi qu'à chaque release)
-pour verrouiller les gains, tant que l'objectif de 75 % n'est pas atteint
-(recommandation n°4 de l'audit 2026-07 : paliers 43→55→65→75). Verrouiller les
-acquis est une règle systématique, pas un rituel de release.
+Cette section est la **seule** formulation de la règle. Elle vaut pour le
+backend comme pour le frontend. `CLAUDE.md` la résume et y renvoie. Les
+commentaires de `apps/api/pyproject.toml`, de `Taskfile.yml` et de
+`apps/web/vitest.config.mts` pointent ici sans la réécrire.
 
-Règles :
-1. Le seuil a **une seule source de vérité** : `apps/api/pyproject.toml`
-   (addopts). Il est répété une fois, dans la tâche `test:backend:unit:coverage`
-   du `Taskfile.yml` — que la CI appelle telle quelle (ADR-151), donc il n'y a
-   plus de valeur dans `ci.yml`. Deux gardes tiennent cette unicité, chacune sur
-   son versant :
-   `test_task_ci_pytest_parity_guard.py::test_coverage_threshold_has_a_single_source_of_truth`
-   pour les fichiers de **configuration**, et `scripts/audit/doc_facts.py`
-   (`task lint:docs`) pour la **documentation** — sans cette seconde, six
-   documents ont annoncé six valeurs fausses différentes pendant des mois.
-2. On ne monte le seuil que si la couverture réelle mesurée en CI laisse
-   **au moins 2 points de marge** (éviter les échecs de CI sur variance).
-3. Baisser le seuil est interdit — si une PR fait chuter la couverture sous
-   le gate, c'est la PR qu'on corrige, pas le gate.
-4. Historique : 43 % (baseline audit) → 45 % (v1.21.22, couverture réelle
-   mesurée : 52,3 %) → 58 % (2026-07-24, réel 62,5 % sur le sous-ensemble gated
-   fast-unit) → 59 % (2026-07-24, réel 62,79 % — 13 016 tests) → 60 %
-   (2026-07-25, réel 63,16 % — 13 422 tests) → 61 % (2026-07-25, réel 63,67 %
-   — 13 737 tests) → **62 % (2026-07-26, réel 64,13 % — 14 058 tests dans le sous-ensemble gated)**.
-   Re-mesuré le 2026-07-28 : réel 64,98 % (14 688 tests dans le sous-ensemble
-   gated) — le plancher reste à 62 %, le passer à 63 % ne laisserait que 1,98 pt
-   de marge. → **63 % (2026-07-30, réel 65,22 % — 14 938 tests dans le
-   sous-ensemble gated, programme peers Lots 1-7)**. → **64 % (2026-08-01, réel
-   66,09 % — 15 719 tests dans le sous-ensemble gated, programme Relations /
-   Pairs / 360° + ADR-193)** : le seuil de déclenchement annoncé au palier
-   précédent (~66 %) est atteint, la marge retombe à 2,09 pt. Palier suivant
-   65 % dès que le réel dépasse ~67 %. → **65 % (2026-08-06, réel 68,16 % —
-   17 026 tests dans le sous-ensemble gated, programme démonstrateur libre
-   lots 1-6 / ADR-216→218)** : le déclencheur annoncé (~67 %) est franchi, la
-   marge reste à 3,16 pt. Palier suivant 66 % dès que le réel dépasse ~70 %.
-   → **66 % (2026-08-16, v1.30.1)** → **67 % (2026-08-19, v1.30.12)**, les deux
-   paliers suivants, relevés selon la même règle des 2 points de marge.
-   Re-mesuré le **2026-08-27 : réel 70,04 %** (19 277 tests du sous-ensemble
-   gated, mesure locale Windows). Le plancher **reste à 67 %** : le passer à
-   68 % ne laisserait que 2,04 pt, sous la marge d'environ 4 points que le
-   paragraphe suivant explique — un gate plus serré rougirait la CI sur l'écart
-   de plateforme, sans régression réelle.
-   Re-mesuré le **2026-08-30 : réel 70,06 %** (19 529 tests du sous-ensemble
-   gated, v1.38.1). Le plancher **reste à 67 %**, pour la raison ci-dessus et
-   non par oubli : le réel n'a bougé que de 0,02 pt en trois jours, donc la
-   marge n'a pas changé non plus.
+1. **Un plancher ne descend jamais.** Si une modification fait passer la
+   couverture sous le plancher, c'est la modification qu'on corrige, pas le
+   plancher.
+2. **On le relève après tout travail qui améliore la couverture**, pour
+   verrouiller l'acquis. C'est une règle de chaque lot, pas un rituel de
+   release. Le nouveau plancher vaut la partie entière de *mesure − 2* : il
+   garde au moins 2 points de marge sous la valeur mesurée. Pour le frontend,
+   la règle s'applique axe par axe (statements, branches, functions, lines).
+3. **La mesure porte sur la population du gate**, jamais un sous-ensemble : un
+   sous-ensemble ne mesure pas ce que le gate protège.
+   - **Backend** : ce que les tests unitaires **et** les tests d'intégration
+     exécutent ensemble (AC-030b, décision du propriétaire du 2026-10-23) —
+     `task test:backend:unit:coverage` et `task test:backend:integration`
+     mesurent chacune dans son fichier de données, `task test:backend:coverage`
+     les combine et applique le plancher. Mesuré le 2026-10-23 : les tests
+     unitaires seuls couvraient 78,98 % de `src`, et les domaines adossés à
+     PostgreSQL restaient loin sous le plancher (sms 53,6 %, discussions
+     proactives 70,7 %), alors que leurs tests d'intégration les couvraient à
+     92,1 % et 82,4 %. Monter ces domaines au plancher en unitaire aurait exigé
+     de simuler PostgreSQL, ce que les règles de test interdisent.
+   - **Frontend** : la commande exacte de `task test:frontend:coverage`.
+4. **Un plancher a une seule source.**
+   - **Backend** : `--cov-fail-under` dans `apps/api/pyproject.toml`
+     (`addopts`), répété une seule fois dans la tâche `test:backend:coverage`
+     du `Taskfile.yml` (`coverage report --fail-under`), que la CI appelle
+     telle quelle (ADR-151) ; les commandes qui mesurent passent la sentinelle
+     `--cov-fail-under=0`, qui n'énonce aucun plancher. Deux gardes tiennent
+     cette unicité :
+     `test_task_ci_pytest_parity_guard.py::test_coverage_threshold_has_a_single_source_of_truth`
+     pour la configuration, et `scripts/audit/doc_facts.py` (`task lint:docs`)
+     pour la documentation.
+   - **Frontend** : `coverage.thresholds` dans `apps/web/vitest.config.mts`. Ce
+     bloc porte le plancher global et les verrous par glob.
+5. **Le code modifié est couvert au moins au plancher** (backend, AC-030a). Un
+   plancher global laisse passer du code neuf sous lui sans que le total le
+   montre. `task test:backend:diff-coverage` mesure donc les lignes qu'une
+   modification ajoute ou change sous `apps/api/src`, et que la couverture compte
+   comme exécutables, contre le plancher de `apps/api/pyproject.toml`. La tâche
+   lit le `coverage.xml` de `task test:backend:coverage` (les deux suites : une
+   ligne que l'une ou l'autre exécute est couverte) et refuse un rapport plus
+   ancien que la modification. Ce rapport est daté de la combinaison, non de la
+   mesure : en local, après une modification, relancer les deux suites (`task ci`
+   le fait) avant de s'y fier. La CI l'appelle juste après le plancher, et
+   `task ci` aussi ; `task ci:fast`, sans services, ne tient ni l'un ni
+   l'autre.
 
-   La marge volontairement conservée (~4 pts) couvre l'écart entre la mesure
-   locale (Windows) et le runner CI (Linux) : quelques branches dépendent de la
-   plateforme, et un gate trop serré rougirait la CI sans régression réelle.
+Les planchers en vigueur, que `doc_facts` tient à jour (une citation qui
+s'écarte de sa source fait échouer `task lint:docs`) :
+
+- backend : `--cov-fail-under=78` ;
+- frontend, plancher global : statements 85 / branches 80 / functions 83 / lines 87.
+
+**Écart de plateforme, mesuré.** Le 2026-10-22, la CI Linux a mesuré 78,67 %
+sur le commit `3c6795d4b`. Le même jour, la mesure locale sous Windows donnait
+78,66 à 78,67 %. L'écart se compte donc en centièmes de point, et la marge de
+2 points l'absorbe. Les paliers d'août invoquaient une marge « d'environ
+4 points » pour cet écart. Elle n'est plus appliquée depuis le palier à 68 %
+(2026-09-01), et la mesure du 2026-10-22 ne la justifie pas.
+
+#### Historique des paliers backend
+
+Chaque valeur est celle de sa date : rien ici ne décrit l'état courant.
+
+43 % (référence de l'audit 2026-07) → 45 % (v1.21.22, réel 52,3 %) → 58 %
+(2026-07-24, réel 62,5 %) → 59 % (2026-07-24, réel 62,79 %) → 60 %
+(2026-07-25, réel 63,16 %) → 61 % (2026-07-25, réel 63,67 %) → 62 %
+(2026-07-26, réel 64,13 %) → 63 % (2026-07-30, réel 65,22 %) → 64 %
+(2026-08-01, réel 66,09 %) → 65 % (2026-08-06, réel 68,16 %) → 66 %
+(2026-08-16, v1.30.1) → 67 % (2026-08-19, v1.30.12) → 68 % (2026-09-01,
+v1.38.3) → 69 % (2026-09-03, v1.39.1) → 70 % (2026-09-05) → 71 % (2026-09-09,
+v1.43.2) → 72 % (2026-09-11, v1.44.2) → 73 % (2026-09-16, v1.45.0) → 74 %
+(2026-09-24, v1.47.2) → 75 % (2026-09-28, v2.0.0) → 77 % (2026-09-29) → 78 %
+(2026-10-04, réel 80,36 %).
+
+- Le 2026-09-28, le palier atteint l'objectif de 75 % que fixait la
+  recommandation n° 4 de l'audit 2026-07.
+- Les 2026-08-27 et 2026-08-30, le plancher est resté à 67 % (réel 70,04 %
+  puis 70,06 %), au nom de la marge d'environ 4 points évoquée plus haut.
+- À partir de 68 %, les dates sont celles des commits qui ont modifié
+  `--cov-fail-under` (`git log -G` sur `apps/api/pyproject.toml`).
 
 ### Exécuter Coverage
 
@@ -2162,7 +2195,7 @@ TOTAL                                       311     19    94%
 
 **Objectifs par zone** — ce sont des **cibles de revue**, à ne pas confondre
 avec le **plancher appliqué** (une garantie mécanique, déclarée dans
-`apps/api/pyproject.toml` et rappelée dans la doctrine ratchet ci-dessus) :
+`apps/api/pyproject.toml` et régie par la doctrine des planchers ci-dessus) :
 
 - **100 % modules cœur** : config, security, auth
 - **≥ 90 % agents** : nodes, services, tools
@@ -2172,15 +2205,20 @@ Une cible non atteinte se discute en revue ; le plancher, lui, rougit la CI.
 
 ### Coverage en CI
 
-Le job `test-backend` archive le rapport XML dans l’artifact GitHub Actions
-`backend-coverage`. Le job frontend archive le rapport JSON dans
+Le job `test-backend-coverage` archive le rapport XML des deux suites dans
+l’artifact GitHub Actions `backend-coverage` ; les jobs `test-backend` et
+`test-backend-integration` lui passent leurs fichiers de données
+(`backend-coverage-unit`, `backend-coverage-integration`, un jour de
+conservation). Le job frontend archive le rapport JSON dans
 `frontend-coverage`. Conservés sept jours, avec archivage tenté même après un échec des
 tests, ces artifacts sont téléchargeables depuis le run ; leur absence fait
 échouer l’archivage. Les seuils bloquants restent ceux de
-`task test:backend:unit:coverage` et `task test:frontend:coverage` et de leurs
-configurations (voir la doctrine ratchet ci-dessus). Pour reproduire la
-couverture backend en local, lancer la première tâche ;
-`test:backend:unit:fast` ne mesure pas la couverture.
+`task test:backend:coverage` et `task test:frontend:coverage` et de leurs
+configurations (voir la doctrine des planchers ci-dessus). Pour reproduire la
+couverture backend en local, lancer `task test:backend:unit:coverage`, puis
+`task test:backend:integration` (PostgreSQL et Redis jetables), puis
+`task test:backend:coverage` ; `test:backend:unit:fast` ne mesure pas la
+couverture.
 
 ---
 
@@ -2194,10 +2232,12 @@ Lancer la tâche en local, c'est exécuter littéralement ce que la CI exécute.
 
 | Job CI | Tâche appelée | Sélection | Gate |
 |---|---|---|---|
-| `test-backend` | `task test:backend:unit:coverage` | `tests/unit/`, `-m "not integration and not slow and not e2e and not benchmark and not multiprocess"` | Coverage floor declared by `Taskfile.yml` and `apps/api/pyproject.toml` |
+| `test-backend` | `task test:backend:unit:coverage` | `tests/unit/`, `-m "not integration and not slow and not e2e and not benchmark and not multiprocess"`, données dans `.coverage-unit` | tests verts |
 | `test-backend` (step 2) | `task test:backend:agents` | `tests/agents/`, `-m "not slow and not e2e and not benchmark and not multiprocess"`, `--no-cov` | tests verts |
 | `test-backend` (step 3) | `task test:markers` | tous les nodeids + leurs markers | aucun test ne tourne dans **zéro** job (F006) |
-| `test-backend-integration` | `task test:backend:integration` | `tests/integration/`, **puis** les tests marqués `integration` sous `tests/unit`/`tests/agents` (F006), `--no-cov` | tests verts |
+| `test-backend-integration` | `task test:backend:integration` | `tests/integration/`, **puis** les tests marqués `integration` sous `tests/unit`/`tests/agents` (F006), données dans `.coverage-integration` | tests verts |
+| `test-backend-coverage` | `task test:backend:coverage` | les deux fichiers de données, combinés strictement | Coverage floor declared by `Taskfile.yml` and `apps/api/pyproject.toml` |
+| `test-backend-coverage` (step 2) | `task test:backend:diff-coverage` | les lignes modifiées sous `apps/api/src` depuis la base (`DIFF_COVERAGE_BASE`), lues dans le `coverage.xml` de l'étape 1 | couvertes au moins au plancher |
 
 > Le job `python-compat` (Python 3.13, F041) a été retiré par l'ADR-241 : sous le
 > contrat mono-version (`>=3.14,<3.15`), `test-backend` prouve l'unique
@@ -2230,8 +2270,11 @@ Points structurants :
 Ce ne sont pas des « équivalents » : ce sont les mêmes commandes.
 
 ```bash
-# Suite unit AVEC couverture et le plancher CI — ce que fait le job test-backend
+# Le plancher CI, sur les deux suites — ce que font les jobs test-backend,
+# test-backend-integration et test-backend-coverage
 task test:backend:unit:coverage
+task test:backend:integration
+task test:backend:coverage
 
 # Variante rapide du hook pre-commit : xdist, sans couverture.
 # Utile pour itérer, MAIS elle ne reproduit pas le gate de couverture.
@@ -2690,7 +2733,7 @@ Les six causes rencontrées ici, par fréquence décroissante :
 | Session `AsyncSession` partagée entre tâches concurrentes | `InterfaceError`, `already in use` | règle systémique CLAUDE.md — une session par tâche |
 | Override de connexion posé pour tout le PROCESSUS | échecs par **lot** sous `--dist loadscope`, verts en isolation | fixture `psycopg_url_from_settings` (`tests/conftest.py`), dont le docstring décrit le cas mesuré |
 | Horloge ou fuseau réels | échoue à certaines heures seulement | `datetime.now(UTC)` + horloge injectée |
-| Le temps pris pour un oracle | échoue seulement sur un hôte chargé (la suite parallèle elle-même), vert seul | ordonner par événements (`asyncio.Event`), jamais par `sleep` ; mesurer une croissance au CPU du **thread** (`tests/support/thread_clock.py`), en paires alternées dont la médiane décide ; dimensionner un garde-fou de blocage comme tel, jamais comme un budget de vitesse |
+| Le temps pris pour un oracle | échoue seulement sur un hôte chargé (la suite parallèle elle-même), vert seul | ordonner par événements (`asyncio.Event`) ou attendre la condition elle-même, jamais un `sleep` fixe ; mesurer une croissance avec la mesure unique `tests/support/cpu_growth.py` (CPU du **thread**, paires alternées dont la médiane décide, planchers) ; dimensionner un garde-fou de blocage comme tel, jamais comme un budget de vitesse |
 | Le pas d'horloge du système de fichiers | un cas « fichier modifié » voit le fichier intact, surtout sous Windows, vert sous Linux | une modification « postérieure à l'observation » s'écrit avec `rewrite_later` (`tests/support/file_clock.py`) : les nouveaux octets, puis une date de modification au-delà de tout tick |
 
 Le temps mural compte comme du travail l'attente d'un processeur : mesuré le
@@ -2700,7 +2743,14 @@ Windows, `time.thread_time()` lit `GetThreadTimes()`, qui avance par ticks de
 15,6 ms (un appel de 9 ms y vaut 0 ou 15,6 ms) : `thread_clock` lit le
 compteur de cycles du thread (`QueryThreadCycleTime`), précis, et
 `time.thread_time()` ailleurs. Pour reproduire, saturer tous les cœurs (un
-processus occupé par cœur logique) pendant que le test tourne.
+processus occupé par cœur logique) pendant que le test tourne. Les gardes de
+linéarité partagent une seule mesure (`tests/support/cpu_growth.py`, audit
+A12) : une copie qui chronométrait un seul appel par taille sur
+`time.thread_time()` jugeait du bruit sous Windows. Sa limite est écrite : un
+témoin dont le petit passage tombe sous `SMALL_FLOOR_SECONDS` est lu comme ce
+plancher, et une fonction quadratique n'y est refusée qu'à partir de seize
+planchers au grand passage (mesuré : 1,5 ms → 26,5 ms lu ×5,3, un succès) —
+dimensionner les témoins en conséquence.
 
 Les vérifications de fichiers stockés (`LocalFileRead.identity_digest`)
 reconnaissent un fichier à son identité `stat` : périphérique, inode, taille,
@@ -3050,14 +3100,11 @@ pnpm test:coverage       # avec couverture + application des seuils
 # Toujours utiliser le script dédié `pnpm test:coverage`.
 ```
 
-### Seuils de couverture (doctrine ratchet)
+### Seuils de couverture
 
-Les seuils vivent dans `apps/web/vitest.config.mts` (`coverage.thresholds`) et suivent la même doctrine ratchet que le gate backend :
+Les seuils vivent dans `apps/web/vitest.config.mts` (`coverage.thresholds`). Ils suivent la [doctrine des planchers de couverture](#doctrine-des-planchers-de-couverture-cliquet), commune au backend et au frontend, où le plancher global en vigueur est cité.
 
-- **Seuils fixés juste sous la valeur mesurée** au moment du verrouillage — jamais à l'aveugle.
-- **Ils ne montent que lorsque de nouveaux tests arrivent, et ne descendent jamais** : baisser un seuil pour faire passer la CI est une régression à corriger, pas un réglage.
-- Les zones critiques (reducers, sse-handlers, stores) sont **verrouillées à 100 %** par des seuils par glob ; un plancher global bas protège le reste.
-- **Plancher global courant** (re-mesuré 2026-07-28, 3 769 tests / 303 fichiers) : statements 64 / branches 58 / functions 58 / lines 65 (valeurs mesurées 66.64 / 60.44 / 60.81 / 67.18). À relever à chaque nouvelle vague de tests — le déclencheur inscrit dans `vitest.config.mts` est `statements ≥ 67 et lines ≥ 68`, pas encore atteint, afin de garder ≥ 2 points de marge après un relèvement.
+- Les zones critiques (reducers, sse-handlers, stores) sont **verrouillées à 100 %** par des seuils par glob ; le plancher global protège le reste.
 - Note vérifiée empiriquement (vitest 4.1) : le plancher global est calculé sur **tout** l'ensemble `include` — les fichiers matchés par un glob n'en sont pas soustraits.
 - **Mesurer le verrou sur SA population, jamais sur un sur-ensemble.** Le verrou `settings/connectors/**/*.tsx` avait été calé sur l'agrégat du répertoire entier, hooks `.ts` non couverts inclus : population mesurée ≠ population gardée, **14,7 points de jeu sur les fonctions**, soit une régression massive qui serait passée en silence. Après un lot, mesurer l'agrégat du glob lui-même (`coverage-final.json` filtré sur le glob) et vérifier que **chaque** verrou tient dans ~3 points du mesuré — au-delà, il ne garde plus rien.
 - **Un verrou dont le glob ne matche rien passe vacuellement.** Après avoir ajouté ou resserré un seuil par glob, le **falsifier une fois** : le monter au-dessus du mesuré et vérifier que vitest échoue en nommant le glob. Un glob mal orthographié valide toujours, silencieusement.
@@ -3089,7 +3136,7 @@ Le chantier de couverture des composants (≈ 280 composants, livré par lots à
 - **Règle de contrat (F057) — les builders honorent le type public.** Tout builder de props/données prend un `Partial<T>` et retourne le type réel (`T`) ; les retours de hooks mockés se typent au contrat via `Partial<ReturnType<typeof useXxx>>`. **Jamais** `as never` / `as any` / `Record<string, unknown>` en surcharge : ils rouvrent la classe de bugs que le typage doit fermer (un override typé attrape une faute de frappe ou un type faux à la compilation — c'est ainsi que la remédiation a mis au jour un `previewUrl: null` non conforme et un `error` traité en booléen au lieu d'`Error`). Un cast d'échappement n'est admis qu'à une **frontière externe non constructible** (DOM `Window`, `Response` fetch, `MediaStream`, `TFunction` i18next) ou pour injecter délibérément une valeur invalide dans un test de garde.
 - **i18n et thème sont mockés globalement** (`src/__tests__/setup.ts`) : `react-i18next` **et** `@/i18n/client` renvoient `t: key => key` (on **assertit sur la clé** de traduction, jamais sur le texte traduit) ; `next-themes` est un passthrough avec `useTheme` déterministe (`resolvedTheme: 'light'`). Un test peut surcharger l'un ou l'autre avec son propre `vi.mock` local.
 - **Barre de qualité (Definition of Done)** — interdit les tests-alibi : un test de composant **assertit un comportement observable** (matrice de variantes qui changent le rendu · états conditionnels loading/empty/error/success · interactions → callback avec les bons arguments ou changement d'état observé · a11y quand c'est une vraie feature : combobox, dialog, listbox · garde-fous : stale-response, unmount-safety — imiter `ConsumptionExportSection.autocomplete.test.tsx`). **Interdit** : un test dont la seule assertion est « ça rend sans planter ».
-- **Primitives shadcn triviales exclues de la mesure** : les re-exports Radix fins ou wrappers d'un seul élément HTML (`separator`, `slider`, `switch`, `label`, `tooltip`, `accordion`, `tabs`, `dialog`, `alert-dialog`, `dropdown-menu`, `input`, `textarea`, `skeleton`, `toaster`) sont dans `coverage.exclude` (`vitest.config.mts`) — les tester relève du théâtre de couverture. Les primitives à vraie logique/variants restent mesurées et testées.
+- **Exclusions de la mesure : vérifiées, pas affirmées** (AC-040). Seul un fichier sans logique propre sort de la mesure : aucun point de décision (branche, court-circuit, chaînage optionnel, valeur par défaut) et aucun hook. La liste, avec le motif de chaque fichier, vit dans `apps/web/coverage-exclusions.mjs`, que `vitest.config.mts` importe. Le garde `src/__tests__/coverage-exclusions.guard.test.ts` refuse un fichier exclu qui gagne de la logique. Le 2026-10-23, dix des quatorze primitives exclues en portaient (dont `dialog`, avec son Échap qui préserve une combobox ouverte) et sont rentrées dans la mesure ; restent exclues `accordion`, `label`, `switch` et `tabs`.
 - **Ratchet par lot** : à la fin d'un lot, mesurer (`pnpm test:coverage --coverage.reporter=json-summary`) puis **verrouiller la couverture acquise par un glob par-répertoire** (ex. `'src/components/ui/**': { statements: N, … }`) fixé juste sous la valeur mesurée. Les globs par-répertoire sont des clés additives (moins de collision avec le plancher global sous édition parallèle). Exemplars de référence : `ui/__tests__/pagination.test.tsx` (logique pure), `ui/__tests__/search-input.test.tsx` (interaction), `psyche/__tests__/PsycheLLMSummary.test.tsx` (data-driven).
 
 ### Pièges connus

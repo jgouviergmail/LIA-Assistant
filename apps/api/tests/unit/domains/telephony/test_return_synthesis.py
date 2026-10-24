@@ -15,6 +15,7 @@ import src.domains.telephony.payload as payload_mod
 import src.domains.telephony.return_synthesis as rs
 from src.domains.telephony.models import CallKind, PhoneCallOutcome, PhoneCallStatus
 from src.domains.telephony.schemas import ReturnProposal, StructuredCallData
+from tests.helpers.notifications import ScriptedChannels, scripted_dispatcher, sse_only
 
 # --------------------------------------------------------------------------- #
 # Payload extraction
@@ -256,9 +257,11 @@ async def test_synthesize_return_usage_accumulates_across_retries(monkeypatch) -
 
 
 def _install_pipeline(
-    monkeypatch, *, call, mark_result: bool = True, dispatch_error: Exception | None = None
+    monkeypatch, *, call, mark_result: bool = True, channels: ScriptedChannels | None = None
 ) -> dict:
-    captured: dict = {}
+    """The real dispatcher over scripted channels (AC-003): judged on its verdict."""
+    channels = channels if channels is not None else ScriptedChannels()
+    captured: dict = {"channels": channels}
 
     class _FakeRepo:
         def __init__(self, db) -> None:  # noqa: ANN001
@@ -282,7 +285,7 @@ def _install_pipeline(
             captured.setdefault("failed", []).append(cid)
 
     async def _get_user(_model, _pk):
-        return SimpleNamespace(language="fr")
+        return SimpleNamespace(id=uuid4(), language="fr")
 
     async def _commit() -> None:
         captured["commits"] = captured.get("commits", 0) + 1
@@ -290,13 +293,6 @@ def _install_pipeline(
     @contextlib.asynccontextmanager
     async def _ctx():
         yield SimpleNamespace(get=_get_user, commit=_commit)
-
-    class _FakeDispatcher:
-        async def dispatch(self, **kwargs):
-            captured["dispatch"] = kwargs
-            if dispatch_error is not None:
-                raise dispatch_error
-            return None
 
     async def _fake_synth(**kwargs):
         captured["synth_in"] = kwargs
@@ -313,7 +309,7 @@ def _install_pipeline(
 
     monkeypatch.setattr(rs, "TelephonyRepository", _FakeRepo)
     monkeypatch.setattr(rs, "get_db_context", _ctx)
-    monkeypatch.setattr(rs, "NotificationDispatcher", lambda: _FakeDispatcher())
+    monkeypatch.setattr(rs, "NotificationDispatcher", scripted_dispatcher(channels))
     monkeypatch.setattr(rs, "synthesize_return", _fake_synth)
     import src.domains.telephony.synthesis_usage as usage_mod
 
@@ -362,9 +358,10 @@ async def test_process_persists_minimized_and_delivers_once(monkeypatch) -> None
     # No read transaction was left open while the model synthesized (ADR-304).
     assert captured["commits_before_synth"] >= 1
     # Delivered exactly once, with the localized title.
-    assert captured["dispatch"]["content"] == "J'ai appelé Marie"
-    assert captured["dispatch"]["task_type"] == "phone_call"
-    assert captured["dispatch"]["title"] == "Retour d'appel"
+    (sent,) = captured["channels"].sent
+    assert sent.content == "J'ai appelé Marie"
+    assert sent.task_type == "phone_call"
+    assert sent.title == "Retour d'appel"
     # T1: the outbox record is armed with the notification payload, then flipped to
     # DELIVERED only AFTER the dispatch succeeds.
     assert mark["notification_content"] == "J'ai appelé Marie"
@@ -396,14 +393,34 @@ async def test_process_dispatch_failure_leaves_notification_pending(monkeypatch)
         callee_display="Marie",
         call_kind=CallKind.THIRD_PARTY,
     )
-    captured = _install_pipeline(monkeypatch, call=call, dispatch_error=RuntimeError("fcm down"))
+    channels = ScriptedChannels(archive_error=RuntimeError("archive down"), sse=False)
+    captured = _install_pipeline(monkeypatch, call=call, channels=channels)
 
     # Must not raise — the reaper owns recovery, retrying the whole flow would be futile.
     await rs.process_completed_call(call.id, _payload())
 
-    assert "dispatch" in captured  # dispatch was attempted
+    assert captured["channels"].sent  # dispatch was attempted
     assert captured.get("delivered") is None  # but NOT marked delivered → stays PENDING
     assert captured["mark"]["notification_content"] == "J'ai appelé Marie"
+
+
+@pytest.mark.unit
+async def test_an_sse_event_alone_leaves_the_notification_pending(monkeypatch) -> None:
+    """An SSE event reached an open tab or nobody: the reaper keeps the return (AC-003)."""
+    call = SimpleNamespace(
+        id=uuid4(),
+        user_id=uuid4(),
+        status=PhoneCallStatus.DIALING,
+        objective="ask availability",
+        callee_display="Marie",
+        call_kind=CallKind.THIRD_PARTY,
+    )
+    captured = _install_pipeline(monkeypatch, call=call, channels=sse_only())
+
+    await rs.process_completed_call(call.id, _payload())
+
+    assert captured["channels"].sent
+    assert captured.get("delivered") is None
 
 
 @pytest.mark.unit
@@ -456,7 +473,7 @@ async def test_process_falls_back_on_synthesis_failure(monkeypatch) -> None:
     monkeypatch.setattr(rs, "synthesize_return", _boom)
     await rs.process_completed_call(call.id, _payload())
     # Still delivers something (the raw ElevenLabs summary as fallback).
-    assert captured["dispatch"]["content"] == "she agreed"
+    assert captured["channels"].sent[0].content == "she agreed"
     # No usage on the failure path → nothing tracked.
     assert "track" not in captured
 

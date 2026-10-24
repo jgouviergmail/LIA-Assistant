@@ -4,12 +4,15 @@ import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { useAuth } from '@/hooks/useAuth';
+import { useTurnstileDoor } from '@/hooks/useTurnstileDoor';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { logger } from '@/lib/logger';
+import { turnstileErrorKey } from '@/lib/turnstile';
 import { useTranslation } from 'react-i18next';
+import { TurnstileWidget } from './TurnstileWidget';
 
 export function LoginForm() {
   const router = useLocalizedRouter();
@@ -32,6 +35,7 @@ export function LoginForm() {
    */
   const [mfaStep, setMfaStep] = useState<{ token: string | null } | null>(null);
   const [mfaCode, setMfaCode] = useState('');
+  const botCheck = useTurnstileDoor('login');
 
   /*
    * Read once, from `window.location` rather than `useSearchParams`: the hook
@@ -52,10 +56,14 @@ export function LoginForm() {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
+    if (!botCheck.ready) {
+      setError(t('auth.turnstile.required'));
+      return;
+    }
     setIsLoading(true);
 
     try {
-      const result = await login(email, password, rememberMe);
+      const result = await login(email, password, rememberMe, botCheck.token);
       if (result.mfaRequired) {
         setMfaStep({ token: result.mfaToken ?? null });
         return;
@@ -66,9 +74,11 @@ export function LoginForm() {
         component: 'LoginForm',
         email,
       });
-      setError(t('auth.errors.invalid_credentials'));
+      setError(t(turnstileErrorKey(err, botCheck.failed) ?? 'auth.errors.invalid_credentials'));
     } finally {
       setIsLoading(false);
+      // The API spent the token, whatever it answered (ADR-364).
+      botCheck.spent();
     }
   };
 
@@ -204,6 +214,16 @@ export function LoginForm() {
             {t('auth.forgot_password_link')}
           </Link>
         </div>
+
+        {botCheck.siteKey && (
+          <TurnstileWidget
+            siteKey={botCheck.siteKey}
+            action="login"
+            onToken={botCheck.onToken}
+            onFailure={botCheck.onFailure}
+            resetSignal={botCheck.resetSignal}
+          />
+        )}
 
         <Button type="submit" className="w-full" isLoading={isLoading}>
           {t('auth.login_button')}

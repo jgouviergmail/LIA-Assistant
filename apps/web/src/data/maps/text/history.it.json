@@ -1902,6 +1902,16 @@
       "title": "La cache di Claude riletta da un turno all'altro",
       "summary": "Il turno successivo rilegge ora tutta la cronologia dalla cache invece di riscriverla, e ciò che rileggerà resta conservato un'ora quando una persona attende e scambia spesso. Queste scritture di un'ora sono fatturate al loro giusto prezzo, e il ragionamento di un turno precedente torna al modello Claude che lo ha scritto, dove quel modello può rileggerlo.",
       "src": "ba46216e9d0f"
+    },
+    "363": {
+      "title": "Un ripristino della password limitato per account e legato ad esso",
+      "summary": "Ogni account riceve ora al massimo poche e-mail di reimpostazione, qualunque indirizzo le chieda, e un link vale solo per l'account e la password per cui è stato emesso. Un account che accede con Google riceve un avviso invece di un link, un amministratore non riceve nulla, e un'ondata di richieste o di iscrizioni avvisa il gestore.",
+      "src": "72083d5c2a74"
+    },
+    "364": {
+      "title": "Una verifica anti-robot alle porte della password",
+      "summary": "Registrazione, accesso con password e richieste di reimpostazione richiedono ora il token di una verifica Cloudflare Turnstile, che il server fa convalidare: uno script che chiama l'API senza browser viene respinto. La maggior parte dei visitatori non vede nulla e, se Cloudflare non risponde, passa solo l'accesso: un nuovo account o un'e-mail di reimpostazione attendono.",
+      "src": "5f218ef296be"
     }
   }
 }

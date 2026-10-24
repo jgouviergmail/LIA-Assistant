@@ -55,12 +55,14 @@ apps/api/DeveloppementLIA.tmp-codexpytest-cache/
 .coverage
 # Parallel coverage runs and generated reports (including named local runs).
 .coverage.*
+# Each suite's data and their union (`task test:backend:coverage`, AC-030b).
+.coverage-*
 coverage/
 coverage-*/
 .nyc_output/
 htmlcov/
 *.cover
-# Written by `task test:backend:unit:coverage` (--cov-report=xml), which is a
+# Written by `task test:backend:coverage` (coverage xml, both suites), which is a
 # routine LOCAL gate since ADR-151, not just a CI step. Uploaded to Codecov
 # from the runner; never committed.
 coverage.xml

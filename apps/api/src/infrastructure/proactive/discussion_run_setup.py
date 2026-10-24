@@ -30,18 +30,30 @@ from src.domains.proactive_discussions.llm_contracts import (
     PromptBudgetExceeded,
 )
 from src.domains.proactive_discussions.repository import DiscussionRepository
-from src.domains.proactive_discussions.run_types import RunClaim
+from src.domains.proactive_discussions.run_types import AttentionHold, RunClaim
 from src.domains.proactive_discussions.schemas import DiscussionPolicy
 from src.domains.usage_limits.service import UsageLimitService
 from src.domains.users.models import User
 from src.infrastructure.database.session import get_db_context
-from src.infrastructure.proactive.discussion_attention import attention_available
+from src.infrastructure.proactive.discussion_attention import attention_hold
 from src.infrastructure.proactive.discussion_control import ControlSnapshot, load_controls
 from src.infrastructure.proactive.discussion_llm import prepare_call
 
-#: Why a run could not start: nothing may start now, today cannot fund its first call,
-#: or the person's usage limit (or the instance's daily budget) refuses every model call.
-RunNotStarted = Literal["ineligible", "budget_exhausted", "usage_limit_reached"]
+#: Why a run could not start — no row says it, so the outcome does: what held the
+#: person's attention, the operator's switch off, a claim the account refused (window,
+#: pause, daily maximum, a deferral, a live lease, a rebuild no longer requested), a
+#: claim lost before its reservation, a day that cannot fund the first call, or the
+#: person's usage limit (or the instance's daily budget) refusing every model call.
+RunNotStarted = (
+    AttentionHold
+    | Literal[
+        "capability_disabled",
+        "claim_refused",
+        "stale_claim",
+        "budget_exhausted",
+        "usage_limit_reached",
+    ]
+)
 
 
 @dataclass(frozen=True)
@@ -139,13 +151,16 @@ async def initialize_run(
         try:
             await require_capability_fresh(db, PlatformCapability.PROACTIVE_DISCUSSIONS)
         except AuthorizationError:
-            return "ineligible"
+            return "capability_disabled"
         # Control replies settle the old opening before the pending-opening gate.
         controls = await load_controls(db, owner, now=datetime.now(UTC))
-        if rebuild_epoch is None and not await attention_available(
-            db, owner, now=datetime.now(UTC)
-        ):
-            return "ineligible"
+        hold = (
+            None
+            if rebuild_epoch is not None
+            else await attention_hold(db, owner, now=datetime.now(UTC))
+        )
+        if hold is not None:
+            return hold
         repo = DiscussionRepository(db)
         claim = await repo.claim_run(
             owner,
@@ -154,7 +169,7 @@ async def initialize_run(
             rebuild_epoch=rebuild_epoch,
         )
         if claim is None:
-            return "ineligible"
+            return "claim_refused"
         if await UsageLimitService.is_user_blocked_for_llm(owner, layer="proactive_discussions"):
             await repo.settle_run(
                 claim, status="skipped", now=datetime.now(UTC), reason="usage_limit_reached"
@@ -185,7 +200,7 @@ async def initialize_run(
             return "budget_exhausted"
         if isinstance(reservation, str):
             await repo.settle_run(claim, status="skipped", now=now, reason="stale_claim")
-            return "ineligible"
+            return "stale_claim"
         personality = await PersonalityService(db).get_prompt_instruction_for_user(owner) or ""
         return DiscussionRunSetup(
             claim, policy, controls, reservation, language, personality, rebuild_epoch is not None

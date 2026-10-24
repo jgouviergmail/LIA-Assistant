@@ -151,7 +151,9 @@ export function buildAppCsp(isDev: boolean, apiUrl: string | undefined): string 
     // static.cloudflareinsights.com → the analytics beacon Cloudflare injects
     // at the edge in production; without the allowance it dies as a console
     // CSP error on every public page
-    `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://static.cloudflareinsights.com https://maps.googleapis.com https://maps.gstatic.com${isDev ? " 'unsafe-eval'" : ''}`,
+    // challenges.cloudflare.com → the Turnstile loader of the password doors
+    // (ADR-364), loaded only when the instance publishes a site key
+    `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://static.cloudflareinsights.com https://maps.googleapis.com https://maps.gstatic.com https://challenges.cloudflare.com${isDev ? " 'unsafe-eval'" : ''}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     // https: for user-facing remote images (chat markdown, connector data);
@@ -165,9 +167,10 @@ export function buildAppCsp(isDev: boolean, apiUrl: string | undefined): string 
     "worker-src 'self' blob:",
     // 'self' → widget airlock + srcDoc frames; www.google.com → the
     // interactive-map system skill's Google Maps embed (frame.url), the only
-    // external frame we ship. Without an explicit frame-src, the directive
-    // falls back to default-src 'self' and blocks it.
-    "frame-src 'self' https://www.google.com",
+    // external frame we ship besides the Turnstile challenge frame (ADR-364).
+    // Without an explicit frame-src, the directive falls back to default-src
+    // 'self' and blocks them.
+    "frame-src 'self' https://www.google.com https://challenges.cloudflare.com",
     `connect-src ${buildConnectSrc(isDev, apiUrl)}`,
     "object-src 'none'",
     "base-uri 'self'",

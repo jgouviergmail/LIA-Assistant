@@ -10,10 +10,11 @@ tools/lia-motion/
 .tmp/
 output/
 **/.next
-# Trailing glob on purpose: per-session proof dists are named .next-e2e,
-# .next-e2e-md, .next-e2e-cap... A bare `.next-e2e` matched only the first one
-# and let ~22k files of the others into the context (2026-08-23).
-**/.next-e2e*
+# Every per-session proof dist, whatever its name (`.next-e2e*`, `.next-public-screenshots`,
+# `.next-hitl-validation`...): the pattern `.gitignore` and capture_public_screenshots.ps1
+# (`^\.next-[a-zA-Z0-9-]+$`) already use. A bare `.next-e2e` once let ~22k files into the
+# context (2026-08-23); `.next-e2e*` still let in every dist named otherwise (audit A03).
+**/.next-*
 **/dist
 **/out
 

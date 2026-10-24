@@ -19,6 +19,7 @@ class TestAuthFeatures:
             # attribute of a bare MagicMock is truthy, so leaving this out
             # made the endpoint believe it was a demonstrator.
             mock_settings.demo_mode_enabled = False
+            mock_settings.turnstile_enabled = False
             response = await auth_features()
         assert response.mfa_enabled is False
 
@@ -27,5 +28,6 @@ class TestAuthFeatures:
         with patch("src.domains.auth.security_queries.settings") as mock_settings:
             mock_settings.mfa_enabled = True
             mock_settings.demo_mode_enabled = False
+            mock_settings.turnstile_enabled = False
             response = await auth_features()
         assert response.mfa_enabled is True

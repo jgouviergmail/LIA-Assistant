@@ -33,7 +33,7 @@ import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, BinaryIO, Final
+from typing import Any, Final
 
 import httpx
 import structlog
@@ -45,9 +45,12 @@ from src.core.constants import (
 )
 from src.domains.voice.fishaudio.wire import auth_headers, refusal_of
 from src.domains.voice.provider_capacity import ProviderCapacityUnavailable, provider_slot
+from src.domains.voice.stt.audio_file import open_audio_file
 from src.domains.voice.stt.exceptions import STTProviderError
 from src.domains.voice.stt.protocol import STTFileResult, STTResult, TranscriptWord
+from src.infrastructure.file_transfer import LocalFileRead
 from src.infrastructure.media.wav import wav_bytes
+from src.infrastructure.multipart_upload import FormFile, multipart_upload
 
 logger = structlog.get_logger(__name__)
 
@@ -108,7 +111,9 @@ class FishAudioSttService:
         if not pcm_int16_bytes:
             return STTResult(text="", audio_duration_seconds=0.0, language_code=language)
         payload = await self._post(
-            ("audio.wav", wav_bytes(pcm_int16_bytes, sample_rate), "audio/wav"),
+            "audio.wav",
+            "audio/wav",
+            wav_bytes(pcm_int16_bytes, sample_rate),
             timestamps=False,
             diarize=False,
             language=language,
@@ -131,27 +136,24 @@ class FishAudioSttService:
     ) -> STTFileResult:
         """Transcribe a whole file; speaker turns when the model marks speakers.
 
-        The file is streamed from disk by httpx, never loaded into memory here
-        (a meeting runs up to an hour — the sibling engines' contract).
+        The file is streamed from disk, every read in a worker thread (AC-035),
+        never loaded into memory here (a meeting runs up to an hour — the sibling
+        engines' contract).
         """
-        try:
-            handle = open(path, "rb")  # noqa: SIM115 — streamed by httpx, closed below
-        except OSError as exc:
-            raise STTProviderError(
-                code="provider_http_error",
-                message=f"Audio file unreadable: {exc.__class__.__name__}",
-            ) from exc
+        audio = await open_audio_file(path)
         diarized = diarize and self.supports_diarization
         try:
             payload = await self._post(
-                (Path(path).name, handle, mime_type),
+                Path(path).name,
+                mime_type,
+                audio,
                 timestamps=True,
                 diarize=diarized,
                 language=language,
                 timeout_seconds=timeout_seconds,
             )
         finally:
-            handle.close()
+            await audio.close()
         words = self._turns(payload) if diarized else []
         if not words:
             words = self._segments(payload)
@@ -187,7 +189,9 @@ class FishAudioSttService:
 
     async def _post(
         self,
-        audio: tuple[str, bytes | BinaryIO, str],
+        filename: str,
+        mime_type: str,
+        audio: bytes | LocalFileRead,
         *,
         timestamps: bool,
         diarize: bool,
@@ -195,6 +199,7 @@ class FishAudioSttService:
         timeout_seconds: float,
     ) -> dict[str, Any]:
         data = self._fields(timestamps=timestamps, diarize=diarize, language=language)
+        upload = multipart_upload(data, FormFile("audio", filename, mime_type), audio)
         async with self._account_slot(timeout_seconds):
             async with httpx.AsyncClient(
                 base_url=self._base_url,
@@ -202,7 +207,9 @@ class FishAudioSttService:
                 transport=self._http_transport,
                 headers=auth_headers(self._api_key, model=self._model),
             ) as client:
-                response = await client.post("/v1/asr", files={"audio": audio}, data=data)
+                response = await client.post(
+                    "/v1/asr", headers=upload.headers, content=upload.content
+                )
         if response.status_code >= 400:
             self._raise_refusal(response)
         return self._payload(response)

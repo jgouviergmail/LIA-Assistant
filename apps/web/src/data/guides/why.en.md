@@ -4,7 +4,7 @@
 
 **Version**: 6.6
 **Date**: 2026-10-23
-**Application**: LIA v3.5.1
+**Application**: LIA v3.6.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -361,7 +361,7 @@ Transparency is not a technical gimmick. It changes your relationship with your 
 
 ---
 
-This transparency extends to the system's own quality. The complete technical audit — scores, method, strengths and what remains to be improved — is published in the repository, with the protocol to rerun it and the commands to verify the measurements: [full audit report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md). You are not asked to trust the figures on this site; you can check them.
+This transparency extends to the system's own quality. The complete technical audit — scores, method, strengths and what remains to be improved — is published in the repository, with the protocol to rerun it and the commands to verify the measurements: [full audit report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md). You are not asked to trust the figures on this site; you can check them. Every finding is followed in a public register until its proof, and a release is refused while a priority finding is past its deadline.
 
 The same honesty applies to usefulness itself: LIA measures whether it actually helps — an outcome only counts once you validated it, explicitly or by leaving an action uncorrected — and that measurement lives in the same local database as your data, with no third-party analytics platform involved, ever.
 
@@ -401,7 +401,7 @@ The same requirement governs what LIA retains of your instructions: every lastin
 
 ### 6.8. A surface that describes the product is held to it
 
-Transparency has a failure mode nobody notices: a screen that quietly stops telling the truth. Nothing breaks, no test goes red, and the page that existed to be current becomes the least current in the application. So the capability map — the page answering _what can my assistant do for me?_ — is no longer maintained by hand: every capability the platform can switch on or off must have its declared place on it, and a capability that ships without that decision stops the application from starting. The same conviction, one notch further: what a screen says about your data must be **exact or absent**. A tally is the number the database returns, never a length that happens to be at hand; and while an answer is still on its way, or when it failed, the card says nothing rather than guessing. "Nothing set up yet" is a claim about your account — one worth being sure of before making it. The FAQ obeys the same rule: every feature a person can use has its section there — 498 questions, in six languages —, and a translated section the display order forgot fails the tests instead of staying invisible.
+Transparency has a failure mode nobody notices: a screen that quietly stops telling the truth. Nothing breaks, no test goes red, and the page that existed to be current becomes the least current in the application. So the capability map — the page answering _what can my assistant do for me?_ — is no longer maintained by hand: every capability the platform can switch on or off must have its declared place on it, and a capability that ships without that decision stops the application from starting. The same conviction, one notch further: what a screen says about your data must be **exact or absent**. A tally is the number the database returns, never a length that happens to be at hand; and while an answer is still on its way, or when it failed, the card says nothing rather than guessing. "Nothing set up yet" is a claim about your account — one worth being sure of before making it. The FAQ obeys the same rule: every feature a person can use has its section there — 500 questions, in six languages —, and a translated section the display order forgot fails the tests instead of staying invisible.
 
 Transparency also applies to the assistant's internal rules. A constraint the system enforces must be published to whoever it affects: when habit learning detects nothing, Settings display the threshold actually required — stricter on weekends, where observed days are fewer — instead of an unexplained silence. And when a setting tunes itself, like the threshold deciding that a journal note enters a reply, it does so inside strict bounds, one small step per day, with a kill switch and every adjustment counted: a learning system is only acceptable if it stays observable and stoppable.
 

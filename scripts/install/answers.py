@@ -19,6 +19,7 @@ from typing import Any
 
 from scripts.install.i18n import msg
 from scripts.install.maps import validate_maps_settings
+from scripts.install.turnstile import validate_turnstile_settings
 from scripts.install.model import (
     PASSWORD_RULES,
     Exposure,
@@ -205,6 +206,7 @@ def collect_secret_answers(
         admin_password=str(collected["admin_password"]),
         provider_keys=_provider_keys(collected),
         maps_settings=_maps_settings(collected),
+        turnstile_settings=_turnstile_settings(collected),
     )
 
 
@@ -223,6 +225,18 @@ def _maps_settings(collected: Mapping[str, Any]) -> dict[str, str]:
             {
                 "GOOGLE_MAPS_BROWSER_API_KEY": str(collected.get("maps_browser_key", "")),
                 "GOOGLE_MAPS_MAP_ID": str(collected.get("maps_map_id", "")),
+            }
+        )
+    except ValueError as exc:
+        raise InstallInputError(str(exc)) from None
+
+
+def _turnstile_settings(collected: Mapping[str, Any]) -> dict[str, str]:
+    try:
+        return validate_turnstile_settings(
+            {
+                "TURNSTILE_SITE_KEY": str(collected.get("turnstile_site_key", "")),
+                "TURNSTILE_SECRET_KEY": str(collected.get("turnstile_secret_key", "")),
             }
         )
     except ValueError as exc:
@@ -358,5 +372,6 @@ def collect_answers(
         admin_password=str(collected["admin_password"]),
         provider_keys=provider_keys,
         maps_settings=_maps_settings(collected),
+        turnstile_settings=_turnstile_settings(collected),
     )
     return public, secrets

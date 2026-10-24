@@ -1,12 +1,11 @@
 """Observe owned saved-copy/projection state without reindexing or exposing stored paths."""
 
-from pathlib import Path
+import asyncio
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.config import settings
 from src.domains.agents.application.bookmark_delete_schemas import (
     BookmarkDeleteInput,
     BookmarkDeleteObservation,
@@ -18,18 +17,17 @@ from src.domains.agents.application.space_delete_schemas import SpaceDeleteDocum
 from src.domains.agents.effects.digest import payload_digest
 from src.domains.bookmarks.projection_deletion import require_owned_projection
 from src.domains.bookmarks.repository import BookmarkRepository
+from src.domains.rag_spaces.document_access import owned_document_path
 from src.domains.rag_spaces.models import RAGChunk, RAGDocument
 from src.infrastructure.file_transfer import LocalFileRead
 
 
-async def _file(document: RAGDocument) -> DocumentDeleteFile:
-    root = Path(settings.rag_spaces_storage_path).resolve()
-    account = root / str(document.user_id)
-    space = account / str(document.space_id)
-    path = space / document.filename
-    if account.is_symlink() or space.is_symlink() or path.is_symlink():
-        raise CommandRejected("INVALID_INPUT")
-    if space.resolve() != space or path.resolve().parent != space or path.name != document.filename:
+async def _file(actor_id: UUID, document: RAGDocument) -> DocumentDeleteFile:
+    # The projection was proven the actor's: its file lives in the actor's directory.
+    path = await asyncio.to_thread(
+        owned_document_path, actor_id, document.space_id, document.filename
+    )
+    if path is None:
         raise CommandRejected("INVALID_INPUT")
     try:
         reader = await LocalFileRead.async_open(path)
@@ -81,7 +79,7 @@ async def observe_bookmark_deletion(
         if chunks > 5_000:
             raise CommandRejected("CONSTRAINT_VIOLATION")
         projection_digest = await _private_digest(db, (document.id,))
-        file = await _file(document)
+        file = await _file(actor_id, document)
     return BookmarkDeleteObservation(
         request=request,
         answered_at=row.answered_at,

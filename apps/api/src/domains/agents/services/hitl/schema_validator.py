@@ -90,7 +90,7 @@ class HitlSchemaValidator:
         # Emails tools (future extension point)
         # Module doesn't exist yet (expected)
         with suppress(ImportError):
-            from src.domains.agents.tools.emails_tools import (  # type: ignore[import-not-found]
+            from src.domains.agents.tools.emails_tools import (
                 create_email,
                 delete_email,
                 forward_email,
@@ -105,7 +105,7 @@ class HitlSchemaValidator:
         # Calendar tools (future extension point)
         # Module doesn't exist yet (expected)
         with suppress(ImportError):
-            from src.domains.agents.tools.calendar_tools import (  # type: ignore[import-not-found]
+            from src.domains.agents.tools.calendar_tools import (
                 create_event,
                 delete_event,
                 update_event,

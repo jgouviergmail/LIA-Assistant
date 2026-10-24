@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LIA API 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-14 17:36+0000\n"
-"PO-Revision-Date: 2026-10-14 17:36+0000\n"
+"POT-Creation-Date: 2026-10-23 20:02+0000\n"
+"PO-Revision-Date: 2026-10-23 20:02+0000\n"
 "Last-Translator: Claude Code <noreply@anthropic.com>\n"
 "Language-Team: Simplified Chinese\n"
 "Language: zh-CN\n"
@@ -388,6 +388,23 @@ msgstr "重置链接"
 
 msgid "Password reset"
 msgstr "重置密码"
+
+msgid "Your LIA account has no password to reset"
+msgstr "你的 LIA 账户没有可重置的密码"
+
+msgid "No password to reset"
+msgstr "没有可重置的密码"
+
+msgid "Your account has no password: you sign in with {provider}."
+msgstr "你的账户没有密码：你通过 {provider} 登录。"
+
+msgid "To sign in, choose {provider} on the login page."
+msgstr "登录时，请在登录页面选择 {provider}。"
+
+msgid ""
+"If you did not make this request, you can ignore this email: nothing has "
+"changed on your account."
+msgstr "如果这不是你发起的请求，可以忽略这封邮件：你的账户没有任何变化。"
 
 msgid "Your LIA account is pending activation"
 msgstr "你的 LIA 账户正在等待激活"

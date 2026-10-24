@@ -22,8 +22,10 @@ two-stage shape rather than writing a finished row:
 
 - **CLAIMED before the effect happens.** A push leaves the process; a claim
   written afterwards would be lost by the very crash it exists to survive.
-- **SETTLED from an EXPLICIT result.** ``NotificationResult`` says whether any
-  channel accepted it, so absence of an exception is never read as delivery.
+- **SETTLED from an EXPLICIT result.** ``NotificationResult.durably_delivered``
+  says whether a channel the person finds later accepted it — an SSE event
+  alone is not one (audit AC-003) — so absence of an exception is never read
+  as delivery.
 
 Best-effort in full: the register must never cost the person their
 notification.

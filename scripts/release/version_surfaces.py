@@ -794,6 +794,45 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
         "prometheus_metrics",
         "blog observability article excerpt (zh)",
     ),
+    # The summary written for language models quotes the same three counts as the
+    # landing; it stayed at 630 metrics, 360 ADRs and 286 releases while every
+    # guarded surface moved on (v3.6.0 preparation).
+    CountSurface(
+        "apps/web/public/llms.txt",
+        re.compile(rf"\b{_COUNT} Prometheus metrics\b"),
+        "prometheus_metrics",
+        "llms.txt observability line (metrics)",
+    ),
+    CountSurface(
+        "apps/web/public/llms.txt",
+        re.compile(rf"\b{_COUNT} Architecture Decision Records\b"),
+        "adr_files",
+        "llms.txt engineering line (ADR files)",
+    ),
+    CountSurface(
+        "apps/web/public/llms.txt",
+        re.compile(rf"\b{_COUNT} releases\b"),
+        "changelog_releases",
+        "llms.txt engineering line (releases)",
+    ),
+    # The Story page's meta description (what a search result shows) quotes the ADR
+    # count in every language; it had stayed at 360 (v3.6.0 preparation).
+    *(
+        CountSurface(
+            f"apps/web/locales/{locale}/translation.json",
+            re.compile(pattern),
+            "adr_files",
+            f"story meta description ({locale})",
+        )
+        for locale, pattern in (
+            ("en", rf"tests, {_COUNT} ADRs, a 7"),
+            ("fr", rf"tests, {_COUNT} ADRs, un audit technique"),
+            ("de", rf"Tests, {_COUNT} ADRs, ein technisches Audit"),
+            ("es", rf"tests, {_COUNT} ADRs, una auditoría técnica"),
+            ("it", rf"test, {_COUNT} ADR, un audit tecnico"),
+            ("zh", rf"个测试，{_COUNT} 份架构决策记录"),
+        )
+    ),
 )
 
 

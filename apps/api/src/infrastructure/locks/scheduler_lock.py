@@ -56,9 +56,8 @@ class SchedulerLock:
     """
     Distributed lock for scheduled jobs using Redis SETNX.
 
-    Unlike OAuthLock which retries, SchedulerLock skips immediately if busy.
-    This is the correct behavior for scheduler jobs: only one worker should
-    execute, others should silently skip.
+    SchedulerLock skips immediately if busy. This is the correct behavior for
+    scheduler jobs: only one worker should execute, others should silently skip.
 
     Example:
         >>> redis_client = await get_redis_cache()

@@ -4,7 +4,7 @@
 
 **Version**: 2.6
 **Date**: 2026-10-23
-**Application**: LIA v3.5.1
+**Application**: LIA v3.6.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
 | Source lines (excluding tests) — 58 functional domains | **1,003,000+** |
-| Inventoried automated tests; suites selected for commits and releases | **66,000+** |
-| Documented architecture decisions (ADR) | **360** |
-| Versions shipped at a steady pace | **287** |
+| Inventoried automated tests; suites selected for commits and releases | **67,000+** |
+| Documented architecture decisions (ADR) | **362** |
+| Versions shipped at a steady pace | **288** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **7.8/10** |
 
@@ -70,7 +70,7 @@ The project is now run with several development agents in parallel — each on i
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 360 documented:
+Three structural decisions, among the 362 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Self-hosting gives you control of the server; account data is stored on the instance and connector credentials are encrypted. The remote services you choose still receive the data needed for their part of a request.
 
@@ -105,15 +105,19 @@ The level claimed in this document comes from a complete technical audit: 24 are
 - Documentation held true by gates: decisions, maps and quoted figures are checked against their sources on every change.
 - Delivery that runs what a developer runs: a thin CI on the same tasks, hermetic installation and delivery tests, migrations replayed from an empty database.
 
+**Remediated since the audit — awaiting the next audit's verification:**
+
+- Notifications that tell the truth: a notification — of a call, of a message between connections, of an incident — counts as delivered only on an explicit, durable success.
+- Waits with a bound: the database cuts a lock wait or an idle transaction short before it can freeze an account, and a token refresh belongs to one worker at a time.
+- A loop that closes: every finding is followed in a public register with its age, its deadline and its proof, and the backend coverage floor holds over the unit and integration suites together.
+- Alerting: every advertised combination of notification channels is assembled and tested, routing included.
+
 **What remains to be done — known, planned:**
 
-- Durable states that tell the truth: a document reprocessed after a takeover must stay with its current owner, and a notification — of a call, of a message between connections, of an incident — must only count as delivered on an explicit success.
-- Waits with a bound: the database must cut a lock wait or an idle transaction short before it can freeze an account, and a token refresh must belong to one worker at a time.
-- A loop that closes: every finding tracked with its age and its deadline, and a backend coverage margin restored.
-- Alerting: assemble and test every advertised combination of notification channels, routing included.
+- A document reprocessed after a takeover must stay with its current owner.
 - Absolute structural debt — dense central functions, domains that depend on each other, typing exemptions — reduced batch by batch, driven by measurement.
 
-The action plan is organized in waves, each with measurable exit criteria. That is how this project reports on itself: not a proclaimed level, a measured one — gaps included.
+The action plan is organized in waves, each with measurable exit criteria; the first has been delivered, and confirming its results is left to the next audit. That is how this project reports on itself: not a proclaimed level, a measured one — gaps included.
 
 That requirement carries a consequence the project learned the hard way: **a green test suite does not prove a feature works**. It proves that what was tested behaves as written. The defects that survive the gates are exactly the ones the gates were never asked about — a capability nobody calls, a figure nobody adds up, a guard that recognises a name rather than a mechanism. These are almost never coding mistakes: they are questions that had never been asked.
 

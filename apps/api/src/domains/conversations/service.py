@@ -24,7 +24,6 @@ from src.core.field_names import (
     FIELD_CONVERSATION_ID,
     FIELD_COST_EUR,
     FIELD_GOOGLE_API_REQUESTS,
-    FIELD_RUN_ID,
     FIELD_TOKENS_CACHE,
     FIELD_TOKENS_IN,
     FIELD_TOKENS_OUT,
@@ -35,6 +34,7 @@ from src.core.field_names import (
 )
 from src.core.i18n import resolve_language
 from src.core.i18n_api_messages import APIMessages
+from src.domains.conversations.message_tokens import shown_with_tokens_once
 from src.domains.conversations.models import (
     Conversation,
     ConversationAuditLog,
@@ -427,7 +427,7 @@ class ConversationService:
                         text("SELECT COUNT(*) FROM store WHERE prefix LIKE :pattern"),
                         {"pattern": f"%{user_id_str}%"},
                     )
-                    user_entries_count = count_user_result.scalar()
+                    user_entries_count = int(count_user_result.scalar_one())
 
                     if user_entries_count > 0:
                         await db.execute(
@@ -962,156 +962,6 @@ class ConversationService:
         repo = ConversationRepository(db)
         return list(await repo.get_audit_logs(user_id=user_id, limit=limit))
 
-    async def get_messages_with_tokens(
-        self,
-        user_id: UUID,
-        limit: int,
-        db: AsyncSession,
-    ) -> list[dict[str, Any]]:
-        """
-        Get conversation message history with token usage and recalculated cost.
-
-        JOINs conversation_messages with message_token_summary via run_id in metadata,
-        then recalculates cost using current llm_model_pricing table.
-
-        Args:
-            user_id: User UUID
-            limit: Maximum number of messages to return
-            db: Database session
-                                 Default: False (show all messages for complete token counting)
-
-        Returns:
-            List of dicts with message fields + tokens_in/out/cache/cost_eur
-
-        Example:
-            >>> messages = await service.get_messages_with_tokens(user_id, 50, db)
-            >>> for msg in messages:
-            ...     print(f"{msg['role']}: tokens_in={msg['tokens_in']}, cost={msg['cost_eur']} EUR")
-        """
-        # Get active conversation
-        conversation = await self.get_active_conversation(user_id, db)
-
-        if not conversation:
-            return []
-
-        # Query messages using repository
-        conv_repo = ConversationRepository(db)
-        messages = await conv_repo.get_messages_for_conversation(
-            conversation_id=conversation.id,
-            limit=limit,
-        )
-
-        # Extract run_ids from message metadata
-        run_ids = [
-            msg.message_metadata.get(FIELD_RUN_ID)
-            for msg in messages
-            if msg.message_metadata and msg.message_metadata.get(FIELD_RUN_ID)
-        ]
-
-        # Load token summaries using ChatRepository (batch query)
-        from src.domains.chat.repository import ChatRepository
-
-        chat_repo = ChatRepository(db)
-        token_summaries = {}
-        if run_ids:
-            token_summaries = await chat_repo.get_token_summaries_by_run_ids(run_ids)
-
-        # Build enriched message list
-        enriched_messages = []
-        for msg in messages:
-            # Base message data (use message_metadata to match model attribute)
-            msg_data = {
-                "id": msg.id,
-                "role": msg.role,
-                FIELD_CONTENT: msg.content,
-                "message_metadata": msg.message_metadata,  # Use actual model field name
-                "created_at": msg.created_at,
-                FIELD_TOKENS_IN: None,
-                FIELD_TOKENS_OUT: None,
-                FIELD_TOKENS_CACHE: None,
-                FIELD_COST_EUR: None,
-                FIELD_GOOGLE_API_REQUESTS: None,
-                # Per-message STT cost (only populated for user messages
-                # produced by a remote-STT transcription).
-                "stt_provider": msg.stt_provider,
-                "stt_audio_duration_seconds": (
-                    float(msg.stt_audio_duration_seconds)
-                    if msg.stt_audio_duration_seconds is not None
-                    else None
-                ),
-                "stt_cost_eur": (float(msg.stt_cost_eur) if msg.stt_cost_eur is not None else None),
-                # Per-message TTS cost (only populated for assistant messages
-                # synthesised by a paid TTS provider — Edge stays NULL).
-                "tts_provider": msg.tts_provider,
-                "tts_model": msg.tts_model,
-                "tts_characters": msg.tts_characters,
-                "tts_cost_eur": (float(msg.tts_cost_eur) if msg.tts_cost_eur is not None else None),
-            }
-
-            # Add token data if available (from batch query, no extra queries needed)
-            run_id = msg.message_metadata.get(FIELD_RUN_ID) if msg.message_metadata else None
-            if run_id and run_id in token_summaries:
-                summary = token_summaries[run_id]
-                msg_data[FIELD_TOKENS_IN] = summary.total_prompt_tokens
-                msg_data[FIELD_TOKENS_OUT] = summary.total_completion_tokens
-                msg_data[FIELD_TOKENS_CACHE] = summary.total_cached_tokens
-                # Historical cost from message_token_summary (stored at execution
-                # time): the row's billed total — model, Maps Platform, images
-                # and paid speech (ADR-324). The bubble keeps its own TTS share
-                # for the 🔊 badge; adding it here would count it twice.
-                billed = float(summary.billed_cost_eur)
-                msg_data[FIELD_COST_EUR] = billed if billed else None
-                # Google API tracking
-                msg_data[FIELD_GOOGLE_API_REQUESTS] = summary.google_api_requests
-
-            enriched_messages.append(msg_data)
-
-        # Filter assistant messages with empty/whitespace-only content (ephemeral progress messages)
-        # Also filter out None values that may have been introduced by upstream processing
-        enriched_messages = [
-            msg
-            for msg in enriched_messages
-            if msg is not None
-            and not (msg.get("role") == "assistant" and not msg.get(FIELD_CONTENT, "").strip())
-        ]
-
-        # Show tokens only on the NEWEST assistant message per run_id
-        # (in HITL flows, multiple assistant messages may share same run_id)
-        # Note: Messages are in DESC order (newest first), so we want the FIRST occurrence
-        run_id_to_newest_assistant_index: dict[str, int] = {}
-        for i, msg in enumerate(enriched_messages):
-            if msg.get("role") == "assistant" and (msg.get("message_metadata") or {}).get(
-                FIELD_RUN_ID
-            ):
-                run_id = (msg.get("message_metadata") or {})[FIELD_RUN_ID]
-                # Keep only the first occurrence (newest message since DESC order)
-                if run_id not in run_id_to_newest_assistant_index:
-                    run_id_to_newest_assistant_index[run_id] = i
-
-        # Clear tokens from all assistant messages except the newest one per run_id
-        for i, msg in enumerate(enriched_messages):
-            if msg.get("role") == "assistant" and (msg.get("message_metadata") or {}).get(
-                FIELD_RUN_ID
-            ):
-                run_id = (msg.get("message_metadata") or {})[FIELD_RUN_ID]
-                if i != run_id_to_newest_assistant_index[run_id]:
-                    # Not the newest message for this run_id → hide tokens
-                    msg[FIELD_TOKENS_IN] = None
-                    msg[FIELD_TOKENS_OUT] = None
-                    msg[FIELD_TOKENS_CACHE] = None
-                    msg[FIELD_COST_EUR] = None
-                    msg[FIELD_GOOGLE_API_REQUESTS] = None
-
-        logger.debug(
-            "messages_with_tokens_loaded",
-            user_id=str(user_id),
-            conversation_id=str(conversation.id),
-            count=len(enriched_messages),
-            with_tokens=len([m for m in enriched_messages if m.get(FIELD_TOKENS_IN) is not None]),
-        )
-
-        return enriched_messages
-
     async def get_messages_with_tokens_v2(
         self,
         user_id: UUID,
@@ -1121,35 +971,23 @@ class ConversationService:
         before_created_at: datetime | None = None,
     ) -> list[dict[str, Any]]:
         """
-        OPTIMIZED version of get_messages_with_tokens using ConversationRepository.
+        The active conversation's messages with their token summaries, in one query.
 
-        Uses LEFT JOIN to fetch messages and token summaries in a single query,
-        eliminating N+1 query problem. Controlled by USE_CONVERSATION_REPOSITORY feature flag.
-
-        Performance improvements:
-        - OLD: 1 query for messages + 1 query for token summaries + N queries for logs
-        - NEW: 1 query with LEFT JOIN for messages+tokens + batch query for logs
-        - Reduction: ~50% fewer database roundtrips for typical conversation
+        One LEFT JOIN reads the messages and their runs' token summaries together
+        (the loader it replaced read the summaries in a second query).
 
         Args:
             user_id: User UUID
             limit: Maximum number of messages to return
             db: Database session
-                                 Default: False (show all messages for complete token counting)
             search: Optional case-insensitive ILIKE filter on message content.
             before_created_at: Keyset pagination cursor (scroll-up). When set,
                 only returns messages strictly older than this timestamp.
 
         Returns:
-            List of dicts with message fields + tokens_in/out/cache/cost_eur
-            (same format as get_messages_with_tokens for drop-in replacement)
-
-        Example:
-            >>> # In router, check feature flag:
-            >>> if settings.use_conversation_repository:
-            >>>     messages = await service.get_messages_with_tokens_v2(user_id, 50, db)
-            >>> else:
-            >>>     messages = await service.get_messages_with_tokens(user_id, 50, db)
+            List of dicts with message fields + tokens_in/out/cache/cost_eur, newest
+            first; an answer with no visible text is left out, and a run's tokens
+            show on its newest answer only.
         """
         # Get active conversation
         conversation = await self.get_active_conversation(user_id, db)
@@ -1168,9 +1006,9 @@ class ConversationService:
         )
 
         # Build enriched message list - O(n) with no additional DB queries
-        enriched_messages = []
+        enriched_messages: list[dict[str, object]] = []
         for message, token_dict in results:
-            msg_data = {
+            msg_data: dict[str, object] = {
                 "id": message.id,
                 "role": message.role,
                 FIELD_CONTENT: message.content,
@@ -1214,41 +1052,9 @@ class ConversationService:
 
             enriched_messages.append(msg_data)
 
-        # Filter assistant messages with empty/whitespace-only content (ephemeral progress messages)
-        # Also filter out None values that may have been introduced by upstream processing
-        enriched_messages = [
-            msg
-            for msg in enriched_messages
-            if msg is not None
-            and not (msg.get("role") == "assistant" and not msg.get(FIELD_CONTENT, "").strip())
-        ]
-
-        # Show tokens only on the NEWEST assistant message per run_id
-        # (in HITL flows, multiple assistant messages may share same run_id)
-        # Note: Messages are in DESC order (newest first), so we want the FIRST occurrence
-        run_id_to_newest_assistant_index: dict[str, int] = {}
-        for i, msg in enumerate(enriched_messages):
-            if msg.get("role") == "assistant" and (msg.get("message_metadata") or {}).get(
-                FIELD_RUN_ID
-            ):
-                run_id = (msg.get("message_metadata") or {})[FIELD_RUN_ID]
-                # Keep only the first occurrence (newest message since DESC order)
-                if run_id not in run_id_to_newest_assistant_index:
-                    run_id_to_newest_assistant_index[run_id] = i
-
-        # Clear tokens from all assistant messages except the newest one per run_id
-        for i, msg in enumerate(enriched_messages):
-            if msg.get("role") == "assistant" and (msg.get("message_metadata") or {}).get(
-                FIELD_RUN_ID
-            ):
-                run_id = (msg.get("message_metadata") or {})[FIELD_RUN_ID]
-                if i != run_id_to_newest_assistant_index[run_id]:
-                    # Not the newest message for this run_id → hide tokens
-                    msg[FIELD_TOKENS_IN] = None
-                    msg[FIELD_TOKENS_OUT] = None
-                    msg[FIELD_TOKENS_CACHE] = None
-                    msg[FIELD_COST_EUR] = None
-                    msg[FIELD_GOOGLE_API_REQUESTS] = None
+        # An answer with no visible text is not shown; a run's tokens stay on its newest
+        # answer only (messages come newest first; a HITL run answers more than once).
+        enriched_messages = shown_with_tokens_once(enriched_messages)
 
         logger.debug(
             "messages_with_tokens_loaded_v2_optimized",
@@ -1270,22 +1076,15 @@ class ConversationService:
         before_created_at: datetime | None = None,
     ) -> list[dict[str, Any]]:
         """
-        Automatic routing between old and new implementation based on feature flag.
+        The history page's loader: ``get_messages_with_tokens_v2``, timed.
 
-        This method acts as a router that automatically selects the optimized
-        implementation when USE_CONVERSATION_REPOSITORY=true in .env.
-
-        Use this in production code for safe, progressive rollout:
-        1. Deploy with flag=false (uses old implementation)
-        2. Test in staging with flag=true
-        3. Enable in production when validated
-        4. Monitor metrics to compare performance
+        The flag that once chose between two implementations is gone; the
+        duration histogram keeps its ``version`` label (``v2``), unchanged.
 
         Args:
             user_id: User UUID
             limit: Maximum number of messages to return
             db: Database session
-                                 Default: False (show all messages for complete token counting)
             search: Optional case-insensitive ILIKE filter on message content.
             before_created_at: Keyset pagination cursor (scroll-up). When set,
                 only returns messages strictly older than this timestamp.

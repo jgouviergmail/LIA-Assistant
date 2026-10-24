@@ -28,6 +28,8 @@ export interface AuthFeatures {
   terms_required: boolean;
   /** Version of the terms being accepted. */
   terms_version: string;
+  /** Cloudflare Turnstile site key when the bot check is on (ADR-364), else null. */
+  turnstile_site_key?: string | null;
 }
 
 export interface PasskeyCredential {

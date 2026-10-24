@@ -4,7 +4,7 @@
 
 **Versión**: 6.6
 **Fecha**: 2026-10-23
-**Aplicación**: LIA v3.5.1
+**Aplicación**: LIA v3.6.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -361,7 +361,7 @@ La transparencia no es un añadido técnico. Cambia la relación con tu asistent
 
 ---
 
-Esta transparencia se extiende a la calidad del propio sistema. La auditoría técnica completa — notas, método, fortalezas y lo que queda por mejorar — está publicada en el repositorio, con el protocolo para repetirla y los comandos para verificar las mediciones: [informe de auditoría completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md). No se te pide que creas las cifras de este sitio; puedes comprobarlas.
+Esta transparencia se extiende a la calidad del propio sistema. La auditoría técnica completa — notas, método, fortalezas y lo que queda por mejorar — está publicada en el repositorio, con el protocolo para repetirla y los comandos para verificar las mediciones: [informe de auditoría completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md). No se te pide que creas las cifras de este sitio; puedes comprobarlas. Cada hallazgo se sigue en un registro público hasta su prueba, y una versión se rechaza mientras un hallazgo prioritario haya superado su plazo.
 
 La misma honestidad se aplica a la utilidad misma: LIA mide si realmente ayuda — un resultado solo cuenta una vez validado por ti, explícitamente o dejando una acción sin corregir — y esa medición vive en la misma base local que tus datos, sin implicar jamás una plataforma de analítica de terceros.
 
@@ -401,7 +401,7 @@ La misma exigencia gobierna lo que LIA retiene de tus indicaciones: cada regla d
 
 ### 6.8. Una superficie que describe el producto está obligada a él
 
-La transparencia tiene un modo de fallo que nadie advierte: una pantalla que deja de decir la verdad en silencio. Nada se rompe, ninguna prueba se pone en rojo, y la página que existía para estar al día se convierte en la menos actualizada de la aplicación. Por eso el mapa de capacidades — la página que responde _¿qué sabe hacer mi asistente por mí?_ — ya no se mantiene a mano: cada capacidad que la plataforma puede activar o cortar debe tener allí su lugar declarado, y una capacidad entregada sin esa decisión impide que la aplicación arranque. La misma convicción, un punto más allá: lo que una pantalla afirma sobre tus datos debe ser **exacto o inexistente**. Un recuento es el número que devuelve la base de datos, nunca una longitud que estaba a mano; y mientras la respuesta está en camino, o cuando ha fallado, la tarjeta no dice nada en lugar de adivinar. «Nada configurado» es una afirmación sobre tu cuenta — de esas de las que conviene estar seguro antes de pronunciarlas. La FAQ cumple la misma exigencia: cada función que una persona puede usar tiene allí su sección —498 preguntas, en seis idiomas—, y una sección traducida que el orden de visualización olvidara hace fallar las pruebas en lugar de quedar invisible.
+La transparencia tiene un modo de fallo que nadie advierte: una pantalla que deja de decir la verdad en silencio. Nada se rompe, ninguna prueba se pone en rojo, y la página que existía para estar al día se convierte en la menos actualizada de la aplicación. Por eso el mapa de capacidades — la página que responde _¿qué sabe hacer mi asistente por mí?_ — ya no se mantiene a mano: cada capacidad que la plataforma puede activar o cortar debe tener allí su lugar declarado, y una capacidad entregada sin esa decisión impide que la aplicación arranque. La misma convicción, un punto más allá: lo que una pantalla afirma sobre tus datos debe ser **exacto o inexistente**. Un recuento es el número que devuelve la base de datos, nunca una longitud que estaba a mano; y mientras la respuesta está en camino, o cuando ha fallado, la tarjeta no dice nada en lugar de adivinar. «Nada configurado» es una afirmación sobre tu cuenta — de esas de las que conviene estar seguro antes de pronunciarlas. La FAQ cumple la misma exigencia: cada función que una persona puede usar tiene allí su sección —500 preguntas, en seis idiomas—, y una sección traducida que el orden de visualización olvidara hace fallar las pruebas en lugar de quedar invisible.
 
 La transparencia también se aplica a las reglas internas del asistente. Una restricción que el sistema impone debe publicarse a quien la sufre: cuando el aprendizaje de hábitos no detecta nada, los Ajustes muestran el umbral realmente exigido — más estricto el fin de semana, cuando hay menos días observados — en lugar de un silencio sin explicación. Y cuando un ajuste se regula solo, como el umbral que decide que una nota del diario entra en una respuesta, lo hace dentro de límites estrictos, un pequeño paso al día, con interruptor de apagado y cada ajuste contabilizado: un sistema que aprende solo es aceptable si sigue siendo observable y desconectable.
 

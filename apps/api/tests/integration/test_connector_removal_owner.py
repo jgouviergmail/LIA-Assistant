@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from src.core.exceptions import ResourceConflictError
 from src.domains.connectors.models import Connector, ConnectorStatus, ConnectorType, OAuthGrant
-from src.domains.connectors.oauth_grant_runtime import OAuthGrantRuntime
+from src.domains.connectors.oauth_refresh_targets import GrantTokenTarget
 from src.domains.connectors.removal_commands import (
     connector_removal_snapshot,
     locked_connector_for_removal,
@@ -163,7 +163,9 @@ async def test_oauth_writer_and_unlink_can_finish_without_a_grant_connection_dea
             pending = asyncio.create_task(locked_connector_for_removal(unlink, actor.id, target.id))
             try:
                 await asyncio.wait_for(awaiting_grant.wait(), timeout=5)
-                linked = await asyncio.wait_for(OAuthGrantRuntime(writer)._linked(held), timeout=5)
+                # The refresh door's write locks the grant, then its links (ADR-302).
+                links = GrantTokenTarget(target)._locked_links(writer, held)
+                linked = await asyncio.wait_for(links, timeout=5)
                 assert [row.id for row in linked] == [target.id]
                 await writer.commit()
                 assert (await asyncio.wait_for(pending, timeout=5)).id == target.id

@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-10-19
-**Compatibility**: LIA v3.5.1
+**Compatibility**: LIA v3.6.0
 
 ## Table of Contents
 
@@ -44,6 +44,8 @@ The **speaking avatar** is also optional: the installer leaves `AVATAR_ENABLED=f
 
 **Interactive place maps are optional.** At initial setup, the installer can collect a browser Maps API key and a production Cloud map ID together. Leave both empty to skip; the Position card still lists the places. These inputs stay in the private `.env`, outside public installer state and LLM bootstrap data. Restrict the browser key by HTTP referrer and API; enable the required Google Maps services in your own project. Do not use `DEMO_MAP_ID` in production. Later changes are made in that private environment file; the installer preserves existing operator values. Loading the interactive map requires a click after its cost is shown. No additional service or migration is needed. See [HTML cards](technical/HTML_CARDS.md).
 
+**The anti-robot check is optional.** When LIA is reached on a public domain, the installer can collect a Cloudflare Turnstile site key and secret key together; leave both empty to skip. With both, it writes `TURNSTILE_ENABLED=true` and the two keys to the private `.env`, outside public installer state: sign-up, sign-in and the password-reset request then carry Cloudflare's check, and when Cloudflare gives no usable answer only the sign-in proceeds. Create the widget in your own Cloudflare account for your sites' hostnames, and never use Cloudflare's testing keys in production. See [ADR-364](architecture/ADR-364-Turnstile-Bot-Check-On-The-Password-Doors.md).
+
 **JEV decisions are optional after installation.** The installer leaves every JEV use off; there is no additional Compose service or bootstrap step. To use one, configure a TypeSafe (Jev) provider key, a decision model and its price in Administration, then enable that use and the general switch under **JEV integrations**. An uncertain decision uses LIA's existing path; both a paid attempt and its fallback count toward spending limits. See the [integration guide](technical/JEV_INTEGRATION.md).
 
 Fresh installations leave `OPENAI_ORGANIZATION_ID` and `FIREBASE_PROJECT_ID` empty; no operator identity is borrowed from a development instance. Configure them only for your own integration. Existing operator overrides survive reconfiguration.
@@ -60,7 +62,7 @@ For ElevenLabs and Fish Audio speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` and `FISH
 | Voice providers | ElevenLabs (STT/TTS), Fish Audio (STT/TTS), Edge TTS (free), OpenAI (STT/TTS), Gemini TTS + local Whisper STT |
 | Configurable model and decision slots | 89, including 23 native JEV usages (admin registry, measured 2026-10-19) |
 | UI languages | 6 — fr, en, es, de, it, zh |
-| Prometheus metrics | 630 |
+| Prometheus metrics | 634 |
 | Grafana dashboards | 31 |
 | Built-in FAQ knowledge base | 496 questions in six languages; the English help corpus is indexed at startup |
 
@@ -609,6 +611,7 @@ curl -sk https://localhost:3000 | head -5
 2. Log in with `admin@example.com` / `admin123`
 3. **Change the password** in Settings > Account
 4. Configure at least one LLM provider key (Settings > Administration > LLM Configuration) if not done in Step 7
+5. Lost an administrator's password? An administrator account never receives a reset e-mail ([ADR-363](architecture/ADR-363-Password-Reset-Bounded-Per-Account-And-Bound-To-It.md)): set a new one from the server with `echo '<new password>' | task db:set-password -- --email admin@example.com` — the [self-hosting guide](guides/GUIDE_SELF_HOSTING.md) gives the production form — and every device of the account is signed out
 
 ### 2. Create User Accounts (Optional)
 
@@ -1393,7 +1396,8 @@ Security: `pip-audit` and the SBOM (CI + release) audit the **full transitive tr
 
 ```bash
 task test:backend:unit:fast        # fast unit tests, xdist, no coverage (hook scope)
-task test:backend:unit:coverage    # the CI command verbatim, including the 60% floor
+task test:backend:unit:coverage    # the CI unit suite verbatim, measuring coverage
+task test:backend:coverage         # the coverage floor, on unit + integration together
 task test:backend:unit             # all unit tests
 task test:backend:integration      # integration tests (requires PostgreSQL + Redis)
 task test:backend:agents           # agent-specific tests

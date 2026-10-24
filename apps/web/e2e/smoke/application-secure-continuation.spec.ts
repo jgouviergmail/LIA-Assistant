@@ -75,7 +75,7 @@ for (const { width, lostResponse, exporting } of [
           else await route.fulfill({ json: observation(true, exporting) });
         }
       } },
-      { url: '**/api/v1/auth/step-up/status', json: { methods: ['password'], password_set: true, step_up_valid_until: null } },
+      { url: '**/api/v1/auth/step-up/status', json: { methods: ['password'], password_set: true, step_up_valid_until: null, password_recovery: 'email_link', sign_in_provider: null } },
       { url: '**/api/v1/auth/step-up/password', method: 'POST', handler: async route => {
         verified = true; await route.fulfill({ json: { verified: true } });
       } },

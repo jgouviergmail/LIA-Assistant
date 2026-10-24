@@ -51,20 +51,25 @@ describe('buildAppCsp (strict app policy)', () => {
     expect(prod.get('script-src')).not.toContain("'unsafe-eval'");
   });
 
-  it('declares frame-src with self + www.google.com (interactive-map embed; fallback to default-src would block it)', () => {
-    expect(prod.get('frame-src')).toEqual(["'self'", 'https://www.google.com']);
+  it('declares frame-src with self + www.google.com (interactive-map embed) + the Turnstile challenge frame (ADR-364)', () => {
+    expect(prod.get('frame-src')).toEqual([
+      "'self'",
+      'https://www.google.com',
+      'https://challenges.cloudflare.com',
+    ]);
   });
 
   it('keeps the worker sources: the wake-word worker (ADR-329) and the service worker', () => {
     expect(prod.get('worker-src')).toEqual(["'self'", 'blob:']);
   });
 
-  it('allows only the beacon and exact Maps SDK hosts, never general Google scripts', () => {
+  it('allows only the beacon, exact Maps SDK hosts and the Turnstile loader, never general Google scripts', () => {
     const scriptSrc = prod.get('script-src') ?? [];
     expect(scriptSrc.filter(s => s.startsWith('https://'))).toEqual([
       'https://static.cloudflareinsights.com',
       'https://maps.googleapis.com',
       'https://maps.gstatic.com',
+      'https://challenges.cloudflare.com',
     ]);
   });
 

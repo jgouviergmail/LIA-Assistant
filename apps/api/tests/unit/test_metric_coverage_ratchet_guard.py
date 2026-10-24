@@ -250,7 +250,7 @@ class TestRuleParsing:
             "        expr: rate(other_total[5m])\n",
             encoding="utf-8",
         )
-        monkeypatch.setattr(measurer, "PROM_DIR", rules)
+        monkeypatch.setattr(measurer, "coverage_rule_files", lambda: [rules / "r.yml"])
 
         exprs = measurer._rule_expressions()
 
@@ -272,7 +272,7 @@ class TestRuleParsing:
             "        expr: sum(rate(foo_total[5m]))\n",
             encoding="utf-8",
         )
-        monkeypatch.setattr(measurer, "PROM_DIR", rules)
+        monkeypatch.setattr(measurer, "coverage_rule_files", lambda: [rules / "r.yml"])
 
         assert (
             measurer.uncovered_metrics(

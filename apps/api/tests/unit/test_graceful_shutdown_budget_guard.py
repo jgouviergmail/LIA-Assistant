@@ -44,6 +44,7 @@ from src.core.constants import (
     DEFAULT_SHUTDOWN_BACKGROUND_TASKS_TIMEOUT_SECONDS,
 )
 from src.domains.radio.constants import LOOP_STOP_TIMEOUT_S
+from src.infrastructure.async_utils import BACKGROUND_TASKS_CANCEL_JOIN_TIMEOUT_S
 from tests._repo_paths import repo_root_or_skip
 
 pytestmark = pytest.mark.unit
@@ -144,10 +145,12 @@ class TestGracefulShutdownBudget:
         connection_wait = int(value)
 
         # Every bounded wait of the lifespan shutdown, in the order it runs:
-        # chat producers, generic tasks, the radio's session loops (ADR-324).
+        # chat producers, generic tasks and the join of those it cancelled (A05),
+        # the radio's session loops (ADR-324).
         lifespan_drain = (
             DEFAULT_BACKGROUND_RUNS_DRAIN_TIMEOUT_SECONDS
             + DEFAULT_SHUTDOWN_BACKGROUND_TASKS_TIMEOUT_SECONDS
+            + BACKGROUND_TASKS_CANCEL_JOIN_TIMEOUT_S
             + LOOP_STOP_TIMEOUT_S
         )
         total = connection_wait + lifespan_drain + SIGKILL_SAFETY_MARGIN_SECONDS

@@ -248,3 +248,19 @@ Through a **watch** and **rules that cannot be forgotten**. Every week, an autom
 ## Do private inputs needed by a command pass through the model?
 
 Keys, file choices, account connections and browser consent use the operation’s secure interface, rather than parameters invented by the model. A command is tied to the account and its authorised context; permissions and the resource version are checked again before writing. Encrypted command content does not hide the whole service from its operator: messages and operational data retain the limits described here.
+
+## I forgot my password — and what if I sign in with Google?
+
+On the sign-in page, **Forgot password?** sends a link to your address. The link works once, for a limited time, and stops working as soon as your password changes.
+
+If your account signs in with **Google** and has no password, there is nothing to reset: you receive an email that says so — sign in with Google as usual. If you turned password sign-in off for your passkeys and do not sign in with Google, the link stays your way back should you lose them. An administrator account is never reset by email.
+
+For your safety, a new email only leaves after a short delay, and a few times a day at most: if you asked very recently, use the last email you received. These limits protect your account whoever makes the request, so nobody can flood your mailbox with reset emails.
+
+## Why might an anti-robot check appear when I sign in or sign up?
+
+An instance can protect its sign-up, sign-in and password-reset pages with **Cloudflare Turnstile**, so that scripts can neither create accounts nor flood mailboxes. Most of the time you see nothing: the check runs by itself and appears only when Cloudflare asks for an interaction.
+
+It reads technical signals from your browser in a frame served by Cloudflare; LIA receives only a single-use token, which its server checks, and keeps nothing of those signals.
+
+If Cloudflare does not answer the server, you can still **sign in**, while creating an account or asking for a reset email waits until it answers again. If the check does not load in your browser — an extension blocking `challenges.cloudflare.com`, for instance — allow that address on this site.

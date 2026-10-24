@@ -167,7 +167,9 @@ They are NOT listed here. See section 12.
 
 | Env var | Field | Default | Range | Used in | Notes |
 | --- | --- | --- | --- | --- | --- |
-| `OAUTH_LOCK_TIMEOUT_SECONDS` | `oauth_lock_timeout_seconds` | 10 s | 1–120 | `infrastructure/locks/oauth_lock.py` | Distributed lock acquisition |
+| `OAUTH_REFRESH_WRITE_LOCK_TIMEOUT_MS` | `oauth_refresh_write_lock_timeout_ms` | `OAUTH_REFRESH_WRITE_LOCK_TIMEOUT_MS_DEFAULT` (ms, `core/constants.py`) | the field's bounds (`core/config/locks.py`) | `domains/connectors/oauth_refresh.py` | Longest wait of one refresh-door transition (the conditional write, the verified revocation) for its row (audit AC-029); past it a write is abandoned — the caller is served the new token unstored — and a revocation is reported as a failure |
+| `DATABASE_LOCK_TIMEOUT_MS` | `database_lock_timeout_ms` | `DATABASE_LOCK_TIMEOUT_MS_DEFAULT` (ms, `core/constants.py`) | the field's bounds (`core/config/database.py`) | `infrastructure/database/server_bounds.py` | PostgreSQL `lock_timeout` every application connection starts with (audit AC-028); 0 = the server's own setting; a transaction may tighten it with `SET LOCAL`; reaching it is counted (`db_bound_reached_total`) |
+| `DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS` | `database_idle_in_transaction_timeout_ms` | `DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS_DEFAULT` (ms, `core/constants.py`) | the field's bounds (`core/config/database.py`) | `infrastructure/database/server_bounds.py` | PostgreSQL `idle_in_transaction_session_timeout` (audit AC-028, ADR-304): the server ends a session idle inside a transaction past it; 0 = the server's own setting; the migration engine and the LangGraph pools carry neither bound |
 | `BACKGROUND_RUNS_ACTIVE_TTL_SECONDS` | `background_runs_active_ttl_seconds` | 15 s | 5–120 | `infrastructure/streaming/run_stream_broker.py` | TTL of the per-conversation active-run lock (ADR-117 Lot 2); a killed producer frees the conversation in at most this many seconds |
 | `BACKGROUND_RUNS_HEARTBEAT_SECONDS` | `background_runs_heartbeat_seconds` | 5 s | 1–60 | `agents/api/background_runner.py` | Producer heartbeat refreshing the active-run lock; boot-time validator enforces `heartbeat <= active_ttl / 2` (a single missed beat must not expire a healthy run's lock) |
 
@@ -317,7 +319,8 @@ Migrated:
 
 - `http_timeout_connector_standard`, `http_timeout_connector_long`,
   `http_timeout_conditional_eval`, `http_timeout_sse_polling`,
-  `oauth_lock_timeout_seconds`, `mcp_oauth_http_timeout_seconds`,
+  `oauth_lock_timeout_seconds` (removed 2026-10-23 with the lock it bounded, audit
+  AC-029), `mcp_oauth_http_timeout_seconds`,
   `hue_pairing_timeout_seconds`, `usage_limit_ws_idle_timeout_seconds`,
   `health_metrics_heartbeat_fetch_timeout_seconds`,
   `scheduled_actions_execution_timeout_seconds`,

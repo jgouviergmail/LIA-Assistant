@@ -265,6 +265,28 @@ foreach ($file in $webScripts) {
     Write-Host "  + apps/web/scripts/$file" -ForegroundColor DarkGray
 }
 
+# Modules outside src/ that a file under src/ imports. `next build` type-checks
+# every file tsconfig.json includes, the tests under src/ among them, so a module
+# they import must travel with the bundle: left out, the type check stops the web
+# image's build ("Cannot find module '../../scripts/double-cast.mjs'", deployment
+# of 2026-10-24). The list follows the imports; the unit guard
+# test_prepare_prod_web_imports_guard.py refuses any import it forgets.
+$webImportedModules = @(
+    "coverage-exclusions.mjs",
+    "scripts/decision-points.mjs",
+    "scripts/double-cast.mjs"
+)
+foreach ($file in $webImportedModules) {
+    $src = Join-Path $SourceDir "apps\web\$file"
+    if (-not (Test-Path $src)) {
+        throw "apps/web/$file introuvable : un fichier de src/ l'importe et next build le verifie."
+    }
+    $dest = Join-Path $webDir $file
+    New-Item -ItemType Directory -Path (Split-Path $dest -Parent) -Force | Out-Null
+    Copy-Item $src -Destination $dest
+    Write-Host "  + apps/web/$file" -ForegroundColor DarkGray
+}
+
 # Copier les dossiers source Web
 $webDirs = @("src", "public", "locales")
 foreach ($dir in $webDirs) {

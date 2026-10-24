@@ -390,6 +390,18 @@ class TestSourceResolution:
         """Guard the guard: filtering the sentinel must not hide a real drift."""
         assert _facts.floor_values("a --cov-fail-under=67\nb --cov-fail-under=64") == {"64", "67"}
 
+    def test_coverages_own_spelling_of_the_floor_is_read(self) -> None:
+        """AC-030b: the Taskfile holds the floor where both suites are combined.
+
+        ``coverage report --fail-under`` states it there, while the measuring
+        commands pass the sentinel: reading pytest-cov's spelling alone would find
+        no floor in the Taskfile at all.
+        """
+        text = "pytest --cov-fail-under=0 x\npython -m coverage report --fail-under=67 y"
+
+        assert _facts.floor_values(text) == {"67"}
+        assert _facts.floor_values(f"{text}\nz --cov-fail-under=64") == {"64", "67"}
+
 
 class TestStagedPreview:
     """The preview must cover BOTH instruments, or it answers half the question.
@@ -417,6 +429,96 @@ class TestStagedPreview:
             "the preview must be a superset of the index verdict, never a "
             f"different set: {sorted(scanned_default - scanned_preview)}"
         )
+
+
+class TestFrontendFloor:
+    """The frontend global floor is a quoted fact, like the backend one (AC-032).
+
+    No instrument read ``apps/web/vitest.config.mts`` until 2026-10-23: the
+    testing guide announced a global floor of 64/58/58/65 for months while vitest
+    enforced 85/80/83/87, and ``task lint:docs`` stayed green throughout.
+    """
+
+    AXES = ("statements", "branches", "functions", "lines")
+
+    CONFIG = (
+        "export default defineConfig({\n"
+        "  test: {\n"
+        "    coverage: {\n"
+        "      thresholds: {\n"
+        "        // Re-measured: statements 86.68 / branches 80.74 (prose, not a { block).\n"
+        "        statements: 85,\n"
+        "        branches: 80,\n"
+        "        functions: 83,\n"
+        "        lines: 87,\n"
+        "        'src/lib/voice-output/*.ts': {\n"
+        "          statements: 97,\n"
+        "          branches: 93,\n"
+        "          functions: 98,\n"
+        "          lines: 98,\n"
+        "        },\n"
+        "      },\n"
+        "    },\n"
+        "  },\n"
+        "});\n"
+    )
+
+    @staticmethod
+    def _write_config(root: Path, text: str) -> None:
+        config = root / "apps" / "web" / "vitest.config.mts"
+        config.parent.mkdir(parents=True)
+        config.write_text(text, encoding="utf-8")
+
+    def test_each_axis_resolves_from_the_global_block_never_a_glob(self, tmp_path: Path) -> None:
+        self._write_config(tmp_path, self.CONFIG)
+        facts = {fact.key: fact for fact in _facts.FACTS}
+
+        resolved = {axis: facts[f"frontend_floor_{axis}"].resolve(tmp_path) for axis in self.AXES}
+
+        assert resolved == {"statements": "85", "branches": "80", "functions": "83", "lines": "87"}
+
+    @pytest.mark.parametrize(
+        "config",
+        [
+            CONFIG.replace("        lines: 87,\n", ""),
+            CONFIG.replace("      thresholds: {", "      limits: {"),
+            CONFIG + "const other = { thresholds: { statements: 1 } };\n",
+            CONFIG.replace("        lines: 87,\n", "        lines: 87,\n        lines: 86,\n"),
+        ],
+        ids=["missing-axis", "no-thresholds", "two-threshold-blocks", "duplicated-axis"],
+    )
+    def test_an_unreadable_floor_fails_loudly(self, tmp_path: Path, config: str) -> None:
+        self._write_config(tmp_path, config)
+        statements = next(f for f in _facts.FACTS if f.key == "frontend_floor_statements")
+
+        with pytest.raises(_facts.SourceError):
+            statements.resolve(tmp_path)
+
+    def test_a_quoted_floor_is_found_and_a_measurement_is_not(self) -> None:
+        quoted = "Plancher global : statements 85 / branches 80 / functions 83 / lines 87."
+        measured = (
+            "Mesure : statements 86.68 / branches 80.74 / functions 84.26 / lines 88.15.",
+            "Mesure : statements 85 / branches 80 / functions 83 / lines 87.5.",
+            "Mesure : statements 85 / branches 80 / functions 83 / lines 87,5.",
+        )
+        expected = {"statements": "85", "branches": "80", "functions": "83", "lines": "87"}
+        facts = {fact.key: fact for fact in _facts.FACTS}
+
+        for axis in self.AXES:
+            pattern = facts[f"frontend_floor_{axis}"].pattern
+            assert [m.group("value") for m in pattern.finditer(quoted)] == [expected[axis]]
+            for text in measured:
+                assert not list(pattern.finditer(text)), f"{axis}: {text!r} read as a floor"
+
+    def test_the_testing_guide_quotes_both_floors_under_watch(self) -> None:
+        """The acceptance criterion of AC-032, held mechanically."""
+        quoted = {
+            item.fact
+            for item in _facts.audit_facts(REPO_ROOT)
+            if item.path == "docs/guides/GUIDE_TESTING.md"
+        }
+
+        assert {"coverage_floor", *(f"frontend_floor_{axis}" for axis in self.AXES)} <= quoted
 
 
 class TestRepository:

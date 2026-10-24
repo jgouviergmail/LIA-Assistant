@@ -16,6 +16,8 @@ import subprocess
 from functools import cache
 from pathlib import Path
 
+import pytest
+
 
 @cache
 def _repository_local_variables() -> frozenset[str]:
@@ -40,6 +42,20 @@ def isolated_git_env(overrides: dict[str, str] | None = None) -> dict[str, str]:
         **{name: value for name, value in os.environ.items() if name not in local},
         **(overrides or {}),
     }
+
+
+def isolate_from_the_running_repository(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Remove the repository-local git variables from the test's own environment.
+
+    ``run_git`` isolates the commands a TEST runs. A script under test runs git
+    itself, with the process environment: under a hook it would reach the
+    repository the hook serves — and a ``git fetch`` there reaches its remote.
+
+    Args:
+        monkeypatch: The test's monkeypatch; the variables return after the test.
+    """
+    for name in _repository_local_variables():
+        monkeypatch.delenv(name, raising=False)
 
 
 def run_git(

@@ -141,15 +141,26 @@ completes is a **transactional outbox**, so a hard crash cannot lose it:
 1. `mark_completed` writes the terminal call state **and** `notification_status =
    PENDING` + `notification_payload` in ONE atomic conditional UPDATE. The return
    is a committed durable record *before* it is dispatched.
-2. `process_completed_call` dispatches, then flips PENDING → DELIVERED **only after
-   the dispatcher succeeds**. A dispatch error is swallowed (not re-raised — the
-   old retry loop could never re-dispatch, since `mark_completed` is already
-   terminal) and the row is left PENDING.
+2. `process_completed_call` dispatches, then flips PENDING → DELIVERED **only once
+   the dispatch reached a channel the person finds later** — archived in the
+   conversation, pushed, or sent on an external channel
+   (`dispatch(..., require_durable=True)`, read through
+   `NotificationResult.durably_delivered`). The dispatcher never raises for a
+   channel failure, and an SSE event alone reaches an open tab or nobody, so a
+   dispatch without a durable channel leaves the row PENDING (audit AC-003; until
+   2026-10-23 any dispatch that did not raise was filed as delivered). A dispatch
+   error is swallowed (not re-raised — the old retry loop could never re-dispatch,
+   since `mark_completed` is already terminal) and the row is left PENDING.
 3. `telephony_notification_reaper` (interval, single-instance under leader election
    + `max_instances=1` = the lease) re-dispatches PENDING rows from their payload
    once past a grace window (so it never races the live dispatch of a
    just-completed call), bounded by `TELEPHONY_NOTIFICATION_MAX_ATTEMPTS` before a
-   row is retired to FAILED.
+   row is retired to FAILED. A failed attempt is counted **on a session of its
+   own**: a database error in the dispatch's archive aborts the dispatch session's
+   transaction, and a COMMIT on an aborted transaction rolls back in silence
+   (measured on PostgreSQL) — counted there, the attempt was lost and the row
+   never reached its cap. Proven end to end on PostgreSQL by
+   `tests/integration/domains/telephony/test_notification_reaper_durability.py`.
 
 ### Pre-synthesis inbox (T1 approach A)
 

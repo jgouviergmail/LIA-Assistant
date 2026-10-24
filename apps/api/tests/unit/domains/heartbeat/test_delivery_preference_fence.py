@@ -129,7 +129,7 @@ async def test_opt_out_during_paid_work_suppresses_delivery_and_preserves_billin
     task.generate_content = AsyncMock(return_value=content)
     task.on_notification_sent = AsyncMock()
     runner = ProactiveTaskRunner(task=task)
-    dispatch = AsyncMock(return_value=NotificationResult(success=True))
+    dispatch = AsyncMock(return_value=NotificationResult(archived=True))
     bill = AsyncMock(return_value="run")
     monkeypatch.setattr(runner, "_dispatch_and_settle_on_failure", dispatch)
     monkeypatch.setattr(runner, "_bill", bill)

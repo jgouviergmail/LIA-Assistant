@@ -214,5 +214,7 @@ export const discussionActivitySchema = z.object({
     reached: discussionCeilingSchema.nullable(),
     resets_at: instant.nullable(),
   }),
+  // The opening still awaiting a reply that holds the next one back, and until when.
+  awaiting_reply: z.object({ since: instant, until: instant }).nullable().default(null),
 });
 export type DiscussionActivity = z.infer<typeof discussionActivitySchema>;

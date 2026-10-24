@@ -2,11 +2,22 @@
 Integration tests for connectors (external services).
 """
 
+from collections.abc import Sequence
+from uuid import UUID
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
+from src.core.security import decrypt_data
+from src.domains.connectors import oauth_refresh_targets
 from src.domains.connectors.models import Connector, ConnectorStatus, ConnectorType
+from src.domains.connectors.oauth_refresh_exchange import RefreshedToken, TokenEndpoint
+from src.domains.connectors.schemas import ConnectorCredentials
+from src.domains.connectors.service import ConnectorService
 from src.domains.users.models import User
+from tests.helpers.committed_users import commit_owner
+from tests.helpers.oauth_refresh_io import commit_expired_connector, fresh_token
 
 
 @pytest.mark.integration
@@ -309,41 +320,46 @@ class TestDeleteConnector:
 
 @pytest.mark.integration
 class TestConnectorRefresh:
-    """Test refreshing connector credentials."""
+    """A manual refresh goes through the one refresh door (audit AC-029).
 
-    @pytest.mark.asyncio
-    async def test_refresh_connector_credentials(
-        self, authenticated_client: tuple[AsyncClient, User], async_session
-    ):
-        """Test refreshing connector OAuth credentials."""
-        import json
+    The door reads and writes on sessions of its own, so the connector is
+    COMMITTED: a row only the test's transaction holds is, to the door, absent —
+    it answered 403 « not authorized » for it. The provider exchange is scripted:
+    no request leaves the test.
+    """
 
-        from src.core.security import encrypt_data
+    async def test_a_manual_refresh_stores_the_token_the_provider_issued(
+        self,
+        async_engine: AsyncEngine,
+        committed_user_ids: list[UUID],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        owner = await commit_owner(async_engine, committed_user_ids)
+        connector = await commit_expired_connector(async_engine, owner)
+        exchanged: list[str] = []
 
-        client, user = authenticated_client
+        async def provider(
+            endpoint: TokenEndpoint,
+            *,
+            refresh_token: str,
+            scopes: Sequence[str],
+            owner_id: UUID | None,
+        ) -> RefreshedToken:
+            exchanged.append(refresh_token)
+            return fresh_token("manually-refreshed")
 
-        # Create test connector with refresh token
-        credentials = {
-            "access_token": "old-access-token",
-            "refresh_token": "test-refresh-token",
-            "expires_at": 1234567890,
-        }
-        connector = Connector(
-            user_id=user.id,
-            connector_type=ConnectorType.GOOGLE_GMAIL,
-            status=ConnectorStatus.ACTIVE,
-            scopes=["https://www.googleapis.com/auth/gmail.readonly"],
-            credentials_encrypted=encrypt_data(json.dumps(credentials)),
-        )
-        async_session.add(connector)
-        await async_session.commit()
-        await async_session.refresh(connector)
+        monkeypatch.setattr(oauth_refresh_targets, "exchange_refresh_token", provider)
 
-        response = await client.post(f"/api/v1/connectors/{connector.id}/refresh")
+        async with AsyncSession(async_engine) as db:
+            response = await ConnectorService(db).refresh_connector_credentials(owner, connector.id)
 
-        # May return 200 (success) or error depending on mock/real OAuth
-        # For now, just verify endpoint exists
-        assert response.status_code in [200, 400, 500]
+        async with AsyncSession(async_engine) as db:
+            row = await db.get(Connector, connector.id)
+        assert row is not None
+        stored = ConnectorCredentials.model_validate_json(decrypt_data(row.credentials_encrypted))
+        assert exchanged == ["refresh-1"]
+        assert stored.access_token == "manually-refreshed"
+        assert response.id == connector.id and response.status == ConnectorStatus.ACTIVE
 
 
 @pytest.mark.integration

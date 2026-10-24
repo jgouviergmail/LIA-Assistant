@@ -24,6 +24,7 @@ from fastapi import HTTPException
 from src.core.constants import GMAIL_FORMAT_FULL
 from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
 from src.domains.connectors.schemas import ConnectorCredentials
+from tests.helpers.oauth_refresh_io import ServedCredentials
 
 # ============================================================================
 # FIXTURES
@@ -60,14 +61,7 @@ def expired_credentials():
 def mock_connector_service():
     """Mock ConnectorService for token refresh."""
     service = MagicMock()
-    service._refresh_oauth_token = AsyncMock(
-        return_value=ConnectorCredentials(
-            access_token="new_access_token",
-            refresh_token="test_refresh_token",
-            expires_at=datetime.now(UTC) + timedelta(hours=1),
-        )
-    )
-    service.get_connector_credentials = AsyncMock(return_value=None)
+    service.read_connector_credentials = AsyncMock(return_value=None)
     # Mock db context manager
     service.db = MagicMock()
     service.db.__aenter__ = AsyncMock(return_value=MagicMock())
@@ -277,101 +271,50 @@ async def test_ensure_valid_token_valid_token(gmail_client):
     token = await gmail_client._ensure_valid_token()
 
     assert token == "test_access_token"
-    gmail_client.connector_service.refresh_oauth_token.assert_not_called()
+    gmail_client.connector_service.read_connector_credentials.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_ensure_valid_token_expired_token(
     user_id, expired_credentials, mock_connector_service
 ):
-    """Test automatic token refresh when expired."""
+    """An expired token is replaced by what the service and its refresh door serve."""
     client = GoogleGmailClient(user_id, expired_credentials, mock_connector_service)
+    refreshed = ConnectorCredentials(
+        access_token="new_access_token",
+        refresh_token="test_refresh_token",
+        expires_at=datetime.now(UTC) + timedelta(hours=1),
+    )
+    served = ServedCredentials(refreshed)
+    mock_connector_service.read_connector_credentials.return_value = served
 
-    # Mock get_connector_credentials to return expired credentials (fresh from DB)
-    # This simulates the double-check pattern where we read fresh credentials after lock
-    mock_connector_service.get_connector_credentials.return_value = expired_credentials
+    token = await client._ensure_valid_token()
 
-    # Mock Redis lock and OAuthLock (now in base_google_client)
-    with patch("src.domains.connectors.clients.base_oauth_client.get_redis_session") as mock_redis:
-        mock_session = AsyncMock()
-        mock_redis.return_value = mock_session
-
-        # Mock OAuthLock context manager
-        mock_oauth_lock = MagicMock()
-        mock_oauth_lock.__aenter__ = AsyncMock()
-        mock_oauth_lock.__aexit__ = AsyncMock(return_value=False)  # Don't suppress exceptions
-
-        # Mock repository
-        mock_repo = MagicMock()
-        mock_connector = MagicMock()
-        mock_repo.get_by_user_and_type = AsyncMock(return_value=mock_connector)
-
-        # Mock DB context manager
-        mock_db = AsyncMock()
-        mock_db.__aenter__ = AsyncMock(return_value=mock_db)
-        mock_db.__aexit__ = AsyncMock(return_value=False)
-        mock_connector_service.db = mock_db
-
-        with patch(
-            "src.domains.connectors.clients.base_oauth_client.OAuthLock",
-            return_value=mock_oauth_lock,
-        ):
-            with patch(
-                "src.domains.connectors.repository.ConnectorRepository", return_value=mock_repo
-            ):
-                token = await client._ensure_valid_token()
-
-        # Should return new token
-        assert token == "new_access_token"
-        assert client.credentials.access_token == "new_access_token"
-
-        # Should call refresh with fresh_credentials (from get_connector_credentials)
-        mock_connector_service._refresh_oauth_token.assert_called_once()
+    assert token == "new_access_token"
+    assert served.asked == 1
+    assert client.credentials.access_token == "new_access_token"
+    mock_connector_service.read_connector_credentials.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_refresh_token_lock_contention(user_id, expired_credentials, mock_connector_service):
-    """Test token refresh with lock contention (another process refreshing)."""
+    """A token another process already refreshed is served as it is, with no exchange.
+
+    The coalescing itself (one exchange across callers and workers) is the refresh
+    door's, proven in ``tests/unit/domains/connectors/test_oauth_refresh.py``.
+    """
     client = GoogleGmailClient(user_id, expired_credentials, mock_connector_service)
-
-    # Mock Redis session for lock (now in base_google_client)
-    with patch("src.domains.connectors.clients.base_oauth_client.get_redis_session") as mock_redis:
-        mock_session = AsyncMock()
-        mock_redis.return_value = mock_session
-
-        # Mock OAuthLock context manager
-        mock_oauth_lock = MagicMock()
-        mock_oauth_lock.__aenter__ = AsyncMock()
-        mock_oauth_lock.__aexit__ = AsyncMock()
-
-        # Mock repository to return updated credentials after wait
-        mock_repo = MagicMock()
-        mock_connector = MagicMock()
-        mock_connector.credentials_decrypted = ConnectorCredentials(
+    mock_connector_service.read_connector_credentials.return_value = ServedCredentials(
+        ConnectorCredentials(
             access_token="refreshed_by_other_process",
             refresh_token="test_refresh_token",
             expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
-        mock_repo.get_by_user_and_type = AsyncMock(return_value=mock_connector)
+    )
 
-        # Mock get_connector_credentials to return updated credentials
-        mock_connector_service.get_connector_credentials.return_value = ConnectorCredentials(
-            access_token="refreshed_by_other_process",
-            refresh_token="test_refresh_token",
-            expires_at=datetime.now(UTC) + timedelta(hours=1),
-        )
+    token = await client._ensure_valid_token()
 
-        with patch(
-            "src.domains.connectors.clients.base_oauth_client.OAuthLock",
-            return_value=mock_oauth_lock,
-        ):
-            with patch(
-                "src.domains.connectors.repository.ConnectorRepository", return_value=mock_repo
-            ):
-                token = await client._ensure_valid_token()
-
-        # Should get updated credentials
-        assert token == "refreshed_by_other_process"
+    assert token == "refreshed_by_other_process"
 
 
 # NOTE (audit F006): the two client-side "RATE LIMITING TESTS"

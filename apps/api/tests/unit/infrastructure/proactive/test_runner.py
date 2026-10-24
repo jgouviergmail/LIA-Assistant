@@ -341,9 +341,7 @@ class TestProcessUserStats:
 
         runner = _make_runner(eligibility_checker=checker, task=mock_task)
         runner._get_today_notification_count = AsyncMock(return_value=0)
-        runner._dispatch_notification = AsyncMock(
-            return_value=NotificationResult(success=False, error="FCM failed")
-        )
+        runner._dispatch_notification = AsyncMock(return_value=NotificationResult())
         stats = RunnerStats()
         user = _make_mock_user()
         db = AsyncMock()
@@ -721,7 +719,7 @@ class TestTheSuccessPathIsAccountedAndRecorded:
         runner = _make_runner(eligibility_checker=checker, task=mock_task)
         runner._get_today_notification_count = AsyncMock(return_value=0)
         runner._dispatch_notification = AsyncMock(
-            return_value=NotificationResult(success=True, fcm_success=1, sse_sent=True)
+            return_value=NotificationResult(fcm_success=1, sse_sent=True)
         )
         return runner
 
@@ -957,15 +955,19 @@ class TestTheSuccessPathIsAccountedAndRecorded:
         assert claimed[0]["delivered"] is True
 
     @pytest.mark.asyncio
-    async def test_a_notification_nobody_received_is_not_recorded_as_done(self) -> None:
-        """Settled from the dispatch's explicit result, never from silence."""
+    @pytest.mark.parametrize("live_event", [False, True], ids=["nothing", "sse-only"])
+    async def test_a_notification_nobody_received_is_not_recorded_as_done(
+        self, live_event: bool
+    ) -> None:
+        """Settled from the dispatch's explicit result, never from silence — and
+        an SSE event alone reached an open tab or nobody (audit AC-003)."""
         from contextlib import asynccontextmanager
 
         from src.infrastructure.proactive.notification import NotificationResult
 
         runner = self._successful_runner()
         runner._dispatch_notification = AsyncMock(
-            return_value=NotificationResult(success=False, error="FCM failed")
+            return_value=NotificationResult(sse_sent=live_event)
         )
         seen: list[bool] = []
 
@@ -1095,13 +1097,31 @@ class TestWhatAFailedSweepSpentIsStillBilled:
     """
 
     @pytest.mark.asyncio
+    async def test_a_notification_only_a_live_event_carried_spends_no_cooldown(self) -> None:
+        """The target's hook files « sent » — dedup and cooldown read it. Filed on an
+        SSE event alone, the notification is lost AND never sent again (AC-003)."""
+        from src.infrastructure.proactive.notification import NotificationResult
+
+        runner = TestTheSuccessPathIsAccountedAndRecorded._successful_runner()
+        runner._dispatch_notification = AsyncMock(return_value=NotificationResult(sse_sent=True))
+        stats = RunnerStats()
+
+        with patch(
+            "src.infrastructure.proactive.runner.track_proactive_tokens",
+            new=AsyncMock(return_value="run-x"),
+        ) as tracked:
+            assert await runner._process_user(_make_mock_user(), AsyncMock(), stats) is False
+
+        assert stats.failure_reasons == {"dispatch_failed": 1}
+        runner.task.on_notification_sent.assert_not_awaited()
+        assert tracked.await_args.kwargs["failed"] is True  # paid for, still billed
+
+    @pytest.mark.asyncio
     async def test_a_notification_that_reached_nobody_still_bills_its_generation(self) -> None:
         from src.infrastructure.proactive.notification import NotificationResult
 
         runner = TestTheSuccessPathIsAccountedAndRecorded._successful_runner()
-        runner._dispatch_notification = AsyncMock(
-            return_value=NotificationResult(success=False, error="FCM failed")
-        )
+        runner._dispatch_notification = AsyncMock(return_value=NotificationResult())
 
         with patch(
             "src.infrastructure.proactive.runner.track_proactive_tokens",

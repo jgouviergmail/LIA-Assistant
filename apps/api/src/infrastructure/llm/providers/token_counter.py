@@ -89,7 +89,7 @@ class AnthropicTokenCounter:
     def count(self, text: str, model: str) -> int:
         """Count tokens using Anthropic SDK with model-specific tokenization."""
         try:
-            from anthropic import Anthropic  # type: ignore[import-not-found]
+            from anthropic import Anthropic
 
             api_key = LLMConfigOverrideCache.get_api_key("anthropic")
             if not api_key:

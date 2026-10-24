@@ -1491,9 +1491,11 @@ class ConnectorAPIError(BaseAPIException):
 class ConnectorTokenExpiredError(ValidationError):
     """OAuth refresh rejected by the provider — the user must reconnect.
 
-    Raised by ``ConnectorService._refresh_oauth_token`` when the token
-    endpoint definitively rejects the refresh (``invalid_grant`` = revoked or
-    expired refresh token, or ``interaction_required``). Subclasses
+    Raised by the one OAuth refresh door (``connectors/oauth_refresh.py``) when
+    the token endpoint definitively rejects the refresh (``invalid_grant`` =
+    revoked or expired refresh token, or ``interaction_required``) of the token
+    still stored — a token another worker rotated meanwhile is no revocation.
+    Subclasses
     ``ValidationError`` on purpose:
     the HTTP contract (400) and every existing ``except ValidationError``
     remain intact, while agent-side handlers can now catch this specific

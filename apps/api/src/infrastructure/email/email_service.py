@@ -503,6 +503,88 @@ class EmailService:
 
         return await self.send_email(user_email, subject, html_body, text_body)
 
+    async def send_password_reset_notice(
+        self,
+        user_email: str,
+        user_name: str | None,
+        provider: str,
+        user_language: str,
+    ) -> bool:
+        """Tell an account that signs in with a provider it has no password (ADR-363).
+
+        Sent instead of a reset link, which would create a password on such an
+        account; it carries no token.
+
+        Args:
+            user_email: User's email address
+            user_name: User's full name (optional)
+            provider: The provider's name as people know it (e.g. "Google")
+            user_language: The language of the person the e-mail reaches —
+                required: a known person's e-mail never falls back to the
+                declared language, which may be someone else's (ADR-323).
+
+        Returns:
+            True if email sent successfully
+        """
+        lang = normalize_language(user_language)
+
+        subject = _("Your LIA account has no password to reset", lang)
+        heading = _("No password to reset", lang)
+        greeting = _("Hello {name},", lang).format(name=user_name or user_email)
+        request_text = _("We received a request to reset your password.", lang)
+        no_password = _("Your account has no password: you sign in with {provider}.", lang)
+        how_to = _("To sign in, choose {provider} on the login page.", lang)
+        login_button_text = _("Log in", lang)
+        ignore_text = _(
+            "If you did not make this request, you can ignore this email: "
+            "nothing has changed on your account.",
+            lang,
+        )
+        auto_email_text = _("This is an automated email, please do not reply.", lang)
+        login_link_text = _("Login link", lang)
+        separator = label_separator(lang)
+        login_url = f"{settings.frontend_url}/login"
+        named = html.escape(provider)
+
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <h2 style="color: #1976d2;">{heading}</h2>
+            <p>{html.escape(greeting)}</p>
+            <p>{request_text}</p>
+            <p>{no_password.format(provider=named)}</p>
+            <p>{how_to.format(provider=named)}</p>
+            <p><a href="{login_url}" style="display: inline-block; padding: 10px 20px; background-color: #1976d2; color: #fff; text-decoration: none; border-radius: 4px;">{login_button_text}</a></p>
+            <p style="color: #666; font-size: 14px;">{ignore_text}</p>
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+            <p style="font-size: 12px; color: #666;">
+                {auto_email_text}
+            </p>
+        </body>
+        </html>
+        """
+
+        text_body = f"""
+        {heading}
+
+        {greeting}
+
+        {request_text}
+
+        {no_password.format(provider=provider)}
+
+        {how_to.format(provider=provider)}
+
+        {login_link_text}{separator}{login_url}
+
+        {ignore_text}
+
+        ---
+        {auto_email_text}
+        """
+
+        return await self.send_email(user_email, subject, html_body, text_body)
+
     async def send_pending_activation_notification(
         self,
         user_email: str,

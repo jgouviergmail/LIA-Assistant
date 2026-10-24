@@ -38,7 +38,7 @@ UID = "08dfb351-5336-42c8-92a9-ee46c6e7f0d0"
         f"sse:connection:{UID}",
         f"user:{UID}:sessions",
         f"user:{UID}:contacts_search",
-        f"oauth_lock:{UID}:GOOGLE_GMAIL",
+        f"oauth_refresh:connector:{UID}",
         f"apikey:user:{UID}:abc",
     ],
 )

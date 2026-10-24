@@ -99,6 +99,7 @@ describe.each(['en', 'fr'] as const)('reconstruction progress in %s', lng => {
     last_update: null,
     last_run: null,
     budget: { configured: true, reached: null, resets_at: null },
+    awaiting_reply: null,
     ...overrides,
   });
 

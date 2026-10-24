@@ -2152,6 +2152,156 @@
         }
       },
       "description": "Generated images shared with a connection (ADR-316): `shared` put a copy in the recipient's gallery; `not_connected`, `not_shareable` and `quota` refused before any copy; `failed` is a copy or a write that did not complete, and nothing was kept."
+    },
+    {
+      "id": 113,
+      "title": "Account security — password resets and registrations (ADR-363)",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 111
+      },
+      "panels": []
+    },
+    {
+      "id": 114,
+      "title": "Password-reset requests (1h, by outcome)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 112
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (increase(password_reset_requests_total[1h])) or vector(0)",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "What each reset request did: `link_sent`, `notice_sent` (an account that signs in with a provider is told so, no link), `send_failed`, `throttled` (the account's budget was spent — a burst aimed at ONE account), `unknown_account`, `refused_deleted`, `refused_superuser` (an administrator is never sent a link). The labels never name an account. Alerted by PasswordResetAbuse."
+    },
+    {
+      "id": 115,
+      "title": "Password-reset link uses (1h, by outcome)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 112
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (increase(password_reset_confirmations_total[1h])) or vector(0)",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "What each use of a reset link gave: `completed`, `rejected_token` (forged, expired or replayed — a replay also logs password_reset_token_reused), `stale_token` (the password changed since the link, or the account was re-created), `ineligible` (the account may no longer be reset by e-mail), `unknown_account`."
+    },
+    {
+      "id": 116,
+      "title": "Account registrations (1h, password vs Google)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 112
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(user_registrations_total{status=\"success\"}[1h])) or vector(0)",
+          "legendFormat": "password",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(increase(oauth_user_creation_total[1h])) or vector(0)",
+          "legendFormat": "google",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "New accounts per hour, by how they signed up. Their sum is what RegistrationBurst alerts on: on 2026-10-23 a script created about twenty accounts in an afternoon."
+    },
+    {
+      "id": 117,
+      "title": "Bot check — Turnstile (1h, by door and outcome)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 119
+      },
+      "targets": [
+        {
+          "expr": "sum by (action, outcome) (increase(turnstile_verifications_total[1h])) or vector(0)",
+          "legendFormat": "{{action}} · {{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "What each Turnstile bot check concluded at the password doors (ADR-364): `passed`, `missing` (no token while Cloudflare answers the server — a script that never ran the widget, or a browser that blocks it), `rejected` (Cloudflare refused the token, or it was made for another door or site), `unavailable` (Cloudflare did not answer: the sign-in proceeds, a sign-up or a reset request is refused). Flat at zero when the check is off. Alerted by TurnstileUnavailable."
     }
   ]
 }

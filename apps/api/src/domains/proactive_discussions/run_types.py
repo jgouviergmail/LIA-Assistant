@@ -11,9 +11,17 @@ RunState = Literal["claimed", "completed", "skipped", "failed", "abandoned"]
 SettledRunState = Literal["completed", "skipped", "failed", "abandoned"]
 
 #: How a context build ended. The first three mean something was understood or
-#: reused; the last three mean nothing could be interpreted, and why.
+#: reused; the last four mean nothing could be interpreted, and why —
+#: ``rules_refused``: the compiled reading of the person's rules quoted words they
+#: never wrote, so nothing was read.
 ContextOutcome = Literal[
-    "context_ready", "context_built", "unchanged", "no_source", "no_fact", "prompt_full"
+    "context_ready",
+    "context_built",
+    "unchanged",
+    "no_source",
+    "no_fact",
+    "prompt_full",
+    "rules_refused",
 ]
 #: What the decision chose when the context was ready.
 DecisionOutcome = Literal["published", "decision_skip", "decision_defer"]
@@ -30,6 +38,19 @@ StopReason = Literal[
     "read_budget_exhausted",
     "stale_claim",
     "unreconciled_spend",
+]
+#: What holds the person's attention so that no opening run starts, in the order the
+#: gate asks (``attention_hold``): a message they just wrote, an opening still awaiting
+#: their reply, a recent alert, a recent opening, a reminder about to ring, a turn
+#: streaming, an approval waiting.
+AttentionHold = Literal[
+    "recent_turn",
+    "pending_opening",
+    "recent_alert",
+    "recent_opening",
+    "reminder_due",
+    "turn_streaming",
+    "approval_pending",
 ]
 #: Why the run's financial permit refused a call (``DiscretionaryBudgetRefused``).
 SpendRefusal = Literal[

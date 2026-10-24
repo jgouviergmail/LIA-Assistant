@@ -53,14 +53,15 @@ Poste de developpement                   GitHub Actions
 git commit                               push to main / PR
     |                                        |
     v                                        v
-hook pre-commit (~5 min)                 ci.yml — 12 jobs, 15 appels `task`
+hook pre-commit (~5 min)                 ci.yml — chaque etape appelle une `task`
     |                                        |
     +-- .bak, secrets, infra reelle          +-- Lint Backend .......... task lint:backend lint:mypy-debt
     +-- Ruff / Black / MyPy                  +-- Lint Frontend ......... task lint:frontend
     +-- tests unitaires rapides              +-- Test Backend .......... task test:backend:unit:coverage
     +-- patterns critiques                   |                          task test:backend:agents
-    +-- parite des cles i18n                 |                          task test:markers
-    +-- conflits de migration                +-- Test Backend Integr. .. task test:backend:integration
+                                             |                          task test:markers
+    +-- parite des cles i18n                 +-- Test Backend Integr. .. task test:backend:integration
+    +-- conflits de migration                +-- Backend Coverage ...... task test:backend:coverage / diff-coverage
     +-- completude .env.example              +-- Migration Replay ...... (CI-only, cf. tableau)
     +-- ESLint / TypeScript                  +-- Test Frontend ......... task test:frontend:coverage
                                              +-- E2E + a11y (Playwright) task test:e2e
@@ -205,11 +206,13 @@ est le ratchet F020 : il fige la surface `disable_error_code` en paires
 | ------------- | -------------------- |
 | Lint frontend | `task lint:frontend` |
 
-ESLint, puis trois ratchets shrink-only, puis `tsc --noEmit --incremental
+ESLint, puis les ratchets shrink-only, puis `tsc --noEmit --incremental
 false`. Les ratchets figent la dette existante pour qu'elle ne grossisse pas :
-violations `jsx-a11y` (F012/F013/F021), `react-hooks`/immutabilite (F021), et
+violations `jsx-a11y` (F012/F013/F021), `react-hooks`/immutabilite (F021),
 les fonctions a CC >= 15 avec empreinte par fichier (F011) — une nouvelle
-fonction complexe echoue meme sous le plafond global d'ESLint. Le typecheck est
+fonction complexe echoue meme sous le plafond global d'ESLint — et les doubles
+assertions `as unknown as` par fichier, tests, E2E et production compris
+(AC-037 ; `--update` abaisse, n'ajoute jamais). Le typecheck est
 **non incremental** volontairement : `tsconfig.json` pose `"incremental": true`
 et `*.tsbuildinfo` est git-ignore, donc un run local sur cache pourrait passer
 la ou le runner, a froid, echoue.
@@ -220,14 +223,16 @@ Services containers : PostgreSQL (pgvector) + Redis, sur les images exactes de l
 
 | Step                                  | Commande                          |
 | ------------------------------------- | --------------------------------- |
-| Tests unitaires + couverture          | `task test:backend:unit:coverage` |
+| Tests unitaires + données de couverture | `task test:backend:unit:coverage` |
 | Suite agents                          | `task test:backend:agents`        |
 | Gate de couverture par markers (F006) | `task test:markers`               |
 
-Le seuil de couverture est **78 %** (`--cov-fail-under`), et il a **une seule
-source de verite** : `apps/api/pyproject.toml`, dont le `Taskfile.yml` reprend
-la valeur pour la commande que la CI appelle. Deux gardes la tiennent, chacune
-sur son versant :
+Ce job mesure sans plancher : le plancher porte sur les deux suites ensemble,
+dans le job Backend Coverage (AC-030b). Le seuil de couverture est **78 %**, et il
+a **une seule source de verite** : `apps/api/pyproject.toml` (`--cov-fail-under`),
+dont le `Taskfile.yml` reprend la valeur dans la tâche qui l'applique
+(`test:backend:coverage`, `coverage report --fail-under`). Deux gardes la
+tiennent, chacune sur son versant :
 
 - `test_task_ci_pytest_parity_guard.py::test_coverage_threshold_has_a_single_source_of_truth`
   compare les fichiers de **configuration** entre eux ;
@@ -238,18 +243,27 @@ La seconde a ete ecrite le 2026-08-27 apres avoir mesure six documents citant
 six valeurs fausses differentes — dont ce paragraphe, qui annoncait 60 % tout en
 certifiant l'unicite de la source.
 
-Doctrine ratchet (jamais de baisse, >= 2 points de marge avant de monter) :
-voir [GUIDE_TESTING](../guides/GUIDE_TESTING.md) et ADR-113. Les seuils bloquants
-restent ceux des tâches et de leur configuration de couverture.
+Quand un plancher bouge : la doctrine est écrite une seule fois, dans
+[GUIDE_TESTING](../guides/GUIDE_TESTING.md#doctrine-des-planchers-de-couverture-cliquet).
+Les seuils bloquants restent ceux des tâches et de leur configuration de couverture.
+
+**Limites de temps.** Chaque job de chaque workflow porte un `timeout-minutes`
+(AC-033a, garde `test_ci_job_timeouts_guard.py`). La valeur vaut environ deux fois
+le plus long run réussi récent (mesure du 2026-10-23), sans jamais descendre sous
+dix minutes : c'est un détecteur de blocage, pas un objectif de performance. Dans
+le job, `faulthandler_timeout` borne chaque test : au-delà, la pile de chaque thread
+est écrite et le test échoue au lieu de geler la suite.
 
 Les jobs archivent les rapports avec `actions/upload-artifact`, épinglée au
-commit déclaré dans le workflow : `backend-coverage` contient
-`apps/api/coverage.xml` ; `frontend-coverage` contient
+commit déclaré dans le workflow : `backend-coverage` contient le
+`apps/api/coverage.xml` des deux suites ; `frontend-coverage` contient
 `coverage/coverage-final.json` produit sous `apps/web`.
 Les artifacts sont téléchargeables depuis le run pendant sept jours, y compris
 après un échec des tests (`if: always()`). Une absence de rapport fait échouer
 l’archivage (`if-no-files-found: error`) ; une erreur de test reste bloquante.
-Aucun compte ni jeton de service externe n’est nécessaire.
+Aucun compte ni jeton de service externe n’est nécessaire. Les fichiers de données
+des deux suites (`backend-coverage-unit`, `backend-coverage-integration`) ne
+servent qu'au job Backend Coverage du même run : un jour de conservation.
 
 `task test:markers` (F006) ferme un angle mort du garde-fou par chemins : un
 fichier de test peut vivre sous une racine executee en CI et rester
@@ -281,7 +295,9 @@ conftest ; elle route les fixtures vers le service PostgreSQL au lieu de
 Testcontainers (`tests/conftest.py::_detect_environment`). Les credentials du
 service reproduisent volontairement `.env.test` pour que les tests lisant
 `settings.database_url` en direct (checkpointer LangGraph) atteignent la
-meme base. `--no-cov` : le gate de couverture appartient au job unit.
+meme base. La suite mesure sa couverture dans son propre fichier de données
+(`.coverage-integration`, la seconde collection s'y ajoute), que le job Backend
+Coverage combine avec celui des tests unitaires (AC-030b).
 
 **`LIA_REQUIRE_DB=1`** (pose par la tache et par le job, F019) : ce job
 _promet_ une base, donc une base injoignable doit faire **echouer** le job, pas
@@ -291,6 +307,53 @@ massifs est le pire des resultats.
 En local : `TEST_DATABASE_URL=...lia_test task test:backend:integration`
 (base JETABLE obligatoire — les fixtures droppent toutes les tables), ou
 fallback Testcontainers sans variable.
+
+#### Backend Coverage
+
+| Step                                  | Commande                          |
+| ------------------------------------- | --------------------------------- |
+| Plancher sur les deux suites          | `task test:backend:coverage`      |
+| Couverture du diff (AC-030a)          | `task test:backend:diff-coverage` |
+
+Le plancher porte sur ce que les tests unitaires **et** les tests d'intégration
+exécutent ensemble (AC-030b, décision du propriétaire du 2026-10-23). Mesuré le
+2026-10-23 : les tests unitaires seuls couvraient 78,98 % de `src`, et les
+domaines adossés à PostgreSQL restaient loin sous le plancher (sms 53,6 %,
+discussions proactives 70,7 %), alors que leurs tests d'intégration, sur un vrai
+PostgreSQL, les couvraient à 92,1 % et 82,4 %. Les y monter en unitaire aurait
+exigé de simuler PostgreSQL, ce que les règles de test interdisent.
+
+- Le job attend les deux suites (`needs`), télécharge leurs fichiers de données
+  (`backend-coverage-unit`, `backend-coverage-integration`) et les combine
+  **strictement** : un fichier absent est une erreur, jamais un total partiel.
+- Les fichiers des suites restent hors du motif implicite `<fichier>.*` de
+  coverage : chaque commande de rapport de coverage 7 combine de tels fichiers
+  sans le dire et sans contrôle, puis les efface (garde
+  `test_coverage_union_guard.py`).
+- Le `coverage.xml` est écrit avant le plancher, pour rester lisible quand il
+  n'est pas atteint. Il a la racine des rapports de pytest-cov parce que
+  `[tool.coverage.run] source` nomme l'arbre mesuré : sans elle, la CLI de
+  coverage écrit des chemins absolus sous une racine vide, que la porte du diff
+  refuse.
+
+**Couverture du diff (AC-030a).** Le plancher est global : du code nouveau peut
+passer dessous sans que le total le montre (mesuré le 2026-10-22 : −1,7 point en
+19 jours, des domaines neufs à 53,6 % et 70,2 %). L'étape suivante mesure les
+lignes que la modification ajoute ou change sous `apps/api/src`, et que l'une ou
+l'autre suite compte comme exécutables, contre ce même plancher
+(`scripts/audit/diff_coverage.py`).
+- **Base** : la base de la pull request, ou le commit d'où part le push, passés
+  dans `DIFF_COVERAGE_BASE`. Le checkout superficiel ne la contient pas : le
+  script la récupère seule (`--depth=1`).
+- **Lancement manuel** : la variable est vide ; la porte le dit et passe.
+- **En local** (`task ci`, après les deux suites ; `task ci:fast`, sans
+  services, ne tient ni le plancher ni cette porte) : la base est le point où la
+  branche a quitté `origin/main`, modifications non commitées et nouveaux
+  modules compris.
+- **Rapport périmé** : un `coverage.xml` plus ancien que la modification est
+  refusé, parce que ses numéros de ligne ne décrivent plus le code. Le rapport de
+  l'union est daté de sa combinaison, non de la mesure : en local, après une
+  modification, relancer les deux suites (`task ci` le fait) avant de s'y fier.
 
 #### E2E + a11y smoke (Playwright)
 
@@ -400,14 +463,19 @@ deliberee (un booleen dans le script), pas un effet de bord.
 
 #### Observability Config
 
-| Step                           | Commande                            |
-| ------------------------------ | ----------------------------------- |
-| Validation structurelle (F025) | `task lint:observability`           |
-| promtool check/test rules      | binaire natif — **CI-only declare** |
+| Step                                         | Commande                            |
+| -------------------------------------------- | ----------------------------------- |
+| Validation structurelle (F025), producteurs  | `task lint:observability`           |
+| promtool check/test rules                    | binaire natif — **CI-only declare** |
+| Matrice Alertmanager (A07)                   | `task test:alertmanager`            |
 
 Validation deterministe et sans serveur : JSON/YAML valides, cles de dashboard
 requises, uids uniques, requetes de panels non vides, crochets PromQL
-equilibres. Les deux etapes promtool utilisent la **meme version v3.0.0** que
+equilibres ; et chaque serie qu'un panneau Prometheus ou une regle chargee lit a
+un producteur — une metrique du code, une regle d'enregistrement ou un
+producteur externe declare dont le job de collecte est configure
+(`measure_metric_coverage.py --producers`, AC-006 : quatre panneaux lisaient des
+series que rien ne produisait). Les deux etapes promtool utilisent la **meme version v3.0.0** que
 `task test:alerts` sur les **memes fichiers** — binaire natif ici, conteneur en
 local. Le mecanisme differe, l'artefact verifie non.
 
@@ -552,7 +620,7 @@ Autrement dit : une CI rouge n'empeche pas un commit d'atterrir sur `main`, mais
 elle empeche ce commit d'etre publie en release. Pour un depot a un seul
 mainteneur qui pousse directement, c'est un choix tenable ; il devient
 insuffisant des la premiere contribution externe. Activer la protection
-demanderait d'exiger au minimum les 12 jobs de `ci.yml` comme status checks —
+demanderait d'exiger au minimum chaque job de `ci.yml` comme status check —
 **decision du proprietaire du depot**, non prise a ce jour.
 
 ### Merge settings
@@ -879,12 +947,14 @@ task lint:ci-parity         # le workflow orchestre, il n'implemente pas
 
 # Tests seuls
 task test:backend:unit:fast     # rapide, xdist, sans couverture (perimetre du hook)
-task test:backend:unit:coverage # la commande CI et son plancher de couverture
+task test:backend:unit:coverage # la suite unit de la CI et ses donnees de couverture
+task test:backend:coverage      # le plancher, sur unit + integration (les deux suites d'abord)
 task test:markers               # gate F006 : aucun test ne tourne dans zero job
 task test:frontend              # Vitest
 task test:frontend:coverage     # + les seuils de couverture par fichier
 task test:e2e                   # Playwright + axe (hermetique)
 task test:alerts                # promtool sur les regles Prometheus vivantes
+task test:alertmanager          # rendu + routage Alertmanager, image de production (A07)
 
 # Format auto
 task format                 # Black + Prettier

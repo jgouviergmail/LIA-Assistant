@@ -16,10 +16,14 @@ on:
 permissions:
   contents: read
 
+# Every job carries timeout-minutes (AC-033a): about twice its longest recent successful
+# run (measured 2026-10-23), never under ten minutes — a hang detector, not a performance
+# target. Held by apps/api/tests/unit/test_ci_job_timeouts_guard.py.
 jobs:
   a11y-browser-matrix:
     name: E2E + a11y (Chromium, Firefox, WebKit)
     runs-on: ubuntu-24.04
+    timeout-minutes: 150
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
     steps:

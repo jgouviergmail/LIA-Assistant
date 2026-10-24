@@ -16,6 +16,7 @@ import {
   purgeSensitiveClientStorageOnAccountChange,
 } from '@/lib/client-storage-purge';
 import apiClient from './api-client';
+import { turnstileHeaders } from './turnstile';
 import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
 import type { ExchangeRhythm } from '@/lib/exchange-rhythm';
 
@@ -73,7 +74,13 @@ export interface LoginResult {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string, rememberMe?: boolean) => Promise<LoginResult>;
+  /** `turnstileToken`: the bot check's token when the instance runs one (ADR-364). */
+  login: (
+    email: string,
+    password: string,
+    rememberMe?: boolean,
+    turnstileToken?: string | null
+  ) => Promise<LoginResult>;
   /**
    * Second login step. `mfaToken` is null when the first step was a provider
    * sign-in: its callback is a redirect, so the pending token travels in an
@@ -87,7 +94,8 @@ interface AuthContextType {
     rememberMe?: boolean,
     timezone?: string,
     language?: string,
-    termsAccepted?: boolean
+    termsAccepted?: boolean,
+    turnstileToken?: string | null
   ) => Promise<User>;
   logout: () => Promise<void>;
   /**
@@ -223,11 +231,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    * @param email - User email
    * @param password - User password
    * @param rememberMe - Extend session to 30 days instead of 7
+   * @param turnstileToken - The bot check's token (ADR-364), when the instance runs one
    */
   const login = async (
     email: string,
     password: string,
-    rememberMe = false
+    rememberMe = false,
+    turnstileToken: string | null = null
   ): Promise<LoginResult> => {
     // A4 device attestation: a device with push already granted proves
     // itself with its FCM token (suppresses the new-login alert and names
@@ -249,12 +259,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         user: User | null;
         mfa_required?: boolean;
         mfa_token?: string | null;
-      }>('/auth/login', {
-        email,
-        password,
-        remember_me: rememberMe,
-        fcm_token: fcmToken,
-      });
+      }>(
+        '/auth/login',
+        {
+          email,
+          password,
+          remember_me: rememberMe,
+          fcm_token: fcmToken,
+        },
+        turnstileHeaders(turnstileToken)
+      );
 
       // Two-step login (TOTP active): no session yet — the caller must
       // present the pending token + code to verifyMfa.
@@ -301,6 +315,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    * @param rememberMe - Extend session to 30 days instead of 7
    * @param timezone - User's IANA timezone (optional, auto-detected if not provided)
    * @param language - User's preferred language (optional, auto-detected if not provided)
+   * @param turnstileToken - The bot check's token (ADR-364), when the instance runs one
    */
   const register = async (
     email: string,
@@ -309,20 +324,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     rememberMe = false,
     timezone?: string,
     language?: string,
-    termsAccepted?: boolean
+    termsAccepted?: boolean,
+    turnstileToken: string | null = null
   ): Promise<User> => {
     try {
-      const response = await apiClient.post<{ user: User }>('/auth/register', {
-        email,
-        password,
-        full_name: name,
-        remember_me: rememberMe,
-        // Undefined outside a demonstrator: the field only exists where the
-        // terms are enforced, and sending false there would be a lie.
-        ...(termsAccepted ? { terms_accepted: true } : {}),
-        timezone,
-        language,
-      });
+      const response = await apiClient.post<{ user: User }>(
+        '/auth/register',
+        {
+          email,
+          password,
+          full_name: name,
+          remember_me: rememberMe,
+          // Undefined outside a demonstrator: the field only exists where the
+          // terms are enforced, and sending false there would be a lie.
+          ...(termsAccepted ? { terms_accepted: true } : {}),
+          timezone,
+          language,
+        },
+        turnstileHeaders(turnstileToken)
+      );
 
       setUser(response.user);
       return response.user;

@@ -296,6 +296,38 @@ class ProductRepository:
             stmt = stmt.where(ProductOutcome.evidence_level == evidence)
         return int(await self.db.scalar(stmt) or 0)
 
+    async def validated_outcome_value(self, window_days: int) -> tuple[float | None, float | None]:
+        """Mean cost and median latency of the outcomes validated in the window (AC-006).
+
+        The same useful set as :meth:`count_useful_users` — still ``validated``, validated
+        in the window — so a result rejected after its validation leaves the figures
+        at the next refresh. Both aggregates skip the rows that carry no value: a cost
+        is backfilled by the rollup, a latency only measured when the turn reported it.
+
+        Args:
+            window_days: Rolling window size.
+
+        Returns:
+            ``(mean cost in EUR, median request-to-answer latency in seconds)``, each
+            None when no validated outcome of the window carries it.
+        """
+        cutoff = datetime.now(UTC) - timedelta(days=window_days)
+        mean_cost, median_ms = (
+            await self.db.execute(
+                select(
+                    func.avg(ProductOutcome.cost_eur),
+                    func.percentile_cont(0.5).within_group(ProductOutcome.latency_ms),
+                ).where(
+                    ProductOutcome.state == "validated",
+                    ProductOutcome.validated_at >= cutoff,
+                )
+            )
+        ).one()
+        return (
+            None if mean_cost is None else float(mean_cost),
+            None if median_ms is None else float(median_ms) / 1000,
+        )
+
     async def personal_results(self, *, user_id: UUID, since: datetime) -> dict[str, int]:
         """What this account ACHIEVED over its billing cycle.
 

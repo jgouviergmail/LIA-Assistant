@@ -21,6 +21,7 @@ from typing import Any, Final
 import httpx
 import structlog
 
+from src.domains.voice.stt.audio_file import open_audio_file
 from src.domains.voice.stt.exceptions import STTProviderError
 from src.domains.voice.stt.protocol import STTFileResult, STTResult, TranscriptWord
 from src.domains.voice.vendor_refusal import (
@@ -29,6 +30,7 @@ from src.domains.voice.vendor_refusal import (
     refusal_from_body,
     retry_after_of,
 )
+from src.infrastructure.multipart_upload import FormFile, multipart_upload
 
 logger = structlog.get_logger(__name__)
 
@@ -157,7 +159,8 @@ class ElevenLabsSttService:
         ``speaker_id`` per word when ``diarize`` is set (measured live
         2026-09-02: a two-voice Ogg/Opus dialogue came back with two speakers,
         a WebM truncated at 60 % of its bytes was still accepted). The file is
-        streamed from disk by httpx, never loaded into memory here.
+        streamed from disk, every read in a worker thread (AC-035), never loaded
+        into memory here.
         """
         data = self._file_request_data(diarize=diarize, language=language)
         response = await self._post_file(
@@ -193,15 +196,15 @@ class ElevenLabsSttService:
         """Stream the file to Scribe; transport failures become classified errors."""
         url = f"{self._base_url}/speech-to-text"
         headers = {"xi-api-key": self._api_key, "Accept": "application/json"}
+        audio = await open_audio_file(path)
         try:
-            with open(path, "rb") as handle:
-                files = {"file": (path.rsplit("/", 1)[-1], handle, mime_type)}
-                async with httpx.AsyncClient(timeout=timeout_seconds) as client:
-                    return await client.post(url, headers=headers, files=files, data=data)
-        except OSError as e:
-            raise STTProviderError(
-                code="provider_http_error", message=f"Audio file unreadable: {e.__class__.__name__}"
-            ) from e
+            upload = multipart_upload(
+                data, FormFile("file", path.rsplit("/", 1)[-1], mime_type), audio
+            )
+            async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+                return await client.post(
+                    url, headers={**headers, **upload.headers}, content=upload.content
+                )
         except httpx.TimeoutException as e:
             raise STTProviderError(
                 code="provider_timeout",
@@ -211,6 +214,8 @@ class ElevenLabsSttService:
             raise STTProviderError(
                 code="provider_http_error", message=f"ElevenLabs HTTP error: {e}"
             ) from e
+        finally:
+            await audio.close()
 
     @staticmethod
     def _json_payload(response: httpx.Response) -> dict[str, Any]:

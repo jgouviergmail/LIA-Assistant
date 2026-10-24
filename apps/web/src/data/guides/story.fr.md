@@ -4,7 +4,7 @@
 
 **Version** : 2.6
 **Date** : 2026-10-23
-**Application** : LIA v3.5.1
+**Application** : LIA v3.6.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | --- | --- |
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
 | Lignes de source (hors tests) — 58 domaines fonctionnels | **1 003 000+** |
-| Tests automatisés inventoriés ; suites adaptées au commit et à la livraison | **66 000+** |
-| Décisions d'architecture documentées (ADR) | **360** |
-| Versions livrées à rythme régulier | **287** |
+| Tests automatisés inventoriés ; suites adaptées au commit et à la livraison | **67 000+** |
+| Décisions d'architecture documentées (ADR) | **362** |
+| Versions livrées à rythme régulier | **288** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **7,8/10** |
 
@@ -70,7 +70,7 @@ Le projet est désormais conduit avec plusieurs agents de développement en para
 
 ## 4. Les arbitrages
 
-Trois décisions structurantes, parmi les 360 documentées :
+Trois décisions structurantes, parmi les 362 documentées :
 
 **Souveraineté & réversibilité — aucune dépendance fournisseur irréversible.** Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modèles locaux via Ollama) sont placés derrière une abstraction unique : chaque usage peut changer de fournisseur par configuration, avec comparaison de coût. Même principe côté métier : Google, Apple et Microsoft sont interchangeables par catégorie fonctionnelle. L'auto-hébergement te donne la maîtrise du serveur ; les données du compte sont stockées sur l'instance et les identifiants des connecteurs sont chiffrés. Les services distants que tu choisis reçoivent toujours les données utiles à leur part de la demande.
 
@@ -105,15 +105,19 @@ Le niveau annoncé dans ce document résulte d'un audit technique complet : 24 p
 - Une documentation tenue vraie par des contrôles : décisions, cartes et chiffres cités sont vérifiés contre leurs sources à chaque changement.
 - Une livraison qui exécute ce qu'exécute un développeur : une CI mince sur les mêmes tâches, installation et livraison testées en vase clos, migrations rejouées depuis une base vide.
 
+**Remédié depuis l'audit — en attente de la vérification du prochain audit :**
+
+- Des notifications qui disent vrai : une notification — d'appel, de message entre connexions, d'incident — ne compte comme livrée que sur un succès explicite et durable.
+- Des attentes bornées : la base coupe une attente de verrou ou une transaction inactive avant qu'elle puisse geler un compte, et un rafraîchissement de jeton n'appartient qu'à un seul worker à la fois.
+- Une boucle qui se ferme : chaque constat est suivi dans un registre public avec son âge, son échéance et sa preuve, et le plancher de couverture backend tient sur les suites unitaires et d'intégration réunies.
+- Alertes : chaque combinaison de canaux de notification annoncée est composée et testée, routage compris.
+
 **Ce qu'il reste à faire — connu, planifié :**
 
-- Des états durables qui disent vrai : un document retraité après une reprise doit rester à son propriétaire courant, et une notification — d'appel, de message entre connexions, d'incident — ne compter comme livrée que sur un succès explicite.
-- Des attentes bornées : la base doit couper une attente de verrou ou une transaction inactive avant qu'elle puisse geler un compte, et un rafraîchissement de jeton n'appartenir qu'à un seul worker à la fois.
-- Une boucle qui se ferme : chaque constat suivi avec son âge et son échéance, et une marge de couverture backend rétablie.
-- Alertes : composer et tester chaque combinaison de canaux de notification annoncée, routage compris.
+- Un document retraité après une reprise doit rester à son propriétaire courant.
 - La dette structurelle absolue — fonctions centrales denses, domaines interdépendants, exemptions de typage — réduite lot par lot, pilotée par la mesure.
 
-Le plan d'action est organisé en vagues, chacune avec des critères de sortie mesurables. C'est la façon de rendre compte de ce projet : pas un niveau proclamé, un niveau mesuré — écarts compris.
+Le plan d'action est organisé en vagues, chacune avec des critères de sortie mesurables ; la première est livrée, et c'est au prochain audit d'en confirmer les résultats. C'est la façon de rendre compte de ce projet : pas un niveau proclamé, un niveau mesuré — écarts compris.
 
 Cette exigence a une conséquence que le projet a apprise à ses dépens : **une suite de tests verte ne prouve pas qu'une fonctionnalité marche**. Elle prouve que ce qui a été testé se comporte comme écrit. Les défauts qui survivent aux portes sont précisément ceux qu'on ne leur a jamais demandé de voir — une capacité que personne n'appelle, un chiffre que personne n'additionne, une garde qui reconnaît un nom plutôt qu'un mécanisme. Ce ne sont presque jamais des fautes de code : ce sont des questions qui n'avaient jamais été posées.
 

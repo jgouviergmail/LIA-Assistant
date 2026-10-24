@@ -593,6 +593,47 @@ class TestUploadDocument:
 
     @pytest.mark.asyncio
     @patch("src.domains.rag_spaces.service.settings")
+    async def test_upload_document_prepares_its_directory_off_event_loop(
+        self, mock_settings, service, user_id, space_id, sample_space, tmp_path
+    ) -> None:
+        """AC-035: resolving the space directory and creating it are disk calls too."""
+        import threading
+        from pathlib import Path
+
+        mock_settings.rag_spaces_max_docs_per_space = 50
+        mock_settings.rag_spaces_allowed_types = "text/plain"
+        mock_settings.rag_spaces_max_file_size_mb = 10
+        mock_settings.rag_spaces_storage_path = str(tmp_path)
+        service.space_repo.get_by_id = AsyncMock(return_value=sample_space)
+        service.doc_repo.count_for_space = AsyncMock(return_value=0)
+        service.doc_repo.create = AsyncMock(return_value=MagicMock(id=uuid.uuid4()))
+        service.db.commit = AsyncMock()
+        mock_file = AsyncMock(content_type="text/plain", filename="notes.txt")
+        mock_file.read = AsyncMock(side_effect=[b"hello knowledge", b""])
+
+        calls: list[tuple[str, int]] = []
+        real_resolve, real_mkdir = Path.resolve, Path.mkdir
+
+        def spy_resolve(self_path, *args, **kwargs):
+            calls.append(("resolve", threading.get_ident()))
+            return real_resolve(self_path, *args, **kwargs)
+
+        def spy_mkdir(self_path, *args, **kwargs):
+            calls.append(("mkdir", threading.get_ident()))
+            return real_mkdir(self_path, *args, **kwargs)
+
+        with (
+            patch("pathlib.Path.resolve", spy_resolve),
+            patch("pathlib.Path.mkdir", spy_mkdir),
+        ):
+            await service.upload_document(space_id, user_id, mock_file)
+
+        assert {"resolve", "mkdir"} <= {name for name, _ in calls}
+        assert threading.get_ident() not in {thread for _, thread in calls}
+        assert list(tmp_path.rglob("*.txt"))
+
+    @pytest.mark.asyncio
+    @patch("src.domains.rag_spaces.service.settings")
     async def test_upload_document_limit_exceeded(
         self, mock_settings, service, user_id, space_id, sample_space
     ) -> None:

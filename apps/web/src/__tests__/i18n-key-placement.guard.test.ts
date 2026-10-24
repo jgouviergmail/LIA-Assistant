@@ -157,6 +157,7 @@ const PINNED: ReadonlyArray<{ key: string; placeholders?: readonly string[] }> =
   ...['updated_at', 'rebuilt_at', 'last_run'].map(label => ({
     key: `discussions.activity.${label}`,
   })),
+  { key: 'discussions.activity.awaiting_reply', placeholders: ['since', 'until'] },
   ...['pages', 'facts', 'admitted', 'offered', 'calls', 'items'].map(figure => ({
     key: `discussions.activity.figures.${figure}`,
   })),
@@ -172,6 +173,19 @@ const PINNED: ReadonlyArray<{ key: string; placeholders?: readonly string[] }> =
   ...['title', 'subtitle', 'empty', 'error'].map(part => ({
     key: `notifications_hub.sections.discussions.${part}`,
   })),
+  // ADR-363 — the way back the Security settings state for an account without a password
+  ...['description_provider', 'disable_description_provider'].map(copy => ({
+    key: `settings.security.password.${copy}`,
+    placeholders: ['provider'],
+  })),
+  ...['description_no_recovery', 'disable_description_no_recovery'].map(copy => ({
+    key: `settings.security.password.${copy}`,
+  })),
+  // ADR-364 — the bot check of the password doors
+  ...['label', 'required', 'load_failed', 'load_failed_sign_in', 'blocked'].map(part => ({
+    key: `auth.turnstile.${part}`,
+  })),
+  ...['turnstile_failed', 'turnstile_unavailable'].map(code => ({ key: `auth.errors.${code}` })),
 ];
 
 /** Resolve a dotted path, or undefined. */

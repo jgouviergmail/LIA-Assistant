@@ -177,8 +177,9 @@ class MCPOAuth2Auth(httpx2.Auth):
     async def _refresh_tokens(self, creds: dict) -> dict | None:
         """Exchange refresh token for new access token.
 
-        Uses a Redis distributed lock to prevent concurrent refreshes
-        from invalidating tokens (same pattern as OAuthLock for Google).
+        Uses a Redis distributed lock to prevent concurrent refreshes from
+        invalidating tokens (an MCP server's tokens are not the connectors': the
+        connector refresh door is ``connectors/oauth_refresh.py``).
         """
         lock_key = f"mcp_oauth_refresh_lock:{self.server_id}"
         lock_owner = token_urlsafe(24)

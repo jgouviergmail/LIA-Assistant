@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from hashlib import sha256
 from uuid import uuid4
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
@@ -20,6 +20,7 @@ from src.domains.proactive_discussions.models import (
 from src.domains.proactive_discussions.policy import may_start
 from src.domains.proactive_discussions.policy_repository import policy_value
 from src.domains.proactive_discussions.publication_types import OpeningDraft, PublicationReceipt
+from src.domains.proactive_discussions.replies import synchronize_replies
 from src.domains.proactive_discussions.repository import DiscussionRepository, owns_claim
 from src.domains.proactive_discussions.run_types import RunClaim
 from src.domains.shared.discussion_archive import DiscussionArchiveWriter
@@ -69,10 +70,13 @@ class DiscussionPublicationRepository(DiscussionRepository):
         A second call for the same run returns the first receipt when the draft is
         identical, so a lost commit acknowledgement never publishes twice. Otherwise
         the run must still own its claim and the policy must still admit an opening
-        now; expired pending openings are closed first. The publication settles the
-        run (it releases the account in the same transaction), so it writes the run's
-        reason and counts here: the run's later settlement finds the claim released
-        and writes nothing.
+        now. A pending opening is closed first, once a reply written to it is bound:
+        one past its reply window keeps its deadline, one still awaiting a reply is
+        superseded now — an unanswered opening holds the next run back for a while,
+        never for its whole window. The
+        publication settles the run (it releases the account in the same
+        transaction), so it writes the run's reason and counts here: the run's later
+        settlement finds the claim released and writes nothing.
 
         Args:
             claim: The run's claim.
@@ -106,14 +110,16 @@ class DiscussionPublicationRepository(DiscussionRepository):
         total = await count_today(self.db, claim.owner_id, now=now, timezone=policy.timezone)
         if not owns_claim(row, claim, now) or not may_start(policy, now=now, openings_today=total):
             raise ResourceConflictError("discussion", detail={"error_code": "STALE_STATE"})
+        # A reply archived after the run's last check (a channel under no conversation
+        # lock) still answers the opening it was written for: bind it before closing.
+        await synchronize_replies(self.db, claim.owner_id, now=now)
         await self.db.execute(
             update(DiscussionOpeningRecord)
             .where(
                 DiscussionOpeningRecord.user_id == claim.owner_id,
                 DiscussionOpeningRecord.state == "pending",
-                DiscussionOpeningRecord.expires_at <= now,
             )
-            .values(state="expired")
+            .values(state="expired", expires_at=func.least(DiscussionOpeningRecord.expires_at, now))
         )
         opening_id = uuid4()
         archived = await self.archive(

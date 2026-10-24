@@ -8,19 +8,24 @@
  * asset failures and reduced motion. History snapshots wake up while
  * hovered (transient loop), and a mood change on the live avatar plays a
  * one-shot ring ping (micro-interactions batch I1/I6).
- * No store access — receives all data via props (local state covers hover
- * and the ping). Compatible with React.memo() on ChatMessage.
+ * No store access — receives all data via props (local state covers hover,
+ * the ping and the burst). Compatible with React.memo() on ChatMessage.
+ * The previous snapshot is kept in state and compared during render — the
+ * documented "information from previous renders" pattern, not an effect that
+ * sets state (audit A15); whether a change deserves an animation is decided by
+ * the pure functions of `avatar-transitions`.
  *
  * Phase: evolution — Psyche Engine v2
  * Created: 2026-04-01
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
 import { prefersReducedMotion } from '@/lib/utils/motion';
 import { SelectedCompanionPortrait } from './SelectedCompanionPortrait';
+import { emotionBurstGlyph, moodChangePings } from './avatar-transitions';
 import type { EyeStyleId } from '@/components/eyes/eye-styles';
 import { spiritExpressionForMood, type SpiritVariant } from '@/components/spirit/catalogue';
 import { getMoodColor } from '@/lib/psyche-colors';
@@ -58,21 +63,6 @@ function intensityBarWidth(intensity: number): string {
   if (pct >= 20) return 'w-6';
   return 'w-3';
 }
-
-/**
- * Rare-emotion particle burst (W3): only these emotions, at intensity ≥ 0.8,
- * emit a one-shot 3-particle burst — the restraint is the point.
- */
-const EMOTION_PARTICLES: Record<string, string> = {
-  joy: '✨',
-  wonder: '🌟',
-  tenderness: '❤️',
-  gratitude: '💖',
-  enthusiasm: '⚡',
-  pride: '🌟',
-  frustration: '💢',
-};
-const PARTICLE_INTENSITY_THRESHOLD = 0.8;
 
 /** Map emotion name to a simple color for the mini-bar. */
 const EMOTION_BAR_COLORS: Record<string, string> = {
@@ -116,6 +106,190 @@ function driveLevels(state: PsycheStateSummary) {
   return { curiosity: state.drive_curiosity ?? 0, engagement: state.drive_engagement ?? 0 };
 }
 
+
+/** One-shot particle burst — cleared when the last (most delayed) particle ends. */
+function BurstParticles({ glyph, onDone }: { glyph: string; onDone: () => void }) {
+  return (
+    <span
+      className="pointer-events-none absolute inset-x-0 top-0 flex justify-center"
+      aria-hidden="true"
+    >
+      {[0, 1, 2].map(i => (
+        <span
+          key={i}
+          className="animate-particle-up absolute top-0 text-xs leading-none"
+          style={{
+            ['--particle-x' as string]: `${(i - 1) * 14}px`,
+            animationDelay: `${i * 120}ms`,
+          }}
+          onAnimationEnd={i === 2 ? onDone : undefined}
+        >
+          {glyph}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** Mood label, its intensity when stronger than "slightly", and the PAD triplet. */
+function MoodSection({ state }: { state: PsycheStateSummary }) {
+  const { t } = useTranslation();
+  const pad = [
+    ['P', state.mood_pleasure],
+    ['A', state.mood_arousal],
+    ['D', state.mood_dominance],
+  ] as const;
+  return (
+    <div className="px-3 py-1.5 border-b border-border">
+      <div className="flex items-center gap-2">
+        <span className="text-muted-foreground text-px-10 uppercase tracking-wider w-12 shrink-0">
+          {t('psyche.tooltip.mood', 'Mood')}
+        </span>
+        <span className="text-foreground font-semibold">
+          {t(`psyche.moods.${state.mood_label}`, state.mood_label)}
+        </span>
+        {state.mood_intensity && state.mood_intensity !== 'slightly' && (
+          <span className="text-muted-foreground text-px-10 italic">{state.mood_intensity}</span>
+        )}
+      </div>
+      <div className="flex gap-2 mt-0.5 text-px-10 font-mono">
+        {pad.map(([axis, value]) => (
+          <span key={axis} className={padColor(Math.round(value * 100))}>
+            {axis}:{Math.round(value * 100)}%
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Emotions with mini intensity bars; nothing when the snapshot carries none. */
+function EmotionBars({ emotions }: { emotions: Array<{ name: string; intensity: number }> }) {
+  const { t } = useTranslation();
+  if (emotions.length === 0) return null;
+  return (
+    <div className="px-3 py-1.5 border-b border-border">
+      <div className="text-muted-foreground text-px-10 uppercase tracking-wider mb-1">
+        {emotions.length === 1
+          ? t('psyche.tooltip.emotion', 'Emotion')
+          : t('psyche.tooltip.emotions', 'Emotions')}
+      </div>
+      <div className="space-y-0.5">
+        {emotions.map(emo => (
+          <div key={emo.name} className="flex items-center gap-1.5">
+            <div
+              className={cn(
+                'h-1.5 rounded-full shrink-0',
+                intensityBarWidth(emo.intensity),
+                EMOTION_BAR_COLORS[emo.name] ?? 'bg-muted-foreground'
+              )}
+            />
+            <span className="text-foreground font-medium text-px-11">
+              {t(`psyche.emotions.${emo.name}`, emo.name)}
+            </span>
+            <span className="text-muted-foreground text-px-10 ml-auto tabular-nums">
+              {Math.round(emo.intensity * 100)}%
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Drives — only the significant ones (> 60%), and nothing when none is. */
+function DrivesRow({ curiosity, engagement }: { curiosity: number; engagement: number }) {
+  const showCuriosity = curiosity > 0.6;
+  const showEngagement = engagement > 0.6;
+  if (!showCuriosity && !showEngagement) return null;
+  return (
+    <div className="px-3 py-1.5">
+      <div className="flex items-center gap-3">
+        {showCuriosity && (
+          <div className="flex items-center gap-1 text-px-10">
+            <span className="text-violet-400">⟳</span>
+            <span className="text-muted-foreground">{Math.round(curiosity * 100)}%</span>
+          </div>
+        )}
+        {showEngagement && (
+          <div className="flex items-center gap-1 text-px-10">
+            <span className="text-amber-400">⚡</span>
+            <span className="text-muted-foreground">{Math.round(engagement * 100)}%</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Rich tooltip on hover (desktop only): relationship, mood, emotions, drives. */
+function PsycheTooltip({ state }: { state: PsycheStateSummary }) {
+  const { t } = useTranslation();
+  return (
+    <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-50 pointer-events-none">
+      <div className="bg-popover/95 backdrop-blur-sm border border-border rounded-lg shadow-lg text-xs whitespace-nowrap min-w-[180px]">
+        {/* Header: Relationship stage */}
+        <div className="px-3 pt-2 pb-1.5 border-b border-border">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground text-px-10 uppercase tracking-wider">
+              {t('psyche.relationshipStage', 'Relationship')}
+            </span>
+            <span className="text-foreground font-medium text-px-11">
+              {t(`psyche.stages.${state.relationship_stage}`, state.relationship_stage)}
+            </span>
+          </div>
+        </div>
+        <MoodSection state={state} />
+        <EmotionBars emotions={snapshotEmotions(state)} />
+        <DrivesRow {...driveLevels(state)} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The live avatar's reactions to a change of its snapshot: the mood ping (I6)
+ * and the rare-emotion burst (W3).
+ *
+ * The previous snapshot is kept in state and compared during render (the
+ * documented pattern for information from previous renders). A mount, or a
+ * history row with its frozen snapshot, never reacts: the previous values start
+ * at the mounted ones. A snapshot without psyche is skipped by the mood — the
+ * mood before it stays the previous one — while the emotion remembers « none ».
+ */
+function useSnapshotTransitions(
+  psycheState: PsycheStateSummary | null | undefined,
+  live: boolean
+) {
+  const [pinging, setPinging] = useState(false);
+  const moodLabel = psycheState?.mood_label ?? null;
+  const [previousMood, setPreviousMood] = useState(moodLabel);
+  if (moodLabel !== null && moodLabel !== previousMood) {
+    setPreviousMood(moodLabel);
+    if (moodChangePings(previousMood, moodLabel, live)) setPinging(true);
+  }
+  const [burstGlyph, setBurstGlyph] = useState<string | null>(null);
+  const activeEmotion = psycheState?.active_emotion ?? null;
+  const [previousEmotion, setPreviousEmotion] = useState(activeEmotion);
+  if (activeEmotion !== previousEmotion) {
+    setPreviousEmotion(activeEmotion);
+    const glyph = emotionBurstGlyph(
+      previousEmotion,
+      activeEmotion,
+      psycheState?.emotion_intensity ?? 0,
+      live,
+      prefersReducedMotion()
+    );
+    if (glyph) setBurstGlyph(glyph);
+  }
+  return {
+    pinging,
+    endPing: () => setPinging(false),
+    burstGlyph,
+    endBurst: () => setBurstGlyph(null),
+  };
+}
+
 export function AssistantAvatar({
   psycheState,
   animate,
@@ -125,41 +299,12 @@ export function AssistantAvatar({
   styleId = 'spirit',
   animationReady = true,
 }: AssistantAvatarProps) {
-  const { t } = useTranslation();
   // Hover-wake (I1): history snapshots animate while hovered — transient,
   // one loop at a time, the permanent loop stays exclusive to animateEmoji.
   const [hovered, setHovered] = useState(false);
-  // Mood-ring ping (I6): one-shot animation when the live avatar's mood
-  // changes between renders. The ref starts at null so the initial mount
-  // (or a history row with its frozen snapshot) never pings.
-  const [pinging, setPinging] = useState(false);
-  const prevMoodRef = useRef<string | null>(null);
-  const moodLabel = psycheState?.mood_label ?? null;
-  useEffect(() => {
-    if (moodLabel === null) return;
-    const prev = prevMoodRef.current;
-    prevMoodRef.current = moodLabel;
-    if (prev !== null && prev !== moodLabel && animateEmoji) {
-      setPinging(true);
-    }
-  }, [moodLabel, animateEmoji]);
-  // Rare-emotion particle burst (W3): change-only (never on mount), whitelist +
-  // intensity gate, live avatar only, skipped entirely under reduced motion.
-  const [burstGlyph, setBurstGlyph] = useState<string | null>(null);
-  const prevEmotionRef = useRef<string | null>(null);
-  const activeEmotion = psycheState?.active_emotion ?? null;
-  const emotionIntensity = psycheState?.emotion_intensity ?? 0;
-  useEffect(() => {
-    const prev = prevEmotionRef.current;
-    prevEmotionRef.current = activeEmotion;
-    if (!animateEmoji || activeEmotion === null || prev === null || prev === activeEmotion) {
-      return;
-    }
-    const glyph = EMOTION_PARTICLES[activeEmotion];
-    if (!glyph || emotionIntensity < PARTICLE_INTENSITY_THRESHOLD) return;
-    if (prefersReducedMotion()) return;
-    setBurstGlyph(glyph);
-  }, [activeEmotion, emotionIntensity, animateEmoji]);
+  const live = Boolean(animateEmoji);
+  const { pinging, endPing, burstGlyph, endBurst } = useSnapshotTransitions(psycheState, live);
+  const portraitAnimates = animationReady && (live || hovered);
 
   // The selected identity remains visible even without an emotional snapshot.
   if (!psycheState) {
@@ -174,20 +319,13 @@ export function AssistantAvatar({
           styleId={styleId}
           variant={variant}
           expression="neutral"
-          animate={animationReady && Boolean(animateEmoji || hovered)}
+          animate={portraitAnimates}
         />
       </div>
     );
   }
 
   const moodConfig = getMoodColor(psycheState.mood_label);
-  const emotions = snapshotEmotions(psycheState);
-
-  // Drives — only show when significant (> 60%)
-  const drives = driveLevels(psycheState);
-  const showCuriosity = drives.curiosity > 0.6;
-  const showEngagement = drives.engagement > 0.6;
-  const showDrives = showCuriosity || showEngagement;
 
   return (
     // role="presentation": hover handlers only drive the visual hover state —
@@ -208,7 +346,7 @@ export function AssistantAvatar({
           pinging && 'animate-mood-ping'
         )}
         onAnimationEnd={e => {
-          if (e.animationName === 'mood-ping') setPinging(false);
+          if (e.animationName === 'mood-ping') endPing();
         }}
       >
         {/* The identity follows the current choice; historical moods stay frozen. */}
@@ -216,133 +354,13 @@ export function AssistantAvatar({
           styleId={styleId}
           variant={variant}
           expression={spiritExpressionForMood(psycheState.mood_label)}
-          animate={animationReady && Boolean(animateEmoji || hovered)}
+          animate={portraitAnimates}
         />
       </div>
 
-      {/* One-shot particle burst — cleared when the last (most delayed) particle ends */}
-      {burstGlyph && (
-        <span
-          className="pointer-events-none absolute inset-x-0 top-0 flex justify-center"
-          aria-hidden="true"
-        >
-          {[0, 1, 2].map(i => (
-            <span
-              key={i}
-              className="animate-particle-up absolute top-0 text-xs leading-none"
-              style={{
-                ['--particle-x' as string]: `${(i - 1) * 14}px`,
-                animationDelay: `${i * 120}ms`,
-              }}
-              onAnimationEnd={i === 2 ? () => setBurstGlyph(null) : undefined}
-            >
-              {burstGlyph}
-            </span>
-          ))}
-        </span>
-      )}
+      {burstGlyph && <BurstParticles glyph={burstGlyph} onDone={endBurst} />}
 
-      {/* Rich tooltip on hover (desktop only) */}
-      <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-50 pointer-events-none">
-        <div className="bg-popover/95 backdrop-blur-sm border border-border rounded-lg shadow-lg text-xs whitespace-nowrap min-w-[180px]">
-          {/* Header: Relationship stage */}
-          <div className="px-3 pt-2 pb-1.5 border-b border-border">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground text-px-10 uppercase tracking-wider">
-                {t('psyche.relationshipStage', 'Relationship')}
-              </span>
-              <span className="text-foreground font-medium text-px-11">
-                {t(
-                  `psyche.stages.${psycheState.relationship_stage}`,
-                  psycheState.relationship_stage
-                )}
-              </span>
-            </div>
-          </div>
-
-          {/* Mood + PAD */}
-          <div className="px-3 py-1.5 border-b border-border">
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-px-10 uppercase tracking-wider w-12 shrink-0">
-                {t('psyche.tooltip.mood', 'Mood')}
-              </span>
-              <span className="text-foreground font-semibold">
-                {t(`psyche.moods.${psycheState.mood_label}`, psycheState.mood_label)}
-              </span>
-              {psycheState.mood_intensity && psycheState.mood_intensity !== 'slightly' && (
-                <span className="text-muted-foreground text-px-10 italic">
-                  {psycheState.mood_intensity}
-                </span>
-              )}
-            </div>
-            <div className="flex gap-2 mt-0.5 text-px-10 font-mono">
-              <span className={padColor(Math.round(psycheState.mood_pleasure * 100))}>
-                P:{Math.round(psycheState.mood_pleasure * 100)}%
-              </span>
-              <span className={padColor(Math.round(psycheState.mood_arousal * 100))}>
-                A:{Math.round(psycheState.mood_arousal * 100)}%
-              </span>
-              <span className={padColor(Math.round(psycheState.mood_dominance * 100))}>
-                D:{Math.round(psycheState.mood_dominance * 100)}%
-              </span>
-            </div>
-          </div>
-
-          {/* Emotions with mini intensity bars */}
-          {emotions.length > 0 && (
-            <div className="px-3 py-1.5 border-b border-border">
-              <div className="text-muted-foreground text-px-10 uppercase tracking-wider mb-1">
-                {emotions.length === 1
-                  ? t('psyche.tooltip.emotion', 'Emotion')
-                  : t('psyche.tooltip.emotions', 'Emotions')}
-              </div>
-              <div className="space-y-0.5">
-                {emotions.map(emo => (
-                  <div key={emo.name} className="flex items-center gap-1.5">
-                    <div
-                      className={cn(
-                        'h-1.5 rounded-full shrink-0',
-                        intensityBarWidth(emo.intensity),
-                        EMOTION_BAR_COLORS[emo.name] ?? 'bg-muted-foreground'
-                      )}
-                    />
-                    <span className="text-foreground font-medium text-px-11">
-                      {t(`psyche.emotions.${emo.name}`, emo.name)}
-                    </span>
-                    <span className="text-muted-foreground text-px-10 ml-auto tabular-nums">
-                      {Math.round(emo.intensity * 100)}%
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Drives — only when significant */}
-          {showDrives && (
-            <div className="px-3 py-1.5">
-              <div className="flex items-center gap-3">
-                {showCuriosity && (
-                  <div className="flex items-center gap-1 text-px-10">
-                    <span className="text-violet-400">⟳</span>
-                    <span className="text-muted-foreground">
-                      {Math.round(drives.curiosity * 100)}%
-                    </span>
-                  </div>
-                )}
-                {showEngagement && (
-                  <div className="flex items-center gap-1 text-px-10">
-                    <span className="text-amber-400">⚡</span>
-                    <span className="text-muted-foreground">
-                      {Math.round(drives.engagement * 100)}%
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      <PsycheTooltip state={psycheState} />
     </div>
   );
 }

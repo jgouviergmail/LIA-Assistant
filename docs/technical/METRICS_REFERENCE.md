@@ -32,7 +32,7 @@
 17. [Voice TTS (12 métriques)](#voice-tts-text-to-speech)
 18. [Voice STT (4 métriques)](#voice-stt-speech-to-text)
 19. [Voice WebSocket (5 métriques)](#voice-websocket)
-20. [Hybrid Memory Search (5 métriques)](#hybrid-memory-search)
+20. [BM25 Index Cache (3 métriques)](#bm25-index-cache)
 21. [GeoIP (1 métrique)](#geoip-1-métrique)
 22. [Usage Limits (2 métriques)](#usage-limits-2-métriques)
 23. [Recording Rules (40+ règles)](#recording-rules)
@@ -57,7 +57,7 @@
 | **Checkpoints** | 3 | Dashboard 06 | 6 panels |
 | **Business** | 6 | Dashboard 03 | 10 panels |
 | **Voice (TTS/STT/WS)** | 21 | Dashboard 10 | 20 panels |
-| **Hybrid Memory Search** | 5 | Dashboard 04 | 6 panels |
+| **BM25 Index Cache** | 3 | Dashboard 14 | 2 panels |
 | **Usage Limits** | 2 | Dashboard 03 | 2 panels |
 | **Infrastructure** | 20+ | Dashboard 02 | 25 panels |
 | **Recording Rules** | 40+ | Toutes | - |
@@ -142,6 +142,7 @@ api:slo:availability:ratio_5m           # SLO availability 5min
 | Langfuse (`langfuse_*`) | `metrics_langfuse.py` |
 | Lifetime gauges DB-backed | `lifetime_metrics.py` |
 | OAuth (`oauth_*`) | `metrics_oauth.py` |
+| Proactive discussions (`proactive_discussion_*` — runs by kind and outcome; rows and bytes of the five execution tables, AC-034) | `metrics_proactive_discussions.py` |
 | Produit (`product_*` — outcomes E1/E2/E3, gauges DB-backed North Star/funnel/rétention, télémétrie client Web Vitals/recherche, ADR-178) | `metrics_product.py` |
 | Radio (`radio_*` — sessions, segments, production time, newsroom; `radio_dialogue_takes_total{outcome}`: several voices in one request — `voiced`, `unplaced`, `failed`, ADR-345; `radio_delivery_unrendered_total{dimension}`: voiced lines whose asked delivery the voice could not express — `energy`, `pace`, `tone`, `reaction`, ADR-324 decision 45) | `metrics_radio.py` |
 | Redis (`redis_*`) | `metrics_redis.py` |
@@ -2392,53 +2393,13 @@ sum(rate(voice_websocket_tickets_validated_total[5m]))
 
 ---
 
-## Hybrid Memory Search
+## BM25 Index Cache
 
-### memory_hybrid_search_total
-
-**Type**: Counter
-**Description**: Total hybrid search operations (BM25 + semantic)
-**Labels**: `status`
-
-**Status**: `success`, `error`, `fallback`
-
-**Instrumentation:**
-
-```python
-# apps/api/src/infrastructure/store/semantic_store.py (supprimé — ADR-168)
-hybrid_search_total.labels(status="success").inc()
-```
-
-**Query PromQL:**
-
-```promql
-# Hybrid search success rate
-sum(rate(memory_hybrid_search_total{status="success"}[5m])) /
-sum(rate(memory_hybrid_search_total[5m]))
-
-# Fallback rate (semantic-only due to BM25 issues)
-sum(rate(memory_hybrid_search_total{status="fallback"}[5m])) /
-sum(rate(memory_hybrid_search_total[5m]))
-```
-
----
-
-### memory_hybrid_search_duration_seconds
-
-**Type**: Histogram
-**Description**: Hybrid search latency (semantic + BM25 combined)
-**Buckets**: `[0.01, 0.05, 0.1, 0.2, 0.5, 1.0]`
-
-**Target**: P95 < 200ms
-
-**Query PromQL:**
-
-```promql
-# P95 hybrid search latency
-histogram_quantile(0.95, rate(memory_hybrid_search_duration_seconds_bucket[5m]))
-```
-
----
+The hybrid memory search and its two metrics (`memory_hybrid_search_total`,
+`memory_hybrid_search_duration_seconds`) left with `semantic_store.py` in v1.25.30
+(ADR-168); their two dashboard 14 panels left in 2026-10 (audit AC-006). The BM25
+index now serves the RAG Spaces retrieval (`domains/rag_spaces/retrieval.py`), and
+only its cache is instrumented.
 
 ### memory_bm25_cache_hits_total / memory_bm25_cache_misses_total
 

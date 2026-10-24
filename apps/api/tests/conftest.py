@@ -372,6 +372,10 @@ def _redirect_process_db(async_url: str) -> None:
     from src.domains.conversations.checkpointer import reset_checkpointer
     from src.infrastructure.database import session as db_session_module
     from src.infrastructure.database.psycopg_pool_config import set_psycopg_url_override
+    from src.infrastructure.database.server_bounds import (
+        engine_server_settings,
+        install_bound_counter,
+    )
 
     # 1. settings.database_url — the source read lazily by the checkpointer and
     #    store pools (validated so the field keeps its PostgresDsn contract) —
@@ -386,9 +390,16 @@ def _redirect_process_db(async_url: str) -> None:
     #    with "attached to a different loop" — NullPool opens/closes one
     #    connection per session, which is loop-safe and cheap for tests.
     old_engine = db_session_module.engine
+    # The integration suite runs under the application engine's own PostgreSQL
+    # bounds (audit AC-028): a path that waits on a lock or idles in a
+    # transaction past them fails here as it would in production.
     new_engine = create_async_engine(
-        async_url, echo=False, poolclass=NullPool, connect_args={"timeout": 30}
+        async_url,
+        echo=False,
+        poolclass=NullPool,
+        connect_args={"timeout": 30, "server_settings": engine_server_settings()},
     )
+    install_bound_counter(new_engine)
     db_session_module.engine = new_engine
     db_session_module.AsyncSessionLocal = async_sessionmaker(
         new_engine,

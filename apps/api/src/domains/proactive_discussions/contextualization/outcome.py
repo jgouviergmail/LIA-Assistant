@@ -9,7 +9,9 @@ from src.domains.shared.discussion_sources import DiscussionEvidence, SourceSnap
 
 #: The outcomes after which nothing could be interpreted: a rebuild ending on one of
 #: them built nothing, and says why instead of passing for done.
-NOTHING_INTERPRETED: frozenset[ContextOutcome] = frozenset({"no_source", "no_fact", "prompt_full"})
+NOTHING_INTERPRETED: frozenset[ContextOutcome] = frozenset(
+    {"no_source", "no_fact", "prompt_full", "rules_refused"}
+)
 
 
 @dataclass
