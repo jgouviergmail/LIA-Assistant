@@ -51,6 +51,8 @@ export interface Skill {
   provenance?: SkillProvenance | null;
   is_third_party?: boolean;
   shared_origin?: import('@/lib/capability-sharing').CapabilityOrigin | null;
+  /** Sender side: the connections this item was shared with (newest share each). */
+  shared_with?: import('@/lib/capability-sharing').CapabilityShare[];
 }
 
 /**

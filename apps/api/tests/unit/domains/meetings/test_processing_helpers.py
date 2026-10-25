@@ -13,7 +13,7 @@ import pytest
 
 from src.core.config import settings
 from src.domains.meetings import processing
-from src.domains.meetings.models import MeetingStatus, MeetingSttProvider
+from src.domains.meetings.models import MeetingAudioFormat, MeetingStatus, MeetingSttProvider
 from src.domains.meetings.processing import (
     _completion_values,
     _fail,
@@ -123,7 +123,11 @@ def test_completion_values_carry_every_derived_fact_and_encrypt_the_transcript(
         reason="Un daily.",
     )
     values = _completion_values(
-        meeting=SimpleNamespace(calendar_event_id=None, calendar_provider=None),
+        meeting=SimpleNamespace(
+            calendar_event_id=None,
+            calendar_provider=None,
+            audio_format=MeetingAudioFormat.WEBM_OPUS,
+        ),
         audio_path="u/m/audio.webm",
         duration=61.5,
         outcome=outcome,
@@ -139,6 +143,8 @@ def test_completion_values_carry_every_derived_fact_and_encrypt_the_transcript(
     assert values["template_name"] == "Daily" and values["template_selection"] == "auto"
     assert values["template_selection_reason"] == "Un daily."
     assert values["audio_path"] == "u/m/audio.webm" and values["audio_gaps"] == 2
+    # A recording ended when it was stopped: completion never rewrites that.
+    assert "stopped_at" not in values
     assert values["stt_provider"] is MeetingSttProvider.OPENAI and values["stt_diarized"] is True
     assert values["stt_cost_eur"] == 0.009 and values["stt_detected_language"] == "fr"
     assert (

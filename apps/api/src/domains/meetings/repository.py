@@ -17,9 +17,10 @@ from sqlalchemy import case, delete, func, literal, select, text, true, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
-from src.domains.meetings.error_codes import ERROR_WORKER_LOST
+from src.domains.meetings.error_codes import ERROR_IMPORT_INCOMPLETE, ERROR_WORKER_LOST
 from src.domains.meetings.models import (
     Meeting,
+    MeetingAudioFormat,
     MeetingIndexState,
     MeetingPreference,
     MeetingStage,
@@ -122,13 +123,20 @@ class MeetingRepository(MeetingRegenerationRepositoryMixin, BaseRepository[Meeti
     # ------------------------------------------------------- recording phase
 
     async def record_segment(
-        self, meeting_id: UUID, *, sequence: int, added_bytes: int
+        self,
+        meeting_id: UUID,
+        *,
+        sequence: int,
+        added_bytes: int,
+        accepting: tuple[MeetingStatus, ...] = LIVE_STATUSES,
+        status_after: MeetingStatus = MeetingStatus.RECORDING,
     ) -> tuple[MeetingStatus, int, int] | None:
         """Account one accepted segment; an interrupted recording resumes.
 
         ``segment_count`` becomes ``max(segment_count, sequence + 1)`` so an
         out-of-order or duplicated upload never shrinks it; ``added_bytes`` is 0
-        when the segment replaced an identical earlier upload.
+        when the segment replaced an identical earlier upload. An import's chunk
+        is the same act on an ``uploading`` row, which stays ``uploading``.
 
         Returns:
             ``(status, segment_count, audio_bytes)`` AFTER the update — read from
@@ -138,12 +146,12 @@ class MeetingRepository(MeetingRegenerationRepositoryMixin, BaseRepository[Meeti
         """
         stmt = (
             update(Meeting)
-            .where(Meeting.id == meeting_id, Meeting.status.in_(LIVE_STATUSES))
+            .where(Meeting.id == meeting_id, Meeting.status.in_(accepting))
             .values(
                 segment_count=func.greatest(Meeting.segment_count, sequence + 1),
                 audio_bytes=Meeting.audio_bytes + added_bytes,
                 last_segment_at=func.now(),
-                status=MeetingStatus.RECORDING,
+                status=status_after,
             )
             .returning(Meeting.status, Meeting.segment_count, Meeting.audio_bytes)
             .execution_options(synchronize_session=False)
@@ -153,11 +161,18 @@ class MeetingRepository(MeetingRegenerationRepositoryMixin, BaseRepository[Meeti
         await self.db.commit()
         return (MeetingStatus(row[0]), int(row[1]), int(row[2])) if row else None
 
-    async def stop(self, meeting_id: UUID, *, stopped_at: datetime, segment_count: int) -> bool:
-        """``recording|interrupted → stopped``. True iff this call did it."""
+    async def stop(
+        self,
+        meeting_id: UUID,
+        *,
+        stopped_at: datetime,
+        segment_count: int,
+        accepting: tuple[MeetingStatus, ...] = LIVE_STATUSES,
+    ) -> bool:
+        """``recording|interrupted`` (or a complete ``uploading``) ``→ stopped``. True iff done."""
         stmt = (
             update(Meeting)
-            .where(Meeting.id == meeting_id, Meeting.status.in_(LIVE_STATUSES))
+            .where(Meeting.id == meeting_id, Meeting.status.in_(accepting))
             .values(
                 status=MeetingStatus.STOPPED,
                 stopped_at=stopped_at,
@@ -201,6 +216,35 @@ class MeetingRepository(MeetingRegenerationRepositoryMixin, BaseRepository[Meeti
         result = await self.db.execute(stmt)
         await self.db.commit()
         return int(result.rowcount or 0)  # type: ignore[attr-defined]
+
+    async def fail_stale_imports(
+        self, stale_minutes: int
+    ) -> list[tuple[UUID, UUID, MeetingAudioFormat]]:
+        """``uploading → failed`` for imports that received no chunk for ``stale_minutes``.
+
+        Returns:
+            ``(meeting_id, user_id, audio_format)`` of each import failed, whose
+            chunks the caller deletes once this commit landed.
+        """
+        threshold = func.now() - text(":m * interval '1 minute'").bindparams(m=stale_minutes)
+        stmt = (
+            update(Meeting)
+            .where(
+                Meeting.status == MeetingStatus.UPLOADING,
+                # Never ``started_at``: an import is dated by its recording, maybe weeks old.
+                func.coalesce(Meeting.last_segment_at, Meeting.created_at) < threshold,
+            )
+            .values(
+                status=MeetingStatus.FAILED,
+                last_error_code=ERROR_IMPORT_INCOMPLETE,
+                last_error_message=None,
+            )
+            .returning(Meeting.id, Meeting.user_id, Meeting.audio_format)
+            .execution_options(synchronize_session=False)
+        )
+        rows = (await self.db.execute(stmt)).all()
+        await self.db.commit()
+        return [(row[0], row[1], MeetingAudioFormat(row[2])) for row in rows]
 
     # ------------------------------------------------------ processing phase
 

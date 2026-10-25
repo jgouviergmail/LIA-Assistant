@@ -19,6 +19,7 @@ from datetime import UTC, datetime, timedelta
 import structlog
 
 from src.core.config import settings
+from src.domains.telephony.call_notifications import dispatch_call_notification
 from src.domains.telephony.repository import TelephonyRepository
 from src.infrastructure.database.session import get_db_context
 
@@ -109,11 +110,11 @@ async def telephony_notification_reaper() -> None:
             try:
                 # Durable or nothing (AC-003): a dispatch that reached no channel the
                 # person finds later is a failure this reaper exists to retry.
-                await NotificationDispatcher().dispatch(
+                await dispatch_call_notification(
+                    NotificationDispatcher(),
                     user=user,
+                    call_id=call_id,
                     content=payload.get("content", ""),
-                    task_type="phone_call",
-                    target_id=str(call_id),
                     metadata={"call_status": call_status, "recovered": True},
                     db=db,
                     title=payload.get("title"),

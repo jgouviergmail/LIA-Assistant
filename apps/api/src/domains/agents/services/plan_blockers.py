@@ -49,7 +49,11 @@ from collections.abc import Collection
 from dataclasses import dataclass
 from typing import Final
 
-from src.domains.agents.orchestration.plan_schemas import ExecutionPlan, StepType
+from src.domains.agents.orchestration.plan_schemas import (
+    FOR_EACH_ITEM_INFIX,
+    ExecutionPlan,
+    StepType,
+)
 from src.domains.agents.orchestration.validator import ValidationResult
 from src.domains.agents.tools.common import ToolErrorCode
 
@@ -132,7 +136,7 @@ def attempted_tool_names(
     for step in execution_plan.steps:
         if step.step_type != StepType.TOOL or not step.tool_name:
             continue
-        item_prefix = f"{step.step_id}_item_"
+        item_prefix = f"{step.step_id}{FOR_EACH_ITEM_INFIX}"
         if step.step_id in stored or any(key.startswith(item_prefix) for key in stored):
             attempted.add(step.tool_name)
     return frozenset(attempted)

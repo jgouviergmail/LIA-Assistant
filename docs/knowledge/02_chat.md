@@ -366,6 +366,8 @@ This trace is **stored with the message**: you will find it after a reload and o
 
 On a very long turn the panel keeps a bounded number of steps, and it keeps **the first ones as well as the latest**. The count shown is the real total, and the panel says exactly how many intermediate steps are hidden.
 
+Each tool line also says **what the tool did**, in figures only: how many times it was called (×2), how many results it found, how many LIA actually read when it found more than it could read, and how many calls failed. The same figures appear while LIA works and in the stored trace — never the names of the items it read.
+
 ## How do I search my entire conversation history?
 Type in the **search field** of the chat header (or tap the 🔍 icon on mobile). The loaded messages filter instantly — accent-insensitive — with the matches **highlighted** in the bubbles and a result counter.
 
@@ -491,3 +493,13 @@ Wait for that work to finish, then send your message again. The stop button neve
 When a new answer contains selected Google Places, a **Position** card appears before the place cards, in Cards, HTML cards, HTML and Markdown modes. Each usable location has a marker. The card appears automatically; a click activates the interactive map after its cost is shown. If the administrator has not configured Maps, or the map cannot load, the place list stays available. Old answers are not rewritten.
 
 Each place carries a number, the same in the list and on its pin. Selecting a place, in the list or on the map, shows the details already gathered for the answer — address, rating and number of reviews, phone, website and opening hours — with no new search. The selection also calculates one route to the place: walking for a short distance, otherwise driving. It starts from your current location when your location preference and your browser already allow it (no permission prompt appears), otherwise from your last known location, whose age is shown, otherwise from your home. Each route is a billed Google request, counted in your usage and subject to your quotas; without a starting point, the details stay available. On a phone, the details open in a panel at the bottom of the screen. On a wide enough screen, the list of places sits to the right of the map once the map is switched on.
+
+## Can I bring a kept answer or a generated file back into a discussion?
+
+Yes, as a copy. In the composer, the **+** menu offers **Answer from your bookmarks**
+and **File LIA generated**; in **My generated files** — the Bookmarks tab included —
+**Use in the discussion** opens the chat with the item already attached. A kept answer
+joins as a document (your request, then the answer); a generated image joins as an
+image, a document with its text. Nothing is sent until you send your message, and the
+original stays where it was — a conversation reset removes the copy only.
+

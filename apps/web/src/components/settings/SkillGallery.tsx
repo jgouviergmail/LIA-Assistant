@@ -15,7 +15,7 @@ import type { SkillsTranslator } from '@/components/settings/SkillDetailModal';
 import { skillTraitTone } from '@/lib/status-tone';
 import { Send } from 'lucide-react';
 import { RowActions } from '@/components/ui/row-actions';
-import { CapabilityOriginBadge } from '@/components/peers/CapabilityOriginBadge';
+import { CapabilityProvenance } from '@/components/peers/CapabilityProvenance';
 
 function CardBadges({ skill, t }: { skill: Skill; t: SkillsTranslator }) {
   return (
@@ -50,6 +50,46 @@ function CardBadges({ skill, t }: { skill: Skill; t: SkillsTranslator }) {
         </Badge>
       )}
     </>
+  );
+}
+
+/**
+ * The card's foot, under its rule: where the skill came from and whom it went
+ * to (owner request 2026-10-24), then its share action. Drawn only when it
+ * holds one of them; `mt-auto` lines the rules up across a grid row.
+ */
+function SkillCardFooter({
+  skill,
+  lng,
+  t,
+  onShare,
+}: {
+  skill: Skill;
+  lng: string;
+  t: SkillsTranslator;
+  onShare?: (skill: Skill) => void;
+}) {
+  const shareable = Boolean(onShare && skill.scope === 'user' && skill.skill_id);
+  const provenance = Boolean(skill.shared_origin) || Boolean(skill.shared_with?.length);
+  if (!shareable && !provenance) return null;
+  return (
+    <div className="mt-auto space-y-2 border-t pt-2">
+      <CapabilityProvenance origin={skill.shared_origin} sharedWith={skill.shared_with} lng={lng} />
+      {shareable && (
+        <RowActions
+          className="justify-end"
+          actions={[
+            {
+              key: 'share',
+              label: t('settings.capability_share.action', { name: skill.name }),
+              icon: Send,
+              onSelect: () => onShare?.(skill),
+            },
+          ]}
+          menuLabel={t('common.actions_for', { name: skill.name })}
+        />
+      )}
+    </div>
   );
 }
 
@@ -110,28 +150,7 @@ export function SkillGallery({
                 aria-label={t('settings.skills.toggle_skill', { name: skill.name })}
               />
             </div>
-            {skill.shared_origin && (
-              <div className="min-w-0">
-                <CapabilityOriginBadge origin={skill.shared_origin} lng={lng} />
-              </div>
-            )}
-            {onShare && skill.scope === 'user' && skill.skill_id && (
-              // `mt-auto`: in a grid row the rules line up whatever each card holds.
-              <div className="mt-auto border-t pt-2">
-                <RowActions
-                  className="justify-end"
-                  actions={[
-                    {
-                      key: 'share',
-                      label: t('settings.capability_share.action', { name: skill.name }),
-                      icon: Send,
-                      onSelect: () => onShare(skill),
-                    },
-                  ]}
-                  menuLabel={t('common.actions_for', { name: skill.name })}
-                />
-              </div>
-            )}
+            <SkillCardFooter skill={skill} lng={lng} t={t} onShare={onShare} />
           </div>
         );
       })}

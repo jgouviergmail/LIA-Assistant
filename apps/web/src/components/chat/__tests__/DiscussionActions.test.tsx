@@ -53,12 +53,15 @@ describe('personal discussion feedback', () => {
   });
 });
 
-it('takes a line of its own under the bubble actions, starting on their edge', () => {
-  // Owner request 2026-10-21: in the bubble's flex-wrap action row the answers
-  // start a new line (a full basis) instead of trailing Copy and Keep.
+it('sits at the right end of the bubble actions, wrapping as one block', () => {
+  // Owner decision 2026-10-24 (replacing 2026-10-21): in the bubble's flex-wrap
+  // action row the answers are pushed to the RIGHT end — on the actions' line
+  // when there is room, on the next one, still right-aligned, when there is not.
   render(<DiscussionActions metadata={metadata} />, { wrapper: TooltipProvider });
   const group = screen.getByRole('button', { name: 'discussions.feedback.useful' }).parentElement;
-  expect(group).toHaveClass('basis-full', 'w-full', 'flex-wrap');
+  expect(group).toHaveClass('ml-auto', 'justify-end', 'flex-wrap');
+  expect(group).not.toHaveClass('basis-full');
+  expect(group).not.toHaveClass('w-full');
 });
 
 it('reply only prefills an explicit quote and never sends or writes feedback', () => {

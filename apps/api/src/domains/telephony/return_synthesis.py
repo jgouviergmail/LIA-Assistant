@@ -32,6 +32,7 @@ from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n import get_language_name, normalize_language
 from src.core.i18n_telephony import get_return_phrases
 from src.core.llm_config_helper import get_llm_config_for_agent
+from src.domains.telephony.call_notifications import dispatch_call_notification
 from src.domains.telephony.models import CallKind, PhoneCallOutcome, PhoneCallStatus
 from src.domains.telephony.payload import (
     current_datetime_line,
@@ -466,11 +467,11 @@ async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None
             return
 
         try:
-            await NotificationDispatcher().dispatch(
+            await dispatch_call_notification(
+                NotificationDispatcher(),
                 user=user,
+                call_id=call_id,
                 content=delivery_text,
-                task_type="phone_call",
-                target_id=str(call_id),
                 # T01: the structured debrief rides in the metadata so the chat
                 # can render an actionable card (InterestNotificationCard
                 # pattern) — same PII surface as the content it accompanies.

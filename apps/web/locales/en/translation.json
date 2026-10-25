@@ -824,6 +824,9 @@
       "source_voice": "Voice"
     },
     "attachments": {
+      "import_meeting": "Import a meeting recording",
+      "from_bookmark": "Answer from your bookmarks",
+      "from_generated": "File LIA generated",
       "add": "Attach a file",
       "photo_gallery": "Photo from gallery",
       "take_photo": "Take a photo",
@@ -836,6 +839,40 @@
       "max_attachments": "Maximum {{max}} attachments",
       "remove": "Remove",
       "drop_here": "Drop your images or PDFs here"
+    },
+    "attach_picker": {
+      "search_placeholder": "Search by name",
+      "more_hint": "Showing {{shown}} of {{total}} — search to reach the others.",
+      "remaining_one": "{{count}} more attachment can join this message.",
+      "remaining_other": "{{count}} more attachments can join this message.",
+      "attach_one": "Attach ({{count}})",
+      "attach_other": "Attach ({{count}})",
+      "already_attached": "It is already attached.",
+      "attach_error": "“{{name}}” could not be attached."
+    },
+    "bookmark_picker": {
+      "title": "Attach a kept answer",
+      "description": "An answer you kept joins this message as a document — the request, then the answer. Your bookmark stays as it is.",
+      "search_placeholder": "Search your answers",
+      "loading": "Loading your bookmarks…",
+      "empty": "No bookmark yet. Keep an answer with the bookmark on its bubble in the chat.",
+      "empty_search": "No bookmark holds those words.",
+      "error": "Your bookmarks could not be listed."
+    },
+    "generated_picker": {
+      "title": "Attach a file LIA generated",
+      "description": "An image joins this message as an image, a document with its text — a copy; the original stays in your generated files.",
+      "loading": "Loading your files…",
+      "empty": "Nothing generated of this kind yet.",
+      "empty_search": "No file has that name.",
+      "error": "Your generated files could not be listed.",
+      "family": "Kind of file",
+      "family_images": "Images",
+      "family_documents": "Documents"
+    },
+    "attach_link": {
+      "gone": "That file is no longer available — it may have expired or been deleted.",
+      "failed": "It could not be attached to your message."
     },
     "knowledge_picker": {
       "title": "Attach a document from your knowledge spaces",
@@ -4895,6 +4932,7 @@
       "runs_other": "{{count}} runs"
     },
     "generated_assets": {
+      "use_in_chat": "Use {{name}} in the discussion",
       "title": "My generated files",
       "description": "The images, documents and screenshots LIA produced for you, and the answers you chose to keep. A file expires unless you keep it: keep it, download it or remove it now.",
       "family": {
@@ -4978,6 +5016,7 @@
       "keep_error": "What is kept could not be changed."
     },
     "bookmarks": {
+      "use_in_chat": "Use in the discussion",
       "request": "Your request",
       "no_request": "A message LIA sent on its own initiative",
       "answered_at": "Answered on {{when}}",
@@ -5060,6 +5099,10 @@
       "vendor_billed": "Sessions on {{brand}} are billed on your own key, by the provider: no ceiling can be set here — the exact amount is shown at the end of every session."
     },
     "capability_share": {
+      "shared_with_title": "Shared with",
+      "shared_partial": "incomplete",
+      "unknown_recipient": "another user",
+      "all_already_shared": "You have already shared it with all your connections.",
       "origin_by": "Shared by {{name}}",
       "origin_on": "on {{date}}",
       "unknown_sender": "another user",
@@ -5097,6 +5140,7 @@
         "cancelled": "Transfer expired or cancelled"
       },
       "errors": {
+        "already_shared": "You have already shared it with this connection.",
         "generic": "The transfer could not be confirmed. Check its status before retrying.",
         "changed": "The capability has changed. Prepare a new preview.",
         "expired": "This transfer has expired. Prepare a new preview.",
@@ -5109,6 +5153,23 @@
     }
   },
   "relations": {
+    "timeline": {
+      "title": "Timeline",
+      "loading": "Loading the timeline…",
+      "error": "The timeline could not be read.",
+      "empty": "Nothing dated for this person yet.",
+      "older": "Older",
+      "more_error": "The older records could not be read. Try again.",
+      "kind": {
+        "open_loop": "Commitment",
+        "call": "Call",
+        "memory": "Memory",
+        "peer_message": "Message",
+        "sms": "SMS",
+        "email": "Email",
+        "event": "Appointment"
+      }
+    },
     "debrief_stale": "SMS changed. Rebuild the synthesis to update it.",
     "sms_title": "SMS",
     "sms_unavailable": "SMS source unavailable.",
@@ -5647,6 +5708,17 @@
     "multiple_similar": "Do you confirm executing {{count}} similar actions?"
   },
   "execution": {
+    "outcome": {
+      "lead": " — ",
+      "joiner": " · ",
+      "calls": "×{{count}}",
+      "found_one": "{{count}} result",
+      "found_other": "{{count}} results",
+      "shown_one": "{{count}} read",
+      "shown_other": "{{count}} read",
+      "failed_one": "{{count}} failure",
+      "failed_other": "{{count}} failures"
+    },
     "steps": {
       "router_decision": "Analyzing your request...",
       "planner_generation": "Preparing action plan...",
@@ -6158,7 +6230,7 @@
         },
         "streaming": {
           "title": "⚡ Streaming & Real-Time",
-          "description": "The answer streams over SSE with typed events: each execution step appears live — routing, planning, validation, tool calls — then the text arrives token by token. A stream that goes quiet no longer freezes the interface: when a phone suspends the tab the connection dies without saying so, so past a silence budget the client drops it and reattaches to the turn still running, which replays what was produced meanwhile."
+          "description": "The answer streams over SSE with typed events: each step appears live — routing, planning, validation, tool calls — and settles on what it did (calls, results read, failures), then the text arrives token by token. A quiet stream no longer freezes the interface: past a silence budget the client drops a connection a suspended tab killed and reattaches to the turn still running, which replays what was produced."
         },
         "richResponses": {
           "title": "🎨 Rich Answers & Display Modes",
@@ -6270,7 +6342,7 @@
         },
         "attachments": {
           "title": "📎 Photos & File Attachments",
-          "description": "Photos and PDFs through the 📎 button, drag and drop or Ctrl+V; images go to a vision model, PDFs have their text extracted. The « + » also attaches a document of one of your knowledge spaces — paused or not — as a copy for that message, and a tool reads your e-mails' attachments (text, or the vision model for a scan). What LIA produces has its gallery, where you keep what matters; a reset removes what you put in, never what LIA made."
+          "description": "Photos and PDFs through the 📎 button, drag and drop or Ctrl+V; images go to a vision model, PDFs have their text extracted. The « + » also attaches, as a copy, a knowledge-space document — paused or not —, a bookmark or a generated file, and a tool reads your e-mails' attachments (text, or vision for a scan). What LIA produces has its gallery, where you keep what matters; a reset removes what you put in, never what LIA made."
         },
         "skills": {
           "title": "Skills (with interactive maps & mini-apps)",
@@ -6330,7 +6402,7 @@
         },
         "relations": {
           "title": "⭐ Personal CRM — Relations",
-          "description": "A lens, not a database: the Relations page gathers what LIA already knows about a person — open commitments, calls, memories, relayed messages — with a confidence shown rather than assumed. Three sections come from the connected accounts — address book, mail, meetings — found by address, not name. A written debrief opens the card: where you stand and what to raise next, written at most once a day and read by the chat when you name that person."
+          "description": "A lens, not a database: the Relations page gathers what LIA already knows about a person — open commitments, calls, memories, relayed messages — with a stated confidence and a dated timeline. Three sections come from the connected accounts — address book, mail, meetings — found by address, not name. A written debrief opens the card: where you stand and what to raise, written at most once a day and read by the chat when you name that person."
         },
         "provenance": {
           "title": "🔍 Provenance of conclusions",
@@ -6378,7 +6450,7 @@
         },
         "meetings": {
           "title": "🎙️ Meeting minutes",
-          "description": "Record from your phone or computer while the chat remains available. Audio is sent in small segments; the server transcribes it and prepares minutes from thirty templates or your own. Change their format, include the transcript, correct the result and search the full minutes to find a decision again. Missing audio is stated rather than invented."
+          "description": "Record from your phone or computer while the chat stays available, or import a WAV, MP3 or M4A file. The server transcribes the audio and prepares minutes from thirty templates or your own. Change their format, include the transcript, correct the result and search the full minutes for a decision. Missing audio is stated, never invented."
         },
         "transparencyRegisters": {
           "title": "📋 Registers of actions and consultations",
@@ -6403,6 +6475,23 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v3_7_0": {
+          "title": "v3.7.0 — 🔎 Found by first name, shared in plain sight",
+          "date": "25 October 2026",
+          "count": "10",
+          "items": {
+            "i1": "<b>🔎 A first name is enough</b> — Ask about a connection or a person you deal with by first name: LIA reaches the one it designates and names whom it read. When several people share that name, LIA asks which one — it never picks one for you.",
+            "i2": "<b>🤝 Who you shared it with</b> — Under the line of a skill, a plugin or an MCP server, « Shared with » lists the connections you gave it to, and « Received from » says who gave it to you. A copy already given is never sent twice.",
+            "i3": "<b>♻️ Bring back what you kept</b> — A bookmark, a generated image or a generated document comes back into any discussion, from the « + » or from its own card, as a copy: the original stays where it is.",
+            "i4": "<b>🗓️ A timeline for each relationship</b> — A Timeline section on the relationship card lines up commitments, calls, memories, relayed messages and text messages on one dated thread, the older ones a click away.",
+            "i5": "<b>🎙️ Turn a recording into a meeting</b> — A WAV, MP3 or M4A file you already have becomes a meeting with its minutes: « Import » now sits beside « Record » on the Meetings page and in the « + ». The file’s length is checked before anything is spent.",
+            "i6": "<b>🔢 Each step says what it did</b> — Under an answer, each step shows how many times a tool ran, how many results it found and read, and whether a call failed — while LIA works and afterwards.",
+            "i7": "<b>💶 A phone call’s report shows its cost</b> — The report of a call LIA made now shows what it cost, like any answer, and a voice session’s card updates itself in every open tab.",
+            "i8": "<b>🏷️ E-mail and appointment labels read right</b> — LIA no longer calls a still-valid label « expired », and its caution about an unverified e-mail no longer spills over onto your appointments.",
+            "i9": "<b>🛠️ For administrators</b> — Meeting imports have their own switch and limits (file size, chunk size, abandonment delay), the demonstrator’s configuration templates are organised by theme behind a table of contents, and a new metric counts imports by format and outcome.",
+            "i10": "<b>🔍 The V15 audit is published</b> — 7.9/10 across 24 areas on version 3.6.0, with its 17 open findings and the public register that follows each of them to its proof."
+          }
+        },
         "v3_6_0": {
           "title": "v3.6.0 — 🛡️ Safer sign-ins, steadier connections",
           "date": "24 October 2026",
@@ -9241,7 +9330,7 @@
           },
           "q7": {
             "question": "How was LIA built?",
-            "answer": "Nearly <strong>100% of LIA's code is written by an AI</strong>, under human direction: written engineering rules, blocking automated checks, a review cycle where the human decides, and recurring adversarial audits (latest assessment: 7.8/10 across 24 areas — <a href=\"https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">full report</a>).<br><br>The full story — method, trade-offs, operations and what remains to be done — is on the <a href=\"/en/story\">Story page</a>, and the source code is open on <a href=\"https://github.com/jgouviergmail/LIA-Assistant\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>."
+            "answer": "Nearly <strong>100% of LIA's code is written by an AI</strong>, under human direction: written engineering rules, blocking automated checks, a review cycle where the human decides, and recurring adversarial audits (latest assessment: 7.9/10 across 24 areas — <a href=\"https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">full report</a>).<br><br>The full story — method, trade-offs, operations and what remains to be done — is on the <a href=\"/en/story\">Story page</a>, and the source code is open on <a href=\"https://github.com/jgouviergmail/LIA-Assistant\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>."
           },
           "q8": {
             "question": "Can I install LIA on my phone — as a PWA or a real app?",
@@ -9268,7 +9357,7 @@
       "chat": {
         "title": "Conversations",
         "description": "Using chat and conversations",
-        "count": "36",
+        "count": "37",
         "questions": {
           "q36": {
             "question": "Can I see all returned places on one map?",
@@ -9336,7 +9425,7 @@
           },
           "q16": {
             "question": "Can I see what LIA did to produce an answer?",
-            "answer": "Yes. Under each answer, a small <strong>“⚙ N steps · X s”</strong> line summarizes the backstage; one click expands it to show what LIA actually did — the routing, the tools it called, and its reasoning — grouped by category.<br><br>It's the same transparency as the cost shown on every message, extended to the <em>flow of actions</em>. The display stays discreet and collapsed by default, so it never clutters the conversation.<br><br>Since v1.25.12 this trace is <strong>stored with the message</strong>: you will find it after a reload and on your other devices (the live reasoning stream itself stays ephemeral).<br><br>On a very long turn the panel keeps a bounded number of steps, and it now keeps <strong>the first ones as well as the latest</strong> — the opening actions used to disappear. The count shown is the real total, and the panel says exactly how many intermediate steps are hidden."
+            "answer": "Yes. Under each answer, a small <strong>“⚙ N steps · X s”</strong> line summarizes the backstage; one click expands it to show what LIA actually did — the routing, the tools it called, and its reasoning — grouped by category.<br><br>It's the same transparency as the cost shown on every message, extended to the <em>flow of actions</em>. The display stays discreet and collapsed by default, so it never clutters the conversation.<br><br>Since v1.25.12 this trace is <strong>stored with the message</strong>: you will find it after a reload and on your other devices (the live reasoning stream itself stays ephemeral).<br><br>On a very long turn the panel keeps a bounded number of steps, and it now keeps <strong>the first ones as well as the latest</strong> — the opening actions used to disappear. The count shown is the real total, and the panel says exactly how many intermediate steps are hidden.<br><br>Each tool line also says what it did: how many times it was called (×2), how many results it found, how many LIA actually read when it found more, and how many calls failed — figures only, never the names of the items."
           },
           "q17": {
             "question": "How do I search my entire conversation history?",
@@ -9413,6 +9502,10 @@
           "q35": {
             "question": "On my phone, how do I get from the chat to the settings?",
             "answer": "Tap the <strong>LIA</strong> button at the top left: on a phone, a tablet or a narrow window it carries a small menu icon. The navigation bar does not fit there, so this button opens a menu with every destination — <strong>Home</strong>, <strong>Chat</strong>, <strong>Relations</strong>, <strong>Meetings</strong> (when your instance offers them), <strong>Alerts</strong>, <strong>Settings</strong> and <strong>Help</strong>. The page you are on is highlighted.<br><br>Below them come the header's actions that have no room on a small screen: <strong>Record a meeting</strong> and <strong>Start the radio</strong>, when available. While a recording runs, the button pulses red.<br><br>On a wider screen the navigation bar is visible, and the LIA logo simply takes you back Home."
+          },
+          "q37": {
+            "question": "Can I bring a kept answer or a generated file back into a discussion?",
+            "answer": "Yes, as a copy. In the composer, the <strong>+</strong> menu offers <strong>Answer from your bookmarks</strong> and <strong>File LIA generated</strong>; in <strong>My generated files</strong> — the Bookmarks tab included — <strong>Use in the discussion</strong> opens the chat with the item already attached. A kept answer joins as a document (your request, then the answer); a generated image joins as an image, a document with its text. Nothing is sent until you send your message, and the original stays where it was — a conversation reset removes the copy only."
           }
         }
       },
@@ -9669,7 +9762,7 @@
           },
           "q11": {
             "question": "How much does it cost?",
-            "answer": "LIA adds <strong>no charge of its own</strong> — costs go to your two external accounts:<br><br><strong>📞 Twilio</strong><br>• Number rental: ~1–15 €/month depending on the type<br>• Outbound minutes: per-minute rate based on the destination<br><br><strong>🎙️ ElevenLabs</strong><br>• Agent call minutes, taken from your plan's credits<br><br><strong>🤖 LIA</strong><br>• No surcharge, no markup — only the small LLM synthesis of your summary appears in your LIA usage statistics.<br><br><strong>🛡️ Built-in guardrails against surprises:</strong><br>• One active call at a time<br>• Hourly call cap per user (10/hour by default)<br>• Hard cap on call duration (10 minutes by default)"
+            "answer": "LIA adds <strong>no charge of its own</strong> — costs go to your two external accounts:<br><br><strong>📞 Twilio</strong><br>• Number rental: ~1–15 €/month depending on the type<br>• Outbound minutes: per-minute rate based on the destination<br><br><strong>🎙️ ElevenLabs</strong><br>• Agent call minutes, taken from your plan's credits<br><br><strong>🤖 LIA</strong><br>• No surcharge, no markup — only the small LLM synthesis of your summary is counted: it is shown on the summary in the chat and in your LIA usage statistics.<br><br><strong>🛡️ Built-in guardrails against surprises:</strong><br>• One active call at a time<br>• Hourly call cap per user (10/hour by default)<br>• Hard cap on call duration (10 minutes by default)"
           },
           "q12": {
             "question": "It doesn't work — what should I check?",
@@ -9697,7 +9790,7 @@
           },
           "q18": {
             "question": "How much does a call with me cost?",
-            "answer": "Two bills, one of them yours alone.<br><br><strong>💶 What LIA counts:</strong><br>the live lookups made during the call, the synthesis after it and the relayed turn are counted under one bill, shown on the relayed answer in the chat and on the calls list — like any other request.<br><br><strong>📞 What ElevenLabs bills:</strong><br>the voice agent's own model, the speech, the line — everything that runs on your ElevenLabs key — is billed by ElevenLabs on your account and is never counted nor shown in LIA. Same rule for every service you use with your own keys."
+            "answer": "Two bills, one of them yours alone.<br><br><strong>💶 What LIA counts:</strong><br>the live lookups made during the call, the synthesis after it and the relayed turn are counted under one bill, shown on the relayed answer in the chat — or, when nothing could be relayed, on the call's report — and on the calls list, like any other request.<br><br><strong>📞 What ElevenLabs bills:</strong><br>the voice agent's own model, the speech, the line — everything that runs on your ElevenLabs key — is billed by ElevenLabs on your account and is never counted nor shown in LIA. Same rule for every service you use with your own keys."
           },
           "q19": {
             "question": "Live or Live direct: how does LIA conduct my calls?",
@@ -9708,7 +9801,7 @@
       "peers": {
         "title": "Connections between users",
         "description": "Connect with other users of this LIA instance, relay messages assistant-to-assistant, share your generated images and open chosen read-only shares.",
-        "count": "8",
+        "count": "10",
         "questions": {
           "q8": {
             "question": "How do I send a skill, MCP server or plugin to a connection?",
@@ -9741,13 +9834,21 @@
           "q7": {
             "question": "How do I share a generated image with a connection?",
             "answer": "On the card of an image LIA generated for you — in the chat as well as in <strong>Settings › My generated files</strong> —, tap <strong>Share with a connection</strong>, pick the person and add a comment if you like. The click is your confirmation: no model is involved.<br><br><strong>📥 What they receive:</strong><br>A copy of the image, filed in their own gallery as if they had generated it, with its own retention period, and a bubble in their chat carrying the image, your name and your comment — quoted exactly as written, never turned into a link or a hidden image.<br><br><strong>🔒 The rules:</strong><br>• Only your own generated images can be shared, with an accepted connection and no block between you<br>• It is a copy: deleting your image does not remove theirs<br>• A daily limit caps sharing, for you and for each connection; the message tells you when to try again"
+          },
+          "q9": {
+            "question": "Can I name a connection by their first name?",
+            "answer": "Yes. When you ask about a connected person — their availability, their tasks, or a message to relay — a first name is enough when it designates <strong>one</strong> of your connections. If several connections share it, or if it also designates someone in your Relations who is not connected, LIA asks which one you mean instead of guessing. Its answer always names the person it read, so a mix-up shows at once."
+          },
+          "q10": {
+            "question": "Can I see whom I shared a capability with, and share it again?",
+            "answer": "You can see it: under the rule of each skill, MCP server or plugin card, a folded <strong>Shared with</strong> list names each connection that received it and when, marked “incomplete” when part of it could not be installed. A copy you received shows <strong>Shared by</strong>, with the sender and the date, in the same place. For now a share is final: the share window no longer offers a connection that already received it."
           }
         }
       },
       "relations": {
         "title": "Relations (personal CRM)",
         "description": "The Relations page: everything LIA knows about the people you deal with, favorites included.",
-        "count": "12",
+        "count": "14",
         "questions": {
           "q1": {
             "question": "What is the Relations page?",
@@ -9796,6 +9897,14 @@
           "q12": {
             "question": "Is the debrief used in my conversations?",
             "answer": "Yes, as long as you leave <strong>Daily debrief</strong> switched on from the Relations page. When you <strong>name</strong> someone in the chat, their synthesis joins LIA's context, so it no longer announces a search for facts already written down.<br><br>It arrives <strong>dated</strong>, with its age, and LIA knows to check any exact date, count or status against its tools rather than quoting yesterday's synthesis as today's fact. Past a certain age — which the host can set — it is no longer injected at all; the card still shows it, dated. And if the name is <strong>ambiguous</strong>, nothing is injected: saying nothing beats handing you someone else's file."
+          },
+          "q13": {
+            "question": "Does LIA understand a first name when I ask about someone?",
+            "answer": "Yes. When you ask about your calls, commitments or relayed messages with someone, a first name is enough when it designates <strong>one</strong> person in your Relations — the same people as on the Relations page, merged cards included. If several people match, LIA asks which one you mean; if nobody on record carries that name, it says so instead of showing an empty result."
+          },
+          "q14": {
+            "question": "What is the timeline on a relationship card?",
+            "answer": "The <strong>Timeline</strong> section, folded like the others, puts everything dated with this person on one line, newest first: commitments, calls, memories, relayed messages and text messages, plus the emails and meetings the card has already read. Meetings still to come lead under <strong>Upcoming</strong>, then each day has its own heading. The number on its title counts every row it holds: the card's own sections added up, plus those emails and meetings. Nothing is read until you open it; <strong>Older</strong> then loads the rest, one page at a time. The emails and meetings are those of the period their own sections search, as the note under the list recalls."
           }
         }
       },
@@ -10899,7 +11008,7 @@
       "meetings": {
         "title": "Meeting minutes",
         "description": "Record a meeting from the chat, get structured minutes in your own format, find them again in a knowledge space.",
-        "count": "10",
+        "count": "11",
         "questions": {
           "q10": {
             "question": "How do I search my meeting minutes?",
@@ -10940,6 +11049,10 @@
           "q9": {
             "question": "Who chooses the format of meeting minutes?",
             "answer": "Your explicit choice comes first, then your saved preference. If neither applies, LIA chooses among the formats you can use. An administrator may optionally enable JEV for this bounded choice; if it abstains or is unavailable, the usual selector takes over. The chosen format and synthesis cost remain visible."
+          },
+          "q11": {
+            "question": "Can I turn an existing recording into minutes?",
+            "answer": "Yes: on the <strong>Meetings</strong> page, <strong>Import</strong> — or <strong>Import a meeting recording</strong> in the chat's <strong>+</strong> — takes a WAV, MP3 or M4A file, such as a phone's voice memo. LIA shows the size and length this instance accepts before you choose, dates the meeting when the file began (you can correct it), then sends the file piece by piece under a progress bar. Once it has arrived, the meeting's page opens and the minutes are written exactly as for a recording; the meeting is marked <strong>Imported</strong>. A file longer than the accepted length is refused before anything is paid, and an upload that stops before the end leaves no meeting behind."
           }
         }
       },
@@ -11950,6 +12063,18 @@
       "voice_sample": {
         "title": "Hear it before you keep it",
         "desc": "Choosing a voice, for LIA or for the radio, plays a short sample of it right away, in your language. One button stops it or plays it again, and a radio that is playing pauses so you can hear it."
+      },
+      "bring_back": {
+        "title": "Bring back what you kept",
+        "desc": "In the « + », a kept answer or a file LIA made for you joins the message as a copy — the original stays where it was."
+      },
+      "step_counts": {
+        "title": "Each step tells what it did",
+        "desc": "Under an answer, each step settles on its counts — how many times a tool ran, the results found and read — and a failure shows on the line where it happened."
+      },
+      "shared_with": {
+        "title": "Who has it, under the line",
+        "desc": "Under a skill, a plugin or a server, a folded « Shared with » names who received it from you, and a copy already given is never sent twice."
       }
     },
     "scenes": {
@@ -12290,6 +12415,18 @@
         "calm": "Calm voice",
         "playing": "Sample playing",
         "replay": "Play again"
+      },
+      "bring_back": {
+        "bookmark": "Answer from your bookmarks",
+        "generated": "File LIA generated"
+      },
+      "step_counts": {
+        "found": "results",
+        "read": "read",
+        "failed": "failure"
+      },
+      "shared_with": {
+        "shared": "Shared with"
       }
     },
     "craft": {
@@ -13457,7 +13594,7 @@
       },
       "telephony": {
         "title": "LIA makes calls for you",
-        "description": "Reach a contact, ask a question, check a slot: LIA places a real phone call on your behalf. You approve who she calls and why before she dials; she leads the conversation, then leaves a written summary in the chat, with a one-tap follow-up action when useful. Never a commitment without you: any unexpected cost or option is noted with its price, never accepted — you decide."
+        "description": "Reach a contact, ask a question, check a slot: LIA places a real phone call on your behalf. You approve who she calls and why before she dials; she leads the conversation, then leaves a written summary in the chat, with a one-tap follow-up action when useful. Never a commitment without you: any unexpected cost or option is noted with its price, never accepted — you decide. The report also shows what the call cost."
       },
       "telephony_callback": {
         "title": "LIA calls you",
@@ -13477,7 +13614,7 @@
       },
       "bookmarks": {
         "title": "Kept answers",
-        "description": "An answer worth keeping is kept in one click — a bookmark on its bubble. LIA copies the answer, the request that produced it and its date: resetting or deleting the conversation changes nothing. Your kept answers live in their own tab, export to Markdown, and are indexed in a knowledge space of your own: weeks later, LIA cites them when your question concerns them."
+        "description": "An answer worth keeping is kept in one click — a bookmark on its bubble. LIA copies the answer, the request that produced it and its date: resetting or deleting the conversation changes nothing. Your kept answers live in their own tab, export to Markdown, and are indexed in a knowledge space of your own: weeks later, LIA cites them when your question concerns them. Bring one back into any discussion from the « + »: it joins the message as a copy."
       },
       "rich_responses": {
         "title": "Rich visual answers",
@@ -13521,7 +13658,7 @@
       },
       "control": {
         "title": "You stay in control",
-        "description": "Before any sensitive action — sending a mail, changing the calendar, deleting —, LIA shows you what she is about to do and waits for your approval. Nothing leaves for someone else without your consent — an e-mail to yourself goes straight to your own mailbox —, and when one request prepares several actions, each arrives on its own card, one at a time. While she writes, a stop button interrupts the answer at any moment — the partial text stays. After every answer, a discreet line reveals exactly what she did: steps, tools, reasoning."
+        "description": "Before any sensitive action — sending a mail, changing the calendar, deleting —, LIA shows you what she is about to do and waits for your approval. Nothing leaves for someone else without your consent — an e-mail to yourself goes straight to your own mailbox —, and when one request prepares several actions, each arrives on its own card, one at a time. While she writes, a stop button interrupts the answer at any moment — the partial text stays. After every answer, a discreet line reveals exactly what she did: steps, tools, reasoning. Each step there says what it did: results found and read, a failure on its own line."
       },
       "privacy": {
         "title": "Protected data",
@@ -13569,7 +13706,7 @@
       },
       "personal_crm": {
         "title": "Personal CRM",
-        "description": "For every person, LIA gathers what she already knows — open commitments, recent calls, remembered facts, exchanges — into one overview, to prepare a conversation at a glance. Star your favourites: they keep their own band and are never pruned. A badge shows who is also connected to you on LIA. And a written debrief opens every card — where you stand, what is still open, what to bring up — rebuilt at most once a day, when you open it."
+        "description": "For every person, LIA gathers what she already knows — open commitments, recent calls, remembered facts, exchanges — into one overview, to prepare a conversation at a glance. Star your favourites: they keep their own band and are never pruned. A badge shows who is also connected to you on LIA. And a written debrief opens every card — where you stand, what is still open, what to bring up — rebuilt at most once a day, when you open it. A timeline lines up each person’s dated records on one thread, and a first name is enough to ask about someone — when several people share it, LIA asks which one."
       },
       "self_knowledge": {
         "title": "Self-knowledge",
@@ -13609,7 +13746,7 @@
       },
       "peers": {
         "title": "Your circle, assistant to assistant",
-        "description": "Connect with the people close to you on the same LIA instance: discovery is opt-in, by exact name or email address, with a word to say who you are. Then ask LIA to pass on a message: you approve the wording, then THEIR assistant delivers it and confirms to yours. The message lands in a tinted bubble with Reply right below — nothing is ever sent by itself. Share an image LIA generated in one click: it lands in their gallery and their chat, your comment quoted as written. When a connection is removed, both assistants let you know. Share images and useful capabilities with an accepted connection. Skills, MCP servers and plugins arrive as independent disabled copies, with sender and time, without your credentials."
+        "description": "Connect with the people close to you on the same LIA instance: discovery is opt-in, by exact name or email address, with a word to say who you are. Then ask LIA to pass on a message: you approve the wording, then THEIR assistant delivers it and confirms to yours. The message lands in a tinted bubble with Reply right below — nothing is ever sent by itself. Share an image LIA generated in one click: it lands in their gallery and their chat, your comment quoted as written. When a connection is removed, both assistants let you know. Share images and useful capabilities with an accepted connection. Skills, MCP servers and plugins arrive as independent disabled copies, with sender and time, without your credentials. A first name is enough to reach a connection — when several share it, LIA asks which one — and under your own card you see who received what you shared."
       },
       "peer_shares": {
         "title": "Read-only shares, revocable",
@@ -13629,7 +13766,7 @@
       },
       "meetings": {
         "title": "Record a meeting, get the minutes",
-        "description": "One button in the header — or the menu entry on your phone — and your device records the meeting, a banner following you on every page while you keep using LIA. When you stop, she transcribes everything and writes the minutes. Read them in the chat, download the PDF, receive them by email, ask her about them weeks later. Nothing invented: a gap is stated, an unnamed speaker stays unnamed, and what it cost is written beside it. Record, choose a minutes format and find a decision again by searching the full meeting record."
+        "description": "One button in the header — or the menu entry on your phone — and your device records the meeting, a banner following you on every page while you keep using LIA. When you stop, she transcribes everything and writes the minutes. Read them in the chat, download the PDF, receive them by email, ask her about them weeks later. Nothing invented: a gap is stated, an unnamed speaker stays unnamed, and what it cost is written beside it. Record, choose a minutes format and find a decision again by searching the full meeting record. Already recorded on your phone or a recorder? Import the WAV, MP3 or M4A file: it becomes a meeting with its minutes, the same way."
       },
       "meeting_templates": {
         "title": "Thirty minutes templates",
@@ -13657,7 +13794,7 @@
       },
       "generated_files": {
         "title": "Files you choose to keep",
-        "description": "LIA's generated images, documents and screenshots have their own gallery and a visible lifetime. Keep the few that matter with no expiry, within the account's published limits on number and size. If you stop keeping one, it gets a fresh deadline; the chat card reflects the file's current state."
+        "description": "LIA's generated images, documents and screenshots have their own gallery and a visible lifetime. Keep the few that matter with no expiry, within the account's published limits on number and size. If you stop keeping one, it gets a fresh deadline; the chat card reflects the file's current state. Any of them can come back into a discussion as a copy, from the « + » or from its card."
       },
       "personal_radio": {
         "title": "A radio about your day",
@@ -15539,9 +15676,9 @@
         "body": "<h2>Privacy by design</h2><p>LIA is designed from the ground up with data protection as a founding principle, not an afterthought.</p><h2>Fernet symmetric encryption</h2><p><strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256), through <code>encrypt_data()</code>, protects OAuth tokens, connector and MCP credentials and designated stored fields. Services decrypt these values when needed. This is selective encryption, not a claim that every personal field is encrypted; conversation messages are stored as database text. The instance operator controls the keys and database access.</p><h2>Collection minimization</h2><p>LIA only collects data strictly necessary for its operation:</p><ul><li>Profile information (name, email, preferences)</li><li>Conversation history stored on your instance</li><li>Service connection tokens (encrypted)</li><li>Usage metrics with pseudonymous identifiers</li></ul><h2>Operators and configured providers</h2><p>The instance operator may have technical access to stored data. A configured model receives the question and useful context, including selected memories or document excerpts; connected voice, image and other services receive what their features need. Their privacy, retention and possible training policies apply. Local storage and access controls do not replace provider agreements and settings.</p><h2>Deletion and cascading</h2><p>The account-deletion flow purges personal content across conversations, memories, connectors, documents and related stores. Billing records remain; deletion can keep a name and email for billing contact, while final erasure deletes the account row. Audit or diagnostic records may retain identifying details under their retention policies; backups follow the operator’s retention policy. Reactivation does not restore purged content.</p><h2>Secure sessions and cookies</h2><p>Session cookies are configured with <code>HttpOnly</code>, <code>Secure</code> (in production), and <code>SameSite=lax</code> attributes. Session duration is 7 days by default, extendable to 30 days with the \"Remember me\" option. Single-use tokens are invalidated after first use via a Redis blacklist.</p><h2>External content protection</h2><p>Content retrieved from external sources (emails, web pages, documents) is tagged as <code>UNTRUSTED</code> with configurable wrapping before injection into prompts. The web_fetch tool is rate limited to 10 calls per 60-second window per user to prevent abuse.</p><h2>Filtered operational logs</h2><p>Following the <strong>OWASP Logging Cheat Sheet</strong>, a log line above debug level carries <strong>facts</strong> — counts, lengths, identifiers, error codes, a URL's host — and never the text a person wrote, or a model wrote about them: no search, no interest, no name of a file, a label or a space, no page visited.</p><p>The rule is checked <strong>by the value</strong>, not by the field name: a test reads every logging call in the code and refuses a preview or a value derived from content, whatever it is called. What an error message <strong>quotes</strong> — a value PostgreSQL rejected, a validation input — is withheld before the line is written, and a database error is described by its facts: code, constraint, table. Provider keys are masked in every logged address. Metrics and traces follow the same rule: they name the route taken by its pattern, never the name or the search an address contains. Two limits are stated as they are: an external service's error in an unknown format can still quote a value, and the debug level — off in production — keeps more.</p><h2>Your SMS, under two consents</h2><p>The SMS your phone relays through an iPhone Shortcuts automation reach LIA with a write-only token of their own and land in an encrypted personal archive. Recognised access codes are set aside before anything is stored, the push announcing a new message carries no content, and the assistant reads the archive only once you give it access — a consent separate from receiving them. Your export includes the readable messages, and erasing them invalidates the exports still hosted.</p><p>The same caution governs proactive discussions: an opening touching a sensitive topic is never sent to an external channel, and its notification is masked.</p><h2>Data portability (v1.9.1)</h2><p>LIA allows each user to <strong>export their own consumption data</strong> as CSV from Settings > Features. Three export types: LLM consumption (tokens and costs per call), Google API consumption, and aggregated summary. Security: the <code>user_id</code> is forced server-side — no parameter is exposed, preventing access to other users' data (IDOR protection).</p><h2>Backups with a proven restore</h2><p>The production deployment provides nightly backup and restore-check tools, with default retention of 7 days, 4 weeks and 6 months. The operator enables and monitors them. The restore drill loads the latest dump into a disposable database and compares its schema revision and row counts with the source. Recovery still depends on successful backups and the deployment's chosen policy.</p><h2>A complete record, not a sample</h2><p>Three registers kept automatically say what LIA <strong>did</strong> for you, what it <strong>consulted</strong> to answer you, and what it undertook <strong>on its own initiative</strong>. They carry no content: a consultation keeps the capability — \"your calendar\" — and never what was searched for, because writing it down would copy the very data the register exists to make accountable.</p><p>The record you download from the <strong>Registers</strong> page is <strong>complete</strong>. It used to carry a row ceiling: a real protection, since the whole document was assembled in memory on a Raspberry Pi, but applied to the wrong variable. What was scarce was memory; what was bounded was the truth. A server-side cursor now bounds the buffer: whatever the volume, the file carries everything your filters name, the exact count is stated in the header alongside the instant of generation, and the download is compressed on the fly when your browser accepts it.</p><h2>Commands and private continuations</h2><p>Keys, file choices, account connections and browser consent use the operation’s secure interface, rather than parameters invented by the model. A command is tied to the account and its authorised context; permissions and the resource version are checked again before writing. Encrypted command content does not hide the whole service from its operator: messages and operational data retain the limits described here.</p><p>Confirmation applies to the operation and content shown. OAuth sign-in, file selection, a key or device permission continue in your authenticated browser: do not paste these secrets into chat. LIA may prepare the request and wait for that step. Enabling hands-free listening and sensitive permissions retain their protections; a command cannot bypass them.</p>"
       },
       "observability": {
-        "title": "634 Prometheus Metrics, 32 Grafana Dashboards, and Langfuse Tracing",
-        "excerpt": "LIA offers enterprise-grade observability with 634 metrics, dedicated Grafana dashboards, LLM tracing via Langfuse, and email alerting with runbooks.",
-        "body": "<h2>The three pillars of observability</h2><p>LIA implements the three pillars of modern observability:</p><ul><li><strong>Metrics</strong> — 634 Prometheus metrics covering HTTP, agents, tokens, costs, OAuth, and performance, labelled by route template: never a name or a search</li><li><strong>Logs</strong> — Structured JSON logging via structlog, collected by Grafana Alloy and centralized in Loki: personal-content filtering in operational logs, with more detail possible in debug mode</li><li><strong>Traces</strong> — Distributed tracing via OpenTelemetry (Tempo), named after the route template and never the concrete address, and LLM tracing via Langfuse</li></ul><h2>43 specialized metrics files</h2><p>Each domain has its own declarative metrics file. The 43 modules cover, among others: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, live mode, radio, RAG spaces, OAuth, MCP, channels, errors, sub-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, health metrics, journals, telephony, meetings, workboard, effect registers, and usage limits. Each file defines domain-specific Prometheus Counter, Histogram, and Gauge metrics.</p><h2>Prometheus metrics definition</h2><p>Each domain defines its metrics declaratively:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>32 Grafana dashboards</h2><p>LIA provides 32 Grafana dashboards, 31 of them numbered 01 to 31: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard, live, radio, and phone-ingestion-sms. Each dashboard offers views filterable by user, time period, and environment. The 26th is a product cockpit: validated outcomes (explicit 👍 or an action left uncorrected), activation funnel, retention and cost per useful result — the exact counting lives in PostgreSQL and Grafana reads it through a read-only role restricted to aggregate views.</p><h2>Target KPIs from code</h2><p>LIA monitors precise indicators defined in source code: streaming TTFT (Time To First Token), router latency between 0.1 and 2 seconds, agent tool execution duration between 0.1 and 10 seconds, router confidence p50 &gt; 0.8, LLM cost per request &lt; €0.05, HTTP 5xx error rate &lt; 1%.</p><h2>Email alerts with runbooks</h2><p>Supervision doesn't stop at dashboards: a core of vital alerts — among them API, PostgreSQL or Redis down, disk, container memory, 5xx error rate, streaming latency, failed nightly backup, unreachable public URL, TLS certificate close to expiry, rate limiting running blind — is continuously evaluated by Prometheus and delivered by email through Alertmanager. Every alert references its runbook (step-by-step resolution procedure), thresholds are set per environment in .env files, and promtool unit tests guarantee that the thresholds displayed in notifications match the firing expressions exactly. A blackbox probe even tests the whole chain end to end, from the Cloudflare edge to the frontend, exactly like a user would. The streaming-latency alert observes only the turns a person waits for — a routine streams through the same code, but nobody waits for it — and fires only over enough of them for a 95th percentile to mean something; an incident whose resolution notice got lost is reconciled with Alertmanager and closed.</p><h2>Langfuse: dedicated LLM tracing</h2><p>The Langfuse integration traces every LLM call — tokens consumed (input/output/cache), response time, model used, estimated cost and request context — and seven Prometheus metrics of its own follow prompt versions, evaluation scores, A/B variants, trace depth and agent handoffs. This identifies inefficient prompts, compares LLM models against each other, and optimizes token consumption over time.</p><h2>DevOps Claude CLI: Natural Language Diagnostics (v1.13.0)</h2><p>Latest evolution of the observability stack: administrators can now diagnose servers directly from the LIA conversation. By simply asking \"Check the logs to see if everything is working\", Claude Code CLI — installed in the API Docker container — independently inspects logs, checks container health, analyzes resource usage and reports its findings. Persistent sessions for multi-turn investigations, configurable permissions per environment (prod read-only, dev full access), and real-time streaming of investigation steps via SSE.</p><h2>And since v1.34: the assistant reads its own telemetry</h2><p>All of the above existed for humans; the assistant itself read none of it. ADR-247 closed that loop: a periodic self-check turns the golden signals plus direct probes into health snapshots with exact values; alerts and critical verdicts converge into one incident per outage, diagnosed by a budget-capped LLM grounded on the operations runbooks; administrators get a Platform health panel, proactive notifications and read-only chat tools. And a known outage now shapes answers — degraded capabilities are routed around at planning time, and failed steps are explained from typed error codes, never raw logs. Since then the diagnosis is no longer written from a number alone: a recipe declared per kind of incident says which breakdowns and which log events to read, the pack is collected at the moment of the diagnosis with personal data removed, a source it could not reach is stated as unavailable rather than read as silence, and what the model read is shown under its verdict.</p><h2>Counting outcomes, not attempts</h2><p>One counter had to be rethought in v1.38.3. Counting the calls that reach a provider is the truth about the provider — and the wrong denominator the moment those calls are retried, because a failure that was recovered inflates the error rate while nothing was actually lost. A second counter now records one row per logical operation, retries collapsed, and answers the only question an operator acts on: did the caller get its result? A third says what the rate shaper did with each attempt, because “the budget is too small” and “Redis is down” look identical in a boolean and call for opposite actions.</p><p>The most recent lesson is about choosing what to measure. The autonomous loop had counters for its iterations and its duration — and none for the thing that actually grows: the prompt delivered to the model at each step. Measured on production code, that is 2.3k tokens at the first iteration and 112k at the ninetieth, because every tool result stays in the conversation the model re-reads. Two histograms now record the delivered size and its share of the model's context window, fed by the same memoized counter the state reducer already maintains, so the measurement costs nothing on the hot path. No compression policy shipped with them, deliberately: a system that acts on a quantity it has never observed is optimising a guess.</p><p>The same principle caught up with the tool success rate. A tool fails by <em>returning</em> a failure, never by raising an exception, and the counter only watched exceptions: the rate was 1.0 by construction, and the two alerts that read it could not fire. One predicate now decides what a success is, for the register, the metrics and the ReAct loop — the displayed rate goes down, because it finally tells the truth.</p><h2>Signals that answer each other</h2><p>A metric, a log line and a trace tell the story of the same request — provided you can move from one to the other. In LIA, a log line opens its request’s trace, a trace opens its logs and metrics, and a latency point opens the exact example that produced it. Every link was measured in production before it was repaired. The pipeline carrying these signals is itself watched — an alert warns if logs get lost on the way — and every dashboard follows one convention: a week of history, a shared menu.</p>"
+        "title": "635 Prometheus Metrics, 32 Grafana Dashboards, and Langfuse Tracing",
+        "excerpt": "LIA offers enterprise-grade observability with 635 metrics, dedicated Grafana dashboards, LLM tracing via Langfuse, and email alerting with runbooks.",
+        "body": "<h2>The three pillars of observability</h2><p>LIA implements the three pillars of modern observability:</p><ul><li><strong>Metrics</strong> — 635 Prometheus metrics covering HTTP, agents, tokens, costs, OAuth, and performance, labelled by route template: never a name or a search</li><li><strong>Logs</strong> — Structured JSON logging via structlog, collected by Grafana Alloy and centralized in Loki: personal-content filtering in operational logs, with more detail possible in debug mode</li><li><strong>Traces</strong> — Distributed tracing via OpenTelemetry (Tempo), named after the route template and never the concrete address, and LLM tracing via Langfuse</li></ul><h2>43 specialized metrics files</h2><p>Each domain has its own declarative metrics file. The 43 modules cover, among others: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, live mode, radio, RAG spaces, OAuth, MCP, channels, errors, sub-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, health metrics, journals, telephony, meetings, workboard, effect registers, and usage limits. Each file defines domain-specific Prometheus Counter, Histogram, and Gauge metrics.</p><h2>Prometheus metrics definition</h2><p>Each domain defines its metrics declaratively:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>32 Grafana dashboards</h2><p>LIA provides 32 Grafana dashboards, 31 of them numbered 01 to 31: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard, live, radio, and phone-ingestion-sms. Each dashboard offers views filterable by user, time period, and environment. The 26th is a product cockpit: validated outcomes (explicit 👍 or an action left uncorrected), activation funnel, retention and cost per useful result — the exact counting lives in PostgreSQL and Grafana reads it through a read-only role restricted to aggregate views.</p><h2>Target KPIs from code</h2><p>LIA monitors precise indicators defined in source code: streaming TTFT (Time To First Token), router latency between 0.1 and 2 seconds, agent tool execution duration between 0.1 and 10 seconds, router confidence p50 &gt; 0.8, LLM cost per request &lt; €0.05, HTTP 5xx error rate &lt; 1%.</p><h2>Email alerts with runbooks</h2><p>Supervision doesn't stop at dashboards: a core of vital alerts — among them API, PostgreSQL or Redis down, disk, container memory, 5xx error rate, streaming latency, failed nightly backup, unreachable public URL, TLS certificate close to expiry, rate limiting running blind — is continuously evaluated by Prometheus and delivered by email through Alertmanager. Every alert references its runbook (step-by-step resolution procedure), thresholds are set per environment in .env files, and promtool unit tests guarantee that the thresholds displayed in notifications match the firing expressions exactly. A blackbox probe even tests the whole chain end to end, from the Cloudflare edge to the frontend, exactly like a user would. The streaming-latency alert observes only the turns a person waits for — a routine streams through the same code, but nobody waits for it — and fires only over enough of them for a 95th percentile to mean something; an incident whose resolution notice got lost is reconciled with Alertmanager and closed.</p><h2>Langfuse: dedicated LLM tracing</h2><p>The Langfuse integration traces every LLM call — tokens consumed (input/output/cache), response time, model used, estimated cost and request context — and seven Prometheus metrics of its own follow prompt versions, evaluation scores, A/B variants, trace depth and agent handoffs. This identifies inefficient prompts, compares LLM models against each other, and optimizes token consumption over time.</p><h2>DevOps Claude CLI: Natural Language Diagnostics (v1.13.0)</h2><p>Latest evolution of the observability stack: administrators can now diagnose servers directly from the LIA conversation. By simply asking \"Check the logs to see if everything is working\", Claude Code CLI — installed in the API Docker container — independently inspects logs, checks container health, analyzes resource usage and reports its findings. Persistent sessions for multi-turn investigations, configurable permissions per environment (prod read-only, dev full access), and real-time streaming of investigation steps via SSE.</p><h2>And since v1.34: the assistant reads its own telemetry</h2><p>All of the above existed for humans; the assistant itself read none of it. ADR-247 closed that loop: a periodic self-check turns the golden signals plus direct probes into health snapshots with exact values; alerts and critical verdicts converge into one incident per outage, diagnosed by a budget-capped LLM grounded on the operations runbooks; administrators get a Platform health panel, proactive notifications and read-only chat tools. And a known outage now shapes answers — degraded capabilities are routed around at planning time, and failed steps are explained from typed error codes, never raw logs. Since then the diagnosis is no longer written from a number alone: a recipe declared per kind of incident says which breakdowns and which log events to read, the pack is collected at the moment of the diagnosis with personal data removed, a source it could not reach is stated as unavailable rather than read as silence, and what the model read is shown under its verdict.</p><h2>Counting outcomes, not attempts</h2><p>One counter had to be rethought in v1.38.3. Counting the calls that reach a provider is the truth about the provider — and the wrong denominator the moment those calls are retried, because a failure that was recovered inflates the error rate while nothing was actually lost. A second counter now records one row per logical operation, retries collapsed, and answers the only question an operator acts on: did the caller get its result? A third says what the rate shaper did with each attempt, because “the budget is too small” and “Redis is down” look identical in a boolean and call for opposite actions.</p><p>The most recent lesson is about choosing what to measure. The autonomous loop had counters for its iterations and its duration — and none for the thing that actually grows: the prompt delivered to the model at each step. Measured on production code, that is 2.3k tokens at the first iteration and 112k at the ninetieth, because every tool result stays in the conversation the model re-reads. Two histograms now record the delivered size and its share of the model's context window, fed by the same memoized counter the state reducer already maintains, so the measurement costs nothing on the hot path. No compression policy shipped with them, deliberately: a system that acts on a quantity it has never observed is optimising a guess.</p><p>The same principle caught up with the tool success rate. A tool fails by <em>returning</em> a failure, never by raising an exception, and the counter only watched exceptions: the rate was 1.0 by construction, and the two alerts that read it could not fire. One predicate now decides what a success is, for the register, the metrics and the ReAct loop — the displayed rate goes down, because it finally tells the truth.</p><h2>Signals that answer each other</h2><p>A metric, a log line and a trace tell the story of the same request — provided you can move from one to the other. In LIA, a log line opens its request’s trace, a trace opens its logs and metrics, and a latency point opens the exact example that produced it. Every link was measured in production before it was repaired. The pipeline carrying these signals is itself watched — an alert warns if logs get lost on the way — and every dashboard follows one convention: a week of history, a shared menu.</p>"
       },
       "prompt-engineering": {
         "title": "Versioned Prompt System: 202 Prompts Managed as Code",
@@ -15576,7 +15713,7 @@
       "progressive-steps": {
         "title": "Real-Time Execution Steps: Watch LIA Work",
         "excerpt": "LIA progressively displays each execution step — routing, planning, tool calls — in real time while processing your request.",
-        "body": "<h2>Transparency in action</h2><p>When you send a complex request to LIA, several seconds may pass before the response arrives. What is the assistant doing during that time? With progressive step display, you know <strong>in real time</strong>: each node traversed, each tool called appears as it happens. And the display itself is alive: past steps dim, the current one breathes, the whole block fades into the first words of the reply, and a caret blinks while the answer is being written.</p><h2>How it works</h2><p>The backend uses LangGraph's <code>updates</code> stream mode to detect each graph node's completion. At each step, an SSE <code>execution_step</code> event is sent to the frontend with:</p><ul><li>The tool or node's <strong>i18n key</strong> (translated into the user's language)</li><li>A <strong>reasoning excerpt</strong> (truncated to 120 characters) in ReAct mode</li><li><strong>Fallback metadata</strong> for tools not listed in the catalogue</li></ul><h2>Frontend display</h2><p>Steps accumulate visually in the interface, line by line, capped at <strong>10 steps</strong> visible simultaneously. An <strong>i18n key deduplication</strong> mechanism prevents identical steps from repeating (via a reference Set). When the answer starts streaming, the steps fold into a collapsed “⚙ N steps · X s” line under the response — stored with the message, so the backstage is still there after a reload, on every device.</p><h2>Pipeline and ReAct</h2><p>In <strong>Pipeline</strong> mode, steps come from the ExecutionPlan: planner, semantic validator, approval gate, task orchestrator. In <strong>ReAct</strong> mode, each tool call generates a step with an excerpt of the LLM's reasoning.</p><h2>327 tools covered</h2><p>All <strong>327 catalogue tools</strong> have dedicated i18n keys across 6 languages. Texts were translated to provide natural messages in each language (\"Searching contacts...\", \"Reading emails...\") rather than technical identifiers. A test reads every tool declared in the code and fails the build if one lacks its wording.</p><h2>No more random messages</h2><p>The old system displayed amusing but random waiting phrases (\"LIA is thinking...\", \"Analysis in progress...\"). This system has been entirely replaced by <strong>real, contextual steps</strong> that reflect exactly what the assistant is doing at each moment.</p><h2>When the stream goes quiet</h2><p>A step display is only worth as much as the stream feeding it. When a phone suspends the tab, the connection dies announcing nothing — no end, no error — and the screen stays on the last step shown, indefinitely, while the answer is finished and saved on the server. Nothing told that state apart from a merely slow answer. LIA now recognises that silence: past a budget calibrated on the server's heartbeat rhythm, the dead connection is dropped and the turn still running in the background is picked back up automatically.</p>"
+        "body": "<h2>Transparency in action</h2><p>When you send a complex request to LIA, several seconds may pass before the response arrives. What is the assistant doing during that time? With progressive step display, you know <strong>in real time</strong>: each node traversed, each tool called appears as it happens. And the display itself is alive: past steps dim, the current one breathes, the whole block fades into the first words of the reply, and a caret blinks while the answer is being written.</p><h2>How it works</h2><p>The backend uses LangGraph's <code>updates</code> stream mode to detect each graph node's completion. At each step, an SSE <code>execution_step</code> event is sent to the frontend with:</p><ul><li>The tool or node's <strong>i18n key</strong> (translated into the user's language)</li><li>A <strong>reasoning excerpt</strong> (truncated to 120 characters) in ReAct mode</li><li><strong>Fallback metadata</strong> for tools not listed in the catalogue</li></ul><h2>Frontend display</h2><p>Steps accumulate visually in the interface, line by line, capped at <strong>10 steps</strong> visible simultaneously. An <strong>i18n key deduplication</strong> mechanism prevents identical steps from repeating (via a reference Set). When the answer starts streaming, the steps fold into a collapsed “⚙ N steps · X s” line under the response — stored with the message, so the backstage is still there after a reload, on every device.</p><h2>Pipeline and ReAct</h2><p>In <strong>Pipeline</strong> mode, steps come from the ExecutionPlan: planner, semantic validator, approval gate, task orchestrator. In <strong>ReAct</strong> mode, each tool call generates a step with an excerpt of the LLM's reasoning.</p><h2>327 tools covered</h2><p>All <strong>327 catalogue tools</strong> have dedicated i18n keys across 6 languages. Texts were translated to provide natural messages in each language (\"Searching contacts...\", \"Reading emails...\") rather than technical identifiers. A test reads every tool declared in the code and fails the build if one lacks its wording.</p><h2>No more random messages</h2><p>The old system displayed amusing but random waiting phrases (\"LIA is thinking...\", \"Analysis in progress...\"). This system has been entirely replaced by <strong>real, contextual steps</strong> that reflect exactly what the assistant is doing at each moment.</p><h2>When the stream goes quiet</h2><p>A step display is only worth as much as the stream feeding it. When a phone suspends the tab, the connection dies announcing nothing — no end, no error — and the screen stays on the last step shown, indefinitely, while the answer is finished and saved on the server. Nothing told that state apart from a merely slow answer. LIA now recognises that silence: past a budget calibrated on the server's heartbeat rhythm, the dead connection is dropped and the turn still running in the background is picked back up automatically.</p><h2>What each step did</h2><p>A step no longer just says it ran. Its line settles on what it did: how many times the tool was called (« ×2 »), how many results it found and how many it read, and a failure on the line where it happened. Two calls of the same tool are counted on one line instead of being hidden behind it; ReAct counts each call as it finishes, Pipeline each tool of the plan — a loop over items counted by its items. The counts are plain numbers kept with the message, so the backstage still tells them after a reload.</p>"
       },
       "account-lifecycle": {
         "title": "Account Lifecycle: 4 States for Access, Deletion and Billing Retention",
@@ -16128,7 +16265,7 @@
   "story": {
     "meta": {
       "title": "Story — Directing an AI That Codes | LIA",
-      "description": "How LIA was built: ~100% AI-written code under human direction, 67,000+ tests, 362 ADRs, a 7.8/10 technical audit. The complete field report."
+      "description": "How LIA was built: ~100% AI-written code under human direction, 67,000+ tests, 362 ADRs, a 7.9/10 technical audit. The complete field report."
     },
     "breadcrumb": "Story",
     "hero": {
@@ -16980,6 +17117,25 @@
     }
   },
   "meetings": {
+    "import": {
+      "title": "Import a recording",
+      "description": "A WAV, MP3 or M4A file — a voice memo, a recorder's file — becomes a meeting, transcribed and summarised like a recording.",
+      "loading": "Loading…",
+      "file_label": "Audio file",
+      "bounds": "WAV, MP3 or M4A, up to {{size}} and {{minutes}} minutes.",
+      "summary": "Chosen: {{details}}",
+      "recorded_at_label": "Recorded on",
+      "recorded_at_hint": "By default, when the file was written minus its length. Correct it if needed: it dates the meeting.",
+      "template_label": "Minutes format",
+      "template_default": "Your default format",
+      "submit": "Import",
+      "sending": "Sending… {{sent}} of {{total}}",
+      "progress_label": "Upload progress",
+      "refusal_unsupported": "Choose a WAV, MP3 or M4A file.",
+      "refusal_empty": "This file is empty.",
+      "refusal_too_large": "This file is larger than {{size}}.",
+      "refusal_too_long": "This recording is longer than {{minutes}} minutes."
+    },
     "banner": {
       "region_label": "Meeting recording",
       "starting": "Starting the recording…",
@@ -17024,6 +17180,7 @@
       "failed_title": "The minutes could not be produced"
     },
     "status": {
+      "uploading": "Uploading",
       "recording": "Recording",
       "interrupted": "Interrupted",
       "stopped": "Queued",
@@ -17038,6 +17195,7 @@
       "indexing": "Adding to the knowledge space"
     },
     "list": {
+      "import": "Import",
       "search_placeholder": "Search meeting minutes…",
       "no_results_title": "No matching meetings",
       "no_results_description": "Try another term or clear the search.",
@@ -17071,7 +17229,7 @@
       "bulk_skipped_one": "{{count}} meeting was skipped: it is still recording or being processed.",
       "bulk_skipped_other": "{{count}} meetings were skipped: they are still recording or being processed.",
       "not_selectable": "Cannot be selected while recording or processing",
-      "record": "Record a meeting",
+      "record": "Record",
       "templates": "Templates",
       "load_error": "Meetings could not be loaded. Retry to refresh this list.",
       "index_label": "Knowledge space",
@@ -17091,6 +17249,7 @@
       }
     },
     "detail": {
+      "imported_badge": "Imported",
       "back": "Back to meetings",
       "not_found": "This meeting does not exist or was deleted.",
       "date": "Date",
@@ -17249,6 +17408,15 @@
       "templates_description": "Built-in formats and your own. Duplicate a built-in to customize it."
     },
     "errors": {
+      "import_disabled": "Importing a recording is not offered on this instance.",
+      "import_too_large": "This file is larger than the maximum this instance accepts.",
+      "chunk_too_large": "A piece of the file was larger than the server accepts.",
+      "import_format_mismatch": "This file is not the format its name says: choose a real WAV, MP3 or M4A file.",
+      "import_already_running": "An import is already in progress.",
+      "meeting_not_uploading": "This import is no longer in progress.",
+      "import_too_long": "This recording is longer than the maximum duration this instance transcribes.",
+      "audio_unreadable": "The file could not be read as audio.",
+      "import_incomplete": "The file stopped arriving before it was complete.",
       "audio_normalize_failed": "The audio could not be prepared.",
       "audio_unavailable": "The audio is no longer available.",
       "capture_failed": "The microphone stopped working.",

@@ -1,11 +1,13 @@
 """Meetings background reapers (ADR-258).
 
 - ``meetings_job_reaper``: marks silent recordings ``interrupted`` (the client is
-  gone), returns processing jobs whose lease expired to ``stopped`` (the worker
-  died) — or dead-letters them when the retry budget is already spent — and
-  re-drives ``stopped`` meetings nobody claimed (the fire-and-forget died
-  before the claim). Every transition is a conditional UPDATE in the
-  repository; this module only decides WHEN.
+  gone), fails imports whose upload went silent (``import_incomplete``, their
+  chunks deleted — a half file can never be processed), returns processing
+  jobs whose lease expired to ``stopped`` (the worker died) — or dead-letters
+  them when the retry budget is already spent — and re-drives ``stopped``
+  meetings nobody claimed (the fire-and-forget died before the claim). Every
+  transition is a conditional UPDATE in the repository; this module only
+  decides WHEN.
 - ``meetings_audio_retention_reaper``: purges the audio of terminal meetings
   past their retention (or immediately when the user keeps nothing).
 
@@ -16,14 +18,17 @@ run under the scheduler leader election.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from uuid import UUID
 
 import structlog
 
 from src.core.config import settings
 from src.domains.meetings.audio_store import MeetingAudioStore
+from src.domains.meetings.models import MeetingAudioFormat
 from src.domains.meetings.repository import MeetingRepository
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.observability.metrics_meetings import (
+    meeting_imports_total,
     meeting_reaper_transitions_total,
     meetings_total,
 )
@@ -43,6 +48,7 @@ async def meetings_job_reaper() -> None:
         interrupted = await repo.interrupt_stale_recordings(
             settings.meetings_recording_stale_minutes
         )
+        abandoned = await repo.fail_stale_imports(settings.meetings_import_stale_minutes)
         requeued, dead_lettered = await repo.requeue_expired_leases(
             settings.meetings_job_max_attempts
         )
@@ -54,30 +60,60 @@ async def meetings_job_reaper() -> None:
         )
         await db.commit()
 
-    if interrupted:
-        meeting_reaper_transitions_total.labels(outcome="interrupted").inc(interrupted)
-    if requeued:
-        meeting_reaper_transitions_total.labels(outcome="requeued").inc(requeued)
+    _count_transitions(
+        interrupted=interrupted,
+        requeued=requeued,
+        dead_lettered=dead_lettered,
+        regeneration_cleared=cleared,
+    )
     if dead_lettered:
-        meeting_reaper_transitions_total.labels(outcome="dead_lettered").inc(dead_lettered)
         meetings_total.labels(status="failed").inc(dead_lettered)
-    if cleared:
-        meeting_reaper_transitions_total.labels(outcome="regeneration_cleared").inc(cleared)
+    if abandoned:
+        await _purge_abandoned_imports(abandoned)
     if orphans:
         from src.domains.meetings.processing import launch_processing
 
         for meeting_id in orphans:
             launch_processing(meeting_id)
         meeting_reaper_transitions_total.labels(outcome="redriven").inc(len(orphans))
-    if interrupted or requeued or dead_lettered or cleared or orphans:
+    if any((interrupted, abandoned, requeued, dead_lettered, cleared, orphans)):
         logger.info(
             "meetings_reaped",
             interrupted=interrupted,
+            imports_abandoned=len(abandoned),
             requeued=requeued,
             dead_lettered=dead_lettered,
             regeneration_cleared=cleared,
             redriven=len(orphans),
         )
+
+
+def _count_transitions(**counts: int) -> None:
+    """Count each simple transition the sweep made, by its outcome label."""
+    for outcome, count in counts.items():
+        if count:
+            meeting_reaper_transitions_total.labels(outcome=outcome).inc(count)
+
+
+async def _purge_abandoned_imports(
+    abandoned: list[tuple[UUID, UUID, MeetingAudioFormat]],
+) -> None:
+    """Delete the chunks of imports the sweep failed, after its commit: none will complete."""
+    store = MeetingAudioStore(settings.meetings_storage_path)
+    purged = [
+        meeting_id
+        for meeting_id, user_id, _ in abandoned
+        if await store.purge_meeting(user_id, meeting_id)
+    ]
+    if purged:
+        async with get_db_context() as db:
+            repo = MeetingRepository(db)
+            for meeting_id in purged:
+                await repo.mark_audio_purged(meeting_id, purged_at=datetime.now(UTC))
+    for _, _, audio_format in abandoned:
+        meeting_imports_total.labels(format=audio_format.value, outcome="abandoned").inc()
+    meeting_reaper_transitions_total.labels(outcome="import_abandoned").inc(len(abandoned))
+    meetings_total.labels(status="failed").inc(len(abandoned))
 
 
 async def meetings_audio_retention_reaper() -> None:

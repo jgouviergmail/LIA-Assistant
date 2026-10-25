@@ -43,6 +43,7 @@ from src.domains.agents.tools import (
 )
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.connectors.clients.wikipedia_client import WikipediaClient
+from src.domains.relations.identity import RelationIdentity
 from src.domains.relations.schemas import (
     IdentityConfidence,
     RelationCall,
@@ -423,6 +424,17 @@ def _relation_detail() -> RelationDetail:
 async def _run_relation_read(tool: Any) -> UnifiedToolOutput:
     """Drive a relation read tool with ``RelationsService`` mocked away."""
     service = MagicMock()
+    # The relationship list the name is resolved against, then the card it reads.
+    service.directory = AsyncMock(
+        return_value=[
+            RelationIdentity(
+                key="alice vernier",
+                display_name="Alice Vernier",
+                spellings=("Alice Vernier",),
+                is_peer=True,
+            )
+        ]
+    )
     service.build_detail = AsyncMock(return_value=_relation_detail())
 
     with patch.object(relation_read_tools, "RelationsService", return_value=service):

@@ -18,8 +18,6 @@ rag_spaces`` lives here.
 
 from __future__ import annotations
 
-import asyncio
-import shutil
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -31,6 +29,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.exceptions import BaseAPIException
+from src.domains.attachments.copy_store import (
+    copy_and_extract,
+    copy_target,
+    record_copy,
+    run_after_reads,
+)
 from src.domains.attachments.models import (
     Attachment,
     AttachmentContentType,
@@ -44,9 +48,7 @@ from src.domains.rag_spaces.document_access import (
     raise_document_not_found,
 )
 from src.domains.rag_spaces.models import RAGDocumentStatus
-from src.domains.rag_spaces.processing import extract_text
 from src.domains.rag_spaces.service import RAGSpaceService
-from src.infrastructure.observability.metrics_attachments import attachments_uploaded_total
 
 logger = structlog.get_logger(__name__)
 
@@ -68,16 +70,6 @@ def raise_document_not_ready(document_id: uuid.UUID, doc_status: str) -> NoRetur
 def text_is_capped(text: str | None, max_chars: int) -> bool:
     """Whether an extracted text sits AT the cap — the sign it was cut there."""
     return bool(text) and len(text or "") >= max_chars
-
-
-def _copy_and_extract(
-    source: Path, target: Path, content_type: str, max_chars: int
-) -> tuple[str, int]:
-    """Disk work, off the event loop: copy the file (streamed), extract and cap the text, size it."""
-    target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(source, target)
-    text = extract_text(target, content_type)
-    return text[:max_chars], target.stat().st_size
 
 
 async def copy_knowledge_document(
@@ -106,44 +98,35 @@ async def copy_knowledge_document(
     if not source.is_file():
         raise_document_not_found(document_id)
 
-    extension = Path(document.filename).suffix
-    stored_filename = f"{uuid.uuid4()}{extension}"
-    relative_path = f"{user_id}/{stored_filename}"
-    target = Path(settings.attachments_storage_path) / relative_path
-    extracted_text, file_size = await asyncio.to_thread(
-        _copy_and_extract,
+    stored_filename, relative_path, target = copy_target(
+        settings.attachments_storage_path, user_id, Path(document.filename).suffix
+    )
+    extracted_text, file_size = await run_after_reads(
+        db,
+        copy_and_extract,
         source,
         target,
         document.content_type,
         settings.attachments_max_pdf_text_chars,
     )
-    try:
-        attachment = await AttachmentRepository(db).create(
-            {
-                "user_id": user_id,
-                "original_filename": document.original_filename,
-                "stored_filename": stored_filename,
-                "mime_type": document.content_type,
-                "file_size": file_size,
-                "file_path": relative_path,
-                "content_type": AttachmentContentType.DOCUMENT,
-                "origin": AttachmentOrigin.UPLOAD.value,
-                "extracted_text": extracted_text,
-                "status": AttachmentStatus.READY,
-                "expires_at": datetime.now(UTC) + timedelta(hours=settings.attachments_ttl_hours),
-            }
-        )
-        await db.commit()
-    except Exception:
-        # A copy nobody's row points at would outlive every sweep: withdraw it.
-        await asyncio.to_thread(target.unlink, True)
-        attachments_uploaded_total.labels(
-            content_type=AttachmentContentType.DOCUMENT, status="error"
-        ).inc()
-        raise
-    attachments_uploaded_total.labels(
-        content_type=AttachmentContentType.DOCUMENT, status="success"
-    ).inc()
+    attachment = await record_copy(
+        AttachmentRepository(db),
+        db,
+        target,
+        {
+            "user_id": user_id,
+            "original_filename": document.original_filename,
+            "stored_filename": stored_filename,
+            "mime_type": document.content_type,
+            "file_size": file_size,
+            "file_path": relative_path,
+            "content_type": AttachmentContentType.DOCUMENT,
+            "origin": AttachmentOrigin.UPLOAD.value,
+            "extracted_text": extracted_text,
+            "status": AttachmentStatus.READY,
+            "expires_at": datetime.now(UTC) + timedelta(hours=settings.attachments_ttl_hours),
+        },
+    )
     logger.info(
         "attachment_copied_from_knowledge_document",
         attachment_id=str(attachment.id),
@@ -151,7 +134,7 @@ async def copy_knowledge_document(
         space_id=str(space_id),
         document_id=str(document_id),
         mime_type=document.content_type,
-        text_chars=len(extracted_text),
+        text_chars=len(extracted_text or ""),
         text_capped=text_is_capped(extracted_text, settings.attachments_max_pdf_text_chars),
     )
     return attachment

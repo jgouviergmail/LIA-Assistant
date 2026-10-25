@@ -15,6 +15,7 @@ import {
   Blocks,
   Brain,
   Check,
+  ChevronDown,
   CircleCheck,
   CircleOff,
   Clock,
@@ -33,6 +34,7 @@ import {
   Server,
   Sun,
   Sunrise,
+  User,
   Vibrate,
   Wind,
   type LucideIcon,
@@ -1518,6 +1520,58 @@ function OneLineScene({ active }: SceneProps) {
   );
 }
 
+type SharedPhase = 'closed' | 'open';
+const SHARED_STEPS: readonly TimelineStep<SharedPhase>[] = [
+  { at: 0, state: 'closed' },
+  { at: 1100, state: 'open' },
+];
+
+/**
+ * Under a capability's line, whom it was shared with — one row per recipient,
+ * folded until asked for.
+ */
+function SharedWithScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(SHARED_STEPS, { active });
+  const open = phase === 'open';
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <div className="w-3/4 self-center rounded-lg border border-border bg-background px-2.5 py-2">
+        <div className="flex items-center gap-1.5">
+          <Blocks className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
+          <SkeletonLine w="w-1/2" />
+        </div>
+        <SkeletonLine w="w-5/6" className="mt-1.5 h-1" />
+        <div className="mt-2 border-t border-border pt-1.5 text-px-9 text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <ChevronDown
+              className={cn(
+                'h-3 w-3 shrink-0 transition-transform duration-300 motion-reduce:transition-none',
+                !open && '-rotate-90'
+              )}
+              aria-hidden="true"
+            />
+            {labels.shared}
+          </span>
+          <span
+            className={cn(
+              'mt-1 block space-y-1 overflow-hidden pl-4 transition-all duration-300 ease-out motion-reduce:transition-none',
+              open ? 'max-h-10 opacity-100' : 'max-h-0 opacity-0'
+            )}
+          >
+            {[0, 1].map(row => (
+              <span key={row} className="flex items-center gap-1.5">
+                <User className="h-3 w-3 shrink-0" aria-hidden="true" />
+                <SkeletonLine w={row === 0 ? 'w-14' : 'w-10'} className="h-1.5" />
+                <SkeletonLine w="w-6" className="h-1" />
+              </span>
+            ))}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   one_line: OneLineScene,
   activity_timeline: ActivityTimelineScene,
@@ -1544,4 +1598,5 @@ export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   local_model_fit: LocalModelFitScene,
   slide_never_overflows: SlideNeverOverflowsScene,
   button_stays_itself: ButtonStaysItselfScene,
+  shared_with: SharedWithScene,
 };

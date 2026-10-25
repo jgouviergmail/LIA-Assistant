@@ -187,6 +187,21 @@ describe('ChatMessage — cost and token line', () => {
     expect(screen.getByText(/99 IN/)).toBeInTheDocument();
     expect(screen.queryByText(/12 IN/)).not.toBeInTheDocument();
   });
+
+  it('reads a call report bill from the history join when its metadata carries none', () => {
+    // A call's report names the call's run; the history joins its bill on it.
+    useAuth.mockReturnValue({ user: makeUser({ tokens_display_enabled: true }) });
+    renderMessage(
+      makeMessage({
+        tokensIn: 874,
+        tokensOut: 212,
+        costEur: 0.01026,
+        metadata: { type: 'proactive_phone_call', run_id: 'phone_call_ab12' },
+      })
+    );
+    expect(screen.getByText(/874 IN/)).toBeInTheDocument();
+    expect(screen.getByText(/212 OUT/)).toBeInTheDocument();
+  });
 });
 
 describe('ChatMessage — proactive interest feedback', () => {

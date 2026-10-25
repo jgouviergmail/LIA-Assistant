@@ -11,6 +11,7 @@ import pytest
 
 from src.domains.agents.tools import peers_read_tools
 from src.domains.peers.models import PeerShareDomain, PeerShareLevel
+from src.domains.relations.identity import RelationIdentity
 
 USER_ID = uuid4()
 PEER_ID = uuid4()
@@ -44,10 +45,19 @@ def _repo(shares=None, peer=None):
     scalars.scalars = MagicMock(return_value=iter([peer or _peer()]))
     repo.db = MagicMock()
     repo.db.execute = AsyncMock(return_value=scalars)
+    repo.db.commit = AsyncMock()
     return repo
 
 
-def _patches(repo):
+def _known_people(*identities: RelationIdentity):
+    """The relationship list the name resolution consults on a partial name."""
+    return patch(
+        "src.domains.agents.peer.name_directory.RelationsService",
+        return_value=SimpleNamespace(directory=AsyncMock(return_value=list(identities))),
+    )
+
+
+def _patches(repo, *known: RelationIdentity):
     @asynccontextmanager
     async def _ctx():
         db = MagicMock()
@@ -64,6 +74,8 @@ def _patches(repo):
             "src.domains.agents.tools.peers_read_tools.validate_runtime_config",
             return_value=SimpleNamespace(user_id=str(USER_ID)),
         ),
+        # Never the real relationship list: it opens sessions of its own.
+        _known_people(*known),
     )
 
 
@@ -81,12 +93,13 @@ EVENTS = [
 class TestGetPeerAvailability:
     async def test_not_shared_refuses_and_never_reads(self):
         repo = _repo(shares=[])
-        db_p, repo_p, rt_p = _patches(repo)
+        db_p, repo_p, rt_p, known_p = _patches(repo)
         events = AsyncMock()
         with (
             db_p,
             repo_p,
             rt_p,
+            known_p,
             patch("src.domains.agents.tools.peers_read_tools._peer_calendar_events", events),
         ):
             output = await peers_read_tools.get_peer_availability_tool.coroutine(  # type: ignore[misc]
@@ -99,11 +112,12 @@ class TestGetPeerAvailability:
 
     async def test_availability_level_strips_titles(self):
         repo = _repo(shares=[_share(PeerShareDomain.CALENDAR, PeerShareLevel.AVAILABILITY)])
-        db_p, repo_p, rt_p = _patches(repo)
+        db_p, repo_p, rt_p, known_p = _patches(repo)
         with (
             db_p,
             repo_p,
             rt_p,
+            known_p,
             patch(
                 "src.domains.agents.tools.peers_read_tools._peer_calendar_events",
                 new=AsyncMock(return_value=EVENTS),
@@ -120,11 +134,12 @@ class TestGetPeerAvailability:
 
     async def test_details_level_includes_titles_and_audits_the_read(self):
         repo = _repo(shares=[_share(PeerShareDomain.CALENDAR, PeerShareLevel.DETAILS)])
-        db_p, repo_p, rt_p = _patches(repo)
+        db_p, repo_p, rt_p, known_p = _patches(repo)
         with (
             db_p,
             repo_p,
             rt_p,
+            known_p,
             patch(
                 "src.domains.agents.tools.peers_read_tools._peer_calendar_events",
                 new=AsyncMock(return_value=EVENTS),
@@ -142,11 +157,12 @@ class TestGetPeerAvailability:
 
     async def test_peer_without_calendar_is_not_available(self):
         repo = _repo(shares=[_share(PeerShareDomain.CALENDAR, PeerShareLevel.AVAILABILITY)])
-        db_p, repo_p, rt_p = _patches(repo)
+        db_p, repo_p, rt_p, known_p = _patches(repo)
         with (
             db_p,
             repo_p,
             rt_p,
+            known_p,
             patch(
                 "src.domains.agents.tools.peers_read_tools._peer_calendar_events",
                 new=AsyncMock(side_effect=LookupError("calendar_not_connected")),
@@ -163,11 +179,12 @@ class TestGetPeerAvailability:
 class TestGetPeerTasks:
     async def test_titles_shared_returns_titles_and_audits(self):
         repo = _repo(shares=[_share(PeerShareDomain.TASK, PeerShareLevel.TITLES)])
-        db_p, repo_p, rt_p = _patches(repo)
+        db_p, repo_p, rt_p, known_p = _patches(repo)
         with (
             db_p,
             repo_p,
             rt_p,
+            known_p,
             patch(
                 "src.domains.agents.tools.peers_read_tools._peer_task_titles",
                 new=AsyncMock(return_value=["Acheter du pain", "Appeler le plombier"]),
@@ -183,10 +200,100 @@ class TestGetPeerTasks:
 
     async def test_unknown_peer_is_a_neutral_not_found(self):
         repo = _repo(shares=[_share(PeerShareDomain.TASK, PeerShareLevel.TITLES)])
-        db_p, repo_p, rt_p = _patches(repo)
-        with db_p, repo_p, rt_p:
+        db_p, repo_p, rt_p, known_p = _patches(repo)
+        with db_p, repo_p, rt_p, known_p:
             output = await peers_read_tools.get_peer_tasks_tool.coroutine(  # type: ignore[misc]
                 peer_name="Personne Inconnue", runtime=MagicMock()
             )
         assert output.success is False
         assert output.error_code == "NOT_FOUND"
+
+
+@pytest.mark.unit
+class TestPeerNameResolution:
+    """A first name reads the one connection it designates — or asks."""
+
+    async def test_a_unique_first_name_reads_and_audits_the_connection(self):
+        repo = _repo(shares=[_share(PeerShareDomain.TASK, PeerShareLevel.TITLES)])
+        db_p, repo_p, rt_p, known_p = _patches(repo)
+        with (
+            db_p,
+            repo_p,
+            rt_p,
+            known_p,
+            patch(
+                "src.domains.agents.tools.peers_read_tools._peer_task_titles",
+                new=AsyncMock(return_value=["Réserver la salle"]),
+            ),
+        ):
+            output = await peers_read_tools.get_peer_tasks_tool.coroutine(  # type: ignore[misc]
+                peer_name="Marie", runtime=MagicMock()
+            )
+        assert output.success is True
+        # The answer names who was read, so a wrong person can be caught.
+        assert output.structured_data["peer_name"] == "Marie Dupont"
+        repo.log_access.assert_awaited_once()
+
+    async def test_a_name_designating_another_person_too_is_asked_never_read(self):
+        repo = _repo(shares=[_share(PeerShareDomain.CALENDAR, PeerShareLevel.DETAILS)])
+        other = RelationIdentity(
+            key="marie lambert",
+            display_name="Marie Lambert",
+            spellings=("Marie Lambert",),
+            is_peer=False,
+        )
+        db_p, repo_p, rt_p, known_p = _patches(repo, other)
+        events = AsyncMock(return_value=EVENTS)
+        with (
+            db_p,
+            repo_p,
+            rt_p,
+            known_p,
+            patch("src.domains.agents.tools.peers_read_tools._peer_calendar_events", events),
+        ):
+            output = await peers_read_tools.get_peer_availability_tool.coroutine(  # type: ignore[misc]
+                peer_name="Marie", runtime=MagicMock()
+            )
+        assert output.success is False
+        assert output.error_code == "DISAMBIGUATION_REQUIRED"
+        assert output.metadata["candidates"] == ["Marie Dupont", "Marie Lambert"]
+        events.assert_not_awaited()
+        repo.log_access.assert_not_awaited()  # nothing was read, nothing to audit
+
+    async def test_a_name_designating_only_someone_not_connected_says_so(self):
+        repo = _repo(shares=[_share(PeerShareDomain.CALENDAR, PeerShareLevel.DETAILS)])
+        not_connected = RelationIdentity(
+            key="ana costa", display_name="Ana Costa", spellings=("Ana Costa",), is_peer=False
+        )
+        db_p, repo_p, rt_p, known_p = _patches(repo, not_connected)
+        with db_p, repo_p, rt_p, known_p:
+            output = await peers_read_tools.get_peer_availability_tool.coroutine(  # type: ignore[misc]
+                peer_name="Ana", runtime=MagicMock()
+            )
+        assert output.success is False
+        assert output.error_code == "NOT_FOUND"
+        assert "Ana Costa" in output.message
+        assert "not a connected" in output.message
+        repo.log_access.assert_not_awaited()
+
+    async def test_the_reads_end_before_the_relationship_list_is_read(self):
+        # A partial name reads the relationship list, whose SMS senders can
+        # ask the contacts provider: no transaction waits on it (ADR-304).
+        order: list[str] = []
+        repo = _repo(shares=[_share(PeerShareDomain.CALENDAR, PeerShareLevel.DETAILS)])
+        repo.db.commit = AsyncMock(side_effect=lambda: order.append("commit"))
+        directory = AsyncMock(side_effect=lambda: order.append("directory") or [])
+        db_p, repo_p, rt_p, _known_p = _patches(repo)
+        with (
+            db_p,
+            repo_p,
+            rt_p,
+            patch(
+                "src.domains.agents.peer.name_directory.RelationsService",
+                return_value=SimpleNamespace(directory=directory),
+            ),
+        ):
+            await peers_read_tools.get_peer_availability_tool.coroutine(  # type: ignore[misc]
+                peer_name="Paul", runtime=MagicMock()
+            )
+        assert order == ["commit", "directory"]

@@ -61,7 +61,7 @@ async def _run_availability(*, error_connector: str | None):
         patch.object(
             peers_read_tools,
             "_resolve_shared_peer",
-            AsyncMock(return_value=(connection, peer, "details", "")),
+            AsyncMock(return_value=(connection, peer, "details", None)),
         ),
         patch.object(
             peers_read_tools,
@@ -135,7 +135,7 @@ async def _run_tasks(*, error_connector: str | None):
         patch.object(
             peers_read_tools,
             "_resolve_shared_peer",
-            AsyncMock(return_value=(connection, peer, "titles", "")),
+            AsyncMock(return_value=(connection, peer, "titles", None)),
         ),
         patch.object(
             peers_read_tools,
@@ -203,7 +203,7 @@ async def test_state_lookup_failure_degrades_to_the_plain_message():
         patch.object(
             peers_read_tools,
             "_resolve_shared_peer",
-            AsyncMock(return_value=(connection, peer, "details", "")),
+            AsyncMock(return_value=(connection, peer, "details", None)),
         ),
         patch.object(
             peers_read_tools,
@@ -243,7 +243,7 @@ async def test_access_is_still_logged_before_the_provider_call(monkeypatch):
         patch.object(
             peers_read_tools,
             "_resolve_shared_peer",
-            AsyncMock(return_value=(connection, peer, "details", "")),
+            AsyncMock(return_value=(connection, peer, "details", None)),
         ),
         patch.object(
             peers_read_tools,

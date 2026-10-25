@@ -579,12 +579,13 @@ class TestTheCallsBooks:
                 },
             )
 
-        def _compose_fails(*_args: object, **_kwargs: object) -> str:
+        def _compose_fails(*_args: object, **_kwargs: object) -> tuple[str, None]:
             raise RuntimeError("composition failed")
 
         _registered("books_drafts_tool", _drafts)
         monkeypatch.setattr(
-            "src.domains.agents.tools.react_tool_wrapper.compose_tool_message", _compose_fails
+            "src.domains.agents.tools.react_tool_wrapper.compose_tool_message_and_block",
+            _compose_fails,
         )
         result = await react_nodes.react_execute_tools_node(
             _loop_state(("books_drafts_tool", "c-draft")), {}

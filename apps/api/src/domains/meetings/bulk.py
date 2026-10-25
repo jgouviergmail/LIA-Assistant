@@ -21,9 +21,10 @@ from src.domains.meetings.service import MeetingService
 logger = structlog.get_logger(__name__)
 
 #: Statuses a bulk delete leaves alone: a live row is a discard the banner must
-#: drive. A PROCESSING row is the single delete's call — the lease decides,
-#: never the status alone — and its refusal is reported with its own code.
-_UNDELETABLE: tuple[MeetingStatus, ...] = LIVE_STATUSES
+#: drive, an import in progress one its dialog drives (it owns the upload). A
+#: PROCESSING row is the single delete's call — the lease decides, never the
+#: status alone — and its refusal is reported with its own code.
+_UNDELETABLE: tuple[MeetingStatus, ...] = (*LIVE_STATUSES, MeetingStatus.UPLOADING)
 
 
 def _refusal_code(exc: BaseAPIException) -> str:

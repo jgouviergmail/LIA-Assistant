@@ -133,9 +133,9 @@
     },
     "f.relations": {
       "name": "Beziehungen",
-      "role": "Eine Karte pro Person, die deinen Austausch bündelt, und ein einmal am Tag geschriebenes Debriefing: wo du stehst, was anzusprechen ist.",
+      "role": "Eine Karte pro Person, die deinen Austausch und seine datierte Zeitleiste bündelt, und ein einmal am Tag geschriebenes Debriefing: wo du stehst, was anzusprechen ist.",
       "goal": "In deinen Beziehungen nicht mehr den Faden verlieren.",
-      "src": "10f1a5e20272"
+      "src": "1e2bb83157af"
     },
     "f.openloops": {
       "name": "Offene Schleifen",
@@ -241,9 +241,9 @@
     },
     "f.meetings": {
       "name": "Besprechungen",
-      "role": "Eine Besprechung vom Telefon oder Computer aus aufnehmen und ein strukturiertes Protokoll erhalten, in einer automatisch gewählten Vorlage. Suche in Titeln und vollständigen Protokollen, um Entscheidungen wiederzufinden.",
+      "role": "Eine Besprechung vom Telefon oder Computer aus aufnehmen oder eine vorhandene Aufnahme importieren und ein strukturiertes Protokoll erhalten, in einer automatisch gewählten Vorlage. Suche in Titeln und vollständigen Protokollen, um Entscheidungen wiederzufinden.",
       "goal": "An der Besprechung teilnehmen, nicht am Mitschreiben.",
-      "src": "fc9f4f1c8204"
+      "src": "835f172f16ae"
     },
     "f.heartbeat": {
       "name": "Autonomer Heartbeat",

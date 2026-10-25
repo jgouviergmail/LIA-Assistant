@@ -51,7 +51,7 @@ from src.domains.agents.services.hitl.protocols import HitlInteractionType
 from src.domains.agents.services.outcome_evidence import observe_requested_outcome
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.python_sandbox_tools import drain_turn_scripts, runs_spent, seed_turn
-from src.domains.agents.tools.react_tool_wrapper import ReactToolWrapper
+from src.domains.agents.tools.react_tool_wrapper import ReactToolWrapper, item_counts
 from src.domains.agents.tools.tool_resolution import classify_unresolved_tool_call
 from src.domains.agents.utils.loop_guard import (
     compute_call_digest,
@@ -238,7 +238,7 @@ def _process(
     call: ToolCall, raw: object, wrapper: ReactToolWrapper, ports: CallPorts, state: MessagesState
 ) -> Executed:
     wrapper._accumulated_registry.clear()
-    content = wrapper._process_result(raw, budget_tokens=ports.result_budget)
+    content, block = wrapper._render_result(raw, budget_tokens=ports.result_budget)
     draft = ports.draft(raw, call["name"])
     status = tool_message_status(raw)
     answer = ToolMessage(
@@ -247,7 +247,9 @@ def _process(
         name=call["name"],
         status="error" if status == "error" else "success",
         artifact=call_artifact(raw),
-        response_metadata=tool_message_metadata(raw),
+        # Beside the failure's code, what the read returned (integers only): the
+        # live trace shows it under the call's line.
+        response_metadata={**tool_message_metadata(raw), **item_counts(block)},
     )
     return Executed(
         answer,

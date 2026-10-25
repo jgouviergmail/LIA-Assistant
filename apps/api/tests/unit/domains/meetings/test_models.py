@@ -11,6 +11,7 @@ import pytest
 from sqlalchemy import Enum as SAEnum
 
 from src.domains.meetings.models import (
+    ACTIVE_IMPORT_STATUS_SQL,
     ACTIVE_RECORDING_STATUS_SQL,
     Meeting,
     MeetingAudioFormat,
@@ -28,6 +29,7 @@ pytestmark = pytest.mark.unit
 
 def test_lifecycle_vocabulary_is_exactly_the_documented_one() -> None:
     assert {s.value for s in MeetingStatus} == {
+        "uploading",
         "recording",
         "interrupted",
         "stopped",
@@ -41,7 +43,16 @@ def test_lifecycle_vocabulary_is_exactly_the_documented_one() -> None:
         "synthesizing",
         "indexing",
     }
-    assert {f.value for f in MeetingAudioFormat} == {"pcm_s16le_16", "webm_opus", "ogg_opus"}
+    assert {f.value for f in MeetingAudioFormat} == {
+        "pcm_s16le_16",
+        "webm_opus",
+        "ogg_opus",
+        "import_wav",
+        "import_mp3",
+        "import_m4a",
+    }
+    # Every member fits the 20-character column the migration created.
+    assert max(len(member.name) for member in (*MeetingStatus, *MeetingAudioFormat)) <= 20
     assert {p.value for p in MeetingSttProvider} == {"elevenlabs", "openai", "fishaudio", "local"}
     assert {p.value for p in MeetingSttEnginePreference} == {"auto", "remote", "local"}
     assert {s.value for s in MeetingIndexState} == {"pending", "indexed", "error", "disabled"}
@@ -57,12 +68,22 @@ def test_enum_columns_store_member_names_so_predicates_use_names() -> None:
     assert MeetingStatus.RECORDING.name == "RECORDING"
 
 
-def test_one_live_recording_per_user_is_a_database_contract() -> None:
+@pytest.mark.parametrize(
+    ("name", "predicate"),
+    [
+        ("uq_meetings_one_recording_per_user", ACTIVE_RECORDING_STATUS_SQL),
+        ("uq_meetings_one_import_per_user", ACTIVE_IMPORT_STATUS_SQL),
+    ],
+)
+def test_one_live_recording_and_one_import_per_user_are_database_contracts(
+    name: str, predicate: str
+) -> None:
     indexes = {index.name: index for index in Meeting.__table__.indexes}
-    unique = indexes["uq_meetings_one_recording_per_user"]
+    unique = indexes[name]
     assert unique.unique is True
     assert [column.name for column in unique.columns] == ["user_id"]
-    assert str(unique.dialect_options["postgresql"]["where"]) == ACTIVE_RECORDING_STATUS_SQL
+    assert str(unique.dialect_options["postgresql"]["where"]) == predicate
+    assert ACTIVE_IMPORT_STATUS_SQL == f"status = '{MeetingStatus.UPLOADING.name}'"
 
 
 def test_reaper_scans_have_their_indexes() -> None:

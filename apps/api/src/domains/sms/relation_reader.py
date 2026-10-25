@@ -23,6 +23,7 @@ from src.domains.sms.identity_store import ResolutionScope, validate_resolutions
 from src.domains.sms.models import SmsMessage
 from src.domains.sms.reads import require_read
 from src.domains.sms.repository import project
+from src.infrastructure.database.keyset import Keyset, older_than
 from src.infrastructure.database.session import get_db_context
 
 
@@ -61,7 +62,13 @@ async def _sender_identities(
 
 class SmsRelationReader:
     async def read(
-        self, owner: UUID, *, person: str | None = None, limit: int = 10, assistant: bool = False
+        self,
+        owner: UUID,
+        *,
+        person: str | None = None,
+        limit: int = 10,
+        assistant: bool = False,
+        before: Keyset | None = None,
     ) -> RelationSmsPage:
         if not 1 <= limit <= settings.relations_max_items_per_section:
             raise ValueError("Invalid relation SMS page size")
@@ -100,6 +107,10 @@ class SmsRelationReader:
                 SmsMessage.user_id == owner, SmsMessage.sender_hash.in_(hashes)
             )
             total = await db.scalar(select(func.count()).select_from(selected.subquery())) or 0
+            # A relationship timeline resumes after its cursor; the total stays
+            # the person's whole count.
+            if before is not None:
+                selected = selected.where(older_than(SmsMessage.received_at, SmsMessage.id, before))
             messages = (
                 list(
                     (

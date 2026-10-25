@@ -13,7 +13,7 @@
  * server are indexable — which is half the point of giving history a URL.
  */
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { CHANGELOG_VERSION_KEYS, groupChangelogBySeries } from '@/lib/changelog';
@@ -69,11 +69,17 @@ describe('ChangelogHistory', () => {
     await renderHistory();
 
     const series = groupChangelogBySeries(CHANGELOG_VERSION_KEYS);
-    expect(screen.getAllByRole('region')).toHaveLength(series.length);
-    series.forEach(({ label, id }) => {
-      expect(screen.getByRole('heading', { level: 2, name: label })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: label })).toHaveAttribute('href', `#${id}`);
-      expect(document.getElementById(id)).not.toBeNull();
+    const regions = screen.getAllByRole('region');
+    expect(regions).toHaveLength(series.length);
+    // One page-wide walk per role, then every lookup inside its own subtree: a
+    // page-wide role query per series re-walked the whole history twice per
+    // series and ran past the 15 s budget under the coverage run's load.
+    const rail = screen.getByRole('navigation');
+    series.forEach(({ label, id }, index) => {
+      const region = regions[index];
+      expect(region).toHaveAttribute('id', id);
+      expect(within(region).getByRole('heading', { level: 2, name: label })).toBeInTheDocument();
+      expect(within(rail).getByRole('link', { name: label })).toHaveAttribute('href', `#${id}`);
     });
   });
 

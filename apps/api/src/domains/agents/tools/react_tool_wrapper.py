@@ -34,6 +34,8 @@ import structlog
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, PrivateAttr
 
+from src.core.classification_projection import model_classifications
+from src.core.field_names import FIELD_ITEMS_FOUND, FIELD_ITEMS_SHOWN
 from src.infrastructure.mcp.gated_tool import EffectGatedMCPTool
 
 logger = structlog.get_logger(__name__)
@@ -268,7 +270,9 @@ def _prepare_model_data(data: dict[str, object], result: object) -> dict[str, ob
     metadata = getattr(result, "metadata", None)
     if isinstance(metadata, dict) and metadata.get("mcp_result_projection") is True:
         return _project_mcp_data(data, metadata)
-    return data
+    # A JEV qualification reaches the model as labels and a state, never as
+    # instants it would compare with a clock in another zone (2026-10-25).
+    return model_classifications(data)
 
 
 def _carried_data(result: Any) -> dict[str, Any] | None:
@@ -397,7 +401,31 @@ def _budget_note(result: object, block: DataBlock) -> str:
 
 
 def compose_tool_message(result: Any, *, tool_name: str, budget_tokens: int | None = None) -> str:
-    """Build the ToolMessage body: message, Data block, budget note.
+    """Build the ToolMessage body: message, Data block, budget note (see the sibling)."""
+    body, _block = compose_tool_message_and_block(
+        result, tool_name=tool_name, budget_tokens=budget_tokens
+    )
+    return body
+
+
+def item_counts(block: DataBlock | None) -> dict[str, int]:
+    """What a read returned and what reached the model — only for a result with items.
+
+    Args:
+        block: The projected Data block, or None when the result carried no data.
+
+    Returns:
+        ``{items_found, items_shown}``, or empty when there is no item list to count.
+    """
+    if block is None or block.key is None:
+        return {}
+    return {FIELD_ITEMS_FOUND: block.total, FIELD_ITEMS_SHOWN: block.shown}
+
+
+def compose_tool_message_and_block(
+    result: Any, *, tool_name: str, budget_tokens: int | None = None
+) -> tuple[str, DataBlock | None]:
+    """Build the ToolMessage body: message, Data block, budget note — and the block.
 
     The Data block is wrapped as external content when it carries third-party
     text (:func:`mark_untrusted_data`); the budget note is OURS and therefore
@@ -413,7 +441,8 @@ def compose_tool_message(result: Any, *, tool_name: str, budget_tokens: int | No
             omitted.
 
     Returns:
-        The ToolMessage body.
+        The ToolMessage body, and the block it projected (its counts are shown
+        under the call's line of the live trace).
     """
     from src.infrastructure.observability.metrics_react import (
         react_tool_result_truncated_total,
@@ -422,10 +451,10 @@ def compose_tool_message(result: Any, *, tool_name: str, budget_tokens: int | No
     budget = budget_tokens if budget_tokens is not None else _default_budget()
     block = extract_data_block(result, budget)
     if block is None:
-        return str(result.message)
+        return str(result.message), None
     text = f"{result.message}\n\nData:\n{mark_untrusted_data(result, block.text)}"
     if not block.truncated:
-        return text
+        return text, block
     react_tool_result_truncated_total.labels(tool_name=tool_name).inc()
     logger.info(
         "react_tool_result_truncated",
@@ -436,7 +465,7 @@ def compose_tool_message(result: Any, *, tool_name: str, budget_tokens: int | No
         budget_tokens=block.budget_tokens,
     )
     note = _budget_note(result, block)
-    return f"{text}\n{note}"
+    return f"{text}\n{note}", block
 
 
 class ReactToolWrapper(BaseTool):
@@ -536,7 +565,14 @@ class ReactToolWrapper(BaseTool):
         return self._process_result(result)
 
     def _process_result(self, result: Any, budget_tokens: int | None = None) -> str:
-        """Extract registry items and return a string representation for the LLM.
+        """Extract registry items and return a string representation for the LLM."""
+        body, _block = self._render_result(result, budget_tokens)
+        return body
+
+    def _render_result(
+        self, result: Any, budget_tokens: int | None = None
+    ) -> tuple[str, DataBlock | None]:
+        """Extract registry items; return the text for the LLM and the block it projected.
 
         Args:
             result: Raw tool output (UnifiedToolOutput, dict, or string).
@@ -544,23 +580,25 @@ class ReactToolWrapper(BaseTool):
                 settings ceiling when omitted.
 
         Returns:
-            String representation for the ReAct LLM.
+            The string for the ReAct LLM, and its Data block when it had one.
         """
         # UnifiedToolOutput (Pydantic model with .message, .registry_updates, .tool_metadata)
         if hasattr(result, "registry_updates") and hasattr(result, "message"):
             if result.registry_updates:
                 self._accumulated_registry.update(result.registry_updates)
             # Include data so the ReAct LLM can reason on actual values (dates, names, etc.)
-            return compose_tool_message(result, tool_name=self.name, budget_tokens=budget_tokens)
+            return compose_tool_message_and_block(
+                result, tool_name=self.name, budget_tokens=budget_tokens
+            )
 
         # Dict result (ToolResponse.model_dump() format)
         if isinstance(result, dict):
             if result.get("registry_updates"):
                 self._accumulated_registry.update(result["registry_updates"])
-            return result.get("message", str(result))
+            return result.get("message", str(result)), None
 
         # String passthrough
-        return str(result)
+        return str(result), None
 
     def _run(self, **kwargs: Any) -> str:
         """Synchronous execution not supported."""

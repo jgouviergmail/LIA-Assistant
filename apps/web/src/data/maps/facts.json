@@ -1,7 +1,7 @@
 {
-  "version": "3.6.0",
-  "releaseDate": "2026-10-24",
-  "releases": 288,
+  "version": "3.7.0",
+  "releaseDate": "2026-10-25",
+  "releases": 289,
   "milestones": [
     {
       "version": "1.0.0",
@@ -250,6 +250,10 @@
     {
       "version": "3.6.0",
       "date": "2026-10-24"
+    },
+    {
+      "version": "3.7.0",
+      "date": "2026-10-25"
     }
   ],
   "domains": 58,

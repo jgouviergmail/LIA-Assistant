@@ -11,6 +11,7 @@ import {
 } from '@/types/briefing';
 import type { CapabilityDirectiveWire } from '@/types/directive';
 import { newIntentId } from '@/lib/intent-replay-guard';
+import { formatAttachSource, type AttachSource } from '@/lib/attach-source-link';
 
 // =============================================================================
 // Relative time helper for "updated X ago" labels
@@ -158,16 +159,9 @@ export function dateTimeRangeLabel(
 }
 
 // =============================================================================
-// Error code → i18n CTA key resolver
+// Chat deep links
 // =============================================================================
 
-/**
- * Map a stable backend error_code to the localized CTA key (i18n).
- *
- * Returns null when no actionable CTA applies (e.g. internal errors).
- * Frontend cards use this to decide whether to render an inline "Reconnect" /
- * "Retry" button.
- */
 /**
  * Build the chat deep-link a briefing item opens (QW-9).
  *
@@ -181,6 +175,18 @@ export function dateTimeRangeLabel(
 export function chatDraftHref(lng: string, draft?: string): string {
   const base = `/${lng}/dashboard/chat`;
   return draft ? `${base}?draft=${encodeURIComponent(draft)}` : base;
+}
+
+/**
+ * Build the chat deep-link that attaches a COPY of something the person holds
+ * (a kept answer, a generated file) to the composer — never a send.
+ *
+ * @param lng - UI language for the route prefix.
+ * @param source - What to attach.
+ * @returns Localized chat route carrying `?attach=<kind>:<id>`.
+ */
+export function chatAttachHref(lng: string, source: AttachSource): string {
+  return `/${lng}/dashboard/chat?attach=${encodeURIComponent(formatAttachSource(source))}`;
 }
 
 /**
@@ -224,6 +230,17 @@ export function chatIntentHref(
   return `/${lng}/dashboard/chat?${parts.join('&')}`;
 }
 
+// =============================================================================
+// Error code → i18n CTA key resolver
+// =============================================================================
+
+/**
+ * Map a stable backend error_code to the localized CTA key (i18n).
+ *
+ * Returns null when no actionable CTA applies (e.g. internal errors).
+ * Frontend cards use this to decide whether to render an inline "Reconnect" /
+ * "Retry" button.
+ */
 export function resolveErrorCtaKey(errorCode: string | null): string | null {
   switch (errorCode) {
     case ERROR_CODE_CONNECTOR_OAUTH_EXPIRED:

@@ -64,8 +64,8 @@ def storage(tmp_path: Path) -> dict[str, Path]:
     return {"rag": rag_root, "att": att_root}
 
 
-async def _copy(storage, doc, *, max_chars: int = 50_000):
-    db = AsyncMock()
+async def _copy(storage, doc, *, max_chars: int = 50_000, db: AsyncMock | None = None):
+    db = db or AsyncMock()
     created: list[dict] = []
 
     async def create(payload):
@@ -114,7 +114,8 @@ async def test_a_ready_document_becomes_an_upload_attachment_with_its_text(stora
     assert copied.exists() and copied != stored and stored.exists()
     assert payload["file_path"].startswith(f"{user_id}/")
     assert payload["file_size"] == stored.stat().st_size
-    db.commit.assert_awaited_once()
+    # The reads end before the copy, the row is committed after it.
+    assert db.commit.await_count == 2
 
 
 async def test_the_text_is_capped_and_the_cut_is_stated(storage) -> None:
@@ -181,3 +182,26 @@ async def test_a_row_that_fails_leaves_no_orphan_copy_on_disk(storage) -> None:
     account_dir = storage["att"] / str(user_id)
     assert not account_dir.exists() or list(account_dir.iterdir()) == []
     assert stored.exists()
+
+
+async def test_the_reads_end_before_the_copy_is_made(storage) -> None:
+    # Copying a file and extracting its text can take seconds: the document's
+    # read must not keep a transaction idle meanwhile.
+    user_id, space_id = uuid.uuid4(), uuid.uuid4()
+    stored = storage["rag"] / str(user_id) / str(space_id) / "abc.docx"
+    stored.parent.mkdir(parents=True)
+    stored.write_bytes(_docx("the agenda for monday"))
+    doc = _document(user_id=user_id, space_id=space_id, path=stored)
+    order: list[str] = []
+    db = AsyncMock()
+    db.commit = AsyncMock(side_effect=lambda: order.append("commit"))
+    copy = knowledge_copy.copy_and_extract
+
+    def recorded_copy(*args: object) -> tuple[str | None, int]:
+        order.append("copy")
+        return copy(*args)  # type: ignore[arg-type]
+
+    with patch.object(knowledge_copy, "copy_and_extract", recorded_copy):
+        await _copy(storage, doc, db=db)
+
+    assert order == ["commit", "copy", "commit"]

@@ -100,6 +100,7 @@ Metric: `bookmark_index_total{outcome}` (dashboard 18).
 | The tab | `src/components/settings/generated-assets/BookmarkList.tsx` + `BookmarkCard.tsx`, fourth tab of `GeneratedAssetsSettings` (reads `?tab=bookmarks` once, on arrival); the card shows the projection's state (text, never colour alone) and its cost through `LLMUsageBadge` once indexed |
 | The `.md` export | `src/lib/bookmarks/markdown.ts` — the chat's path (`downloadMarkdown`, `messageToPlainText`), request quoted above the answer |
 | The map node | `bookmarks`, counted, routed through `CAPABILITY_SECTION_TAB` (the section belongs to `generated_files`) |
+| Back into a discussion (2026-10-24) | « Use in the discussion » on the card opens the chat on `?attach=bookmark:<id>`, and the composer's « + » lists the bookmarks (`BookmarkPickerDialog`); either way `POST /attachments/from-bookmark` attaches a COPY rendered as the knowledge document reads it (`attachments/owned_copies.py`, [ATTACHMENTS_INTEGRATION](ATTACHMENTS_INTEGRATION.md)) |
 
 Two gates, because the switch removes the act, never the record. The provider
 reads the state whenever the deployment mounts the routes

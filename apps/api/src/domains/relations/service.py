@@ -27,8 +27,9 @@ poisoning the transaction the rest of the CRM runs on (spec §11).
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import structlog
 
@@ -36,12 +37,13 @@ from src.core.config import settings
 from src.domains.open_loops.repository import OpenLoopRepository
 from src.domains.peers.repository import PeersRepository
 from src.domains.peers.schemas import PeerConnectionProfile
-from src.domains.relations.activity import _Bucket, _spellings_for, _total_for
+from src.domains.relations.activity import _Bucket
 from src.domains.relations.activity import _bucketize as _bucketize
-from src.domains.relations.identity import NO_MERGES, IdentityResolver
+from src.domains.relations.identity import NO_MERGES, IdentityResolver, RelationIdentity
+from src.domains.relations.identity_scope import RelationScope, relation_scope
+from src.domains.relations.mappers import to_call, to_open_loop, to_peer_message
 from src.domains.relations.overview_scope import RelationOverviewScope
 from src.domains.relations.peer_messages import (
-    PeerMessageSignal,
     fetch_peer_message_activity,
     fetch_peer_messages_for,
 )
@@ -56,12 +58,9 @@ from src.domains.relations.repository import (
 )
 from src.domains.relations.schemas import (
     IdentityConfidence,
-    RelationCall,
     RelationDetail,
     RelationMemory,
-    RelationOpenLoop,
     RelationPeerLink,
-    RelationPeerMessage,
     RelationShare,
     RelationsOverview,
     RelationSummary,
@@ -73,9 +72,12 @@ from src.domains.users.models import User
 from src.infrastructure.database.session import get_db_context
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from uuid import UUID
 
     from sqlalchemy.ext.asyncio import AsyncSession
+
+    from src.domains.relations.models import RelationAlias
 
 logger = structlog.get_logger(__name__)
 
@@ -90,41 +92,24 @@ def _normalize_name(name: str) -> str:
     return fold_name(name)
 
 
-def _days_between(then: datetime, now: datetime) -> int:
-    return max(0, (now - then).days)
+@dataclass(frozen=True)
+class _Identities:
+    """What the relationship list is built from, read once.
 
+    Attributes:
+        buckets: Canonical key -> the aggregated signals and raw spellings.
+        favorites: Canonical key -> starred spelling.
+        peer_keys: Canonical keys of the connected users.
+        sms_available: Whether the SMS archive answered.
+        merged_spellings: Canonical key -> the spellings merged into it, as
+            the person declared them (a declaration outlives its records).
+    """
 
-def _to_open_loop(loop: Any, now: datetime) -> RelationOpenLoop:
-    """Map one open-loop row onto the API contract."""
-    return RelationOpenLoop(
-        id=str(loop.id),
-        subject=loop.subject,
-        direction=loop.direction,
-        due_hint=loop.due_hint,
-        days_open=_days_between(loop.created_at, now),
-        opened_at=loop.created_at,
-    )
-
-
-def _to_call(call: Any) -> RelationCall:
-    """Map one phone-call row onto the API contract (never the number — D-8)."""
-    return RelationCall(
-        id=str(call.id),
-        objective=call.objective,
-        outcome=call.outcome.value if call.outcome else None,
-        summary=call.summary,
-        created_at=call.created_at,
-    )
-
-
-def _to_peer_message(signal: PeerMessageSignal) -> RelationPeerMessage:
-    """Map one bridge signal onto the API contract."""
-    return RelationPeerMessage(
-        id=signal.message_id,
-        direction=signal.direction,
-        content=signal.content,
-        occurred_at=signal.occurred_at,
-    )
+    buckets: dict[str, _Bucket]
+    favorites: dict[str, str]
+    peer_keys: set[str]
+    sms_available: bool
+    merged_spellings: dict[str, set[str]]
 
 
 async def _detail_sms(
@@ -201,28 +186,12 @@ class RelationsService:
         and a person whose only activity fell outside the window had no card
         at all.
         """
-        async with get_db_context() as db:
-            loops = await OpenLoopRepository(db).aggregate_open_by_counterparty(self.user_id)
-            calls = await TelephonyRepository(db).aggregate_calls_by_callee(self.user_id)
-            resolver = await self._load_identity_resolver(db)
-            favorites = self._canonical_favorites(await self._load_favorites(db), resolver=resolver)
-            peer_keys = self._peer_keys(await self._load_peer_profiles(db), resolver=resolver)
-
-        # Own session, own failure boundary (peers spec §11) — deliberately
-        # OUTSIDE the block above, so a failed statement there could never
-        # poison the transaction the rest of the CRM runs on.
-        messages = await fetch_peer_message_activity(self.user_id)
-
-        sms = await read_relation_sms(self.user_id)
-        buckets = _bucketize(loops, calls, messages, resolver=resolver, sms=sms.activities)
-
-        # A starred name without any live signal still deserves its card:
-        # inject an empty bucket carrying the spelling the user starred.
-        for key, spelling in favorites.items():
-            if key not in buckets:
-                empty = buckets.setdefault(key, _Bucket())
-                empty.raw_names.add(spelling)
-
+        identities = await self._identities(sms_assistant=False)
+        buckets, favorites, peer_keys = (
+            identities.buckets,
+            identities.favorites,
+            identities.peer_keys,
+        )
         summaries = [
             RelationSummary(
                 display_name=self._display_name(bucket.raw_names),
@@ -259,9 +228,75 @@ class RelationsService:
         # pure aggregation for a value its caller has in hand.
         return RelationsOverview(
             relations=summaries[: settings.relations_max_items],
-            sms_available=sms.available,
+            sms_available=identities.sms_available,
             relations_total=len(summaries),
         )
+
+    async def directory(self) -> list[RelationIdentity]:
+        """Everyone the relationship list knows, with every spelling naming them.
+
+        Built from the very identities the list is (``_identities``), so a name
+        resolved in the chat and a card on the page can never disagree about
+        who someone is (ADR-185). No count is computed: a resolver needs who,
+        not how much. Its readers are the assistant's tools, whose candidates
+        reach the model: an SMS sender joins it only where the person let the
+        assistant read their SMS.
+
+        Returns:
+            One entry per identity, connected or not.
+        """
+        identities = await self._identities(sms_assistant=True)
+        return [
+            RelationIdentity(
+                key=key,
+                display_name=self._display_name(bucket.raw_names),
+                spellings=tuple(
+                    sorted(bucket.raw_names | identities.merged_spellings.get(key, set()))
+                ),
+                is_peer=key in identities.peer_keys,
+            )
+            for key, bucket in identities.buckets.items()
+            if bucket.raw_names
+        ]
+
+    async def _identities(self, *, sms_assistant: bool) -> _Identities:
+        """Every identity the sources name, the starred ones included.
+
+        Args:
+            sms_assistant: Whether the reader is the assistant, whose SMS reads
+                require the person's consent — no default: the page and the
+                assistant are two different readers of the same archive.
+
+        Returns:
+            The buckets, the stars, the connected identities and whether SMS
+            are available — one read serving the list and the directory.
+        """
+        async with get_db_context() as db:
+            loops = await OpenLoopRepository(db).aggregate_open_by_counterparty(self.user_id)
+            calls = await TelephonyRepository(db).aggregate_calls_by_callee(self.user_id)
+            aliases = await RelationAliasRepository(db).list_for_user(self.user_id)
+            resolver = self._resolver_from(aliases)
+            favorites = self._canonical_favorites(await self._load_favorites(db), resolver=resolver)
+            peer_keys = self._peer_keys(await self._load_peer_profiles(db), resolver=resolver)
+        merged_spellings: dict[str, set[str]] = {}
+        for row in aliases:
+            merged_spellings.setdefault(row.canonical_key, set()).add(row.alias_display_name)
+
+        # Own session, own failure boundary (peers spec §11) — deliberately
+        # OUTSIDE the block above, so a failed statement there could never
+        # poison the transaction the rest of the CRM runs on.
+        messages = await fetch_peer_message_activity(self.user_id)
+
+        sms = await read_relation_sms(self.user_id, assistant=sms_assistant)
+        buckets = _bucketize(loops, calls, messages, resolver=resolver, sms=sms.activities)
+
+        # A starred name without any live signal still deserves its card:
+        # inject an empty bucket carrying the spelling the user starred.
+        for key, spelling in favorites.items():
+            if key not in buckets:
+                empty = buckets.setdefault(key, _Bucket())
+                empty.raw_names.add(spelling)
+        return _Identities(buckets, favorites, peer_keys, sms.available, merged_spellings)
 
     async def build_detail(
         self, name: str, *, include_sms: bool = True, sms_assistant: bool = False
@@ -279,18 +314,18 @@ class RelationsService:
         page = settings.relations_max_items_per_section
 
         async with get_db_context() as db:
-            resolver = await self._load_identity_resolver(db)
-            # Resolved AFTER the merges: opening the merged-away spelling must
-            # land on the same card as the canonical one.
-            target_key = resolver.key(name)
-            loop_repo = OpenLoopRepository(db)
-            call_repo = TelephonyRepository(db)
-            loop_activity = await loop_repo.aggregate_open_by_counterparty(self.user_id)
-            call_activity = await call_repo.aggregate_calls_by_callee(self.user_id)
-            loop_names = _spellings_for(loop_activity, target_key, resolver=resolver)
-            call_names = _spellings_for(call_activity, target_key, resolver=resolver)
-            loops = await loop_repo.list_open_for_counterparties(self.user_id, loop_names, page)
-            phone_calls = await call_repo.list_calls_for_callees(self.user_id, call_names, page)
+            scope, resolver = await self.scope(db, name)
+            target_key, loop_names, call_names = (
+                scope.target_key,
+                scope.loop_names,
+                scope.call_names,
+            )
+            loops = await OpenLoopRepository(db).list_open_for_counterparties(
+                self.user_id, loop_names, page
+            )
+            phone_calls = await TelephonyRepository(db).list_calls_for_callees(
+                self.user_id, call_names, page
+            )
 
             # Imported lazily: the tests of this service patch the repository
             # at its SOURCE module, which only a call-time import resolves.
@@ -315,10 +350,7 @@ class RelationsService:
         # Every spelling of the identity: the relayed-message rows of a
         # merged-away half are still stored under their own name.
         messages = await fetch_peer_messages_for(
-            self.user_id,
-            target_key=target_key,
-            limit=page,
-            merged_keys=resolver.keys_of(target_key),
+            self.user_id, target_key=target_key, limit=page, merged_keys=scope.identity_keys
         )
 
         # Every stored spelling is identity evidence — including the connected
@@ -337,16 +369,16 @@ class RelationsService:
         return RelationDetail(
             display_name=self._display_name(raw_names) or name.strip(),
             identity_confidence=self._confidence(raw_names),
-            open_loops=[_to_open_loop(loop, now) for loop in loops],
-            open_loops_total=_total_for(loop_activity, target_key, resolver=resolver),
-            recent_calls=[_to_call(call) for call in phone_calls],
-            recent_calls_total=_total_for(call_activity, target_key, resolver=resolver),
+            open_loops=[to_open_loop(loop, now) for loop in loops],
+            open_loops_total=scope.loops_total,
+            recent_calls=[to_call(call) for call in phone_calls],
+            recent_calls_total=scope.calls_total,
             memories=[
                 RelationMemory(id=str(row.id), content=row.content, created_at=row.created_at)
                 for row in memory_rows
             ],
             memories_total=memories_total,
-            peer_messages=[_to_peer_message(signal) for signal in messages.signals],
+            peer_messages=[to_peer_message(signal) for signal in messages.signals],
             peer_messages_total=messages.total,
             sms=sms.messages,
             sms_total=sms.total,
@@ -357,6 +389,24 @@ class RelationsService:
             is_peer=connected is not None,
             merged_from=merged_from,
         )
+
+    async def scope(self, db: AsyncSession, name: str) -> tuple[RelationScope, IdentityResolver]:
+        """Who ``name`` designates, as each source stores them — the card's and the timeline's.
+
+        Resolved AFTER the merges: opening the merged-away spelling lands on the
+        same card as the canonical one (``identity_scope``).
+
+        Args:
+            db: Session owned by the caller.
+            name: The name the card was opened with.
+
+        Returns:
+            The scope, and the resolver it was built with.
+        """
+        resolver = await self._load_identity_resolver(db)
+        loop_activity = await OpenLoopRepository(db).aggregate_open_by_counterparty(self.user_id)
+        call_activity = await TelephonyRepository(db).aggregate_calls_by_callee(self.user_id)
+        return relation_scope(resolver, name, loop_activity, call_activity), resolver
 
     async def _load_identity_resolver(self, db: AsyncSession) -> IdentityResolver:
         """Folding + the merges this user declared.
@@ -371,7 +421,11 @@ class RelationsService:
         Returns:
             The resolver for this user (no merge = plain folding).
         """
-        rows = await RelationAliasRepository(db).list_for_user(self.user_id)
+        return self._resolver_from(await RelationAliasRepository(db).list_for_user(self.user_id))
+
+    @staticmethod
+    def _resolver_from(rows: Sequence[RelationAlias]) -> IdentityResolver:
+        """The resolver the stored merges describe — one construction for every read."""
         return IdentityResolver.from_pairs([(row.alias_key, row.canonical_key) for row in rows])
 
     @staticmethod

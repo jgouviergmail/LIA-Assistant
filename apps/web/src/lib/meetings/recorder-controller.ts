@@ -19,14 +19,14 @@ import {
   MEETING_DEFAULT_SEGMENT_SECONDS,
   MEETING_DEFAULT_SILENCE_PROMPT_MINUTES,
 } from '@/lib/constants';
-import type { AudioFormatChoice } from '@/lib/meetings/audio-format';
+import { isLiveFormat, type AudioFormatChoice } from '@/lib/meetings/audio-format';
 import type { AudioSourceCallbacks, MeetingAudioSource } from '@/lib/meetings/audio-source';
 import { SilenceWatchdog } from '@/lib/meetings/silence-watchdog';
 import type { SegmentUploader, SegmentUploaderOptions } from '@/lib/meetings/segment-uploader';
 import { meetingErrorCode, missingSegmentsOf } from '@/lib/meetings/api';
 import type {
   MeetingActionResponse,
-  MeetingAudioFormat,
+  MeetingLiveFormat,
   MeetingDetail,
   MeetingGeolocation,
   MeetingStartRequest,
@@ -52,7 +52,7 @@ export interface RecorderDeps {
   getUserMedia: () => Promise<MediaStream>;
   chooseFormat: () => AudioFormatChoice;
   createSource: (
-    format: MeetingAudioFormat,
+    format: MeetingLiveFormat,
     mimeType: string | undefined,
     segmentSeconds: number,
     callbacks: AudioSourceCallbacks
@@ -571,6 +571,8 @@ export class MeetingRecorderController {
       if (store.phase === 'interrupted') store.reset();
       return;
     }
+    // `/meetings/active` serves recordings only; an import is never resumed here.
+    if (!isLiveFormat(live.audio_format)) return;
     if (store.recording?.meetingId !== live.id) {
       store.begin(
         {

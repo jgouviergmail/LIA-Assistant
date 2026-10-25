@@ -1,9 +1,9 @@
 # LIA — Public Technical Audit Report
 
-> **Latest assessment: 7.8/10** (186.5/240) across **24 normalized areas** — the **V14 revision**, a counter-review of the V14 report of the same day (2026-10-22): every finding and every score confronted with the current code, fresh executions and the V13 register, and amended where the evidence required it. V14 had scored 8.0/10 (192/240).
-> Full standalone reports (French): [revision](./AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14-revision.html) · [V14](./AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14.html) · Method: evidence-based with systematic counter-proofs, every score backed by cited sources and executed checks · **Security is explicitly and entirely out of scope** (covered separately — see [SECURITY.md](../../SECURITY.md)).
+> **Latest assessment: 7.9/10** (190/240) across **24 normalized areas** — **V15** (2026-10-25), an audit of the **committed** state of LIA 3.6.0 (commit `3909d87c5`), every score backed by cited sources and checks executed on an isolated export of that commit. The previous cycle, the V14 revision, had scored 7.8/10 (186.5/240).
+> Full standalone report (French): [V15](./AUDIT_CODEBASE_2026-10-25_CONSOLIDE_V15.html) · previous: [V14 revision](./AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14-revision.html) · Method: evidence-based with systematic counter-proofs · **Security is explicitly and entirely out of scope** (covered separately — see [SECURITY.md](../../SECURITY.md)).
 >
-> ⚖️ **Quality decision: general validation not granted.** Four major findings are open — three of them for 81 days, across 86 releases; the backend coverage gate has no margin left; and the revision did not replay the browser suite under its own control. The report is published as a technical assessment with its reservations, not as a conformity attestation or a production go-ahead.
+> ⚖️ **Quality decision: a controlled level, residual debt identified — not an unreserved validation.** One major and six moderate findings are open, three of them P1: the ownership of an uploaded RAG document's processing across a takeover, the identity of each acquisition of the reindex lock, and the total duration of an OAuth refresh against its lease. They must be treated before resumptions, concurrent acquisitions and duration bounds count as fully qualified. The report is published as a technical assessment with its reservations, not as a conformity attestation or a production go-ahead.
 
 LIA's engineering claims are public, so their verification should be too. This report is the summary backing for every quality figure shown on the [landing page](https://lia.jeyswork.com/), the [/story field report](https://lia.jeyswork.com/story) and the README; the complete, self-contained reports (scorecard, evidence register, counter-analysis, worksite prompts, annexes) are versioned next to this file. It is updated after each audit cycle — including the findings we have not fixed yet.
 
@@ -15,123 +15,117 @@ Most projects claim quality; few make the claim falsifiable. This repository is 
 
 The method is as auditable as the code: the full audit protocol — scope, referentials, evidence requirements, scoring discipline, publication pipeline — is versioned in [AUDIT_PROTOCOL.md](./AUDIT_PROTOCOL.md), and the structural metrics come from committed measurement scripts ([`scripts/audit/`](../../scripts/audit/)).
 
-A published figure that stops matching the latest cycle is itself a finding. The cycles before V14 (V12 and V13, below) were produced and versioned but never carried to the public surfaces, which kept showing V11's 8.3 — including through V13's 7.3. The same rule now applies to V14 itself: its counter-review lowered the score, and the public surfaces carry the revised figure.
+A published figure that stops matching the latest cycle is itself a finding. The cycles before V14 (V12 and V13, below) were produced and versioned but never carried to the public surfaces, which kept showing V11's 8.3 — including through V13's 7.3. Since then every cycle reaches the public surfaces, whichever way its score moves: the V14 revision lowered it, V15 raises it.
 
-## Scope, referentials and method (V14 and its revision)
+## Scope, referentials and method (V15)
 
-- **Object.** V14 assessed the working tree visible at its cut-off (2026-10-22, closing capture 08:19 UTC): commit `89d10bc97` plus the uncommitted v3.4.0 release preparation — 12,480 unique text paths across `apps/api`, `apps/web`, `infrastructure`, `scripts`, `docs`, Taskfile, manifests, lockfiles, Dockerfiles, Compose and CI workflows. The revision re-read the same day's tree at two fingerprinted snapshots (08:53 and 09:28 UTC, about 13,280 files each, the concurrent release work included) and re-verified every source V14 cited: 86 of 89 were unchanged, the three that changed being those of findings closed since. **Absolute exclusion:** any security analysis — vulnerabilities, secrets, authn/authz, cryptography, hardening, SAST/DAST, vulnerable dependencies, threat modeling, intrusion testing. No score, finding or prompt takes security into account.
-- **Referentials.** Product quality: **ISO/IEC 25010:2023** and **ISO/IEC 25040:2024** (security characteristic neutralized). Architecture: **ISO/IEC/IEEE 42010:2022**. Life-cycle reading: **ISO/IEC/IEEE 12207:2026**. Test processes: **ISO/IEC/IEEE 29119-2:2021**; automated structural quality: **ISO/IEC 5055:2021**. Interaction: **WCAG 2.2 level AA** as the accessibility control grid — no claim of full conformity is made. The audit is an internal assessment aligned on industrial referentials; it is **not** an accredited certification, a guarantee of absence of defects, or a WCAG conformity attestation.
-- **Process.** V14: inventory → static gates (Ruff, Black, MyPy strict, ESLint, non-incremental TypeScript, i18n parity, documentation drift, cycles, complexity, size, baselined debts) → backend suites in three scheduling modes → integration and migration replay on disposable PostgreSQL/Redis → production Docker builds → hermetic Playwright journeys on an isolated production server, native media prerequisites included → targeted probes → counter-analysis. The revision then ran its own fresh executions — 45,852 backend unit tests and 13,919 frontend tests, frontend coverage at 87.8 %, static gates, ratchet baselines, Git series — and new instruments (Ruff's async rules, template values against code defaults, a documentation language census, panel-to-producer resolution).
-- **Qualification rule.** No finding rests solely on a comment, a green baseline, a skipped test, an exit code or a historical observation. A dedicated counter-analysis stage documents discarded false positives and corrected false negatives; a test broken before its oracle is never counted as a pass or a product defect.
-- **Scoring.** Each area is the sum of five axes scored 0–2 in half points — **C**ontract/structure, **I**mplementation, fresh **V**erification, **G**uard/prevention, **E**xploitation/evolution — so every area score answers the same five questions. The global score is the plain arithmetic mean of the 24 areas: 186.5 ÷ 24 = **7.8/10**. Finding levels: *major* (an essential contract or operational chain is incorrect), *moderate* (a bounded defect or significant debt), *minor* (a limited gap with no demonstrated business failure). Priorities: P1 before a general qualification, P2 planned risk reduction, P3 opportunistic. Effort E1 (< half a day) to E5 (multi-batch programme); horizons H0 (within a week), H1 (two to four weeks), H2 (the quarter).
+- **Object.** V15 audits one **commit**, not a working tree: `3909d87c5` (LIA 3.6.0, 2026-10-24), frozen by Git reads and exported outside the workspace — 13,419 committed files verified against their blobs, line-ending conversions recorded. Uncommitted work, even staged, is excluded; earlier backend results were reused only after a byte-for-byte reconciliation with the commit. The campaign ran on 2026-10-24 and 2026-10-25. **Absolute exclusion:** any security analysis — vulnerabilities, secrets, authn/authz, cryptography, hardening, SAST/DAST, vulnerable dependencies, threat modeling, intrusion testing. Components carrying those names are judged for their function, structure and reliability only.
+- **Referentials.** Product quality: **ISO/IEC 25010:2023** and **ISO/IEC 25040:2024** (security characteristic neutralized). Automated structural quality: **ISO/IEC 5055:2021**. Architecture: **ISO/IEC/IEEE 42010:2022**. Test processes: **ISO/IEC/IEEE 29119-2:2021**. Life-cycle reading: **ISO/IEC/IEEE 12207:2026**. Interaction: **WCAG 2.2 level AA** as the accessibility control grid. Technical contracts read at their source: PostgreSQL 16 SQLSTATE and `NOWAIT` semantics, HTTPX timeouts, Playwright's clock, Python 3.14 subprocess rules. The audit is an internal assessment aligned on industrial referentials; it is **not** an accredited certification, a guarantee of absence of defects, or a WCAG conformity attestation.
+- **Process.** Inventory → static gates on the commit (35 controls: Ruff, Black, strict MyPy, ESLint, non-incremental TypeScript, cycles, complexity, size, baselined debts) and the six canonical documentation checks on the commit's exact index → backend suites in every scheduling mode (46,487 unit tests with coverage, 5,344 integration tests, 1,102 agent tests, xdist and sequential combined runs) → migration replay on disposable PostgreSQL (272 revisions, one head) and a dump/restore round trip → 14,114 frontend tests with coverage → 693 browser journeys per engine on Chromium, Firefox and WebKit against an isolated production server with mocked APIs → Prometheus rule tests, a 14-variant Alertmanager matrix, an exact production build of the API image → targeted probes (a stale RAG worker, a slow-drip HTTP response, the causes of PostgreSQL bound errors) → counter-analysis.
+- **Qualification rule.** No finding rests solely on a comment, a green baseline, a skipped test, an exit code or a historical observation. A bench limit is not a product defect: the combined backend modes ended on 27 failures caused by the Windows bench (argument decoding, Git decisions, shell paths), requalified separately and never added back into a green total.
+- **Scoring.** Each area is set by explicit judgment, in half points, on one published ordinal scale — 9.5–10 exemplary practice; 8.5–9.0 mastered and industrialized; 7.0–8.0 controlled and operational, substantial but bounded debt; 5.5–6.5 fragile; ≤ 5.0 insufficient — from its positive controls, gaps, effects and proof limits, with at least three source proofs per area and no hidden formula turning counters into scores. The global score is the plain mean of the 24 areas: 190 ÷ 24 = **7.9/10**. Finding levels: *major* (a significant risk to a result or to persistence), *moderate* (a bounded reliability or delivery defect, or substantial debt), *minor* (a local inconsistency or a non-blocking improvement). Priorities: P1 first cycle, P2 after the P1s, P3 planned maintenance; no P0. Effort E1 (< half a day) to E5 (beyond two weeks); regression radius R1 (an isolated test or text) to R4 (cross-domain contracts or persistence). The register maps P1 to the H1 horizon (four weeks) and P2/P3 to H2 (the quarter).
 
-## Scorecard — 24 normalized areas (revision of 2026-10-22)
+## Scorecard — 24 normalized areas (V15, 2026-10-25)
 
-| # | Area | Score | V14 | Evidence highlights |
-|---|------|-------|-----|---------------------|
-| 1 | Infrastructure | 8.5 | 8.5 | Explicit containerized topology, base images pinned by version and digest, resource limits and health probes declared, documented restore procedure; a timed restore and the ARM image not executed; the web Docker context does not exclude capture bundles (AC-027) |
-| 2 | Data & persistence | 7.0 | 7.5 | Linear single-head migration chain, typed SQLAlchemy 2 ORM, partial-index upserts on literal predicates, JSONB guards; the fencing of an ordinary RAG upload is still incomplete (AC-002), PostgreSQL bounds neither lock waits nor idle transactions despite a production lock-up of that class documented in the repository (AC-028), and the proactive-discussion execution tables have no retention or growth gauge (AC-034) |
-| 3 | Configuration & dependencies | 8.5 | 9.0 | Modular settings, synchronized manifests and lockfiles, an orphan dependency removed, pinned versions; 50 environment-template values differ from the code's defaults, nine of them inverted switches, and only their presence is checked (AC-036) |
-| 4 | Architecture | 7.5 | 7.5 | 59 domains, one lifespan orchestration point, Pipeline, ReAct and direct aggregations kept apart; 22 reciprocal runtime pairs concentrated on `users` and `agents`, with local imports still used as a workaround (AC-011) |
-| 5 | Application design | 8.0 | 8.5 | Typed tool contracts, a taxonomy of errors, a declared turn reset, one door for post-commit notices; the notification dispatch — « at least one channel », an ephemeral SSE included, a failure returned as a value — is reused by five callers that write a durable state (AC-003) |
-| 6 | Genericity | 9.0 | 9.0 | Generic repository, LLM factories, domain and draft registries validated at import |
-| 7 | Extensibility | 9.0 | 9.0 | Tool and agent creation guides, declarative registries, version surfaces declared once and checked in CI; reciprocal coupling slows transverse changes (AC-011) |
-| 8 | Implementation | 7.5 | 7.5 | Homogeneous async and UTC idioms, modern Pydantic 2 and SQLAlchemy 2 APIs, no unreferenced asyncio task; very heavy complexity tails (AC-010) and 16 blocking disk operations or active waits inside async functions (AC-035) |
-| 9 | Maintainability | 7.0 | 7.0 | Size, complexity, coupling and typing ratchets active and trending down since V13 (functions at CC ≥ 15: 342 → 263, maximum 87 → 77); absolute debt still high (AC-010, AC-013) |
-| 10 | Quality tooling | 7.5 | 8.0 | Ruff, Black, strict MyPy, ESLint and non-incremental `tsc` green, backend and frontend ratchets; blind spots: 859 MyPy diagnostics masked, six exemption codes that no longer fire (AC-012), untyped backend tests, no async lint rules, no panel-to-producer guard, no template value check |
-| 11 | Patterns & practices | 7.5 | 8.0 | Precise written rules and many AST guards, not applied everywhere: ownerless locks set then deleted unconditionally (reindex and OAuth refresh — AC-005, AC-029), durable states written without an explicit result (AC-003), local imports |
-| 12 | Robustness | 6.5 | 7.0 | Circuit breakers and targeted HTTP and SQL timeouts; shutdown does not join cancelled tasks (AC-007), no systemic PostgreSQL wait bound (AC-028), temporary Hue clients left open (AC-008) |
-| 13 | Reliability | 6.5 | 7.0 | Transactions, recovery and checkpoints widely tested, scheduler leadership owner-conditioned, the October Workboard lock-up fixed and guarded; ownership and delivery counter-examples persist and widen — five delivery sites including the incident alert (AC-003), the OAuth refresh lock (AC-029), V13 majors open for 81 days |
-| 14 | Performance | 8.0 | 8.0 | Differential graph input, linear flatteners under guard, intra- and inter-process coalescing; no load or production latency measured during the audit |
-| 15 | Optimization | 8.5 | 8.5 | Per-source caches, inter-process coalescing, reserved spend budgets; a semantically refused rule compilation is paid again on every tick (AC-023) |
-| 16 | Scalability | 8.0 | 8.0 | Connection budget computed for every worker with a fast failure, Prometheus multiprocess mode, token-owned Redis claims; multi-worker correctness of RAG leases and the reindex lock still open (AC-002, AC-005); no capacity figure measured |
-| 17 | Operability & observability | 6.0 | 7.0 | 627 metrics (93.8 % referenced), 32 dashboards, 86 recording rules and 32 validated alerts, 60 runbooks; the alerting chain stays inconsistent — specialized routes shadowed in the default e-mail template too (AC-004), four panels with no producer (AC-006, reopened), an incident alert marked notified without a delivery (AC-003) |
-| 18 | CI/CD & delivery | 8.0 | 8.5 | Thin CI calling the Taskfile tasks, controlled parity, hermetic delivery and installation; no job or test timeouts (AC-033), backend coverage margin down to 0.66 point (AC-030), audit register not yet tooled (AC-031) |
-| 19 | Tests & assurance | 7.5 | 7.5 | Fresh green executions, 87.8 % frontend coverage, the latest complete browser run observed green, regression tests for the two fixed usage defects; assurance weakened by the eroded backend margin, missing timeouts and two tests that never ran (AC-030, AC-033, AC-037) |
-| 20 | Documentation | 8.0 | 9.0 | 359 ADRs, living links, cited paths and facts controlled, generated AGENTS mirror, living maps; values restated outside the controlled patterns drift — wrong test thresholds in the testing guide (AC-032), the language rule unapplied to a third of the corpus (AC-039), an oversized governance document (AC-038), a discontinuous audit register (AC-031) |
-| 21 | Portability | 8.5 | 8.5 | Windows for development, containerized Linux, multi-arch builds planned, delivery and installation tested hermetically; ARM, native mobile and a restore not executed; the canonical coverage command is not reproducible on Windows (AC-033) |
-| 22 | Compatibility | 8.5 | 8.5 | `/v1` API, shared SSE vocabulary checked by a symmetry test, IMAP identifiers normalized, recent frameworks pinned; SSE payloads cast without validation on the client (AC-037) |
-| 23 | Functional suitability | 7.5 | 8.0 | Very broad functional surface and complete registries, the two V14 usage defects fixed; a user-visible claim can be wrong — a peer message announced « delivered » to its sender without a proven delivery (AC-003) |
-| 24 | Usability & accessibility | 8.0 | 7.0 | Six languages at strict parity, translated labels, jsx-a11y ratchet at zero, axe journeys; the SMS focus and the settings search defects of V14 fixed and tested; no formal campaign with assistive technologies |
+| # | Area | Score | Rev. | Evidence highlights |
+|---|------|-------|------|---------------------|
+| 1 | Infrastructure | 8.5 | 8.5 | Explicit production topology, budgets and entry points; the exact API build executed, not only read; backups kept apart from the directory a deploy replaces; the native web build did not finish within the bench's envelope |
+| 2 | Data & persistence | 7.5 | 7.0 | 272 migrations on one head, full upgrade plus last-revision round trip and metadata diff on a disposable base, an explicit `ondelete` on all 170 foreign keys; the transitions of an uploaded RAG document are not all tied to the attempt that owns them (AC-002) |
+| 3 | Configuration & dependencies | 8.5 | 8.5 | Builds consume locked dependencies, settings composed by domain, effective capabilities derived through shared doors; the OAuth refresh lease rests on a duration the code does not bound (AC-029) |
+| 4 | Architecture | 7.5 | 7.5 | 59 domain contexts mapped, one lifespan, registries and a differential turn state give the orchestration observable boundaries; 397 runtime edges, 22 reciprocal pairs, one strongly connected component of 53 domains (AC-010, AC-011) |
+| 5 | Application design | 8.5 | 8.0 | Shared contracts for reasoning intent, effective capabilities, tool results and the stop decision; abandoned calls closed structurally; an owned lease must hold on every exit, errors and resumptions included |
+| 6 | Genericity | 8.5 | 9.0 | Generic repository, filterable catalogues, composed configuration and completeness checks; the reindex lock is a specialized door that does not use the owned-claim primitive yet (AC-005) |
+| 7 | Extensibility | 8.5 | 9.0 | Extensions go through declarations and completeness guards; a new capability must reach every consumer — the offline film check fails on two keys added to the catalogue (AC-043) |
+| 8 | Implementation | 8.0 | 7.5 | A syntactic census of Python and TypeScript confirms the absence of the idiom families the guards forbid; 167 functions above 100 logical lines, 37 above 200 (AC-010, AC-012, AC-013) |
+| 9 | Maintainability | 7.0 | 7.0 | Size, complexity and typing ratchets block regressions; 42 logic files above 600 logical lines, 10 above 1,000, 260 Python functions at CC ≥ 15, oversized central instructions (AC-010, AC-038) |
+| 10 | Quality tooling | 8.0 | 7.5 | Ruff, Black, MyPy, TypeScript, ESLint and the cross-cutting guards run, the same Taskfile contract feeds CI; 76 tolerated MyPy module/code pairs (824 diagnostics without them), 119 double assertions frozen, four E2E oracles to correct (AC-012, AC-045 to AC-048) |
+| 11 | Patterns & practices | 8.0 | 7.5 | Short sessions, task ownership, durable delivery and serializable state each have a shared door and tests; the RAG upload and the global reindex lock remain identified exceptions (AC-002, AC-005) |
+| 12 | Robustness | 7.5 | 6.5 | Real server-side bounds tested, client timeouts, shutdown paths closing their resources; a response delivered in small fragments outlives the computed worst case and the OAuth lease (AC-029), and the bound metric conflates three causes (AC-041) |
+| 13 | Reliability | 7.5 | 6.5 | Atomic acquisitions, conditional writes across many jobs, a notification declared durable only once a durable channel took it; a stale upload worker can still finish or reschedule a document another took over, and successive reindex acquisitions are not told apart (AC-002, AC-005, AC-029) |
+| 14 | Performance | 7.5 | 8.0 | Time to first token, stream duration, streamed transfers and the differential turn state instrumented or structurally bounded; no loaded benchmark or real model call measures a production latency |
+| 15 | Optimization | 8.5 | 8.5 | Caches with invalidation paths, prices read in memory, components loaded on demand; no bundle or first-paint measurement replaces a syntactic count |
+| 16 | Scalability | 7.5 | 8.0 | A public connection profile of 128 burst connections for 195 usable, a floor of 28 persistent ones, a boot guard, explicit cross-worker invalidation; the RAG and reindex ownership reserves and the OAuth deadline concern resumptions and concurrent workers |
+| 17 | Operability & observability | 8.0 | 6.0 | 32 dashboards, 634 metric definitions and 1,072 expressions inventoried, rules and their timing tested with the production image's Promtool, a 14-variant Alertmanager matrix, a synthetic alert e-mail accepted; one bound alert names three different causes as timeouts (AC-041) |
+| 18 | CI/CD & delivery | 8.0 | 8.0 | CI orchestrates the local tasks, parity and version-surface guards green on the frozen export, 363 delivery-artefact tests passing; the native web build is incomplete on the bench and the offline film check has two editorial failures (AC-043) |
+| 19 | Tests & assurance | 8.0 | 7.5 | Every mode's results, skips and warnings published, frontend thresholds unchanged, the backend floor held on the union of suites (87.5 % of lines); the chat's initial-position E2E check is not stable and four oracles need a targeted fix (AC-044 to AC-048) |
+| 20 | Documentation | 8.0 | 8.0 | 847 Markdown documents, 65 runbooks and 362 ADRs walked by the instruments, the six canonical documentation checks green on the commit's exact index; one budget comment quotes 168 where the code computes 128 (AC-019) |
+| 21 | Portability | 7.5 | 8.5 | Containerized Linux recipes, the Windows workstation and both shells' script tests kept apart, image versions and digests recorded; no ARM64 build, native mobile build or physical device executed, two POSIX modules outside the Windows collection |
+| 22 | Compatibility | 8.0 | 8.5 | A cross-checked SSE contract, reasoning intent translated to each effective profile, cancellation and timeouts propagated over HTTP; three browser engines told apart, six Firefox video preconditions not acquired on the hermetic bench (AC-048, AC-049) |
+| 23 | Functional suitability | 8.0 | 7.5 | Action, consultation and decision kept apart and exposed under deterministic contracts, allowed paths covered without a person or a real provider; job-cycle and total-duration gaps retained because they can alter a result (AC-002) |
+| 24 | Usability & accessibility | 7.5 | 8.0 | Field and error association, image alternatives, language, reduced motion and axe journeys checked, six locales at strict parity; the last message is not fully at the bottom in a complete Chromium run, and the keyboard path of the selection actions fails under WebKit (AC-044, AC-049) |
 
-Eleven areas went down — nine by half a point, documentation and observability by a full point — and usability went up by one.
+Ten areas went up — observability by two points, robustness and reliability by one — seven went down, by half a point except portability (one point), and seven are unchanged. V15 scores each area by explicit judgment on a published ordinal scale where the revision summed five axes: the « Rev. » column is indicative across that change of method.
 
 ## The proof is the loop, not the snapshot
 
-Each cycle starts by re-verifying the previous register in the code. The revision publishes what V14 had left out: the status of every V13 finding, and its age. The register itself is machine-readable: [`findings_register.json`](findings_register.json) holds every finding under a stable identifier and is verified against each report by `task lint:docs`.
+Each cycle starts from the previous register. Between the revision and V15, a remediation wave (2026-10-23) recorded fixes with their proofs; V15 then re-audited the commit that carried them. A fix recorded as *remediated* stays pending until an audit closes it explicitly: V15 observes several of them among its positive controls without issuing closure cards, so the register keeps them pending. The register itself is machine-readable: [`findings_register.json`](findings_register.json) holds every finding under a stable identifier and is verified against each report by `task lint:docs`.
 
-| Finding | V13 (2026-08-02) | V14 (2026-10-22) | Revision (2026-10-22) |
+| Finding | Revision (2026-10-22) | Wave (2026-10-23) | V15 (2026-10-25) |
 |---|---|---|---|
-| AC-001 · Scheduler leadership | Open, major | Closed, not published as such | **Closed** — renewal and release conditioned on the owner |
-| AC-002 · Fencing of RAG jobs | Open, major | Open, major | Open, major — 81 days |
-| AC-003 · Delivery inferred from the absence of an exception | Open, major | Open, two sites | Open, **five sites** — 81 days |
-| AC-004 · Alertmanager composition and routing | Open, major | Open, major | Open, **widened** to the default e-mail template — 81 days |
-| AC-005 · Reindex lock without an owner | Open | Open, moderate | Open — 81 days |
-| AC-006 · Dashboard panels without a producer | Open | Absent, no status | **Reopened** — four panels |
-| AC-007 · Cancelled tasks not drained | Open | Open, moderate | Open — 81 days |
-| AC-008 · Hue client lifecycle | Open | Open, moderate | Open, **lowered to minor** |
-| AC-009 · Non-deterministic xdist gate | Open | Absent, no status | **Closed** — fresh eight-worker run |
-| AC-010 · Backend hotspots | Open | Open | Open, improving |
-| AC-011 · Reciprocal domain coupling | Open | Open | Open, refined |
-| AC-012 · MyPy debt | Open | Open | Open, an immediate gain identified |
-| AC-013 · React debt | Open | Open | Open, improving |
-| AC-014 · Coverage presented per file (V13) / excluded primitives (V14) | Open | Identifier reused for another subject | V13 item closed; V14 item open, lowered to minor |
-| AC-015 · Proof lane for voice and Web Audio | Open | Resolved in fact | **Closed** |
-| AC-016 · Dialog name hard-coded in French | Open | Resolved in fact | **Closed** |
-| AC-017 · Non-immutable rebuild | Open | Absent, no status | **Partially closed** — images pinned by digest |
-| AC-018 · CI guards liable to drift | Open | Absent, no status | **Closed** |
-| AC-019 · Documentary freshness | Open | Absent, no status | **Partially closed** — residue carried by AC-032 |
-| AC-020 · Orphaned SlowAPI dependency | Open | Absent, no status | **Closed** |
-| AC-021 · E2E oracles behind decided interactions | — | Open, moderate | **Presumed closed** — a controlled replay must confirm it |
-| AC-023 · Refused rule compilation repeated | — | Open, moderate | Open |
-| AC-024 · Focus after a grouped SMS deletion | — | Open, moderate | **Closed** — unit tests replayed |
-| AC-025 · Natural vocabulary in the settings search | — | Open, minor | **Closed** — multilingual matcher tests |
-| AC-027 · Capture bundles in the Docker context | — | Open, minor | Open |
-| AC-028 to AC-039 | — | — | **New** |
+| AC-002 · Fencing of RAG upload processing | Open, major | Not in the wave (owner decision) | Open, major, P1 — a stale worker's effects on a takeover reproduced |
+| AC-003 · Delivery inferred from the absence of an exception | Open, five sites | Remediated — one durable-delivery verdict | Pending closure — durable delivery among V15's positive controls |
+| AC-004 · Alertmanager composition and routing | Open, widened | Remediated — one template, optional blocks | Pending closure — the 14-variant matrix passes |
+| AC-005 · Reindex lock without an owner | Open | Not in the wave (owner decision) | Open, P1, effort lowered to E2 |
+| AC-006 · Panels without a producer | Reopened | Remediated — reverse guard | Pending closure |
+| AC-007 · Cancelled tasks not drained | Open | Remediated — join after cancellation | Pending closure — shutdown paths observed closing their resources |
+| AC-008 · Hue client lifecycle | Open, minor | Remediated | Pending closure |
+| AC-010 · Backend hotspots | Open | Open | Open |
+| AC-011 · Reciprocal domain coupling | Open | Open | Open |
+| AC-012 · MyPy debt | Open | Dead exemptions removed | Open — 76 tolerated pairs |
+| AC-013 · React debt | Open | Open | Open |
+| AC-019 · Documentary freshness | Partially closed | — | **Open** — the residue: one stale budget comment |
+| AC-023 · Refused rule compilation repeated | Open | Remediated — negative cache | Pending closure |
+| AC-027 · Capture bundles in the Docker context | Open | Remediated | Pending closure |
+| AC-028 · PostgreSQL wait bounds | New, major | Remediated — bounds on every connection | Pending closure — real server bounds tested |
+| AC-029 · OAuth refresh lock | New, moderate | Remediated — one refresh door | **Reopened**, P1 — the total duration is not bounded by the lease |
+| AC-030 to AC-037 · Coverage margin, register, test bench, retention, async I/O, templates, test contracts | New | Remediated | Pending closure |
+| AC-038 · Oversized central instructions | New | Open | Open |
+| AC-039 · Documentation language rule | New | Rule amended, ratchet | **Closed** — the amended rule and its guard hold |
+| AC-040 · Interface primitives out of coverage (V14's AC-014) | Open, minor | Remediated | Pending closure |
+| AC-041, AC-043 to AC-049 | — | — | **New** — one moderate, seven minor |
+| AC-042 · Release fixtures | — | — | **Positive control**, closed — the surfaces fixture validated in the commit |
 
-The counter-analysis works both ways: the revision confirmed V14's discarded false positives, kept its real defects, and found three things V14 had not said — that the majors do not close (three of them classed « before the next sensitive deployment » in August), that two defects are wider than described, and that significant risks were missing (database wait bounds, the OAuth refresh lock, the coverage margin).
+The counter-analysis works both ways: V15 discards the false positives it probed — a timeout inherited from a library default is a bound, the native Drive and Mail sources do check their owner, a bench failure is not a product defect — and it reopens a remediation that did not cover its whole promise (AC-029).
 
-## Open worksites — 4 major, 11 moderate, 11 minor
+## Open worksites — 1 major, 7 moderate, 9 minor
 
-Published deliberately — a quality claim without its known gaps is marketing, not engineering. Each worksite in the [revision report](./AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14-revision.html) carries its verified facts, impact, root cause, counter-verification, recommendation and a ready-to-run resolution prompt.
+Published deliberately — a quality claim without its known gaps is marketing, not engineering. Each worksite in the [V15 report](./AUDIT_CODEBASE_2026-10-25_CONSOLIDE_V15.html) carries its verified facts, reproduction, impact, root cause, counter-verification, recommendation, closure criterion and a ready-to-run resolution prompt.
 
 | # | Worksite | Level · Priority · Effort · Horizon |
 |---|---|---|
-| AC-002 | Fence the processing of an uploaded RAG document end to end | Major · P1 · E4 · H1 |
-| AC-003 | Infer no « delivered » state from the absence of an exception, on all five callers | Major · P1 · E3 · H0 |
-| AC-004 | Compose Alertmanager from the configured channels and make the specialized routes reachable | Major · P1 · E3 · H1 |
-| AC-028 | Bound lock waits and idle transactions on the PostgreSQL side | Major · P1 · E2 · H0 |
-| AC-005 | Give the global reindex lock an owner | Moderate · P1 · E3 · H1 |
-| AC-007 | Wait for cancelled tasks to finish before closing their resources | Moderate · P1 · E2 · H0 |
-| AC-029 | Give the OAuth refresh lock an owner and a lease covering its critical section | Moderate · P1 · E2 · H0 |
-| AC-030 | Stop the erosion of backend coverage (0.66-point margin) | Moderate · P1 · E3 · H1 |
-| AC-031 | Close the improvement loop: a continuous register, finding ages and deadlines | Moderate · P1 · E1 · H0 |
-| AC-006 | Resolve every panel to a real producer and decide on the dormant alert rules | Moderate · P2 · E2 · H1 |
-| AC-010 | Reduce the absolute complexity of the central orchestration points | Moderate · P2 · E5 · H2 |
-| AC-011 | Undo the reciprocal dependencies of the `users` and `agents` hubs | Moderate · P2 · E4 · H2 |
-| AC-012 | Work off the neutralized MyPy diagnostics, starting with the dead exemptions | Moderate · P2 · E4 · H0 then H2 |
-| AC-013 | Reduce React Hooks debt and complex components | Moderate · P2 · E4 · H2 |
-| AC-023 | Bound the paid repetition of a semantically refused rule compilation | Moderate · P2 · E3 · H1 |
-| AC-008 | Close the Hue clients created for a connection test | Minor · P2 · E1 · H0 |
-| AC-014 | Bring the interface primitives that became behavioural back into coverage | Minor · P2 · E2 · H2 |
-| AC-027 | Keep capture bundles out of the production Docker context | Minor · P2 · E1 · H0 |
-| AC-032 | Realign the documentation of test thresholds and doctrines on their source | Minor · P2 · E1 · H1 |
-| AC-033 | Make the test bench reliable: timeouts, a robust timing oracle, tests that actually run | Minor · P2 · E2 · H1 |
-| AC-034 | Give the proactive-discussion execution tables a retention or a growth measure | Minor · P3 · E2 · H2 |
-| AC-035 | Move blocking disk I/O out of async functions and tool the rule | Minor · P3 · E2 · H2 |
-| AC-036 | Align the environment templates on the code's defaults or justify each gap | Minor · P3 · E2 · H2 |
-| AC-037 | Make test code respect production contracts | Minor · P3 · E3 · H2 |
-| AC-038 | Bring `CLAUDE.md` (and its `AGENTS.md` mirror) back to rules and pointers | Minor · P3 · E2 · H2 |
-| AC-039 | Apply or amend the documentation language rule | Minor · P3 · E4 · H2 |
+| AC-002 | Fence the processing of an uploaded RAG document across a takeover | Major · P1 · E4 · H1 |
+| AC-005 | Give each acquisition of the global reindex lock its own identity | Moderate · P1 · E2 · H1 |
+| AC-029 | Bound the total duration of an OAuth refresh within its lease | Moderate · P1 · E2 · H1 |
+| AC-010 | Reduce the logic concentration and the Python complexity still high | Moderate · P2 · E4 · H2 |
+| AC-011 | Reduce the runtime coupling between domain contexts | Moderate · P2 · E4 · H2 |
+| AC-012 | Work off the explicitly tolerated Python typing debt | Moderate · P2 · E3 · H2 |
+| AC-013 | Reduce the React contract debt and make the tests deterministic | Moderate · P2 · E3 · H2 |
+| AC-049 | Restore the keyboard path of the selection actions under WebKit | Moderate · P2 · E2 · H2 |
+| AC-041 | Tell a timeout, a `NOWAIT` refusal and a cancellation apart in the PostgreSQL bound metric | Minor · P2 · E2 · H2 |
+| AC-043 | Realign the offline film guard with the current feature catalogue | Minor · P2 · E1 · H2 |
+| AC-044 | Stabilize the end-to-end check of the chat's initial position | Minor · P2 · E2 · H2 |
+| AC-045 | Make two geometric oracles robust to Firefox's subpixel precision | Minor · P2 · E1 · H2 |
+| AC-046 | Keep the primary failure visible in the media E2E diagnostics | Minor · P2 · E1 · H2 |
+| AC-047 | Remove the race between two commands in the E2E clock pause | Minor · P2 · E1 · H2 |
+| AC-048 | Tell native preconnects apart in the E2E transport oracle | Minor · P2 · E2 · H2 |
+| AC-019 | Realign the connection-budget comment with its source | Minor · P3 · E1 · H2 |
+| AC-038 | Make the central agent instructions easier to navigate | Minor · P3 · E2 · H2 |
 
-**Prioritized plan.**
-- **H0 — within a week:** tool the findings register (AC-031) as the prerequisite for tracking the rest; measure then set the PostgreSQL bounds (AC-028); one durable delivery door with its guard for the five sites (AC-003); the OAuth refresh lock on the owned-claim primitive (AC-029) and a join after cancellation (AC-007); remove the six dead MyPy codes and twelve unused ignores (AC-012, first step); exclude capture bundles (AC-027) and close the Hue clients (AC-008). Projected, if every closure is proven: 188.5/240, 7.9.
-- **H1 — two to four weeks:** close the remaining V13 defects and restore assurance — RAG upload fencing and the reindex lock (AC-002, AC-005), Alertmanager by fragments with a routing matrix (AC-004), a diff coverage gate with tests for the new domains (AC-030), the panel-to-producer guard (AC-006), test and job timeouts (AC-033), the threshold documentation (AC-032), a negative cache for refused compilations (AC-023), and a controlled browser replay to close AC-021. Projected: 193/240, 8.0.
-- **H2 — the quarter:** structural debt in measured batches — one hotspot per batch (AC-010), the administrative read model out of `users` then the `agents` pairs (AC-011), typing and test contracts (AC-012, AC-013, AC-014, AC-037), retention or gauges (AC-034), async rules (AC-035), template parity (AC-036), documentary governance (AC-038, AC-039).
+**Prioritized plan — eight batches, ordered by technical return over load and regression radius** (an index for sequencing, not a financial value; a P1 batch starts in the first cycle whatever its index):
+1. **Isolated checks and the budget text** — the offline film contract, two geometric oracles, the media diagnostics, the E2E clock, the budget comment (AC-043, AC-045, AC-046, AC-047, AC-019): about 1.25 days, radius R1.
+2. **Owned acquisitions and a time budget** — the reindex lock and the OAuth refresh deadline (AC-005, AC-029), first P1 cycle: about 2 days, R2.
+3. **The browser bench's native contract** — mocked resources and native preconnects counted apart, unknown real calls still detected (AC-048): about 1 day, R2.
+4. **Signals and browser journeys qualified** — PostgreSQL causes, the chat's initial position, the keyboard menu's lifetime, with no timeout or threshold raised to hide a failure (AC-041, AC-044, AC-049): about 3.5 days, R2.
+5. **Navigable instructions** — documentary upkeep with a traceability table of the invariants, no mandatory rule lost (AC-038): about 1 day, R2.
+6. **Type boundaries and React tests** — one typed boundary or one React group at a time, baselines lowered only after proof (AC-012, AC-013): about 7 days, R2.
+7. **The full RAG attempt cycle** — also a first-cycle P1, analysed and tested under concurrency before any change (AC-002): about 7.5 days, R4.
+8. **Hotspots and cross-domain dependencies** — progressive structural upkeep, one responsibility and one pair at a time (AC-010, AC-011): about 15 days, R4.
 
 ## Delivery performance (DORA)
 
-| Metric | Measured | Reservation |
+V15 infers no delivery cadence from a snapshot: it measures neither deployment frequency nor lead time, change failure rate or time to restore. The latest reading is the V14 revision's (2026-10-22):
+
+| Metric | Measured (2026-10-22) | Reservation |
 |---|---|---|
 | Release frequency (deployment proxy) | 86 release tags after the V13 capture (87 since 2026-08-02); 19 over the last 30 days, 6 over the last 14 | A release is not a deployment; deployments are not traced in Git |
 | Lead time, commit → tag | Median 1.7 h · p90 20.2 h · maximum 8.3 days (329 commits) | Under-estimates the real delay: work stays uncommitted for days before its commit |
@@ -179,13 +173,14 @@ apps/api/.venv/Scripts/python scripts/audit/measure_mypy_debt.py --check
 apps/api/.venv/Scripts/python scripts/audit/measure_metric_coverage.py
 ```
 
-**Interpretation caution** (from the reports' own annexes): results describe dated snapshots — uncommitted release work included — not a permanent property of every version; "conformant" means conformant to the executed control, not universal conformity to an entire standard; no sustained multi-user load, memory stress or production latency series was run; no full disaster recovery with a timed restore; ARM64 builds, native iOS/Android apps, physical devices and audible audio were not executed; no real LLM, voice, SaaS or connector provider was called; full WCAG conformity is not established; DORA series are proxies read from Git; coverage measures execution, not oracle quality; and the total absence of security findings means nothing about security, which is out of scope by design.
+**Interpretation caution** (from the report's own annexes): results describe one committed state, not a permanent property of every version, and say nothing of a remote repository or a deployment; "conformant" means conformant to the executed control, not universal conformity to an entire standard; no load, p95 latency, availability or delivery series was measured; no real LLM, voice, SaaS or connector provider was called and no message reached a person; ARM64 builds, native iOS/Android apps and physical devices were not executed, and browser engines do not stand for real phones; the complete browser runs were not green on any engine (one Chromium failure, eight on Firefox, thirty-four on WebKit), each pattern qualified separately and none counted as a product defect without a cause; the combined backend modes ended on bench failures requalified separately, never added back into a green total; full WCAG conformity is not established; coverage measures execution, not oracle quality; and the total absence of security findings means nothing about security, which is out of scope by design.
 
 ## Audit history
 
 | Date | Framework | Score | Register |
 |---|---|---|---|
-| **2026-10-22** | **V14 revision — a counter-review of V14 on the same grid** (report: [HTML](./AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14-revision.html)) | **7.8/10** (186.5/240) | **26 open findings — 4 major, 11 moderate, 11 minor**, 12 of them new (AC-028 to AC-039); closures proven for 3 V14 findings (1 presumed) and 9 V13 findings (2 partial) |
+| **2026-10-25** | **V15 — 24 areas, each scored by explicit judgment on a published ordinal scale, on one frozen commit (3.6.0)** (report: [HTML](./AUDIT_CODEBASE_2026-10-25_CONSOLIDE_V15.html)) | **7.9/10** (190/240) | **17 open worksites — 1 major, 7 moderate, 9 minor**, 8 of them new (AC-041, AC-043 to AC-049); AC-029 reopened, AC-039 closed, AC-042 published as a positive control; 17 remediations pending an explicit closure |
+| 2026-10-22 | V14 revision — a counter-review of V14 on the same grid (report: [HTML](./AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14-revision.html)) | 7.8/10 (186.5/240) | 26 open findings — 4 major, 11 moderate, 11 minor, 12 of them new (AC-028 to AC-039); closures proven for 3 V14 findings (1 presumed) and 9 V13 findings (2 partial) |
 | 2026-10-22 | V14 — 24-area grid, each area the sum of five 0–2 axes (report: [HTML](./AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14.html)) | 8.0/10 (192/240) | 16 worksites — 3 major, 11 moderate, 2 minor; V13's scheduler-leadership major closed, its three other majors narrowed and still open |
 | 2026-08-02 | V11 — normalized 24-area grid (report: [HTML](./AUDIT_CODEBASE_2026-08-02_CONSOLIDE_V13.html)) | 7.3/10 (174.5/240) | 20 worksites — 4 major, 12 moderate, 4 minor |
 | 2026-07-24 | V11 — normalized 24-area grid (report: [HTML](./AUDIT_CODEBASE_2026-07-24_CONSOLIDE_V12.html)) | 8.3/10 (199/240) | 7 moderate worksites — 0 major, 0 minor |
@@ -194,7 +189,7 @@ apps/api/.venv/Scripts/python scripts/audit/measure_metric_coverage.py
 | 2026-07-09 | Historical grid | 8.4/10 like-for-like · 8.3/10 on 24 areas | 16 open items, prioritized in 4 waves |
 | 2026-07-07 | Historical grid (20 areas) | 8.0/10 | 17 items → 10 resolved within 48h |
 
-Scores across framework revisions are not directly comparable; within a framework they can go down as well as up — that is the point of measuring, and the V14 revision is that point made twice on the same day. V14 keeps V11's 24 areas and anchors and builds each area score from five explicit axes; its revision keeps the grid and re-scores each axis on fresh evidence. Audits recur after each major remediation wave.
+Scores across framework revisions are not directly comparable; within a framework they can go down as well as up — that is the point of measuring. V14 kept V11's 24 areas and built each score from five explicit axes, and its revision re-scored those axes on fresh evidence; V15 keeps the 24 areas, scores each one by explicit judgment on a published ordinal scale, and audits a frozen commit rather than a working tree. Audits recur after each major remediation wave.
 
 ---
 

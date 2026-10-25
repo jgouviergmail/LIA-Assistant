@@ -30,6 +30,7 @@ from src.domains.relations.peer_messages import PeerMessagePage
 from src.domains.relations.schemas import IdentityConfidence
 from src.domains.relations.service import RelationsService, _normalize_name
 from src.domains.shared.aggregates import NameActivity
+from src.domains.shared.relation_sms import RelationSmsPage
 
 NOW = datetime(2026, 7, 29, 12, 0, tzinfo=UTC)
 
@@ -1040,3 +1041,105 @@ class TestOverviewScopePersistence:
                 RelationOverviewScope.default()
             )
         db.commit.assert_not_awaited()
+
+
+@pytest.mark.unit
+class TestDirectory:
+    """Everyone the relationship list knows — the directory names resolve against.
+
+    The connected and the not connected alike, each with EVERY spelling the
+    sources gave them, so a first name said in the chat can be told apart from
+    a different person the list also knows.
+    """
+
+    async def test_lists_every_identity_with_its_spellings_and_peer_flag(self) -> None:
+        service = RelationsService(uuid4())
+        p_loop, p_call, p_mem = _patch_sources(
+            loop_activity=[_activity("Mei Lin"), _activity("mei lin")],
+            call_activity=[_activity("Paul Martin")],
+        )
+        peers_patch, flag_patch = _patch_peers(peer_names=["Paul Martin"])
+        with (
+            _patch_db(),
+            p_loop,
+            p_call,
+            p_mem,
+            _patch_favorites([_favorite("Ana Costa")]),
+            _patch_aliases(),
+            peers_patch,
+            flag_patch,
+        ):
+            directory = await service.directory()
+
+        by_name = {identity.display_name: identity for identity in directory}
+        assert set(by_name) == {"Mei Lin", "Paul Martin", "Ana Costa"}
+        assert by_name["Mei Lin"].spellings == ("Mei Lin", "mei lin")
+        assert by_name["Mei Lin"].is_peer is False
+        assert by_name["Paul Martin"].is_peer is True
+        # A starred name with no signal is still someone the list knows.
+        assert by_name["Ana Costa"].spellings == ("Ana Costa",)
+
+    async def test_a_merge_gathers_its_spellings_under_one_identity(self) -> None:
+        service = RelationsService(uuid4())
+        p_loop, p_call, p_mem = _patch_sources(
+            loop_activity=[_activity("Papa")],
+            call_activity=[_activity("Jean Dupont")],
+        )
+        with (
+            _patch_db(),
+            p_loop,
+            p_call,
+            p_mem,
+            _patch_favorites(),
+            _patch_aliases([("papa", "jean dupont")]),
+            _patch_peers()[0],
+        ):
+            directory = await service.directory()
+
+        (identity,) = directory
+        assert identity.key == "jean dupont"
+        assert identity.display_name == "Jean Dupont"
+        assert "Papa" in identity.spellings
+        assert "Jean Dupont" in identity.spellings
+
+    async def test_a_merged_spelling_with_no_record_left_still_names_the_card(self) -> None:
+        # The merge is the person's declaration: it keeps « Papa » designating
+        # the card even once no record carries that spelling any more.
+        service = RelationsService(uuid4())
+        p_loop, p_call, p_mem = _patch_sources(call_activity=[_activity("Jean Dupont")])
+        with (
+            _patch_db(),
+            p_loop,
+            p_call,
+            p_mem,
+            _patch_favorites(),
+            _patch_aliases([("papa", "jean dupont")]),
+            _patch_peers()[0],
+        ):
+            directory = await service.directory()
+
+        (identity,) = directory
+        assert identity.spellings == ("Jean Dupont", "papa")
+
+    async def test_sms_senders_join_only_under_the_assistant_s_consent(self) -> None:
+        # The directory is read by the ASSISTANT's tools, and the names it
+        # holds reach the model as candidates: an SMS sender may join it only
+        # where the person let the assistant read their SMS. The page itself
+        # is the person's own view and reads without that consent.
+        service = RelationsService(uuid4())
+        sms = AsyncMock(return_value=RelationSmsPage())
+        p_loop, p_call, p_mem = _patch_sources()
+        with (
+            _patch_db(),
+            p_loop,
+            p_call,
+            p_mem,
+            _patch_favorites(),
+            _patch_aliases(),
+            _patch_peers()[0],
+            patch("src.domains.relations.service.read_relation_sms", sms),
+        ):
+            await service.directory()
+            assert sms.await_args.kwargs["assistant"] is True
+            await service.build_overview()
+            assert sms.await_args.kwargs["assistant"] is False

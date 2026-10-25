@@ -129,9 +129,15 @@ def test_uploads_are_guarded_at_the_ROUTE_not_at_the_router() -> None:
         for route in served_routes(router)
         if "attachments" in _names_in(getattr(route, "dependencies", []))
     }
-    # The two doors that put a file IN — an upload, a copy of a knowledge
-    # document — and nothing else: reading and deleting stay open.
-    assert guarded == {"/attachments/upload", "/attachments/from-knowledge-document"}, guarded
+    # The doors that put a file IN — an upload, a copy of a knowledge document,
+    # of a kept answer, of a generated file — and nothing else: reading and
+    # deleting stay open.
+    assert guarded == {
+        "/attachments/upload",
+        "/attachments/from-knowledge-document",
+        "/attachments/from-bookmark",
+        "/attachments/from-generated",
+    }, guarded
 
 
 def test_habits_are_guarded_at_the_two_ACT_routes_only() -> None:

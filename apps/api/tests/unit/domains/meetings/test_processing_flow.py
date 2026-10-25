@@ -16,6 +16,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.domains.meetings import processing, regeneration
+from src.domains.meetings.audio_store import AudioRefusedError
 from src.domains.meetings.models import MeetingStage, MeetingStatus, MeetingSttProvider
 from src.domains.meetings.processing import LeaseLostError, process_meeting
 from src.domains.meetings.regeneration import regenerate_minutes
@@ -143,6 +144,9 @@ class TestProcessMeeting:
                 False,
             ),
             (RuntimeError("boom"), processing.ERROR_UNEXPECTED, True),
+            # An imported file too long or unreadable stays so (2026-10-24).
+            (AudioRefusedError("import_too_long"), "import_too_long", False),
+            (AudioRefusedError("audio_unreadable"), "audio_unreadable", False),
         ],
     )
     async def test_each_failure_lands_on_the_row_with_its_class(
@@ -167,6 +171,20 @@ class TestProcessMeeting:
             repo.fail_permanently.assert_awaited_once()
             assert repo.fail_permanently.await_args.kwargs["code"] == code
             repo.fail_or_retry.assert_not_awaited()
+
+    async def test_a_refused_import_says_its_audio_is_gone(
+        self, db_context: MagicMock, repo: AsyncMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Its chunks were deleted with the refusal: no « retry » may be offered on it."""
+        meeting = _meeting()
+        repo.claim_stopped.return_value = True
+        repo.get_by_id.return_value = meeting
+        monkeypatch.setattr(
+            processing, "_run", AsyncMock(side_effect=AudioRefusedError("import_too_long"))
+        )
+        await process_meeting(meeting.id)
+        repo.mark_audio_purged.assert_awaited_once()
+        assert repo.mark_audio_purged.await_args.args == (meeting.id,)
 
     async def test_a_failing_transition_is_logged_counted_and_never_raised(
         self, db_context: MagicMock, repo: AsyncMock, monkeypatch: pytest.MonkeyPatch

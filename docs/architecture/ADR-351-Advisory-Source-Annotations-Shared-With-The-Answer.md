@@ -51,3 +51,28 @@ accounting and publication. The
 retains failed candidates, fixed corpora, post-freeze adversarial cases and
 real service/cache accounting. The tests bind this evidence to the shipped
 policy; it is bounded regression evidence, not population accuracy.
+
+## Amendment 2026-10-25 — a state, never an instant
+
+Measured on dev: an appointment classified at 23:05:59Z, valid until 00:05:59Z,
+reached the ReAct loop with its raw instants beside a clock reading « 01:05,
+Europe/Paris ». The model read 00:05 < 01:05, told the person the classification
+had expired while it was valid for another hour, and, applying « an expired
+qualification never means safe » to an appointment, warned about its video links.
+
+Exact dates are deterministic (above), so what a model is told of an annotation
+is decided by code. One view, `core/classification_projection.classification_view`,
+gives the labels, the evidence scope and a state computed when it is shown —
+`current` or `expired`. It replaces the annotation in the tool data both modes
+read (`model_classifications`, applied where the model's data block is prepared,
+voice channels included) and drives the one-line form the response synthesis,
+the briefing and the relationship cards read. The display and the cache keep the
+whole annotation. The prompts state that the state is the system's and never
+inferred from a date, and keep « never means safe » for emails: an appointment's
+category only sorts it.
+
+The email priority question receives its reference time in the zone it names,
+as the calibration corpora state theirs (`timezone: UTC`). Production used to
+send a UTC instant beside the person's zone: a conversion no corpus measured,
+which disagrees with the local day around midnight.
+

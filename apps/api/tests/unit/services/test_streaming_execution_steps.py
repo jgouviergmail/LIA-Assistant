@@ -5,15 +5,16 @@ Nothing downstream validates them: a step that is not emitted simply never
 appears, a step emitted twice reads as the tool running twice, and a tool the
 catalogue does not know must still show up rather than vanish.
 
-Three extractors feed it, and none of them was driven:
+Its tool steps come from ``tool_step_outcomes`` (2026-10-24: each step says
+what it did):
 
-* ``_extract_react_tool_steps`` — one step per tool the ReAct model decided to
-  call, read off the AIMessage's ``tool_calls``.
-* ``_extract_pipeline_tool_steps`` — one step per distinct tool of the pipeline
-  execution plan, deduplicated so a plan calling the same tool three times does
-  not print it three times.
-* ``_emit_tool_execution_step`` — the catalogue lookup, with the fallback that
-  keeps an unknown tool visible.
+* ``react_started_steps`` / ``react_finished_steps`` — a ReAct call starts with
+  the AIMessage's ``tool_calls`` and finishes with its ToolMessage, both under
+  the call's id, the read's counts on the finish.
+* ``pipeline_steps`` — one step per tool of the executed plan, its calls added
+  up, so a plan calling the same tool three times prints one line.
+* ``tool_step`` — the catalogue lookup, with the fallback that keeps an
+  unknown tool visible.
 
 Plus the two small deciders that shape the stream: the routing-history
 signature (which suppresses duplicate router decisions) and the context-usage
@@ -29,8 +30,16 @@ from unittest.mock import patch
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
+from src.core.field_names import FIELD_FOR_EACH_AGGREGATE, FIELD_FOR_EACH_FAILED_ITEMS
 from src.domains.agents.domain_schemas import RouterOutput
+from src.domains.agents.orchestration.plan_schemas import ExecutionStep, StepType
 from src.domains.agents.services.streaming.service import StreamingService
+from src.domains.agents.services.streaming.tool_step_outcomes import (
+    pipeline_steps,
+    react_finished_steps,
+    react_started_steps,
+    tool_step,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -52,81 +61,94 @@ def ai_with_tool_calls(*tool_names: str) -> AIMessage:
 
 
 def plan_with_tools(*tool_names: str | None) -> SimpleNamespace:
-    """An execution plan exposing `.steps[].tool_name`, like ExecutionPlan does."""
+    """An execution plan exposing `.steps[].tool_name` and `.step_id`, like ExecutionPlan."""
     return SimpleNamespace(
-        steps=[SimpleNamespace(tool_name=name) for name in tool_names],
+        steps=[
+            SimpleNamespace(tool_name=name, step_id=f"step_{index}")
+            for index, name in enumerate(tool_names)
+        ],
     )
 
 
-class TestEmitToolExecutionStep:
-    def test_a_catalogued_tool_gets_its_display_metadata(self, service: StreamingService) -> None:
-        chunk = service._emit_tool_execution_step("get_contacts_tool")
+def for_each_step(step_id: str, tool_name: str) -> ExecutionStep:
+    """A real FOR_EACH step, as the planner writes it (unexpanded)."""
+    return ExecutionStep(
+        step_id=step_id,
+        step_type=StepType.TOOL,
+        agent_name="some_agent",
+        tool_name=tool_name,
+        for_each="$steps.step_0.places",
+    )
 
-        assert chunk is not None
+
+class TestToolStep:
+    def test_a_catalogued_tool_gets_its_display_metadata(self) -> None:
+        chunk = tool_step("get_contacts_tool", status="started")
+
         assert chunk.type == "execution_step"
         assert chunk.metadata["step_name"] == "get_contacts_tool"
         assert chunk.metadata["status"] == "started"
 
-    def test_an_unknown_tool_still_produces_a_visible_step(self, service: StreamingService) -> None:
+    def test_an_unknown_tool_still_produces_a_visible_step(self) -> None:
         # The fallback is the point: a tool missing from the catalogue must not
         # disappear from the trace, it must show up as a generic step.
-        chunk = service._emit_tool_execution_step("a_tool_that_does_not_exist")
+        chunk = tool_step("a_tool_that_does_not_exist", status="completed")
 
-        assert chunk is not None
         assert chunk.metadata["step_name"] == "a_tool_that_does_not_exist"
         assert chunk.metadata["step_type"] == "tool"
+        assert chunk.metadata["status"] == "completed"
         assert chunk.metadata["emoji"]
         assert chunk.metadata["i18n_key"]
 
-    def test_the_step_carries_no_body_text(self, service: StreamingService) -> None:
+    def test_the_step_carries_no_body_text_and_counts_only(self) -> None:
         # The label is resolved client-side from `i18n_key`; a server-side
-        # sentence here would bypass the 6-language contract.
-        chunk = service._emit_tool_execution_step("get_contacts_tool")
+        # sentence here would bypass the 6-language contract — and the trace
+        # is persisted, so what a step did travels as integers.
+        chunk = tool_step(
+            "get_contacts_tool", status="completed", step_key="call_0", outcome={"found": 3}
+        )
 
-        assert chunk is not None
         assert chunk.content == ""
+        assert chunk.metadata["step_key"] == "call_0"
+        assert chunk.metadata["outcome"] == {"found": 3}
 
 
-class TestExtractReactToolSteps:
-    def test_one_step_per_tool_call(self, service: StreamingService) -> None:
-        steps = service._extract_react_tool_steps(
+class TestReactStartedSteps:
+    def test_one_step_per_tool_call_keyed_by_its_id(self) -> None:
+        steps = react_started_steps(
             {"messages": [ai_with_tool_calls("get_contacts_tool", "search_emails_tool")]}
         )
 
-        assert [chunk.metadata["step_name"] for chunk, _ in steps] == [
-            "get_contacts_tool",
-            "search_emails_tool",
-        ]
+        assert [
+            (chunk.metadata["step_name"], chunk.metadata["step_key"]) for chunk, _ in steps
+        ] == [("get_contacts_tool", "call_0"), ("search_emails_tool", "call_1")]
+        assert {chunk.metadata["status"] for chunk, _ in steps} == {"started"}
 
-    def test_the_same_tool_called_twice_is_shown_twice(self, service: StreamingService) -> None:
-        # Unlike the pipeline extractor, ReAct steps are NOT deduplicated: two
-        # calls are two real executions the user should see.
-        steps = service._extract_react_tool_steps(
+    def test_the_same_tool_called_twice_is_shown_twice(self) -> None:
+        # Unlike the pipeline, ReAct steps are NOT merged here: two calls are
+        # two real executions — the client adds them up as « ×2 ».
+        steps = react_started_steps(
             {"messages": [ai_with_tool_calls("search_emails_tool", "search_emails_tool")]}
         )
 
         assert len(steps) == 2
 
-    def test_a_turn_with_no_tool_call_emits_nothing(self, service: StreamingService) -> None:
-        assert service._extract_react_tool_steps({"messages": [AIMessage(content="Bonjour")]}) == []
+    def test_a_turn_with_no_tool_call_emits_nothing(self) -> None:
+        assert react_started_steps({"messages": [AIMessage(content="Bonjour")]}) == []
 
     @pytest.mark.parametrize(
         "state_delta",
         [{}, {"messages": []}, {"messages": [HumanMessage(content="salut")]}],
     )
-    def test_nothing_to_read_yields_nothing(
-        self, service: StreamingService, state_delta: dict[str, Any]
-    ) -> None:
-        assert service._extract_react_tool_steps(state_delta) == []
+    def test_nothing_to_read_yields_nothing(self, state_delta: dict[str, Any]) -> None:
+        assert react_started_steps(state_delta) == []
 
-    def test_a_tool_call_without_a_name_is_skipped(self, service: StreamingService) -> None:
+    def test_a_tool_call_without_a_name_is_skipped(self) -> None:
         message = AIMessage(content="", tool_calls=[{"name": "", "args": {}, "id": "call_0"}])
 
-        assert service._extract_react_tool_steps({"messages": [message]}) == []
+        assert react_started_steps({"messages": [message]}) == []
 
-    def test_tool_results_in_the_delta_are_not_mistaken_for_calls(
-        self, service: StreamingService
-    ) -> None:
+    def test_tool_results_in_the_delta_are_not_mistaken_for_calls(self) -> None:
         delta = {
             "messages": [
                 ToolMessage(content="{}", tool_call_id="call_0"),
@@ -134,46 +156,144 @@ class TestExtractReactToolSteps:
             ]
         }
 
-        assert len(service._extract_react_tool_steps(delta)) == 1
+        assert len(react_started_steps(delta)) == 1
 
 
-class TestExtractPipelineToolSteps:
-    def test_one_step_per_plan_tool(self, service: StreamingService) -> None:
-        steps = service._extract_pipeline_tool_steps(
-            {"execution_plan": plan_with_tools("get_contacts_tool", "search_emails_tool")}
+class TestReactFinishedSteps:
+    def test_an_answer_finishes_its_call_with_the_reads_counts(self) -> None:
+        answer = ToolMessage(
+            content="3 emails",
+            tool_call_id="call_0",
+            name="search_emails_tool",
+            response_metadata={"items_found": 12, "items_shown": 5},
         )
 
-        assert [chunk.metadata["step_name"] for chunk, _ in steps] == [
-            "get_contacts_tool",
-            "search_emails_tool",
+        ((chunk, _),) = react_finished_steps({"messages": [answer]})
+
+        assert chunk.metadata["status"] == "completed"
+        assert chunk.metadata["step_key"] == "call_0"
+        assert chunk.metadata["outcome"] == {"failed": 0, "found": 12, "shown": 5}
+
+    def test_a_declared_failure_finishes_it_failed(self) -> None:
+        answer = ToolMessage(
+            content="refused",
+            tool_call_id="call_1",
+            name="search_emails_tool",
+            status="error",
+            response_metadata={"error_code": "NOT_FOUND"},
+        )
+
+        ((chunk, _),) = react_finished_steps({"messages": [answer]})
+
+        assert chunk.metadata["status"] == "failed"
+        assert chunk.metadata["outcome"] == {"failed": 1}
+
+    def test_an_answer_without_a_tool_name_or_a_count_says_only_what_it_knows(self) -> None:
+        nameless = ToolMessage(content="{}", tool_call_id="call_0")
+        prose = ToolMessage(content="ok", tool_call_id="call_1", name="weather_tool")
+
+        steps = react_finished_steps({"messages": [nameless, prose, ai_with_tool_calls("x")]})
+
+        assert [chunk.metadata["outcome"] for chunk, _ in steps] == [{"failed": 0}]
+
+
+class TestPipelineSteps:
+    def test_each_tool_that_ran_is_one_step_with_its_calls_added_up(self) -> None:
+        # Two steps of one tool: one line, its calls, its items.
+        plan = plan_with_tools("search_emails_tool", "send_email_tool", "send_email_tool")
+        completed = {
+            "step_0": {"emails": [{"id": 1}, {"id": 2}, {"id": 3}], "total": 3},
+            "step_1": {"success": True},
+            "step_2": {"success": False, "error": "x", "error_code": "TIMEOUT"},
+        }
+
+        steps = pipeline_steps({"execution_plan": plan}, {"completed_steps": completed})
+
+        assert [
+            (chunk.metadata["step_name"], chunk.metadata["status"], chunk.metadata["outcome"])
+            for chunk, _ in steps
+        ] == [
+            ("search_emails_tool", "completed", {"calls": 1, "found": 3, "failed": 0}),
+            ("send_email_tool", "completed", {"calls": 2, "found": 0, "failed": 1}),
         ]
 
-    def test_a_tool_repeated_in_the_plan_is_shown_once(self, service: StreamingService) -> None:
-        # A FOR_EACH plan calls one tool per item; printing it per item would
-        # flood the panel with the same line.
-        steps = service._extract_pipeline_tool_steps(
-            {"execution_plan": plan_with_tools("send_email_tool", "send_email_tool", "x_tool")}
+    def test_a_for_each_is_counted_by_its_items_never_by_its_aggregate(self) -> None:
+        # The plan keeps the FOR_EACH unexpanded; the executor runs its items
+        # as step_1_item_N and writes their merge back under step_1.
+        loop = for_each_step("step_1", "get_place_details_tool")
+        completed = {
+            "step_0": {"places": [{"id": 1}, {"id": 2}, {"id": 3}]},
+            "step_1_item_0": {"places": [{"id": 1}]},
+            "step_1_item_1": {"success": False, "error": "x", "error_code": "TIMEOUT"},
+            "step_1_item_2": {"places": [{"id": 3}]},
+            "step_1": {
+                "places": [{"id": 1}, {"id": 3}],
+                FIELD_FOR_EACH_FAILED_ITEMS: [{"step_id": "step_1_item_1"}],
+                FIELD_FOR_EACH_AGGREGATE: True,
+            },
+        }
+
+        steps = pipeline_steps(
+            {"execution_plan": SimpleNamespace(steps=[loop])}, {"completed_steps": completed}
         )
 
-        assert [chunk.metadata["step_name"] for chunk, _ in steps] == [
-            "send_email_tool",
-            "x_tool",
+        assert [(chunk.metadata["status"], chunk.metadata["outcome"]) for chunk, _ in steps] == [
+            ("completed", {"calls": 3, "found": 2, "failed": 1})
         ]
 
-    def test_the_first_occurrence_order_is_preserved(self, service: StreamingService) -> None:
-        steps = service._extract_pipeline_tool_steps(
-            {"execution_plan": plan_with_tools("b_tool", "a_tool", "b_tool")}
+    def test_a_for_each_whose_every_item_failed_is_failed_once_per_item(self) -> None:
+        loop = for_each_step("step_0", "send_email_tool")
+        completed = {
+            "step_0_item_0": {"success": False, "error": "x"},
+            "step_0_item_1": {"success": False, "error": "y"},
+            "step_0": {"success": False, "error": "x", FIELD_FOR_EACH_AGGREGATE: True},
+        }
+
+        steps = pipeline_steps(
+            {"execution_plan": SimpleNamespace(steps=[loop])}, {"completed_steps": completed}
         )
 
-        assert [chunk.metadata["step_name"] for chunk, _ in steps] == ["b_tool", "a_tool"]
+        assert [(chunk.metadata["status"], chunk.metadata["outcome"]) for chunk, _ in steps] == [
+            ("failed", {"calls": 2, "found": 0, "failed": 2})
+        ]
 
-    def test_a_step_without_a_tool_name_is_skipped(self, service: StreamingService) -> None:
-        # CONDITIONAL / FOR_EACH container steps carry no tool_name.
-        steps = service._extract_pipeline_tool_steps(
-            {"execution_plan": plan_with_tools(None, "a_tool", "")}
+    def test_a_for_each_over_nothing_never_ran(self) -> None:
+        # An empty array expands to no item and the executor writes no aggregate.
+        loop = for_each_step("step_1", "send_email_tool")
+
+        steps = pipeline_steps(
+            {"execution_plan": SimpleNamespace(steps=[loop])},
+            {"completed_steps": {"step_0": {"places": []}}},
         )
 
-        assert [chunk.metadata["step_name"] for chunk, _ in steps] == ["a_tool"]
+        assert steps == []
+
+    def test_a_tool_whose_every_call_failed_is_failed(self) -> None:
+        steps = pipeline_steps(
+            {"execution_plan": plan_with_tools("a_tool")},
+            {"completed_steps": {"step_0": {"success": False, "error": "boom"}}},
+        )
+
+        assert [chunk.metadata["status"] for chunk, _ in steps] == ["failed"]
+
+    def test_a_branch_not_taken_is_not_shown(self) -> None:
+        steps = pipeline_steps(
+            {"execution_plan": plan_with_tools("a_tool", "b_tool")},
+            {"completed_steps": {"step_1": {"success": True}}},
+        )
+
+        assert [chunk.metadata["step_name"] for chunk, _ in steps] == ["b_tool"]
+
+    def test_without_results_the_plans_tools_are_shown_once_as_before(self) -> None:
+        # No `completed_steps` in the update: what the stream always showed.
+        steps = pipeline_steps(
+            {"execution_plan": plan_with_tools("b_tool", None, "a_tool", "b_tool", "")}, {}
+        )
+
+        assert [(chunk.metadata["step_name"], chunk.metadata["status"]) for chunk, _ in steps] == [
+            ("b_tool", "started"),
+            ("a_tool", "started"),
+        ]
 
     @pytest.mark.parametrize(
         "state",
@@ -184,15 +304,15 @@ class TestExtractPipelineToolSteps:
             {"execution_plan": SimpleNamespace(steps=None)},
         ],
     )
-    def test_no_plan_means_no_step(self, service: StreamingService, state: dict[str, Any]) -> None:
-        assert service._extract_pipeline_tool_steps(state) == []
+    def test_no_plan_means_no_step(self, state: dict[str, Any]) -> None:
+        assert pipeline_steps(state, {"completed_steps": {}}) == []
 
-    def test_a_plan_shaped_as_a_plain_dict_yields_nothing(self, service: StreamingService) -> None:
+    def test_a_plan_shaped_as_a_plain_dict_yields_nothing(self) -> None:
         # CHARACTERIZED: the reader is attribute-based (`getattr(plan, "steps")`),
         # so a plan that ever reached the stream as a dict would silently emit
-        # no step at all. It does not today — the live `values` stream carries
-        # the real ExecutionPlan object — but the asymmetry is worth pinning.
-        assert service._extract_pipeline_tool_steps({"execution_plan": {"steps": [{}]}}) == []
+        # no step at all. It does not today — the live stream carries the real
+        # ExecutionPlan object — but the asymmetry is worth pinning.
+        assert pipeline_steps({"execution_plan": {"steps": [{}]}}, {}) == []
 
 
 def router_output(**overrides: Any) -> RouterOutput:

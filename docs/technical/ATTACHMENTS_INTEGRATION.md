@@ -198,6 +198,33 @@ Le bloc `[Document: …]` injecté au nœud de réponse ÉNONCE sa coupe (« the
 first N characters of the document ») quand le texte extrait est au cap —
 pour toute pièce jointe document, uploads compris.
 
+### `POST /api/v1/attachments/from-bookmark` et `POST /api/v1/attachments/from-generated` (2026-10-24)
+
+Ramènent dans la discussion ce que LIA a déjà donné, toujours comme une COPIE
+`origin = upload` (la réinitialisation la retire, le TTL l'expire, l'original
+n'est jamais touché) — même magasin, même écriture et même retrait d'un
+fichier orphelin que la copie d'un document d'espace
+([`copy_store.py`](../../apps/api/src/domains/attachments/copy_store.py)) :
+
+- **un favori** (`{"bookmark_id": "<uuid>"}`) devient le Markdown que lit son
+  document d'espace (`bookmarks.indexing.render_bookmark`, ADR-291 : la
+  demande citée, la date, la réponse), joint comme document `text/markdown`,
+  quel que soit l'état de sa projection ; texte coupé à
+  `ATTACHMENTS_MAX_PDF_TEXT_CHARS` ;
+- **un fichier généré** (`{"attachment_id": "<uuid>"}`) est copié tel quel :
+  une image reste une image (et passe les bornes d'un envoi : type autorisé,
+  taille — `415`/`413` sinon), un document reçoit son texte par le pipeline
+  des espaces. Seul un fichier GÉNÉRÉ de la personne, vivant (gardé, ou avant
+  son échéance) et encore sur disque existe ici : tout le reste est `404`.
+
+Les deux routes ne portent que la garde d'envoi (`attachments`) : lire ses
+favoris et sa galerie reste toujours ouvert. Le composeur les liste par
+`GET /api/v1/bookmarks` et `GET /api/v1/generated-assets?family=…` (page et
+total EXACT, recherche `q`). Un bouton « Utiliser dans la discussion » des
+pages Favoris et Fichiers générés ouvre le chat sur `?attach=<type>:<id>` : le
+composeur demande la copie, le paramètre quitte l'adresse à l'arrivée, et un
+lien rejoué ne peut que joindre une autre copie — jamais envoyer.
+
 ### `GET /api/v1/attachments/{attachment_id}`
 
 Telecharge le fichier original.

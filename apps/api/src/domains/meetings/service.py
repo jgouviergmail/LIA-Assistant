@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, NoReturn
 
@@ -162,6 +163,11 @@ def raise_meeting_delivery_failed(code: str) -> NoReturn:
     )
 
 
+def _max_segments() -> int:
+    """Segments the duration cap allows — the bound on every segment number and count."""
+    return settings.meetings_max_duration_minutes * 60 // settings.meetings_segment_seconds
+
+
 def _selection_or_none(value: str | None) -> TemplateSelection | None:
     """The stored selection as its enum; an unknown historical value reads as absent."""
     try:
@@ -179,6 +185,15 @@ def total_cost_eur(meeting: Meeting) -> float | None:
     parts = [c for c in (meeting.stt_cost_eur, meeting.synthesis_cost_eur) if c is not None]
     parts.extend(charge.cost_eur for charge in selection_charges(meeting))
     return round(sum(parts), 6) if parts else None
+
+
+@dataclass(frozen=True, slots=True)
+class Admission:
+    """What a new meeting was admitted with: its engine, language and template."""
+
+    engine: ResolvedEngine
+    language: str
+    template: ResolvedTemplate | None
 
 
 # ============================================================================
@@ -224,12 +239,12 @@ class MeetingService:
 
     # ------------------------------------------------------------------- start
 
-    async def start(self, user: Any, request: MeetingStartRequest) -> MeetingStartResponse:
-        """Open a recording after every refusal the user should hear BEFORE speaking.
+    async def admit(self, user: Any, *, language: str, template_ref: str | None) -> Admission:
+        """Every refusal the person should hear BEFORE a meeting exists, then its settings.
 
-        Order: usage limits (synthesis is paid whatever the engine), start rate
-        limit, engine availability, then the database — whose partial unique
-        index is the only authority on "already recording".
+        Order: usage limits (synthesis is paid whatever the engine), the start
+        rate limit, engine availability. A recording and an import share it:
+        what they cost is the same, only the audio's road differs.
         """
         user_id: uuid.UUID = user.id
         limit_check = await UsageLimitService.check_user_allowed(user_id)
@@ -244,10 +259,37 @@ class MeetingService:
         if engine is None:
             raise_meeting_conflict("no_engine_available", preference=preference.value)
 
-        language = request.language
         if language == "auto" and preferences and preferences.language != "auto":
             language = preferences.language
-        template = await self._resolved_template(user_id, request.template_ref, user.language)
+        template = await self._resolved_template(user_id, template_ref, user.language)
+        return Admission(engine=engine, language=language, template=template)
+
+    @staticmethod
+    def admitted_values(admission: Admission) -> dict[str, Any]:
+        """The columns a new meeting takes from its admission (engine, language, template)."""
+        engine, template = admission.engine, admission.template
+        return {
+            "stt_provider": engine.provider,
+            "stt_model": engine.model,
+            "stt_language_hint": None if admission.language == "auto" else admission.language,
+            "stt_diarized": engine.diarized,
+            # ADR-259: the template chosen for THIS meeting, if any.
+            "template_ref": str(template.ref) if template else None,
+            "template_name": template.name if template else None,
+            # Retention is decided at COMPLETION from the preference in force
+            # then (processing.py) — one authority, never two.
+        }
+
+    async def start(self, user: Any, request: MeetingStartRequest) -> MeetingStartResponse:
+        """Open a recording once :meth:`admit` let it through.
+
+        The database's partial unique index is the only authority on "already
+        recording".
+        """
+        user_id: uuid.UUID = user.id
+        admission = await self.admit(
+            user, language=request.language, template_ref=request.template_ref
+        )
         now = datetime.now(UTC)
         try:
             meeting = await self.repo.create(
@@ -263,15 +305,7 @@ class MeetingService:
                     "location_accuracy_m": (
                         request.geolocation.accuracy_m if request.geolocation else None
                     ),
-                    "stt_provider": engine.provider,
-                    "stt_model": engine.model,
-                    "stt_language_hint": None if language == "auto" else language,
-                    "stt_diarized": engine.diarized,
-                    # ADR-259: the template chosen for THIS meeting, if any.
-                    "template_ref": str(template.ref) if template else None,
-                    "template_name": template.name if template else None,
-                    # Retention is decided at COMPLETION from the preference in force
-                    # then (processing.py) — one authority, never two.
+                    **self.admitted_values(admission),
                 }
             )
             await self.db.commit()
@@ -284,13 +318,13 @@ class MeetingService:
             meeting_id=str(meeting.id),
             user_id=str(user_id),
             audio_format=request.audio_format.value,
-            provider=engine.provider.value,
+            provider=admission.engine.provider.value,
         )
         return MeetingStartResponse(
             id=meeting.id,
             status=meeting.status,
             started_at=meeting.started_at,
-            engine=self.engine_info(engine),
+            engine=self.engine_info(admission.engine),
             limits=self.limits(),
         )
 
@@ -327,10 +361,7 @@ class MeetingService:
             raise_meeting_conflict("segment_malformed", sequence=sequence)
 
         # Duration cap: the sequence number bounds what the client may still send.
-        max_segments = (
-            settings.meetings_max_duration_minutes * 60 // settings.meetings_segment_seconds
-        )
-        if sequence >= max_segments:
+        if sequence >= _max_segments():
             raise_meeting_too_large(
                 "duration_cap_reached",
                 max_duration_minutes=settings.meetings_max_duration_minutes,
@@ -373,6 +404,12 @@ class MeetingService:
         meeting = await self._owned(meeting_id, user_id, lock=True)
         if meeting.status not in LIVE_STATUSES:
             raise_meeting_conflict("meeting_not_recording", status=meeting.status.value)
+        # The declared count sizes the gap list: a count no recording can reach is refused.
+        if request.segment_count > _max_segments():
+            raise_meeting_too_large(
+                "duration_cap_reached",
+                max_duration_minutes=settings.meetings_max_duration_minutes,
+            )
         expected = max(request.segment_count, meeting.segment_count)
         present = await self.store.list_sequences(user_id, meeting_id)
         if not present:

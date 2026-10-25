@@ -1,10 +1,10 @@
 /**
- * Single source of truth for the "/more" small-attentions page: 107 cards in
+ * Single source of truth for the "/more" small-attentions page: 110 cards in
  * 6 moment sections, each card carrying one lucide icon and the list of
  * translated micro-labels its animated scene needs.
  *
  * ANTI-REGRESSION CONTRACT: the guard test
- * `__tests__/more-content-coverage.test.ts` asserts the structure (107 unique
+ * `__tests__/more-content-coverage.test.ts` asserts the structure (110 unique
  * cards, icon/scene-label completeness), the level contract (keys disjoint
  * from the editorial landing's REQUIRED_FEATURE_KEYS — this page presents
  * craft, one level below capabilities), and the i18n content (every
@@ -139,7 +139,14 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
     key: 's1',
     num: '01',
     tinted: false,
-    cards: ['draft_survives', 'slash_commands', 'paste_screenshot', 'drop_zone', 'knowledge_pick'],
+    cards: [
+      'draft_survives',
+      'slash_commands',
+      'paste_screenshot',
+      'drop_zone',
+      'knowledge_pick',
+      'bring_back',
+    ],
   },
   {
     id: 'respond',
@@ -169,6 +176,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'network_question',
       'skill_proposal',
       'backstage',
+      'step_counts',
     ],
   },
   {
@@ -281,6 +289,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'narrow_screens',
       'local_model_fit',
       'slide_never_overflows',
+      'shared_with',
     ],
   },
 ] as const;
@@ -397,6 +406,9 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   dated_rows: MailOpen,
   sender_notice: BellDot,
   one_line: SeparatorHorizontal,
+  bring_back: Undo2,
+  step_counts: ListOrdered,
+  shared_with: Share2,
 };
 
 /**
@@ -512,4 +524,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   dated_rows: ['ago', 'when', 'sent', 'received'],
   sender_notice: ['sender', 'message', 'new_sms'],
   one_line: [],
+  bring_back: ['bookmark', 'generated'],
+  step_counts: ['found', 'read', 'failed'],
+  shared_with: ['shared'],
 };

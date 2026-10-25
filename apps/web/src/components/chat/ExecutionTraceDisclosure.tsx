@@ -19,6 +19,7 @@ import { useState } from 'react';
 import { ChevronRight, Cog } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+import { outcomeText, settledLabel } from '@/lib/execution-outcome';
 import { cn } from '@/lib/utils';
 import type {
   ExecutionTrace,
@@ -45,6 +46,26 @@ function groupByCategory(
     category,
     steps: buckets.get(category)!,
   }));
+}
+
+/** One step: its label, then what it did — calls, results, failures (2026-10-24). */
+function TraceStepItem({ step }: { step: ExecutionTraceStep }) {
+  const { t } = useTranslation();
+  const details = outcomeText(t, step.outcome);
+  return (
+    <li className="flex items-start gap-1.5 text-xs text-foreground/80">
+      <span aria-hidden="true">{step.emoji}</span>
+      <span>
+        {details ? settledLabel(step.label) : step.label}
+        {details && (
+          <span className="text-muted-foreground">
+            {t('execution.outcome.lead')}
+            {details}
+          </span>
+        )}
+      </span>
+    </li>
+  );
 }
 
 export function ExecutionTraceDisclosure({ trace }: ExecutionTraceDisclosureProps) {
@@ -96,13 +117,7 @@ export function ExecutionTraceDisclosure({ trace }: ExecutionTraceDisclosureProp
               </p>
               <ul className="mt-1 space-y-0.5">
                 {group.steps.map((step, i) => (
-                  <li
-                    key={`${step.label}-${i}`}
-                    className="flex items-start gap-1.5 text-xs text-foreground/80"
-                  >
-                    <span aria-hidden="true">{step.emoji}</span>
-                    <span>{step.label}</span>
-                  </li>
+                  <TraceStepItem key={`${step.label}-${i}`} step={step} />
                 ))}
               </ul>
             </div>

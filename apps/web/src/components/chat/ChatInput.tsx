@@ -3,34 +3,22 @@ import {
   useRef,
   useCallback,
   useEffect,
-  useSyncExternalStore,
   ClipboardEvent,
   KeyboardEvent,
   FormEvent,
   DragEvent,
 } from 'react';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { haptic } from '@/lib/haptics';
-import { Send, Mic, Plus, Square, ImageUp, Camera, Paperclip, Library } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from '@/components/ui/dropdown-menu';
-import { isAndroidShell } from '@/lib/native/shell';
+import { Send, Mic, Square, ImageUp } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoiceModeStore } from '@/stores/voiceModeStore';
-import {
-  useFileUpload,
-  type AddServerAttachmentOutcome,
-  type ServerAttachmentMeta,
-} from '@/hooks/useFileUpload';
+import { useFileUpload } from '@/hooks/useFileUpload';
+import { useAttachDeepLink } from '@/hooks/useAttachDeepLink';
 import {
   CHAT_INPUT_MAX_HEIGHT_PX,
   CHAT_INPUT_MAX_LENGTH,
@@ -39,7 +27,7 @@ import {
 } from '@/lib/constants';
 import { prefersReducedMotion } from '@/lib/utils/motion';
 import AttachmentPreview from '@/components/chat/AttachmentPreview';
-import { KnowledgeDocumentPickerDialog } from '@/components/chat/KnowledgeDocumentPickerDialog';
+import { ComposerAttachmentsControl } from '@/components/chat/ComposerAttachmentsControl';
 import { SlashCommandMenu, useSlashMenu } from '@/components/chat/SlashCommandMenu';
 import type { SlashCommand } from '@/lib/slash-commands';
 import { MessageAttachmentMeta } from '@/types/chat';
@@ -85,6 +73,12 @@ export interface ChatInputProps {
    * (the spaces capability is on). Off, the browser keeps its one-click picker.
    */
   knowledgeDocumentsEnabled?: boolean;
+  /** Whether the « + » also offers the person's kept answers (the bookmark routes are mounted). */
+  bookmarksEnabled?: boolean;
+  /** Whether the « + » also offers the person's generated files. */
+  generatedFilesEnabled?: boolean;
+  /** Whether the « + » also imports a recording file as a meeting (2026-10-24). */
+  meetingImportEnabled?: boolean;
   /**
    * ADR-258: the instance offers meeting recording. The composer only needs
    * it to keep hold-to-talk off the table while a meeting is being captured;
@@ -362,158 +356,6 @@ function useSentHistoryNavigation(args: {
 }
 
 /**
- * The composer's « + » (module-level — CC discipline): the file picker, and
- * only that (ADR-259 — recording moved to the header, the logo menu and the
- * Meetings page). Nothing when attachments are off.
- *
- * A « + » rather than a paperclip (kept from ADR-258): square and narrow —
- * 44 px wide on a phone, the comfortable touch minimum, 40 px once the row is
- * wider than `mobile` — so the typing area keeps the width (owner arbitration
- * 2026-09-03).
- */
-const COMPOSER_ACTION_BUTTON = 'h-12 w-11 shrink-0 self-end p-0 mobile:w-10';
-
-/** Inert subscription for the shell-detection useSyncExternalStore gate. */
-const shellSubscribe = () => () => {};
-
-/**
- * Whether this render is happening inside the Android shell.
- *
- * The server has no shell to detect, so the answer cannot be read during the
- * first render without making the server's markup and the client's hydration
- * disagree. Same gate as EyesWidget: a server snapshot of `false` — the browser
- * branch, which is also the one that degrades correctly should detection never
- * run — then the client's own answer. `useSyncExternalStore` rather than a
- * mount effect, because setState-in-an-effect is a ratcheted violation.
- *
- * @returns True once the page has confirmed it runs inside a shell.
- */
-function useInAndroidShell(): boolean {
-  return useSyncExternalStore(
-    shellSubscribe,
-    () => isAndroidShell(),
-    () => false
-  );
-}
-
-/**
- * The « + » of the composer.
- *
- * ONE gesture when there is one thing to do: in a browser — a PWA included —
- * a click opens the file picker, because the browser's own chooser already
- * offers the camera next to the gallery. A MENU as soon as a second entry
- * exists: the Android shell's camera (Capacitor hands the WebView's bare
- * intent to the system without the capture intent a browser adds itself —
- * measured absent on a OneUI 9 device, 2026-09-04; iOS is excluded on
- * purpose, WKWebView offers "Take Photo" on an image input itself, ADR-246),
- * and the person's knowledge-space documents when the spaces are on.
- */
-function ComposerAttachmentsControl({
-  t,
-  attachmentsEnabled,
-  knowledgeDocumentsEnabled,
-  disabled,
-  onPickFile,
-  onTakePhoto,
-  remaining,
-  onAttached,
-}: {
-  t: (key: string) => string;
-  attachmentsEnabled: boolean;
-  knowledgeDocumentsEnabled?: boolean;
-  disabled: boolean;
-  onPickFile: () => void;
-  onTakePhoto: () => void;
-  /** Room left in the message: the picker bounds its selection by it. */
-  remaining: number;
-  onAttached: (meta: ServerAttachmentMeta) => AddServerAttachmentOutcome;
-}) {
-  const inShell = useInAndroidShell();
-  // The knowledge-space picker: a copy of one of the person's indexed
-  // documents joins the strip like an upload (the API creates the row).
-  const [pickerOpen, setPickerOpen] = useState(false);
-  if (!attachmentsEnabled) return null;
-
-  // The menu closes and restores focus to the trigger; opening the file dialog
-  // in the same tick can be swallowed by that restoration. A task boundary is
-  // enough, and stays inside the transient user activation the picker needs.
-  const defer = (open: () => void) => () => setTimeout(open, 0);
-  const entries: Array<{ key: string; icon: React.ReactNode; label: string; open: () => void }> = [
-    {
-      key: 'file',
-      icon: <Paperclip className="mr-2 h-4 w-4" aria-hidden="true" />,
-      label: t('chat.attachments.attach_file'),
-      open: onPickFile,
-    },
-  ];
-  if (inShell) {
-    entries.push({
-      key: 'photo',
-      icon: <Camera className="mr-2 h-4 w-4" aria-hidden="true" />,
-      label: t('chat.attachments.take_photo'),
-      open: onTakePhoto,
-    });
-  }
-  if (knowledgeDocumentsEnabled) {
-    entries.push({
-      key: 'knowledge',
-      icon: <Library className="mr-2 h-4 w-4" aria-hidden="true" />,
-      label: t('chat.attachments.from_knowledge'),
-      open: () => setPickerOpen(true),
-    });
-  }
-  const single = entries.length === 1;
-  const picker = knowledgeDocumentsEnabled ? (
-    <KnowledgeDocumentPickerDialog
-      open={pickerOpen}
-      onOpenChange={setPickerOpen}
-      remaining={remaining}
-      onAttached={onAttached}
-    />
-  ) : null;
-
-  const trigger = (
-    <Button
-      type="button"
-      variant="ghost"
-      size="lg"
-      className={COMPOSER_ACTION_BUTTON}
-      disabled={disabled}
-      onClick={single ? entries[0].open : undefined}
-      aria-label={t('chat.attachments.add')}
-    >
-      <Plus className="h-5 w-5" aria-hidden="true" />
-    </Button>
-  );
-
-  if (single) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>{trigger}</TooltipTrigger>
-        <TooltipContent>{t('chat.attachments.add')}</TooltipContent>
-      </Tooltip>
-    );
-  }
-
-  return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          {entries.map(entry => (
-            <DropdownMenuItem key={entry.key} onSelect={defer(entry.open)}>
-              {entry.icon}
-              {entry.label}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-      {picker}
-    </>
-  );
-}
-
-/**
  * ADR-258 (module-level hook — CC discipline): the two microphone owners
  * (voice mode, meeting capture) folded into ONE predicate, so the hold-to-talk
  * guard keeps a single condition. `null` context (outside the dashboard
@@ -541,6 +383,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onMessageChange,
   attachmentsEnabled = false,
   knowledgeDocumentsEnabled,
+  bookmarksEnabled,
+  generatedFilesEnabled,
+  meetingImportEnabled,
   meetingsEnabled = false,
   isGenerating = false,
   onStopGeneration,
@@ -584,6 +429,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     isUploading,
     maxAttachments,
   } = useFileUpload();
+  // A page's « Use in the discussion » link (`?attach=`): a copy joins the strip.
+  useAttachDeepLink(attachmentsEnabled, addServerAttachment);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Check if voice mode (active listening) is enabled - disable push-to-talk when active
@@ -1050,6 +897,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             t={t}
             attachmentsEnabled={attachmentsEnabled}
             knowledgeDocumentsEnabled={knowledgeDocumentsEnabled}
+            bookmarksEnabled={bookmarksEnabled}
+            generatedFilesEnabled={generatedFilesEnabled}
+            meetingImportEnabled={meetingImportEnabled}
             disabled={disabled || !apiAvailable || isUploading}
             onPickFile={() => fileInputRef.current?.click()}
             onTakePhoto={() => photoInputRef.current?.click()}

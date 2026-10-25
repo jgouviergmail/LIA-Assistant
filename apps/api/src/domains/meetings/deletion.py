@@ -19,7 +19,10 @@ from src.infrastructure.confirmed_commit import commit_confirmed_write
 from src.infrastructure.file_transfer import LocalFileRead
 from src.infrastructure.meeting_deletions import MeetingDeletionConfirmation
 from src.infrastructure.observability.logging import get_logger
-from src.infrastructure.observability.metrics_meetings import meetings_total
+from src.infrastructure.observability.metrics_meetings import (
+    meeting_imports_total,
+    meetings_total,
+)
 from src.infrastructure.observability.metrics_rag_spaces import (
     rag_documents_total_count,
 )
@@ -94,7 +97,7 @@ async def delete_meeting(
         await confirmation.check()
     if meeting.status is MeetingStatus.PROCESSING and not worker_stale(meeting):
         raise_meeting_conflict("meeting_in_progress", status=meeting.status.value)
-    was_live = meeting.status in LIVE_STATUSES
+    was_live = meeting.status in (*LIVE_STATUSES, MeetingStatus.UPLOADING)
     projection = await remove_projection_rows(service, meeting)
     if not await service.repo.delete_unless_leased(meeting_id):
         raise_meeting_conflict("meeting_in_progress", status=meeting.status.value)
@@ -127,4 +130,6 @@ async def delete_meeting(
             }
         }
     meetings_total.labels(status="discarded" if was_live else "deleted").inc()
+    if meeting.status is MeetingStatus.UPLOADING:
+        meeting_imports_total.labels(format=meeting.audio_format.value, outcome="cancelled").inc()
     logger.info("meeting_deleted", meeting_id=str(meeting_id), user_id=str(actor_id))

@@ -9,7 +9,7 @@ import pytest
 from pydantic import ValidationError
 
 from src.core.application_tools import APPLICATION_TOOL_NAMES
-from src.core.capability_origin import CapabilityOrigin
+from src.core.capability_origin import CapabilityOrigin, CapabilityShare
 from src.core.config import settings
 from src.core.exceptions import AuthorizationError
 from src.domains.agents.application.catalogue_registration import APPLICATION_MANIFESTS
@@ -71,6 +71,20 @@ def test_real_ui_response_projects_without_private_or_sender_data(shared):
             if shared
             else None
         ),
+        shared_with=(
+            [
+                CapabilityShare(
+                    recipient_id=uuid4(),
+                    recipient_display_name="private-data",
+                    shared_at=now,
+                    transfer_id=uuid4(),
+                    complete=True,
+                    can_share_again=False,
+                )
+            ]
+            if shared
+            else []
+        ),
     )
     before = source.model_dump()
     result = _public_server(source, tools_offset=1)
@@ -78,7 +92,10 @@ def test_real_ui_response_projects_without_private_or_sender_data(shared):
     assert result.tools[0].tool_name == "visible_tool" and result.next_tool_offset == 2
     assert result.has_connection_error
     raw = result.model_dump_json()
-    assert all(value not in raw for value in ["private-data", "input_schema", "shared_origin"])
+    assert all(
+        value not in raw
+        for value in ["private-data", "input_schema", "shared_origin", "shared_with"]
+    )
     assert source.model_dump() == before, "The settings response must retain its own metadata"
 
 
@@ -94,11 +111,13 @@ def test_personal_mcp_fields_have_explicit_public_or_private_policy():
         "has_connection_error",
         "next_tool_offset",
     }
-    # The assistant inventory deliberately omits UI-only sender identity/time.
+    # The assistant inventory deliberately omits UI-only sender and recipient
+    # identities: who shared it, and who it was shared with.
     assert set(UserMCPServerResponse.model_fields) == native | {
         "url",
         "last_error",
         "shared_origin",
+        "shared_with",
     }
     assert set(MCPDiscoveredToolResponse.model_fields) == set(PersonalMCPToolItem.model_fields) | {
         "input_schema"

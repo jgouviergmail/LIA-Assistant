@@ -5,6 +5,18 @@
 import type { MeetingRecorderPhase } from '@/stores/meetingRecorderStore';
 import type { MeetingStatus } from '@/types/meetings';
 
+/** Spoken-language hints a transcription accepts — the settings and an import offer the same. */
+export const MEETING_LANGUAGE_HINTS: readonly string[] = [
+  'en',
+  'fr',
+  'de',
+  'es',
+  'it',
+  'zh',
+  'pt',
+  'nl',
+];
+
 /** `H:MM:SS` above an hour, `M:SS` below — readable in every locale. */
 export function formatElapsed(totalSeconds: number): string {
   const seconds = Math.max(0, Math.floor(totalSeconds));
@@ -26,6 +38,7 @@ export function meetingStatusTone(
       return 'destructive';
     case 'interrupted':
       return 'warning';
+    case 'uploading':
     case 'recording':
     case 'processing':
     case 'stopped':

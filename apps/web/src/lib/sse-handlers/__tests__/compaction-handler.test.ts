@@ -27,6 +27,7 @@ function buildContext(): { context: SSEHandlerContext; dispatch: ReturnType<type
     assistantMessageId: 'assistant-1',
     executionStepsRef: { current: [] },
     emittedStepKeysRef: { current: new Set<string>() },
+    stepTalliesRef: { current: new Map() },
     reasoningBufRef: { current: '' },
     traceStepsRef: { current: [] },
     traceReasoningRef: { current: '' },

@@ -2,8 +2,9 @@
 
 Covers the whole life of a meeting: recordings started and finished by
 status, recorded duration, segments received by format, processing time by
-stage, failures by reason, reaper transitions, and the audio seconds each
-transcription engine consumed (the cost driver). Every metric here is wired
+stage, failures by reason, reaper transitions, imports from a file by format
+and outcome, and the audio seconds each transcription engine consumed (the
+cost driver). Every metric here is wired
 to the ``27 - Meetings`` dashboard — the coverage ratchet refuses a blind one.
 """
 
@@ -31,6 +32,15 @@ meeting_segments_received_total = Counter(
     # format: pcm_s16le_16 | webm_opus | ogg_opus
 )
 
+meeting_imports_total = Counter(
+    "meeting_imports_total",
+    "Meetings imported from a file (2026-10-24), by file format and outcome.",
+    ["format", "outcome"],
+    # format: import_wav | import_mp3 | import_m4a
+    # outcome: started | completed | refused (first bytes not the format) |
+    #          abandoned (no chunk for MEETINGS_IMPORT_STALE_MINUTES) | cancelled (deleted)
+)
+
 meeting_processing_stage_duration_seconds = Histogram(
     "meeting_processing_stage_duration_seconds",
     "Wall-clock time of one processing stage.",
@@ -52,7 +62,7 @@ meeting_reaper_transitions_total = Counter(
     "meeting_reaper_transitions_total",
     "State transitions applied by the reapers.",
     ["outcome"],
-    # outcome: interrupted | requeued | redriven | audio_purged
+    # outcome: interrupted | requeued | redriven | audio_purged | import_abandoned
 )
 
 meeting_stt_audio_seconds_total = Counter(

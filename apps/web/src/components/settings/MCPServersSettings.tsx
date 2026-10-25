@@ -37,6 +37,7 @@ import { useApplicationAccountToast } from '@/hooks/useApplicationAccountToast';
 
 import { MCPServerCard } from './MCPServerCard';
 import { useCapabilitySharing } from '@/hooks/useCapabilitySharing';
+import { blockedRecipients } from '@/lib/capability-sharing';
 import { CapabilitySharingDialog } from '@/components/peers/CapabilitySharingDialog';
 import { ToolDisplayName } from './ToolDisplayName';
 import { MCPServerFormFields } from './MCPServerFormFields';
@@ -481,7 +482,13 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
               onDisconnectOAuth={handleDisconnectOAuth}
               onShare={
                 sharingEnabled
-                  ? server => sharing.share({ kind: 'mcp', id: server.id, name: server.name })
+                  ? server =>
+                      sharing.share({
+                        kind: 'mcp',
+                        id: server.id,
+                        name: server.name,
+                        blockedRecipientIds: blockedRecipients(server.shared_with),
+                      })
                   : undefined
               }
             />

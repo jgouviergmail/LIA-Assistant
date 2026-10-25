@@ -717,7 +717,10 @@ ${scan.summary}`
       await collapsed.first().click();
     }
     expect(await collapsed.count()).toBe(0);
-    await expect(page.getByText(/sera en retard/)).toBeVisible();
+    // Twice once everything is open: in its own section and on the timeline,
+    // which reads it on opening — so the count proves the timeline LANDED
+    // before the scan rather than its loading placeholder.
+    await expect(page.getByText(/sera en retard/)).toHaveCount(2);
     // The CONTACT CARD's own spelling (middle dot), not the bare company
     // name: the debrief above it names the same employer in its « good to
     // know » list, so the bare string now matches two elements and the
@@ -764,7 +767,10 @@ ${scan.summary}`
       await collapsed.first().click();
     }
     expect(await collapsed.count()).toBe(0);
-    await expect(page.getByText(/sera en retard/)).toBeVisible();
+    // Twice once everything is open: in its own section and on the timeline,
+    // which reads it on opening — so the count proves the timeline LANDED
+    // before the scan rather than its loading placeholder.
+    await expect(page.getByText(/sera en retard/)).toHaveCount(2);
     // The contact card's address is a map link, and the address-book action
     // above it (« Directions to … ») repeats the same words: name the link.
     await expect(page.getByRole('link', { name: /Lilas Blancs/ })).toBeVisible();

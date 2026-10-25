@@ -15,7 +15,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from src.core.capability_origin import CapabilityOrigin
+from src.core.capability_origin import CapabilityOrigin, CapabilityShare
 from src.core.constants import MCP_DEFAULT_TIMEOUT_SECONDS
 from src.domains.user_mcp.models import UserMCPAuthType, UserMCPServerStatus
 
@@ -243,6 +243,9 @@ class UserMCPServerResponse(BaseModel):
     """Schema for a single user MCP server response."""
 
     shared_origin: CapabilityOrigin | None = None
+    shared_with: list[CapabilityShare] = Field(
+        default_factory=list, description="Peers this server was shared with, newest first"
+    )
     id: UUID
     name: str
     url: str

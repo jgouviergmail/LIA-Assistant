@@ -185,6 +185,38 @@ async def test_pair_quota_serializes_concurrent_previews(
     )
 
 
+async def test_a_published_share_is_final_for_that_recipient(world: World) -> None:
+    """Owner rule 2026-10-24: never share again what that peer already received."""
+    preview = await capability_flow.preview_capability(world.sender, world.request)
+    await capability_flow.send_capability(world.sender, preview.id, preview.digest)
+    again = world.request.model_copy(update={"idempotency_key": uuid4()})
+    with pytest.raises(BaseAPIException) as refused:
+        await capability_flow.preview_capability(world.sender, again)
+    assert (refused.value.status_code, refused.value.detail) == (
+        409,
+        "peers_capability_already_shared",
+    )
+    # The receipt itself stays reachable: its key replays, its send settles again.
+    replayed = await capability_flow.preview_capability(world.sender, world.request)
+    assert replayed.id == preview.id
+    repeated = await capability_flow.send_capability(world.sender, preview.id, preview.digest)
+    assert repeated.status is TransferStatus.INSTALLED
+
+
+async def test_of_two_previews_only_the_first_sent_reaches_the_recipient(world: World) -> None:
+    first = await capability_flow.preview_capability(world.sender, world.request)
+    second = await capability_flow.preview_capability(
+        world.sender, world.request.model_copy(update={"idempotency_key": uuid4()})
+    )
+    await capability_flow.send_capability(world.sender, first.id, first.digest)
+    with pytest.raises(BaseAPIException) as refused:
+        await capability_flow.send_capability(world.sender, second.id, second.digest)
+    assert refused.value.detail == "peers_capability_already_shared"
+    async with world.sessions() as db:
+        copies = (await db.execute(select(Skill.id).where(Skill.owner_id == world.recipient))).all()
+    assert len(copies) == 1
+
+
 async def test_stored_snapshot_bytes_must_still_match_the_confirmed_digest(
     world: World,
 ) -> None:

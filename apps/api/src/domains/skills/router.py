@@ -30,6 +30,7 @@ from src.core.session_dependencies import (
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.shared.capability_origins import capability_origins
+from src.domains.shared.capability_shares import capability_shares
 from src.domains.skills.archive import create_skill_archive as _create_skill_zip
 from src.domains.skills.exceptions import (
     raise_admin_skill_delete_forbidden,
@@ -128,12 +129,15 @@ async def list_skills(
     db_skills = await svc.get_user_visible_skills(user.id)
 
     items = [_merge_with_cache(s, enabled_for_user=s["is_active"]) for s in db_skills]
-    origins = await capability_origins(
-        db, user.id, "skill", (UUID(s["skill_id"]) for s in db_skills)
-    )
+    skill_ids = [UUID(s["skill_id"]) for s in db_skills]
+    origins = await capability_origins(db, user.id, "skill", skill_ids)
+    shares = await capability_shares(db, user.id, "skill", skill_ids)
     for item, source in zip(items, db_skills, strict=True):
         origin = origins.get(UUID(source["skill_id"]))
         item["shared_origin"] = origin.model_dump(mode="json") if origin else None
+        item["shared_with"] = [
+            share.model_dump(mode="json") for share in shares.get(UUID(source["skill_id"]), [])
+        ]
         item["is_third_party"] = source["is_third_party"]
     return {"skills": items, "total": len(items)}
 

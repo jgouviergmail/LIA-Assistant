@@ -18,6 +18,10 @@
     "V14R": {
       "file": "docs/audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14-revision.html",
       "date": "2026-10-22"
+    },
+    "V15": {
+      "file": "docs/audit/AUDIT_CODEBASE_2026-10-25_CONSOLIDE_V15.html",
+      "date": "2026-10-25"
     }
   },
   "legacy_reports": {
@@ -92,6 +96,12 @@
           "article": "ac-002",
           "kind": "finding",
           "title": "AC-002 — Fencer de bout en bout les traitements de documents RAG téléversés"
+        },
+        {
+          "report": "V15",
+          "article": "ac-002",
+          "kind": "finding",
+          "title": "AC-002 — Fencing incomplet du traitement RAG upload et reprise"
         }
       ],
       "aliases": [],
@@ -195,7 +205,7 @@
       "id": "AC-005",
       "level": "moderate",
       "priority": "P1",
-      "effort": "E3",
+      "effort": "E2",
       "horizon": "H1",
       "status": "open",
       "opened_on": "2026-08-02",
@@ -217,6 +227,12 @@
           "article": "ac-005",
           "kind": "finding",
           "title": "AC-005 — Donner un propriétaire au verrou global de réindexation"
+        },
+        {
+          "report": "V15",
+          "article": "ac-005",
+          "kind": "finding",
+          "title": "AC-005 — Verrou global de réindexation sans identité d’acquisition"
         }
       ],
       "aliases": [],
@@ -391,7 +407,7 @@
       "id": "AC-010",
       "level": "moderate",
       "priority": "P2",
-      "effort": "E5",
+      "effort": "E4",
       "horizon": "H2",
       "status": "open",
       "opened_on": "2026-08-02",
@@ -413,6 +429,12 @@
           "article": "ac-010",
           "kind": "finding",
           "title": "AC-010 — Réduire la complexité absolue des points centraux d'orchestration"
+        },
+        {
+          "report": "V15",
+          "article": "ac-010",
+          "kind": "finding",
+          "title": "AC-010 — Concentration de logique et complexité Python encore élevée"
         }
       ],
       "aliases": [],
@@ -447,6 +469,12 @@
           "article": "ac-011",
           "kind": "finding",
           "title": "AC-011 — Défaire les dépendances réciproques des deux concentrateurs users et agents"
+        },
+        {
+          "report": "V15",
+          "article": "ac-011",
+          "kind": "finding",
+          "title": "AC-011 — Couplage runtime entre contextes de domaine"
         }
       ],
       "aliases": [],
@@ -459,8 +487,8 @@
       "id": "AC-012",
       "level": "moderate",
       "priority": "P2",
-      "effort": "E4",
-      "horizon": "H0",
+      "effort": "E3",
+      "horizon": "H2",
       "status": "open",
       "opened_on": "2026-08-02",
       "appearances": [
@@ -481,6 +509,12 @@
           "article": "ac-012",
           "kind": "finding",
           "title": "AC-012 — Résorber les diagnostics MyPy neutralisés, en commençant par les exemptions mortes"
+        },
+        {
+          "report": "V15",
+          "article": "ac-012",
+          "kind": "finding",
+          "title": "AC-012 — Dette de typage Python explicitement tolérée"
         }
       ],
       "aliases": [],
@@ -496,13 +530,13 @@
         ]
       },
       "deferral": null,
-      "note": "H0 for the dead exemptions, then H2 for the rest. Partial: the dead disabled codes and the unused ignores are gone (A14a); the conversation service's exemption is gone (A14b) — of its 10 hidden diagnostics, 4 lay in a loader nothing called since its flag was removed (deleted, with its tests), 6 in the live loader, typed once its post-processing (pinned first by characterization tests) became one module. The debt baseline went from 81 to 76 pairs; the rest stays for H2."
+      "note": "H0 for the dead exemptions, then H2 for the rest. Partial: the dead disabled codes and the unused ignores are gone (A14a); the conversation service's exemption is gone (A14b) — of its 10 hidden diagnostics, 4 lay in a loader nothing called since its flag was removed (deleted, with its tests), 6 in the live loader, typed once its post-processing (pinned first by characterization tests) became one module. The debt baseline went from 81 to 76 pairs; the rest stays for H2. V15: the canonical MyPy run is green with its exemptions; 76 module/code pairs over 491 files stay tolerated, and a probe without them reports 824 diagnostics in 139 files. Worked off by homogeneous slices, the total never rising."
     },
     {
       "id": "AC-013",
       "level": "moderate",
       "priority": "P2",
-      "effort": "E4",
+      "effort": "E3",
       "horizon": "H2",
       "status": "open",
       "opened_on": "2026-08-02",
@@ -524,6 +558,12 @@
           "article": "ac-013",
           "kind": "finding",
           "title": "AC-013 — Réduire la dette React Hooks et les composants complexes"
+        },
+        {
+          "report": "V15",
+          "article": "ac-013",
+          "kind": "finding",
+          "title": "AC-013 — Dette de contrats React et de déterminisme des tests"
         }
       ],
       "aliases": [],
@@ -724,10 +764,10 @@
     {
       "id": "AC-019",
       "level": "minor",
-      "priority": "P5",
+      "priority": "P3",
       "effort": "E1",
-      "horizon": null,
-      "status": "partially_closed",
+      "horizon": "H2",
+      "status": "open",
       "opened_on": "2026-08-02",
       "appearances": [
         {
@@ -741,6 +781,12 @@
           "article": "clos-v13-ac-019",
           "kind": "closure",
           "title": "V13 AC-019 — Fraîcheur sémantique documentaire incomplète"
+        },
+        {
+          "report": "V15",
+          "article": "ac-019",
+          "kind": "finding",
+          "title": "AC-019 — Commentaire de budget de connexions désaligné de sa source"
         }
       ],
       "aliases": [],
@@ -755,7 +801,7 @@
       },
       "remediation": null,
       "deferral": null,
-      "note": "Residual tracked by AC-032."
+      "note": "Residual tracked by AC-032. V15 carries the residual under this identifier: the connection budget module comment still quotes a burst of 168 where the code and the published profile compute 128. The partial closure of the V13 scope stays recorded below."
     },
     {
       "id": "AC-020",
@@ -1046,8 +1092,8 @@
       "level": "moderate",
       "priority": "P1",
       "effort": "E2",
-      "horizon": "H0",
-      "status": "remediated",
+      "horizon": "H1",
+      "status": "reopened",
       "opened_on": "2026-10-22",
       "appearances": [
         {
@@ -1055,6 +1101,12 @@
           "article": "ac-029",
           "kind": "finding",
           "title": "AC-029 — Rendre propriétaire le verrou de rafraîchissement OAuth et l'aligner sur sa section critique"
+        },
+        {
+          "report": "V15",
+          "article": "ac-029",
+          "kind": "finding",
+          "title": "AC-029 — Durée totale du refresh OAuth non bornée par le calcul du bail"
         }
       ],
       "aliases": [],
@@ -1075,7 +1127,7 @@
         ]
       },
       "deferral": null,
-      "note": "The lock is not made an owner: it is gone. One refresh door for legacy connectors, shared grants and Hue Remote: one exchange per token (single flight in a worker, an owner-token claim across workers, a published verdict), no transaction across the provider call, a write conditioned on the token it started from and bounded in its wait for the row, invalid_grant re-verified before a disconnection. Residual, written in the ADR-302 amendment: callers reading through get_connector_credentials on a session they hold keep their read transaction during a rare refresh."
+      "note": "The lock is not made an owner: it is gone. One refresh door for legacy connectors, shared grants and Hue Remote: one exchange per token (single flight in a worker, an owner-token claim across workers, a published verdict), no transaction across the provider call, a write conditioned on the token it started from and bounded in its wait for the row, invalid_grant re-verified before a disconnection. Residual, written in the ADR-302 amendment: callers reading through get_connector_credentials on a session they hold keep their read transaction during a rare refresh. Reopened by V15: the lease is derived from a per-phase HTTP timeout, and a response delivered in small fragments outlived it (17 s against a 13 s lease, local probe, no real OAuth server). The 2026-10-23 remediation (one refresh door, conditional writes, short sessions) stands; the total duration is not bounded yet."
     },
     {
       "id": "AC-030",
@@ -1353,6 +1405,12 @@
           "article": "ac-038",
           "kind": "finding",
           "title": "AC-038 — Ramener CLAUDE.md (et son miroir AGENTS.md) à des règles et des pointeurs"
+        },
+        {
+          "report": "V15",
+          "article": "ac-038",
+          "kind": "finding",
+          "title": "AC-038 — Consignes centrales très volumineuses à rendre plus navigables"
         }
       ],
       "aliases": [],
@@ -1366,8 +1424,8 @@
       "level": "minor",
       "priority": "P3",
       "effort": "E4",
-      "horizon": "H2",
-      "status": "open",
+      "horizon": null,
+      "status": "closed",
       "opened_on": "2026-10-22",
       "appearances": [
         {
@@ -1375,10 +1433,24 @@
           "article": "ac-039",
           "kind": "finding",
           "title": "AC-039 — Appliquer ou amender la règle de langue de la documentation"
+        },
+        {
+          "report": "V15",
+          "article": "clos-ac-039",
+          "kind": "closure",
+          "title": "AC-039 — Politique de langue explicite et contrôlée"
         }
       ],
       "aliases": [],
-      "closure": null,
+      "closure": {
+        "on": "2026-10-25",
+        "report": "V15",
+        "proof": [
+          "docs/audit/AUDIT_CODEBASE_2026-10-25_CONSOLIDE_V15.html#clos-ac-039",
+          "scripts/audit/doc_language.py",
+          "apps/api/tests/unit/test_doc_language_guard.py"
+        ]
+      },
       "remediation": {
         "on": "2026-10-23",
         "report": null,
@@ -1390,7 +1462,7 @@
         ]
       },
       "deferral": null,
-      "note": "AC-039a remediated (amended rule, shrink-only ratchet of French documents); AC-039b, the translation of the entry points, is outside the 2026-10-23 wave."
+      "note": "AC-039a remediated (amended rule, shrink-only ratchet of French documents); AC-039b, the translation of the entry points, is outside the 2026-10-23 wave. Closed by V15: the amended rule allows the existing French documents, exempts audit reports, dated plans and living maps, and its guard refuses a new gap and any growth of the frozen baseline."
     },
     {
       "id": "AC-040",
@@ -1433,6 +1505,212 @@
       },
       "deferral": null,
       "note": "Ten of the fourteen excluded primitives held a decision point or a hook and re-entered the measure; four remain, each with its reason, held by a guard. Thresholds unchanged; the ui glob stays above them."
+    },
+    {
+      "id": "AC-041",
+      "level": "minor",
+      "priority": "P2",
+      "effort": "E2",
+      "horizon": "H2",
+      "status": "open",
+      "opened_on": "2026-10-25",
+      "appearances": [
+        {
+          "report": "V15",
+          "article": "ac-041",
+          "kind": "finding",
+          "title": "AC-041 — Métrique de borne PostgreSQL confondant délai, NOWAIT et annulation"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": null,
+      "deferral": null,
+      "note": null
+    },
+    {
+      "id": "AC-042",
+      "level": "minor",
+      "priority": "P3",
+      "effort": "E1",
+      "horizon": null,
+      "status": "closed",
+      "opened_on": "2026-10-25",
+      "appearances": [
+        {
+          "report": "V15",
+          "article": "clos-ac-042",
+          "kind": "closure",
+          "title": "AC-042 — Fixtures de release validées dans le commit"
+        }
+      ],
+      "aliases": [],
+      "closure": {
+        "on": "2026-10-25",
+        "report": "V15",
+        "proof": [
+          "docs/audit/AUDIT_CODEBASE_2026-10-25_CONSOLIDE_V15.html#clos-ac-042",
+          "scripts/release/tests/test_version_surfaces.py",
+          "3909d87c59fb9dadd705fe6d97212261206af7c3"
+        ]
+      },
+      "remediation": null,
+      "deferral": null,
+      "note": "Published by V15 as a positive control only: at the audited commit the release surfaces fixture carried the llms.txt counters and the Story meta in the six languages. The report gives no level; the register records the lowest one."
+    },
+    {
+      "id": "AC-043",
+      "level": "minor",
+      "priority": "P2",
+      "effort": "E1",
+      "horizon": "H2",
+      "status": "open",
+      "opened_on": "2026-10-25",
+      "appearances": [
+        {
+          "report": "V15",
+          "article": "ac-043",
+          "kind": "finding",
+          "title": "AC-043 — Garde offline du film désaligné du catalogue fonctionnel courant"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": null,
+      "deferral": null,
+      "note": null
+    },
+    {
+      "id": "AC-044",
+      "level": "minor",
+      "priority": "P2",
+      "effort": "E2",
+      "horizon": "H2",
+      "status": "open",
+      "opened_on": "2026-10-25",
+      "appearances": [
+        {
+          "report": "V15",
+          "article": "ac-044",
+          "kind": "finding",
+          "title": "AC-044 — Positionnement initial du chat : contrôle E2E non stabilisé"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": null,
+      "deferral": null,
+      "note": null
+    },
+    {
+      "id": "AC-045",
+      "level": "minor",
+      "priority": "P2",
+      "effort": "E1",
+      "horizon": "H2",
+      "status": "open",
+      "opened_on": "2026-10-25",
+      "appearances": [
+        {
+          "report": "V15",
+          "article": "ac-045",
+          "kind": "finding",
+          "title": "AC-045 — Oracles géométriques sensibles à la précision subpixel de Firefox"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": null,
+      "deferral": null,
+      "note": null
+    },
+    {
+      "id": "AC-046",
+      "level": "minor",
+      "priority": "P2",
+      "effort": "E1",
+      "horizon": "H2",
+      "status": "open",
+      "opened_on": "2026-10-25",
+      "appearances": [
+        {
+          "report": "V15",
+          "article": "ac-046",
+          "kind": "finding",
+          "title": "AC-046 — Diagnostic E2E média pouvant masquer l’échec primaire"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": null,
+      "deferral": null,
+      "note": null
+    },
+    {
+      "id": "AC-047",
+      "level": "minor",
+      "priority": "P2",
+      "effort": "E1",
+      "horizon": "H2",
+      "status": "open",
+      "opened_on": "2026-10-25",
+      "appearances": [
+        {
+          "report": "V15",
+          "article": "ac-047",
+          "kind": "finding",
+          "title": "AC-047 — Pause d’horloge E2E soumise à une course entre deux commandes"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": null,
+      "deferral": null,
+      "note": null
+    },
+    {
+      "id": "AC-048",
+      "level": "minor",
+      "priority": "P2",
+      "effort": "E2",
+      "horizon": "H2",
+      "status": "open",
+      "opened_on": "2026-10-25",
+      "appearances": [
+        {
+          "report": "V15",
+          "article": "ac-048",
+          "kind": "finding",
+          "title": "AC-048 — Oracle de transport E2E ne distinguant pas les preconnect natifs"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": null,
+      "deferral": null,
+      "note": null
+    },
+    {
+      "id": "AC-049",
+      "level": "moderate",
+      "priority": "P2",
+      "effort": "E2",
+      "horizon": "H2",
+      "status": "open",
+      "opened_on": "2026-10-25",
+      "appearances": [
+        {
+          "report": "V15",
+          "article": "ac-049",
+          "kind": "finding",
+          "title": "AC-049 — Parcours clavier des actions de sélection interrompu sous WebKit"
+        }
+      ],
+      "aliases": [],
+      "closure": null,
+      "remediation": null,
+      "deferral": null,
+      "note": null
     }
   ]
 }

@@ -79,7 +79,10 @@ def _service_with_mocks() -> tuple[TOTPService, MagicMock, AsyncMock]:
 
 
 def _current_code(secret: str) -> str:
-    return pyotp.TOTP(secret, interval=TOTP_INTERVAL_SECONDS).now()
+    # An aware instant, as the service reads it: pyotp's `now()` takes a naive
+    # LOCAL time, which is ambiguous for an hour on the night clocks go back —
+    # measured 2026-10-25 at 02:36 Paris time, the code of an hour later.
+    return pyotp.TOTP(secret, interval=TOTP_INTERVAL_SECONDS).at(datetime.now(UTC))
 
 
 @pytest.mark.unit

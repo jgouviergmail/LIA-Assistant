@@ -486,6 +486,52 @@
       }
     },
     {
+      "id": 105,
+      "title": "Imports from a file (24h)",
+      "type": "bargauge",
+      "datasource": "$datasource",
+      "description": "Meetings imported from a WAV, MP3 or M4A file (owner request 2026-10-24), by format and outcome: started (admitted), completed (every chunk arrived, handed to processing), refused (the first bytes are not the format the file claims), abandoned (no chunk for MEETINGS_IMPORT_STALE_MINUTES: failed as import_incomplete, chunks deleted), cancelled (deleted while uploading). What processing then makes of a completed import (import_too_long, audio_unreadable) is in Failures by reason. `or vector(0)`: a label that never fired has no series.",
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 20
+      },
+      "targets": [
+        {
+          "expr": "sum by (format, outcome) (increase(meeting_imports_total[24h])) or vector(0)",
+          "legendFormat": "{{format}} · {{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
       "id": 103,
       "title": "Jev decisions and fallbacks (24h)",
       "type": "timeseries",

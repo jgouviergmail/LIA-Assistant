@@ -21,13 +21,19 @@ The capture rules deliberately mirror the frontend accumulator
   (same exclusion as the frontend interception).
 - The cap keeps the TAIL — the most informative part of a long FOR_EACH run —
   and is settings-driven (``execution_trace_persist_max_steps``).
+- What a tool step did is added up per label, as the live bubble does
+  (2026-10-24): each call counted once by its ``step_key``, its latest
+  outcome kept; a pipeline's per-tool total taken as it comes. Only
+  INTEGERS reach storage, under ``outcome`` — calls when more than one,
+  found, shown when fewer than found, failed.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Any
 
-from src.core.field_names import FIELD_EXECUTION_TRACE
+from src.core.field_names import FIELD_EXECUTION_TRACE, FIELD_OUTCOME, FIELD_STEP_KEY
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -49,6 +55,56 @@ ROUTER_SEED_STEP: dict[str, str] = {
 }
 
 
+_OUTCOME_KEYS: frozenset[str] = frozenset({"calls", "found", "shown", "failed"})
+
+
+def _counts(raw: object) -> dict[str, int]:
+    """The outcome's known counts, non-negative integers only — never anything else."""
+    if not isinstance(raw, dict):
+        return {}
+    return {
+        key: value
+        for key, value in raw.items()
+        if key in _OUTCOME_KEYS
+        and isinstance(value, int)
+        and not isinstance(value, bool)
+        and value >= 0
+    }
+
+
+@dataclass
+class _Tally:
+    """What one label's steps did: each call's latest outcome, and a pipeline total."""
+
+    calls: dict[str, dict[str, int]] = field(default_factory=dict)
+    bulk: dict[str, int] = field(default_factory=dict)
+
+    def add(self, metadata: dict[str, Any]) -> None:
+        counts = _counts(metadata.get(FIELD_OUTCOME))
+        step_key = metadata.get(FIELD_STEP_KEY)
+        if step_key:
+            self.calls[str(step_key)] = counts
+        elif counts:
+            self.bulk = counts
+
+    def summary(self) -> dict[str, int]:
+        """The counts worth showing; empty when a step only says it ran."""
+        calls = len(self.calls) + self.bulk.get("calls", 0)
+        found = sum(c.get("found", 0) for c in self.calls.values()) + self.bulk.get("found", 0)
+        shown = sum(c.get("shown", c.get("found", 0)) for c in self.calls.values())
+        shown += self.bulk.get("found", 0)
+        failed = sum(c.get("failed", 0) for c in self.calls.values())
+        failed += self.bulk.get("failed", 0)
+        summary = {"calls": calls} if calls > 1 else {}
+        if found:
+            summary["found"] = found
+            if shown < found:
+                summary["shown"] = shown
+        if failed:
+            summary["failed"] = failed
+        return summary
+
+
 class TraceCapture:
     """Accumulate persistable trace steps across one streamed invocation.
 
@@ -66,6 +122,7 @@ class TraceCapture:
         self._max_steps = max_steps
         self._steps: list[dict[str, str]] = []
         self._seen_keys: set[str] = set()
+        self._tallies: dict[str, _Tally] = {}
 
     def observe(self, chunk_type: str, metadata: dict[str, Any] | None) -> None:
         """Feed one emitted SSE chunk into the capture.
@@ -80,6 +137,7 @@ class TraceCapture:
             # frontend seed (handlers.ts) and keeps the seed unduplicated.
             self._steps = [dict(ROUTER_SEED_STEP)]
             self._seen_keys = {ROUTER_SEED_STEP["i18n_key"]}
+            self._tallies = {}
             return
         if chunk_type != "execution_step" or not metadata:
             return
@@ -91,6 +149,7 @@ class TraceCapture:
             # detail-only steps): the live bubble may show them, storage never.
             return
         key = str(i18n_key)
+        self._tallies.setdefault(key, _Tally()).add(metadata)
         if key in self._seen_keys:
             # One occurrence per key per turn — the live bubble early-returns
             # on already-emitted keys (a FOR_EACH shows ONE tool step), so the
@@ -108,14 +167,19 @@ class TraceCapture:
         if len(self._steps) > self._max_steps:
             self._steps = self._steps[-self._max_steps :]
 
-    def snapshot(self) -> list[dict[str, str]]:
-        """Return the captured steps as a defensive copy."""
-        return list(self._steps)
+    def snapshot(self) -> list[dict[str, Any]]:
+        """Return the captured steps, each with what it did when there is something to say."""
+        steps: list[dict[str, Any]] = []
+        for step in self._steps:
+            tally = self._tallies.get(step["i18n_key"])
+            summary = tally.summary() if tally else {}
+            steps.append({**step, FIELD_OUTCOME: summary} if summary else dict(step))
+        return steps
 
 
 def with_persisted_trace(
     message_metadata: dict[str, Any],
-    steps: list[dict[str, str]],
+    steps: list[dict[str, Any]],
     *,
     duration_ms: int | None,
     run_id: str,

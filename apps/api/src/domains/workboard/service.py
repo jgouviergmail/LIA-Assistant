@@ -38,7 +38,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.core.exceptions import raise_invalid_input, raise_not_found_or_unauthorized
 from src.core.time_utils import now_utc
-from src.domains.shared.text_normalization import fold_name
+from src.domains.shared.name_resolution import ResolutionStatus, resolve_name
 from src.domains.users.models import User
 from src.domains.workboard.answers import Answer, classify_answer
 from src.domains.workboard.assignment_notifications import (
@@ -292,8 +292,10 @@ class WorkboardService:
         already owns who may hold a ticket, and a tool deciding it again would
         be a second authority on the same question.
 
-        Matched on the FOLDED name (``fold_name`` is the one authority on name
-        identity, ADR-185), and only among ACCEPTED connections: the discovery
+        Resolved by the one rule every directory shares
+        (``shared/name_resolution``): the full name, or a first name that
+        designates ONE connection — the chat's path is a draft the person
+        confirms, holder named. Only among ACCEPTED connections: the discovery
         directory is not an address book, and a name that matches nobody the
         user is connected to is « not connected », not « unknown person ».
 
@@ -322,13 +324,12 @@ class WorkboardService:
         rows = (
             await self.db.execute(select(User.id, User.full_name).where(User.id.in_(peer_ids)))
         ).all()
-        needle = fold_name(name)
-        matches = [
-            UUID(str(uid)) for uid, full_name in rows if fold_name(full_name or "") == needle
-        ]
-        if len(matches) == 1:
-            return matches[0]
-        if not matches:
+        resolution = resolve_name(
+            name, [(full_name or "", UUID(str(uid))) for uid, full_name in rows]
+        )
+        if resolution.match is not None:
+            return resolution.match
+        if resolution.status is ResolutionStatus.UNKNOWN:
             raise_invalid_input(WorkboardError.ASSIGNEE_NOT_CONNECTED.value)
         # `raise_invalid_input` is typed `NoReturn`, so this closes the
         # function: a line after it would be unreachable, and the sibling

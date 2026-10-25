@@ -37,6 +37,7 @@ export function CollapsibleSection({
   badge,
   action,
   defaultOpen = false,
+  onOpenChange,
   className,
   children,
 }: {
@@ -48,6 +49,8 @@ export function CollapsibleSection({
   action?: React.ReactNode;
   /** Closed by default — the panel is an index the reader opens, not a wall. */
   defaultOpen?: boolean;
+  /** Told on every toggle, so a section can read its content on first opening. */
+  onOpenChange?: (open: boolean) => void;
   className?: string;
   children: React.ReactNode;
 }) {
@@ -61,7 +64,10 @@ export function CollapsibleSection({
           <h3 className="min-w-0 flex-1 text-sm font-semibold text-foreground">
             <button
               type="button"
-              onClick={() => setOpen(value => !value)}
+              onClick={() => {
+                setOpen(!open);
+                onOpenChange?.(!open);
+              }}
               aria-expanded={open}
               aria-controls={panelId}
               className="flex min-h-11 w-full flex-wrap items-center gap-2 rounded-md py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

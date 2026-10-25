@@ -22,8 +22,10 @@ import {
   Search,
   Sun,
   Sunrise,
+  Upload,
 } from 'lucide-react';
 
+import { MeetingImportDialog } from '@/components/meetings/MeetingImportDialog';
 import { useMeetingRecorderContext } from '@/components/meetings/MeetingRecorderProvider';
 import { BackLink } from '@/components/ui/back-link';
 import { MeetingSelectionBar } from '@/components/meetings/MeetingSelectionBar';
@@ -38,6 +40,7 @@ import { LoadingAnnouncement } from '@/components/ui/loading-announcement';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
 import { useConfirm } from '@/components/ui/use-confirm';
+import { useAppConfig } from '@/hooks/useAppConfig';
 import { useBackOrigin } from '@/hooks/useBackOrigin';
 import { useLanguageParam } from '@/hooks/useLanguageParam';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
@@ -196,21 +199,35 @@ function MeetingRows({
   );
 }
 
-/** The list header's actions: record (when the recorder is mounted) and the templates. */
-function useToolbarActions(t: (key: string) => string): ToolbarAction[] {
+/**
+ * The list header's actions: record (when the recorder is mounted) and import a
+ * recording file (when the instance offers it, 2026-10-24).
+ */
+function useToolbarActions(
+  t: (key: string) => string,
+  onImport: (() => void) | null
+): ToolbarAction[] {
   const recorder = useMeetingRecorderContext();
-  if (recorder === null) return [];
-  const record: ToolbarAction = {
-    key: 'record',
-    label: t('meetings.list.record'),
-    icon: Mic,
-    // Stated, not removed, while a recording runs: the banner owns the stop.
-    blocked: recorder.isLive,
-    onSelect: () => {
-      if (!recorder.isLive) void recorder.start();
-    },
-  };
-  return [record];
+  const actions: ToolbarAction[] = [];
+  if (recorder !== null)
+    actions.push({
+      key: 'record',
+      label: t('meetings.list.record'),
+      icon: Mic,
+      // Stated, not removed, while a recording runs: the banner owns the stop.
+      blocked: recorder.isLive,
+      onSelect: () => {
+        if (!recorder.isLive) void recorder.start();
+      },
+    });
+  if (onImport)
+    actions.push({
+      key: 'import',
+      label: t('meetings.list.import'),
+      icon: Upload,
+      onSelect: onImport,
+    });
+  return actions;
 }
 
 export default function MeetingsPage({ params }: MeetingsPageProps) {
@@ -225,7 +242,12 @@ function AccountMeetingsPage({ params }: MeetingsPageProps) {
   const origin = useBackOrigin();
   const back = backDestination(origin);
   const searchParams = useSearchParams();
-  const toolbar = useToolbarActions(t);
+  const { config } = useAppConfig();
+  const [importOpen, setImportOpen] = useState(false);
+  const toolbar = useToolbarActions(
+    t,
+    config?.features?.meetings_import_enabled ? () => setImportOpen(true) : null
+  );
   const [query, setQuery] = useState(() => meetingListQuery(searchParams.get('q')));
   const [offset, setOffset] = useState(
     () => (meetingListPage(searchParams.get('page')) - 1) * PAGE_SIZE
@@ -290,21 +312,24 @@ function AccountMeetingsPage({ params }: MeetingsPageProps) {
           description={t('meetings.list.subtitle')}
           actions={
             toolbar.length ? (
-              <>
-                {toolbar.map(action => (
+              // One row, Import to the right of Record (owner, 2026-10-25): the
+              // header stacks its actions, which put Import under Record.
+              <div className="flex w-full gap-2 sm:w-auto">
+                {toolbar.map((action, index) => (
                   <Button
                     key={action.key}
                     type="button"
-                    variant="default"
+                    // The first action leads; the others follow it in outline.
+                    variant={index === 0 ? 'default' : 'outline'}
                     aria-disabled={action.blocked}
-                    className="h-auto min-h-11 w-full whitespace-normal sm:w-auto"
+                    className="h-auto min-h-11 flex-1 whitespace-normal sm:flex-none"
                     onClick={action.onSelect}
                   >
                     <action.icon aria-hidden="true" />
                     {action.label}
                   </Button>
                 ))}
-              </>
+              </div>
             ) : undefined
           }
         />
@@ -348,6 +373,7 @@ function AccountMeetingsPage({ params }: MeetingsPageProps) {
         variant="centered"
         onPageChange={page => setOffset((page - 1) * PAGE_SIZE)}
       />
+      <MeetingImportDialog lng={lng} open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );
 }

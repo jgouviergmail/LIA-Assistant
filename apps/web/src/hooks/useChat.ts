@@ -47,6 +47,7 @@ import {
   processSSEChunk,
   resetTokenBatching,
   SSEHandlerContext,
+  type LiveStepTally,
 } from '@/lib/sse-handlers';
 import { DEBUG_PANEL_TOTAL_WIDTH_PX } from '@/lib/constants';
 
@@ -366,6 +367,8 @@ export const useChat = ({
   const executionStepsRef = useRef<string[]>([]);
   // Set of i18n_keys already emitted — deduplication between router/planner and execution_step
   const emittedStepKeysRef = useRef<Set<string>>(new Set());
+  // What each label's steps did, updated in place (2026-10-24).
+  const stepTalliesRef = useRef<Map<string, LiveStepTally>>(new Map());
   // Live reasoning (💭) accumulated text — cleared on first answer token
   const reasoningBufRef = useRef<string>('');
   // Execution trace accumulators (Lot 2 P2-V1): parallel to the ephemeral
@@ -410,6 +413,7 @@ export const useChat = ({
 
       executionStepsRef.current = [];
       emittedStepKeysRef.current = new Set();
+      stepTalliesRef.current = new Map();
       reasoningBufRef.current = '';
       resetTokenBatching();
 
@@ -431,6 +435,7 @@ export const useChat = ({
               hitlQuestionBuffer,
               executionStepsRef,
               emittedStepKeysRef,
+              stepTalliesRef,
               reasoningBufRef,
               traceStepsRef,
               traceReasoningRef,
@@ -647,6 +652,7 @@ export const useChat = ({
       // Reset accumulated execution steps + live reasoning for this new message
       executionStepsRef.current = [];
       emittedStepKeysRef.current = new Set();
+      stepTalliesRef.current = new Map();
       reasoningBufRef.current = '';
       // Trace accumulators reset per turn (Lot 2): a router_decision re-seeds
       // them, this guards the edge where the first event is not a router.
@@ -714,6 +720,7 @@ export const useChat = ({
               hitlQuestionBuffer,
               executionStepsRef,
               emittedStepKeysRef,
+              stepTalliesRef,
               reasoningBufRef,
               traceStepsRef,
               traceReasoningRef,
@@ -901,9 +908,6 @@ export const useChat = ({
   }, [stopPlayback, recordUserInteraction]);
 
   /**
-   * Set messages (for loading conversation history).
-   */
-  /**
    * Cleanup SSE connection on unmount.
    */
   useEffect(() => {
@@ -912,6 +916,9 @@ export const useChat = ({
     };
   }, []);
 
+  /**
+   * Set messages (for loading conversation history).
+   */
   const setMessages = useCallback(
     (messages: Message[]) => {
       // DEFENSIVE: Validate that messages is actually an array

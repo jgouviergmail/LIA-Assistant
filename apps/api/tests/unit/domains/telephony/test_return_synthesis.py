@@ -362,6 +362,10 @@ async def test_process_persists_minimized_and_delivers_once(monkeypatch) -> None
     assert sent.content == "J'ai appelé Marie"
     assert sent.task_type == "phone_call"
     assert sent.title == "Retour d'appel"
+    # The debrief names the call's run: the chat meter joins the bill on it.
+    from src.domains.telephony.spend import phone_call_run_id
+
+    assert sent.run_id == phone_call_run_id(call.id)
     # T1: the outbox record is armed with the notification payload, then flipped to
     # DELIVERED only AFTER the dispatch succeeds.
     assert mark["notification_content"] == "J'ai appelé Marie"

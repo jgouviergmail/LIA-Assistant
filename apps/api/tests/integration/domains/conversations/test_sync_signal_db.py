@@ -22,6 +22,7 @@ from src.domains.conversations import sync_signal
 from src.domains.conversations.models import Conversation
 from src.domains.conversations.service import ConversationService
 from src.domains.users.models import User
+from src.domains.voice_sessions.summary import rewrite_session_card
 
 pytestmark = pytest.mark.integration
 
@@ -100,6 +101,34 @@ async def test_several_messages_in_one_transaction_make_one_signal(
     await _drain()
 
     assert published.await_count == 1
+
+
+async def test_a_rewritten_session_card_is_said_after_its_commit(
+    async_session: AsyncSession, published: AsyncMock
+) -> None:
+    """A card rewritten once its fate is known (ADR-301) changes what the tab shows."""
+    conversation = await _account(async_session, "sync-rewrite@test.local")
+    card = await ConversationService().archive_message(
+        conversation.id, "assistant", "Session card", {"run_id": "r1"}, async_session
+    )
+    await async_session.commit()
+    await _drain()
+    published.reset_mock()
+
+    rewritten = await rewrite_session_card(
+        async_session, card.id, content="Session card, settled", metadata={"run_id": "r1"}
+    )
+    await _drain()
+    assert rewritten is True
+    published.assert_not_awaited()  # flushed, not committed: nothing said yet
+
+    await async_session.commit()
+    await _drain()
+
+    published.assert_awaited_once_with(
+        conversation.user_id,
+        {"type": "conversation_updated", "conversation_id": str(conversation.id)},
+    )
 
 
 async def test_a_hidden_row_announces_nothing(

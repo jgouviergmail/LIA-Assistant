@@ -18,10 +18,21 @@
  * without a browser.
  */
 
-import type { MeetingAudioFormat } from '@/types/meetings';
+import type { MeetingAudioFormat, MeetingLiveFormat } from '@/types/meetings';
+
+const LIVE_FORMATS: ReadonlySet<MeetingAudioFormat> = new Set<MeetingLiveFormat>([
+  'pcm_s16le_16',
+  'webm_opus',
+  'ogg_opus',
+]);
+
+/** Whether a meeting's audio is a live recording's stream — an imported file is not. */
+export function isLiveFormat(format: MeetingAudioFormat): format is MeetingLiveFormat {
+  return LIVE_FORMATS.has(format);
+}
 
 export interface AudioFormatChoice {
-  format: MeetingAudioFormat;
+  format: MeetingLiveFormat;
   /** `MediaRecorder` MIME type for the Opus paths; undefined for PCM. */
   mimeType?: string;
 }

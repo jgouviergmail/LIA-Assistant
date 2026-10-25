@@ -5,6 +5,140 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.7.0] - 2026-10-25
+
+**A first name finds the person, what you shared shows where you shared it, any recording becomes minutes, and every step says what it did.**
+A first name now reaches the one connection or relationship it designates — and a name
+that fits several people is asked about, never guessed; a skill, a plugin or an MCP
+server says who you shared it with and who it came from; a kept answer or a generated
+file can be brought back into a discussion; a relationship's records line up on one
+dated timeline; a WAV, MP3 or M4A recording becomes a meeting with its minutes; each
+step of an answer counts its calls, results and failures; a phone call's report shows
+what it cost; and the V15 audit is published: 7.9/10 on the committed version 3.6.0.
+
+### Added
+
+- 🧑‍🤝‍🧑 **A first name finds the person** (ADR-180, ADR-182 and ADR-185 amendments). One
+  rule decides what a spoken name designates in any directory
+  (`shared/name_resolution.resolve_name`): the folded full name first, then every word
+  said as a whole word of the name — never a fragment, never an edit distance —, one
+  identity resolved, several an ambiguity asked about with the candidates
+  (`DISAMBIGUATION_REQUIRED`, at most five). The peer tools read the accepted
+  connections only (`agents/peer/name_directory.resolve_connected_peer`); on a partial
+  match the relationship list only SUBTRACTS — a person who is not connected and whom
+  the name also designates turns the read into a question, a name designating only
+  non-connected people is said (`not_a_connection`) — and a merge declared on the
+  Relations page never picks an account. The three relationship read tools resolve
+  against the relationship list, so an unknown name answers `NOT_FOUND` instead of an
+  empty card; the workboard's assignment applies the same rule over the connections.
+  The list the assistant reads admits an SMS sender only where the person let the
+  assistant read their SMS, and the peer tools end their reads before consulting it
+  (its SMS senders can ask the contacts provider, ADR-304). Guard:
+  `test_name_resolution_single_rule_guard.py`.
+- 🤝 **« Shared with » and « Received from » under a capability's line** (ADR-350
+  amendment). Skills, plugins and MCP servers carry `shared_with` — the recipients a
+  sender published each one to, newest share first, in one query per page
+  (`shared/capability_shares`), a deactivated or erased recipient unnamed — drawn in a
+  « Shared with (N) » disclosure, an incomplete share said so; a received copy keeps
+  « Received from … · date ». Whether a sender may share again is ONE function,
+  `reshare_allowed`: a published share is final for now — the door stays open, no index
+  stands in its way —, asked at the preview AND at the send under the pair's lock (409
+  `peers_capability_already_shared`, an installation in flight counted as given, the
+  resumption of a partial share allowed); the recipient list leaves out who already has
+  it. The assistant's native readers never see `shared_with`.
+- ♻️ **A kept answer or a generated file back in the discussion** (ADR-295 amendment).
+  `POST /attachments/from-bookmark` attaches a bookmark as the Markdown its knowledge
+  document reads, whatever its projection's state; `POST /attachments/from-generated`
+  copies a live generated image or document of the caller (an image within the upload
+  bounds, a document with its text). Both are COPIES — uploads a reset removes and the
+  TTL expires, the original untouched —, sharing one store with the knowledge-document
+  door (`attachments/copy_store.py`). The « + » offers « A bookmark… » and « A generated
+  file… »; a bookmark card and the gallery offer « Use in the discussion », a one-shot
+  `?attach=` link that never sends anything.
+- 🗓️ **A relationship's timeline** (ADR-185 amendment b). A collapsible section merges
+  the card's dated records — open commitments, calls, memories, relayed messages, text
+  messages — newest first on one line (`GET /relations/{name}/timeline` and
+  `/lookup/person/timeline`): five keyset reads after one opaque cursor, so a record
+  landing between two pages neither repeats nor drops one
+  (`infrastructure/database/keyset.py`); the identity is the card's
+  (`relations/identity_scope.py`), mails and appointments are merged within the card's
+  own windows, and a forged cursor answers 400.
+- 🎙️ **A meeting imported from a WAV, MP3 or M4A file** (ADR-258 amendment). An
+  imported file is admitted like a recording, travels in chunks onto the same durable
+  row (`uploading`, one per account, held by the database) and is processed like one:
+  `GET /meetings/imports/limits`, `POST /meetings/imports`,
+  `PUT /meetings/{id}/import/{sequence}`, `POST /meetings/{id}/import/complete`. Every
+  bound is published before a byte is sent (`MEETINGS_IMPORT_MAX_MB`,
+  `MEETINGS_IMPORT_CHUNK_MAX_MB`), the first chunk must start as the format it claims,
+  ffmpeg reads it through that format's demuxer alone (`-f wav|mp3|mov`,
+  `-enable_drefs 0`, local files only), the duration is measured — and refused past the
+  cap — before any engine is paid, and an import silent for
+  `MEETINGS_IMPORT_STALE_MINUTES` fails `import_incomplete`, its chunks deleted.
+  `MEETINGS_IMPORT_ENABLED` switches it off; `meeting_imports_total{format,outcome}` on
+  dashboard 27. « Import » sits beside « Record » on the meetings page and in the « + ».
+- 🔢 **Each step says what it did** (ADR-133 amendment). A tool's line in the bubble and
+  in the persisted trace counts its calls (« ×2 »), the results found and read, and its
+  failures — live as each ReAct call finishes (`step_key`), and per tool for a pipeline
+  plan, a FOR_EACH counted by its items (`streaming/tool_step_outcomes.py`); the item id
+  format is declared once (`ExecutionStep.item_step_id`).
+
+### Changed
+
+- 🤖 **A JEV qualification reaches the model as a state, never as an instant** (ADR-351
+  amendment). The data block and the text line carry the labels and `current` or
+  `expired`, decided by the code when they are shown (`classification_view`): handed
+  `valid_until` in UTC beside a clock in the person's zone, a model told the person a
+  label valid for another hour had expired. « Unknown never means safe » now speaks of
+  e-mails only, and the e-mail priority's reference time is given in the person's zone.
+- 💬 A discussion bubble's buttons sit on the right, wrapping as one group.
+- 🎙️ The meetings page offers « Record » and « Import » side by side.
+- 🧭 The demonstrator's environment templates are laid out in themed sections under a
+  table of contents (`docs/technical/DEMO_INSTANCE.md`).
+
+### Fixed
+
+- 💶 **A phone call's report shows what it cost** (ADR-290, ADR-301 and ADR-272
+  amendments). Three paths archived a call's notification without the call's run id —
+  the owner call's fallback, the third-party call's debrief, the reaper's re-dispatch —,
+  so the bubble showed no cost although the synthesis had one: every call notification
+  now leaves through one door (`telephony/call_notifications.py`, AST guard). A rewritten
+  voice-session card tells the open tabs (ADR-320 signal), and a Live session's card
+  restates its bill once the learning that follows the closing has spent.
+- 📎 Attaching a knowledge document whose text cannot be read no longer leaves its copy
+  on disk, and the copy is made once the document's read has ended — no transaction
+  waits on the disk work.
+- 🧪 The TOTP tests computed their code from a naive local time, wrong during the hour a
+  clock change repeats; they read the UTC instant.
+
+### Tests
+
+- 🛡️ Guards: one name-resolution rule (`test_name_resolution_single_rule_guard.py`), one
+  door for a call's notifications (`test_call_notification_door_guard.py`); the
+  `streaming/service.py` size cap lowered from 1,303 to 1,245 logical lines after the
+  step outcomes moved out.
+- 🌐 Browser journeys for the step counts (live and from history), the meeting import,
+  the relationship timeline, capability sharing and bringing a bookmark back, on desktop
+  and phone widths.
+- ⏱️ Testing Library's waits are calibrated for the coverage run like `testTimeout`
+  (`asyncUtilTimeout` 5 s): under full parallelism with instrumentation the suite runs
+  about five times slower, and an optimistic rollback missed the 1 s default once in
+  two runs. The release history's landmark test scopes each role query to its own
+  region instead of walking the whole history twice per series.
+- 🔢 Test inventory: 53,211 backend tests collected across 3,559 files and 14,191
+  frontend tests across 1,139 files.
+
+### Documentation
+
+- 📚 Amendments of ADR-133, ADR-180, ADR-182, ADR-185, ADR-258, ADR-272, ADR-290,
+  ADR-295, ADR-301, ADR-350 and ADR-351; `TELEPHONY.md`, `MEETINGS.md`,
+  `ATTACHMENTS_INTEGRATION.md`, `BOOKMARKS.md`, `PEER_CAPABILITY_TRANSFERS.md`,
+  `EMAIL_EVENT_CLASSIFICATION.md` and `DEMO_INSTANCE.md`; the FAQ and the help corpus in
+  six languages.
+- 🔍 **The V15 audit is published**: 7.9/10 across 24 areas on the committed version
+  3.6.0 (commit `3909d87c5`), 17 open findings — one major — and its register:
+  AC-029 reopened, AC-039 closed, AC-041 and AC-043 to AC-049 new, AC-042 a positive
+  control ([docs/audit/README.md](docs/audit/README.md)).
+
 ## [3.6.0] - 2026-10-24
 
 **Password doors robots cannot hammer, tokens renewed once, every audit finding followed to its proof.**

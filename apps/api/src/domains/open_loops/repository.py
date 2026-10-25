@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.repository import BaseRepository
 from src.domains.open_loops.models import OpenLoop, OpenLoopStatus
 from src.domains.shared.aggregates import NameActivity
+from src.infrastructure.database.keyset import Keyset, older_than
 
 logger = structlog.get_logger(__name__)
 
@@ -127,6 +128,41 @@ class OpenLoopRepository(BaseRepository[OpenLoop]):
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+
+    async def list_open_for_counterparties_page(
+        self,
+        user_id: UUID,
+        counterparties: list[str],
+        *,
+        limit: int,
+        before: Keyset | None = None,
+    ) -> list[OpenLoop]:
+        """OPEN loops of these EXACT spellings, newest first, after a timeline cursor.
+
+        The relationship timeline's read: dated by when the commitment was
+        recorded, the ordering ending on the primary key so a keyset neither
+        skips nor repeats one.
+
+        Args:
+            user_id: Owner.
+            counterparties: Raw spellings, as stored (resolved in Python).
+            limit: Page size.
+            before: Where the page resumes; None for the newest.
+
+        Returns:
+            The page.
+        """
+        if not counterparties:
+            return []
+        stmt = select(OpenLoop).where(
+            OpenLoop.user_id == user_id,
+            OpenLoop.status == OpenLoopStatus.OPEN.value,
+            OpenLoop.counterparty.in_(counterparties),
+        )
+        if before is not None:
+            stmt = stmt.where(older_than(OpenLoop.created_at, OpenLoop.id, before))
+        stmt = stmt.order_by(OpenLoop.created_at.desc(), OpenLoop.id.desc()).limit(limit)
+        return list((await self.db.scalars(stmt)).all())
 
     async def count_closed_since(self, user_id: UUID, since: datetime) -> int:
         """Commitments this user CLOSED since a point in time.

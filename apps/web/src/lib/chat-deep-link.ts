@@ -67,6 +67,30 @@ function isInternalPath(href: string): boolean {
 }
 
 /**
+ * Rewrite the address without the named params (no-op when none are present).
+ *
+ * `window.history.replaceState`, NOT `router.replace`: the App Router restores
+ * the search params of the entry it already holds for a route, so a replace
+ * that only removes params is swallowed — measured, and the same mechanism that
+ * made a second deep link leave with the first one's URL (ADR-192). The History
+ * API is the supported way to update the query without a navigation, and Next
+ * syncs `useSearchParams` with it.
+ *
+ * It reads `window.location`: the address bar is what a RELOAD re-executes, so
+ * it is the only source of truth that matters here.
+ *
+ * @param names - The params a one-shot link consumed.
+ */
+export function dropSearchParams(names: readonly string[]): void {
+  const current = new URLSearchParams(window.location.search);
+  if (!names.some(name => current.has(name))) return;
+  names.forEach(name => current.delete(name));
+  const query = current.toString();
+  const { pathname } = window.location;
+  window.history.replaceState(null, '', query ? `${pathname}?${query}` : pathname);
+}
+
+/**
  * Navigate to a chat deep link the way the browser understands it.
  *
  * @param href - A localized chat URL from `chatIntentHref` / `chatDraftHref`.

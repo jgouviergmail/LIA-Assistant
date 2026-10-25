@@ -37,8 +37,10 @@ from src.domains.relations.schemas import (
     RelationMergeRequest,
     RelationSettingsUpdate,
     RelationsOverview,
+    RelationTimeline,
 )
 from src.domains.relations.service import RelationsService
+from src.domains.relations.timeline import build_timeline
 from src.domains.users.models import User
 
 router = APIRouter(
@@ -296,6 +298,24 @@ async def get_relation_context(
 
 
 @router.get(
+    "/{name}/timeline",
+    response_model=RelationTimeline,
+    summary="One relationship's dated records, newest first, a page at a time",
+)
+async def get_relation_timeline(
+    name: str,
+    cursor: str | None = Query(
+        default=None,
+        max_length=512,
+        description="Where the page starts: the previous page's `next_cursor`.",
+    ),
+    current_user: User = Depends(get_current_active_session),
+) -> RelationTimeline:
+    """Commitments, calls, memories, relayed messages and text messages, merged by date."""
+    return await build_timeline(current_user.id, name, cursor=cursor)
+
+
+@router.get(
     "/{name}",
     response_model=RelationDetail,
     summary="360° view of one relationship (open loops, calls, memories)",
@@ -311,6 +331,12 @@ async def get_relation_detail(
 # Query aliases preserve arbitrary received sender names without path shadowing.
 router.add_api_route(
     "/lookup/person", get_relation_detail, methods=["GET"], response_model=RelationDetail
+)
+router.add_api_route(
+    "/lookup/person/timeline",
+    get_relation_timeline,
+    methods=["GET"],
+    response_model=RelationTimeline,
 )
 router.add_api_route(
     "/lookup/person/context",

@@ -133,9 +133,9 @@
     },
     "f.relations": {
       "name": "Relazioni",
-      "role": "Una scheda per persona che raccoglie i tuoi scambi, e un debriefing scritto una volta al giorno: a che punto sei, cosa affrontare.",
+      "role": "Una scheda per persona che raccoglie i tuoi scambi e la loro cronologia datata, e un debriefing scritto una volta al giorno: a che punto sei, cosa affrontare.",
       "goal": "Non perdere più il filo delle tue relazioni.",
-      "src": "10f1a5e20272"
+      "src": "1e2bb83157af"
     },
     "f.openloops": {
       "name": "Fili aperti",
@@ -241,9 +241,9 @@
     },
     "f.meetings": {
       "name": "Riunioni",
-      "role": "Registrare una riunione dal telefono o dal computer e ricevere un verbale strutturato, in un modello scelto automaticamente. Cerca nei titoli e nei verbali completi per ritrovare una decisione.",
+      "role": "Registrare una riunione dal telefono o dal computer, o importare una registrazione esistente, e ricevere un verbale strutturato, in un modello scelto automaticamente. Cerca nei titoli e nei verbali completi per ritrovare una decisione.",
       "goal": "Seguire la riunione, non prendere appunti.",
-      "src": "fc9f4f1c8204"
+      "src": "835f172f16ae"
     },
     "f.heartbeat": {
       "name": "Heartbeat autonomo",

@@ -145,7 +145,7 @@ LIA adds **no charge of its own** — costs go to your two external accounts:
 • Agent call minutes, taken from your plan's credits
 
 **🤖 LIA**
-• No surcharge, no markup — only the small LLM synthesis of your summary appears in your LIA usage statistics.
+• No surcharge, no markup — only the small LLM synthesis of your summary is counted: it is shown on the summary in the chat and in your LIA usage statistics.
 
 **🛡️ Built-in guardrails against surprises:**
 • One active call at a time
@@ -260,7 +260,8 @@ Two bills, one of them yours alone.
 
 **💶 What LIA counts:** the live lookups made during the call, the synthesis
 after it and the relayed turn are counted under one bill, shown on the relayed
-answer in the chat and on the calls list — like any other request.
+answer in the chat — or, when nothing could be relayed, on the call's report —
+and on the calls list, like any other request.
 
 **📞 What ElevenLabs bills:** the voice agent's own model, the speech, the
 line — everything that runs on your ElevenLabs key — is billed by ElevenLabs

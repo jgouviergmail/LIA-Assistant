@@ -10,13 +10,17 @@ is fixed and not template-driven.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 
-from src.core.constants import MEETINGS_BULK_MAX, MEETINGS_TEMPLATE_REF_MAX
+from src.core.constants import (
+    MEETINGS_BULK_MAX,
+    MEETINGS_IMPORT_CLOCK_SKEW_SECONDS,
+    MEETINGS_TEMPLATE_REF_MAX,
+)
 from src.core.meeting_reformat import MeetingReformatRequest as MeetingReformatRequest
 from src.core.meeting_reports import ActionItem as ActionItem
 from src.core.meeting_reports import MeetingPatchRequest as MeetingPatchRequest
@@ -68,7 +72,9 @@ from src.domains.meetings.models import (
     MeetingStatus,
     MeetingSttEnginePreference,
     MeetingSttProvider,
+    is_import,
 )
+from src.domains.shared.schemas import TimezoneValidatorMixin
 from src.infrastructure.llm.decision_types import DecisionCharge
 
 #: Upper bound of sections a template may carry — enough for any minutes
@@ -142,6 +148,58 @@ class MeetingStartRequest(BaseModel):
             raise ValueError("timezone must be a valid IANA zone") from exc
         return value
 
+    @field_validator("audio_format")
+    @classmethod
+    def _live_format(cls, value: MeetingAudioFormat) -> MeetingAudioFormat:
+        if is_import(value):
+            raise ValueError("a recording streams a live format; a file is imported")
+        return value
+
+
+class MeetingImportRequest(TimezoneValidatorMixin, BaseModel):
+    """Import a meeting from a file (owner request 2026-10-24)."""
+
+    audio_format: MeetingAudioFormat = Field(
+        description="The file's format: import_wav, import_mp3 or import_m4a."
+    )
+    size_bytes: int = Field(ge=1, description="The file's size; refused above the published cap.")
+    recorded_at: AwareDatetime = Field(
+        description="When the meeting began, with its offset — never in the future."
+    )
+    timezone: str = Field(min_length=1, max_length=64, description="IANA zone it was held in.")
+    language: str = Field(
+        default="auto",
+        pattern=LANGUAGE_PATTERN,
+        description="'auto' or an ISO-639-1 hint for the transcription.",
+    )
+    template_ref: str | None = Field(
+        default=None,
+        max_length=MEETINGS_TEMPLATE_REF_MAX,
+        pattern=TEMPLATE_REF_PATTERN,
+        description="Minutes template chosen for THIS meeting; null = preference, then automatic.",
+    )
+
+    @field_validator("audio_format")
+    @classmethod
+    def _file_format(cls, value: MeetingAudioFormat) -> MeetingAudioFormat:
+        if not is_import(value):
+            raise ValueError("an import carries a file format")
+        return value
+
+    @field_validator("recorded_at")
+    @classmethod
+    def _in_the_past(cls, value: datetime) -> datetime:
+        latest = datetime.now(UTC) + timedelta(seconds=MEETINGS_IMPORT_CLOCK_SKEW_SECONDS)
+        if value > latest:
+            raise ValueError("a meeting cannot have been recorded in the future")
+        return value
+
+
+class MeetingImportComplete(BaseModel):
+    """Every chunk is sent: hand the file to processing."""
+
+    chunk_count: int = Field(ge=1, description="Chunks the client sent, numbered from 0.")
+
 
 class MeetingStopRequest(BaseModel):
     """Stop the recording and hand the segments to processing."""
@@ -207,6 +265,24 @@ class MeetingStartResponse(BaseModel):
     started_at: datetime
     engine: EngineInfo
     limits: MeetingLimits
+
+
+class MeetingImportLimits(BaseModel):
+    """Every bound an import is held to, readable before a byte is sent (ADR-184)."""
+
+    max_bytes: int = Field(description="Largest file accepted.")
+    chunk_max_bytes: int = Field(description="Largest chunk one request may carry.")
+    max_duration_minutes: int = Field(description="Longest audio accepted (judged on the file).")
+
+
+class MeetingImportResponse(BaseModel):
+    """What the client needs to upload the file."""
+
+    id: uuid.UUID
+    status: MeetingStatus
+    started_at: datetime
+    engine: EngineInfo
+    limits: MeetingImportLimits
 
 
 class MeetingSegmentAck(BaseModel):

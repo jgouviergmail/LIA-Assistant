@@ -7,6 +7,13 @@ When the meeting ends, press **Stop** in the banner or where you started. LIA tr
 
 **💡 Good to know:** the feature exists only where the administrator has enabled it, the engine that will transcribe — with its price per hour of audio — is shown before you start, and the banner lets you pick the minutes format while the meeting runs.
 
+## Can I turn an existing recording into minutes?
+Yes. On the **Meetings** page, **Import** — or **Import a meeting recording** in the chat's **+** — takes a WAV, MP3 or M4A file: a phone's voice memo, a dictaphone's file, a recording made elsewhere. Before you choose, LIA shows the largest file and the longest recording this instance accepts; it dates the meeting when the file began (the file's date minus its length — correct it if needed, it dates the minutes) and lets you pick the minutes format and the spoken language, exactly as for a recording.
+
+The file then travels piece by piece under a progress bar; once every piece has arrived, the meeting's page opens on its progress and the minutes are written exactly as for a recording, with the same engine, the same price and the same card in the chat. The meeting is marked **Imported**.
+
+**💡 Good to know:** a file whose content is not the format its name claims is refused at once, a recording longer than the instance accepts is refused before any engine is paid, one import runs at a time, and an upload interrupted before its end — closed, cancelled, or silent for a while — leaves no meeting behind.
+
 ## What do the minutes contain, and who chooses their structure?
 The head of the minutes is fixed: date, start and end time in your time zone, duration, place when it is known, and the participants. The body follows a **format**: an ordered list of sections, each with a heading, an instruction for the assistant and a shape — a paragraph, a bullet list, one entry per topic, action items with owner and deadline, or the full transcript rewritten cleanly.
 

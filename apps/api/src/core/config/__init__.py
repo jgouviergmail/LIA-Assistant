@@ -394,8 +394,13 @@ class Settings(
             self.attachments_max_image_size_mb,
             self.rag_spaces_max_file_size_mb,
         )
-        # A Fish Audio clone sends its recordings in one body (ADR-345).
-        largest_upload = max(largest_upload_mb * 1024 * 1024, FISHAUDIO_CLONE_TOTAL_MAX_BYTES)
+        # A Fish Audio clone sends its recordings in one body (ADR-345); an
+        # imported meeting sends one chunk of its file per body (2026-10-24).
+        largest_upload = max(
+            largest_upload_mb * 1024 * 1024,
+            FISHAUDIO_CLONE_TOTAL_MAX_BYTES,
+            self.meetings_import_chunk_max_bytes,
+        )
         required = largest_upload + MULTIPART_ENVELOPE_OVERHEAD_BYTES
         if self.max_request_body_bytes < required:
             raise ValueError(

@@ -30,15 +30,20 @@ const mocks = vi.hoisted(() => ({
     data: [
       {
         id: '33333333-3333-4333-8333-333333333333',
+        peer_id: '44444444-aaaa-4aaa-8aaa-444444444444',
         status: 'accepted',
         peer_display_name: 'Alice',
       },
-    ],
+    ] as { id: string; peer_id: string; status: string; peer_display_name: string }[],
   },
+  publish: vi.fn(),
 }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner' } }) }));
 vi.mock('@/hooks/useApplicationAccountQuery', () => ({
   useApplicationAccountQuery: () => mocks.recipients,
+}));
+vi.mock('@/lib/application-resources', () => ({
+  publishApplicationResources: mocks.publish,
 }));
 vi.mock('@/lib/api-client', async importOriginal => {
   const original = await importOriginal<typeof import('@/lib/api-client')>();
@@ -72,7 +77,12 @@ beforeEach(() => {
   mocks.recipients.loading = false;
   mocks.recipients.error = null;
   mocks.recipients.data = [
-    { id: '33333333-3333-4333-8333-333333333333', status: 'accepted', peer_display_name: 'Alice' },
+    {
+      id: '33333333-3333-4333-8333-333333333333',
+      peer_id: '44444444-aaaa-4aaa-8aaa-444444444444',
+      status: 'accepted',
+      peer_display_name: 'Alice',
+    },
   ];
 });
 
@@ -103,6 +113,8 @@ it('requires an explicit recipient, previews the inventory, then sends the bound
   );
   expect(onClose).toHaveBeenCalledOnce();
   expect(toast.error).not.toHaveBeenCalled();
+  // The owner's own list is re-read: the card now lists Alice, and blocks her.
+  expect(mocks.publish).toHaveBeenCalledWith('owner', new Set(['skills']));
 });
 
 it('announces a refused send in a popup and keeps the dialog open to retry', async () => {
@@ -213,4 +225,51 @@ it('keeps the send control focused and prevents a second submit during a pending
   expect(mocks.post).toHaveBeenCalledTimes(2);
   settle?.(receipt({ status: 'partial' }));
   await screen.findByText('settings.capability_share.status.partial');
+});
+
+it('never offers a connection the capability was already shared with', () => {
+  mocks.recipients.data = [
+    ...mocks.recipients.data,
+    {
+      id: '66666666-6666-4666-8666-666666666666',
+      peer_id: '77777777-7777-4777-8777-777777777777',
+      status: 'accepted',
+      peer_display_name: 'Bob',
+    },
+  ];
+  renderWithProviders(
+    <CapabilityTransferDialog
+      source={{ ...source, blockedRecipientIds: ['44444444-aaaa-4aaa-8aaa-444444444444'] }}
+      onClose={vi.fn()}
+    />
+  );
+  expect(screen.queryByRole('radio', { name: 'Alice' })).not.toBeInTheDocument();
+  expect(screen.getByRole('radio', { name: 'Bob' })).toBeInTheDocument();
+});
+
+it('says so when every connection already received it, instead of claiming there is none', () => {
+  renderWithProviders(
+    <CapabilityTransferDialog
+      source={{ ...source, blockedRecipientIds: ['44444444-aaaa-4aaa-8aaa-444444444444'] }}
+      onClose={vi.fn()}
+    />
+  );
+  expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+  expect(screen.getByText('settings.capability_share.all_already_shared')).toBeInTheDocument();
+  expect(screen.queryByText(/^settings\.peers\.recipients\.no_connection/)).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'settings.capability_share.preview' })).toBeDisabled();
+});
+
+it('names the refusal when the server finds the share already given', async () => {
+  mocks.post.mockRejectedValueOnce(
+    new ApiError('Conflict', 409, { detail: 'peers_capability_already_shared' })
+  );
+  const user = userEvent.setup();
+  renderWithProviders(<CapabilityTransferDialog source={source} onClose={vi.fn()} />);
+  await user.click(screen.getByRole('radio', { name: 'Alice' }));
+  await user.click(screen.getByRole('button', { name: 'settings.capability_share.preview' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'settings.capability_share.errors.already_shared'
+  );
+  expect(mocks.publish).not.toHaveBeenCalled();
 });

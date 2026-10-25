@@ -49,6 +49,7 @@ import { skillLibraryAvailable } from '@/lib/skill-library/availability';
 import type { LibraryTab } from '@/lib/skill-library/dialog-state';
 import { usePlugins } from '@/hooks/usePlugins';
 import { useCapabilitySharing } from '@/hooks/useCapabilitySharing';
+import { blockedRecipients } from '@/lib/capability-sharing';
 import { CapabilitySharingDialog } from '@/components/peers/CapabilitySharingDialog';
 import { toast } from 'sonner';
 import type { Language } from '@/i18n/settings';
@@ -299,7 +300,13 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
   const sharingEnabled = sharing.enabled;
   const shareSkill = sharingEnabled
     ? (skill: Skill) => {
-        if (skill.skill_id) sharing.share({ kind: 'skill', id: skill.skill_id, name: skill.name });
+        if (skill.skill_id)
+          sharing.share({
+            kind: 'skill',
+            id: skill.skill_id,
+            name: skill.name,
+            blockedRecipientIds: blockedRecipients(skill.shared_with),
+          });
       }
     : undefined;
   const [libraryTab, setLibraryTab] = useState<LibraryTab | null>(null);

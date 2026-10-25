@@ -1014,7 +1014,7 @@ These rules close recurring bug classes identified by the 2026-07 full-codebase 
 - **HITL (Human-in-the-Loop)**: the approval types of `HitlInteractionType` (clarification, draft critique, entity disambiguation, tool confirmation, FOR_EACH confirmation, plus the plan approval and destructive confirm of the note below). Classified in `src/domains/agents/services/hitl_classifier.py`. **Several drafts in one turn are reviewed one at a time** (`nodes/draft_sequence.py`, ADR-288): only the members of a FOR_EACH the person approved this turn are confirmed as one lot. **A draft card and its result are described once and drawn per surface** (`drafts/card_spec.py`, `drafts/card_html.py`, ADR-289): the chat gets a `lia-card`, a ticket the Markdown. Note: the plan-approval level is currently auto-approved (`approval_gate_node` is a pass-through — tool-level HITL supersedes it) and the destructive-confirm level is emitted by no node (ADR-323); do not build on either without wiring it.
 - **Smart Services**: QueryAnalyzerService, SmartPlannerService, SmartCatalogueService use LRU caching and pattern learning to reduce LLM token usage.
 - **SSE Streaming**: Responses stream to the frontend via Server-Sent Events.
-- **Observability**: 634 Prometheus metrics defined in `src/infrastructure/observability/`. Langfuse for LLM tracing.
+- **Observability**: 635 Prometheus metrics defined in `src/infrastructure/observability/`. Langfuse for LLM tracing.
 - **LLM Factory**: `src/infrastructure/llm/factory.py` provides multi-provider LLM instantiation (OpenAI, Anthropic, Google, DeepSeek, Ollama). Provider adapters in `src/infrastructure/llm/providers/`.
 
 ## Good Practices

@@ -31,6 +31,7 @@ from src.core.session_dependencies import get_current_active_session
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.shared.capability_origins import capability_origins
+from src.domains.shared.capability_shares import capability_shares
 from src.domains.user_mcp.authorization import initiate_personal_mcp_authorization
 from src.domains.user_mcp.projection import owned_server_response
 from src.domains.user_mcp.projection import server_to_response as _server_to_response
@@ -129,6 +130,7 @@ async def list_servers(
     service = UserMCPServerService(db)
     servers = await service.list_servers(user.id)
     origins = await capability_origins(db, user.id, "mcp", (s.id for s in servers))
+    shares = await capability_shares(db, user.id, "mcp", (s.id for s in servers))
 
     logger.debug(
         "user_mcp_servers_listed",
@@ -137,7 +139,12 @@ async def list_servers(
     )
 
     return UserMCPServerListResponse(
-        servers=[_server_to_response(s, service, shared_origin=origins.get(s.id)) for s in servers],
+        servers=[
+            _server_to_response(
+                s, service, shared_origin=origins.get(s.id), shared_with=shares.get(s.id, ())
+            )
+            for s in servers
+        ],
         total=len(servers),
     )
 

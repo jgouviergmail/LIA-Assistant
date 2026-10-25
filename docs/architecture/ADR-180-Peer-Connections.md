@@ -78,3 +78,13 @@ bloqueur seul — un export ne révèle jamais qui vous a bloqué).
   minuscules (pattern open_loops), ce qui a permis d'ajouter `delivering` sans migration.
 - **HITL au niveau graphe pour l'envoi** : les sous-agents skills n'ont pas d'interrupts —
   le draft est la seule confirmation qui gate tous les contextes identiquement.
+
+## Amendement 2026-10-24 — désigner une connexion par son prénom
+
+Les outils qui désignent une connexion par son nom (agenda et tâches d'un pair,
+relais de message, assignation d'un ticket) acceptent désormais un prénom ou un
+nom partiel quand il désigne UNE connexion acceptée, et demandent laquelle
+sinon (règle commune `shared/name_resolution`, détaillée dans l'amendement du
+2026-10-24 de l'ADR-182). La découverte reste une recherche par nom complet
+exact : elle parcourt les comptes de l'instance, où un préfixe ou un prénom
+ouvrirait l'énumération que cet ADR refuse.

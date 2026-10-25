@@ -93,3 +93,25 @@ so every Chinese reader got the English hint — they now come from
   is relevant » where the person asked « read this ».
 - **A new `AttachmentOrigin`**: the copy IS what the person put in; a new
   origin would have escaped the reset's `upload` filter for no reason.
+
+## Amendment 2026-10-24 — a kept answer and a generated file come back the same way
+
+**Owner request.** Bring back into the current discussion what LIA already gave:
+a bookmark, a generated image or document.
+
+**Decision.** Two more doors, the same shape: `POST /attachments/from-bookmark`
+attaches a kept answer as the Markdown its knowledge document reads
+(`render_bookmark`, ADR-291), whatever its projection state; `POST
+/attachments/from-generated` copies a live generated file of the caller (kept, or
+before its deadline — ADR-319), an image as an image within the upload's bounds, a
+document with its text. Every copy is an `upload`; the three doors share ONE copy
+store (`attachments/copy_store.py`: the fresh name, the disk work off the loop, the
+commit that withdraws an orphan file). The composer's « + » offers them through ONE
+picker (`AttachSourcePickerDialog`), the knowledge picker now one of its sources; and
+« Use in the discussion » on the bookmarks and gallery pages is a plain link to the
+chat's `?attach=<kind>:<id>`, consumed once (dropped from the address on arrival,
+like `?draft=`): a replay can only attach another copy, never send. The « + » stays a
+single click where no other source is on. Not measured yet: whether the ReAct loop,
+which sees an attachment's hint and not its text (above), misses a kept answer's
+text on a follow-up needing tools.
+

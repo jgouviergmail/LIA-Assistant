@@ -220,7 +220,8 @@ message from you »; a request is NOTED, not refused). The 409
   first request of the next call for its answer — the chat's own rule
   (ADR-276 lot 7), the same on the browser; the closing card of a delegated
   session is written before the learning pass spends, so its cost excludes
-  that pass while the listing includes it.
+  that pass while the listing includes it (closed on 2026-10-24, amendment
+  below).
 
 ## Proofs
 
@@ -228,3 +229,24 @@ message from you »; a request is NOTED, not refused). The 409
 owner constraint), the e2e `chat-live-session.spec.ts` on the standalone
 bundle, the PostgreSQL and Redis integration tests, the unit suites of every
 module named here. See the spec for the measured timelines.
+
+## Amendment 2026-10-24 — a rewritten card is said, and the delegated card follows its learning
+
+Two defects of the closing card, found on 2026-10-24.
+
+- **A rewritten card was silent.** `voice_sessions/summary.rewrite_session_card`
+  flushed the new content and armed no ADR-320 signal, so an open tab kept the
+  « scheduled » card of a direct session until it was reloaded, although its
+  merge knows how to take a rewritten row under the same id. The rewrite now
+  arms the update signal; it leaves once the caller commits (PostgreSQL
+  integration test).
+- **The delegated card stopped before its learning.** The known limit written
+  above (« the closing card of a delegated session is written before the
+  learning pass spends ») is closed: the learning hands an `after` step that runs
+  once its tracker persisted — even on a failed pass, which persists what it
+  spent — and `restate_card_bill` redraws the card on a short session of its own,
+  only when the bill GREW, every figure the closing settled kept. The bill is ONE
+  formula (`_session_bill`: the delegated turns plus the session's own run),
+  read by the closing, the direct relay's rewrite and the restatement. The
+  delegated turns' own extractions need nothing of the kind: a chat turn awaits
+  them before it ends (`await_run_id_tasks`).

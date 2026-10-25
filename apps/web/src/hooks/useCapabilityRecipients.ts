@@ -7,6 +7,8 @@ const recipientsSchema = z.array(
   z
     .object({
       id: z.string().uuid(),
+      // The peer's account: what a share is recorded against (never offered twice).
+      peer_id: z.string().uuid(),
       status: z.enum(['pending', 'accepted']),
       peer_display_name: z.string(),
     })

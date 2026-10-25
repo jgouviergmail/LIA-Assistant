@@ -686,6 +686,63 @@ function BackstageScene({ active }: SceneProps) {
   );
 }
 
+type CountPhase = 'running' | 'counted' | 'failed';
+const COUNT_STEPS: readonly TimelineStep<CountPhase>[] = [
+  { at: 0, state: 'running' },
+  { at: 1200, state: 'counted' },
+  { at: 2200, state: 'failed' },
+];
+
+/** A count drawn as a mark: the scene shows the shape of the line, never a figure. */
+function CountMark() {
+  return <span className="inline-block h-1.5 w-2 rounded-sm bg-primary/60" aria-hidden="true" />;
+}
+
+/**
+ * Each step of an answer settles on what it did: the results found and read,
+ * and a failure named on the line where it happened.
+ */
+function StepCountsScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(COUNT_STEPS, { active });
+  const counted = phase !== 'running';
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center gap-1.5')}>
+      <MiniBubble side="assistant" className="w-3/4 space-y-1.5">
+        <SkeletonLine w="w-full" />
+      </MiniBubble>
+      <div className="space-y-1 self-start pl-2 text-px-9 text-muted-foreground">
+        <div className="flex items-center gap-1.5">
+          <Mail className="h-3 w-3 shrink-0" aria-hidden="true" />
+          <SkeletonLine w="w-14" />
+          <span
+            className={cn(
+              'flex items-center gap-1 transition-opacity duration-300 motion-reduce:transition-none',
+              counted ? 'opacity-100' : 'opacity-0'
+            )}
+          >
+            <CountMark />
+            {labels.found}
+            <CountMark />
+            {labels.read}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Search className="h-3 w-3 shrink-0" aria-hidden="true" />
+          <SkeletonLine w="w-12" />
+          <span
+            className={cn(
+              'rounded-full border border-destructive/40 px-1 text-destructive transition-opacity duration-300 motion-reduce:transition-none',
+              phase === 'failed' ? 'opacity-100' : 'opacity-0'
+            )}
+          >
+            {labels.failed}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type SelectPhase = 'bubble' | 'selected' | 'bar' | 'picked';
 const SELECT_STEPS: readonly TimelineStep<SelectPhase>[] = [
   { at: 0, state: 'bubble' },
@@ -1351,4 +1408,5 @@ export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
   skill_proposal: SkillProposalScene,
   backstage: BackstageScene,
   peer_actions: PeerActionsScene,
+  step_counts: StepCountsScene,
 };

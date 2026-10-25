@@ -127,6 +127,15 @@ for (const sample of samples) {
     const [copyBox, usefulBox] = [await copy.boundingBox(), await useful.boundingBox()];
     expect(usefulBox!.height).toBeCloseTo(copyBox!.height, 0);
     expect(usefulBox!.width).toBeCloseTo(copyBox!.width, 0);
+    // At the RIGHT end of the bubble's actions (owner decision 2026-10-24): the
+    // answers end where the row ends, on Copy's line when the row has room.
+    const group = useful.locator('xpath=..');
+    const [groupBox, rowBox] = [
+      await group.boundingBox(),
+      await group.locator('xpath=..').boundingBox(),
+    ];
+    expect(Math.abs(groupBox!.x + groupBox!.width - (rowBox!.x + rowBox!.width))).toBeLessThan(2);
+    if (sample.width >= 1024) expect(Math.abs(usefulBox!.y - copyBox!.y)).toBeLessThan(2);
     // A shade deeper, never a different family: darker than Copy, by a little.
     const [classic, deeper] = [
       await groundLuminance(page, copy),

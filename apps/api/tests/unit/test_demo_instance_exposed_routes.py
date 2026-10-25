@@ -90,6 +90,10 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         # The second door that puts a file in (ADR-295): forwarded like the
         # upload, refused by BOTH its guards here (attachments and spaces off).
         "POST /api/v1/attachments/from-knowledge-document",
+        # The doors that copy a kept answer or a generated file in (2026-10-24):
+        # forwarded like the upload, refused by its attachments guard here.
+        "POST /api/v1/attachments/from-bookmark",
+        "POST /api/v1/attachments/from-generated",
         "GET /api/v1/agents/health",
         "GET /api/v1/agents/hitl/pending",
         "GET /api/v1/agents/runs/active",
@@ -291,10 +295,14 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "PUT /api/v1/relations/overview-scope",
         "GET /api/v1/relations/{name}",
         "GET /api/v1/relations/{name}/context",
+        # The relationship timeline (2026-10-24): the visitor's OWN records,
+        # read-only, the card's sources merged by date — no provider, no model.
+        "GET /api/v1/relations/{name}/timeline",
         # Query aliases use the same owned handlers, session and quotas as the
         # existing person routes; SMS remains disabled by the demo template.
         "GET /api/v1/relations/lookup/person",
         "GET /api/v1/relations/lookup/person/context",
+        "GET /api/v1/relations/lookup/person/timeline",
         "GET /api/v1/relations/lookup/person/debrief",
         "POST /api/v1/relations/lookup/person/debrief",
         # The relationship debrief: a visitor reaches their OWN, over their own

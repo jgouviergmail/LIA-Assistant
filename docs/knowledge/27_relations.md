@@ -45,6 +45,8 @@ Before, a question about a call could produce a plan to **phone her and ask**: t
 
 The total count is always exact, next to the page shown.
 
+A first name is enough when it designates **one** person of your Relations — the same people as on the page, merged cards included. When several people match, LIA asks which one you mean; when nobody on record carries the name, it says so rather than answering with an empty list.
+
 ## Can I act on a commitment from a person's card?
 
 Yes. A relationship's card lists the open commitments with that person — what
@@ -77,6 +79,26 @@ when it happened; an upcoming meeting reads "in 3 d" rather than a past it does
 not have. A call, a message, an SMS or an email opens on its direction: **Sent**
 in blue (every call LIA placed), **Received** in green (every SMS your phone
 relayed). The address-book details carry no line between them.
+
+## What is the timeline on a relationship card?
+The **Timeline** section puts everything dated with the person on one line,
+newest first: open commitments, calls, memories, relayed messages and text
+messages, plus the emails and the meetings the card has already read. Meetings
+still to come lead under **Upcoming**; after them every day has its own
+heading, and each row is worded exactly as in its own section.
+
+It is folded like every section and reads nothing until you open it. It then
+loads one page — the same size as a section's — and **Older** loads the next,
+until nothing is left. A record arriving while you read never makes a row
+repeat or disappear: each page starts right after the last row shown, never at
+a numbered offset.
+
+The number on its title counts every row it holds: the card's own sections
+added up, plus those emails and meetings. Emails and meetings come from the
+period their own sections search — the note under the list recalls it — and an
+email older than what the pages have reached yet waits until they reach it, so
+the line is never out of order. Closed commitments are not on it, as they are
+not on the card.
 
 ## Can I act on what a relationship card shows me?
 Yes, in four ways:

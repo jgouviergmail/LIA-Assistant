@@ -60,6 +60,7 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 
+import { dropSearchParams } from '@/lib/chat-deep-link';
 import { isIntentConsumed, markIntentConsumed } from '@/lib/intent-replay-guard';
 import type { CapabilityDirectiveWire } from '@/types/directive';
 
@@ -126,29 +127,9 @@ export interface DeepLinkParams {
 export function useDeepLinkParams(saveDraft: (text: string) => void): DeepLinkParams {
   const searchParams = useSearchParams();
 
-  /**
-   * Rewrite the URL without the named params (no-op when none are present).
-   *
-   * `window.history.replaceState`, NOT `router.replace`: the App Router
-   * restores the search params of the entry it already holds for a route, so a
-   * replace that only removes params is swallowed — measured, and the same
-   * mechanism that made a second deep link leave with the first one's URL
-   * (ADR-192). The History API is the officially supported way to update the
-   * query without a navigation, and Next syncs `useSearchParams` with it, so
-   * the latch below still re-arms exactly as before.
-   *
-   * It reads `window.location`, not `usePathname()`/`useSearchParams()`: the
-   * address bar is what a RELOAD will re-execute, so it is the only source of
-   * truth that matters here — and it needs no locale reconstruction.
-   */
-  const drop = useCallback((names: readonly string[]) => {
-    const current = new URLSearchParams(window.location.search);
-    if (!names.some(name => current.has(name))) return;
-    names.forEach(name => current.delete(name));
-    const query = current.toString();
-    const { pathname: livePath } = window.location;
-    window.history.replaceState(null, '', query ? `${livePath}?${query}` : livePath);
-  }, []);
+  // The History API, never `router.replace` (`dropSearchParams`, ADR-192):
+  // Next syncs `useSearchParams` with it, so the latch below re-arms as before.
+  const drop = dropSearchParams;
 
   // Rule 4 (ADR-210): an iid already in the consumed ledger marks this URL as
   // a RESURRECTION (omnibox, session restore, router bookkeeping), not a

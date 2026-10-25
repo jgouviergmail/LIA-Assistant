@@ -77,6 +77,7 @@ import {
   SectionRows,
 } from '@/components/relations/CollapsibleSection';
 import { RelationDebriefSection } from '@/components/relations/RelationDebriefSection';
+import { RelationTimelineSection } from '@/components/relations/RelationTimelineSection';
 import { RelationMergePanel } from '@/components/relations/RelationMergePanel';
 import { RelationScopeSection, useScopeDraft } from '@/components/relations/RelationScopeSection';
 import { RelationWhen } from '@/components/relations/RelationWhen';
@@ -765,6 +766,7 @@ function RelationHeader({
  * under the frontend complexity ratchet.
  */
 function RelationSections({
+  name,
   detail,
   context,
   refreshing,
@@ -776,6 +778,8 @@ function RelationSections({
   onPrepare,
   onCommitmentChanged,
 }: {
+  /** The name the card was opened with — what every read of it names. */
+  name: string;
   detail: RelationDetail;
   context: RelationContext | null;
   /** Sections being re-read right now — only THEIR control spins. */
@@ -798,6 +802,9 @@ function RelationSections({
         onChange={onScopeChange}
         onPrepare={onPrepare}
       />
+      {/* Every dated record on one line of time, full width under the scope
+          (owner request 2026-10-24): folded, it reads nothing. */}
+      <RelationTimelineSection name={name} detail={detail} context={context} lng={lng} />
       {/* Two columns from `lg`, one below — and the ORDER carries meaning.
           LEFT is the person: who they are (address book), then what the two of
           you owe each other, then what LIA remembers, then the exchanges.
@@ -1038,6 +1045,7 @@ export function RelationDetailPanel({
       <QuickActions detail={detail} card={contactCardOf(context)} lng={lng} />
 
       <RelationSections
+        name={name}
         detail={detail}
         context={context}
         onCommitmentChanged={() => void Promise.resolve(refetch())}

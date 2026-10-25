@@ -17,6 +17,11 @@ from pydantic_settings import BaseSettings
 from src.core.constants import (
     MEETINGS_AUDIO_RETENTION_HOURS_MAX_DEFAULT,
     MEETINGS_ENABLED_DEFAULT,
+    MEETINGS_IMPORT_CHUNK_MAX_MB_DEFAULT,
+    MEETINGS_IMPORT_ENABLED_DEFAULT,
+    MEETINGS_IMPORT_MAX_MB_CEILING,
+    MEETINGS_IMPORT_MAX_MB_DEFAULT,
+    MEETINGS_IMPORT_STALE_MINUTES_DEFAULT,
     MEETINGS_JOB_HEARTBEAT_INTERVAL_SECONDS_DEFAULT,
     MEETINGS_JOB_LEASE_TTL_SECONDS_DEFAULT,
     MEETINGS_JOB_MAX_ATTEMPTS_DEFAULT,
@@ -189,6 +194,42 @@ class MeetingsSettings(BaseSettings):
         description="Window of the start rate limit, in seconds.",
     )
 
+    meetings_import_enabled: bool = Field(
+        default=MEETINGS_IMPORT_ENABLED_DEFAULT,
+        description=(
+            "Importing a meeting from a WAV, MP3 or M4A file: uploaded in chunks, "
+            "then transcribed and summarised like a recording. Off = the action "
+            "is offered nowhere and the import routes refuse."
+        ),
+    )
+
+    meetings_import_max_mb: int = Field(
+        default=MEETINGS_IMPORT_MAX_MB_DEFAULT,
+        ge=1,
+        le=MEETINGS_IMPORT_MAX_MB_CEILING,
+        description="Largest file an import may carry, in MB (published to the client).",
+    )
+
+    meetings_import_chunk_max_mb: int = Field(
+        default=MEETINGS_IMPORT_CHUNK_MAX_MB_DEFAULT,
+        ge=1,
+        le=64,
+        description=(
+            "Largest chunk of an imported file one request carries, in MB — under "
+            "MAX_REQUEST_BODY_BYTES (checked at boot) and published to the client."
+        ),
+    )
+
+    meetings_import_stale_minutes: int = Field(
+        default=MEETINGS_IMPORT_STALE_MINUTES_DEFAULT,
+        ge=1,
+        le=240,
+        description=(
+            "An import that received no chunk for this long is abandoned: marked "
+            "failed (import_incomplete) and its chunks deleted."
+        ),
+    )
+
     meetings_template_auto_select_enabled: bool = Field(
         default=MEETINGS_TEMPLATE_AUTO_SELECT_ENABLED_DEFAULT,
         description=(
@@ -227,6 +268,16 @@ class MeetingsSettings(BaseSettings):
         """
         return int(STT_BYTES_PER_SECOND_AT_16KHZ_INT16 * self.meetings_segment_max_seconds * 1.05)
 
+    @property
+    def meetings_import_max_bytes(self) -> int:
+        """Largest imported file, in bytes."""
+        return self.meetings_import_max_mb * 1024 * 1024
+
+    @property
+    def meetings_import_chunk_max_bytes(self) -> int:
+        """Largest chunk of an imported file, in bytes."""
+        return self.meetings_import_chunk_max_mb * 1024 * 1024
+
     @model_validator(mode="after")
     def _validate_bounds(self) -> MeetingsSettings:
         """Refuse configurations that would silently break the durability contract."""
@@ -241,5 +292,10 @@ class MeetingsSettings(BaseSettings):
             raise ValueError(
                 "meetings_segment_max_seconds must be >= meetings_segment_seconds "
                 f"(got {self.meetings_segment_max_seconds} < {self.meetings_segment_seconds})"
+            )
+        if self.meetings_import_chunk_max_mb > self.meetings_import_max_mb:
+            raise ValueError(
+                "meetings_import_chunk_max_mb must be <= meetings_import_max_mb "
+                f"(got {self.meetings_import_chunk_max_mb} > {self.meetings_import_max_mb})"
             )
         return self

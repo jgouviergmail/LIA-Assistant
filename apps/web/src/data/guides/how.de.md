@@ -6,7 +6,7 @@
 
 **Version**: 5.6
 **Datum**: 2026-10-23
-**Application**: LIA v3.6.0
+**Application**: LIA v3.7.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -72,7 +72,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Self-Hosting ARM64 | Docker Multi-Arch, semantische Embeddings (mehrsprachig), Playwright Chromium Cross-Platform |
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), mit Fernet verschlüsselte Zugangsdaten, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
-| Vollständige Transparenz | 634 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
+| Vollständige Transparenz | 635 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
 | Produktionszuverlässigkeit | 362 ADRs, über 67.000 automatisierte Tests in Backend und Frontend, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
@@ -95,7 +95,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | pytest-Fixtures | 1.391, davon 58 über conftest geteilt |
 | Dokumentationsdokumente | 835 |
 | ADRs (Architecture Decision Records) | 362 |
-| Prometheus-Metriken | 634 Definitionen |
+| Prometheus-Metriken | 635 Definitionen |
 | Grafana-Dashboards | 32 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -1167,7 +1167,7 @@ Inhalte Dritter reisen in einer Hülle, von der das Modell weiß, dass es ihr ni
 
 | Technologie | Rolle |
 |-------------|------|
-| Prometheus | 634 benutzerdefinierte Metriken (RED Pattern) |
+| Prometheus | 635 benutzerdefinierte Metriken (RED Pattern) |
 | Grafana | 32 produktionsreife Dashboards |
 | Loki | Aggregierte strukturierte JSON-Logs, von Grafana Alloy gesammelt (dieselbe Maskierung bei der Erfassung) |
 | Tempo | Verteiltes Cross-Service-Tracing (OTLP gRPC), nach der Routenvorlage benannt |
@@ -1175,7 +1175,7 @@ Inhalte Dritter reisen in einer Hülle, von der das Modell weiß, dass es ihr ni
 | Alertmanager | Kern vitaler Alerts per E-Mail (verknüpfte Runbooks, Schwellenwerte je Umgebung) + Webhook zu LIA: jeder Alarm wird zum Vorfall im Produkt (ADR-247) |
 | structlog | Strukturiertes Logging mit PII-Filterung |
 
-**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 634 definiert; die Metriken, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Ohne diesen Wächter kann eine offen ausfallende Heartbeat-Quelle tagelang einen Teil der Gesundheitssignale verwerfen, ohne dass eine Metrik es bemerkt (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
+**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 635 definiert; die Metriken, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Ohne diesen Wächter kann eine offen ausfallende Heartbeat-Quelle tagelang einen Teil der Gesundheitssignale verwerfen, ohne dass eine Metrik es bemerkt (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
 
 ### 20.2. Eingebettetes Debug-Panel
 
@@ -1324,7 +1324,7 @@ Das Lock sagt, was installiert ist; bleibt zu entscheiden, **wann eine Version h
 
 ### 22.4. Das Audit ist öffentlich — und reproduzierbar
 
-Das in diesem Guide beschriebene Qualitätsniveau ist nicht selbst deklariert: ein vollständiges technisches 360°-Audit — **7,8/10 über 24 normalisierte Bereiche** des ISO/IEC-25010-Rasters, offene Befunde inklusive — ist im Repository veröffentlicht ([vollständiger Bericht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), zusammen mit dem [Audit-Protokoll](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md), das jeden Zyklus reproduzierbar macht: gepinnter Commit, Nachweisanforderungen pro Bereich, verankerte Bewertung und ein versioniertes Skript, das Größe in logischen SLOC misst. Der Bericht endet mit den exakten Befehlen, um die Messungen selbst zu reproduzieren. Jeder Befund, den die Berichte nennen, steht in einem maschinenlesbaren Register, das bei jedem Dokumentations-Build geprüft wird: Eine Schließung oder Behebung trägt ihren Nachweis, und eine Version wird verweigert, solange ein vorrangiger Befund seine Frist überschritten hat.
+Das in diesem Guide beschriebene Qualitätsniveau ist nicht selbst deklariert: ein vollständiges technisches 360°-Audit — **7,9/10 über 24 normalisierte Bereiche** des ISO/IEC-25010-Rasters, offene Befunde inklusive — ist im Repository veröffentlicht ([vollständiger Bericht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), zusammen mit dem [Audit-Protokoll](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md), das jeden Zyklus reproduzierbar macht: gepinnter Commit, Nachweisanforderungen pro Bereich, verankerte Bewertung und ein versioniertes Skript, das Größe in logischen SLOC misst. Der Bericht endet mit den exakten Befehlen, um die Messungen selbst zu reproduzieren. Jeder Befund, den die Berichte nennen, steht in einem maschinenlesbaren Register, das bei jedem Dokumentations-Build geprüft wird: Eine Schließung oder Behebung trägt ihren Nachweis, und eine Version wird verweigert, solange ein vorrangiger Befund seine Frist überschritten hat.
 
 ### 22.5. Eine Wache taugt nur so viel wie das, was sie misst
 
@@ -1897,6 +1897,8 @@ Das Gesicht des Begleiters wählt seinen Ausdruck am Ende eines Zuges nicht aus 
 
 **Das Protokollformat wurde zu einer Bibliothek, und die Wahl hat einen einzigen Ort.** Dreißig integrierte Vorlagen leben im Code, ihre Wörter in einem i18n-Datenmodul, und eine Zusicherung beim Start verweigert den Bootvorgang, wenn ein Name in einer der sechs Sprachen fehlt: Was ein Validator ablehnen kann, darf der Katalog nicht ausliefern. Eine Vorlage wird durch eine Referenz benannt — `builtin:<Schlüssel>` oder `user:<uuid>` —, die Besprechungen, Einstellungen und Anfragen anstelle einer Zeile austauschen, sodass eine integrierte Vorlage keine Datenbankzeile braucht und eine gelöschte Vorlage eine Referenz hinterlässt, deren Leser auf den gespeicherten Schnappschuss zurückfallen. Die Wahl folgt **einer Rangfolge**: die von der Besprechung getragene Referenz, dann der Standard der Einstellung, dann das Sprachmodell, das einen Transkriptauszug liest und oberhalb einer Vertrauensschwelle wählt, dann die integrierte Standardvorlage; jedes Ergebnis wird gezählt und mit der genannten Begründung auf die Zeile geschrieben, sodass die Seite eine Tatsache zeigt und keine Rekonstruktion. Eine fünfte Abschnittsart gibt das Transkript selbst zurück: Es passt nicht in eine Antwort — der Synthese-Slot gibt höchstens achttausend Token aus —, also wird es Teil für Teil neu geschrieben, jeder durch das effektive Ausgabefenster begrenzt, wobei ein fehlender Index den Teil einmal aufspaltet und eine verdächtig kurze Antwort einmal wiederholt wird. Ein bereits geschriebenes Protokoll neu zu schreiben nutzt beim Ersetzen die dauerhafte Regeneration und legt beim neuen Protokoll eine abgeleitete Zeile an, die auf ihre Quelle zeigt — nie eine Kopie: Das Transkript ist dasselbe, das Protokoll nicht. Dieselbe Sorge um die Reihenfolge regiert die Dokumente der Wissensbereiche: Da `rag_chunks.space_id` denormalisiert ist und von der Suche gelesen wird, schreibt ein Verschieben die Zeile und ihre Abschnitte, committet, **dann** verschiebt es die Datei; ein fehlgeschlagenes Umbenennen macht beides rückgängig und meldet es nur für dieses Dokument, und ein Stapel hält nie für ein Element an — jede Kennung kommt erledigt oder übersprungen mit ihrem Code zurück.
 
+**Eine Aufnahme, die man schon hat, kommt durch dieselbe Tür.** Eine WAV-, MP3- oder M4A-Datei wird zu einer Besprechung auf derselben dauerhaften Zeile: `uploading`, eine pro Konto — ein Teilindex sagt es, keine Konvention —, ihre Stücke gesendet unter Grenzen, die der Server vor dem ersten Byte veröffentlicht, jede Stücknummer begrenzt, damit eine gefälschte Nummer den Abschluss nicht eine Milliarde Lücken aufzählen lässt. Die Datei ist eine nicht vertrauenswürdige Eingabe: Ihre ersten Bytes müssen das angegebene Format sein, ffmpeg liest sie allein über den Demuxer dieses Formats, nur aus lokalen Dateien und ohne je einer QuickTime-Referenz zu folgen, und ihre Länge wird gemessen — und über der Obergrenze abgelehnt —, bevor irgendeine Engine bezahlt wird.
+
 ## 39. Drei Register, und das, um das niemand gebeten hatte
 
 **Ein Assistent, der handelt, muss sagen können, was er getan, was er gelesen hat und in welchem Zug.** Drei Register beantworten das und werden nie vermischt: Das erste nimmt eine Zeile je **Aktion**, vor ihrer Ausführung beansprucht und nur aus einem ausdrücklichen Ergebnis geschlossen; das zweite eine Zeile je **Einsichtnahme**, benannt als Fähigkeit und nie als Suchinhalt; das dritte eine Zeile je **Zug**, das Rückgrat, an dem die beiden anderen hängen. Ihre Summen addieren sich nicht, und das ist gewollt: Ein Zug kann fünf Quellen einsehen und gar nichts verändern.
@@ -1922,6 +1924,10 @@ Das Gesicht des Begleiters wählt seinen Ausdruck am Ende eines Zuges nicht aus 
 **Nichts wird erfunden, und ein Fehlschlag zerstört nichts.** Kein Befund schließt auf *leer*, ohne das Modell zu rufen, und eine gescheiterte Aktualisierung **behält den vorherigen Text** unter einer Zeile, die es sagt: Eine brauchbare Zusammenfassung durch ein leeres Feld zu ersetzen, macht aus „ich konnte nicht aktualisieren“ ein „es gibt nichts“. Der Anspruch ist eine einzige SQL-Anweisung, und jeder Abschluss schreibt nur seine eigenen Spalten — bereit, leer, gescheitert —, weil ein einziger Abschluss den Rumpf beim ersten Fehlschlag überschreiben würde. Was das Schreiben gekostet hat, wird mit ihr gespeichert und darunter gezeigt; da null Kosten eine Behauptung sind, zeigt eine stumme Zeile nichts statt „0,00 €“.
 
 **Im Chat tritt das Debriefing neben den Peer-Block — mit der umgekehrten Anweisung.** Der Peer-Block nennt exakte Fakten, weil er sie im Zug selbst liest; derselbe Satz über einer datierten Zusammenfassung wäre eine Maschine für falsche Behauptungen. Die Vorlage sagt daher, dass sie datiert ist, trägt ihr **Alter** und nicht nur ihr Datum, und verweist jede Zahl, jede Anzahl und jeden Status an die Werkzeuge. Eine mehrdeutige Namensübereinstimmung fügt **nichts** ein: Das Verzeichnis enthält jede je geöffnete Beziehung, Firmennamen und Rufnummern eingeschlossen, und ein Fehltreffer gäbe die Akte einer Person auf eine Frage nach einer anderen heraus.
+
+**Ein Name wird aufgelöst, nie erraten.** Man sagt „Marie“, selten den ganzen Namen. Eine einzige Regel entscheidet, was ein gesprochener Name in einem beliebigen Verzeichnis bezeichnet — zuerst der normalisierte volle Name, dann jedes gesagte Wort als ganzes Wort des Namens, nie ein Fragment oder ein Editierabstand —, und mehrere Identitäten auf der entscheidenden Stufe sind eine zu stellende Frage, nie eine Wahl nach Reihenfolge. Ein Peer-Werkzeug liest nur die angenommenen Verbindungen; die Beziehungsliste zieht nur ab und macht aus einer Teilübereinstimmung eine Frage, wenn auch jemand anderes darauf passt.
+
+**Ein Faden, fünf Quellen, ein Cursor.** Die Zeitleiste der Karte führt Zusagen, Anrufe, Erinnerungen, weitergeleitete Nachrichten und SMS zusammen, das Neueste zuerst. Jede Quelle wird um eine Seite strikt nach dem zuletzt gelieferten Eintrag gebeten — ein Keyset auf (Zeitpunkt, Art, Kennung), nie ein Offset —, sodass ein Eintrag, der zwischen zwei Seiten ankommt, weder wiederholt noch verloren wird und eine Seite fünf Lesezugriffe kostet, wie tief sie auch liegt.
 
 ## 41. Das Ticket-Board: eine Zeile, zwei Seiten und eine Assistentin, die fragt
 
@@ -2025,4 +2031,4 @@ Die 362 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auc
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (800+ Dokumente), der 362 ADRs und des Changelogs (v1.0 bis v3.6.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (800+ Dokumente), der 362 ADRs und des Changelogs (v1.0 bis v3.7.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

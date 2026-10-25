@@ -4,7 +4,7 @@
 
 **Version** : 2.6
 **Date** : 2026-10-23
-**Application** : LIA v3.6.0
+**Application** : LIA v3.7.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -13,7 +13,7 @@
 
 LIA est un assistant IA multi-agents complet — connecteurs métier, voix, mémoire, connexions entre utilisateurs, six langues — conçu, développé et exploité en production en continu, en projet personnel.
 
-La quasi-totalité du code a été écrite par une IA, sous direction humaine : référentiel d'ingénierie écrit, contrôles automatiques bloquants, revue systématique, audits récurrents. Le résultat est mesuré : **7,8/10** à l'audit technique sur 24 périmètres. Le dépôt est open-source ; les conclusions de l'audit — points forts comme faiblesses — sont assumées et résumées dans ce document.
+La quasi-totalité du code a été écrite par une IA, sous direction humaine : référentiel d'ingénierie écrit, contrôles automatiques bloquants, revue systématique, audits récurrents. Le résultat est mesuré : **7,9/10** à l'audit technique sur 24 périmètres. Le dépôt est open-source ; les conclusions de l'audit — points forts comme faiblesses — sont assumées et résumées dans ce document.
 
 | Indicateur | Valeur |
 | --- | --- |
@@ -21,9 +21,9 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Lignes de source (hors tests) — 58 domaines fonctionnels | **1 003 000+** |
 | Tests automatisés inventoriés ; suites adaptées au commit et à la livraison | **67 000+** |
 | Décisions d'architecture documentées (ADR) | **362** |
-| Versions livrées à rythme régulier | **288** |
+| Versions livrées à rythme régulier | **289** |
 | Langues, parité vérifiée automatiquement | **6** |
-| Audit technique sur 24 périmètres | **7,8/10** |
+| Audit technique sur 24 périmètres | **7,9/10** |
 
 Conviction d'expérience : le développement assisté par IA est industrialisable dès aujourd'hui. Le facteur limitant n'est pas l'outil — c'est le cadre de direction qu'on lui donne.
 
@@ -96,28 +96,30 @@ Une présence visible doit rester un choix maîtrisé : l’avatar Simli expéri
 
 ## 6. La preuve
 
-Le niveau annoncé dans ce document résulte d'un audit technique complet : 24 périmètres notés, chaque constat vérifié dans le code et contre-vérifié pour éliminer les faux positifs. L'audit applique la méthode du projet lui-même — conduit avec l'outillage IA, en posture contradictoire, chaque conclusion ancrée dans une preuve vérifiée sur pièces. Évaluation d'octobre 2026 : **7,8/10**, après une contre-expertise qui a réexaminé la première lecture point par point (8,0 d'abord, 7,3 en août), avec un profil assumé. Le rapport complet — grille de notation, méthode, constats ouverts et protocole de reproduction — est public : [rapport d'audit complet](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
+Le niveau annoncé dans ce document résulte d'un audit technique complet : 24 périmètres notés, chaque constat vérifié dans le code et contre-vérifié pour éliminer les faux positifs. L'audit applique la méthode du projet lui-même — conduit avec l'outillage IA, en posture contradictoire, chaque conclusion ancrée dans une preuve vérifiée sur pièces. Dernière évaluation, le 25 octobre 2026 : **7,9/10** sur la version 3.6.0 commitée — après 7,3 en août, puis 8,0 et une contre-expertise à 7,8 le 22 octobre —, avec un profil assumé. Le rapport complet — grille de notation, méthode, constats ouverts et protocole de reproduction — est public : [rapport d'audit complet](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
 
 **Points forts confirmés :**
 
-- Configuration et dépendances reproductibles : verrous consommés par les builds de production, modèles téléchargés contre leurs empreintes.
+- Configuration et dépendances reproductibles : verrous consommés par les builds de production, image de l'API reconstruite à l'identique depuis le commit audité.
 - Contrats partagés et registres déclaratifs : ajouter un agent, un outil ou une langue suit des chemins documentés, et les surfaces de version sont générées.
 - Une documentation tenue vraie par des contrôles : décisions, cartes et chiffres cités sont vérifiés contre leurs sources à chaque changement.
 - Une livraison qui exécute ce qu'exécute un développeur : une CI mince sur les mêmes tâches, installation et livraison testées en vase clos, migrations rejouées depuis une base vide.
 
-**Remédié depuis l'audit — en attente de la vérification du prochain audit :**
+**Remédié après l'audit précédent — et constaté par celui-ci :**
 
 - Des notifications qui disent vrai : une notification — d'appel, de message entre connexions, d'incident — ne compte comme livrée que sur un succès explicite et durable.
-- Des attentes bornées : la base coupe une attente de verrou ou une transaction inactive avant qu'elle puisse geler un compte, et un rafraîchissement de jeton n'appartient qu'à un seul worker à la fois.
+- Des attentes bornées : la base coupe une attente de verrou ou une transaction inactive avant qu'elle puisse geler un compte.
 - Une boucle qui se ferme : chaque constat est suivi dans un registre public avec son âge, son échéance et sa preuve, et le plancher de couverture backend tient sur les suites unitaires et d'intégration réunies.
 - Alertes : chaque combinaison de canaux de notification annoncée est composée et testée, routage compris.
 
 **Ce qu'il reste à faire — connu, planifié :**
 
-- Un document retraité après une reprise doit rester à son propriétaire courant.
+- Un document retraité après une reprise doit rester à son propriétaire courant, et chaque acquisition du verrou de réindexation doit porter sa propre identité.
+- Un rafraîchissement de jeton doit se terminer dans le bail qui le protège, nouvelles tentatives et pauses comprises.
+- Le banc de tests navigateur rendu exact sur chaque moteur, pour qu'un échec nomme toujours une cause réelle.
 - La dette structurelle absolue — fonctions centrales denses, domaines interdépendants, exemptions de typage — réduite lot par lot, pilotée par la mesure.
 
-Le plan d'action est organisé en vagues, chacune avec des critères de sortie mesurables ; la première est livrée, et c'est au prochain audit d'en confirmer les résultats. C'est la façon de rendre compte de ce projet : pas un niveau proclamé, un niveau mesuré — écarts compris.
+Le plan d'action est organisé en vagues, chacune avec des critères de sortie mesurables ; la première a été livrée, puis auditée : l'audit en a constaté l'essentiel parmi ses contrôles positifs et a rouvert un point. C'est ainsi que ce projet rend compte de lui-même : pas un niveau proclamé, un niveau mesuré — écarts compris.
 
 Cette exigence a une conséquence que le projet a apprise à ses dépens : **une suite de tests verte ne prouve pas qu'une fonctionnalité marche**. Elle prouve que ce qui a été testé se comporte comme écrit. Les défauts qui survivent aux portes sont précisément ceux qu'on ne leur a jamais demandé de voir — une capacité que personne n'appelle, un chiffre que personne n'additionne, une garde qui reconnaît un nom plutôt qu'un mécanisme. Ce ne sont presque jamais des fautes de code : ce sont des questions qui n'avaient jamais été posées.
 

@@ -4,7 +4,7 @@
 
 **Version**: 2.6
 **Date**: 2026-10-23
-**Application**: LIA v3.6.0
+**Application**: LIA v3.7.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -13,7 +13,7 @@
 
 LIA is a complete multi-agent AI assistant — business connectors, voice, memory, user-to-user connections, six languages — designed, built and continuously operated in production, as a personal project.
 
-Nearly all of the code was written by an AI, under human direction: a written engineering rulebook, blocking automated checks, systematic review, recurring audits. The result is measured: **7.8/10** on a technical audit across 24 areas. The repository is open source; the audit's conclusions — strengths and weaknesses alike — are owned and summarized in this document.
+Nearly all of the code was written by an AI, under human direction: a written engineering rulebook, blocking automated checks, systematic review, recurring audits. The result is measured: **7.9/10** on a technical audit across 24 areas. The repository is open source; the audit's conclusions — strengths and weaknesses alike — are owned and summarized in this document.
 
 | Indicator | Value |
 | --- | --- |
@@ -21,9 +21,9 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Source lines (excluding tests) — 58 functional domains | **1,003,000+** |
 | Inventoried automated tests; suites selected for commits and releases | **67,000+** |
 | Documented architecture decisions (ADR) | **362** |
-| Versions shipped at a steady pace | **288** |
+| Versions shipped at a steady pace | **289** |
 | Languages, parity checked automatically | **6** |
-| Technical audit across 24 areas | **7.8/10** |
+| Technical audit across 24 areas | **7.9/10** |
 
 Conviction from experience: AI-assisted development can be industrialized today. The limiting factor is not the tool — it is the management framework you give it.
 
@@ -96,28 +96,30 @@ A visible presence must remain a controlled choice: the experimental Simli avata
 
 ## 6. The proof
 
-The level claimed in this document comes from a complete technical audit: 24 areas scored, every finding verified in the code and cross-checked to eliminate false positives. The audit applies the project's own method — conducted with AI tooling, in an adversarial posture, every conclusion anchored in cross-checked evidence. October 2026 assessment: **7.8/10**, after a counter-review that re-examined the first reading point by point (8.0 at first, 7.3 in August), with a profile openly acknowledged. The full report — scorecard, method, open findings and the protocol to reproduce it — is public: [full audit report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
+The level claimed in this document comes from a complete technical audit: 24 areas scored, every finding verified in the code and cross-checked to eliminate false positives. The audit applies the project's own method — conducted with AI tooling, in an adversarial posture, every conclusion anchored in cross-checked evidence. Latest assessment, October 25, 2026: **7.9/10** on the committed version 3.6.0 — after 7.3 in August, then 8.0 and a counter-review at 7.8 on October 22 — with a profile openly acknowledged. The full report — scorecard, method, open findings and the protocol to reproduce it — is public: [full audit report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
 
 **Confirmed strengths:**
 
-- Reproducible configuration and dependencies: lockfiles consumed by the production builds, models downloaded against their fingerprints.
+- Reproducible configuration and dependencies: lockfiles consumed by the production builds, the exact API image rebuilt from the audited commit.
 - Shared contracts and declarative registries: adding an agent, a tool or a language follows documented paths, and the version surfaces are generated.
 - Documentation held true by gates: decisions, maps and quoted figures are checked against their sources on every change.
 - Delivery that runs what a developer runs: a thin CI on the same tasks, hermetic installation and delivery tests, migrations replayed from an empty database.
 
-**Remediated since the audit — awaiting the next audit's verification:**
+**Remediated after the previous audit — and observed by this one:**
 
 - Notifications that tell the truth: a notification — of a call, of a message between connections, of an incident — counts as delivered only on an explicit, durable success.
-- Waits with a bound: the database cuts a lock wait or an idle transaction short before it can freeze an account, and a token refresh belongs to one worker at a time.
+- Waits with a bound: the database cuts a lock wait or an idle transaction short before it can freeze an account.
 - A loop that closes: every finding is followed in a public register with its age, its deadline and its proof, and the backend coverage floor holds over the unit and integration suites together.
 - Alerting: every advertised combination of notification channels is assembled and tested, routing included.
 
 **What remains to be done — known, planned:**
 
-- A document reprocessed after a takeover must stay with its current owner.
+- A document reprocessed after a takeover must stay with its current owner, and each acquisition of the reindex lock must carry its own identity.
+- A token refresh must finish within the lease that protects it, retries and pauses included.
+- The browser test bench made exact on every engine, so that a failure always names a real cause.
 - Absolute structural debt — dense central functions, domains that depend on each other, typing exemptions — reduced batch by batch, driven by measurement.
 
-The action plan is organized in waves, each with measurable exit criteria; the first has been delivered, and confirming its results is left to the next audit. That is how this project reports on itself: not a proclaimed level, a measured one — gaps included.
+The action plan is organized in waves, each with measurable exit criteria; the first was delivered, then audited: the audit observed most of it among its positive controls and reopened one point. That is how this project reports on itself: not a proclaimed level, a measured one — gaps included.
 
 That requirement carries a consequence the project learned the hard way: **a green test suite does not prove a feature works**. It proves that what was tested behaves as written. The defects that survive the gates are exactly the ones the gates were never asked about — a capability nobody calls, a figure nobody adds up, a guard that recognises a name rather than a mechanism. These are almost never coding mistakes: they are questions that had never been asked.
 

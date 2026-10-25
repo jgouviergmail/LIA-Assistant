@@ -5,8 +5,9 @@
  * `apps/api/src/domains/meetings/schemas.py`. Field names are the wire names.
  */
 
-/** Lifecycle of a meeting — the durable job state. */
+/** Lifecycle of a meeting — the durable job state (`uploading`: a file arriving in chunks). */
 export type MeetingStatus =
+  | 'uploading'
   | 'recording'
   | 'interrupted'
   | 'stopped'
@@ -17,8 +18,14 @@ export type MeetingStatus =
 /** Where a processing meeting stands. */
 export type MeetingStage = 'normalizing' | 'transcribing' | 'synthesizing' | 'indexing';
 
-/** What the client sends, fixed at start for the whole recording. */
-export type MeetingAudioFormat = 'pcm_s16le_16' | 'webm_opus' | 'ogg_opus';
+/** What a live recording streams, fixed at start for the whole recording. */
+export type MeetingLiveFormat = 'pcm_s16le_16' | 'webm_opus' | 'ogg_opus';
+
+/** A file the person imports (2026-10-24), read through its own demuxer only. */
+export type MeetingImportFormat = 'import_wav' | 'import_mp3' | 'import_m4a';
+
+/** Where a meeting's audio came from: a recording's stream or an imported file. */
+export type MeetingAudioFormat = MeetingLiveFormat | MeetingImportFormat;
 
 export type MeetingSttProvider = 'elevenlabs' | 'openai' | 'fishaudio' | 'local';
 
@@ -219,7 +226,7 @@ export interface MeetingGeolocation {
 }
 
 export interface MeetingStartRequest {
-  audio_format: MeetingAudioFormat;
+  audio_format: MeetingLiveFormat;
   language: string;
   timezone: string;
   geolocation: MeetingGeolocation | null;
@@ -267,6 +274,31 @@ export interface MeetingLimits {
   segment_max_bytes: number;
   max_duration_minutes: number;
   silence_prompt_minutes: number;
+}
+
+/** Every bound an import is held to, readable before a file is chosen (ADR-184). */
+export interface MeetingImportLimits {
+  max_bytes: number;
+  chunk_max_bytes: number;
+  max_duration_minutes: number;
+}
+
+export interface MeetingImportRequest {
+  audio_format: MeetingImportFormat;
+  size_bytes: number;
+  /** ISO 8601 with its offset; never in the future. */
+  recorded_at: string;
+  timezone: string;
+  language: string;
+  template_ref: string | null;
+}
+
+export interface MeetingImportResponse {
+  id: string;
+  status: MeetingStatus;
+  started_at: string;
+  engine: EngineInfo;
+  limits: MeetingImportLimits;
 }
 
 export interface MeetingStartResponse {

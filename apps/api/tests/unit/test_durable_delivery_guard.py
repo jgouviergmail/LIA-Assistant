@@ -59,6 +59,14 @@ BEST_EFFORT: dict[tuple[str, str], str] = {
 #: Anti-vacuity: the five consumers that write a durable delivery state.
 MIN_DURABLE_SITES = 5
 
+#: Doors that forward their ``require_durable`` to ``dispatch`` unchanged: a
+#: discarded call to one IS a discarded dispatch. A phone call's notification
+#: leaves through its door so it carries the call's run id (ADR-290 amendment
+#: 2026-10-24), and three of the five durable consumers call it.
+DISPATCH_DOORS: dict[str, str] = {
+    "dispatch_call_notification": "domains/telephony/call_notifications.py",
+}
+
 
 def _builds_dispatcher(node: ast.expr) -> bool:
     return (
@@ -113,14 +121,15 @@ def _discarded_in(tree: ast.Module) -> list[tuple[str, bool]]:
             if not (isinstance(node, ast.Expr) and isinstance(node.value, ast.Await)):
                 continue
             call = node.value.value
-            if (
-                isinstance(call, ast.Call)
-                and isinstance(call.func, ast.Attribute)
-                and call.func.attr == "dispatch"
-                and _is_dispatcher(call.func.value, bound)
-            ):
+            if isinstance(call, ast.Call) and _is_dispatch_call(call, bound):
                 sites.append((function.name, _requires_durable(call)))
     return sites
+
+
+def _is_dispatch_call(call: ast.Call, bound: set[str]) -> bool:
+    if isinstance(call.func, ast.Attribute) and call.func.attr == "dispatch":
+        return _is_dispatcher(call.func.value, bound)
+    return isinstance(call.func, ast.Name) and call.func.id in DISPATCH_DOORS
 
 
 def _discarded_dispatches() -> list[tuple[str, str, bool]]:
@@ -170,6 +179,28 @@ def test_the_scan_sees_the_durable_consumers() -> None:
     assert len(durable) >= MIN_DURABLE_SITES, durable
 
 
+@pytest.mark.parametrize("door", sorted(DISPATCH_DOORS))
+def test_a_door_forwards_its_durability_unchanged(door: str) -> None:
+    """A door read as a dispatch must hand ``require_durable`` on as it received it."""
+    tree = ast.parse((SRC / DISPATCH_DOORS[door]).read_text(encoding="utf-8"))
+    function = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == door
+    )
+    forwarded = [
+        keyword.value
+        for node in ast.walk(function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "dispatch"
+        for keyword in node.keywords
+        if keyword.arg == "require_durable"
+    ]
+    assert len(forwarded) == 1
+    assert isinstance(forwarded[0], ast.Name) and forwarded[0].id == "require_durable"
+
+
 @pytest.mark.parametrize(
     ("source", "expected"),
     [
@@ -195,8 +226,14 @@ def test_the_scan_sees_the_durable_consumers() -> None:
             [],
         ),
         ("async def f(queue):\n    await queue.dispatch(1)\n", []),
+        (
+            "async def f(db):\n"
+            "    await dispatch_call_notification(NotificationDispatcher(), db=db,"
+            " require_durable=True)\n",
+            [("f", True)],
+        ),
     ],
-    ids=["any-name", "durable", "attribute", "result-read", "not-a-dispatcher"],
+    ids=["any-name", "durable", "attribute", "result-read", "not-a-dispatcher", "door"],
 )
 def test_the_scanner_recognises_a_dispatcher_whatever_it_is_called(
     source: str, expected: list[tuple[str, bool]]

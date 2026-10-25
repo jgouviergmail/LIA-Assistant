@@ -25,8 +25,9 @@ from uuid import uuid4
 
 import pytest
 
+from src.domains.relations.activity import _spellings_for, _total_for
 from src.domains.relations.identity import IdentityResolver
-from src.domains.relations.service import RelationsService, _bucketize, _spellings_for, _total_for
+from src.domains.relations.service import RelationsService, _bucketize
 
 pytestmark = pytest.mark.unit
 

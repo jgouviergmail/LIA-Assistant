@@ -83,7 +83,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [TIMEOUT_REGISTRY.md](./technical/TIMEOUT_REGISTRY.md) | Référence centralisée de tous les timeouts backend (HTTP, tools, locks, scheduler, SSE/WS) — Settings, ranges, defaults, cascades |
 | [GUIDE_OBSERVABILITY.md](./guides/GUIDE_OBSERVABILITY.md) | Guide observabilité quickstart |
 | [runbooks/](./runbooks/) | Runbooks opérationnels (34+ procédures) |
-| [audit/](./audit/README.md) | **Audit technique public** — résumé (7.8/10 après la contre-expertise du V14, 24 périmètres normalisés ISO/IEC 25010:2023, 26 constats ouverts dont 4 majeurs, historique des cycles) + [rapport de révision](./audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14-revision.html) et [rapport V14](./audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14.html) + [protocole reproductible](./audit/AUDIT_PROTOCOL.md) et pipeline de republication |
+| [audit/](./audit/README.md) | **Audit technique public** — résumé (7.9/10 au V15 du 25/10/2026 sur la 3.6.0 commitée, 24 périmètres normalisés ISO/IEC 25010:2023, 17 constats ouverts dont 1 majeur, historique des cycles) + [rapport V15](./audit/AUDIT_CODEBASE_2026-10-25_CONSOLIDE_V15.html), [rapport de révision V14](./audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14-revision.html) et [rapport V14](./audit/AUDIT_CODEBASE_2026-10-22_CONSOLIDE_V14.html) + [registre des constats](./audit/findings_register.json) + [protocole reproductible](./audit/AUDIT_PROTOCOL.md) et pipeline de republication |
 
 ---
 

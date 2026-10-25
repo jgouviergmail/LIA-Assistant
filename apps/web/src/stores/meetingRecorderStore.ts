@@ -14,7 +14,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import { MEETING_RECORDER_STATE_KEY } from '@/lib/constants';
-import type { EngineInfo, MeetingAudioFormat, MeetingLimits } from '@/types/meetings';
+import type { EngineInfo, MeetingLimits, MeetingLiveFormat } from '@/types/meetings';
 
 /**
  * Recorder phases.
@@ -54,7 +54,7 @@ export interface PersistedRecording {
   meetingId: string;
   /** ISO timestamp the server assigned. */
   startedAt: string;
-  audioFormat: MeetingAudioFormat;
+  audioFormat: MeetingLiveFormat;
   mimeType: string | null;
   segmentSeconds: number;
   /** Sequence the next segment will take — the count a stop declares. */

@@ -106,4 +106,15 @@ cache are replayed on fictional observations with one accounted native call.
 This closes the measured corpus-coverage defect; it is not a population accuracy
 or fraud-detection guarantee. Missing badges still never establish safety.
 
+## Model-facing form — 2026-10-25
+
+A model is never handed an annotation's instants. It reads the labels, the
+evidence scope and a state the code computes when the annotation is shown
+(`current` or `expired`), in the tool data block and in the one-line form; the
+display and the cache keep the whole annotation. Measured on dev before the
+change: `valid_until` in UTC beside a clock in the person's zone was read as
+expired an hour early. « Missing or expired never means safe » now applies to
+emails; an appointment's category only sorts it. The email priority question
+receives its reference time in the zone it names, as the calibration corpora do.
+
 The shared source/answer contract is recorded in [ADR-351](../architecture/ADR-351-Advisory-Source-Annotations-Shared-With-The-Answer.md).

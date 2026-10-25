@@ -91,6 +91,22 @@ async def test_segment_beyond_the_duration_cap_is_refused(service: MeetingServic
     service.store.write_segment.assert_not_awaited()
 
 
+async def test_a_stop_declaring_more_segments_than_the_cap_allows_is_refused(
+    service: MeetingService,
+) -> None:
+    # The declared count sizes the gap list: unbounded, one request would make
+    # the server enumerate as many sequences as it was told.
+    meeting = _meeting(MeetingStatus.RECORDING)
+    service.repo.get_for_user.return_value = meeting
+    max_segments = settings.meetings_max_duration_minutes * 60 // settings.meetings_segment_seconds
+    with pytest.raises(BaseAPIException) as exc:
+        await service.stop(
+            meeting.user_id, meeting.id, MeetingStopRequest(segment_count=max_segments + 1)
+        )
+    assert exc.value.status_code == 413 and _code(exc) == "duration_cap_reached"
+    service.repo.stop.assert_not_awaited()
+
+
 async def test_odd_pcm_segment_is_malformed(service: MeetingService) -> None:
     meeting = _meeting(MeetingStatus.RECORDING)
     service.repo.get_for_user.return_value = meeting

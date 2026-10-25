@@ -368,6 +368,15 @@ never runs** — which is the one promise the terms make.
 - the Cloudflare tunnel token for the public hostname;
 - a first bring-up on a disposable host, then the public-link switch.
 
+The two env templates share ONE layout, listed in their table of contents
+(2026-10-25): the demonstrator's own decisions first — what makes it a
+demonstrator, its spending ceilings, every capability on or off with its
+reason, its address, secrets, mail relay, connection budget, model and
+environment — then the application's settings by theme, and last the settings
+of the capabilities switched off, inert here. Each live file follows its
+template line for line and differs from it only by the instance's own values,
+so a `diff` against the template shows exactly those.
+
 ## Changing it
 
 Eight guards will stop a change that widens the surface, or narrows it into

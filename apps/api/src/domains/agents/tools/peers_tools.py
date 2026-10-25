@@ -3,7 +3,8 @@
 Two tools plus the confirmed-draft executor:
 
 - ``send_peer_message_tool`` — resolves the recipient among the CALLER's
-  accepted connections (folded exact name — never the discovery index),
+  accepted connections (full or first name, ``resolve_connected_peer`` —
+  never the discovery index),
   enforces the quotas and the sender's LLM budget, then returns a
   **PEER_MESSAGE draft** (A3: the send is the email class — nothing leaves
   until the user confirms the HITL card). The draft mechanism is the
@@ -32,12 +33,18 @@ from src.domains.agents.constants import AGENT_PEER
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.drafts.service import DraftService
+from src.domains.agents.peer.name_directory import (
+    PeerNameMatch,
+    PeerNameOutcome,
+    resolve_connected_peer,
+)
+from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.decorators import read_tool, write_tool
+from src.domains.agents.tools.name_refusals import ambiguous_name_failure
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import validate_runtime_config
 from src.domains.peers.models import PeerConnectionStatus
 from src.domains.peers.repository import PeersRepository
-from src.domains.shared.text_normalization import fold_name
 from src.infrastructure.database.session import get_db_context
 
 logger = structlog.get_logger(__name__)
@@ -45,16 +52,17 @@ logger = structlog.get_logger(__name__)
 
 async def _resolve_recipient(
     repo: PeersRepository, user_id: UUID, recipient_name: str
-) -> tuple[Any | None, list[str], dict[UUID, str]]:
+) -> tuple[Any | None, PeerNameMatch, dict[UUID, str]]:
     """Resolve a recipient among the caller's ACCEPTED connections by name.
 
     Args:
         repo: Peers repository bound to the current session.
         user_id: The caller.
-        recipient_name: Name as the user said it (folded exact match).
+        recipient_name: Name as the user said it — full, or a first name that
+            designates one connection.
 
     Returns:
-        (connection or None, candidate display names, peer_id→name directory).
+        (connection or None, the name decision, peer_id→name directory).
     """
     from sqlalchemy import select
 
@@ -62,25 +70,50 @@ async def _resolve_recipient(
 
     connections = await repo.list_accepted_for_user(user_id)
     if not connections:
-        return None, [], {}
+        return None, PeerNameMatch(PeerNameOutcome.UNKNOWN), {}
     peer_ids = {(c.user_b_id if c.user_a_id == user_id else c.user_a_id): c for c in connections}
     rows = (
         await repo.db.execute(select(User.id, User.full_name).where(User.id.in_(peer_ids.keys())))
     ).all()
     directory = {uid: (name or "") for uid, name in rows}
-    folded = fold_name(recipient_name)
-    matches = [
-        (peer_ids[uid], directory[uid]) for uid in peer_ids if fold_name(directory[uid]) == folded
-    ]
-    if len(matches) == 1:
-        return matches[0][0], [matches[0][1]], directory
-    return None, sorted(name for name in directory.values() if name), directory
+    # A partial name reads the relationship list, whose SMS senders can ask
+    # the contacts provider: the reads end before that wait (ADR-304).
+    await repo.db.commit()
+    match = await resolve_connected_peer(
+        user_id, recipient_name, [(name, uid) for uid, name in directory.items()]
+    )
+    if match.outcome is not PeerNameOutcome.READ or match.peer_id is None:
+        return None, match, directory
+    return peer_ids[match.peer_id], match, directory
+
+
+def _recipient_failure(
+    match: PeerNameMatch, recipient_name: str, directory: dict[UUID, str]
+) -> UnifiedToolOutput:
+    """The refusal for a name that designates no single connected user."""
+    if match.outcome is PeerNameOutcome.AMBIGUOUS:
+        return ambiguous_name_failure(recipient_name, match.candidates)
+    connected = sorted(name for name in directory.values() if name)
+    if match.outcome is PeerNameOutcome.NOT_A_CONNECTION:
+        reason = (
+            f"'{recipient_name}' designates {', '.join(match.candidates)}, who is "
+            "not a connected LIA user: a relayed message only reaches a connected user."
+        )
+    else:
+        reason = f"No connected user matches '{recipient_name}'."
+    return UnifiedToolOutput.failure(
+        message=f"{reason} Connected users: {', '.join(connected) if connected else 'none'}.",
+        error_code=ToolErrorCode.NOT_FOUND,
+        metadata={"connected_users": connected},
+    )
 
 
 @write_tool(name="send_peer_message", agent_name=AGENT_PEER)
 async def send_peer_message_tool(
     recipient_name: Annotated[
-        str, "Full name of the CONNECTED user to relay the message to (exact name)"
+        str,
+        "Name of the CONNECTED user to relay the message to, as the person said "
+        "it: the full name, or a first name when it designates one connection",
     ],
     message: Annotated[
         str,
@@ -130,21 +163,14 @@ async def send_peer_message_tool(
 
     async with get_db_context() as db:
         repo = PeersRepository(db)
-        connection, candidates, _directory = await _resolve_recipient(repo, user_id, recipient_name)
+        connection, match, directory = await _resolve_recipient(repo, user_id, recipient_name)
         if connection is None:
-            return UnifiedToolOutput.failure(
-                message=(
-                    "No connected user matches that exact name. "
-                    f"Connected users: {', '.join(candidates) if candidates else 'none'}."
-                ),
-                error_code="NOT_FOUND",
-                metadata={"connected_users": candidates},
-            )
+            return _recipient_failure(match, recipient_name, directory)
         quota_failure = await _check_send_quotas(repo, user_id, connection, settings)
         if quota_failure is not None:
             return quota_failure
         peer_id = connection.user_b_id if connection.user_a_id == user_id else connection.user_a_id
-        recipient_display = candidates[0]
+        recipient_display = directory[peer_id]
 
     logger.info(
         "peer_message_draft_created",

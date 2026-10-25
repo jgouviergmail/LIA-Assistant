@@ -1,17 +1,18 @@
 """Meetings API (ADR-258) — recording lifecycle, minutes, template, preferences.
 
 Mounted only when ``MEETINGS_ENABLED`` is set (see ``api/v1/routes.py``).
-Static sub-paths (``/active``, ``/templates``, ``/preferences``) are declared
-before the ``/{meeting_id}`` family: FastAPI matches in order and a UUID path
-parameter would otherwise answer 422 for them.
+Static sub-paths (``/active``, ``/imports``, ``/templates``, ``/preferences``)
+are declared before the ``/{meeting_id}`` family: FastAPI matches in order and a
+UUID path parameter would otherwise answer 422 for them.
 """
 
 from __future__ import annotations
 
 import uuid
+from typing import Annotated
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, Query, Request, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
@@ -21,11 +22,16 @@ from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.meetings import template_bulk
 from src.domains.meetings.bulk import bulk_delete
+from src.domains.meetings.import_service import MeetingImportService, import_limits
 from src.domains.meetings.schemas import (
     MeetingActionResponse,
     MeetingBulkDeleteRequest,
     MeetingBulkDeleteResponse,
     MeetingDetailResponse,
+    MeetingImportComplete,
+    MeetingImportLimits,
+    MeetingImportRequest,
+    MeetingImportResponse,
     MeetingListResponse,
     MeetingPatchRequest,
     MeetingPreferencesResponse,
@@ -44,7 +50,11 @@ from src.domains.meetings.schemas import (
     MeetingTemplateUpdate,
     TemplateRefsRequest,
 )
-from src.domains.meetings.service import MeetingService, raise_meeting_too_large
+from src.domains.meetings.service import (
+    MeetingService,
+    raise_meeting_conflict,
+    raise_meeting_too_large,
+)
 from src.domains.meetings.template_service import MeetingTemplateService
 from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
@@ -97,6 +107,82 @@ async def get_active_meeting(
         response.status_code = status.HTTP_204_NO_CONTENT
         return None
     return service.to_detail(meeting, include_transcript=False)
+
+
+# ============================================================================
+# Importing a meeting from a file (owner request 2026-10-24)
+# ============================================================================
+
+
+@router.get(
+    "/imports/limits",
+    response_model=MeetingImportLimits,
+    summary="The bounds an imported file is held to",
+)
+async def get_import_limits(
+    _user: User = Depends(get_current_active_session),
+) -> MeetingImportLimits:
+    """Read BEFORE a file is chosen: what the import routes will refuse (ADR-184)."""
+    if not settings.meetings_import_enabled:
+        raise_meeting_conflict("import_disabled")
+    return import_limits()
+
+
+@router.post(
+    "/imports",
+    response_model=MeetingImportResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Open the import of a WAV, MP3 or M4A file",
+)
+async def start_import(
+    body: MeetingImportRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> MeetingImportResponse:
+    """Admitted like a recording; the file then travels in chunks."""
+    return await MeetingImportService(db).create(user, body)
+
+
+@router.put(
+    "/{meeting_id}/import/{sequence}",
+    response_model=MeetingSegmentAck,
+    summary="Upload one chunk of the imported file (raw body)",
+)
+async def put_import_chunk(
+    meeting_id: uuid.UUID,
+    sequence: Annotated[int, Path(ge=0)],
+    request: Request,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> MeetingSegmentAck:
+    """Idempotent on ``(meeting, sequence)``; the chunk cap is checked before reading."""
+    declared = request.headers.get("content-length")
+    max_bytes = settings.meetings_import_chunk_max_bytes
+    if declared is not None and declared.isdigit() and int(declared) > max_bytes:
+        raise_meeting_too_large("chunk_too_large", max_bytes=max_bytes)
+    body = await request.body()
+    return await MeetingImportService(db).accept_chunk(
+        user.id, meeting_id, sequence=sequence, body=body
+    )
+
+
+@router.post(
+    "/{meeting_id}/import/complete",
+    response_model=MeetingActionResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Every chunk is sent: queue the processing",
+)
+async def complete_import(
+    meeting_id: uuid.UUID,
+    body: MeetingImportComplete,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> MeetingActionResponse:
+    meeting = await MeetingImportService(db).complete(user.id, meeting_id, body)
+    from src.domains.meetings.processing import launch_processing
+
+    launch_processing(meeting.id)
+    return MeetingActionResponse(id=meeting.id, status=meeting.status, stage=meeting.stage)
 
 
 @router.get("", response_model=MeetingListResponse, summary="List the user's meetings")
@@ -276,7 +362,7 @@ async def get_meeting(
 )
 async def put_segment(
     meeting_id: uuid.UUID,
-    sequence: int,
+    sequence: Annotated[int, Path(ge=0)],
     request: Request,
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),

@@ -8,6 +8,7 @@ import { Dispatch, type MutableRefObject } from 'react';
 import { ChatAction } from '@/types/chat-state';
 import { ChatStreamChunk, VoiceAudioChunk } from '@/types/chat';
 import type { ExecutionTraceStep } from '@/types/execution-trace';
+import type { StepTally } from '@/lib/execution-outcome';
 import { TFunction } from 'i18next';
 import type { LogContext } from '@/lib/logger';
 import type { ApplicationStateChange } from '@/types/application-state';
@@ -36,6 +37,11 @@ export interface SSEHandlerContext {
   executionStepsRef: MutableRefObject<string[]>;
   /** Set of i18n_keys already emitted — used for deduplication between handlers */
   emittedStepKeysRef: MutableRefObject<Set<string>>;
+  /**
+   * What each label's steps did, by i18n_key (2026-10-24): the line and the
+   * trace step a later step of the same label updates in place.
+   */
+  stepTalliesRef: MutableRefObject<Map<string, LiveStepTally>>;
   /** Accumulated live reasoning text (💭 block), cleared on first answer token */
   reasoningBufRef: MutableRefObject<string>;
   /**
@@ -80,6 +86,19 @@ export type SSEHandler = (chunk: ChatStreamChunk, context: SSEHandlerContext) =>
  */
 export type SSEHandlerMap = Partial<Record<string, SSEHandler>>;
 
+/** One label's live line: its tally, and where its line and trace step sit. */
+export interface LiveStepTally {
+  tally: StepTally;
+  /**
+   * The lines its line was written into. The answer's first token and a HITL
+   * question REPLACE the lines but keep the tallies (the trace still learns),
+   * so an index alone could point at a line drawn since.
+   */
+  lines: string[];
+  lineIndex: number;
+  traceIndex: number | null;
+}
+
 /**
  * Progress message metadata for execution steps.
  */
@@ -95,4 +114,8 @@ export interface ProgressMessageMetadata {
   node?: string;
   /** Trace grouping bucket (Lot 2): system | agent | tool | context. */
   category?: string;
+  /** One tool call's identity across its started and finished steps (2026-10-24). */
+  step_key?: string;
+  /** What the step did — counts only (2026-10-24). */
+  outcome?: Record<string, unknown>;
 }

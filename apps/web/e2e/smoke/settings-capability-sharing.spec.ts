@@ -10,6 +10,19 @@ import AxeBuilder from '@axe-core/playwright';
 const sourceId = '11111111-1111-4111-8111-111111111111';
 const transferId = '22222222-2222-4222-8222-222222222222';
 const connectionId = '33333333-3333-4333-8333-333333333333';
+const aliceId = '44444444-4444-4444-8444-444444444444';
+const alice = {
+  id: connectionId,
+  peer_id: aliceId,
+  status: 'accepted',
+  peer_display_name: 'Alice Example',
+};
+const bob = {
+  id: '55555555-5555-4555-8555-555555555555',
+  peer_id: '66666666-6666-4666-8666-666666666666',
+  status: 'accepted',
+  peer_display_name: 'Bob Example',
+};
 const stamp = '2026-10-18T12:00:00Z';
 const name = 'example-capability';
 const origin = {
@@ -115,7 +128,7 @@ for (const kind of ['skill', 'plugin', 'mcp'] as const) {
         { url: '**/api/v1/mcp/servers', json: { servers: [server], total: 1 } },
         {
           url: '**/api/v1/peers/connections',
-          json: [{ id: connectionId, status: 'accepted', peer_display_name: 'Alice Example' }],
+          json: [alice],
         },
         { url: '**/api/v1/notifications/broadcasts/unread', json: { broadcasts: [] } },
         {
@@ -176,6 +189,86 @@ for (const kind of ['skill', 'plugin', 'mcp'] as const) {
       ).toBeVisible();
       expect(requests[1]).toEqual({ expected_digest: 'a'.repeat(64) });
       await expect(dialog).toHaveCount(0);
+      expect(errors).toEqual([]);
+    });
+  }
+}
+
+// The sender's side (owner request 2026-10-24): under the card's rule, a folded
+// « Shared with » lists each recipient once; the dialog never offers them again.
+const sharedWith = [
+  {
+    recipient_id: aliceId,
+    recipient_display_name: 'Alice Example',
+    shared_at: stamp,
+    transfer_id: '77777777-7777-4777-8777-777777777777',
+    complete: false,
+    can_share_again: false,
+  },
+];
+
+for (const kind of ['skill', 'plugin', 'mcp'] as const) {
+  for (const width of [1280, 320]) {
+    test(`lists whom ${kind} went to and never offers them again at ${width}px`, async ({
+      page,
+      authenticate,
+      mockApi,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await authenticate({ language: 'en' });
+      const errors: string[] = [];
+      page.on('pageerror', error => errors.push(error.message));
+      await mockApi([
+        {
+          url: '**/api/v1/config',
+          json: {
+            ...appConfig,
+            features: {
+              ...appConfig.features,
+              peers_enabled: true,
+              skills_enabled: true,
+              mcp_enabled: true,
+              plugins_enabled: true,
+            },
+          },
+        },
+        {
+          url: '**/api/v1/skills',
+          json: { skills: [{ ...skill, shared_with: sharedWith }], total: 1 },
+        },
+        {
+          url: '**/api/v1/plugins',
+          json: { plugins: [{ ...plugin, shared_with: sharedWith }], total: 1 },
+        },
+        {
+          url: '**/api/v1/mcp/servers',
+          json: { servers: [{ ...server, shared_with: sharedWith }], total: 1 },
+        },
+        { url: '**/api/v1/peers/connections', json: [alice, bob] },
+        { url: '**/api/v1/notifications/broadcasts/unread', json: { broadcasts: [] } },
+      ]);
+      const section = { skill: 'skills', plugin: 'plugins', mcp: 'mcp-servers' }[kind];
+      await page.goto(`/en/dashboard/settings?section=${section}`);
+      await awaitStyledPage(page, `${kind} shared with`);
+      if (kind === 'skill')
+        await page.locator('summary').filter({ hasText: 'My imported skills' }).click();
+      // Both sides of the act on one card: received from Camille, given to Alice.
+      await expect(page.getByRole('note', { name: /Shared by Camille Example/ })).toBeVisible();
+      const fold = page.locator('details').filter({ hasText: 'Shared with' }).last();
+      await fold.locator('summary').focus();
+      await page.keyboard.press('Enter');
+      const line = fold.getByRole('listitem');
+      await expect(line).toHaveCount(1);
+      await expect(line).toContainText('Alice Example');
+      await expect(line).toContainText('incomplete');
+      await expectNoOverflow(page, `${kind} shared with at ${width}px`);
+      if (width < 640) {
+        await page.getByRole('button', { name: `Actions — ${name}` }).click();
+        await page.getByRole('menuitem', { name: `Share ${name}` }).click();
+      } else await page.getByRole('button', { name: `Share ${name}`, exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: 'Share a capability' });
+      await expect(dialog.getByRole('radio', { name: 'Bob Example' })).toBeVisible();
+      await expect(dialog.getByRole('radio', { name: 'Alice Example' })).toHaveCount(0);
       expect(errors).toEqual([]);
     });
   }

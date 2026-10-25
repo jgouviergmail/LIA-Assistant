@@ -71,6 +71,32 @@ describe('ExecutionTraceDisclosure', () => {
     expect(screen.getByText('Envoi email')).toBeInTheDocument();
   });
 
+  it('says what a step did after its label (2026-10-24)', async () => {
+    render(
+      <ExecutionTraceDisclosure
+        trace={trace({
+          steps: [
+            {
+              emoji: '🔍',
+              label: 'Recherche...',
+              category: 'tool',
+              outcome: { calls: 2, found: 12, failed: 1 },
+            },
+          ],
+        })}
+      />
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'chat.trace.aria_toggle' }));
+
+    const details = screen.getByText(/execution\.outcome\.found:12/);
+    expect(details).toHaveTextContent(
+      'execution.outcome.leadexecution.outcome.calls:2execution.outcome.joiner' +
+        'execution.outcome.found:12execution.outcome.joinerexecution.outcome.failed:1'
+    );
+    // The label stops announcing work in progress once it says what it did.
+    expect(details.parentElement).toHaveTextContent(/^Rechercheexecution\.outcome\.lead/);
+  });
+
   it('shows the reasoning block when present (expanded)', async () => {
     render(<ExecutionTraceDisclosure trace={trace({ reasoning: 'I weighed the options.' })} />);
 

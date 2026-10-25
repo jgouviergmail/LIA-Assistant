@@ -4,7 +4,7 @@
 
 **Version**: 2.6
 **Datum**: 2026-10-23
-**Anwendung**: LIA v3.6.0
+**Anwendung**: LIA v3.7.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -13,7 +13,7 @@
 
 LIA ist ein vollständiger Multi-Agenten-KI-Assistent — Fachkonnektoren, Sprache, Gedächtnis, Verbindungen zwischen Nutzern, sechs Sprachen — der als persönliches Projekt entworfen, entwickelt und kontinuierlich in Produktion betrieben wird.
 
-Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führung: ein schriftliches Engineering-Regelwerk, blockierende automatische Prüfungen, systematische Reviews, wiederkehrende Audits. Das Ergebnis ist gemessen: **7,8/10** im technischen Audit über 24 Bereiche. Das Repository ist Open Source; die Schlussfolgerungen des Audits — Stärken wie Schwächen — werden offen eingestanden und in diesem Dokument zusammengefasst.
+Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führung: ein schriftliches Engineering-Regelwerk, blockierende automatische Prüfungen, systematische Reviews, wiederkehrende Audits. Das Ergebnis ist gemessen: **7,9/10** im technischen Audit über 24 Bereiche. Das Repository ist Open Source; die Schlussfolgerungen des Audits — Stärken wie Schwächen — werden offen eingestanden und in diesem Dokument zusammengefasst.
 
 | Indikator | Wert |
 | --- | --- |
@@ -21,9 +21,9 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Quellcodezeilen (ohne Tests) — 58 Fachdomänen | **1.003.000+** |
 | Inventarisierte automatisierte Tests; passende Suiten für Commit und Release | **67.000+** |
 | Dokumentierte Architekturentscheidungen (ADR) | **362** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **288** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **289** |
 | Sprachen, Parität automatisch geprüft | **6** |
-| Technisches Audit über 24 Bereiche | **7,8/10** |
+| Technisches Audit über 24 Bereiche | **7,9/10** |
 
 Überzeugung aus Erfahrung: KI-gestützte Entwicklung ist heute industrialisierbar. Der begrenzende Faktor ist nicht das Werkzeug — es ist der Führungsrahmen, den man ihm gibt.
 
@@ -96,28 +96,30 @@ Eine sichtbare Präsenz muss eine kontrollierbare Wahl bleiben: Der experimentel
 
 ## 6. Der Beweis
 
-Das in diesem Dokument beanspruchte Niveau stammt aus einem vollständigen technischen Audit: 24 bewertete Bereiche, jeder Befund im Code verifiziert und gegengeprüft, um Falsch-Positive zu eliminieren. Das Audit wendet die Methode des Projekts selbst an — mit KI-Werkzeugen durchgeführt, in kontradiktorischer Haltung, jede Schlussfolgerung in gegengeprüften Belegen verankert. Bewertung vom Oktober 2026: **7,8/10**, nach einem Gegengutachten, das die erste Lesung Punkt für Punkt überprüft hat (zuerst 8,0, im August 7,3), mit einem offen eingestandenen Profil. Der vollständige Bericht — Bewertungsraster, Methode, offene Befunde und das Protokoll zur Reproduktion — ist öffentlich: [vollständiger Audit-Bericht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
+Das in diesem Dokument beanspruchte Niveau stammt aus einem vollständigen technischen Audit: 24 bewertete Bereiche, jeder Befund im Code verifiziert und gegengeprüft, um Falsch-Positive zu eliminieren. Das Audit wendet die Methode des Projekts selbst an — mit KI-Werkzeugen durchgeführt, in kontradiktorischer Haltung, jede Schlussfolgerung in gegengeprüften Belegen verankert. Jüngste Bewertung vom 25. Oktober 2026: **7,9/10** für die committete Version 3.6.0 — nach 7,3 im August, dann 8,0 und einem Gegengutachten mit 7,8 am 22. Oktober —, mit einem offen eingestandenen Profil. Der vollständige Bericht — Bewertungsraster, Methode, offene Befunde und das Protokoll zur Reproduktion — ist öffentlich: [vollständiger Audit-Bericht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
 
 **Bestätigte Stärken:**
 
-- Reproduzierbare Konfiguration und Abhängigkeiten: Lockfiles, die die Produktions-Builds verwenden, Modelle gegen ihre Prüfsummen heruntergeladen.
-- Gemeinsame Verträge und deklarative Register: Ein Agent, ein Werkzeug oder eine Sprache kommt über dokumentierte Wege hinzu, und die Versionsangaben werden generiert.
+- Reproduzierbare Konfiguration und Abhängigkeiten: Lockfiles, die die Produktions-Builds verwenden, das API-Image identisch aus dem geprüften Commit neu gebaut.
+- Gemeinsame Verträge und deklarative Register: Ein Agent, ein Werkzeug oder eine Sprache wird über dokumentierte Wege hinzugefügt, und die Versionsflächen werden generiert.
 - Eine Dokumentation, die Prüfungen wahr halten: Entscheidungen, Karten und zitierte Zahlen werden bei jeder Änderung gegen ihre Quellen geprüft.
-- Eine Auslieferung, die ausführt, was ein Entwickler ausführt: eine schlanke CI auf denselben Tasks, hermetisch getestete Installation und Auslieferung, Migrationen von einer leeren Datenbank aus wiederholt.
+- Eine Auslieferung, die ausführt, was ein Entwickler ausführt: eine schlanke CI auf denselben Tasks, hermetisch getestete Installation und Auslieferung, Migrationen ab einer leeren Datenbank nachgespielt.
 
-**Seit dem Audit behoben — die Prüfung durch das nächste Audit steht aus:**
+**Nach dem vorigen Audit behoben — und von diesem festgestellt:**
 
 - Benachrichtigungen, die die Wahrheit sagen: Eine Benachrichtigung — zu einem Anruf, einer Nachricht zwischen Verbindungen, einem Vorfall — gilt nur nach einem ausdrücklichen, dauerhaften Erfolg als zugestellt.
-- Begrenzte Wartezeiten: Die Datenbank bricht ein Warten auf eine Sperre oder eine untätige Transaktion ab, bevor sie ein Konto einfrieren kann, und eine Token-Erneuerung gehört immer nur einem Worker.
+- Begrenzte Wartezeiten: Die Datenbank bricht ein Warten auf eine Sperre oder eine untätige Transaktion ab, bevor sie ein Konto einfrieren kann.
 - Eine Schleife, die sich schließt: Jeder Befund wird in einem öffentlichen Register mit seinem Alter, seiner Frist und seinem Nachweis verfolgt, und die Mindestabdeckung des Backends gilt für die Unit- und Integrationssuiten zusammen.
 - Alarme: Jede angekündigte Kombination von Benachrichtigungskanälen ist zusammengesetzt und getestet, Routing inklusive.
 
 **Was noch zu tun ist — bekannt, geplant:**
 
-- Ein nach einer Übernahme neu verarbeitetes Dokument muss bei seinem aktuellen Eigentümer bleiben.
+- Ein nach einer Übernahme neu verarbeitetes Dokument muss bei seinem aktuellen Eigentümer bleiben, und jede Übernahme der Neuindexierungssperre muss ihre eigene Identität tragen.
+- Eine Token-Erneuerung muss innerhalb der Frist enden, die sie schützt, Wiederholungen und Pausen eingeschlossen.
+- Die Browser-Testumgebung auf jeder Engine exakt gemacht, damit ein Fehlschlag immer eine echte Ursache nennt.
 - Die absolute Strukturschuld — dichte zentrale Funktionen, voneinander abhängige Domänen, Typisierungsausnahmen — Schritt für Schritt abbauen, gesteuert durch Messung.
 
-Der Maßnahmenplan ist in Wellen organisiert, jede mit messbaren Abschlusskriterien; die erste ist ausgeliefert, und ihre Ergebnisse zu bestätigen, bleibt dem nächsten Audit überlassen. So legt dieses Projekt Rechenschaft ab: kein proklamiertes Niveau, ein gemessenes — Lücken inklusive.
+Der Maßnahmenplan ist in Wellen organisiert, jede mit messbaren Abschlusskriterien; die erste wurde ausgeliefert und dann geprüft: Das Audit hat das meiste davon unter seinen positiven Kontrollen festgestellt und einen Punkt wieder eröffnet. So legt dieses Projekt Rechenschaft ab: kein proklamiertes Niveau, ein gemessenes — Lücken inklusive.
 
 Dieser Anspruch hat eine Folge, die das Projekt auf die harte Tour gelernt hat: **Eine grüne Testsuite beweist nicht, dass eine Funktion funktioniert.** Sie beweist, dass sich das Getestete so verhält, wie es geschrieben wurde. Die Fehler, die die Prüfungen überleben, sind genau jene, nach denen nie gefragt wurde — eine Fähigkeit, die niemand aufruft, eine Zahl, die niemand zusammenzählt, eine Wache, die einen Namen erkennt statt eines Mechanismus. Das sind fast nie Programmierfehler: Es sind Fragen, die nie gestellt worden waren.
 

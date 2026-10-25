@@ -9,6 +9,19 @@ export const capabilityOriginSchema = z
   .strict();
 export type CapabilityOrigin = z.infer<typeof capabilityOriginSchema>;
 
+/** One recipient the owner's capability was shared with — its latest share (sender side). */
+export const capabilityShareSchema = z
+  .object({
+    recipient_id: z.string().uuid(),
+    recipient_display_name: z.string().nullable(),
+    shared_at: z.string().datetime({ offset: true }),
+    transfer_id: z.string().uuid(),
+    complete: z.boolean(),
+    can_share_again: z.boolean(),
+  })
+  .strict();
+export type CapabilityShare = z.infer<typeof capabilityShareSchema>;
+
 export const capabilityKindSchema = z.enum(['skill', 'mcp', 'plugin']);
 export type CapabilityKind = z.infer<typeof capabilityKindSchema>;
 
@@ -16,6 +29,13 @@ export interface CapabilitySelection {
   kind: CapabilityKind;
   id: string;
   name: string;
+  /** Accounts the server's sharing policy closes for this capability — never offered. */
+  blockedRecipientIds?: readonly string[];
+}
+
+/** The recipients a capability may not be shared with again, as the server decided. */
+export function blockedRecipients(shares: readonly CapabilityShare[] | null | undefined): string[] {
+  return (shares ?? []).filter(share => !share.can_share_again).map(share => share.recipient_id);
 }
 
 export const capabilityTransferSchema = z

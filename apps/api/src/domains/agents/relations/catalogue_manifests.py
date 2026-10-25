@@ -33,8 +33,10 @@ def _person_parameter() -> ParameterSchema:
         type="string",
         required=True,
         description=(
-            "Person the question is about, as the user says it. Resolved "
-            "through the same name folding as the relationship card."
+            "Person the question is about, as the user says it: a full name, "
+            "or a first name when it designates one person of the relationship "
+            "list. Several people matching is answered with the candidates to "
+            "ask about."
         ),
         constraints=[
             ParameterConstraint(kind="min_length", value=2),

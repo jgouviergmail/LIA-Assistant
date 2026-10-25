@@ -83,6 +83,24 @@ class TestBodyCeilingCoversUploads:
         with pytest.raises(ValueError, match="max_request_body_bytes"):
             Settings(**base)
 
+    def test_a_meeting_import_chunk_is_an_upload_the_ceiling_must_carry(self) -> None:
+        """An imported meeting travels one chunk per body (2026-10-24)."""
+        base = get_settings().model_dump()
+        base["meetings_import_max_mb"] = 500
+        base["meetings_import_chunk_max_mb"] = 40  # allowed by the field (le=64), not by the cap
+        with pytest.raises(ValueError, match="max_request_body_bytes"):
+            Settings(**base)
+
+        base["max_request_body_bytes"] = 40 * 1024 * 1024 + MULTIPART_ENVELOPE_OVERHEAD_BYTES
+        assert Settings(**base).meetings_import_chunk_max_bytes == 40 * 1024 * 1024
+
+    def test_a_chunk_larger_than_the_whole_import_is_refused(self) -> None:
+        base = get_settings().model_dump()
+        base["meetings_import_max_mb"] = 4
+        base["meetings_import_chunk_max_mb"] = 8
+        with pytest.raises(ValueError, match="meetings_import_chunk_max_mb"):
+            Settings(**base)
+
     def test_one_byte_below_the_boundary_is_refused(self) -> None:
         """Falsifies the test above: the comparison really is enforced."""
         base = get_settings().model_dump()

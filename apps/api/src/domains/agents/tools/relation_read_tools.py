@@ -45,11 +45,14 @@ from langchain_core.tools import InjectedToolArg
 from src.core.config import settings
 from src.domains.agents.constants import AGENT_PEER, AGENT_TASK, AGENT_TELEPHONY
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.decorators import read_tool
+from src.domains.agents.tools.name_refusals import ambiguous_name_failure
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import parse_user_id, validate_runtime_config
 from src.domains.relations.schemas import RelationDetail
 from src.domains.relations.service import RelationsService
+from src.domains.shared.name_resolution import ResolutionStatus, resolve_name
 
 logger = structlog.get_logger(__name__)
 
@@ -61,9 +64,10 @@ type BlockBuilder = Callable[[RelationDetail, int], Block]
 
 #: Person parameter description, shared so the three tools ask for the same thing.
 _PERSON_ARG = (
-    "Person the question is about, as the user says it (Marie, Marie Dupont, "
-    "or a nickname already resolved). Resolved through the SAME name folding "
-    "as the relationship card."
+    "Person the question is about, as the user says it: a full name, or a "
+    "first name when it designates one person of the relationship list (a "
+    "nickname already resolved works too). Several people matching is "
+    "answered with the candidates to ask about."
 )
 
 
@@ -95,9 +99,42 @@ def _resolved_limit(limit: object) -> int:
     return max(1, min(requested, ceiling))
 
 
-async def _relation_detail(user_id: UUID, person_name: str) -> RelationDetail:
-    """The CRM's view of one relationship — the single identity resolution."""
-    return await RelationsService(user_id).build_detail(person_name)
+async def _relation_detail(user_id: UUID, person_name: str) -> RelationDetail | UnifiedToolOutput:
+    """The CRM's view of one relationship, resolved as the relationship list knows it.
+
+    The name goes through the one rule every directory shares
+    (``shared/name_resolution``) against the relationship list, merges
+    included: a first name designating one person reads their card, several
+    are asked about, and a name nobody on record carries is SAID — never an
+    empty card claiming the person has nothing, since the list is built from
+    the very records these tools read.
+
+    Args:
+        user_id: The asking user.
+        person_name: The name as the person said it.
+
+    Returns:
+        The relationship's detail, or the refusal to hand back as is.
+    """
+    service = RelationsService(user_id)
+    directory = await service.directory()
+    resolution = resolve_name(
+        person_name,
+        [(spelling, identity) for identity in directory for spelling in identity.spellings],
+    )
+    if resolution.status is ResolutionStatus.AMBIGUOUS:
+        return ambiguous_name_failure(
+            person_name, [identity.display_name for identity in resolution.matches]
+        )
+    if resolution.match is None:
+        return UnifiedToolOutput.failure(
+            message=(
+                f"No relationship named '{person_name}' has calls, open commitments "
+                "or relayed messages on record."
+            ),
+            error_code=ToolErrorCode.NOT_FOUND,
+        )
+    return await service.build_detail(resolution.match.display_name)
 
 
 def _identity(detail: RelationDetail) -> dict[str, Any]:
@@ -146,6 +183,8 @@ async def _read_block(
             message=f"could not read the relationship for '{tool_name}'",
             error_code="relation_read_unavailable",
         )
+    if isinstance(detail, UnifiedToolOutput):
+        return detail
 
     # `(key, page, total)` rather than a ready-made dict: reading the page back
     # out of a dict meant trusting insertion order to tell the page from the

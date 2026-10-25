@@ -110,7 +110,7 @@
     },
     "f.relations": {
       "name": "Relations",
-      "role": "Une fiche par personne qui rassemble tes échanges, et un débrief écrit une fois par jour : où tu en es, ce qu'il faut aborder.",
+      "role": "Une fiche par personne qui rassemble tes échanges, sa chronologie datée, et un débrief écrit une fois par jour : où tu en es, ce qu'il faut aborder.",
       "goal": "Ne plus perdre le fil de tes relations."
     },
     "f.openloops": {
@@ -200,7 +200,7 @@
     },
     "f.meetings": {
       "name": "Réunions",
-      "role": "Enregistrer une réunion depuis le téléphone ou l'ordinateur et recevoir un compte rendu structuré, dans un modèle choisi automatiquement. Recherche dans les titres et les comptes rendus complets pour retrouver une décision.",
+      "role": "Enregistrer une réunion depuis le téléphone ou l'ordinateur, ou importer un enregistrement existant, et recevoir un compte rendu structuré, dans un modèle choisi automatiquement. Recherche dans les titres et les comptes rendus complets pour retrouver une décision.",
       "goal": "Assister à la réunion, pas à la prise de notes."
     },
     "f.heartbeat": {

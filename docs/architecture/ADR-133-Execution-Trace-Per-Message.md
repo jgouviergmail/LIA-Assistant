@@ -96,3 +96,48 @@ de la détruire.
 - Suite frontend complète 1 357 verts ; tsc clean ; eslint clean ; ratchets
   a11y/react-hooks/CC tenus. Parité i18n ×6 vérifiée.
 - Runtime dev : trace visible et dépliable après une requête météo réelle.
+
+## Amendement 2026-10-24 — ce que chaque étape a fait
+
+Demande du propriétaire : montrer sur les étapes intermédiaires des quantités, des réussites
+et des échecs — jamais les noms des éléments consultés.
+
+**Constat.** Un outil n'était émis qu'à l'état `started` : en ReAct, un outil appelé trois
+fois n'apparaissait qu'une fois (déduplication par `i18n_key`) et un appel échoué se lisait
+comme un appel en cours ; en pipeline, les outils n'apparaissaient qu'après l'orchestrateur,
+toujours `started`.
+
+**Décision.** Chaque étape d'outil porte un statut fermé (`started`, `completed`, `failed`) et
+des ENTIERS sous `outcome` (`calls`, `found`, `shown`, `failed`), jamais de mots — la trace est
+persistée avec le message.
+
+- **ReAct** : `started` quand le modèle demande l'appel (`react_call_model`), `completed` ou
+  `failed` à son retour (`react_execute_tools`), les deux sous `step_key` (l'id de l'appel). Le
+  `ToolMessage` porte `items_found` / `items_shown` — le total et la part montrée au modèle par le
+  bloc de données d'ADR-286, que `react_call_execution` écrit à côté du code d'échec.
+- **Pipeline** : à la fin de l'orchestrateur, UNE étape par outil du plan qui a tourné, ses appels
+  additionnés à partir des `completed_steps` que l'orchestrateur écrit déjà (vérification
+  d'entrée : aucun coût supplémentaire). Un FOR_EACH se compte par ses ITEMS (`step_2_item_0`…) :
+  le plan de l'état garde l'étape non dépliée et l'exécuteur réécrit la fusion des items sous son
+  id — lue comme un appel, une boucle de dix items affichait ×1 et perdait tout échec partiel. Le
+  format de cet id est désormais déclaré une seule fois (`ExecutionStep.item_step_id`,
+  `FOR_EACH_ITEM_INFIX` dans `plan_schemas`), lu par l'expansion, `plan_blockers` et la préparation
+  HITL du FOR_EACH ; `diagnostics/failure_context` le réécrit encore (autre domaine, laissé tel
+  quel). Une branche non prise, une boucle vide, n'apparaissent pas ; sans résultats, l'affichage
+  d'avant.
+- **Une ligne par libellé**, additionnée par la même règle côté client (ligne en direct,
+  `lib/execution-outcome.ts`) et côté serveur (trace persistée, `trace_capture._Tally`) : un appel
+  compté une fois par sa clé, son dernier résultat gardé ; un total de pipeline pris tel quel.
+  S'affichent : ×N au-delà d'un appel, les résultats, les « lus » quand ils sont moins nombreux
+  que les trouvés, les échecs. Le libellé perd alors son ellipse finale (« Récupération des
+  e-mails… — 12 résultats » se lisait comme encore en cours) : `settledLabel`, une seule règle
+  pour la ligne en direct et le panneau.
+- **Garde PII** : seuls des entiers non négatifs aux noms connus atteignent le stockage, et seuls
+  ceux-là sont relus à l'hydratation.
+- **Ligne en direct** : le premier jeton de la réponse et une question HITL REMPLACENT les lignes
+  mais gardent les comptes (la trace continue d'apprendre) ; une ligne n'est donc réécrite que
+  dans le tableau où elle a été écrite, jamais à son ancien index dans le nouveau.
+
+`streaming/tool_step_outcomes.py` porte l'émission (sortie de `streaming/service.py`, gelé, qui
+passe de 1 293 à 1 220 SLOC logiques). Limite assumée : pas d'affichage en temps réel pendant un
+plan pipeline — ses étapes arrivent à la fin de l'orchestrateur, comme avant.

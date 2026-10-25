@@ -166,3 +166,58 @@ message n'a encore été échangé.
 | Prédicat SQL d'identité (`unaccent(lower(...)) =`) pour loops et appels | Deuxième autorité sur « même personne », divergente de `fold_name` sur `ß` et les ligatures |
 | Préfiltre SQL large + autorité Python, sans agrégats | Ne donne pas de total exact sans charger tout le jeu |
 | Statut de présence « en ligne / absent » | Aucune utilité (les messages sont asynchrones), divulgation forte des rythmes de vie, infrastructure entière à créer. La disponibilité issue du partage calendrier **déjà consenti** sert le même besoin |
+
+## Amendement 2026-10-24 — les outils résolvent une personne comme la liste la connaît
+
+Les trois outils de lecture du CRM (appels, engagements ouverts, messages
+relayés) résolvent le nom dit contre la liste des relations
+(`RelationsService.directory`, construite par la même lecture que la liste,
+`_identities`, fusions comprises) avec la règle commune
+`shared/name_resolution` : un prénom qui désigne une seule personne lit sa
+fiche, plusieurs personnes sont demandées, et un nom qu'aucune relation ne
+porte est DIT (`NOT_FOUND`) au lieu d'une fiche vide qui affirmerait que la
+personne n'a rien — la liste est bâtie à partir des enregistrements mêmes que
+ces outils lisent. La fiche ouverte depuis la page, qui passe un nom exact,
+ne change pas. Cette liste est celle de l'ASSISTANT : un expéditeur de SMS n'y
+figure que si la personne a permis à l'assistant de lire ses SMS, puisque les
+candidats d'une ambiguïté atteignent le modèle (ADR-182, même amendement).
+
+## Amendement 2026-10-24 (b) — la chronologie d'une fiche
+
+Une section **Chronologie** réunit les enregistrements datés de la fiche —
+engagements ouverts, appels, souvenirs, messages relayés, SMS — sur un seul fil,
+du plus récent au plus ancien (`GET /relations/{name}/timeline`, et son alias
+`/lookup/person/timeline` pour les noms que le chemin ne peut pas porter).
+
+- **Un ordre, un curseur, jamais un décalage.** Tout élément est rangé par
+  `(instant, type, id)` décroissant ; le curseur est opaque et désigne le
+  dernier élément servi. Chaque source n'est interrogée que pour une page
+  strictement APRÈS lui (`infrastructure/database/keyset.py` : à l'instant du
+  curseur, un type antérieur reste à servir, un type postérieur a déjà été
+  servi, le même type reprend par son id), les pages sont fusionnées et le
+  curseur avance au dernier élément gardé. Un enregistrement arrivé entre deux
+  pages n'en répète ni n'en perd aucun — prouvé sur PostgreSQL avec des égalités
+  d'instant entre sources ET dans une même source —, et une page coûte cinq
+  lectures quelle que soit la profondeur. La taille de page est
+  `relations_max_items_per_section`, publiée dans la réponse.
+- **La personne est celle de la fiche.** La résolution d'identité de
+  `build_detail` est extraite (`RelationsService.scope`,
+  `relations/identity_scope.py`) et lue par les deux ; chaque élément est
+  formulé comme sa section le formule (`relations/mappers.py`).
+- **Aucun compteur propre (§ 2).** Le chiffre du titre est la somme des totaux
+  exacts de la fiche, plus les e-mails et rendez-vous que la chronologie place.
+  Un total renvoyé par la chronologie elle-même a été écrit puis retiré avant
+  livraison : personne ne le lisait, et c'était un second compte des mêmes
+  enregistrements, qui ne pouvait que contredire la fiche.
+- **Les e-mails et l'agenda restent sur les fenêtres de la fiche.** Ils sont
+  placés côté client, seulement dans ce que les pages déjà lues couvrent : un
+  e-mail plus ancien que le plus ancien enregistrement chargé passerait devant
+  des enregistrements pas encore servis. Une fois la base épuisée, tous sont
+  placés ; les rendez-vous à venir ouvrent la section, à part. Les fenêtres
+  sont rappelées sous la liste.
+- **Repliée, elle ne lit rien** : la première page est demandée à la première
+  ouverture, et ce qui a été lu survit au repli.
+- **Hors périmètre (décidé)** : les engagements clos, les réunions enregistrées
+  avec la personne et les e-mails hors fenêtre — comme les sections de la fiche.
+  Les index existants servent les cinq lectures (EXPLAIN sur la base de dev) :
+  aucune migration.

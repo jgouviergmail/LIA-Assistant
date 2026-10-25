@@ -38,11 +38,17 @@ from src.core.i18n_drafts import label_separator
 from src.core.i18n_meetings import get_notification_title
 from src.core.security.utils import encrypt_data
 from src.domains.agents.effects.models import DecisionOutcome
+from src.domains.meetings.audio_stage import (
+    AcquiredAudio,
+    acquire_audio,
+    audio_checkpoint,
+    stopped_at_of,
+)
 from src.domains.meetings.audio_store import (
+    AudioRefusedError,
     AudioStorageError,
     MeetingAudioStore,
     normalized_mime_type,
-    pcm_duration_seconds,
 )
 from src.domains.meetings.costs import (
     cost_metadata as _cost_metadata,
@@ -66,7 +72,6 @@ from src.domains.meetings.error_codes import (
 )
 from src.domains.meetings.models import (
     Meeting,
-    MeetingAudioFormat,
     MeetingIndexState,
     MeetingPreference,
     MeetingStage,
@@ -212,33 +217,6 @@ class _Job:
 # ----------------------------------------------------------------------------
 
 
-async def _normalize(job: _Job, meeting: Meeting) -> tuple[str, float, int]:
-    """Segments → one Opus file. Returns ``(relative_path, duration, gaps)``."""
-    present = await job.store.list_sequences(meeting.user_id, meeting.id)
-    gaps = len(job.store.missing_sequences(present, meeting.segment_count))
-    hint = (
-        pcm_duration_seconds(await job.store.total_segment_bytes(meeting.user_id, meeting.id))
-        if meeting.audio_format is MeetingAudioFormat.PCM_S16LE_16
-        else None
-    )
-    path, duration = await job.store.normalize(
-        meeting.user_id,
-        meeting.id,
-        audio_format=meeting.audio_format,
-        duration_hint_seconds=hint,
-    )
-    try:
-        await job.store.purge_segments(meeting.user_id, meeting.id)
-    except AudioStorageError as exc:
-        logger.warning("meeting_segments_purge_failed", meeting_id=str(meeting.id), error=str(exc))
-    return job.store.relative(path), duration, gaps
-
-
-def _audio_checkpoint(audio_path: str, duration: float, gaps: int) -> dict[str, Any]:
-    """The columns the normalizing stage acquires — checkpointed, then part of completion."""
-    return {"audio_path": audio_path, "audio_duration_seconds": duration, "audio_gaps": gaps}
-
-
 def _transcript_checkpoint(outcome: TranscriptionOutcome) -> dict[str, Any]:
     """The columns the transcribing stage acquires — checkpointed, then part of completion."""
     return {
@@ -257,29 +235,16 @@ def _transcript_checkpoint(outcome: TranscriptionOutcome) -> dict[str, Any]:
 
 async def _acquire_audio(
     job: _Job, repo: MeetingRepository, meeting: Meeting
-) -> tuple[str, float, int] | None:
-    """The normalized audio: the checkpoint when its file is still there, else ffmpeg.
+) -> AcquiredAudio | None:
+    """The normalized audio (``audio_stage``); none anywhere dead-letters the meeting."""
 
-    A previous attempt purged the segments after normalizing and checkpointed
-    the result; this attempt reuses it. With no checkpointed file AND no
-    segment on disk there is nothing to process and never will be: the meeting
-    is dead-lettered as ``audio_unavailable`` rather than spending its retry
-    budget on ffmpeg over nothing. Returns ``None`` in that case.
-    """
-    if meeting.audio_path:
-        normalized = job.store.absolute(meeting.audio_path)
-        if await asyncio.to_thread(os.path.exists, normalized):
-            return (
-                meeting.audio_path,
-                float(meeting.audio_duration_seconds or 0.0),
-                int(meeting.audio_gaps or 0),
-            )
-    if not await job.store.list_sequences(meeting.user_id, meeting.id):
+    async def _checkpoint(values: dict[str, Any]) -> None:
+        await job.heartbeat(repo, values)
+
+    acquired = await acquire_audio(job.store, meeting, checkpoint=_checkpoint)
+    if acquired is None:
         await _fail(repo, job, code=ERROR_AUDIO_UNAVAILABLE, message="", transient=False)
-        return None
-    audio_path, duration, gaps = await _normalize(job, meeting)
-    await job.heartbeat(repo, _audio_checkpoint(audio_path, duration, gaps))
-    return audio_path, duration, gaps
+    return acquired
 
 
 async def _acquire_transcript(
@@ -364,7 +329,7 @@ def _completion_values(
 ) -> dict[str, Any]:
     report = synthesis.report.model_dump(mode="json")
     return {
-        **_audio_checkpoint(audio_path, duration, gaps),
+        **audio_checkpoint(meeting, AcquiredAudio(audio_path, duration, gaps)),
         **_transcript_checkpoint(outcome),
         "keep_audio_until": keep_audio_until,
         "calendar_event_id": calendar.event_id if calendar else meeting.calendar_event_id,
@@ -533,7 +498,13 @@ async def _after_ready(
 
 
 async def _fail(
-    repo: MeetingRepository, job: _Job, *, code: str, message: str, transient: bool
+    repo: MeetingRepository,
+    job: _Job,
+    *,
+    code: str,
+    message: str,
+    transient: bool,
+    audio_gone: bool = False,
 ) -> None:
     meeting_failures_total.labels(reason=code).inc()
     if transient:
@@ -546,6 +517,9 @@ async def _fail(
     else:
         await repo.fail_permanently(job.meeting_id, code=code, message=message[:1000])
         status = MeetingStatus.FAILED
+        if audio_gone:
+            # Its audio went with the refusal: no « retry » may be offered on it.
+            await repo.mark_audio_purged(job.meeting_id, purged_at=datetime.now(UTC))
     if status is MeetingStatus.FAILED:
         meetings_total.labels(status="failed").inc()
     logger.warning(
@@ -558,7 +532,13 @@ async def _fail(
 
 
 async def _fail_guarded(
-    repo: MeetingRepository, job: _Job, *, code: str, message: str, transient: bool
+    repo: MeetingRepository,
+    job: _Job,
+    *,
+    code: str,
+    message: str,
+    transient: bool,
+    audio_gone: bool = False,
 ) -> None:
     """``_fail``, with the transition's own failure logged and counted, never raised.
 
@@ -568,7 +548,9 @@ async def _fail_guarded(
     is what hid the 2026-09-05 incident.
     """
     try:
-        await _fail(repo, job, code=code, message=message, transient=transient)
+        await _fail(
+            repo, job, code=code, message=message, transient=transient, audio_gone=audio_gone
+        )
     except Exception:  # noqa: BLE001 — a PROCESSING row must never take its worker down
         meeting_failures_total.labels(reason="transition_failed").inc()
         logger.exception("meeting_transition_failed", meeting_id=str(job.meeting_id), code=code)
@@ -603,7 +585,6 @@ async def _run(job: _Job, repo: MeetingRepository, db: Any, meeting: Meeting) ->
     # Every write below goes through the repository, which commits its own.
     await db.commit()
 
-    stopped_at = meeting.stopped_at or datetime.now(UTC)
     # One capture for the whole meeting: the template choice (ADR-259), the
     # condense passes and the synthesis add up to what the minutes cost.
     capture = TokenCaptureHandler()
@@ -614,6 +595,7 @@ async def _run(job: _Job, repo: MeetingRepository, db: Any, meeting: Meeting) ->
     if acquired is None:
         return
     audio_path, duration, gaps = acquired
+    stopped_at = stopped_at_of(meeting, duration)
 
     # 2. transcribing — reused from the checkpoint when the transcript is still there
     await job.enter_stage(repo, MeetingStage.TRANSCRIBING)
@@ -750,6 +732,12 @@ async def process_meeting(meeting_id: UUID) -> None:
             raise
         except LeaseLostError as exc:
             logger.warning("meeting_lease_lost", meeting_id=str(meeting_id), error=str(exc))
+        except AudioRefusedError as exc:
+            # An imported file too long or unreadable stays so: no retry can help,
+            # and the audio stage already deleted what was uploaded.
+            await _fail_guarded(
+                repo, job, code=exc.code, message="", transient=False, audio_gone=True
+            )
         except AudioStorageError as exc:
             await _fail_guarded(repo, job, code=ERROR_NORMALIZE, message=str(exc), transient=True)
         except TranscriptionError as exc:

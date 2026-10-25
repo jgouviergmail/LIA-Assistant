@@ -2,7 +2,7 @@
 
 Layout under ``meetings_storage_path``::
 
-    {user_id}/{meeting_id}/segments/{sequence:06d}.bin   while recording
+    {user_id}/{meeting_id}/segments/{sequence:06d}.bin   while recording (or importing)
     {user_id}/{meeting_id}/audio.{webm|ogg}              after normalization
 
 Why per-segment files: production runs four uvicorn workers, and a segment may
@@ -13,11 +13,18 @@ listing. Assembly and normalization happen once, under the processing lease.
 
 Why ffmpeg as a subprocess: a whole meeting is up to 115 MB of PCM; decoding
 it in memory (pydub) on the event loop is exactly what the async rules forbid.
+
+An imported file (WAV, MP3, M4A — owner request 2026-10-24) is untrusted input:
+ffmpeg reads it through the demuxer of its declared format and nothing else —
+never a guess, which could pick a playlist or a concat script reading other
+files — over the local-file protocol only, and a QuickTime file never follows
+its references to other files. Its length is measured before it is transcoded.
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 import math
 import os
 import shutil
@@ -34,7 +41,8 @@ from src.core.constants import (
     MEETINGS_REMOTE_FILE_MAX_BYTES,
     STT_BYTES_PER_SECOND_AT_16KHZ_INT16,
 )
-from src.domains.meetings.models import MeetingAudioFormat
+from src.domains.meetings.error_codes import ERROR_AUDIO_UNREADABLE, ERROR_IMPORT_TOO_LONG
+from src.domains.meetings.models import MeetingAudioFormat, is_import
 
 logger = structlog.get_logger(__name__)
 
@@ -46,6 +54,29 @@ PCM_SAMPLE_RATE = 16000
 
 class AudioStorageError(RuntimeError):
     """A disk or ffmpeg operation failed; the caller decides retry vs fail."""
+
+
+class AudioRefusedError(RuntimeError):
+    """An imported file can never be processed as it is: refused for good, with a code."""
+
+    def __init__(self, code: str) -> None:
+        super().__init__(code)
+        self.code = code
+
+
+#: The ONE demuxer each imported format is read through (M4A is QuickTime/MP4).
+IMPORT_DEMUXERS: dict[MeetingAudioFormat, str] = {
+    MeetingAudioFormat.IMPORT_WAV: "wav",
+    MeetingAudioFormat.IMPORT_MP3: "mp3",
+    MeetingAudioFormat.IMPORT_M4A: "mov",
+}
+
+
+def import_input_args(audio_format: MeetingAudioFormat, path: Path) -> list[str]:
+    """How ffmpeg and ffprobe open an imported file: its own demuxer, local files only."""
+    demuxer = IMPORT_DEMUXERS[audio_format]
+    references = ["-enable_drefs", "0"] if demuxer == "mov" else []
+    return ["-protocol_whitelist", "file", "-f", demuxer, *references, "-i", str(path)]
 
 
 TStorageResult = TypeVar("TStorageResult")
@@ -90,6 +121,14 @@ def opus_bitrate_kbps(
     # 5 % headroom for container framing; kbps = kilobits, hence the 1000.
     affordable = math.floor((max_bytes * 8 * 0.95) / duration_seconds / 1000)
     return max(MEETINGS_OPUS_BITRATE_MIN_KBPS, min(MEETINGS_OPUS_BITRATE_MAX_KBPS, affordable))
+
+
+def _opus_webm_args(bitrate_kbps: int, target: Path) -> list[str]:
+    """The ONE speech encoding a transcoded meeting gets: Opus in WebM, VBR, voice-tuned."""
+    return [
+        *("-c:a", "libopus", "-b:a", f"{bitrate_kbps}k", "-vbr", "on"),
+        *("-application", "voip", "-f", "webm", str(target)),
+    ]
 
 
 def pcm_duration_seconds(byte_count: int) -> float:
@@ -180,6 +219,15 @@ class MeetingAudioStore:
         except OSError as exc:
             raise AudioStorageError(f"segment write failed: {exc.__class__.__name__}") from exc
 
+    async def segment_size(self, user_id: uuid.UUID, meeting_id: uuid.UUID, sequence: int) -> int:
+        """Bytes already stored under ``sequence`` (0 when none): what a resend replaces."""
+        target = self.segment_path(user_id, meeting_id, sequence)
+
+        def _size() -> int:
+            return target.stat().st_size if target.exists() else 0
+
+        return await asyncio.to_thread(_size)
+
     async def list_sequences(self, user_id: uuid.UUID, meeting_id: uuid.UUID) -> list[int]:
         """Sequences present on disk, ascending."""
         directory = self.meeting_dir(user_id, meeting_id) / SEGMENTS_DIR
@@ -253,42 +301,45 @@ class MeetingAudioStore:
         *,
         audio_format: MeetingAudioFormat,
         duration_hint_seconds: float | None,
+        max_duration_seconds: float | None = None,
     ) -> tuple[Path, float]:
         """Turn the assembled segments into ONE clean Opus file.
 
         PCM is encoded at a bitrate keeping the file under the remote cap; Opus
         streams are remuxed with ``-c copy``, which drops a truncated tail (the
-        crash case) without re-encoding. The result's duration is measured with
-        ffprobe — the authority for what the engines will bill.
+        crash case) without re-encoding. An imported file is measured first and
+        refused past ``max_duration_seconds``, then transcoded to mono Opus. The
+        result's duration is measured with ffprobe — the authority for what the
+        engines will bill.
 
         Returns:
             ``(normalized_path, duration_seconds)``.
+
+        Raises:
+            AudioRefusedError: An import ffmpeg cannot read, or longer than the cap.
         """
         assembled = await self.assemble(user_id, meeting_id)
         target = self.normalized_path(user_id, meeting_id, audio_format)
-        if audio_format is MeetingAudioFormat.PCM_S16LE_16:
-            duration = duration_hint_seconds or pcm_duration_seconds(assembled.stat().st_size)
-            bitrate = opus_bitrate_kbps(duration)
+        if is_import(audio_format):
+            try:
+                duration = await self._probe_import(assembled, audio_format)
+                if max_duration_seconds is not None and duration > max_duration_seconds:
+                    raise AudioRefusedError(ERROR_IMPORT_TOO_LONG)
+            except AudioRefusedError:
+                # The full copy assembled for the probe must not outlive a refusal.
+                await asyncio.to_thread(assembled.unlink, missing_ok=True)
+                raise
+            # The first audio stream only (an M4A may carry cover art), mono speech.
             args = [
-                "-f",
-                "s16le",
-                "-ar",
-                str(PCM_SAMPLE_RATE),
-                "-ac",
-                "1",
-                "-i",
-                str(assembled),
-                "-c:a",
-                "libopus",
-                "-b:a",
-                f"{bitrate}k",
-                "-vbr",
-                "on",
-                "-application",
-                "voip",
-                "-f",
-                "webm",
-                str(target),
+                *import_input_args(audio_format, assembled),
+                *("-map", "0:a:0", "-ac", "1", "-ar", str(PCM_SAMPLE_RATE)),
+                *_opus_webm_args(opus_bitrate_kbps(duration), target),
+            ]
+        elif audio_format is MeetingAudioFormat.PCM_S16LE_16:
+            duration = duration_hint_seconds or pcm_duration_seconds(assembled.stat().st_size)
+            args = [
+                *("-f", "s16le", "-ar", str(PCM_SAMPLE_RATE), "-ac", "1", "-i", str(assembled)),
+                *_opus_webm_args(opus_bitrate_kbps(duration), target),
             ]
         else:
             container = "ogg" if audio_format is MeetingAudioFormat.OGG_OPUS else "webm"
@@ -300,6 +351,32 @@ class MeetingAudioStore:
             logger.debug("meeting_assembled_cleanup_failed", meeting_id=str(meeting_id))
         duration_seconds = await self.probe_duration(target)
         return target, duration_seconds
+
+    async def _probe_import(self, path: Path, audio_format: MeetingAudioFormat) -> float:
+        """An imported file's length, read through its own demuxer — refused when unreadable."""
+        proc = await asyncio.create_subprocess_exec(
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "a",
+            "-show_entries",
+            "stream=index:format=duration",
+            "-of",
+            "json",
+            *import_input_args(audio_format, path),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, _ = await proc.communicate()
+        try:
+            probe = json.loads(stdout.decode() or "{}") if proc.returncode == 0 else {}
+            duration = float(probe["format"]["duration"]) if probe.get("streams") else 0.0
+        except KeyError, TypeError, ValueError:
+            duration = 0.0
+        if duration <= 0:
+            raise AudioRefusedError(ERROR_AUDIO_UNREADABLE)
+        return duration
 
     async def probe_duration(self, path: Path) -> float:
         """Container duration in seconds via ffprobe."""

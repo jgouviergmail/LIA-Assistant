@@ -143,8 +143,9 @@ class TestTheReactLoopCarriesTheCode:
         call = {"name": "fake_mail_tool", "args": {}, "id": "call_1", "type": "tool_call"}
         wrapper = SimpleNamespace(
             _accumulated_registry={},
-            _process_result=lambda result, budget_tokens=None: str(
-                getattr(result, "message", result)
+            _render_result=lambda result, budget_tokens=None: (
+                str(getattr(result, "message", result)),
+                None,
             ),
         )
         ports = SimpleNamespace(result_budget=1_000, draft=lambda _raw, _name: None)

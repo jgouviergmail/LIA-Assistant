@@ -133,9 +133,9 @@
     },
     "f.relations": {
       "name": "Relationships",
-      "role": "One card per person that gathers your exchanges, and a debrief written once a day: where you stand, what to bring up.",
+      "role": "One card per person that gathers your exchanges and their dated timeline, and a debrief written once a day: where you stand, what to bring up.",
       "goal": "Never lose track of your relationships again.",
-      "src": "10f1a5e20272"
+      "src": "1e2bb83157af"
     },
     "f.openloops": {
       "name": "Open loops",
@@ -241,9 +241,9 @@
     },
     "f.meetings": {
       "name": "Meetings",
-      "role": "Record a meeting from your phone or computer and get structured minutes, in an automatically chosen template. Search titles and complete minutes to find a decision again.",
+      "role": "Record a meeting from your phone or computer, or import an existing recording, and get structured minutes, in an automatically chosen template. Search titles and complete minutes to find a decision again.",
       "goal": "Attend the meeting, not the note-taking.",
-      "src": "fc9f4f1c8204"
+      "src": "835f172f16ae"
     },
     "f.heartbeat": {
       "name": "Autonomous heartbeat",

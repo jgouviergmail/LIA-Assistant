@@ -26,7 +26,6 @@ from src.core.field_names import (
     FIELD_CONVERSATION_ID,
     FIELD_METADATA,
     FIELD_RUN_ID,
-    FIELD_STATUS,
 )
 from src.core.i18n import resolve_language
 from src.domains.agents.api.schemas import ChatStreamChunk
@@ -45,6 +44,11 @@ from src.domains.agents.services.streaming.latency_sli import (
     observe_stream_duration,
 )
 from src.domains.agents.services.streaming.machine_tags import MachineTagFilter
+from src.domains.agents.services.streaming.tool_step_outcomes import (
+    pipeline_steps,
+    react_finished_steps,
+    react_started_steps,
+)
 from src.domains.agents.services.streaming.trace_capture import TraceCapture
 from src.domains.agents.services.streaming.voice_scope import VoiceScope
 from src.infrastructure.llm.message_text import coerce_content_to_text
@@ -1473,8 +1477,9 @@ class StreamingService:
         regardless of which state keys the node updates. This enables execution_step
         emission for ALL nodes (pipeline + ReAct).
 
-        For ReAct: extracts per-tool details from react_call_model's AIMessage.
-        For Pipeline: extracts tool names from execution_plan when task_orchestrator completes.
+        For ReAct: a call starts with react_call_model's AIMessage and finishes with
+        react_execute_tools' ToolMessage. For Pipeline: what each tool of the plan did,
+        when task_orchestrator completes (``tool_step_outcomes``).
 
         Args:
             chunk: Dict with single key = node_name, value = state delta.
@@ -1537,15 +1542,13 @@ class StreamingService:
         if node_step:
             sse_chunks.append((node_step, ""))
 
-        # --- Per-tool execution_steps ---
+        # --- Per-tool execution_steps, with what each did (tool_step_outcomes) ---
         if node_name == "react_call_model":
-            # ReAct: extract tool names from AIMessage.tool_calls
-            tool_steps = self._extract_react_tool_steps(state_delta)
-            sse_chunks.extend(tool_steps)
+            sse_chunks.extend(react_started_steps(state_delta))
+        elif node_name == "react_execute_tools":
+            sse_chunks.extend(react_finished_steps(state_delta))
         elif node_name == "task_orchestrator":
-            # Pipeline: extract tool names from execution_plan (set by planner)
-            tool_steps = self._extract_pipeline_tool_steps(accumulated_state)
-            sse_chunks.extend(tool_steps)
+            sse_chunks.extend(pipeline_steps(accumulated_state, state_delta))
 
         logger.debug(
             "updates_chunk_processed",
@@ -1554,139 +1557,6 @@ class StreamingService:
         )
 
         return sse_chunks
-
-    def _extract_react_tool_steps(
-        self, state_delta: dict[str, Any]
-    ) -> list[tuple[ChatStreamChunk, str]]:
-        """
-        Extract per-tool execution_step events from react_call_model's AIMessage.
-
-        When the ReAct LLM decides to call tools, emit individual execution_step
-        events for each tool using the catalogue's DisplayMetadata.
-
-        Args:
-            state_delta: State delta from react_call_model containing messages.
-
-        Returns:
-            List of (ChatStreamChunk, "") tuples for each tool.
-        """
-        from langchain_core.messages import AIMessage
-
-        tool_steps: list[tuple[ChatStreamChunk, str]] = []
-        messages = state_delta.get("messages", [])
-
-        for msg in messages:
-            if isinstance(msg, AIMessage) and msg.tool_calls:
-                for tc in msg.tool_calls:
-                    tool_name = tc.get("name", "")
-                    if tool_name:
-                        tool_chunk = self._emit_tool_execution_step(tool_name)
-                        if tool_chunk:
-                            tool_steps.append((tool_chunk, ""))
-
-        if tool_steps:
-            logger.debug(
-                "react_tool_steps_extracted",
-                tool_count=len(tool_steps),
-            )
-
-        return tool_steps
-
-    def _extract_pipeline_tool_steps(
-        self, accumulated_state: dict[str, Any]
-    ) -> list[tuple[ChatStreamChunk, str]]:
-        """
-        Extract per-tool execution_step events from the pipeline execution plan.
-
-        When task_orchestrator completes, the execution_plan (set by planner) contains
-        the list of tools that were executed. Emit an execution_step for each TOOL-type
-        step using the catalogue's DisplayMetadata.
-
-        Args:
-            accumulated_state: Full state from "values" mode containing execution_plan.
-
-        Returns:
-            List of (ChatStreamChunk, "") tuples for each tool in the plan.
-        """
-        tool_steps: list[tuple[ChatStreamChunk, str]] = []
-
-        execution_plan = accumulated_state.get("execution_plan")
-        if not execution_plan:
-            return tool_steps
-
-        # ExecutionPlan.steps is a list of ExecutionStep objects
-        steps = getattr(execution_plan, "steps", None)
-        if not steps:
-            return tool_steps
-
-        seen_tools: set[str] = set()
-        for step in steps:
-            tool_name = getattr(step, "tool_name", None)
-            if not tool_name or tool_name in seen_tools:
-                continue
-            seen_tools.add(tool_name)
-
-            tool_chunk = self._emit_tool_execution_step(tool_name)
-            if tool_chunk:
-                tool_steps.append((tool_chunk, ""))
-
-        if tool_steps:
-            logger.debug(
-                "pipeline_tool_steps_extracted",
-                tool_count=len(tool_steps),
-                tool_names=list(seen_tools),
-            )
-
-        return tool_steps
-
-    def _emit_tool_execution_step(self, tool_name: str) -> ChatStreamChunk | None:
-        """
-        Emit execution_step event for a specific tool call.
-
-        Uses the tool catalogue's DisplayMetadata for emoji and i18n_key.
-        Falls back to generic tool execution metadata if not in catalogue.
-
-        Args:
-            tool_name: Tool name from AIMessage.tool_calls (e.g., "get_contacts_tool").
-
-        Returns:
-            ChatStreamChunk with tool execution_step metadata, or None.
-        """
-        from src.domains.agents.utils.execution_metadata import build_execution_step_event
-
-        # Try catalogue-based metadata first
-        execution_event = build_execution_step_event(
-            step_type="tool",
-            step_name=tool_name,
-            status="started",
-        )
-
-        if execution_event:
-            return ChatStreamChunk(
-                type="execution_step",
-                content="",
-                metadata=execution_event,
-            )
-
-        # Fallback: generic tool execution metadata for tools not in catalogue
-        logger.debug(
-            "tool_execution_step_fallback",
-            tool_name=tool_name,
-            reason="tool_not_in_catalogue",
-        )
-        return ChatStreamChunk(
-            type="execution_step",
-            content="",
-            metadata={
-                "type": "execution_step",
-                "step_type": "tool",
-                "step_name": tool_name,
-                FIELD_STATUS: "started",
-                "emoji": "⚙️",
-                "i18n_key": "react_tool_execution",
-                "category": "tool",
-            },
-        )
 
     # ============================================================================
     # Context-usage pill — token count + compaction threshold for the SSE `done`

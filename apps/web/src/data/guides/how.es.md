@@ -6,7 +6,7 @@
 
 **Versión**: 5.6
 **Fecha**: 2026-10-23
-**Aplicación**: LIA v3.6.0
+**Aplicación**: LIA v3.7.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -72,7 +72,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Auto-hospedaje ARM64 | Docker multi-arch, embeddings semánticos (multilingües), Playwright chromium cross-platform |
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), credenciales cifradas con Fernet, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
-| Transparencia total | 634 métricas Prometheus, debug panel integrado, seguimiento token por token |
+| Transparencia total | 635 métricas Prometheus, debug panel integrado, seguimiento token por token |
 | Fiabilidad en producción | 362 ADRs, más de 67.000 pruebas automatizadas de backend y frontend, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
@@ -95,7 +95,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Fixtures pytest | 1.391, de las cuales 58 compartidas mediante conftest |
 | Documentos de documentación | 835 |
 | ADRs (Architecture Decision Records) | 362 |
-| Métricas Prometheus | 634 definiciones |
+| Métricas Prometheus | 635 definiciones |
 | Dashboards Grafana | 32 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -1167,7 +1167,7 @@ El contenido de terceros viaja en un sobre que el modelo sabe que no debe obedec
 
 | Tecnología | Rol |
 |-------------|------|
-| Prometheus | 634 métricas custom (RED pattern) |
+| Prometheus | 635 métricas custom (RED pattern) |
 | Grafana | 32 dashboards production-ready |
 | Loki | Logs estructurados JSON agregados, recogidos por Grafana Alloy (el mismo enmascaramiento en la recogida) |
 | Tempo | Trazas distribuidas cross-service (OTLP gRPC), nombradas por la plantilla de la ruta |
@@ -1175,7 +1175,7 @@ El contenido de terceros viaja en un sobre que el modelo sabe que no debe obedec
 | Alertmanager | Núcleo de alertas vitales notificadas por correo (runbooks enlazados, umbrales por entorno) + webhook hacia LIA: cada alerta se convierte en un incidente dentro del producto (ADR-247) |
 | structlog | Logging estructurado con PII filtering |
 
-**Una métrica que no llega a ningún panel es una métrica sobre la que nadie actúa.** La distancia entre lo que el código emite y lo que un operador puede ver se mide, nunca se supone: `scripts/audit/measure_metric_coverage.py` analiza cada definición de métrica (por AST y no por expresión regular — una regex lee `ZoneInfo("UTC")` como una métrica `Info`) y coteja cada nombre con todos los paneles, reglas de registro y expresiones de alerta. 634 definidas; las que no llegan a nada figuran explícitamente en una base **que solo puede encogerse**, de modo que una métrica recién ciega hace fallar la compilación y una métrica que se vuelve visible debe salir de la lista — si no, la siguiente ciega ocupa su hueco en silencio. Sin esa guarda, una fuente de heartbeat que falla en abierto puede descartar parte de las señales de salud durante días sin que ninguna métrica lo advierta (ADR-148). Dos trampas que la guarda cierra por construcción — un contador con etiquetas que nunca se incrementó no expone **ninguna serie**, así que un panel que vigila un fallo raro necesita `or vector(0)` o mostrará «No data» donde el operador espera un cero verde; y la cobertura se lee únicamente de las **expresiones** de paneles y reglas, porque una métrica citada en un comentario no está cableada.
+**Una métrica que no llega a ningún panel es una métrica sobre la que nadie actúa.** La distancia entre lo que el código emite y lo que un operador puede ver se mide, nunca se supone: `scripts/audit/measure_metric_coverage.py` analiza cada definición de métrica (por AST y no por expresión regular — una regex lee `ZoneInfo("UTC")` como una métrica `Info`) y coteja cada nombre con todos los paneles, reglas de registro y expresiones de alerta. 635 definidas; las que no llegan a nada figuran explícitamente en una base **que solo puede encogerse**, de modo que una métrica recién ciega hace fallar la compilación y una métrica que se vuelve visible debe salir de la lista — si no, la siguiente ciega ocupa su hueco en silencio. Sin esa guarda, una fuente de heartbeat que falla en abierto puede descartar parte de las señales de salud durante días sin que ninguna métrica lo advierta (ADR-148). Dos trampas que la guarda cierra por construcción — un contador con etiquetas que nunca se incrementó no expone **ninguna serie**, así que un panel que vigila un fallo raro necesita `or vector(0)` o mostrará «No data» donde el operador espera un cero verde; y la cobertura se lee únicamente de las **expresiones** de paneles y reglas, porque una métrica citada en un comentario no está cableada.
 
 ### 20.2. Debug Panel integrado
 
@@ -1324,7 +1324,7 @@ El lock dice lo que se instala; queda decidir **cuándo una versión puede entra
 
 ### 22.4. La auditoría es pública — y reproducible
 
-El nivel de exigencia descrito en esta guía no es autodeclarado: una auditoría técnica 360° completa — **7,8/10 sobre 24 perímetros normalizados** de la matriz ISO/IEC 25010, hallazgos abiertos incluidos — está publicada en el repositorio ([informe completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), junto con el [protocolo de auditoría](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) que hace reproducible cada ciclo: commit fijado, requisitos de evidencia por perímetro, calificación anclada y un script versionado que mide el tamaño en SLOC lógicas. El informe termina con los comandos exactos para reproducir las mediciones tú mismo. Cada hallazgo que nombran los informes vive en un registro legible por máquina, verificado en cada construcción de la documentación: un cierre o una corrección lleva su prueba, y una versión se rechaza mientras un hallazgo prioritario haya superado su plazo.
+El nivel de exigencia descrito en esta guía no es autodeclarado: una auditoría técnica 360° completa — **7,9/10 sobre 24 perímetros normalizados** de la matriz ISO/IEC 25010, hallazgos abiertos incluidos — está publicada en el repositorio ([informe completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), junto con el [protocolo de auditoría](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) que hace reproducible cada ciclo: commit fijado, requisitos de evidencia por perímetro, calificación anclada y un script versionado que mide el tamaño en SLOC lógicas. El informe termina con los comandos exactos para reproducir las mediciones tú mismo. Cada hallazgo que nombran los informes vive en un registro legible por máquina, verificado en cada construcción de la documentación: un cierre o una corrección lleva su prueba, y una versión se rechaza mientras un hallazgo prioritario haya superado su plazo.
 
 ### 22.5. Una garantía vale lo que mide
 
@@ -1897,6 +1897,8 @@ El rostro del compañero no elige su expresión de fin de turno a partir de la e
 
 **El formato del acta se ha convertido en una biblioteca, y la elección tiene un solo lugar.** Treinta plantillas integradas viven en el código, sus palabras en un módulo de datos i18n, y una aserción al arrancar se niega a iniciar si falta un nombre en alguno de los seis idiomas: lo que un validador puede rechazar, el catálogo no puede entregarlo. Una plantilla se designa por una referencia — `builtin:<clave>` o `user:<uuid>` — que reuniones, preferencias y peticiones intercambian en lugar de una fila, de modo que una integrada no necesita existir en base de datos y una plantilla eliminada deja una referencia cuyos lectores saben replegarse sobre la instantánea conservada. La elección sigue **una sola precedencia**: la referencia que lleva la reunión, luego el valor predeterminado de la preferencia, luego el modelo de lenguaje que lee un extracto de la transcripción y elige por encima de un umbral de confianza, luego la integrada por defecto; cada salida se cuenta y se escribe en la fila con el motivo enunciado, de manera que la página muestra un hecho y no una reconstrucción. Una quinta clase de sección devuelve la transcripción misma: no cabe en una sola respuesta — el slot de síntesis emite como mucho ocho mil tokens —, así que se reescribe por partes, cada una acotada por la ventana de salida efectiva, un índice que falta parte el fragmento una vez y una respuesta sospechosamente corta se reintenta una vez. Reescribir un acta ya redactada toma prestada la regeneración duradera cuando reemplaza, y crea una fila derivada que apunta a su origen cuando produce actas nuevas — nunca una copia: la transcripción es la misma, el acta no. El mismo cuidado por el orden gobierna los documentos de los espacios de conocimientos: como `rag_chunks.space_id` está desnormalizado y lo lee la búsqueda, un movimiento escribe la fila y sus fragmentos, confirma, **y luego** mueve el fichero; un renombrado que falla revierte ambos y lo informa solo para ese documento, y un lote nunca se detiene por un elemento — cada identificador vuelve hecho o ignorado con su código.
 
+**Una grabación que ya se tiene entra por la misma puerta.** Un archivo WAV, MP3 o M4A se convierte en una reunión sobre la misma fila duradera: `uploading`, una por cuenta — lo dice un índice parcial, no una convención —, sus fragmentos enviados bajo límites que el servidor publica antes del primer byte, cada número de fragmento acotado para que un número falsificado no haga enumerar mil millones de huecos al completar. El archivo es una entrada no fiable: sus primeros bytes deben ser el formato que declara, ffmpeg lo lee solo con el demultiplexor de ese formato, únicamente en archivos locales y sin seguir nunca una referencia QuickTime, y su duración se mide — y se rechaza por encima del tope — antes de pagar a ningún motor.
+
 ## 39. Tres registros, y el que nadie había pedido
 
 **Un asistente que actúa debe poder decir qué hizo, qué leyó y en qué turno.** Tres registros lo responden y nunca se confunden: el primero lleva una fila por **acción**, reclamada antes de ocurrir y cerrada solo con un resultado explícito; el segundo una fila por **consulta**, nombrada como la capacidad y nunca como lo buscado; el tercero una fila por **turno**, la columna vertebral de la que cuelgan los otros dos. Sus totales no se suman, y es deliberado: un turno puede consultar cinco fuentes y no cambiar nada.
@@ -1922,6 +1924,10 @@ El rostro del compañero no elige su expresión de fin de turno a partir de la e
 **Nada se inventa, y un fallo no destruye nada.** Ninguna evidencia concluye *vacío* sin llamar al modelo, y una actualización fallida **conserva el texto anterior** bajo una línea que lo señala: sustituir una síntesis utilizable por un panel vacío convierte «no he podido actualizar» en «no hay nada». La reclamación es una sola sentencia SQL, y cada cierre escribe únicamente sus propias columnas — lista, vacía, fallida — porque un cierre único sobrescribiría el cuerpo al primer fallo. Lo que costó la redacción se guarda con ella y se muestra debajo; siendo un coste nulo una afirmación, una fila muda no muestra nada en vez de «0,00 €».
 
 **En el chat, el resumen se suma al bloque de pares — con la directiva inversa.** El bloque de pares afirma hechos exactos porque los lee en el turno mismo; la misma frase sobre una síntesis fechada sería una máquina de afirmaciones falsas. La plantilla dice por tanto que está fechada, lleva su **antigüedad** y no solo su fecha, y remite a las herramientas toda cifra, todo recuento y todo estado. Una coincidencia de nombre ambigua no inyecta **nada**: el directorio contiene todas las relaciones abiertas alguna vez, nombres de empresa y números incluidos, y un falso positivo entregaría el expediente de una persona ante una pregunta sobre otra.
+
+**Un nombre se resuelve, no se adivina.** Se dice «Marie», rara vez el nombre completo. Una sola regla decide lo que designa un nombre pronunciado en cualquier directorio — primero el nombre completo normalizado, luego cada palabra dicha como palabra entera del nombre, nunca un fragmento ni una distancia de edición —, y varias identidades en el nivel que decide son una pregunta que hacer, nunca una elección por orden. Una herramienta de conexiones solo lee las conexiones aceptadas; la lista de relaciones solo resta, convirtiendo una coincidencia parcial en pregunta cuando alguien más también responde a ella.
+
+**Un hilo, cinco fuentes, un cursor.** La cronología de la ficha fusiona compromisos, llamadas, recuerdos, mensajes retransmitidos y SMS, del más reciente al más antiguo. A cada fuente se le pide una página estrictamente después del último registro servido — un keyset sobre (instante, tipo, identificador), nunca un desplazamiento —, de modo que un registro que llega entre dos páginas ni se repite ni se pierde, y una página cuesta cinco lecturas sea cual sea su profundidad.
 
 ## 41. El tablero de tickets: una fila, dos lados y una asistente que pregunta
 
@@ -2025,4 +2031,4 @@ Los 362 ADRs documentan no solo las decisiones tomadas sino también las alterna
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (800+ documentos), de los 362 ADRs y del changelog (v1.0 a v3.6.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (800+ documentos), de los 362 ADRs y del changelog (v1.0 a v3.7.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

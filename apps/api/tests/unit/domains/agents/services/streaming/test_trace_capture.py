@@ -4,8 +4,9 @@
 turns into the live ⚙ trace, under the same rules (reset on ``router_decision``,
 i18n-key-only labels, category whitelist, tail-keeping cap) so a reloaded trace
 matches what the user saw during the run. The PII guard is structural: a step is
-persisted ONLY as ``{emoji, i18n_key, category}`` — ``detail`` and reasoning
-deltas never reach storage.
+persisted ONLY as ``{emoji, i18n_key, category}`` plus, since 2026-10-24, the
+integers of what it did under ``outcome`` — ``detail`` and reasoning deltas never
+reach storage.
 """
 
 from __future__ import annotations
@@ -188,3 +189,65 @@ class TestWithPersistedTrace:
         result = with_persisted_trace({}, steps, duration_ms=None, run_id="run-1")
 
         assert result[FIELD_EXECUTION_TRACE] == {"steps": steps, "duration_ms": None}
+
+
+def _tool(step_key: str | None = None, **outcome: Any) -> dict[str, Any]:
+    metadata = _step_metadata(
+        step_type="tool", step_name="search_emails_tool", emoji="🔍", i18n_key="search_emails"
+    )
+    if step_key:
+        metadata["step_key"] = step_key
+    if outcome:
+        metadata["outcome"] = outcome
+    return metadata
+
+
+class TestWhatEachStepDid:
+    """2026-10-24: what a tool step did is added up per label, integers only."""
+
+    def test_a_call_started_then_finished_is_one_step_with_its_counts(self) -> None:
+        capture = TraceCapture(max_steps=100)
+        capture.observe("execution_step", _tool("call_0"))
+        capture.observe("execution_step", _tool("call_0", failed=0, found=12, shown=5))
+
+        assert capture.snapshot() == [
+            {
+                "emoji": "🔍",
+                "i18n_key": "search_emails",
+                "category": "system",
+                "outcome": {"found": 12, "shown": 5},
+            }
+        ]
+
+    def test_a_tool_called_twice_says_so_and_adds_up(self) -> None:
+        capture = TraceCapture(max_steps=100)
+        capture.observe("execution_step", _tool("call_0", failed=0, found=3, shown=3))
+        capture.observe("execution_step", _tool("call_1", failed=1))
+
+        (step,) = capture.snapshot()
+        assert step["outcome"] == {"calls": 2, "found": 3, "failed": 1}
+
+    def test_a_pipeline_total_is_taken_as_it_comes(self) -> None:
+        capture = TraceCapture(max_steps=100)
+        capture.observe("execution_step", _tool(calls=3, found=7, failed=0))
+
+        (step,) = capture.snapshot()
+        assert step["outcome"] == {"calls": 3, "found": 7}
+
+    def test_a_step_that_only_ran_keeps_the_old_shape(self) -> None:
+        capture = TraceCapture(max_steps=100)
+        capture.observe("execution_step", _tool("call_0"))
+        capture.observe("execution_step", _tool("call_0", failed=0))
+
+        (step,) = capture.snapshot()
+        assert "outcome" not in step
+
+    def test_nothing_but_counts_reaches_storage(self) -> None:
+        capture = TraceCapture(max_steps=100)
+        capture.observe(
+            "execution_step",
+            _tool("call_0", found="12 emails from Ana", shown=True, failed=-1, subject="x"),
+        )
+
+        (step,) = capture.snapshot()
+        assert "outcome" not in step

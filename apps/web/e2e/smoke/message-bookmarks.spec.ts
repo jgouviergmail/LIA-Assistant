@@ -220,6 +220,65 @@ test.describe('message bookmarks', () => {
     await expect.poll(() => asked).toContain(`DELETE /bookmarks/${BOOKMARK_ID}`);
   });
 
+  test('a kept answer comes back into the discussion as a copy, nothing sent', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    // Owner request 2026-10-24: « Use in the discussion » is a plain link; the
+    // composer asks the API for a copy and shows it, the person sends — or not.
+    await authenticate({ language: 'fr' });
+    const asked: string[] = [];
+    const sent: string[] = [];
+    await mockApi([
+      ...chatRoutes(asked),
+      ...tabRoutes(asked),
+      {
+        url: '**/api/v1/attachments/from-bookmark',
+        method: 'POST',
+        handler: async route => {
+          const body = route.request().postDataJSON() as { bookmark_id?: string };
+          asked.push(`COPY ${body.bookmark_id ?? ''}`);
+          await route.fulfill({
+            status: 201,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              id: '00000000-0000-4000-8000-0000000000c1',
+              original_filename: 'Bookmark 2026-09-12 — Réserve la salle B.md',
+              mime_type: 'text/markdown',
+              file_size: 180,
+              content_type: 'document',
+              created_at: '2026-10-24T10:00:00Z',
+            }),
+          });
+        },
+      },
+      {
+        url: '**/api/v1/agents/chat/stream',
+        method: 'POST',
+        handler: async route => {
+          sent.push('stream');
+          await route.abort();
+        },
+      },
+    ]);
+
+    await page.goto('/fr/dashboard/settings?section=generated-assets&tab=bookmarks');
+    await waitForHydration(page, '[data-testid="bookmark-card"]');
+    await page
+      .getByTestId('bookmark-card')
+      .getByRole('button', { name: 'Utiliser dans la discussion' })
+      .click();
+
+    // The default language is served unprefixed: the proxy keeps the query.
+    await page.waitForURL(/\/dashboard\/chat/);
+    await expect(page.getByText('Bookmark 2026-09-12 — Réserve la salle B.md')).toBeVisible();
+    expect(asked).toContain(`COPY ${BOOKMARK_ID}`);
+    // One-shot: the address no longer names it, and nothing left the composer.
+    await expect.poll(() => new URL(page.url()).searchParams.has('attach')).toBe(false);
+    expect(sent).toEqual([]);
+  });
+
   test('at 320 px no card reaches past the screen', async ({ page, authenticate, mockApi }) => {
     await authenticate({ language: 'fr' });
     await page.setViewportSize({ width: 320, height: 720 });

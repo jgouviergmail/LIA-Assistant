@@ -101,3 +101,65 @@ async def test_a_failing_extractor_never_raises() -> None:
             language="fr",
             run_inline=True,
         )
+
+
+async def test_the_card_is_restated_once_the_learning_persisted_its_spend() -> None:
+    """The learning spends under the session's run AFTER the card: the card follows."""
+    order: list[str] = []
+    after = AsyncMock(side_effect=lambda: order.append("restated"))
+    with (
+        patch(f"{MODULE}.extract_memories_background", AsyncMock(return_value=1)),
+        patch(f"{MODULE}.extract_interests_background", AsyncMock(return_value=0)),
+        patch(f"{MODULE}.TrackingContext") as tracking,
+    ):
+        _tracking(tracking)
+        tracking.return_value.__aexit__ = AsyncMock(
+            side_effect=lambda *_: order.append("persisted") or False
+        )
+        await schedule_voice_learning(
+            user_id=uuid.uuid4(),
+            memory_enabled=True,
+            conversation_id=uuid.uuid4(),
+            run_id="live_session_x",
+            rows=ROWS,
+            language="fr",
+            run_inline=True,
+            after=after,
+        )
+    assert order == ["persisted", "restated"]
+
+
+async def test_a_failed_learning_still_restates_what_it_spent() -> None:
+    """The tracker persists on failure too, so the card still takes that spend."""
+    after = AsyncMock()
+    with (
+        patch(f"{MODULE}.extract_memories_background", AsyncMock(side_effect=RuntimeError("x"))),
+        patch(f"{MODULE}.TrackingContext") as tracking,
+    ):
+        _tracking(tracking)
+        await schedule_voice_learning(
+            user_id=uuid.uuid4(),
+            memory_enabled=True,
+            conversation_id=uuid.uuid4(),
+            run_id="r",
+            rows=ROWS,
+            language="fr",
+            run_inline=True,
+            after=after,
+        )
+    after.assert_awaited_once()
+
+
+async def test_no_learning_restates_nothing() -> None:
+    after = AsyncMock()
+    await schedule_voice_learning(
+        user_id=uuid.uuid4(),
+        memory_enabled=True,
+        conversation_id=uuid.uuid4(),
+        run_id="r",
+        rows=[],
+        language="fr",
+        run_inline=True,
+        after=after,
+    )
+    after.assert_not_awaited()

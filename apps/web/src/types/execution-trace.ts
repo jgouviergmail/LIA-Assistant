@@ -10,6 +10,8 @@
  * `lib/execution-trace-hydration.ts` — a reloaded trace has no 💭 block.
  */
 
+import type { StepOutcome } from '@/lib/execution-outcome';
+
 /** Coarse grouping mirroring the backend DisplayMetadata.category vocabulary. */
 export type TraceStepCategory = 'system' | 'agent' | 'tool' | 'context';
 
@@ -21,6 +23,8 @@ export interface ExecutionTraceStep {
   label: string;
   /** Grouping bucket for the disclosure. */
   category: TraceStepCategory;
+  /** What the step did — calls, results, failures (2026-10-24). */
+  outcome?: StepOutcome;
 }
 
 /** The full backstage record attached to a completed assistant message. */

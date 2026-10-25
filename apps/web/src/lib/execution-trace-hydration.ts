@@ -19,6 +19,7 @@ import type {
   TraceStepCategory,
 } from '@/types/execution-trace';
 import { capTraceSteps } from '@/types/execution-trace';
+import { outcomeCounts } from '@/lib/execution-outcome';
 
 /** Metadata key written by the backend (`FIELD_EXECUTION_TRACE`). */
 const EXECUTION_TRACE_METADATA_KEY = 'execution_trace';
@@ -36,6 +37,8 @@ function hydrateStep(raw: unknown, t: TranslateFn): ExecutionTraceStep | null {
   const label = t(`execution.steps.${i18nKey}`, { defaultValue: '' });
   if (!label) return null;
   const category = step.category;
+  // What the step did, as integers only (2026-10-24): anything else is dropped.
+  const outcome = outcomeCounts(step.outcome);
   return {
     emoji: typeof step.emoji === 'string' && step.emoji ? step.emoji : '⚙️',
     label,
@@ -43,6 +46,7 @@ function hydrateStep(raw: unknown, t: TranslateFn): ExecutionTraceStep | null {
       typeof category === 'string' && TRACE_CATEGORIES.has(category)
         ? (category as TraceStepCategory)
         : 'system',
+    ...(Object.keys(outcome).length > 0 ? { outcome } : {}),
   };
 }
 

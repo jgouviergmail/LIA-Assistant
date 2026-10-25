@@ -6,6 +6,16 @@ recipient receives an independent owned copy, durably **disabled** before the
 first successful commit. Its settings badge names the sender and sharing time.
 The existing editor, activation, credentials and deletion controls manage it.
 
+Under each card's rule, the sender also sees a folded **Shared with** list —
+each recipient once, with the date of the newest share and « incomplete » while
+part of it is missing — and the share dialog never offers those recipients
+again: a published share is final for now, decided by one server function
+(`reshare_allowed` in
+[the shares projection](../../apps/api/src/domains/shared/capability_shares.py)),
+asked under the pair's lock at the preview and at the send (`409
+peers_capability_already_shared`). Resuming a partial share sends the same
+receipt and is never refused.
+
 The confirmed send ends on a popup for the sender: what was shared with whom
 when the copy is installed (the dialog then closes), why it did not complete
 otherwise (the dialog stays open on its state and retry). The recipient's chat

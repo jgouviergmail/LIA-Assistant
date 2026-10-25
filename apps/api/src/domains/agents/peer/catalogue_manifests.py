@@ -62,8 +62,10 @@ send_peer_message_catalogue_manifest = ToolManifest(
         "to a person they are connected with ('pass a message to…', 'tell…', "
         "'ask…'). ALSO the way to REPLY to a relayed message: "
         "relays are stateless (no message_id/thread) — a reply is simply a "
-        "new relayed message. recipient_name matching is accent- and "
-        "case-insensitive. Keep `message` in the USER'S OWN LANGUAGE (never "
+        "new relayed message. recipient_name accepts a first name when it "
+        "designates one connection (accent- and case-insensitive); several "
+        "matches are answered with the candidates to ask about. Keep `message` "
+        "in the USER'S OWN LANGUAGE (never "
         "translate) and phrase it as ADDRESSED TO the recipient (direct "
         "address): 'ask X how they are' → message='how are you?'. "
         "SELF-CONTAINED single step: recipient_name resolves among the "
@@ -75,7 +77,10 @@ send_peer_message_catalogue_manifest = ToolManifest(
             name="recipient_name",
             type="string",
             required=True,
-            description="Full name of the connected user (exact name)",
+            description=(
+                "Name of the connected user as the user says it: the full name, "
+                "or a first name when it designates one connection"
+            ),
             constraints=[
                 ParameterConstraint(kind="min_length", value=1),
                 ParameterConstraint(kind="max_length", value=255),
@@ -231,7 +236,10 @@ get_peer_availability_catalogue_manifest = ToolManifest(
             name="peer_name",
             type="string",
             required=True,
-            description="Full name of the connected user (exact name)",
+            description=(
+                "Name of the connected user as the user says it: the full name, "
+                "or a first name when it designates one connection"
+            ),
         ),
     ],
     outputs=[
@@ -301,7 +309,10 @@ get_peer_tasks_catalogue_manifest = ToolManifest(
             name="peer_name",
             type="string",
             required=True,
-            description="Full name of the connected user (exact name)",
+            description=(
+                "Name of the connected user as the user says it: the full name, "
+                "or a first name when it designates one connection"
+            ),
         ),
     ],
     outputs=[

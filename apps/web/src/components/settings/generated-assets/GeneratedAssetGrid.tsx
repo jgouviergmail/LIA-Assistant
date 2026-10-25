@@ -45,6 +45,7 @@ import { refusalSentence } from '@/lib/api-error';
 import { assetLabel, assetOpenHref, expiryTone, isKept } from '@/lib/generated-assets/display';
 import type { GeneratedAsset } from '@/types/generated-assets';
 import { EmailAssetButton, SharedByLine, ShareAssetButton } from './AssetShareControls';
+import { UseInChatButton } from './UseInChatButton';
 
 export interface GeneratedAssetGridProps {
   lng: Language;
@@ -225,6 +226,11 @@ export function GeneratedAssetGrid({
                 {(keepOffered || isKept(asset)) && (
                   <KeepToggle lng={lng} asset={asset} label={label} onToggle={onKeepToggle} />
                 )}
+                <UseInChatButton
+                  lng={lng}
+                  source={{ kind: 'generated', id: asset.id }}
+                  label={t('settings.generated_assets.use_in_chat', { name: label })}
+                />
                 <Button asChild variant="ghost" size="sm">
                   <a
                     href={apiResourceUrl(`/api/v1/attachments/${asset.id}`)}

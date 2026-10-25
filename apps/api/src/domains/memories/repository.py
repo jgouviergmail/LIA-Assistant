@@ -31,6 +31,7 @@ from sqlalchemy.sql.elements import ColumnElement
 
 from src.domains.memories.models import Memory, MemoryCategory
 from src.domains.memories.protection import PROTECTED_CATEGORIES
+from src.infrastructure.database.keyset import Keyset, older_than
 from src.infrastructure.observability.logging import get_logger
 
 
@@ -39,6 +40,19 @@ from src.infrastructure.observability.logging import get_logger
 def _active() -> ColumnElement[bool]:
     """SQLAlchemy predicate selecting live facts only."""
     return Memory.invalidated_at.is_(None)
+
+
+def _mentions(name: str) -> ColumnElement[bool] | None:
+    """A memory mentions ``name``: case- and accent-insensitive substring; None when blank.
+
+    ONE match for the 360° card and the relationship timeline, so the two can
+    never disagree about which memories are this person's.
+    """
+    needle = name.strip()
+    if not needle:
+        return None
+    escaped = needle.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return func.unaccent(Memory.content).ilike(func.unaccent(f"%{escaped}%"), escape="\\")
 
 
 logger = get_logger(__name__)
@@ -327,21 +341,16 @@ class MemoryRepository:
         Returns:
             Tuple of (page of memories, exact total number of matches).
         """
-        needle = name.strip()
-        if not needle:
+        mention = _mentions(name)
+        if mention is None:
             return [], 0
-        escaped = needle.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         # ONE pass, not two: ``count(*) OVER ()`` is evaluated over every
         # matching row BEFORE the LIMIT truncates, so the total stays exact
         # while the ``unaccent`` predicate — the expensive part — runs once. A
         # separate COUNT query would double the scan for nothing.
         stmt = (
             select(Memory, func.count().over().label("total"))
-            .where(
-                Memory.user_id == user_id,
-                _active(),
-                func.unaccent(Memory.content).ilike(func.unaccent(f"%{escaped}%"), escape="\\"),
-            )
+            .where(Memory.user_id == user_id, _active(), mention)
             .order_by(Memory.created_at.desc())
             .limit(limit)
         )
@@ -349,6 +358,38 @@ class MemoryRepository:
         if not rows:
             return [], 0
         return [row[0] for row in rows], int(rows[0].total)
+
+    async def list_mentioning_name_page(
+        self,
+        user_id: UUID,
+        name: str,
+        *,
+        limit: int,
+        before: Keyset | None = None,
+    ) -> list[Memory]:
+        """Memories mentioning a name, newest first, after a timeline cursor.
+
+        The relationship timeline's read: the SAME match as
+        :meth:`list_mentioning_name` (``_mentions``), the ordering ending on
+        the primary key so a keyset neither skips nor repeats one.
+
+        Args:
+            user_id: Owner.
+            name: Name to look for, as displayed.
+            limit: Page size.
+            before: Where the page resumes; None for the newest.
+
+        Returns:
+            The page.
+        """
+        mention = _mentions(name)
+        if mention is None:
+            return []
+        stmt = select(Memory).where(Memory.user_id == user_id, _active(), mention)
+        if before is not None:
+            stmt = stmt.where(older_than(Memory.created_at, Memory.id, before))
+        stmt = stmt.order_by(Memory.created_at.desc(), Memory.id.desc()).limit(limit)
+        return list((await self.db.scalars(stmt)).all())
 
     async def get_recent_for_user(
         self,

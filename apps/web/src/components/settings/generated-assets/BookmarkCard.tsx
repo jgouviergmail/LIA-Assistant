@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 
 import { MarkdownContent } from '@/components/chat/MarkdownContent';
 import { EmailShareButton } from '@/components/email-share/EmailShareButton';
+import { UseInChatButton } from './UseInChatButton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { LLMUsageBadge } from '@/components/ui/llm-usage-badge';
@@ -190,6 +191,11 @@ export function BookmarkCard({ lng, bookmark, onDeleted }: BookmarkCardProps) {
             <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
           </Button>
         )}
+        <UseInChatButton
+          lng={lng}
+          source={{ kind: 'bookmark', id: bookmark.id }}
+          label={t('settings.bookmarks.use_in_chat')}
+        />
         <Button
           variant="ghost"
           size="sm"

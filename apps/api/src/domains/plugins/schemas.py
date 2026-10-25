@@ -22,7 +22,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from src.core.capability_origin import CapabilityOrigin
+from src.core.capability_origin import CapabilityOrigin, CapabilityShare
 
 
 class PluginIssueCode(str, Enum):
@@ -250,6 +250,9 @@ class PluginResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
     shared_origin: CapabilityOrigin | None = None
+    shared_with: list[CapabilityShare] = Field(
+        default_factory=list, description="Peers this plugin was shared with, newest first"
+    )
 
     id: UUID = Field(description="Installed plugin row id")
     name: str = Field(description="Plugin name")

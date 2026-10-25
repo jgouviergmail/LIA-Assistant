@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -187,6 +188,48 @@ class RelationDetail(BaseModel):
     # before the merge. Shown so the merge is visible and undoable: a merge
     # nobody can see is a merge nobody can correct.
     merged_from: list[str] = Field(default_factory=list)
+
+
+#: The records a relationship timeline holds — the card's dated sections.
+TimelineKind = Literal["call", "memory", "open_loop", "peer_message", "sms"]
+
+
+class RelationTimelineItem(BaseModel):
+    """One dated record of a relationship, as its section on the card shows it.
+
+    Exactly one of the record fields is set — the one ``kind`` names — so the
+    timeline and the card share their wording (``relations/mappers.py``).
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: TimelineKind = Field(description="Which section the record belongs to.")
+    at: datetime = Field(description="The record's instant (UTC): when it was recorded.")
+    open_loop: RelationOpenLoop | None = Field(default=None, description="An open commitment.")
+    call: RelationCall | None = Field(default=None, description="A phone call.")
+    memory: RelationMemory | None = Field(default=None, description="A memory naming them.")
+    peer_message: RelationPeerMessage | None = Field(
+        default=None, description="A message relayed between assistants."
+    )
+    sms: PersonalSms | None = Field(default=None, description="A text message.")
+
+
+class RelationTimeline(BaseModel):
+    """One page of a relationship's records, newest first (2026-10-24).
+
+    The page is cut by a cursor, never an offset: a record landing between two
+    pages neither repeats nor drops one. It carries no count of its own: the
+    card's sections already state their exact totals (ADR-185), and a second
+    count of the same records could only disagree with them.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    items: list[RelationTimelineItem] = Field(description="The page, newest first.")
+    next_cursor: str | None = Field(
+        default=None, description="Where the next page starts; null once nothing is left."
+    )
+    page_size: int = Field(ge=1, description="Records per page — published because enforced.")
 
 
 class RelationMergeRequest(BaseModel):

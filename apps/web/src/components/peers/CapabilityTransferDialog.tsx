@@ -15,10 +15,16 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/hooks/useAuth';
 import { useCapabilityRecipients } from '@/hooks/useCapabilityRecipients';
 import { useCapabilityTransfer, type TransferSettlement } from '@/hooks/useCapabilityTransfer';
 import { peersErrorCode } from '@/components/settings/peers/peers-error-messages';
-import type { CapabilitySelection, CapabilityTransfer } from '@/lib/capability-sharing';
+import { publishApplicationResources, type ApplicationResource } from '@/lib/application-resources';
+import type {
+  CapabilityKind,
+  CapabilitySelection,
+  CapabilityTransfer,
+} from '@/lib/capability-sharing';
 import { PeerRecipientList } from './PeerRecipientList';
 
 const ERROR_KEYS: Record<string, string> = {
@@ -29,6 +35,14 @@ const ERROR_KEYS: Record<string, string> = {
   peers_capability_name_conflict: 'conflict',
   peers_capability_recipient_changed: 'recipient_changed',
   peers_capability_not_shareable: 'not_shareable',
+  peers_capability_already_shared: 'already_shared',
+};
+
+/** The owner's list a published share changes: its card lists the recipient now. */
+const LIST_OF_KIND: Record<CapabilityKind, ApplicationResource> = {
+  skill: 'skills',
+  mcp: 'user_mcp',
+  plugin: 'plugins',
 };
 
 function errorKey(error: Error | null): string {
@@ -252,15 +266,21 @@ export function CapabilityTransferDialog({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const peers = useCapabilityRecipients();
   const transfer = useCapabilityTransfer(source);
   const [connection, setConnection] = useState<string | null>(null);
   const group = useId();
-  const recipient = peers.recipients.find(peer => peer.id === connection);
+  // The server's sharing policy closes some recipients: they are never offered.
+  const blocked = new Set(source.blockedRecipientIds ?? []);
+  const recipients = peers.recipients.filter(peer => !blocked.has(peer.peer_id));
+  const recipient = recipients.find(peer => peer.id === connection);
   const selected = recipient ? connection : null;
   const send = async (preview: CapabilityTransfer) => {
     const settled = await transfer.send(preview);
     if (!settled) return;
+    if ('receipt' in settled && settled.receipt.transferred_at && user?.id)
+      publishApplicationResources(user.id, new Set([LIST_OF_KIND[source.kind]]));
     const shared = {
       name: preview.name,
       recipient: recipient?.peer_display_name || t('settings.capability_share.unknown_sender'),
@@ -292,14 +312,20 @@ export function CapabilityTransferDialog({
           <legend className="text-sm font-medium">
             {t('settings.capability_share.recipient')}
           </legend>
-          <PeerRecipientList
-            loading={peers.loading}
-            failed={peers.error !== null}
-            recipients={peers.recipients}
-            groupName={group}
-            selected={connection}
-            onSelect={setConnection}
-          />
+          {recipients.length === 0 && peers.recipients.length > 0 ? (
+            <p className="py-3 text-sm text-foreground/80">
+              {t('settings.capability_share.all_already_shared')}
+            </p>
+          ) : (
+            <PeerRecipientList
+              loading={peers.loading}
+              failed={peers.error !== null}
+              recipients={recipients}
+              groupName={group}
+              selected={connection}
+              onSelect={setConnection}
+            />
+          )}
         </fieldset>
         <TransferReview preview={transfer.preview} outcome={transfer.outcome} />
         {transfer.error && (

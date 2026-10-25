@@ -9,9 +9,11 @@
 
 import {
   ArrowUp,
+  Bookmark,
   CheckCircle2,
   FileText,
   Image as ImageIcon,
+  Images,
   Library,
   Paperclip,
   Plus,
@@ -258,10 +260,64 @@ function KnowledgePickScene({ active, labels }: SceneProps) {
   );
 }
 
+type BringPhase = 'closed' | 'menu' | 'attached';
+const BRING_STEPS: readonly TimelineStep<BringPhase>[] = [
+  { at: 0, state: 'closed' },
+  { at: 700, state: 'menu' },
+  { at: 2000, state: 'attached' },
+];
+
+/**
+ * The « + » also brings back what the person kept — a kept answer, a file LIA
+ * made for them — as a copy joining the message; the original stays put.
+ */
+function BringBackScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(BRING_STEPS, { active });
+  const open = phase === 'menu';
+  return (
+    <div className={cn(STAGE, 'justify-end gap-2 pb-3')}>
+      <div
+        className={cn(
+          'w-full max-w-[220px] rounded-md border border-border bg-background p-1 text-px-10 shadow-sm transition-all duration-300 motion-reduce:transition-none',
+          open ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-1 opacity-0'
+        )}
+      >
+        <div className="flex items-center gap-1.5 rounded bg-primary/10 px-1.5 py-1 text-primary">
+          <Bookmark className="h-3 w-3" aria-hidden="true" />
+          {labels.bookmark}
+        </div>
+        <div className="flex items-center gap-1.5 rounded px-1.5 py-1 text-muted-foreground">
+          <Images className="h-3 w-3" aria-hidden="true" />
+          {labels.generated}
+        </div>
+      </div>
+      <div className="w-full max-w-[220px]">
+        <MiniComposer
+          trailing={<Plus className={cn('h-3 w-3 text-primary', open && 'rotate-45')} />}
+        >
+          <span className="flex items-center gap-2">
+            <span
+              className={cn(
+                'flex h-5 items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-1.5 transition-all duration-300 motion-reduce:transition-none',
+                phase === 'attached' ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
+              )}
+            >
+              <Bookmark className="h-3 w-3 text-primary" aria-hidden="true" />
+              <SkeletonLine w="w-8" className="bg-primary/25" />
+            </span>
+            <SkeletonLine w="w-12" />
+          </span>
+        </MiniComposer>
+      </div>
+    </div>
+  );
+}
+
 export const WRITE_SCENES: Readonly<Record<string, SceneComponent>> = {
   draft_survives: DraftSurvivesScene,
   slash_commands: SlashCommandsScene,
   paste_screenshot: PasteScreenshotScene,
   drop_zone: DropZoneScene,
   knowledge_pick: KnowledgePickScene,
+  bring_back: BringBackScene,
 };

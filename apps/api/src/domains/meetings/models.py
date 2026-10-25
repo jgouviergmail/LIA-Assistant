@@ -40,9 +40,12 @@ class MeetingStatus(str, Enum):
 
     ``recording`` → ``stopped`` → ``processing`` → ``ready`` | ``failed``;
     ``recording`` → ``interrupted`` (no segment for a while) → ``recording``
-    (a segment arrives) or ``stopped`` (the user finalizes what exists).
+    (a segment arrives) or ``stopped`` (the user finalizes what exists);
+    ``uploading`` (a file arrives in chunks) → ``stopped`` once every chunk is
+    there, or ``failed`` when the upload stops before it is complete.
     """
 
+    UPLOADING = "uploading"
     RECORDING = "recording"
     INTERRUPTED = "interrupted"
     STOPPED = "stopped"
@@ -61,11 +64,30 @@ class MeetingStage(str, Enum):
 
 
 class MeetingAudioFormat(str, Enum):
-    """What the client sends. Fixed at start for the whole recording."""
+    """What the client sends. Fixed at start for the whole recording.
+
+    The ``import_*`` members are FILES the person imports (owner request
+    2026-10-24), never a live recording's stream: they are uploaded in chunks
+    and read by ffmpeg through the demuxer of their own format only.
+    """
 
     PCM_S16LE_16 = "pcm_s16le_16"
     WEBM_OPUS = "webm_opus"
     OGG_OPUS = "ogg_opus"
+    IMPORT_WAV = "import_wav"
+    IMPORT_MP3 = "import_mp3"
+    IMPORT_M4A = "import_m4a"
+
+
+#: The formats of an imported file, as opposed to a live recording's stream.
+IMPORT_FORMATS: frozenset[MeetingAudioFormat] = frozenset(
+    {MeetingAudioFormat.IMPORT_WAV, MeetingAudioFormat.IMPORT_MP3, MeetingAudioFormat.IMPORT_M4A}
+)
+
+
+def is_import(audio_format: MeetingAudioFormat) -> bool:
+    """Whether the audio is a file the person imported rather than a recording."""
+    return audio_format in IMPORT_FORMATS
 
 
 class MeetingSttProvider(str, Enum):
@@ -97,6 +119,9 @@ class MeetingIndexState(str, Enum):
 # Predicate of the "one recording per user" partial unique index. NAME, not
 # value: native_enum=False stores 'RECORDING'.
 ACTIVE_RECORDING_STATUS_SQL = "status = 'RECORDING'"
+# Same for "one import in progress per user" — a recording and an import may
+# run side by side, two uploads may not.
+ACTIVE_IMPORT_STATUS_SQL = "status = 'UPLOADING'"
 
 
 class Meeting(BaseModel):
@@ -273,6 +298,12 @@ class Meeting(BaseModel):
             "user_id",
             unique=True,
             postgresql_where=text(ACTIVE_RECORDING_STATUS_SQL),
+        ),
+        Index(
+            "uq_meetings_one_import_per_user",
+            "user_id",
+            unique=True,
+            postgresql_where=text(ACTIVE_IMPORT_STATUS_SQL),
         ),
     )
 

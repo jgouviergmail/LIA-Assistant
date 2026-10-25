@@ -41,6 +41,7 @@ import { useMeetingPreferences } from '@/hooks/useMeetingPreferences';
 import { useMeetingTemplates } from '@/hooks/useMeetingTemplates';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
+import { MEETING_LANGUAGE_HINTS } from '@/lib/meetings/format';
 import { userTemplateCount } from '@/lib/meetings/templates';
 import type { BaseSettingsProps } from '@/types/settings';
 import type {
@@ -50,8 +51,6 @@ import type {
   MeetingTemplateSummary,
 } from '@/types/meetings';
 
-/** ISO-639-1 hints the engines accept, offered next to auto-detection. */
-const LANGUAGE_HINTS: readonly string[] = ['en', 'fr', 'de', 'es', 'it', 'zh', 'pt', 'nl'];
 const ENGINES: readonly MeetingSttEnginePreference[] = ['auto', 'remote', 'local'];
 
 /** A count that holds something reads tinted; an empty one stays neutral. */
@@ -174,7 +173,7 @@ function PreferencesForm({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="auto">{t('meetings.settings.language_auto')}</SelectItem>
-              {LANGUAGE_HINTS.map(code => (
+              {MEETING_LANGUAGE_HINTS.map(code => (
                 <SelectItem key={code} value={code}>
                   {t(`meetings.settings.language_codes.${code}`)}
                 </SelectItem>

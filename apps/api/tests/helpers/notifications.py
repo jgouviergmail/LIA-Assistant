@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 from uuid import UUID
 
+from src.core.field_names import FIELD_RUN_ID
 from src.infrastructure.proactive.notification import NotificationDispatcher
 
 if TYPE_CHECKING:
@@ -24,13 +25,18 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class SentNotification:
-    """What one dispatch carried, as the SSE channel received it."""
+    """What one dispatch carried, as the SSE channel received it.
+
+    ``run_id`` is the run the archived message names — what the chat meter
+    joins the spend on — or None when the dispatch named none.
+    """
 
     user_id: UUID
     content: str
     title: str
     task_type: str
     target_id: str
+    run_id: str | None = None
 
 
 @dataclass
@@ -94,7 +100,17 @@ class ScriptedDispatcher(NotificationDispatcher):
         target_id: str,
         metadata: Mapping[str, object],
     ) -> None:
-        self.channels.sent.append(SentNotification(user_id, content, title, task_type, target_id))
+        run_id = metadata.get(FIELD_RUN_ID)
+        self.channels.sent.append(
+            SentNotification(
+                user_id,
+                content,
+                title,
+                task_type,
+                target_id,
+                run_id if isinstance(run_id, str) else None,
+            )
+        )
         if not self.channels.sse:
             raise ConnectionError("SSE unavailable")
 

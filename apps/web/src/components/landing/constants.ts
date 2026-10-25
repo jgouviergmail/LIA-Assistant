@@ -415,12 +415,12 @@
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
  *   223 headings at v1.31.2, no Unreleased pending. 253 at v1.44.0.
- * - auditScore/auditAreas: the V14 revision of 2026-10-22, a counter-review
- *   of the same day's V14 (v3.4.0 preparation) on the same grid — 24
- *   normalized areas mapped to ISO/IEC 25010:2023, each area the sum of five
- *   0–2 axes, arithmetic mean 186.5/240 = 7.8/10, security out of scope.
- *   V14 itself had read 192/240 = 8.0. Previous cycles: V11/V12 8.3
- *   (2026-07-16/24), V13 7.3 (2026-08-02). Full public report + protocol: docs/audit/
+ * - auditScore/auditAreas: V15 of 2026-10-25, an audit of the committed
+ *   v3.6.0 (commit 3909d87c5) — 24 normalized areas mapped to ISO/IEC
+ *   25010:2023, each scored by explicit judgment on a published ordinal scale,
+ *   arithmetic mean 190/240 = 7.9/10, security out of scope. Previous cycles:
+ *   V11/V12 8.3 (2026-07-16/24), V13 7.3 (2026-08-02), V14 8.0 and its
+ *   revision 7.8 (2026-10-22). Full public report + protocol: docs/audit/
  *   (AUDIT_REPORT_URL below). No landing band renders the score today; the
  *   texts that quote it (README, story/how guides, the getting-started FAQ
  *   answer and story.meta.description in the 6 locales) follow this value.
@@ -431,12 +431,12 @@ export const LANDING_STATS = {
   tools: 327,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 634,
+  metrics: 635,
   uiLanguages: 6,
   tests: 67000,
   adrs: 362,
-  releases: 288,
-  auditScore: '7.8/10',
+  releases: 289,
+  auditScore: '7.9/10',
   auditAreas: 24,
 } as const;
 

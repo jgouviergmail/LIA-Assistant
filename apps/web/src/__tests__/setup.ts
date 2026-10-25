@@ -10,8 +10,20 @@
  */
 
 import '@testing-library/jest-dom';
+import { configure } from '@testing-library/react';
 import React from 'react';
 import { vi } from 'vitest';
+
+// Testing Library waits 1 s in `findBy*` and `waitFor` by default — a framework
+// default nobody here calibrated, like Vitest's 5 s per-test default before it
+// (`testTimeout` in vitest.config.mts). Under full-suite parallelism WITH
+// coverage instrumentation the suite runs about 5x slower, so a re-render that
+// lands in a few hundred milliseconds alone can miss 1 s: an optimistic
+// rollback in AdminUsersSection did, in one full coverage run of two
+// (2026-10-25), and passed 3/3 alone. 5 s keeps the headroom `testTimeout`
+// keeps; a wait that succeeds still resolves as soon as its condition holds,
+// only a failing one reports later.
+configure({ asyncUtilTimeout: 5_000 });
 
 // Mock Next.js router
 vi.mock('next/navigation', () => ({

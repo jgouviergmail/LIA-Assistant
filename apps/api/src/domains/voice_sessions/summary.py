@@ -27,6 +27,7 @@ from src.core.field_names import FIELD_LIVE_SESSION_ID, FIELD_RUN_ID
 from src.core.i18n_live import get_live_phrases
 from src.domains.chat.repository import ChatRepository
 from src.domains.conversations.models import ConversationMessage
+from src.domains.conversations.sync_signal import arm_after_archive
 
 #: How a session ended — the vocabulary of the closing card and the metrics.
 VoiceSessionOutcome = Literal[
@@ -266,6 +267,8 @@ async def rewrite_session_card(
     rewritten once the fate is known for good (ADR-301: a direct session's
     relay). The whole metadata dict is written, never merged: a nested key
     cannot be patched by a shallow merge, and the caller built the NEW dict.
+    The change is said to the person's open tabs once the caller commits
+    (ADR-320): a card rewritten in silence stayed stale until a reload.
 
     Args:
         db: Session.
@@ -282,6 +285,7 @@ async def rewrite_session_card(
     row.content = content
     row.message_metadata = metadata
     await db.flush()
+    await arm_after_archive(db, row)
     return True
 
 

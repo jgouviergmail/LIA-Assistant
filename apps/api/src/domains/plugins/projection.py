@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.domains.plugins.models import UserPlugin
 from src.domains.plugins.schemas import PluginListResponse, PluginResponse
 from src.domains.shared.capability_origins import capability_origins
+from src.domains.shared.capability_shares import capability_shares
 from src.domains.skills.models import Skill
 from src.domains.user_mcp.models import UserMCPServer
 
@@ -37,6 +38,7 @@ async def list_plugin_projection(db: AsyncSession, owner_id: UUID) -> PluginList
         return PluginListResponse()
     ids = [row["id"] for row in rows]
     origins = await capability_origins(db, owner_id, "plugin", ids)
+    shares = await capability_shares(db, owner_id, "plugin", ids)
     skills: dict[UUID, list[str]] = defaultdict(list)
     for plugin_id, name in (
         await db.execute(
@@ -61,6 +63,7 @@ async def list_plugin_projection(db: AsyncSession, owner_id: UUID) -> PluginList
             skill_names=skills[row["id"]],
             server_names=servers[row["id"]],
             shared_origin=origins.get(row["id"]),
+            shared_with=shares.get(row["id"], []),
         )
         for row in rows
     ]

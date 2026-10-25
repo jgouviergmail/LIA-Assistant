@@ -29,6 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.i18n_telephony import get_return_phrases
 from src.domains.conversations.service import ConversationService
+from src.domains.telephony.call_notifications import dispatch_call_notification
 from src.domains.telephony.models import PhoneCall, PhoneCallStatus
 from src.domains.telephony.repository import TelephonyRepository
 from src.domains.telephony.schemas import SelfCallRelay
@@ -45,11 +46,6 @@ from src.infrastructure.scheduler.voice_relay import (
 )
 
 logger = structlog.get_logger(__name__)
-
-#: The task type of the phone's pushes (the origin kind and the session key
-#: prefix are the voice session's own — ``VoiceSession.phone``).
-_TASK_TYPE: Final = "phone_call"
-
 
 #: The sentence each fallback outcome puts in the notification, by locale key.
 FALLBACK_PHRASE_KEYS: Final[dict[RelayOutcome, str]] = {
@@ -94,15 +90,14 @@ async def _push_relay_ran(
     """A push, and only a push: the turn's rows are already in the chat."""
     phrases = get_return_phrases(language)
     try:
-        await NotificationDispatcher(archive_enabled=False, sse_enabled=False).dispatch(
+        await dispatch_call_notification(
+            NotificationDispatcher(archive_enabled=False, sse_enabled=False),
             user=user,
+            call_id=call_id,
             content=phrases[_RAN_PHRASE_KEYS[outcome]],
-            task_type=_TASK_TYPE,
-            target_id=str(call_id),
+            title=phrases["self_call_title"],
             metadata={"relay": outcome.value},
             db=db,
-            title=phrases["self_call_title"],
-            push_enabled=True,
         )
     except Exception as exc:  # noqa: BLE001 — a push failure never undoes the turn
         logger.warning(
@@ -204,14 +199,14 @@ async def settle_owner_call(
         return  # settled meanwhile (a stale-relay sweep, a race): nothing to add
     phrases = get_return_phrases(language)
     try:
-        await NotificationDispatcher().dispatch(
+        await dispatch_call_notification(
+            NotificationDispatcher(),
             user=user,
+            call_id=call.id,
             content=content,
-            task_type=_TASK_TYPE,
-            target_id=str(call.id),
+            title=phrases["self_call_title"],
             metadata={"call_status": PhoneCallStatus(call.status).value, "relay": outcome.value},
             db=db,
-            title=phrases["self_call_title"],
             require_durable=True,
         )
     except Exception as exc:  # noqa: BLE001 — PENDING stays for the reaper (T1)

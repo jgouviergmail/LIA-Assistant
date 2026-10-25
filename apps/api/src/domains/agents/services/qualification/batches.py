@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import JsonValue
 
@@ -21,6 +22,20 @@ from src.infrastructure.llm.typesafe_client import (
     TypeSafeError,
     encode_decision_request,
 )
+
+
+def _reference_time(now: datetime, timezone: str) -> str:
+    """The clock in the zone the question names (2026-10-25).
+
+    An explicit local deadline then compares without a conversion: the calibration
+    corpora state their reference in the zone they name, and a UTC instant beside
+    the person's zone disagrees with it on the day around midnight. An unknown
+    zone keeps the UTC instant.
+    """
+    try:
+        return now.astimezone(ZoneInfo(timezone)).isoformat()
+    except ValueError, ZoneInfoNotFoundError:
+        return now.isoformat()
 
 
 @dataclass(frozen=True)
@@ -56,7 +71,7 @@ def _batch(
                 load_prompt("jev_email_priority_question", version="v1")
             ).filled(item_key=key)
     state: dict[str, JsonValue] = {
-        "reference_time": now.isoformat(),
+        "reference_time": _reference_time(now, timezone),
         "timezone": timezone,
         "items": items,
     }

@@ -33,8 +33,10 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from src.core.config import settings
 from src.domains.peers.repository import PeersRepository
+from src.domains.peers.schemas import PeerMessageActivity
 from src.domains.shared.aggregates import NameActivity
 from src.domains.shared.text_normalization import fold_name
+from src.infrastructure.database.keyset import Keyset
 from src.infrastructure.database.session import get_db_context
 
 if TYPE_CHECKING:
@@ -120,18 +122,65 @@ async def _read_page_for(
         user_id, limit=limit, peer_names=[item.raw_name for item in mine]
     )
     return PeerMessagePage(
-        signals=[
-            PeerMessageSignal(
-                message_id=str(item.message_id),
-                name_key=target_key,
-                peer_display_name=item.peer_display_name,
-                direction=item.direction,
-                content=item.text,
-                occurred_at=item.occurred_at,
+        signals=_signals(activity, target_key), total=sum(item.count for item in mine)
+    )
+
+
+def _signals(activity: list[PeerMessageActivity], target_key: str) -> list[PeerMessageSignal]:
+    return [
+        PeerMessageSignal(
+            message_id=str(item.message_id),
+            name_key=target_key,
+            peer_display_name=item.peer_display_name,
+            direction=item.direction,
+            content=item.text,
+            occurred_at=item.occurred_at,
+        )
+        for item in activity
+    ]
+
+
+async def fetch_peer_messages_page(
+    user_id: UUID,
+    *,
+    target_key: str,
+    identity_keys: frozenset[str],
+    limit: int,
+    before: Keyset | None = None,
+) -> PeerMessagePage:
+    """One relationship's relayed messages, newest first, after a timeline cursor.
+
+    The relationship timeline's read: the SAME identity narrowing as
+    :func:`fetch_peer_messages_for` (every folded key of the identity, matched
+    against the aggregate's stored spellings), its own session and its own
+    soft failure.
+
+    Args:
+        user_id: Owner of the CRM.
+        target_key: Folded name of the relationship.
+        identity_keys: Every folded key of the identity.
+        limit: Page size.
+        before: Where the page resumes; None for the newest.
+
+    Returns:
+        The page and the person's whole total; empty when the feature is off
+        or the read failed.
+    """
+    if not settings.peers_enabled or not target_key:
+        return _EMPTY_PAGE
+    try:
+        async with get_db_context() as db:
+            repo = PeersRepository(db)
+            aggregates = await repo.aggregate_delivered_messages_by_peer(user_id)
+            mine = [item for item in aggregates if fold_name(item.raw_name) in identity_keys]
+            activity = await repo.list_delivered_message_activity(
+                user_id, limit=limit, peer_names=[item.raw_name for item in mine], before=before
             )
-            for item in activity
-        ],
-        total=sum(item.count for item in mine),
+    except SQLAlchemyError as exc:
+        _bridge_unavailable(user_id, exc, "relations_peer_messages_unavailable")
+        return _EMPTY_PAGE
+    return PeerMessagePage(
+        signals=_signals(activity, target_key), total=sum(item.count for item in mine)
     )
 
 

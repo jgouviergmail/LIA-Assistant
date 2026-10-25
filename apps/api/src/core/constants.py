@@ -6118,6 +6118,18 @@ MEETINGS_CONDENSE_PART_CHARS: int = 60000
 MEETINGS_RATE_LIMIT_STARTS_DEFAULT: int = 10
 MEETINGS_RATE_LIMIT_WINDOW_SECONDS_DEFAULT: int = 3600
 
+# Importing a meeting from a WAV, MP3 or M4A file (owner request 2026-10-24).
+# 500 MB carries three hours of MP3/M4A or of 16 kHz mono WAV; the ceiling keeps
+# `meetings.audio_bytes` (a 32-bit integer) exact. A file travels in chunks
+# under the request-body cap; an upload silent this long is abandoned.
+MEETINGS_IMPORT_ENABLED_DEFAULT: bool = True
+MEETINGS_IMPORT_MAX_MB_DEFAULT: int = 500
+MEETINGS_IMPORT_MAX_MB_CEILING: int = 2000
+MEETINGS_IMPORT_CHUNK_MAX_MB_DEFAULT: int = 8
+MEETINGS_IMPORT_STALE_MINUTES_DEFAULT: int = 15
+# A client clock running ahead may date a recording a little in the future.
+MEETINGS_IMPORT_CLOCK_SKEW_SECONDS: int = 300
+
 # Ids one bulk request may carry (ADR-259): a page of the list is 20, the
 # widest page the API serves is 100.
 MEETINGS_BULK_MAX: int = 100

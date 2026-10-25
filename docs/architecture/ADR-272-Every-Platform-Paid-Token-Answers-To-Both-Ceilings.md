@@ -344,3 +344,14 @@ decision register by run on dev.
 - **Billed under the act.** The heartbeat's skip is billed under the sweep's run
   (the accounting the runner publishes), and a journal consolidation bills its model
   call and every embedding it writes under ONE run.
+
+## Amendment 2026-10-24 — a call's report shows the bill it ran up
+
+The owner rule « every euro the platform pays for a person is traced, displayed,
+attributed and counted » had a hole on the DISPLAY side: a phone call's report
+archived without the call's run id showed no cost although its synthesis was on
+record (production, 2026-10-24: 0,01026 € on a call that relayed nothing). Every
+call notification now leaves through one door that stamps the run id (ADR-290
+amendment 2026-10-24), and the Live closing card is restated once its learning
+spent (ADR-301 amendment 2026-10-24). Nothing new is recorded; what was recorded is
+now shown.

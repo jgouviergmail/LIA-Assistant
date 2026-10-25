@@ -803,6 +803,9 @@
       "hold_to_disable": "Tieni premuto per disattivare"
     },
     "attachments": {
+      "import_meeting": "Importa la registrazione di una riunione",
+      "from_bookmark": "Risposta dai tuoi segnalibri",
+      "from_generated": "File generato da LIA",
       "add": "Allega un file",
       "photo_gallery": "Foto dalla galleria",
       "take_photo": "Scatta una foto",
@@ -815,6 +818,40 @@
       "max_attachments": "Massimo {{max}} allegati",
       "remove": "Rimuovi",
       "drop_here": "Trascina qui le tue immagini o PDF"
+    },
+    "attach_picker": {
+      "search_placeholder": "Cerca per nome",
+      "more_hint": "{{shown}} di {{total}} mostrati: cerca per raggiungere gli altri.",
+      "remaining_one": "Puoi ancora allegare {{count}} file a questo messaggio.",
+      "remaining_other": "Puoi ancora allegare {{count}} file a questo messaggio.",
+      "attach_one": "Allega ({{count}})",
+      "attach_other": "Allega ({{count}})",
+      "already_attached": "È già allegato.",
+      "attach_error": "Impossibile allegare «{{name}}»."
+    },
+    "bookmark_picker": {
+      "title": "Allega una risposta salvata",
+      "description": "Una risposta che hai salvato si unisce a questo messaggio come documento: la richiesta, poi la risposta. Il tuo segnalibro resta com’è.",
+      "search_placeholder": "Cerca nelle tue risposte",
+      "loading": "Caricamento dei tuoi segnalibri…",
+      "empty": "Ancora nessun segnalibro. Salva una risposta con il segnalibro della sua bolla nella chat.",
+      "empty_search": "Nessun segnalibro contiene queste parole.",
+      "error": "Impossibile elencare i tuoi segnalibri."
+    },
+    "generated_picker": {
+      "title": "Allega un file generato da LIA",
+      "description": "Un’immagine si unisce a questo messaggio come immagine, un documento con il suo testo: una copia; l’originale resta nei tuoi file generati.",
+      "loading": "Caricamento dei tuoi file…",
+      "empty": "Ancora niente di generato di questo tipo.",
+      "empty_search": "Nessun file ha questo nome.",
+      "error": "Impossibile elencare i tuoi file generati.",
+      "family": "Tipo di file",
+      "family_images": "Immagini",
+      "family_documents": "Documenti"
+    },
+    "attach_link": {
+      "gone": "Questo file non è più disponibile: forse è scaduto o è stato eliminato.",
+      "failed": "Impossibile allegarlo al tuo messaggio."
     },
     "knowledge_picker": {
       "title": "Allega un documento dai tuoi spazi di conoscenza",
@@ -4874,6 +4911,7 @@
       "runs_other": "{{count}} esecuzioni"
     },
     "generated_assets": {
+      "use_in_chat": "Usa {{name}} nella conversazione",
       "title": "I miei file generati",
       "description": "Le immagini, i documenti e le schermate che LIA ha prodotto per te, e le risposte che hai scelto di conservare. Un file scade se non lo conservi: conservalo, scaricalo o eliminalo adesso.",
       "family": {
@@ -4957,6 +4995,7 @@
       "keep_error": "Impossibile modificare la conservazione."
     },
     "bookmarks": {
+      "use_in_chat": "Usa nella conversazione",
       "request": "La tua richiesta",
       "no_request": "Un messaggio inviato da LIA di propria iniziativa",
       "answered_at": "Risposto il {{when}}",
@@ -5039,6 +5078,10 @@
       "vendor_billed": "Le sessioni su {{brand}} sono fatturate sulla tua chiave, dal fornitore: qui non si imposta alcun tetto — l'importo esatto compare alla fine di ogni sessione."
     },
     "capability_share": {
+      "shared_with_title": "Condiviso con",
+      "shared_partial": "incompleto",
+      "unknown_recipient": "un altro utente",
+      "all_already_shared": "L’hai già condivisa con tutti i tuoi contatti.",
       "origin_by": "Condiviso da {{name}}",
       "origin_on": "il {{date}}",
       "unknown_sender": "un altro utente",
@@ -5076,6 +5119,7 @@
         "cancelled": "Trasferimento scaduto o annullato"
       },
       "errors": {
+        "already_shared": "L’hai già condivisa con questo contatto.",
         "generic": "Impossibile confermare il trasferimento. Verifica lo stato prima di riprovare.",
         "changed": "La risorsa è cambiata. Prepara una nuova anteprima.",
         "expired": "Il trasferimento è scaduto. Prepara una nuova anteprima.",
@@ -5088,6 +5132,23 @@
     }
   },
   "relations": {
+    "timeline": {
+      "title": "Cronologia",
+      "loading": "Caricamento della cronologia…",
+      "error": "Impossibile leggere la cronologia.",
+      "empty": "Ancora niente di datato per questa persona.",
+      "older": "Più vecchi",
+      "more_error": "Impossibile leggere gli elementi più vecchi. Riprova.",
+      "kind": {
+        "open_loop": "Impegno",
+        "call": "Chiamata",
+        "memory": "Ricordo",
+        "peer_message": "Messaggio",
+        "sms": "SMS",
+        "email": "Email",
+        "event": "Appuntamento"
+      }
+    },
     "debrief_stale": "Gli SMS sono cambiati. Rigenera la sintesi per aggiornarla.",
     "sms_title": "SMS",
     "sms_unavailable": "Fonte SMS non disponibile.",
@@ -5639,6 +5700,17 @@
     "footer": "Grazie per la pazienza. L'attivazione del tuo account è in corso di elaborazione."
   },
   "execution": {
+    "outcome": {
+      "lead": " — ",
+      "joiner": " · ",
+      "calls": "×{{count}}",
+      "found_one": "{{count}} risultato",
+      "found_other": "{{count}} risultati",
+      "shown_one": "{{count}} letto",
+      "shown_other": "{{count}} letti",
+      "failed_one": "{{count}} errore",
+      "failed_other": "{{count}} errori"
+    },
     "steps": {
       "router_decision": "Analisi della richiesta...",
       "planner_generation": "Preparazione del piano d'azione...",
@@ -6150,7 +6222,7 @@
         },
         "streaming": {
           "title": "⚡ Streaming & Tempo Reale",
-          "description": "La risposta arriva in flusso SSE con eventi tipizzati: ogni passo di esecuzione compare in diretta — instradamento, pianificazione, validazione, chiamate agli strumenti — poi il testo arriva token dopo token. Un flusso ammutolito non blocca più l’interfaccia: quando un telefono sospende la scheda la connessione muore senza dirlo; superato un budget di silenzio il client la abbandona e si riaggancia al turno ancora in corso, che riproduce quanto prodotto nel frattempo."
+          "description": "La risposta arriva in flusso SSE con eventi tipizzati: ogni passo compare in diretta — instradamento, pianificazione, validazione, chiamate agli strumenti — e dice cosa ha fatto (chiamate, risultati letti, errori), poi il testo arriva token dopo token. Un flusso muto non blocca più l’interfaccia: superato un budget di silenzio il client abbandona la connessione uccisa da una scheda sospesa e si riaggancia al turno in corso, che riproduce quanto prodotto."
         },
         "richResponses": {
           "title": "🎨 Risposte Ricche e Modalità di Visualizzazione",
@@ -6262,7 +6334,7 @@
         },
         "attachments": {
           "title": "📎 Foto e Allegati",
-          "description": "Foto e PDF con il pulsante 📎, trascinando o Ctrl+V; le immagini vanno a un modello di visione, dai PDF si estrae il testo. Il « + » allega anche un documento dei tuoi spazi di conoscenza — anche in pausa — come copia per quel messaggio, e uno strumento legge gli allegati delle tue e-mail (testo, o il modello di visione per una scansione). Ciò che LIA produce ha la sua galleria, dove conservi ciò che conta; un ripristino toglie ciò che hai caricato, mai ciò che LIA ha prodotto."
+          "description": "Foto e PDF con il pulsante 📎, trascinando o Ctrl+V; le immagini vanno a un modello di visione, dai PDF si estrae il testo. Il « + » allega anche come copia un documento dei tuoi spazi di conoscenza — anche in pausa —, un segnalibro o un file generato, e uno strumento legge gli allegati delle tue e-mail (testo, o visione per una scansione). Ciò che LIA produce ha la sua galleria, dove tieni ciò che conta; un ripristino toglie ciò che hai caricato, mai ciò che LIA ha prodotto."
         },
         "skills": {
           "title": "Skills (con mappe e mini-app interattive)",
@@ -6322,7 +6394,7 @@
         },
         "relations": {
           "title": "⭐ CRM personale — Relazioni",
-          "description": "Una lente, non un database: la pagina Relazioni raccoglie ciò che LIA già sa di una persona — impegni aperti, chiamate, ricordi, messaggi inoltrati — con una confidenza mostrata anziché presunta. Tre sezioni vengono dagli account collegati — rubrica, posta, riunioni — trovate per indirizzo e non per nome. Un debriefing scritto apre la scheda: a che punto sei e che cosa affrontare, redatto al massimo una volta al giorno e letto dalla chat quando nomini quella persona."
+          "description": "Una lente, non un database: la pagina Relazioni raccoglie ciò che LIA già sa di una persona — impegni aperti, chiamate, ricordi, messaggi inoltrati — con una confidenza mostrata e una cronologia datata. Tre sezioni vengono dagli account collegati — rubrica, posta, riunioni — trovate per indirizzo e non per nome. Un debriefing apre la scheda: a che punto sei e che cosa affrontare, scritto al massimo una volta al giorno e letto dalla chat quando nomini la persona."
         },
         "provenance": {
           "title": "🔍 Provenienza delle conclusioni",
@@ -6370,7 +6442,7 @@
         },
         "meetings": {
           "title": "🎙️ Verbali di riunione",
-          "description": "Registri dal telefono o computer mentre la chat resta disponibile. L’audio parte in piccoli segmenti; il server lo trascrive e prepara un verbale con trenta modelli o il suo. Cambi formato, includa la trascrizione, corregga il risultato e cerchi nel verbale completo per ritrovare una decisione. Le lacune audio sono dichiarate, mai inventate."
+          "description": "Registra dal telefono o dal computer mentre la chat resta disponibile, o importa un file WAV, MP3 o M4A. Il server lo trascrive e prepara un verbale con trenta modelli o il tuo. Cambia formato, includi la trascrizione, correggi il risultato e cerca nel verbale completo una decisione. Le lacune audio sono dichiarate, mai inventate."
         },
         "transparencyRegisters": {
           "title": "📋 Registri delle azioni e delle consultazioni",
@@ -6395,6 +6467,23 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v3_7_0": {
+          "title": "v3.7.0 — 🔎 Trovato per nome, condiviso alla luce del sole",
+          "date": "25 ottobre 2026",
+          "count": "10",
+          "items": {
+            "i1": "<b>🔎 Basta un nome</b> — Chiedi di una connessione o di una persona che frequenti con il suo nome: LIA raggiunge quella che designa e dice chi ha letto. Quando più persone portano quel nome, LIA ti chiede quale — non sceglie mai al posto tuo.",
+            "i2": "<b>🤝 Con chi l’hai condiviso</b> — Sotto la linea di una skill, di un plugin o di un server MCP, «Condiviso con» elenca le connessioni a cui l’hai dato, e «Ricevuto da» dice chi te l’ha dato. Una copia già data non viene mai inviata due volte.",
+            "i3": "<b>♻️ Riporta ciò che hai conservato</b> — Un preferito, un’immagine o un documento generati tornano in qualsiasi conversazione, dal «+» o dalla propria scheda, come copia: l’originale resta dov’è.",
+            "i4": "<b>🗓️ Una cronologia per ogni relazione</b> — Una sezione Cronologia sulla scheda di una relazione allinea impegni, chiamate, ricordi, messaggi inoltrati e SMS su un unico filo datato, i più vecchi a un clic.",
+            "i5": "<b>🎙️ Una registrazione diventa una riunione</b> — Un file WAV, MP3 o M4A che hai già diventa una riunione con il suo verbale: «Importa» ora sta accanto a «Registra» nella pagina Riunioni e nel «+». La durata del file è verificata prima di qualsiasi spesa.",
+            "i6": "<b>🔢 Ogni passaggio dice cosa ha fatto</b> — Sotto una risposta, ogni passaggio indica quante volte è stato eseguito uno strumento, quanti risultati ha trovato e letto, e se una chiamata è fallita — mentre LIA lavora e dopo.",
+            "i7": "<b>💶 Il resoconto di una chiamata mostra il suo costo</b> — Il resoconto di una chiamata fatta da LIA mostra ora quanto è costata, come ogni risposta, e la scheda di una sessione vocale si aggiorna da sola in tutte le schede aperte.",
+            "i8": "<b>🏷️ Etichette di e-mail e appuntamenti lette bene</b> — LIA non dice più «scaduta» di un’etichetta ancora valida, e la sua cautela verso un’e-mail non verificata non si estende più ai tuoi appuntamenti.",
+            "i9": "<b>🛠️ Per gli amministratori</b> — L’importazione delle riunioni ha un proprio interruttore e i suoi limiti (dimensione del file, dimensione di una porzione, termine di abbandono), i modelli di configurazione del dimostratore sono ordinati per tema dietro un indice, e una nuova metrica conta le importazioni per formato ed esito.",
+            "i10": "<b>🔍 Pubblicato l’audit V15</b> — 7,9/10 su 24 perimetri per la versione 3.6.0, con i suoi 17 rilievi aperti e il registro pubblico che segue ciascuno fino alla sua prova."
+          }
+        },
         "v3_6_0": {
           "title": "v3.6.0 — 🛡️ Accessi più protetti, connessioni più affidabili",
           "date": "24 ottobre 2026",
@@ -9233,7 +9322,7 @@
           },
           "q7": {
             "question": "Come è stata costruita LIA?",
-            "answer": "Quasi il <strong>100 % del codice di LIA è scritto da un'IA</strong>, sotto direzione umana: regole di ingegneria scritte, controlli automatici bloccanti, un ciclo di revisione in cui decide l'umano, e audit contraddittori ricorrenti (ultima valutazione: 7,8/10 su 24 perimetri — <a href=\"https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">rapporto completo</a>).<br><br>La storia completa — metodo, arbitraggi, esercizio e ciò che resta da fare — è sulla <a href=\"/it/story\">pagina Story</a>, e il codice sorgente è aperto su <a href=\"https://github.com/jgouviergmail/LIA-Assistant\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>."
+            "answer": "Quasi il <strong>100 % del codice di LIA è scritto da un'IA</strong>, sotto direzione umana: regole di ingegneria scritte, controlli automatici bloccanti, un ciclo di revisione in cui decide l'umano, e audit contraddittori ricorrenti (ultima valutazione: 7,9/10 su 24 perimetri — <a href=\"https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">rapporto completo</a>).<br><br>La storia completa — metodo, arbitraggi, esercizio e ciò che resta da fare — è sulla <a href=\"/it/story\">pagina Story</a>, e il codice sorgente è aperto su <a href=\"https://github.com/jgouviergmail/LIA-Assistant\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>."
           },
           "q8": {
             "question": "Posso installare LIA sul mio telefono — come PWA o come vera app?",
@@ -9260,7 +9349,7 @@
       "chat": {
         "title": "Conversazioni",
         "description": "Utilizzo della chat e delle conversazioni",
-        "count": "36",
+        "count": "37",
         "questions": {
           "q36": {
             "question": "Posso vedere tutti i luoghi trovati sulla stessa mappa?",
@@ -9328,7 +9417,7 @@
           },
           "q16": {
             "question": "Posso vedere cosa ha fatto LIA per produrre una risposta?",
-            "answer": "Sì. Sotto ogni risposta, una piccola riga <strong>«⚙ N passaggi · X s»</strong> riassume il dietro le quinte; un clic la espande per mostrare cosa LIA ha realmente fatto — l’instradamento, gli strumenti chiamati e il suo ragionamento — raggruppati per categoria.<br><br>È la stessa trasparenza del costo mostrato su ogni messaggio, estesa allo <em>svolgimento delle azioni</em>. La visualizzazione resta discreta e compressa per impostazione predefinita, per non ingombrare la conversazione.<br><br>Dalla v1.25.12 questa traccia è <strong>conservata con il messaggio</strong>: la ritrovi dopo un ricaricamento e sugli altri tuoi dispositivi (il flusso di ragionamento in diretta resta effimero).<br><br>In un turno molto lungo il pannello conserva un numero limitato di passaggi, e ora mantiene <strong>i primi tanto quanto gli ultimi</strong>: le azioni iniziali prima sparivano. Il conteggio mostrato è il totale reale, e il pannello indica esattamente quanti passaggi intermedi restano nascosti."
+            "answer": "Sì. Sotto ogni risposta, una piccola riga <strong>«⚙ N passaggi · X s»</strong> riassume il dietro le quinte; un clic la espande per mostrare cosa LIA ha realmente fatto — l’instradamento, gli strumenti chiamati e il suo ragionamento — raggruppati per categoria.<br><br>È la stessa trasparenza del costo mostrato su ogni messaggio, estesa allo <em>svolgimento delle azioni</em>. La visualizzazione resta discreta e compressa per impostazione predefinita, per non ingombrare la conversazione.<br><br>Dalla v1.25.12 questa traccia è <strong>conservata con il messaggio</strong>: la ritrovi dopo un ricaricamento e sugli altri tuoi dispositivi (il flusso di ragionamento in diretta resta effimero).<br><br>In un turno molto lungo il pannello conserva un numero limitato di passaggi, e ora mantiene <strong>i primi tanto quanto gli ultimi</strong>: le azioni iniziali prima sparivano. Il conteggio mostrato è il totale reale, e il pannello indica esattamente quanti passaggi intermedi restano nascosti.<br><br>Ogni riga di strumento dice anche cosa ha fatto: quante volte è stato chiamato (×2), quanti risultati ha trovato, quanti LIA ne ha davvero letti quando ne ha trovati di più, e quante chiamate sono fallite — solo numeri, mai i nomi degli elementi."
           },
           "q17": {
             "question": "Come cerco in tutta la cronologia della mia conversazione?",
@@ -9405,6 +9494,10 @@
           "q35": {
             "question": "Sul telefono, come passo dalla chat alle impostazioni?",
             "answer": "Tocca il pulsante <strong>LIA</strong> in alto a sinistra: su un telefono, un tablet o una finestra stretta porta una piccola icona di menu. La barra di navigazione lì non ci sta, quindi questo pulsante apre un menu con ogni destinazione — <strong>Home</strong>, <strong>Chat</strong>, <strong>Relazioni</strong>, <strong>Riunioni</strong> (quando la tua istanza le offre), <strong>Avvisi</strong>, <strong>Impostazioni</strong> e <strong>Aiuto</strong>. La pagina in cui ti trovi è evidenziata.<br><br>Sotto compaiono le azioni dell’intestazione che non hanno spazio su uno schermo piccolo: <strong>Registra una riunione</strong> e <strong>Accendi la radio</strong>, quando disponibili. Mentre è in corso una registrazione, il pulsante pulsa in rosso.<br><br>Su uno schermo più largo la barra di navigazione è visibile, e il logo LIA ti riporta semplicemente alla Home."
+          },
+          "q37": {
+            "question": "Posso riportare in una conversazione una risposta salvata o un file generato?",
+            "answer": "Sì, come copia. Nella casella del messaggio, il menu <strong>+</strong> offre <strong>Risposta dai tuoi segnalibri</strong> e <strong>File generato da LIA</strong>; in <strong>I miei file generati</strong> — scheda Segnalibri compresa —, <strong>Usa nella conversazione</strong> apre la chat con l’elemento già allegato. Una risposta salvata arriva come documento (la tua richiesta, poi la risposta); un’immagine generata arriva come immagine, un documento con il suo testo. Nulla viene inviato finché non invii il messaggio, e l’originale resta dov’era: reimpostare la conversazione rimuove solo la copia."
           }
         }
       },
@@ -9661,7 +9754,7 @@
           },
           "q11": {
             "question": "Quanto costa?",
-            "answer": "LIA non aggiunge <strong>alcun costo da parte sua</strong> — i costi vanno sui tuoi due account esterni:<br><br><strong>📞 Twilio</strong><br>• Noleggio del numero: ~1–15 €/mese secondo il tipo<br>• Minuti in uscita: tariffa al minuto secondo la destinazione<br><br><strong>🎙️ ElevenLabs</strong><br>• Minuti dell'agente vocale, detratti dai crediti del tuo piano<br><br><strong>🤖 LIA</strong><br>• Nessun sovrapprezzo, nessun margine — solo la piccola sintesi LLM del tuo riepilogo appare nelle tue statistiche di consumo LIA.<br><br><strong>🛡️ Protezioni integrate contro le sorprese:</strong><br>• Una sola chiamata attiva alla volta<br>• Limite orario di chiamate per utente (10/ora per impostazione predefinita)<br>• Durata massima della chiamata limitata (10 minuti per impostazione predefinita)"
+            "answer": "LIA non aggiunge <strong>alcun costo da parte sua</strong> — i costi vanno sui tuoi due account esterni:<br><br><strong>📞 Twilio</strong><br>• Noleggio del numero: ~1–15 €/mese secondo il tipo<br>• Minuti in uscita: tariffa al minuto secondo la destinazione<br><br><strong>🎙️ ElevenLabs</strong><br>• Minuti dell'agente vocale, detratti dai crediti del tuo piano<br><br><strong>🤖 LIA</strong><br>• Nessun sovrapprezzo, nessun margine — viene contata solo la piccola sintesi LLM del tuo riepilogo: è mostrata sul riepilogo nella chat e nelle tue statistiche di consumo LIA.<br><br><strong>🛡️ Protezioni integrate contro le sorprese:</strong><br>• Una sola chiamata attiva alla volta<br>• Limite orario di chiamate per utente (10/ora per impostazione predefinita)<br>• Durata massima della chiamata limitata (10 minuti per impostazione predefinita)"
           },
           "q12": {
             "question": "Non funziona — cosa devo verificare?",
@@ -9689,7 +9782,7 @@
           },
           "q18": {
             "question": "Quanto costa una chiamata con me?",
-            "answer": "Due fatture, una delle quali solo tua.<br><br><strong>💶 Ciò che LIA conta:</strong><br>le ricerche in diretta fatte durante la chiamata, la sintesi successiva e il turno riportato sono contati sotto un'unica fattura, mostrata sulla risposta riportata nella chat e nell'elenco delle chiamate — come qualsiasi altra richiesta.<br><br><strong>📞 Ciò che fattura ElevenLabs:</strong><br>il modello proprio dell'agente vocale, il parlato, la linea — tutto ciò che gira sulla tua chiave ElevenLabs — lo fattura ElevenLabs sul tuo account e non è mai contato né mostrato in LIA. Stessa regola per ogni servizio che usi con le tue chiavi."
+            "answer": "Due fatture, una delle quali solo tua.<br><br><strong>💶 Ciò che LIA conta:</strong><br>le ricerche in diretta fatte durante la chiamata, la sintesi successiva e il turno riportato sono contati sotto un'unica fattura, mostrata sulla risposta riportata nella chat — o, quando non è stato possibile riportare nulla, sul resoconto della chiamata — e nell'elenco delle chiamate, come qualsiasi altra richiesta.<br><br><strong>📞 Ciò che fattura ElevenLabs:</strong><br>il modello proprio dell'agente vocale, il parlato, la linea — tutto ciò che gira sulla tua chiave ElevenLabs — lo fattura ElevenLabs sul tuo account e non è mai contato né mostrato in LIA. Stessa regola per ogni servizio che usi con le tue chiavi."
           },
           "q19": {
             "question": "Live o Live diretto: come conduce LIA le mie chiamate?",
@@ -9700,7 +9793,7 @@
       "peers": {
         "title": "Connessioni tra utenti",
         "description": "Connettiti con altri utenti di questa istanza LIA, trasmetti messaggi da assistente ad assistente, condividi le tue immagini generate e apri condivisioni scelte in sola lettura.",
-        "count": "8",
+        "count": "10",
         "questions": {
           "q8": {
             "question": "Come invio una skill, un server MCP o un plugin a una connessione?",
@@ -9733,13 +9826,21 @@
           "q7": {
             "question": "Come condivido un'immagine generata con una connessione?",
             "answer": "Sulla scheda di un'immagine che LIA ha generato per te — nella chat come in <strong>Impostazioni › I miei file generati</strong> —, tocca <strong>Condividi con una connessione</strong>, scegli la persona e aggiungi un commento se vuoi. Il clic è la tua conferma: nessun modello interviene.<br><br><strong>📥 Cosa riceve:</strong><br>Una copia dell'immagine, archiviata nella sua galleria come se l'avesse generata, con una propria durata di conservazione, e una bolla nella sua chat con l'immagine, il tuo nome e il tuo commento — citato alla lettera, mai trasformato in un link o in un'immagine nascosta.<br><br><strong>🔒 Le regole:</strong><br>• Si condividono solo le tue immagini generate, con una connessione accettata e senza blocchi tra voi<br>• È una copia: cancellare la tua immagine non rimuove la sua<br>• Un limite giornaliero regola le condivisioni, per te e per ogni connessione; il messaggio ti dice quando riprovare"
+          },
+          "q9": {
+            "question": "Posso indicare una connessione con il nome di battesimo?",
+            "answer": "Sì. Quando chiedi qualcosa su una persona connessa — la sua disponibilità, i suoi compiti o un messaggio da inoltrarle —, basta il nome se indica <strong>una sola</strong> delle tue connessioni. Se più connessioni lo condividono, o se indica anche una persona delle tue Relazioni che non è connessa, LIA ti chiede quale intendi invece di indovinare. La risposta nomina sempre la persona consultata, così un equivoco si nota subito."
+          },
+          "q10": {
+            "question": "Posso vedere con chi ho condiviso una risorsa, e condividerla di nuovo?",
+            "answer": "Puoi vederlo: sotto la linea di ogni scheda di skill, server MCP o plugin, un elenco comprimibile <strong>Condiviso con</strong> indica ogni contatto che l’ha ricevuta e quando, con la dicitura «incompleto» quando una parte non è stata installata. Una copia che hai ricevuto mostra nello stesso punto <strong>Condiviso da</strong>, con il mittente e la data. Per ora una condivisione è definitiva: la finestra di condivisione non propone più un contatto che l’ha già ricevuta."
           }
         }
       },
       "relations": {
         "title": "Relazioni (CRM personale)",
         "description": "La pagina Relazioni: tutto ciò che LIA sa delle persone con cui hai a che fare, preferiti inclusi.",
-        "count": "12",
+        "count": "14",
         "questions": {
           "q1": {
             "question": "Che cos’è la pagina Relazioni?",
@@ -9788,6 +9889,14 @@
           "q12": {
             "question": "Il debriefing viene usato nelle mie conversazioni?",
             "answer": "Sì, finché lasci attiva l’opzione <strong>Debriefing quotidiano</strong> nella pagina Relazioni. Quando <strong>nomini</strong> qualcuno in chat, la sua sintesi entra nel contesto di LIA: non deve più annunciare una ricerca per fatti già scritti.<br><br>Arriva <strong>datata</strong>, con la sua età, e LIA sa di dover verificare con i suoi strumenti ogni data, ogni conteggio e ogni stato preciso anziché citare la sintesi di ieri come un fatto di oggi. Oltre una certa età — regolabile da chi ospita l’istanza — non viene più inserita affatto; la scheda continua a mostrarla, datata. E se il nome è <strong>ambiguo</strong>, non viene inserito nulla: meglio tacere che consegnarti il fascicolo di qualcun altro."
+          },
+          "q13": {
+            "question": "LIA capisce un nome di battesimo quando chiedo di qualcuno?",
+            "answer": "Sì. Quando chiedi delle tue chiamate, dei tuoi impegni o dei messaggi inoltrati con qualcuno, basta il nome se indica <strong>una sola</strong> persona delle tue Relazioni — le stesse persone della pagina Relazioni, schede unite comprese. Se corrispondono più persone, LIA ti chiede quale intendi; se nessuno registrato porta quel nome, lo dice invece di mostrare un risultato vuoto."
+          },
+          "q14": {
+            "question": "Che cos’è la cronologia della scheda di una relazione?",
+            "answer": "La sezione <strong>Cronologia</strong>, chiusa come le altre, riunisce su un solo filo tutto ciò che ha una data con questa persona, dal più recente al più vecchio: impegni, chiamate, ricordi, messaggi inoltrati e SMS, oltre alle email e agli appuntamenti che la scheda ha già letto. Gli appuntamenti futuri stanno in cima, sotto <strong>In arrivo</strong>, poi ogni giorno ha la sua intestazione. Il numero nel titolo conta tutte le sue righe: la somma delle sezioni della scheda, più quelle email e quegli appuntamenti. Non viene letto nulla finché non la apri; <strong>Più vecchi</strong> carica poi il resto, una pagina alla volta. Le email e gli appuntamenti sono quelli del periodo che consultano le loro sezioni, come ricorda la nota sotto l’elenco."
           }
         }
       },
@@ -10891,7 +11000,7 @@
       "meetings": {
         "title": "Verbali di riunione",
         "description": "Registra una riunione dalla chat, ottieni un verbale strutturato a modo tuo e ritrovalo in uno spazio di conoscenza.",
-        "count": "10",
+        "count": "11",
         "questions": {
           "q10": {
             "question": "Come cerco nei miei verbali di riunione?",
@@ -10932,6 +11041,10 @@
           "q9": {
             "question": "Chi sceglie il formato del verbale di una riunione?",
             "answer": "Prima conta la tua scelta esplicita, poi la preferenza salvata. In assenza di entrambe LIA sceglie tra i formati disponibili. L'amministratore può attivare JEV per questa scelta circoscritta; se si astiene o non è disponibile subentra il selettore abituale. Formato e costo restano visibili."
+          },
+          "q11": {
+            "question": "Posso ricavare un verbale da una registrazione esistente?",
+            "answer": "Sì: nella pagina <strong>Riunioni</strong>, <strong>Importa</strong> — oppure <strong>Importa la registrazione di una riunione</strong> nel <strong>+</strong> della chat — accetta un file WAV, MP3 o M4A, come il memo vocale di un telefono. LIA mostra la dimensione e la durata accettate da questa istanza prima che tu scelga, data la riunione all'inizio del file (puoi correggerla), poi invia il file un pezzo alla volta con una barra di avanzamento. Una volta arrivato, si apre la pagina della riunione e il verbale viene scritto esattamente come per una registrazione; la riunione è contrassegnata come <strong>Importata</strong>. Un file più lungo della durata accettata viene rifiutato prima di qualsiasi spesa, e un invio interrotto non lascia alcuna riunione."
           }
         }
       },
@@ -11942,6 +12055,18 @@
       "voice_sample": {
         "title": "Ascoltare prima di scegliere",
         "desc": "Scegliere una voce, per LIA o per la radio, ne riproduce subito un breve campione nella tua lingua. Un pulsante lo ferma o lo fa ripartire, e una radio in onda si mette in pausa per fartela sentire."
+      },
+      "bring_back": {
+        "title": "Riporta ciò che hai conservato",
+        "desc": "Nel «+», una risposta conservata o un file che LIA ha creato per te si unisce al messaggio come copia — l’originale resta al suo posto."
+      },
+      "step_counts": {
+        "title": "Ogni passaggio dice cosa ha fatto",
+        "desc": "Sotto una risposta, ogni passaggio mostra i suoi conteggi — quante volte è stato eseguito uno strumento, i risultati trovati e letti — e un errore compare sulla riga in cui è avvenuto."
+      },
+      "shared_with": {
+        "title": "Chi ce l’ha, sotto la linea",
+        "desc": "Sotto una skill, un plugin o un server, un «Condiviso con» ripiegato indica chi l’ha ricevuto da te, e una copia già data non viene mai inviata due volte."
       }
     },
     "scenes": {
@@ -12282,6 +12407,18 @@
         "calm": "Voce pacata",
         "playing": "Campione in riproduzione",
         "replay": "Riascolta"
+      },
+      "bring_back": {
+        "bookmark": "Risposta dai tuoi segnalibri",
+        "generated": "File generato da LIA"
+      },
+      "step_counts": {
+        "found": "risultati",
+        "read": "letti",
+        "failed": "errore"
+      },
+      "shared_with": {
+        "shared": "Condiviso con"
       }
     },
     "craft": {
@@ -13378,7 +13515,7 @@
       },
       "telephony": {
         "title": "LIA telefona per te",
-        "description": "Raggiungere un contatto, fare una domanda, verificare un orario: LIA fa una vera telefonata al posto tuo. Tu approvi chi chiama e perché prima che componga il numero; lei conduce la conversazione, poi lascia un riepilogo scritto nella chat, con un’azione di follow-up in un gesto quando serve. Mai un impegno senza di te: ogni spesa od opzione imprevista viene annotata con il suo prezzo, mai accettata — decidi tu."
+        "description": "Raggiungere un contatto, fare una domanda, verificare un orario: LIA fa una vera telefonata al posto tuo. Tu approvi chi chiama e perché prima che componga il numero; lei conduce la conversazione, poi lascia un riepilogo scritto nella chat, con un’azione di follow-up in un gesto quando serve. Mai un impegno senza di te: ogni spesa od opzione imprevista viene annotata con il suo prezzo, mai accettata — decidi tu. Il resoconto mostra anche quanto è costata la chiamata."
       },
       "telephony_callback": {
         "title": "LIA chiama te",
@@ -13398,7 +13535,7 @@
       },
       "bookmarks": {
         "title": "Risposte conservate",
-        "description": "Una risposta che vale la pena tenere si conserva in un clic — un segnalibro sulla sua bolla. LIA ne copia la risposta, la richiesta che l’ha prodotta e la data: azzerare o eliminare la conversazione non cambia nulla. Le tue risposte conservate hanno la loro scheda, si esportano in Markdown e sono indicizzate in uno spazio di conoscenza tuo: settimane dopo, LIA le cita quando la tua domanda le riguarda."
+        "description": "Una risposta che vale la pena tenere si conserva in un clic — un segnalibro sulla sua bolla. LIA ne copia la risposta, la richiesta che l’ha prodotta e la data: azzerare o eliminare la conversazione non cambia nulla. Le tue risposte conservate hanno la loro scheda, si esportano in Markdown e sono indicizzate in uno spazio di conoscenza tuo: settimane dopo, LIA le cita quando la tua domanda le riguarda. Riportane una in qualsiasi conversazione dal «+»: si unisce al messaggio come copia."
       },
       "rich_responses": {
         "title": "Risposte visive arricchite",
@@ -13442,7 +13579,7 @@
       },
       "control": {
         "title": "Mantieni il controllo",
-        "description": "Prima di ogni azione sensibile — inviare un’email, modificare l’agenda, eliminare —, LIA ti mostra ciò che sta per fare e attende la tua conferma. Nulla parte verso qualcun altro senza il tuo consenso — un’e-mail al tuo indirizzo arriva dritta nella tua casella —, e quando una richiesta prepara più azioni, ciascuna arriva sulla propria scheda, una alla volta. Mentre scrive, un pulsante stop interrompe la risposta in qualsiasi momento — il testo parziale resta. Dopo ogni risposta, una riga discreta rivela esattamente ciò che ha fatto: passaggi, strumenti, ragionamento."
+        "description": "Prima di ogni azione sensibile — inviare un’email, modificare l’agenda, eliminare —, LIA ti mostra ciò che sta per fare e attende la tua conferma. Nulla parte verso qualcun altro senza il tuo consenso — un’e-mail al tuo indirizzo arriva dritta nella tua casella —, e quando una richiesta prepara più azioni, ciascuna arriva sulla propria scheda, una alla volta. Mentre scrive, un pulsante stop interrompe la risposta in qualsiasi momento — il testo parziale resta. Dopo ogni risposta, una riga discreta rivela esattamente ciò che ha fatto: passaggi, strumenti, ragionamento. Ogni passaggio vi dice cosa ha fatto: risultati trovati e letti, un errore sulla sua riga."
       },
       "privacy": {
         "title": "Dati protetti",
@@ -13490,7 +13627,7 @@
       },
       "personal_crm": {
         "title": "CRM personale",
-        "description": "Per ogni persona, LIA raccoglie ciò che già sa — impegni aperti, chiamate recenti, fatti memorizzati, scambi — in una vista d’insieme, per preparare una conversazione a colpo d’occhio. Metti una stella ai preferiti: mantengono la loro fascia dedicata e non vengono mai cancellati. Un badge segnala chi è anche connesso a te su LIA. E un debrief scritto apre ogni scheda — a che punto siete, cosa resta aperto, cosa affrontare — rifatto al massimo una volta al giorno, all’apertura."
+        "description": "Per ogni persona, LIA raccoglie ciò che già sa — impegni aperti, chiamate recenti, fatti memorizzati, scambi — in una vista d’insieme, per preparare una conversazione a colpo d’occhio. Metti una stella ai preferiti: mantengono la loro fascia dedicata e non vengono mai cancellati. Un badge segnala chi è anche connesso a te su LIA. E un debrief scritto apre ogni scheda — a che punto siete, cosa resta aperto, cosa affrontare — rifatto al massimo una volta al giorno, all’apertura. Una cronologia allinea i record datati di ogni persona su un unico filo, e basta un nome per chiedere di qualcuno — quando più persone lo portano, LIA chiede quale."
       },
       "self_knowledge": {
         "title": "Autoconoscenza",
@@ -13530,7 +13667,7 @@
       },
       "peers": {
         "title": "La tua cerchia, da assistente ad assistente",
-        "description": "Collegati alle persone a te vicine sulla stessa istanza LIA: la scoperta è volontaria, per nome esatto o indirizzo email, con due parole per dire chi sei. Poi chiedi a LIA di trasmettere un messaggio: tu approvi la formulazione, poi è il LORO assistente a consegnarlo e a confermarlo al tuo. Il messaggio arriva in una bolla colorata, con Rispondi subito sotto — nulla viene mai inviato da solo. Condividi con un clic un’immagine generata da LIA: arriva nella sua galleria e nella sua chat, con il tuo commento citato alla lettera. Quando una connessione viene rimossa, i vostri due assistenti vi avvisano. Condividi immagini e capacità utili con connessioni accettate. Skill, server MCP e plugin arrivano come copie indipendenti disattivate, con origine e data, senza le tue credenziali."
+        "description": "Collegati alle persone a te vicine sulla stessa istanza LIA: la scoperta è volontaria, per nome esatto o indirizzo email, con due parole per dire chi sei. Poi chiedi a LIA di trasmettere un messaggio: tu approvi la formulazione, poi è il LORO assistente a consegnarlo e a confermarlo al tuo. Il messaggio arriva in una bolla colorata, con Rispondi subito sotto — nulla viene mai inviato da solo. Condividi con un clic un’immagine generata da LIA: arriva nella sua galleria e nella sua chat, con il tuo commento citato alla lettera. Quando una connessione viene rimossa, i vostri due assistenti vi avvisano. Condividi immagini e capacità utili con connessioni accettate. Skill, server MCP e plugin arrivano come copie indipendenti disattivate, con origine e data, senza le tue credenziali. Basta un nome per raggiungere una connessione — quando più connessioni lo portano, LIA chiede quale —, e sotto la tua scheda vedi chi ha ricevuto ciò che hai condiviso."
       },
       "peer_shares": {
         "title": "Condivisioni in sola lettura, revocabili",
@@ -13550,7 +13687,7 @@
       },
       "meetings": {
         "title": "Registra una riunione, ricevi il verbale",
-        "description": "Un pulsante nell’intestazione — o la voce di menu sul telefono — e il tuo dispositivo registra la riunione, con un banner che ti segue su ogni pagina mentre continui a usare LIA. Quando ti fermi, trascrive tutto e redige il verbale. Leggilo nella chat, scarica il PDF, ricevilo via email, interrogala settimane dopo. Niente di inventato: una lacuna viene dichiarata, un interlocutore senza nome resta senza nome, e quanto è costato è scritto accanto. Registra, scegli un formato di verbale e ritrova una decisione cercando nel documento completo."
+        "description": "Un pulsante nell’intestazione — o la voce di menu sul telefono — e il tuo dispositivo registra la riunione, con un banner che ti segue su ogni pagina mentre continui a usare LIA. Quando ti fermi, trascrive tutto e redige il verbale. Leggilo nella chat, scarica il PDF, ricevilo via email, interrogala settimane dopo. Niente di inventato: una lacuna viene dichiarata, un interlocutore senza nome resta senza nome, e quanto è costato è scritto accanto. Registra, scegli un formato di verbale e ritrova una decisione cercando nel documento completo. Già registrata con il telefono o un registratore? Importa il file WAV, MP3 o M4A: diventa una riunione con il suo verbale, allo stesso modo."
       },
       "meeting_templates": {
         "title": "Trenta modelli di verbale",
@@ -13578,7 +13715,7 @@
       },
       "generated_files": {
         "title": "File che scegli di conservare",
-        "description": "Immagini, documenti e schermate prodotti da LIA hanno una galleria e una scadenza visibile. Conserva quelli importanti senza scadenza, entro i limiti di numero e dimensione mostrati per l'account. Quando smetti di conservarne uno, riceve una nuova scadenza; la scheda nella chat mostra lo stato corrente."
+        "description": "Immagini, documenti e schermate prodotti da LIA hanno una galleria e una scadenza visibile. Conserva quelli importanti senza scadenza, entro i limiti di numero e dimensione mostrati per l'account. Quando smetti di conservarne uno, riceve una nuova scadenza; la scheda nella chat mostra lo stato corrente. Ognuno può tornare in una conversazione come copia, dal «+» o dalla sua scheda."
       },
       "personal_radio": {
         "title": "Una radio sulla tua giornata",
@@ -15460,9 +15597,9 @@
         "body": "<h2>Privacy by design</h2><p>LIA è progettato fin dall'origine con la protezione dei dati come principio fondante, non come un'aggiunta a posteriori.</p><h2>Crittografia simmetrica Fernet</h2><p><strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256), tramite <code>encrypt_data()</code>, protegge token OAuth, credenziali dei connettori e MCP e campi specifici. I servizi decifrano i valori quando necessario. La cifratura selettiva non copre ogni dato personale: i messaggi sono testo nel database. Il gestore controlla le chiavi e gli accessi alla base dati.</p><h2>Minimizzazione della raccolta</h2><p>LIA raccoglie solo i dati strettamente necessari al suo funzionamento:</p><ul><li>Informazioni del profilo (nome, email, preferenze)</li><li>Storico delle conversazioni conservato sulla tua istanza</li><li>Token di connessione ai servizi (crittografati)</li><li>Metriche di utilizzo con identificatori pseudonimi</li></ul><h2>Gestore e fornitori configurati</h2><p>Il gestore può avere accesso tecnico ai dati archiviati. Il modello riceve la domanda e il contesto utile, come memorie scelte o estratti di documenti; i servizi vocali, di immagini e altri servizi ricevono quanto necessario alle loro funzioni. Si applicano le rispettive politiche di privacy, conservazione e possibile addestramento. Archiviazione locale e accessi controllati non sostituiscono accordi e impostazioni dei fornitori.</p><h2>Eliminazione e cascading</h2><p>La cancellazione dell’account rimuove i contenuti personali da conversazioni, memorie, connettori, documenti e archivi associati. I registri contabili rimangono; l’eliminazione può conservare nome ed email per contatto contabile e la cancellazione finale elimina la riga dell’account. I registri di audit o diagnostica possono conservare dati identificativi secondo le proprie politiche; i backup seguono la conservazione del gestore. Riattivare non recupera i contenuti rimossi.</p><h2>Sessioni e cookie sicuri</h2><p>I cookie di sessione sono configurati con gli attributi <code>HttpOnly</code>, <code>Secure</code> (in produzione) e <code>SameSite=lax</code>. La durata della sessione è di 7 giorni per impostazione predefinita, estensibile a 30 giorni con l'opzione \"Ricordami\". I token monouso vengono invalidati dopo il primo utilizzo tramite una blacklist Redis.</p><h2>Protezione dei contenuti esterni</h2><p>I contenuti recuperati da fonti esterne (email, pagine web, documenti) vengono contrassegnati come <code>UNTRUSTED</code> con un wrapping configurabile prima dell'iniezione nei prompt. Lo strumento web_fetch è limitato a 10 chiamate per finestra di 60 secondi per utente per prevenire gli abusi.</p><h2>Log operativi filtrati</h2><p>Nella linea dell'<strong>OWASP Logging Cheat Sheet</strong>, una riga di log sopra il livello debug porta <strong>fatti</strong> — numeri, lunghezze, identificativi, codici di errore, l'host di un URL — e mai il testo che una persona ha scritto, o che un modello ha scritto su di lei: nessuna ricerca, nessun interesse, nessun nome di file, etichetta o spazio, nessuna pagina visitata.</p><p>La regola è verificata <strong>dal valore</strong>, non dal nome del campo: un test legge ogni chiamata di log del codice e rifiuta un'anteprima o un valore derivato da un contenuto, comunque si chiami. Ciò che un messaggio di errore <strong>cita</strong> — un valore rifiutato da PostgreSQL, l'input di una validazione — viene rimosso prima che la riga sia scritta, e un errore di database è descritto dai suoi fatti: codice, vincolo, tabella. Le chiavi dei fornitori sono mascherate in ogni indirizzo registrato. Le metriche e le tracce seguono la stessa regola: nominano il percorso seguito dal suo modello, mai il nome o la ricerca che un indirizzo contiene. Due limiti sono detti così come sono: l'errore di un servizio esterno in un formato sconosciuto può ancora citare un dato, e il livello debug — disattivato in produzione — conserva di più.</p><h2>I tuoi SMS, sotto due consensi</h2><p>Gli SMS che il tuo telefono inoltra con un'automazione Comandi Rapidi su iPhone raggiungono LIA con un proprio token in sola scrittura e finiscono in un archivio personale cifrato. I codici di accesso riconosciuti vengono scartati prima di qualsiasi memorizzazione, la notifica che annuncia un nuovo messaggio non porta alcun contenuto, e l'assistente legge l'archivio solo quando gliene dai accesso — un consenso distinto dalla ricezione. La tua esportazione include i messaggi leggibili, e cancellarli invalida le esportazioni ancora ospitate.</p><p>La stessa prudenza governa le conversazioni proattive: un'apertura che tocca un argomento sensibile non viene mai inviata a un canale esterno, e la sua notifica è mascherata.</p><h2>Portabilità dei dati (v1.9.1)</h2><p>LIA consente a ogni utente di <strong>esportare i propri dati di consumo</strong> in formato CSV da Impostazioni > Funzionalità. Tre tipi di esportazione: consumo LLM (token e costi per chiamata), consumo API Google e riepilogo aggregato. Sicurezza: lo <code>user_id</code> viene forzato lato server — nessun parametro è esposto (protezione IDOR).</p><h2>Backup con ripristino provato</h2><p>Il deployment di produzione offre strumenti di backup notturno e verifica del ripristino, con conservazione predefinita di 7 giorni, 4 settimane e 6 mesi. Il gestore li attiva e controlla. La prova ripristina l’ultimo dump in un database temporaneo e confronta revisione dello schema e conteggi delle righe con la fonte. Il recupero dipende dai backup riusciti e dalla politica scelta.</p><h2>Un fascicolo completo, non un campione</h2><p>Tre registri tenuti automaticamente dicono che cosa LIA ha <strong>fatto</strong> per te, che cosa ha <strong>consultato</strong> per risponderti e che cosa ha intrapreso <strong>di propria iniziativa</strong>. Non portano alcun contenuto: una consultazione trattiene la capacità — «la tua agenda» — e mai ciò che è stato cercato, perché scriverlo equivarrebbe a ricopiare il dato stesso di cui il registro esiste per rendere conto.</p><p>Il fascicolo che scarichi dalla pagina <strong>Registri</strong> è <strong>completo</strong>. Prima portava un tetto di righe: una protezione reale, dato che l'intero documento veniva assemblato in memoria su un Raspberry Pi, ma applicata alla variabile sbagliata. Scarsa era la memoria; limitata era la verità. Un cursore lato server limita ora il buffer: qualunque sia il volume, il file porta tutto ciò che i tuoi filtri designano, il conteggio esatto è dichiarato in testa insieme all'istante di generazione, e il download è compresso al volo quando il tuo browser lo accetta.</p><h2>Comandi e continuazioni private</h2><p>Chiavi, file scelti, connessioni di account e consensi del browser usano l’interfaccia sicura dell’operazione, non parametri inventati dal modello. Il comando è legato all’account e al suo contesto autorizzato; permessi e versione della risorsa sono ricontrollati prima della scrittura. Cifrare i contenuti dei comandi non nasconde tutto il servizio al gestore: messaggi e dati operativi conservano i limiti descritti qui.</p><p>La conferma riguarda l’operazione e il contenuto mostrati. Accesso OAuth, scelta di file, chiavi e permessi del dispositivo proseguono nel tuo browser autenticato: non incollare questi segreti nella chat. LIA può preparare la richiesta e attendere quel passaggio. L’ascolto a mani libere e i permessi sensibili mantengono le protezioni; un comando non le aggira.</p>"
       },
       "observability": {
-        "title": "634 metriche Prometheus, 32 dashboard Grafana e tracing Langfuse",
-        "excerpt": "LIA offre osservabilità enterprise con 634 metriche, dashboard Grafana dedicate, tracing LLM via Langfuse e alert e-mail con runbook.",
-        "body": "<h2>I tre pilastri dell'osservabilità</h2><p>LIA implementa i tre pilastri dell'osservabilità moderna:</p><ul><li><strong>Metriche</strong> — 634 metriche Prometheus che coprono HTTP, agenti, token, costi, OAuth e prestazioni, etichettate per modello di percorso: mai un nome né una ricerca</li><li><strong>Log</strong> — Logging strutturato JSON tramite structlog, raccolto da Grafana Alloy e centralizzato in Loki: filtraggio dei contenuti personali nei log operativi, con maggiori dettagli possibili in modalità debug</li><li><strong>Trace</strong> — Tracing distribuito tramite OpenTelemetry (Tempo), nominato secondo il modello del percorso e mai secondo l'indirizzo concreto, e tracing LLM tramite Langfuse</li></ul><h2>43 file di metriche specializzati</h2><p>Ogni dominio possiede il proprio file di metriche dichiarativo. I 43 moduli coprono, tra gli altri: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, modalità live, radio, RAG spaces, OAuth, MCP, channels, errori, sub-agenti, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, metriche di salute, diari, telefonia, riunioni, workboard, registri degli effetti e limiti di utilizzo. Ogni file definisce Counter, Histogram e Gauge Prometheus adattati al dominio.</p><h2>Definizione delle metriche Prometheus</h2><p>Ogni dominio definisce le proprie metriche in modo dichiarativo:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>32 dashboard Grafana</h2><p>LIA fornisce 32 dashboard Grafana, di cui 31 numerati da 01 a 31: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard, live, radio e phone-ingestion-sms. Ogni dashboard offre viste filtrabili per utente, periodo e ambiente. Il 26° è un cockpit prodotto: risultati validati (👍 esplicito o un'azione rimasta senza correzioni), funnel di attivazione, retention e costo per risultato utile — il conteggio esatto vive in PostgreSQL e Grafana lo legge tramite un ruolo in sola lettura ristretto alle viste aggregate.</p><h2>KPI target estratti dal codice</h2><p>LIA monitora indicatori precisi definiti nel codice sorgente: TTFT (Time To First Token) dello streaming, latenza del router tra 0,1 e 2 secondi, durata di esecuzione degli strumenti agenti tra 0,1 e 10 secondi, confidenza router p50 &gt; 0,8, costo LLM per richiesta &lt; 0,05 €, tasso di errore HTTP 5xx &lt; 1%.</p><h2>Alert e-mail con runbook</h2><p>La supervisione non si ferma alle dashboard: un nucleo di alert vitali — tra cui API, PostgreSQL o Redis non disponibili, disco, memoria dei container, tasso di errori 5xx, latenza di streaming, backup notturno fallito, URL pubblico irraggiungibile, certificato TLS prossimo alla scadenza, rate limiting fuori servizio — è valutato in continuo da Prometheus e notificato via e-mail tramite Alertmanager. Ogni alert referenzia il proprio runbook (procedura di risoluzione passo passo), le soglie sono configurate per ambiente in file .env, e test unitari promtool garantiscono che le soglie mostrate nelle notifiche corrispondano esattamente alle espressioni di attivazione. Una sonda blackbox testa perfino l'intera catena end-to-end, dall'edge Cloudflare al frontend, esattamente come un utente. L'alert di latenza di streaming osserva solo i turni che una persona attende — una routine passa dallo stesso codice, ma nessuno la attende — e scatta solo su abbastanza turni perché un 95° percentile abbia senso; un incidente il cui avviso di risoluzione è andato perso viene riconciliato con Alertmanager e chiuso.</p><h2>Langfuse: tracing LLM dedicato</h2><p>L'integrazione Langfuse traccia ogni chiamata LLM — token consumati (input/output/cache), tempo di risposta, modello utilizzato, costo stimato e contesto della richiesta —, e sette metriche Prometheus proprie seguono le versioni dei prompt, i punteggi di valutazione, le varianti A/B, la profondità delle tracce e i passaggi di consegne tra agenti. Questo permette di identificare i prompt inefficaci, confrontare i modelli LLM tra loro e ottimizzare il consumo di token nel tempo.</p><h2>DevOps Claude CLI: Diagnostica in linguaggio naturale (v1.13.0)</h2><p>Ultima evoluzione dello stack di osservabilità: gli amministratori possono ora diagnosticare i server direttamente dalla conversazione LIA. Basta chiedere «Controlla i log per vedere se funziona tutto»: Claude Code CLI — installato nel container API Docker — ispeziona in modo autonomo i log, verifica la salute dei container, analizza l'utilizzo delle risorse e riferisce le sue conclusioni. Sessioni persistenti per indagini su più turni, permessi configurabili per ambiente (produzione in sola lettura, sviluppo con accesso completo) e streaming in tempo reale dei passaggi di indagine via SSE.</p><h2>E dalla v1.34: l'assistente legge la propria telemetria</h2><p>Tutto quanto sopra esisteva per gli umani; l'assistente stessa non ne leggeva nulla. L'ADR-247 ha chiuso quel cerchio: un autocontrollo periodico trasforma i segnali aurei e sonde dirette in istantanee di salute con valori esatti; avvisi e verdetti critici convergono in un incidente per guasto, diagnosticato da un LLM con budget limitato e fondato sui runbook operativi; gli amministratori hanno un pannello Salute della piattaforma, notifiche proattive e strumenti di chat in sola lettura. E un guasto noto ora plasma le risposte — le capacità degradate vengono aggirate in pianificazione, e i passaggi falliti spiegati da codici di errore tipizzati, mai da log grezzi. Da allora la diagnosi non è più scritta da un numero solo: una ricetta dichiarata per tipo di incidente dice quali ripartizioni e quali eventi di log leggere, il fascicolo viene raccolto al momento della diagnosi con i dati personali rimossi, una fonte irraggiungibile è dichiarata non disponibile invece di essere letta come silenzio, e ciò che il modello ha letto è mostrato sotto il suo verdetto.</p><h2>Contare gli esiti, non i tentativi</h2><p>Un contatore è stato ripensato nella v1.38.3. Contare le chiamate che raggiungono un fornitore è la verità sul fornitore — e il denominatore sbagliato non appena quelle chiamate vengono ritentate, perché un errore recuperato gonfia il tasso di errore benché nulla sia andato perso. Un secondo contatore registra ora una riga per operazione logica, con i ritentativi ripiegati, e risponde all'unica domanda su cui un operatore agisce: il chiamante ha ottenuto il suo risultato? Un terzo dice cosa ha fatto la regolazione di frequenza di ogni tentativo, perché «il budget è troppo piccolo» e «Redis è caduto» sono indistinguibili in un booleano e richiedono azioni opposte.</p><p>La lezione più recente riguarda la scelta di ciò che si misura. Il ciclo autonomo contava le proprie iterazioni e la propria durata — e nulla per ciò che cresce davvero: il prompt consegnato al modello a ogni passo. Misurato sul codice di produzione, sono 2,3 k token alla prima iterazione e 112 k alla novantesima, perché ogni risultato di strumento resta nella conversazione che il modello rilegge. Due istogrammi registrano ora la dimensione consegnata e la sua quota della finestra di contesto del modello, alimentati dallo stesso contatore memoizzato che il riduttore di stato già mantiene, così la misura non costa nulla sul percorso caldo. Nessuna politica di compressione è partita con essi, deliberatamente: un sistema che agisce su una grandezza mai osservata sta ottimizzando una congettura.</p><p>Lo stesso principio ha raggiunto il tasso di successo degli strumenti. Uno strumento fallisce <em>restituendo</em> un errore, mai sollevando un'eccezione, e il contatore guardava solo le eccezioni: il tasso valeva 1,0 per costruzione, e i due allarmi che lo leggono non potevano scattare. Un solo predicato decide ora cos'è un successo, per il registro, le metriche e il ciclo ReAct: il tasso mostrato scende, perché finalmente dice la verità.</p><h2>Segnali che si rispondono</h2><p>Una metrica, un log e una traccia raccontano la stessa richiesta: bisogna però poter passare dall'uno all'altro. In LIA una riga di log apre la traccia della sua richiesta, una traccia apre i suoi log e le sue metriche, e un punto di latenza apre l'esempio preciso che lo ha prodotto. Ogni collegamento è stato misurato in produzione prima di essere riparato. La catena che trasporta questi segnali è a sua volta sorvegliata — un allarme avvisa se dei log si perdono per strada —, e tutte le dashboard seguono una stessa convenzione: una settimana di storico, un menu comune.</p>"
+        "title": "635 metriche Prometheus, 32 dashboard Grafana e tracing Langfuse",
+        "excerpt": "LIA offre osservabilità enterprise con 635 metriche, dashboard Grafana dedicate, tracing LLM via Langfuse e alert e-mail con runbook.",
+        "body": "<h2>I tre pilastri dell'osservabilità</h2><p>LIA implementa i tre pilastri dell'osservabilità moderna:</p><ul><li><strong>Metriche</strong> — 635 metriche Prometheus che coprono HTTP, agenti, token, costi, OAuth e prestazioni, etichettate per modello di percorso: mai un nome né una ricerca</li><li><strong>Log</strong> — Logging strutturato JSON tramite structlog, raccolto da Grafana Alloy e centralizzato in Loki: filtraggio dei contenuti personali nei log operativi, con maggiori dettagli possibili in modalità debug</li><li><strong>Trace</strong> — Tracing distribuito tramite OpenTelemetry (Tempo), nominato secondo il modello del percorso e mai secondo l'indirizzo concreto, e tracing LLM tramite Langfuse</li></ul><h2>43 file di metriche specializzati</h2><p>Ogni dominio possiede il proprio file di metriche dichiarativo. I 43 moduli coprono, tra gli altri: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, modalità live, radio, RAG spaces, OAuth, MCP, channels, errori, sub-agenti, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, metriche di salute, diari, telefonia, riunioni, workboard, registri degli effetti e limiti di utilizzo. Ogni file definisce Counter, Histogram e Gauge Prometheus adattati al dominio.</p><h2>Definizione delle metriche Prometheus</h2><p>Ogni dominio definisce le proprie metriche in modo dichiarativo:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>32 dashboard Grafana</h2><p>LIA fornisce 32 dashboard Grafana, di cui 31 numerati da 01 a 31: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard, live, radio e phone-ingestion-sms. Ogni dashboard offre viste filtrabili per utente, periodo e ambiente. Il 26° è un cockpit prodotto: risultati validati (👍 esplicito o un'azione rimasta senza correzioni), funnel di attivazione, retention e costo per risultato utile — il conteggio esatto vive in PostgreSQL e Grafana lo legge tramite un ruolo in sola lettura ristretto alle viste aggregate.</p><h2>KPI target estratti dal codice</h2><p>LIA monitora indicatori precisi definiti nel codice sorgente: TTFT (Time To First Token) dello streaming, latenza del router tra 0,1 e 2 secondi, durata di esecuzione degli strumenti agenti tra 0,1 e 10 secondi, confidenza router p50 &gt; 0,8, costo LLM per richiesta &lt; 0,05 €, tasso di errore HTTP 5xx &lt; 1%.</p><h2>Alert e-mail con runbook</h2><p>La supervisione non si ferma alle dashboard: un nucleo di alert vitali — tra cui API, PostgreSQL o Redis non disponibili, disco, memoria dei container, tasso di errori 5xx, latenza di streaming, backup notturno fallito, URL pubblico irraggiungibile, certificato TLS prossimo alla scadenza, rate limiting fuori servizio — è valutato in continuo da Prometheus e notificato via e-mail tramite Alertmanager. Ogni alert referenzia il proprio runbook (procedura di risoluzione passo passo), le soglie sono configurate per ambiente in file .env, e test unitari promtool garantiscono che le soglie mostrate nelle notifiche corrispondano esattamente alle espressioni di attivazione. Una sonda blackbox testa perfino l'intera catena end-to-end, dall'edge Cloudflare al frontend, esattamente come un utente. L'alert di latenza di streaming osserva solo i turni che una persona attende — una routine passa dallo stesso codice, ma nessuno la attende — e scatta solo su abbastanza turni perché un 95° percentile abbia senso; un incidente il cui avviso di risoluzione è andato perso viene riconciliato con Alertmanager e chiuso.</p><h2>Langfuse: tracing LLM dedicato</h2><p>L'integrazione Langfuse traccia ogni chiamata LLM — token consumati (input/output/cache), tempo di risposta, modello utilizzato, costo stimato e contesto della richiesta —, e sette metriche Prometheus proprie seguono le versioni dei prompt, i punteggi di valutazione, le varianti A/B, la profondità delle tracce e i passaggi di consegne tra agenti. Questo permette di identificare i prompt inefficaci, confrontare i modelli LLM tra loro e ottimizzare il consumo di token nel tempo.</p><h2>DevOps Claude CLI: Diagnostica in linguaggio naturale (v1.13.0)</h2><p>Ultima evoluzione dello stack di osservabilità: gli amministratori possono ora diagnosticare i server direttamente dalla conversazione LIA. Basta chiedere «Controlla i log per vedere se funziona tutto»: Claude Code CLI — installato nel container API Docker — ispeziona in modo autonomo i log, verifica la salute dei container, analizza l'utilizzo delle risorse e riferisce le sue conclusioni. Sessioni persistenti per indagini su più turni, permessi configurabili per ambiente (produzione in sola lettura, sviluppo con accesso completo) e streaming in tempo reale dei passaggi di indagine via SSE.</p><h2>E dalla v1.34: l'assistente legge la propria telemetria</h2><p>Tutto quanto sopra esisteva per gli umani; l'assistente stessa non ne leggeva nulla. L'ADR-247 ha chiuso quel cerchio: un autocontrollo periodico trasforma i segnali aurei e sonde dirette in istantanee di salute con valori esatti; avvisi e verdetti critici convergono in un incidente per guasto, diagnosticato da un LLM con budget limitato e fondato sui runbook operativi; gli amministratori hanno un pannello Salute della piattaforma, notifiche proattive e strumenti di chat in sola lettura. E un guasto noto ora plasma le risposte — le capacità degradate vengono aggirate in pianificazione, e i passaggi falliti spiegati da codici di errore tipizzati, mai da log grezzi. Da allora la diagnosi non è più scritta da un numero solo: una ricetta dichiarata per tipo di incidente dice quali ripartizioni e quali eventi di log leggere, il fascicolo viene raccolto al momento della diagnosi con i dati personali rimossi, una fonte irraggiungibile è dichiarata non disponibile invece di essere letta come silenzio, e ciò che il modello ha letto è mostrato sotto il suo verdetto.</p><h2>Contare gli esiti, non i tentativi</h2><p>Un contatore è stato ripensato nella v1.38.3. Contare le chiamate che raggiungono un fornitore è la verità sul fornitore — e il denominatore sbagliato non appena quelle chiamate vengono ritentate, perché un errore recuperato gonfia il tasso di errore benché nulla sia andato perso. Un secondo contatore registra ora una riga per operazione logica, con i ritentativi ripiegati, e risponde all'unica domanda su cui un operatore agisce: il chiamante ha ottenuto il suo risultato? Un terzo dice cosa ha fatto la regolazione di frequenza di ogni tentativo, perché «il budget è troppo piccolo» e «Redis è caduto» sono indistinguibili in un booleano e richiedono azioni opposte.</p><p>La lezione più recente riguarda la scelta di ciò che si misura. Il ciclo autonomo contava le proprie iterazioni e la propria durata — e nulla per ciò che cresce davvero: il prompt consegnato al modello a ogni passo. Misurato sul codice di produzione, sono 2,3 k token alla prima iterazione e 112 k alla novantesima, perché ogni risultato di strumento resta nella conversazione che il modello rilegge. Due istogrammi registrano ora la dimensione consegnata e la sua quota della finestra di contesto del modello, alimentati dallo stesso contatore memoizzato che il riduttore di stato già mantiene, così la misura non costa nulla sul percorso caldo. Nessuna politica di compressione è partita con essi, deliberatamente: un sistema che agisce su una grandezza mai osservata sta ottimizzando una congettura.</p><p>Lo stesso principio ha raggiunto il tasso di successo degli strumenti. Uno strumento fallisce <em>restituendo</em> un errore, mai sollevando un'eccezione, e il contatore guardava solo le eccezioni: il tasso valeva 1,0 per costruzione, e i due allarmi che lo leggono non potevano scattare. Un solo predicato decide ora cos'è un successo, per il registro, le metriche e il ciclo ReAct: il tasso mostrato scende, perché finalmente dice la verità.</p><h2>Segnali che si rispondono</h2><p>Una metrica, un log e una traccia raccontano la stessa richiesta: bisogna però poter passare dall'uno all'altro. In LIA una riga di log apre la traccia della sua richiesta, una traccia apre i suoi log e le sue metriche, e un punto di latenza apre l'esempio preciso che lo ha prodotto. Ogni collegamento è stato misurato in produzione prima di essere riparato. La catena che trasporta questi segnali è a sua volta sorvegliata — un allarme avvisa se dei log si perdono per strada —, e tutte le dashboard seguono una stessa convenzione: una settimana di storico, un menu comune.</p>"
       },
       "prompt-engineering": {
         "title": "Sistema di prompt versionati: 202 prompt gestiti come codice",
@@ -15497,7 +15634,7 @@
       "progressive-steps": {
         "title": "Passi di esecuzione in tempo reale: osserva LIA al lavoro",
         "excerpt": "LIA mostra progressivamente ogni passo di esecuzione — routing, pianificazione, chiamate agli strumenti — in tempo reale mentre elabora la tua richiesta.",
-        "body": "<h2>Trasparenza in azione</h2><p>Quando invii una richiesta complessa a LIA, possono passare diversi secondi prima che arrivi la risposta. Cosa fa l'assistente in quel tempo? Con la visualizzazione progressiva dei passi, lo sai <strong>in tempo reale</strong>: ogni nodo attraversato, ogni strumento chiamato appare man mano che accade. E la visualizzazione stessa è viva: i passaggi passati si attenuano, quello corrente respira, l'insieme sfuma nelle prime parole della risposta, e un cursore lampeggia durante la stesura.</p><h2>Come funziona</h2><p>Il backend utilizza la modalità <code>updates</code> di LangGraph per rilevare il completamento di ogni nodo del grafo. A ogni passo, un evento SSE <code>execution_step</code> viene inviato al frontend con:</p><ul><li>La <strong>chiave i18n</strong> dello strumento o nodo (tradotta nella lingua dell'utente)</li><li>Un <strong>estratto del ragionamento</strong> (troncato a 120 caratteri) in modalità ReAct</li><li><strong>Metadati di fallback</strong> per strumenti non elencati nel catalogo</li></ul><h2>Visualizzazione frontend</h2><p>I passi si accumulano visivamente nell'interfaccia, riga per riga, limitati a <strong>10 passi</strong> visibili simultaneamente. Un meccanismo di <strong>deduplicazione per chiave i18n</strong> impedisce la ripetizione di passi identici (tramite un Set di riferimento). Al primo token di risposta, i passi si ripiegano in una riga «⚙ N passaggi · X s» sotto la risposta — conservata con il messaggio: il dietro le quinte resta lì anche dopo un ricaricamento, su tutti i tuoi dispositivi.</p><h2>Pipeline e ReAct</h2><p>In modalità <strong>Pipeline</strong>, i passi provengono dall'ExecutionPlan: planner, validatore semantico, porta di approvazione, orchestratore dei compiti. In modalità <strong>ReAct</strong>, ogni chiamata di strumento genera un passo con un estratto del ragionamento del LLM.</p><h2>327 strumenti coperti</h2><p>Tutti i <strong>327 strumenti</strong> del catalogo dispongono di una chiave i18n dedicata in 6 lingue. I testi sono stati tradotti per offrire messaggi naturali in ogni lingua (\"Ricerca contatti...\", \"Lettura email...\") anziché identificatori tecnici. Un test legge ogni strumento dichiarato nel codice e fa fallire la build se a uno manca il suo testo.</p><h2>Niente più messaggi casuali</h2><p>Il vecchio sistema mostrava frasi di attesa divertenti ma casuali (\"LIA sta pensando...\", \"Analisi in corso...\"). Questo sistema è stato interamente sostituito da passi <strong>reali e contestuali</strong> che riflettono esattamente ciò che l'assistente fa in ogni momento.</p><h2>Quando il flusso ammutolisce</h2><p>Una visualizzazione dei passaggi vale quanto il flusso che la alimenta. Quando un telefono sospende la scheda, la connessione muore senza annunciare nulla — né fine, né errore — e lo schermo resta sull'ultimo passaggio mostrato, all'infinito, mentre la risposta è già terminata e salvata sul server. Nulla distingueva quello stato da una risposta semplicemente lunga. Ora LIA riconosce quel silenzio: superato un budget calibrato sul ritmo dei battiti del server, la connessione morta viene abbandonata e il turno rimasto vivo in background viene ripreso automaticamente.</p>"
+        "body": "<h2>Trasparenza in azione</h2><p>Quando invii una richiesta complessa a LIA, possono passare diversi secondi prima che arrivi la risposta. Cosa fa l'assistente in quel tempo? Con la visualizzazione progressiva dei passi, lo sai <strong>in tempo reale</strong>: ogni nodo attraversato, ogni strumento chiamato appare man mano che accade. E la visualizzazione stessa è viva: i passaggi passati si attenuano, quello corrente respira, l'insieme sfuma nelle prime parole della risposta, e un cursore lampeggia durante la stesura.</p><h2>Come funziona</h2><p>Il backend utilizza la modalità <code>updates</code> di LangGraph per rilevare il completamento di ogni nodo del grafo. A ogni passo, un evento SSE <code>execution_step</code> viene inviato al frontend con:</p><ul><li>La <strong>chiave i18n</strong> dello strumento o nodo (tradotta nella lingua dell'utente)</li><li>Un <strong>estratto del ragionamento</strong> (troncato a 120 caratteri) in modalità ReAct</li><li><strong>Metadati di fallback</strong> per strumenti non elencati nel catalogo</li></ul><h2>Visualizzazione frontend</h2><p>I passi si accumulano visivamente nell'interfaccia, riga per riga, limitati a <strong>10 passi</strong> visibili simultaneamente. Un meccanismo di <strong>deduplicazione per chiave i18n</strong> impedisce la ripetizione di passi identici (tramite un Set di riferimento). Al primo token di risposta, i passi si ripiegano in una riga «⚙ N passaggi · X s» sotto la risposta — conservata con il messaggio: il dietro le quinte resta lì anche dopo un ricaricamento, su tutti i tuoi dispositivi.</p><h2>Pipeline e ReAct</h2><p>In modalità <strong>Pipeline</strong>, i passi provengono dall'ExecutionPlan: planner, validatore semantico, porta di approvazione, orchestratore dei compiti. In modalità <strong>ReAct</strong>, ogni chiamata di strumento genera un passo con un estratto del ragionamento del LLM.</p><h2>327 strumenti coperti</h2><p>Tutti i <strong>327 strumenti</strong> del catalogo dispongono di una chiave i18n dedicata in 6 lingue. I testi sono stati tradotti per offrire messaggi naturali in ogni lingua (\"Ricerca contatti...\", \"Lettura email...\") anziché identificatori tecnici. Un test legge ogni strumento dichiarato nel codice e fa fallire la build se a uno manca il suo testo.</p><h2>Niente più messaggi casuali</h2><p>Il vecchio sistema mostrava frasi di attesa divertenti ma casuali (\"LIA sta pensando...\", \"Analisi in corso...\"). Questo sistema è stato interamente sostituito da passi <strong>reali e contestuali</strong> che riflettono esattamente ciò che l'assistente fa in ogni momento.</p><h2>Quando il flusso ammutolisce</h2><p>Una visualizzazione dei passaggi vale quanto il flusso che la alimenta. Quando un telefono sospende la scheda, la connessione muore senza annunciare nulla — né fine, né errore — e lo schermo resta sull'ultimo passaggio mostrato, all'infinito, mentre la risposta è già terminata e salvata sul server. Nulla distingueva quello stato da una risposta semplicemente lunga. Ora LIA riconosce quel silenzio: superato un budget calibrato sul ritmo dei battiti del server, la connessione morta viene abbandonata e il turno rimasto vivo in background viene ripreso automaticamente.</p><h2>Cosa ha fatto ogni passaggio</h2><p>Un passaggio non si limita più a dire di essere stato eseguito. La sua riga si chiude su ciò che ha fatto: quante volte è stato chiamato lo strumento («×2»), quanti risultati ha trovato e quanti ne ha letti, e un errore sulla riga in cui è avvenuto. Due chiamate dello stesso strumento sono contate su una sola riga invece di restarvi nascoste; ReAct conta ogni chiamata appena termina, Pipeline ogni strumento del piano — un ciclo su elementi contato per i suoi elementi. I conteggi sono semplici numeri conservati con il messaggio: il dietro le quinte li ripete dopo un ricaricamento.</p>"
       },
       "account-lifecycle": {
         "title": "Ciclo di vita degli account: 4 stati per accesso, eliminazione e conservazione contabile",
@@ -16128,7 +16265,7 @@
   "story": {
     "meta": {
       "title": "Story — Dirigere un'IA che programma | LIA",
-      "description": "Come è stata costruita LIA: ~100 % di codice scritto da un'IA sotto direzione umana, 67.000+ test, 362 ADR, un audit tecnico di 7,8/10. Il resoconto completo."
+      "description": "Come è stata costruita LIA: ~100 % di codice scritto da un'IA sotto direzione umana, 67.000+ test, 362 ADR, un audit tecnico di 7,9/10. Il resoconto completo."
     },
     "breadcrumb": "Resoconto",
     "hero": {
@@ -16980,6 +17117,25 @@
     }
   },
   "meetings": {
+    "import": {
+      "title": "Importa una registrazione",
+      "description": "Un file WAV, MP3 o M4A — un memo vocale, il file di un registratore — diventa una riunione, trascritta e riassunta come una registrazione.",
+      "loading": "Caricamento…",
+      "file_label": "File audio",
+      "bounds": "WAV, MP3 o M4A, fino a {{size}} e {{minutes}} minuti.",
+      "summary": "Scelto: {{details}}",
+      "recorded_at_label": "Registrata il",
+      "recorded_at_hint": "Per impostazione predefinita, la data del file meno la sua durata. Correggila se serve: data la riunione.",
+      "template_label": "Formato del verbale",
+      "template_default": "Il tuo formato predefinito",
+      "submit": "Importa",
+      "sending": "Invio… {{sent}} di {{total}}",
+      "progress_label": "Avanzamento dell'invio",
+      "refusal_unsupported": "Scegli un file WAV, MP3 o M4A.",
+      "refusal_empty": "Questo file è vuoto.",
+      "refusal_too_large": "Questo file supera {{size}}.",
+      "refusal_too_long": "Questa registrazione supera i {{minutes}} minuti."
+    },
     "banner": {
       "region_label": "Registrazione della riunione",
       "starting": "Avvio della registrazione…",
@@ -17024,6 +17180,7 @@
       "failed_title": "Impossibile produrre il verbale"
     },
     "status": {
+      "uploading": "Caricamento",
       "recording": "Registrazione",
       "interrupted": "Interrotta",
       "stopped": "In coda",
@@ -17038,6 +17195,7 @@
       "indexing": "Aggiunta allo spazio di conoscenza"
     },
     "list": {
+      "import": "Importa",
       "search_placeholder": "Cerca nei verbali delle riunioni…",
       "no_results_title": "Nessuna riunione corrispondente",
       "no_results_description": "Prova un altro termine o cancella la ricerca.",
@@ -17071,7 +17229,7 @@
       "bulk_skipped_one": "{{count}} riunione è stata ignorata: è ancora in registrazione o in elaborazione.",
       "bulk_skipped_other": "{{count}} riunioni sono state ignorate: sono ancora in registrazione o in elaborazione.",
       "not_selectable": "Non selezionabile durante la registrazione o l’elaborazione",
-      "record": "Registra una riunione",
+      "record": "Registra",
       "templates": "Modelli",
       "load_error": "Impossibile caricare le riunioni. Riprova per aggiornare l’elenco.",
       "index_label": "Spazio di conoscenza",
@@ -17091,6 +17249,7 @@
       }
     },
     "detail": {
+      "imported_badge": "Importata",
       "back": "Torna alle riunioni",
       "not_found": "Questa riunione non esiste o è stata eliminata.",
       "date": "Data",
@@ -17249,6 +17408,15 @@
       "templates_description": "I formati integrati e i tuoi. Duplica un formato integrato per personalizzarlo."
     },
     "errors": {
+      "import_disabled": "L'importazione di una registrazione non è offerta su questa istanza.",
+      "import_too_large": "Questo file supera la dimensione massima accettata da questa istanza.",
+      "chunk_too_large": "Una parte del file superava la dimensione accettata dal server.",
+      "import_format_mismatch": "Questo file non è nel formato indicato dal suo nome: scegli un vero file WAV, MP3 o M4A.",
+      "import_already_running": "Un'importazione è già in corso.",
+      "meeting_not_uploading": "Questa importazione non è più in corso.",
+      "import_too_long": "Questa registrazione supera la durata massima che questa istanza trascrive.",
+      "audio_unreadable": "Non è stato possibile leggere il file come audio.",
+      "import_incomplete": "L'invio del file si è interrotto prima di essere completo.",
       "audio_normalize_failed": "Impossibile preparare l'audio.",
       "audio_unavailable": "L'audio non è più disponibile.",
       "capture_failed": "Il microfono ha smesso di funzionare.",

@@ -43,6 +43,10 @@ async def test_job_reaper_uses_settings_thresholds_and_redrives_orphans(
             seen["stale"] = stale_minutes
             return 2
 
+        async def fail_stale_imports(self, stale_minutes: int) -> list:
+            seen["import_stale"] = stale_minutes
+            return []
+
         async def requeue_expired_leases(self, max_attempts: int) -> tuple[int, int]:
             seen["max_attempts"] = max_attempts
             return 1, 0
@@ -64,6 +68,7 @@ async def test_job_reaper_uses_settings_thresholds_and_redrives_orphans(
     await rp.meetings_job_reaper()
 
     assert seen["stale"] == settings.meetings_recording_stale_minutes  # never hard-coded
+    assert seen["import_stale"] == settings.meetings_import_stale_minutes
     assert seen["grace"] == settings.meetings_reaper_interval_seconds
     assert seen["max_attempts"] == settings.meetings_job_max_attempts
     # ADR-259: a regeneration killed mid-flight is cleared after the lease TTL.
@@ -91,6 +96,9 @@ async def test_job_reaper_counts_the_workers_it_dead_letters(
         async def interrupt_stale_recordings(self, stale_minutes: int) -> int:
             return 0
 
+        async def fail_stale_imports(self, stale_minutes: int) -> list:
+            return []
+
         async def requeue_expired_leases(self, max_attempts: int) -> tuple[int, int]:
             return 1, 2
 
@@ -109,6 +117,61 @@ async def test_job_reaper_counts_the_workers_it_dead_letters(
 
     assert requeued._value.get() == before[0] + 1
     assert dead_lettered._value.get() == before[1] + 2
+
+
+async def test_job_reaper_fails_silent_imports_then_deletes_their_chunks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A half file is no meeting: failed by the sweep, its chunks deleted AFTER the commit."""
+    from src.domains.meetings.models import MeetingAudioFormat
+    from src.infrastructure.observability.metrics_meetings import meeting_imports_total
+
+    meeting_id, user_id = uuid.uuid4(), uuid.uuid4()
+    marked: list[uuid.UUID] = []
+    purged: list[tuple[uuid.UUID, uuid.UUID]] = []
+
+    class _Repo:
+        def __init__(self, db) -> None:  # noqa: ANN001
+            pass
+
+        async def interrupt_stale_recordings(self, stale_minutes: int) -> int:
+            return 0
+
+        async def fail_stale_imports(self, stale_minutes: int) -> list:
+            return [(meeting_id, user_id, MeetingAudioFormat.IMPORT_MP3)]
+
+        async def requeue_expired_leases(self, max_attempts: int) -> tuple[int, int]:
+            return 0, 0
+
+        async def fetch_stopped_orphans(self, grace_seconds: int, limit: int) -> list[uuid.UUID]:
+            return []
+
+        async def clear_stale_regenerations(self, older_than_seconds: int) -> int:
+            return 0
+
+        async def mark_audio_purged(
+            self, meeting_id: uuid.UUID, *, purged_at
+        ) -> None:  # noqa: ANN001
+            marked.append(meeting_id)
+
+    class _Store:
+        def __init__(self, root) -> None:  # noqa: ANN001
+            pass
+
+        async def purge_meeting(self, owner: uuid.UUID, meeting: uuid.UUID) -> bool:
+            purged.append((owner, meeting))
+            return True
+
+    _install_db(monkeypatch, _Repo)
+    monkeypatch.setattr(rp, "MeetingAudioStore", _Store)
+    abandoned = meeting_imports_total.labels(format="import_mp3", outcome="abandoned")
+    before = abandoned._value.get()
+
+    await rp.meetings_job_reaper()
+
+    assert purged == [(user_id, meeting_id)]
+    assert marked == [meeting_id]
+    assert abandoned._value.get() == before + 1
 
 
 @pytest.mark.parametrize("cleanup_succeeded", [True, False])

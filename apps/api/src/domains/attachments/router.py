@@ -28,6 +28,7 @@ from src.core.config import get_settings
 from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session
 from src.domains.attachments.knowledge_copy import copy_knowledge_document
+from src.domains.attachments.owned_copies import copy_bookmark, copy_generated
 from src.domains.attachments.schemas import AttachmentUploadResponse
 from src.domains.attachments.service import AttachmentService
 from src.domains.auth.dependencies import create_user_rate_limiter
@@ -102,6 +103,61 @@ async def attach_knowledge_document(
     attachment = await copy_knowledge_document(
         db, user_id=user.id, space_id=body.space_id, document_id=body.document_id
     )
+    return AttachmentUploadResponse.model_validate(attachment)
+
+
+class BookmarkAttachmentRequest(BaseModel):
+    """One of the caller's kept answers, to attach as a document."""
+
+    bookmark_id: uuid.UUID = Field(description="The kept answer to attach.")
+
+
+@router.post(
+    "/from-bookmark",
+    response_model=AttachmentUploadResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Attach a copy of one of the caller's kept answers",
+    # An upload: reading one's own bookmarks is always open (ADR-282).
+    dependencies=[*_UPLOAD_GUARD],
+)
+async def attach_bookmark(
+    body: BookmarkAttachmentRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> AttachmentUploadResponse:
+    """Attach the caller's kept answer as the Markdown its knowledge document reads.
+
+    404 when the bookmark is not the caller's.
+    """
+    attachment = await copy_bookmark(db, user_id=user.id, bookmark_id=body.bookmark_id)
+    return AttachmentUploadResponse.model_validate(attachment)
+
+
+class GeneratedFileAttachmentRequest(BaseModel):
+    """One of the caller's generated files, to attach as a copy."""
+
+    attachment_id: uuid.UUID = Field(description="The generated image or document to attach.")
+
+
+@router.post(
+    "/from-generated",
+    response_model=AttachmentUploadResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Attach a copy of one of the caller's generated files",
+    # An upload: the gallery itself stays open to read (ADR-279).
+    dependencies=[*_UPLOAD_GUARD],
+)
+async def attach_generated_file(
+    body: GeneratedFileAttachmentRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> AttachmentUploadResponse:
+    """Copy a live generated file of the caller into their attachments.
+
+    404 when the file is not the caller's live generated file (an upload, past
+    its deadline, gone); 413/415 when an image passes the upload bounds.
+    """
+    attachment = await copy_generated(db, user_id=user.id, attachment_id=body.attachment_id)
     return AttachmentUploadResponse.model_validate(attachment)
 
 

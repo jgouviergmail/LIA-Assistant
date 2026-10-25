@@ -92,3 +92,26 @@ def test_mixed_kinds_and_duplicate_identities_are_refused_before_spend() -> None
             now=datetime.now(UTC),
             timezone="UTC",
         )
+
+
+@pytest.mark.parametrize(
+    "timezone,expected",
+    [
+        ("Europe/Paris", "2026-10-25T01:05:59+02:00"),
+        ("UTC", "2026-10-24T23:05:59+00:00"),
+        ("Not/AZone", "2026-10-24T23:05:59+00:00"),
+    ],
+)
+def test_the_reference_time_speaks_the_zone_it_is_sent_with(timezone: str, expected: str) -> None:
+    """One clock, in the zone the question names (2026-10-25).
+
+    The calibration corpora state their reference in the zone they name (UTC);
+    production sent a UTC instant beside the person's zone, so an explicit
+    deadline written in local time needed a conversion nobody had measured —
+    and around midnight the two disagree on the day.
+    """
+    now = datetime(2026, 10, 24, 23, 5, 59, tzinfo=UTC)
+
+    batch = build_batches([observed(1)], model="a-model", now=now, timezone=timezone)[0]
+
+    assert batch.state["reference_time"] == expected

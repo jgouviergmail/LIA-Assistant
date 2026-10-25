@@ -109,9 +109,11 @@ function DiscussionFeedbackActions({
   }
   const answered = busy || receipt !== null;
   return (
-    // A line of its own, under the bubble's actions and aligned on them (owner
-    // request 2026-10-21): in the row's flex-wrap, `basis-full` starts a line.
-    <span className="flex w-full basis-full flex-wrap items-center gap-1" aria-busy={busy}>
+    // At the RIGHT end of the bubble's actions (owner decision 2026-10-24,
+    // replacing the line of its own of 2026-10-21): in the row's flex-wrap,
+    // `ml-auto` takes the free space, so the answers share the actions' line
+    // when there is room and wrap as one right-aligned block when there is not.
+    <span className="ml-auto flex flex-wrap items-center justify-end gap-1" aria-busy={busy}>
       {content && onPrefillComposer && (
         <ActionChipButton
           tone="deeper"

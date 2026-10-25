@@ -498,6 +498,12 @@ async def get_client_config() -> dict:
             # Meeting recording (ADR-258): gates the composer action, the
             # meetings pages and the settings section.
             "meetings_enabled": getattr(settings, "meetings_enabled", False),
+            # Importing a meeting from a file (2026-10-24): gates the « Import »
+            # actions of the meetings page and of the composer's « + ».
+            "meetings_import_enabled": bool(
+                getattr(settings, "meetings_enabled", False)
+                and getattr(settings, "meetings_import_enabled", False)
+            ),
             "sms_enabled": settings.sms_enabled,
             # Workboard (ADR-276): gates the board page, its settings section
             # and the ticket actions under a chat notification.

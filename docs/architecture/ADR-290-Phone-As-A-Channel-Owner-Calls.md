@@ -405,3 +405,21 @@ partager ou faire.
 - Un outil qui dépense des jetons de modèle n'est pas admis dans l'allowlist
   tant que ce chemin ne publie pas de tracker ; les trois admis n'appellent
   aucun modèle.
+
+## Amendement 2026-10-24 — le compte rendu d'un appel porte sa facture
+
+**Constat (production, lecture seule).** Un appel personnel du 2026-10-24 s'est
+terminé en `empty` (rien à relayer) : sa synthèse avait dépensé 0,01026 €, enregistrés
+sous `phone_call_<hex>`, et la bulle du compte rendu n'affichait rien. Le compteur du
+chat lit la facture par le `run_id` du message archivé (jointure sur
+`message_token_summary`) ; trois chemins archivaient les mots d'un appel SANS ce run :
+la notification de repli de l'appel personnel, le compte rendu d'un appel à un tiers,
+la ré-émission du faucheur.
+
+**Décision.** Toute notification d'un appel sort par UNE porte,
+`telephony/call_notifications.dispatch_call_notification`, qui pose le `run_id` de
+l'appel ; l'appelant garde le choix de ses canaux (le push seul quand le tour relayé
+est déjà dans le chat). Une garde AST
+(`tests/unit/domains/telephony/test_call_notification_door_guard.py`) refuse tout
+autre envoi du type `phone_call`, écrit en littéral ou par une constante. Ce que la
+clé ElevenLabs de la personne paie reste hors de tout registre (règle du 2026-09-16).

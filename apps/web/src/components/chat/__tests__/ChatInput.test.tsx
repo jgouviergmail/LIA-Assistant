@@ -114,6 +114,18 @@ vi.mock('@/components/chat/KnowledgeDocumentPickerDialog', () => ({
     return open ? <div data-testid="knowledge-picker" /> : null;
   },
 }));
+vi.mock('@/components/chat/BookmarkPickerDialog', () => ({
+  BookmarkPickerDialog: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="bookmark-picker" /> : null,
+}));
+vi.mock('@/components/chat/GeneratedFilePickerDialog', () => ({
+  GeneratedFilePickerDialog: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="generated-picker" /> : null,
+}));
+vi.mock('@/components/meetings/MeetingImportDialog', () => ({
+  MeetingImportDialog: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="meeting-import" /> : null,
+}));
 
 const { toast } = vi.hoisted(() => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 vi.mock('sonner', () => ({ toast }));
@@ -477,6 +489,46 @@ describe('ChatInput — attachments', () => {
 
     await user.click(within(menu).getByRole('menuitem', { name: /from_knowledge/ }));
     await waitFor(() => expect(screen.getByTestId('knowledge-picker')).toBeInTheDocument());
+  });
+
+  it('offers what LIA already gave — a kept answer, a generated file — after the file', async () => {
+    const { user } = renderWithProviders(
+      <ChatInput
+        onSendMessage={vi.fn()}
+        attachmentsEnabled
+        bookmarksEnabled
+        generatedFilesEnabled
+      />
+    );
+    await user.click(screen.getByRole('button', { name: 'chat.attachments.add' }));
+    const menu = await screen.findByRole('menu');
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map(item => item.textContent)
+    ).toEqual([
+      'chat.attachments.attach_file',
+      'chat.attachments.from_bookmark',
+      'chat.attachments.from_generated',
+    ]);
+    await user.click(within(menu).getByRole('menuitem', { name: /from_generated/ }));
+    await waitFor(() => expect(screen.getByTestId('generated-picker')).toBeInTheDocument());
+    expect(screen.queryByTestId('bookmark-picker')).not.toBeInTheDocument();
+  });
+
+  it('offers to import a recording as a meeting, last, and opens its dialog', async () => {
+    const { user } = renderWithProviders(
+      <ChatInput onSendMessage={vi.fn()} attachmentsEnabled meetingImportEnabled />
+    );
+    await user.click(screen.getByRole('button', { name: 'chat.attachments.add' }));
+    const menu = await screen.findByRole('menu');
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map(item => item.textContent)
+    ).toEqual(['chat.attachments.attach_file', 'chat.attachments.import_meeting']);
+    await user.click(within(menu).getByRole('menuitem', { name: /import_meeting/ }));
+    await waitFor(() => expect(screen.getByTestId('meeting-import')).toBeInTheDocument());
   });
 
   it('keeps the file entry of the browser menu on the ordinary picker', async () => {

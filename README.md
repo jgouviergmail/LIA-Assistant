@@ -28,7 +28,7 @@
   <a href="https://langchain-ai.github.io/langgraph/"><img src="https://img.shields.io/badge/LangGraph-1.2.14-FF6F00?style=flat-square" alt="LangGraph"></a>
   <a href="https://python.langchain.com/"><img src="https://img.shields.io/badge/LangChain-1.3.15-4B8BBE?style=flat-square" alt="LangChain"></a>
   <a href="#talk-to-it"><img src="https://img.shields.io/badge/i18n-6%20languages-E040FB?style=flat-square" alt="6 languages"></a>
-  <a href="docs/audit/README.md"><img src="https://img.shields.io/badge/360%C2%B0%20audit-7.8%2F10-2E7D5B?style=flat-square" alt="360° technical audit: 7.8/10 on the normalized 24-area grid — full public report"></a>
+  <a href="docs/audit/README.md"><img src="https://img.shields.io/badge/360%C2%B0%20audit-7.9%2F10-2E7D5B?style=flat-square" alt="360° technical audit: 7.9/10 on the normalized 24-area grid — full public report"></a>
   <a href="#license"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="License"></a>
   <a href="https://deepwiki.com/jgouviergmail/LIA-Assistant"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
 </p>
@@ -44,7 +44,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 3.6.0</strong> — <strong>Safer sign-ins, steadier connections.</strong> A password reset now answers for one account and one password, an optional anti-robot check guards the password doors, connected services renew their access through one door, a discussion left unanswered waits an hour instead of a day, and every audit finding is followed to its proof in a public register — 24 October 2026.
+  <strong>Version 3.7.0</strong> — <strong>Found by name, shared in plain sight.</strong> A first name now reaches the person it designates and a name that fits several is asked about, a skill or a connector says who you shared it with, a kept answer or a generated file comes back into a discussion, a relationship's records line up on one timeline, a WAV, MP3 or M4A recording becomes a meeting with its minutes, each step of an answer says what it did, and a phone call's report shows its cost — 25 October 2026.
 </p>
 
 ---
@@ -520,7 +520,7 @@ the supported surfaces and secure continuation contract.
 - Through your own ElevenLabs + Twilio connector, calls to third parties require confirmation before dialing. You review the recipient, number and objective; instructions bound the mandate, calendar access exposes free/busy information, and the call is not recorded. The post-call summary and available usage information remain reviewable ([ADR-127](docs/architecture/ADR-127-Agentic-Telephony.md), [TELEPHONY](docs/technical/TELEPHONY.md)).
 - **The phone as a channel:** LIA calls _you_ on a number you declared and verified by a spoken code, with no confirmation card, the chat's own context and your configured personality on the line.
 - The voice agent reads everything the chat reads through the same read-only tools (mails, calendar, tasks, contacts, files, places, weather, memory — one switch per domain, yours) and acts on nothing.
-- What you say comes back as your own message, with drafts to confirm in the chat, ten relay verdicts and one bill per call for what LIA spent ([ADR-290](docs/architecture/ADR-290-Phone-As-A-Channel-Owner-Calls.md)).
+- What you say comes back as your own message, with drafts to confirm in the chat, ten relay verdicts and one bill per call for what LIA spent, shown on the call's report in the chat ([ADR-290](docs/architecture/ADR-290-Phone-As-A-Channel-Owner-Calls.md)).
 - Since ADR-301 a voice session has a **mode**, and the policy follows it whatever the line. In _Live_ (the default), each request is a chat turn of yours handled while you speak; a question LIA asks is the answer, and the next request resumes the run that asked. In _Live direct_, the voice reads and the words are relayed at the end. Phone and browser share one closing; the effective mode is derived and published, and the browser's direct session is relayed like a call ([ADR-301](docs/architecture/ADR-301-Voice-Sessions-One-Policy-Per-Mode.md)).
 
 #### Documents and images
@@ -599,7 +599,7 @@ The home page opens on the date and LIA's living face, then aggregates your sour
 
 #### Knowledge spaces
 
-- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive folder sync, a Gmail label as a source, and a system space that indexes the product's own help corpus so LIA can explain itself — drawn from the in-app FAQ, whose 500 questions cover every feature a person can use, in six languages.
+- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive folder sync, a Gmail label as a source, and a system space that indexes the product's own help corpus so LIA can explain itself — drawn from the in-app FAQ, whose 506 questions cover every feature a person can use, in six languages.
 - A document that cannot be indexed says why in your language — a scanned PDF without a text layer names its remedy.
 - Any indexed document, paused space or not, attaches to a chat message as a copy from the composer's « + » ([ADR-295](docs/architecture/ADR-295-Knowledge-Documents-As-Message-Attachments.md), [GUIDE_RAG_SPACES](docs/guides/GUIDE_RAG_SPACES.md), [ADR-055](docs/architecture/ADR-055-RAG-Spaces-Architecture.md), [ADR-058](docs/architecture/ADR-058-System-RAG-Spaces.md)).
 
@@ -608,15 +608,17 @@ The home page opens on the date and LIA's living face, then aggregates your sour
 - Search complete minutes from the meeting list, with server-side filtering and pagination.
 
 - Record from the phone or the computer while the chat stays usable, with a capture that survives reloads and lost microphones.
+- Import a recording you already hold — WAV, MP3 or M4A — and it becomes a meeting with its minutes: sent in chunks under published bounds, read only as the format it claims, its length measured before any engine is paid.
 - A chain of transcription engines walked at processing time.
 - Minutes filled from one of thirty built-in templates or your own, reformatted in place or derived into a second set from the same transcript ([ADR-258](docs/architecture/ADR-258-Meeting-Recording-And-Structured-Minutes.md), [ADR-259](docs/architecture/ADR-259-Meeting-Template-Library-And-Reformatting.md), [MEETINGS](docs/technical/MEETINGS.md)).
 
 #### People
 
-- Share a skill, MCP server or plugin with an accepted connection as an independently owned, disabled copy. The recipient sees who shared it and when, supplies their own credentials, and manages it with the existing controls ([ADR-350](docs/architecture/ADR-350-Peer-Capability-Copies-Without-Credentials.md)).
+- Share a skill, MCP server or plugin with an accepted connection as an independently owned, disabled copy. The recipient sees who shared it and when, the sharer whom it went to — under the card's line, a copy already given never sent twice —, and the recipient supplies their own credentials and manages it with the existing controls ([ADR-350](docs/architecture/ADR-350-Peer-Capability-Copies-Without-Credentials.md)).
 
 - A 360° relationship lens over open loops, calls, messages and memories, with a written debrief per person built lazily when the card opens ([ADR-176](docs/architecture/ADR-176-Personal-CRM-Relations.md), [ADR-193](docs/architecture/ADR-193-Read-Capabilities-And-Merged-Identity.md), [ADR-269](docs/architecture/ADR-269-Relationship-Debrief.md)).
-- Connections between users of the same instance, assistant to assistant — relayed messages delivered by the recipient's own assistant, field-level read-only shares, silent blocking ([ADR-180](docs/architecture/ADR-180-Peer-Connections.md), [ADR-182](docs/architecture/ADR-182-Peer-Routing-Awareness-And-Honest-Failure.md)).
+- A timeline on each relationship card lines up its dated records — commitments, calls, memories, relayed messages, text messages — on one thread, page after page, never repeating or dropping one.
+- Connections between users of the same instance, assistant to assistant — relayed messages delivered by the recipient's own assistant, field-level read-only shares, silent blocking; a first name reaches the person it designates, and a name that fits several people is asked about, never guessed ([ADR-180](docs/architecture/ADR-180-Peer-Connections.md), [ADR-182](docs/architecture/ADR-182-Peer-Routing-Awareness-And-Honest-Failure.md)).
 - A generated image shared with a connection as a copy, in one click and one transaction, its comment quoted literally in their chat ([ADR-316](docs/architecture/ADR-316-Sharing-A-Generated-Image-With-A-Connection.md)).
 
 #### What LIA produced is yours
@@ -629,6 +631,7 @@ The home page opens on the date and LIA's living face, then aggregates your sour
 
 - A bookmark on every answer copies it with the request that produced it and the answer's date, so it outlives the conversation.
 - A Bookmarks tab beside the galleries lists them newest first, with search, an exact total against the account's cap, sharing, a Markdown export and deletion.
+- A kept answer or a generated file comes back into any discussion, from the composer's « + » or from its own card, as a copy — the original stays where it is.
 - Every kept answer is also indexed in a knowledge space of your own, so LIA cites it weeks later when a question concerns it, and the card shows the indexing state and two named costs — what the answer cost to produce and what indexing it cost, as billed ([ADR-282](docs/architecture/ADR-282-Message-Bookmarks.md), [ADR-291](docs/architecture/ADR-291-Kept-Answers-Knowledge-Space.md), [BOOKMARKS](docs/technical/BOOKMARKS.md)).
 
 ### Trust it
@@ -675,6 +678,7 @@ Arithmetic, dates and currencies use tools in both execution modes, never a mode
 #### Failures made visible
 
 - One status vocabulary whose every member is produced and read, one success predicate for the register, the metrics and the ReAct loop, a structural failure marker on the ReAct message, and an honesty directive that names the tool that failed and the exact total, so the response has the recorded failure evidence instead of an unexplained gap ([ADR-303](docs/architecture/ADR-303-Tool-Failure-Restitution.md)).
+- Each step of an answer says what it did — how many calls, results found and read, failures — live and in the trace kept with the message ([ADR-133](docs/architecture/ADR-133-Execution-Trace-Per-Message.md)).
 - Every act is filed under its own turn and stated to the response as the assistant's own ([ADR-263](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md)).
 - A notification is filed delivered only once it was archived, pushed or sent on a channel — an SSE event alone never counts ([ADR-263](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md)).
 - No database transaction stays open while a provider answers, and the database bounds what the code might forget — a lock wait, an idle transaction — counting and alerting every bound it reaches ([ADR-304](docs/architecture/ADR-304-No-Transaction-Across-A-Network-Call.md)).
@@ -724,7 +728,7 @@ A 24-section panel embedded in the chat, organised into six groups; an empty sec
 
 ### Observability
 
-- **Prometheus**: 634 custom metrics (agents, LLM, infrastructure), labelled by route template — a name or a search in an address never becomes a series. A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric — and the reverse holds: every panel reads a series something produces.
+- **Prometheus**: 635 custom metrics (agents, LLM, infrastructure), labelled by route template — a name or a search in an address never becomes a series. A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric — and the reverse holds: every panel reads a series something produces.
 - **Grafana**: 32 dashboards, including product-value and radio cockpits · **Loki**: structured JSON logs that keep facts, never people's words, shipped by Grafana Alloy ([ADR-317](docs/architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md)) · **Tempo**: distributed tracing, spans named by the route template · **Langfuse**: LLM tracing with prompt versions. The whole stack runs on supported versions, pinned by digest.
 - **Linked signals, a pipeline that watches itself**: a log line opens its trace, a trace its logs and metrics, a latency point its exemplar; Loki, Alloy, Tempo and Grafana are scraped on closed keep-lists and `LogsNotDelivered` fires when lines go missing; every dashboard opens on seven days (logs and traces on four hours) behind one shared menu — [ADR-333](docs/architecture/ADR-333-Linked-Signals-And-A-Pipeline-That-Watches-Itself.md).
 - **Probes**: liveness (`GET /health`) split from readiness (`GET /ready`, 503 unless PostgreSQL **and** Redis answer) — [ADR-115](docs/architecture/ADR-115-Liveness-Readiness-Probes.md).
@@ -766,7 +770,7 @@ The result is measured, not proclaimed:
 |                           |                                           |                                         |                                                                         |
 | ------------------------- | ----------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
 | **58** functional domains | **1,003,000+** source lines (excl. tests) | **67,000+** inventoried automated tests | **362** ADRs                                                            |
-| **288** versions shipped  | **6 languages**, parity enforced in CI    | **634** Prometheus metrics              | [**7.8/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **289** versions shipped  | **6 languages**, parity enforced in CI    | **635** Prometheus metrics              | [**7.9/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 Source-line figure: 1,003,000+ physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-22). Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
 
@@ -1023,10 +1027,10 @@ task test:e2e                      # Playwright + axe journeys (hermetic, mocked
 
 | Metric                  | Value                                                                                                                                                |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Backend tests           | 53,014 collected over `tests/`, across 3,542 files (`pytest --collect-only -q --no-cov`, 2026-10-24)                                                 |
-| Frontend tests (vitest) | 14,114 across 1,128 files (`vitest list`, 2026-10-24), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
+| Backend tests           | 53,211 collected over `tests/`, across 3,559 files (`pytest --collect-only -q --no-cov`, 2026-10-25)                                                 |
+| Frontend tests (vitest) | 14,191 across 1,139 files (`vitest list`, 2026-10-25), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
 | Coverage floor          | 78% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob                                               |
-| Technical audit         | **7.8/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md)                                                        |
+| Technical audit         | **7.9/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md)                                                        |
 
 Tests are risk-driven and behavioural: a module never disables itself on a missing provider key, a test double that receives a coroutine owns it, and an unawaited coroutine or a post-summary warning is a failure ([GUIDE_TESTING](docs/guides/GUIDE_TESTING.md)).
 
@@ -1081,7 +1085,7 @@ Pre-push: secret scan           Security workflow (weekly)
 | Supply chain                                                                           | Hash-verified universal lockfiles and every build input pinned by digest, pip-audit on the full transitive tree, a weekly watch of each dependency's own advisories and end-of-life dates, a refresh that never moves a version backwards ([ADR-331](docs/architecture/ADR-331-Dependency-Watch-And-A-Refresh-That-Never-Goes-Back.md)), a CycloneDX SBOM per release                                                                     |
 | Untrusted code                                                                         | Skill scripts execute in a throwaway container — no Docker socket, no network, read-only filesystem, unprivileged uid, all capabilities dropped — and no sandbox means no execution, never a weaker fallback; a script the assistant writes, or a skill's command that names its hosts, reaches the web only through one egress proxy holding the keys and the allowlist ([ADR-298](docs/architecture/ADR-298-Sandbox-Egress-Toolbox.md)) |
 
-These references describe implemented controls, not a GDPR/AI Act legal opinion, OWASP or ISO certification, or a security-audit score. The [public 7.8/10 audit](docs/audit/README.md) measures 24 technical-quality areas against an ISO/IEC 25010:2023-inspired grid and explicitly excludes security.
+These references describe implemented controls, not a GDPR/AI Act legal opinion, OWASP or ISO certification, or a security-audit score. The [public 7.9/10 audit](docs/audit/README.md) measures 24 technical-quality areas against an ISO/IEC 25010:2023-inspired grid and explicitly excludes security.
 
 **Reporting a vulnerability** — do not open a GitHub issue. Write to **liamyassistant@gmail.com** with a description, the steps to reproduce and the potential impact; we answer within 48 hours. Policy and supported versions: [SECURITY.md](SECURITY.md).
 

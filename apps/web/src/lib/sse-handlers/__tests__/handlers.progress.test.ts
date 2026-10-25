@@ -13,6 +13,7 @@ import {
   getProgressMessage,
   handleRouterDecision,
   handleExecutionStep,
+  handleToken,
 } from '@/lib/sse-handlers/handlers';
 import type { ChatStreamChunk } from '@/types/chat';
 import type { SSEHandlerContext } from '@/lib/sse-handlers/types';
@@ -164,6 +165,102 @@ describe('handleExecutionStep — generic accumulator', () => {
 
     expect(dispatch).not.toHaveBeenCalled();
     expect(context.executionStepsRef.current).toEqual([]);
+  });
+
+  it('updates the ONE line of a tool in place with what its calls did', () => {
+    // 2026-10-24: a call starts, then finishes with the read's counts; the
+    // same tool called again counts ×2 — one line, never two, never stale.
+    const { context } = buildHandlerContext({ progressMessageId: 'assistant-1' });
+    const step = (stepKey: string, outcome?: Record<string, number>) =>
+      handleExecutionStep(
+        executionStepChunk({
+          emoji: '🔍',
+          i18n_key: 'search_emails',
+          step_key: stepKey,
+          ...(outcome ? { outcome } : {}),
+        }),
+        context
+      );
+
+    step('call_0');
+    expect(context.executionStepsRef.current).toEqual(['*🔍 execution.steps.search_emails*']);
+    step('call_0', { failed: 0, found: 12, shown: 5 });
+    step('call_1');
+    step('call_1', { failed: 1 });
+
+    expect(context.executionStepsRef.current).toHaveLength(1);
+    const [line] = context.executionStepsRef.current;
+    for (const word of ['calls', 'found', 'shown', 'failed'])
+      expect(line).toContain(`execution.outcome.${word}`);
+    expect(context.traceStepsRef.current).toEqual([
+      expect.objectContaining({ outcome: { calls: 2, found: 12, shown: 5, failed: 1 } }),
+    ]);
+  });
+
+  it('counts on the line of a label the trace cannot name, and draws no trace step', () => {
+    // No translation for the key: the line falls back, the trace has no step for it.
+    const t = (key: string) => (key.startsWith('execution.steps.unnamed') ? '' : key);
+    const { context } = buildHandlerContext({ progressMessageId: 'assistant-1', t });
+    const step = (outcome?: Record<string, number>) =>
+      handleExecutionStep(
+        executionStepChunk({
+          emoji: '🔍',
+          i18n_key: 'unnamed',
+          step_key: 'call_0',
+          ...(outcome ? { outcome } : {}),
+        }),
+        context
+      );
+
+    step();
+    step({ failed: 0, found: 3 });
+
+    expect(context.executionStepsRef.current).toHaveLength(1);
+    expect(context.traceStepsRef.current).toEqual([]);
+  });
+
+  it('never rewrites a line drawn after the answer replaced the steps', () => {
+    // The first answer token replaces the lines and keeps the tallies, so
+    // the trace still learns: a late step of an earlier label must not
+    // rewrite whatever now sits at its old index.
+    const { context } = buildHandlerContext({ progressMessageId: 'assistant-1' });
+    const toolStep = (key: string, outcome?: Record<string, number>) =>
+      handleExecutionStep(
+        executionStepChunk({
+          emoji: '🔍',
+          i18n_key: key,
+          step_key: `${key}-call`,
+          ...(outcome ? { outcome } : {}),
+        }),
+        context
+      );
+
+    toolStep('search_emails');
+    handleToken({ type: 'token', content: 'Hello' } as ChatStreamChunk, context);
+    toolStep('search_contacts');
+    toolStep('search_emails', { failed: 0, found: 4 });
+
+    expect(context.executionStepsRef.current).toEqual(['*🔍 execution.steps.search_contacts*']);
+    expect(context.traceStepsRef.current[0]).toEqual(
+      expect.objectContaining({ outcome: { found: 4 } })
+    );
+  });
+
+  it('shows the total of a pipeline tool on its first and only line', () => {
+    const { context } = buildHandlerContext({ progressMessageId: 'assistant-1' });
+
+    handleExecutionStep(
+      executionStepChunk({
+        emoji: '📧',
+        i18n_key: 'send_email',
+        outcome: { calls: 3, found: 0, failed: 0 },
+      }),
+      context
+    );
+
+    expect(context.executionStepsRef.current).toEqual([
+      '*📧 execution.steps.send_emailexecution.outcome.leadexecution.outcome.calls*',
+    ]);
   });
 
   it('collapses older steps beyond the visible cap with a hidden-count line', () => {

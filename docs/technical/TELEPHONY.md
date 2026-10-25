@@ -372,7 +372,16 @@ flowchart TD
   column arithmetic) is therefore the call's cumulated bill by construction:
   the relayed answer's bubble shows it, and `GET /telephony/calls` carries it
   as `usage` (tokens in/out/cache, euros, Maps requests) drawn on the calls
-  list. **A lookup that spends on Google alone is filed too** (ADR-272
+  list. **Every report a call archives names that run** (2026-10-24): the
+  owner call's fallback (nothing relayed: `empty`, `unanswered`, a ceiling…),
+  the third-party call's debrief and the reaper's re-dispatch used to archive
+  WITHOUT it, so their bubble showed no cost although the synthesis had one
+  on record (measured on production: 0,01026 € on an `empty` call, shown
+  nowhere). They now all leave through ONE door,
+  `telephony/call_notifications.dispatch_call_notification`, which stamps
+  `phone_call_<hex>`; the history joins the bill on it like any turn's. A
+  guard (`test_call_notification_door_guard.py`) refuses any other dispatch
+  of the `phone_call` task type, spelled as a literal or a constant. **A lookup that spends on Google alone is filed too** (ADR-272
   amendment, 2026-09-20): a Places or Routes lookup makes no model call, so
   its tracker held one Google record and — until then — both persistence
   doors of `TrackingContext`, which counted the model's records alone, wrote
@@ -471,7 +480,12 @@ the browser (owner decision D5): no read tool is offered to a Live voice.
 - **The bill**: each delegated turn under its own run id, the session's own
   under `phone_call_<hex>`; `GET /telephony/calls` sums them
   (`session_run_ids_by_key`, two batched reads for the page) and names the
-  mode; the card wears « Live » / « Live direct ».
+  mode; the card wears « Live » / « Live direct ». The card is drawn before
+  the learning of the voice-only exchanges spends under the session's run,
+  so it is RESTATED once that spend is persisted
+  (`voice_session_closing.restate_card_bill`, 2026-10-24): redrawn only when
+  the bill grew, the closing's figures kept, and said to the open tabs
+  (ADR-320) like every rewritten card.
 - **Proofs without a phone**: `task telephony:simulate:live` (the vendor
   played in HTTP against the dev API: real turns, a HITL question and its
   answer, the signed webhook, the books) and `task telephony:probe:live --

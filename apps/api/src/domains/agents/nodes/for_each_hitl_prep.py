@@ -22,6 +22,7 @@ from langchain_core.runnables import RunnableConfig
 
 from src.domains.agents.data_registry.models import RegistryItemType, generate_registry_id
 from src.domains.agents.orchestration.for_each_utils import parse_for_each_reference
+from src.domains.agents.orchestration.plan_schemas import FOR_EACH_ITEM_INFIX
 from src.domains.agents.tools.runtime_helpers import extract_value_by_path
 from src.infrastructure.observability.metrics_agents import (
     hitl_for_each_items_counted,
@@ -33,9 +34,6 @@ if TYPE_CHECKING:
     from src.domains.agents.orchestration.plan_schemas import ExecutionPlan
 
 logger = structlog.get_logger(__name__)
-
-#: How a FOR_EACH item names its step (``dependency_graph`` expansion).
-_ITEM_STEP_INFIX = "_item_"
 
 
 def is_pre_approved_lot(
@@ -87,8 +85,8 @@ def _approved_for_each_steps(
 
 def _parent_for_each_step(step_id: Any) -> str | None:
     """The FOR_EACH step an ITEM step belongs to; ``None`` for a plain step."""
-    parent, infix, _ = str(step_id or "").rpartition(_ITEM_STEP_INFIX)
-    return parent if infix == _ITEM_STEP_INFIX else None
+    parent, infix, _ = str(step_id or "").rpartition(FOR_EACH_ITEM_INFIX)
+    return parent if infix == FOR_EACH_ITEM_INFIX else None
 
 
 async def pre_execute_for_each_providers(

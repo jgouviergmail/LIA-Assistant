@@ -110,7 +110,11 @@ describe('MeetingsPage', () => {
     expect(list.read).toHaveBeenLastCalledWith(20, 40, true, '');
     await waitFor(() => expect(list.read).toHaveBeenLastCalledWith(20, 0, true, 'budget'));
     expect(input).toHaveFocus();
-    expect(new URLSearchParams(window.location.search).get('q')).toBe('budget');
+    // The address follows in an effect after the render that read: wait for it,
+    // or a loaded run checks it before the effect ran.
+    await waitFor(() =>
+      expect(new URLSearchParams(window.location.search).get('q')).toBe('budget')
+    );
     expect(new URLSearchParams(window.location.search).has('page')).toBe(false);
     act(() => {
       window.history.pushState({}, '', '?page=2&q=autre');

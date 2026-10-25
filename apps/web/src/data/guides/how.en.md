@@ -6,7 +6,7 @@
 
 **Version**: 5.6
 **Date**: 2026-10-23
-**Application**: LIA v3.6.0
+**Application**: LIA v3.7.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -72,7 +72,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), credentials encrypted with Fernet, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 634 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Full transparency | 635 Prometheus metrics, embedded debug panel, token-by-token tracking |
 | Production reliability | 362 ADRs, 67,000+ automated backend and frontend tests, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
@@ -95,7 +95,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | pytest fixtures | 1,391, 58 of them shared through conftest |
 | Documentation documents | 835 |
 | ADRs (Architecture Decision Records) | 362 |
-| Prometheus metrics | 634 definitions |
+| Prometheus metrics | 635 definitions |
 | Grafana dashboards | 32 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -1165,7 +1165,7 @@ Third-party content travels in an envelope the model knows not to obey; its tag 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 634 custom metrics (RED pattern) |
+| Prometheus | 635 custom metrics (RED pattern) |
 | Grafana | 32 production-ready dashboards |
 | Loki | Aggregated structured JSON logs, collected by Grafana Alloy (the same redaction at collection) |
 | Tempo | Cross-service distributed traces (OTLP gRPC), named by the route template |
@@ -1173,7 +1173,7 @@ Third-party content travels in an envelope the model knows not to obey; its tag 
 | Alertmanager | Vital alert core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 634 defined; the ones that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. Without that guard, a heartbeat source failing open can drop part of the health signals for days with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 635 defined; the ones that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. Without that guard, a heartbeat source failing open can drop part of the health signals for days with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1321,7 +1321,7 @@ The lock states what is installed; what remains is deciding **when a version may
 
 ### 22.4. The audit is public — and reproducible
 
-The quality bar described in this guide is not self-declared: a complete 360° technical audit — **7.8/10 across 24 normalized areas** on the ISO/IEC 25010 grid, open findings included — is published in the repository ([full report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), together with the [audit protocol](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) that makes every cycle reproducible: pinned commit, per-area evidence requirements, anchored scoring, and a committed script measuring size in logical SLOC. The report ends with the exact commands to reproduce the measurements yourself. Every finding the reports name lives in a machine-readable register, checked on every documentation build: a closure or a remediation carries its proof, and a release is refused while a priority finding is past its deadline.
+The quality bar described in this guide is not self-declared: a complete 360° technical audit — **7.9/10 across 24 normalized areas** on the ISO/IEC 25010 grid, open findings included — is published in the repository ([full report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), together with the [audit protocol](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) that makes every cycle reproducible: pinned commit, per-area evidence requirements, anchored scoring, and a committed script measuring size in logical SLOC. The report ends with the exact commands to reproduce the measurements yourself. Every finding the reports name lives in a machine-readable register, checked on every documentation build: a closure or a remediation carries its proof, and a release is refused while a priority finding is past its deadline.
 
 ### 22.5. A guard is only worth what it measures
 
@@ -1891,6 +1891,8 @@ The companion's face does not take its end-of-turn expression from the psyche's 
 
 **The minutes format became a library, and the choice has one place.** Thirty built-in templates live in the code, their words in an i18n data module, and a boot-time assertion refuses to start if a name is missing in one of the six languages: what a validator can reject, the catalogue cannot ship. A template is named by a reference — `builtin:<key>` or `user:<uuid>` — that meetings, preferences and requests exchange instead of a row, so a built-in needs no database row and a deleted template leaves a reference whose readers know to fall back on the stored snapshot. The choice follows **one precedence**: the reference carried by the meeting, then the preference's default, then the language model reading a transcript excerpt and choosing above a confidence floor, then the built-in default; every outcome is counted and written on the row with the reason stated, so the page shows a fact rather than a reconstruction. A fifth section kind hands back the transcript itself: it does not fit in one answer — the synthesis slot outputs at most eight thousand tokens — so it is rewritten part by part, each bounded by the effective output window, a missing index splitting the part once and a suspiciously short answer retried once. Rewriting minutes already written borrows the durable regeneration when it replaces, and creates a derived row pointing at its source when it produces new minutes — never a copy: the transcript is the same, the minutes are not. The same concern for order governs knowledge-space documents: since `rag_chunks.space_id` is denormalized and read by retrieval, a move writes the row and its chunks, commits, **then** moves the file; a rename that fails reverts both and reports it for that document alone, and a batch never stops for one item — every id comes back done or skipped with its code.
 
+**A recording someone already holds enters by the same door.** A WAV, MP3 or M4A file becomes a meeting on the same durable row: `uploading`, one per account — a partial index says so, not a convention —, its chunks sent under bounds the server publishes before the first byte, every chunk number bounded so that a forged one cannot make the completion enumerate a billion holes. The file is untrusted input: its first bytes must be the format it claims, ffmpeg reads it through that format's demuxer alone, over local files only and never following a QuickTime reference, and its length is measured — and refused past the cap — before any engine is paid.
+
 ## 39. Three registers, and the one nobody had asked for
 
 **An assistant that acts must be able to say what it did, what it read, and on which turn.** Three registers answer that, and are never conflated: the first takes one row per **action**, claimed before it happens and closed from an explicit result; the second one row per **consultation**, named as the capability and never as what was searched for; the third one row per **turn**, the spine the other two hang off. Their totals do not add up, and that is deliberate: a turn can consult five sources and change nothing at all.
@@ -1916,6 +1918,10 @@ The companion's face does not take its end-of-turn expression from the psyche's 
 **Nothing is invented, and a failure destroys nothing.** No evidence settles it *empty* without calling the model, and a failed refresh **keeps the previous text** under a line saying so: replacing a usable synthesis with an empty panel turns "I could not refresh this" into "there is nothing". The claim is one SQL statement, and each settle writes only its own columns — ready, empty, failed — because a single settle would overwrite the body on the first failure. What the writing cost is stored with it and shown underneath; a zero cost being a claim, a silent row renders nothing rather than "€0.00".
 
 **In the chat, the debrief joins the peer block — with the opposite directive.** The peer block states exact facts because it reads them in the turn itself; the same sentence over a dated synthesis would be a false-claim machine. The template therefore says it is dated, carries its **age** and not only its date, and sends every figure, count and status to the tools. An ambiguous name match injects **nothing**: the directory holds every relationship ever opened, company names and phone numbers included, and a false positive would hand one person's file to a question about another.
+
+**A name is resolved, never guessed.** People say « Marie », rarely the whole name. One rule decides what a spoken name designates in any directory — the folded full name first, then every word said as a whole word of the name, never a fragment or an edit distance —, and several identities at the deciding tier are a question to ask, never a choice made by order. A peer tool reads only the accepted connections; the relationship list only subtracts, turning a partial match into a question when someone else answers to it too.
+
+**One thread, five sources, one cursor.** The card's timeline merges commitments, calls, memories, relayed messages and text messages, newest first. Each source is asked for one page strictly after the last record served — a keyset on (instant, kind, identifier), never an offset — so a record landing between two pages neither repeats nor drops one, and a page costs five reads whatever its depth.
 
 ## 41. The workboard: one row, two sides, and an assistant that asks
 
@@ -2019,4 +2025,4 @@ The 362 ADRs document not only the decisions made but also the rejected alternat
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (800+ documents), 362 ADRs, and the changelog (v1.0 to v3.6.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (800+ documents), 362 ADRs, and the changelog (v1.0 to v3.7.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

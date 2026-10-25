@@ -10,6 +10,14 @@ import { logger } from '@/lib/logger';
 import { generateFallbackHitlQuestion } from '@/lib/hitl-utils';
 import { normalizeHitlPayload } from '@/lib/hitl-payload';
 import { generateUUID } from '@/lib/utils';
+import {
+  addToTally,
+  newTally,
+  outcomeText,
+  settledLabel,
+  summarizeTally,
+  type StepOutcome,
+} from '@/lib/execution-outcome';
 import { parseToneAnnotation } from '@/components/eyes/tone';
 import { usePsycheStore } from '@/stores/psycheStore';
 import { parseActivity } from '@/components/eyes/activity';
@@ -26,7 +34,7 @@ import {
 } from '@/types/chat';
 import { DebugMetricsEntry } from '@/types/chat-state';
 import type { ExecutionTrace, ExecutionTraceStep } from '@/types/execution-trace';
-import { SSEHandlerContext, ProgressMessageMetadata } from './types';
+import { SSEHandlerContext, ProgressMessageMetadata, type LiveStepTally } from './types';
 
 // Stable id used to morph the compaction toast in place (loading → success/warn)
 // rather than stacking distinct toasts.
@@ -153,7 +161,8 @@ const TRACE_CATEGORIES = new Set(['system', 'agent', 'tool', 'context']);
  */
 function buildTraceStep(
   metadata: ProgressMessageMetadata | undefined,
-  t: SSEHandlerContext['t']
+  t: SSEHandlerContext['t'],
+  outcome: StepOutcome = {}
 ): ExecutionTraceStep | null {
   // The caller (handleExecutionStep) already filters reasoning sub-events, so
   // metadata here is either absent or a real step — no reasoning re-check.
@@ -173,7 +182,77 @@ function buildTraceStep(
     if (translated) label = translated;
   }
   if (!label) return null;
-  return { emoji, label, category };
+  return Object.keys(outcome).length > 0
+    ? { emoji, label, category, outcome }
+    : { emoji, label, category };
+}
+
+/** A step's progress line: its label, then what its steps did when known. */
+function stepLine(
+  t: SSEHandlerContext['t'],
+  metadata: ProgressMessageMetadata | undefined,
+  outcome: StepOutcome
+): string {
+  const line = getProgressMessage('execution_step', t, metadata);
+  const details = outcomeText(t, outcome);
+  if (!details || !line.endsWith('*')) return line;
+  return `${settledLabel(line.slice(0, -1))}${t('execution.outcome.lead')}${details}*`;
+}
+
+/** A later step of a label already shown: its line and trace step learn what it did. */
+function updateLiveStep(
+  live: LiveStepTally,
+  metadata: ProgressMessageMetadata | undefined,
+  context: SSEHandlerContext
+): void {
+  const { t, executionStepsRef, traceStepsRef } = context;
+  addToTally(live.tally, metadata?.step_key, metadata?.outcome);
+  const outcome = summarizeTally(live.tally);
+  // Lines replaced since (the answer's first token, a HITL question): only the trace learns.
+  if (live.lines === executionStepsRef.current)
+    live.lines[live.lineIndex] = stepLine(t, metadata, outcome);
+  // A label the trace cannot name has no step there. Otherwise its step exists:
+  // the trace and the tallies are reset together, at the router and at the send.
+  const index = live.traceIndex;
+  if (index !== null) traceStepsRef.current[index] = { ...traceStepsRef.current[index], outcome };
+}
+
+/**
+ * Accumulate one step: ONE line per label (2026-10-24). A later step of a
+ * label this handler shows — the same tool called again, a call finishing —
+ * updates its line and its trace step in place with what the steps did; a
+ * label the router or planner handlers already show is skipped, as before.
+ *
+ * @returns Whether the bubble has anything new to show.
+ */
+function accumulateStep(
+  metadata: ProgressMessageMetadata | undefined,
+  context: SSEHandlerContext
+): boolean {
+  const { t, executionStepsRef, emittedStepKeysRef, stepTalliesRef, traceStepsRef } = context;
+  const key = metadata?.i18n_key;
+  const live = key ? stepTalliesRef.current.get(key) : undefined;
+  if (live) {
+    updateLiveStep(live, metadata, context);
+    return true;
+  }
+  if (key && emittedStepKeysRef.current.has(key)) return false; // shown by router/planner
+  const tally = newTally();
+  addToTally(tally, metadata?.step_key, metadata?.outcome);
+  const outcome = summarizeTally(tally);
+  executionStepsRef.current.push(stepLine(t, metadata, outcome));
+  // Trace (Lot 2): the structured step, NOT wiped at the answer flip.
+  const traceStep = buildTraceStep(metadata, t, outcome);
+  if (traceStep) traceStepsRef.current.push(traceStep);
+  if (!key) return true;
+  emittedStepKeysRef.current.add(key);
+  stepTalliesRef.current.set(key, {
+    tally,
+    lines: executionStepsRef.current,
+    lineIndex: executionStepsRef.current.length - 1,
+    traceIndex: traceStep ? traceStepsRef.current.length - 1 : null,
+  });
+  return true;
 }
 
 /**
@@ -345,6 +424,7 @@ export function handleRouterDecision(chunk: ChatStreamChunk, context: SSEHandler
   // Reset accumulated steps and add router as first step
   executionStepsRef.current = [];
   context.emittedStepKeysRef.current = new Set();
+  context.stepTalliesRef.current = new Map();
   const routerStep = getProgressMessage('router_decision', t);
   executionStepsRef.current.push(routerStep);
   context.emittedStepKeysRef.current.add('router_decision');
@@ -468,9 +548,6 @@ function handleCompactionStep(chunk: ChatStreamChunk, context: SSEHandlerContext
 }
 
 /**
- * Handle execution_step: Dynamic execution progress messages (accumulated)
- */
-/**
  * Intercept connector error notices (Lot 3 P3, ADR-134).
  *
  * `step_type: "tool_error"` chunks carry a structured connector failure
@@ -531,6 +608,9 @@ function recordCompanionActivity(chunk: ChatStreamChunk, context: SSEHandlerCont
   return true;
 }
 
+/**
+ * Handle execution_step: Dynamic execution progress messages (accumulated)
+ */
 export function handleExecutionStep(chunk: ChatStreamChunk, context: SSEHandlerContext): void {
   // Intercept compaction-specific events first — they drive the chat-input
   // lock + sonner toast rather than the generic execution_step accumulator.
@@ -551,7 +631,6 @@ export function handleExecutionStep(chunk: ChatStreamChunk, context: SSEHandlerC
     setProgressMessageId,
     assistantMessageId,
     executionStepsRef,
-    emittedStepKeysRef,
     reasoningBufRef,
   } = context;
 
@@ -580,25 +659,8 @@ export function handleExecutionStep(chunk: ChatStreamChunk, context: SSEHandlerC
       // Trace (Lot 2): keep a flip-surviving copy of the reasoning.
       context.traceReasoningRef.current += metadata.delta;
     }
-  } else {
-    // Deduplication by i18n_key: skip if already emitted by router/planner handlers.
-    // This prevents duplicates between router_decision/planner_metadata handlers and
-    // execution_step events from the backend "updates" stream mode.
-    if (metadata?.i18n_key && emittedStepKeysRef.current.has(metadata.i18n_key)) {
-      return; // Already shown by router/planner handler
-    }
-
-    // Build and accumulate step message
-    const stepMessage = getProgressMessage('execution_step', t, metadata);
-    executionStepsRef.current.push(stepMessage);
-    if (metadata?.i18n_key) {
-      emittedStepKeysRef.current.add(metadata.i18n_key);
-    }
-
-    // Trace (Lot 2): accumulate the structured step in parallel — this ref is
-    // NOT wiped at the answer flip, so it survives to be attached at `done`.
-    const traceStep = buildTraceStep(metadata, t);
-    if (traceStep) context.traceStepsRef.current.push(traceStep);
+  } else if (!accumulateStep(metadata, context)) {
+    return; // Already shown by the router/planner handlers: nothing to redraw.
   }
 
   const fullContent = buildProgressContent(executionStepsRef.current, reasoningBufRef.current, t);

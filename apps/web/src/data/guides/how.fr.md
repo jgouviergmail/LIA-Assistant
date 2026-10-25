@@ -6,7 +6,7 @@
 
 **Version** : 5.6
 **Date** : 2026-10-23
-**Application** : LIA v3.6.0
+**Application** : LIA v3.7.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -72,7 +72,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Auto-hébergement ARM64 | Docker multi-arch, embeddings sémantiques (multilingues), Playwright chromium cross-platform |
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), identifiants chiffrés avec Fernet, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
-| Transparence totale | 634 métriques Prometheus, debug panel embarqué, suivi token par token |
+| Transparence totale | 635 métriques Prometheus, debug panel embarqué, suivi token par token |
 | Fiabilité en production | 362 ADRs, plus de 67 000 tests automatisés côté backend et frontend, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
@@ -95,7 +95,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Fixtures pytest | 1 391, dont 58 partagées via conftest |
 | Documents de documentation | 835 |
 | ADRs (Architecture Decision Records) | 362 |
-| Métriques Prometheus | 634 définitions |
+| Métriques Prometheus | 635 définitions |
 | Dashboards Grafana | 32 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -1168,7 +1168,7 @@ Le contenu tiers voyage dans une enveloppe que le modèle sait ne pas obéir ; s
 
 | Technologie | Rôle |
 |-------------|------|
-| Prometheus | 634 métriques custom (RED pattern) |
+| Prometheus | 635 métriques custom (RED pattern) |
 | Grafana | 32 dashboards production-ready |
 | Loki | Logs structurés JSON agrégés, collectés par Grafana Alloy (même masquage à la collecte) |
 | Tempo | Traces distribuées cross-service (OTLP gRPC), nommées par le gabarit de la route |
@@ -1176,7 +1176,7 @@ Le contenu tiers voyage dans une enveloppe que le modèle sait ne pas obéir ; s
 | Alertmanager | Noyau d'alertes vitales notifiées par e-mail (runbooks liés, seuils par environnement) + webhook vers LIA : chaque alerte devient un incident dans le produit (ADR-247) |
 | structlog | Logging structuré avec PII filtering |
 
-**Une métrique qui n'atteint aucun tableau de bord est une métrique sur laquelle personne n'agit.** L'écart entre ce que le code émet et ce qu'un opérateur peut voir est mesuré, jamais supposé : `scripts/audit/measure_metric_coverage.py` analyse chaque définition de métrique (par AST et non par expression régulière — une regex lit `ZoneInfo("UTC")` comme une métrique `Info`) et confronte chaque nom à tous les panels, règles d'enregistrement et expressions d'alerte. 634 définies ; les métriques qui n'atteignent rien sont listées explicitement dans une base **shrink-only**, si bien qu'une métrique nouvellement aveugle fait rougir le build et qu'une métrique devenue visible doit quitter la liste — sinon la prochaine aveugle prend sa place en silence. Sans cette garde, une source de heartbeat qui tombe en panne ouverte peut effacer une partie des signaux de santé pendant des jours sans qu'aucune métrique ne s'en aperçoive (ADR-148). Deux pièges que la garde ferme par construction — un compteur à labels qui n'a jamais été incrémenté n'expose **aucune série**, donc un panel qui guette une panne rare a besoin de `or vector(0)`, faute de quoi il affiche « No data » là où l'opérateur attend un zéro vert ; et la couverture est lue dans les **expressions** de panels et de règles uniquement, car une métrique citée dans un commentaire n'est pas câblée.
+**Une métrique qui n'atteint aucun tableau de bord est une métrique sur laquelle personne n'agit.** L'écart entre ce que le code émet et ce qu'un opérateur peut voir est mesuré, jamais supposé : `scripts/audit/measure_metric_coverage.py` analyse chaque définition de métrique (par AST et non par expression régulière — une regex lit `ZoneInfo("UTC")` comme une métrique `Info`) et confronte chaque nom à tous les panels, règles d'enregistrement et expressions d'alerte. 635 définies ; les métriques qui n'atteignent rien sont listées explicitement dans une base **shrink-only**, si bien qu'une métrique nouvellement aveugle fait rougir le build et qu'une métrique devenue visible doit quitter la liste — sinon la prochaine aveugle prend sa place en silence. Sans cette garde, une source de heartbeat qui tombe en panne ouverte peut effacer une partie des signaux de santé pendant des jours sans qu'aucune métrique ne s'en aperçoive (ADR-148). Deux pièges que la garde ferme par construction — un compteur à labels qui n'a jamais été incrémenté n'expose **aucune série**, donc un panel qui guette une panne rare a besoin de `or vector(0)`, faute de quoi il affiche « No data » là où l'opérateur attend un zéro vert ; et la couverture est lue dans les **expressions** de panels et de règles uniquement, car une métrique citée dans un commentaire n'est pas câblée.
 
 ### 20.2. Debug Panel embarqué
 
@@ -1324,7 +1324,7 @@ Le verrou dit ce qui est installé ; reste à décider **quand une version a le 
 
 ### 22.4. L'audit est public — et reproductible
 
-Le niveau d'exigence décrit dans ce guide n'est pas auto-déclaré : un audit technique 360° complet — **7,8/10 sur 24 périmètres normalisés** de la grille ISO/IEC 25010, constats ouverts compris — est publié dans le dépôt ([rapport complet](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), avec le [protocole d'audit](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) qui rend chaque cycle reproductible : commit épinglé, exigences de preuve par périmètre, notation ancrée, et un script versionné qui mesure la taille en SLOC logiques. Le rapport se termine par les commandes exactes pour reproduire les mesures toi-même. Chaque constat que nomment les rapports vit dans un registre lisible par machine, vérifié à chaque construction de la documentation : une clôture ou une remédiation porte sa preuve, et une version est refusée tant qu'un constat prioritaire a dépassé son échéance.
+Le niveau d'exigence décrit dans ce guide n'est pas auto-déclaré : un audit technique 360° complet — **7,9/10 sur 24 périmètres normalisés** de la grille ISO/IEC 25010, constats ouverts compris — est publié dans le dépôt ([rapport complet](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), avec le [protocole d'audit](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) qui rend chaque cycle reproductible : commit épinglé, exigences de preuve par périmètre, notation ancrée, et un script versionné qui mesure la taille en SLOC logiques. Le rapport se termine par les commandes exactes pour reproduire les mesures toi-même. Chaque constat que nomment les rapports vit dans un registre lisible par machine, vérifié à chaque construction de la documentation : une clôture ou une remédiation porte sa preuve, et une version est refusée tant qu'un constat prioritaire a dépassé son échéance.
 
 ### 22.5. Une garde ne vaut que ce qu'elle mesure
 
@@ -1904,6 +1904,8 @@ Le visage du compagnon ne tire pas son expression de fin de tour de l'émotion d
 
 **Le format du compte rendu est devenu une bibliothèque, et le choix a un seul lieu.** Trente modèles intégrés vivent dans le code, leurs mots dans une donnée i18n, et une assertion au démarrage refuse de booter si un nom manque dans l'une des six langues : ce qu'un validateur peut rejeter, le catalogue ne peut pas le livrer. Un modèle est désigné par une référence — `builtin:<clé>` ou `user:<uuid>` — que réunions, préférences et requêtes échangent à la place d'une ligne, si bien qu'un intégré n'a pas besoin d'exister en base et qu'un modèle supprimé laisse une référence dont les lecteurs savent se replier sur l'instantané conservé. Le choix suit **une seule précédence** : la référence portée par la réunion, puis le défaut de la préférence, puis le modèle de langage qui lit un extrait de transcription et choisit au-dessus d'un seuil de confiance, puis l'intégré par défaut ; chaque issue est comptée et écrite sur la ligne avec la raison énoncée, de sorte que la page affiche un fait et non une reconstruction. Une cinquième sorte de section rend la transcription elle-même : elle ne tient pas dans une réponse — le slot de synthèse sort au plus huit mille tokens — donc elle est réécrite par parties, chacune bornée par la fenêtre de sortie effective, un index manquant scindant la partie une fois et une réponse trop courte étant retentée une fois. Réécrire un compte rendu déjà rendu emprunte la régénération durable quand il s'agit de remplacer, et crée une ligne dérivée pointant sa source quand il s'agit d'un nouveau compte rendu — jamais une copie : la transcription est la même, le compte rendu non. Le même souci d'ordre gouverne les documents des espaces de connaissances : `rag_chunks.space_id` étant dénormalisé et lu par la recherche, un déplacement écrit la ligne et ses morceaux, valide, **puis** déplace le fichier ; un renommage qui échoue remet les deux en arrière et le rapporte pour ce document seul, et un lot ne s'interrompt jamais pour un élément — chaque identifiant revient fait ou ignoré avec son code.
 
+**Un enregistrement que l’on a déjà entre par la même porte.** Un fichier WAV, MP3 ou M4A devient une réunion sur la même ligne durable : `uploading`, une seule par compte — un index partiel le dit, pas une convention —, ses tranches envoyées sous des bornes que le serveur publie avant le premier octet, chaque numéro de tranche borné pour qu’un numéro forgé ne fasse pas énumérer un milliard de trous à la finalisation. Le fichier est une entrée non fiable : ses premiers octets doivent être le format qu’il annonce, ffmpeg le lit par le seul démultiplexeur de ce format, en fichiers locaux uniquement et sans jamais suivre une référence QuickTime, et sa durée est mesurée — et refusée au-delà du plafond — avant qu’aucun moteur ne soit payé.
+
 ## 39. Trois registres, et celui que personne n'avait demandé
 
 **Un assistant qui agit doit pouvoir dire ce qu'il a fait, ce qu'il a lu, et sur quel tour.** Trois registres y répondent et ne se confondent jamais : le premier porte une ligne par **action**, réclamée avant qu'elle ait lieu et close sur un résultat explicite ; le deuxième une ligne par **consultation**, nommée sous la forme de la capacité et jamais de ce qui a été cherché ; le troisième une ligne par **tour**, la colonne vertébrale à laquelle les deux autres se rattachent. Leurs totaux ne s'additionnent pas, et c'est voulu : un tour peut consulter cinq sources et ne rien changer du tout.
@@ -1929,6 +1931,10 @@ Le visage du compagnon ne tire pas son expression de fin de tour de l'émotion d
 **Rien n'est inventé, et un échec ne détruit rien.** Aucune preuve ne conclut « rien à dire » sans appeler le modèle, et une actualisation ratée **garde le texte précédent** sous une ligne qui le signale : remplacer une synthèse utilisable par un panneau vide transforme « je n'ai pas pu actualiser » en « il n'y a rien ». La revendication est une seule instruction SQL, et chaque clôture n'écrit que ses propres colonnes — prête, vide, échouée — parce qu'une clôture unique écraserait le corps au premier échec. Ce que la rédaction a coûté est stocké avec elle et montré dessous ; un coût nul étant une affirmation, une ligne muette n'affiche rien plutôt que « 0,00 € ».
 
 **Dans le chat, le débrief rejoint le bloc pair — avec la directive inverse.** Le bloc pair affirme des faits exacts parce qu'il les lit dans le tour lui-même ; la même phrase au-dessus d'une synthèse datée serait une machine à affirmations fausses. Le gabarit dit donc qu'elle est datée, donne son **âge** et non seulement sa date, et renvoie aux outils tout chiffre, tout compte et tout statut. Une correspondance de nom ambiguë n'injecte **rien** : l'annuaire contient toutes les relations jamais ouvertes, noms d'entreprise et numéros compris, et un faux positif remettrait le dossier d'une personne sur une question qui en visait une autre.
+
+**Un nom se résout, il ne se devine pas.** On dit « Marie », rarement le nom entier. Une seule règle décide ce qu’un nom prononcé désigne dans n’importe quel annuaire — d’abord le nom complet plié, puis chaque mot dit comme mot entier du nom, jamais un fragment ni une distance d’édition —, et plusieurs identités au palier qui décide sont une question à poser, jamais un choix fait par l’ordre. Un outil de pair ne lit que les connexions acceptées ; la liste des relations ne fait que retrancher, transformant une correspondance partielle en question quand quelqu’un d’autre y répond aussi.
+
+**Un fil, cinq sources, un curseur.** La chronologie de la fiche fusionne engagements, appels, souvenirs, messages relayés et SMS, du plus récent au plus ancien. Chaque source est interrogée pour une page strictement après le dernier élément servi — un curseur sur (instant, type, identifiant), jamais un décalage —, si bien qu’un élément arrivé entre deux pages n’est ni répété ni perdu, et qu’une page coûte cinq lectures quelle que soit sa profondeur.
 
 ## 41. Le tableau de tickets : une ligne, deux côtés, et une assistante qui demande
 
@@ -2032,4 +2038,4 @@ Les 362 ADRs documentent non seulement les décisions prises mais aussi les alte
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (800+ documents), des 362 ADRs, et du changelog (v1.0 à v3.6.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (800+ documents), des 362 ADRs, et du changelog (v1.0 à v3.7.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

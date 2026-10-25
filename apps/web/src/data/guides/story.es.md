@@ -4,7 +4,7 @@
 
 **Versión**: 2.6
 **Fecha**: 2026-10-23
-**Aplicación**: LIA v3.6.0
+**Aplicación**: LIA v3.7.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -13,7 +13,7 @@
 
 LIA es un asistente de IA multiagente completo — conectores de negocio, voz, memoria, conexiones entre usuarios, seis idiomas — diseñado, desarrollado y operado en producción de forma continua, como proyecto personal.
 
-La casi totalidad del código fue escrita por una IA, bajo dirección humana: un referencial de ingeniería escrito, controles automáticos bloqueantes, revisión sistemática, auditorías recurrentes. El resultado está medido: **7,8/10** en la auditoría técnica sobre 24 perímetros. El repositorio es open source; las conclusiones de la auditoría — fortalezas y debilidades — se asumen y se resumen en este documento.
+La casi totalidad del código fue escrita por una IA, bajo dirección humana: un referencial de ingeniería escrito, controles automáticos bloqueantes, revisión sistemática, auditorías recurrentes. El resultado está medido: **7,9/10** en la auditoría técnica sobre 24 perímetros. El repositorio es open source; las conclusiones de la auditoría — fortalezas y debilidades — se asumen y se resumen en este documento.
 
 | Indicador | Valor |
 | --- | --- |
@@ -21,9 +21,9 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | Líneas de código fuente (sin tests) — 58 dominios funcionales | **1.003.000+** |
 | Pruebas automatizadas inventariadas; suites adecuadas para cada commit y entrega | **67.000+** |
 | Decisiones de arquitectura documentadas (ADR) | **362** |
-| Versiones entregadas a ritmo regular | **288** |
+| Versiones entregadas a ritmo regular | **289** |
 | Idiomas, paridad verificada automáticamente | **6** |
-| Auditoría técnica sobre 24 perímetros | **7,8/10** |
+| Auditoría técnica sobre 24 perímetros | **7,9/10** |
 
 Convicción de experiencia: el desarrollo asistido por IA es industrializable hoy. El factor limitante no es la herramienta — es el marco de dirección que se le da.
 
@@ -96,28 +96,30 @@ Una presencia visible debe seguir siendo una elección controlable: el avatar Si
 
 ## 6. La prueba
 
-El nivel anunciado en este documento resulta de una auditoría técnica completa: 24 perímetros calificados, cada hallazgo verificado en el código y contraverificado para eliminar los falsos positivos. La auditoría aplica el método del propio proyecto — conducida con herramientas de IA, en postura contradictoria, cada conclusión anclada en una prueba contraverificada. Evaluación de octubre de 2026: **7,8/10**, tras una contraauditoría que reexaminó punto por punto la primera lectura (8,0 al principio, 7,3 en agosto), con un perfil asumido. El informe completo — cuadro de calificaciones, método, hallazgos abiertos y el protocolo para reproducirlo — es público: [informe de auditoría completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
+El nivel anunciado en este documento resulta de una auditoría técnica completa: 24 perímetros calificados, cada hallazgo verificado en el código y contraverificado para eliminar los falsos positivos. La auditoría aplica el método del propio proyecto — conducida con herramientas de IA, en postura contradictoria, cada conclusión anclada en una prueba contraverificada. Última evaluación, el 25 de octubre de 2026: **7,9/10** sobre la versión 3.6.0 confirmada en el repositorio — tras 7,3 en agosto, luego 8,0 y una contraauditoría a 7,8 el 22 de octubre —, con un perfil asumido. El informe completo — cuadro de calificaciones, método, hallazgos abiertos y el protocolo para reproducirlo — es público: [informe de auditoría completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
 
 **Puntos fuertes confirmados:**
 
-- Configuración y dependencias reproducibles: archivos de bloqueo consumidos por los builds de producción, modelos descargados contra sus huellas.
+- Configuración y dependencias reproducibles: archivos de bloqueo consumidos por los builds de producción, la imagen de la API reconstruida idéntica desde el commit auditado.
 - Contratos compartidos y registros declarativos: añadir un agente, una herramienta o un idioma sigue caminos documentados, y las superficies de versión se generan.
 - Una documentación que los controles mantienen verdadera: decisiones, mapas y cifras citadas se verifican contra sus fuentes en cada cambio.
-- Una entrega que ejecuta lo que ejecuta un desarrollador: una CI ligera sobre las mismas tareas, instalación y entrega probadas de forma hermética, migraciones repetidas desde una base vacía.
+- Una entrega que ejecuta lo que ejecuta un desarrollador: una CI ligera sobre las mismas tareas, instalación y entrega probadas en entorno aislado, migraciones reproducidas desde una base vacía.
 
-**Corregido desde la auditoría — pendiente de la verificación de la próxima auditoría:**
+**Corregido tras la auditoría anterior — y constatado por esta:**
 
 - Notificaciones que dicen la verdad: una notificación — de una llamada, de un mensaje entre conexiones, de un incidente — solo cuenta como entregada tras un éxito explícito y duradero.
-- Esperas acotadas: la base de datos corta una espera de bloqueo o una transacción inactiva antes de que pueda congelar una cuenta, y una renovación de token pertenece a un solo worker a la vez.
+- Esperas acotadas: la base de datos corta una espera de bloqueo o una transacción inactiva antes de que pueda congelar una cuenta.
 - Un ciclo que se cierra: cada hallazgo se sigue en un registro público con su antigüedad, su plazo y su prueba, y el umbral de cobertura del backend se cumple sobre las suites unitarias y de integración juntas.
 - Alertas: cada combinación anunciada de canales de notificación está compuesta y probada, enrutamiento incluido.
 
 **Lo que queda por hacer — conocido, planificado:**
 
-- Un documento reprocesado tras una toma de relevo debe quedar en manos de su propietario actual.
+- Un documento reprocesado tras una toma de relevo debe quedar en manos de su propietario actual, y cada adquisición del bloqueo de reindexación debe llevar su propia identidad.
+- Una renovación de token debe terminar dentro del plazo que la protege, reintentos y pausas incluidos.
+- El banco de pruebas de navegador vuelto exacto en cada motor, para que un fallo nombre siempre una causa real.
 - La deuda estructural absoluta — funciones centrales densas, dominios interdependientes, excepciones de tipado — reducida lote a lote, guiada por la medición.
 
-El plan de acción está organizado en olas, cada una con criterios de salida medibles; la primera ya se ha entregado, y confirmar sus resultados corresponde a la próxima auditoría. Es la forma de rendir cuentas de este proyecto: no un nivel proclamado, un nivel medido — desviaciones incluidas.
+El plan de acción está organizado en olas, cada una con criterios de salida medibles; la primera se entregó y luego se auditó: la auditoría constató lo esencial entre sus controles positivos y reabrió un punto. Es la forma de rendir cuentas de este proyecto: no un nivel proclamado, un nivel medido — desviaciones incluidas.
 
 Esta exigencia tiene una consecuencia que el proyecto aprendió a su costa: **una suite de pruebas en verde no demuestra que una función sirva**. Demuestra que lo probado se comporta como está escrito. Los defectos que sobreviven a las barreras son precisamente aquellos por los que nunca se les preguntó — una capacidad que nadie invoca, una cifra que nadie suma, una guardia que reconoce un nombre en lugar de un mecanismo. Casi nunca son errores de código: son preguntas que nunca se habían hecho.
 

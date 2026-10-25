@@ -21,7 +21,7 @@
     "domains/agents/services/query_analyzer_service.py": 950,
     "domains/agents/services/smart_planner_service.py": 1059,
     "domains/agents/services/streaming/debug_metrics_builder.py": 651,
-    "domains/agents/services/streaming/service.py": 1303,
+    "domains/agents/services/streaming/service.py": 1245,
     "domains/agents/tools/calendar_tools.py": 1152,
     "domains/agents/tools/drive_tools.py": 796,
     "domains/agents/tools/emails_tools.py": 1016,

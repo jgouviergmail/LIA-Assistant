@@ -38,6 +38,7 @@ from src.domains.peers.models import (
 from src.domains.peers.schemas import PeerConnectionProfile, PeerMessageActivity
 from src.domains.shared.aggregates import NameActivity
 from src.domains.users.models import User
+from src.infrastructure.database.keyset import Keyset, older_than
 
 logger = structlog.get_logger(__name__)
 
@@ -918,6 +919,7 @@ class PeersRepository(BaseRepository[PeerConnection]):
         limit: int,
         offset: int = 0,
         peer_names: list[str] | None = None,
+        before: Keyset | None = None,
     ) -> list[PeerMessageActivity]:
         """List the caller's DELIVERED relayed messages, both directions.
 
@@ -949,6 +951,8 @@ class PeersRepository(BaseRepository[PeerConnection]):
                 fell outside the newest ``limit`` of the whole timeline. The
                 spellings come from the aggregate, folded in Python, so SQL
                 still gets no opinion on who is the same person.
+            before: Where a relationship timeline's page resumes (keyset);
+                None for the newest.
 
         Returns:
             Timeline entries; a peer with no usable display name is dropped
@@ -959,6 +963,8 @@ class PeersRepository(BaseRepository[PeerConnection]):
             return []
         counterpart, clauses = self._delivered_with_peer(user_id)
         narrowed = (*clauses, User.full_name.in_(peer_names)) if peer_names else clauses
+        if before is not None:
+            narrowed = (*narrowed, older_than(PeerMessage.delivered_at, PeerMessage.id, before))
         stmt = (
             select(
                 PeerMessage.id.label("message_id"),

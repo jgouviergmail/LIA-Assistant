@@ -4,7 +4,7 @@
 
 **Versione**: 2.6
 **Data**: 2026-10-23
-**Applicazione**: LIA v3.6.0
+**Applicazione**: LIA v3.7.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -13,7 +13,7 @@
 
 LIA è un assistente IA multi-agente completo — connettori di business, voce, memoria, connessioni tra utenti, sei lingue — progettato, sviluppato e gestito in produzione in modo continuativo, come progetto personale.
 
-La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: un referenziale di ingegneria scritto, controlli automatici bloccanti, revisione sistematica, audit ricorrenti. Il risultato è misurato: **7,8/10** all'audit tecnico su 24 perimetri. Il repository è open source; le conclusioni dell'audit — punti di forza come debolezze — sono assunte e riassunte in questo documento.
+La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: un referenziale di ingegneria scritto, controlli automatici bloccanti, revisione sistematica, audit ricorrenti. Il risultato è misurato: **7,9/10** all'audit tecnico su 24 perimetri. Il repository è open source; le conclusioni dell'audit — punti di forza come debolezze — sono assunte e riassunte in questo documento.
 
 | Indicatore | Valore |
 | --- | --- |
@@ -21,9 +21,9 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | Righe di codice sorgente (esclusi i test) — 58 domini funzionali | **1.003.000+** |
 | Test automatizzati inventariati; suite adeguate a commit e rilascio | **67.000+** |
 | Decisioni di architettura documentate (ADR) | **362** |
-| Versioni rilasciate a ritmo regolare | **288** |
+| Versioni rilasciate a ritmo regolare | **289** |
 | Lingue, parità verificata automaticamente | **6** |
-| Audit tecnico su 24 perimetri | **7,8/10** |
+| Audit tecnico su 24 perimetri | **7,9/10** |
 
 Convinzione maturata con l'esperienza: lo sviluppo assistito dall'IA è industrializzabile già oggi. Il fattore limitante non è lo strumento — è il quadro di direzione che gli si dà.
 
@@ -96,28 +96,30 @@ Una presenza visibile deve restare una scelta controllabile: l’avatar Simli sp
 
 ## 6. La prova
 
-Il livello annunciato in questo documento risulta da un audit tecnico completo: 24 perimetri valutati, ogni rilievo verificato nel codice e contro-verificato per eliminare i falsi positivi. L'audit applica il metodo del progetto stesso — condotto con strumenti IA, in postura contraddittoria, ogni conclusione ancorata a una prova contro-verificata. Valutazione di ottobre 2026: **7,8/10**, dopo una controperizia che ha riesaminato punto per punto la prima lettura (8,0 all'inizio, 7,3 ad agosto), con un profilo assunto apertamente. Il rapporto completo — griglia di valutazione, metodo, rilievi aperti e il protocollo per riprodurlo — è pubblico: [rapporto di audit completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
+Il livello annunciato in questo documento risulta da un audit tecnico completo: 24 perimetri valutati, ogni rilievo verificato nel codice e contro-verificato per eliminare i falsi positivi. L'audit applica il metodo del progetto stesso — condotto con strumenti IA, in postura contraddittoria, ogni conclusione ancorata a una prova contro-verificata. Ultima valutazione, il 25 ottobre 2026: **7,9/10** sulla versione 3.6.0 registrata nel repository — dopo 7,3 ad agosto, poi 8,0 e una controperizia a 7,8 il 22 ottobre —, con un profilo assunto apertamente. Il rapporto completo — griglia di valutazione, metodo, rilievi aperti e il protocollo per riprodurlo — è pubblico: [rapporto di audit completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
 
 **Punti di forza confermati:**
 
-- Configurazione e dipendenze riproducibili: lockfile usati dai build di produzione, modelli scaricati verificandone le impronte.
+- Configurazione e dipendenze riproducibili: lockfile usati dai build di produzione, l'immagine dell'API ricostruita identica dal commit verificato.
 - Contratti condivisi e registri dichiarativi: aggiungere un agente, uno strumento o una lingua segue percorsi documentati, e le superfici di versione sono generate.
-- Una documentazione mantenuta vera dai controlli: decisioni, mappe e cifre citate sono verificate contro le loro fonti a ogni modifica.
-- Un rilascio che esegue ciò che esegue uno sviluppatore: una CI snella sugli stessi task, installazione e rilascio testati in modo ermetico, migrazioni ripetute da un database vuoto.
+- Una documentazione mantenuta vera dai controlli: decisioni, mappe e cifre citate sono verificate rispetto alle loro fonti a ogni modifica.
+- Un rilascio che esegue ciò che esegue uno sviluppatore: una CI snella sugli stessi task, installazione e rilascio testati in ambiente isolato, migrazioni rieseguite da un database vuoto.
 
-**Corretto dopo l'audit — in attesa della verifica del prossimo audit:**
+**Corretto dopo l'audit precedente — e constatato da questo:**
 
 - Notifiche che dicono il vero: una notifica — di una chiamata, di un messaggio tra connessioni, di un incidente — conta come consegnata solo dopo un successo esplicito e duraturo.
-- Attese limitate: il database interrompe un'attesa di lock o una transazione inattiva prima che possa bloccare un account, e un rinnovo di token appartiene a un solo worker alla volta.
+- Attese limitate: il database interrompe un'attesa di lock o una transazione inattiva prima che possa bloccare un account.
 - Un ciclo che si chiude: ogni rilievo è seguito in un registro pubblico con la sua età, la sua scadenza e la sua prova, e la soglia di copertura del backend vale per le suite unitarie e di integrazione insieme.
 - Allerte: ogni combinazione annunciata di canali di notifica è composta e testata, instradamento compreso.
 
 **Ciò che resta da fare — noto, pianificato:**
 
-- Un documento rielaborato dopo un subentro deve restare al suo proprietario attuale.
+- Un documento rielaborato dopo un subentro deve restare al suo proprietario attuale, e ogni acquisizione del lock di reindicizzazione deve portare la propria identità.
+- Un rinnovo di token deve concludersi entro il termine che lo protegge, tentativi e pause compresi.
+- Il banco di test dei browser reso esatto su ogni motore, perché un errore indichi sempre una causa reale.
 - Il debito strutturale assoluto — funzioni centrali dense, domini interdipendenti, eccezioni di tipizzazione — ridotto lotto per lotto, guidato dalla misura.
 
-Il piano d'azione è organizzato in ondate, ciascuna con criteri di uscita misurabili; la prima è stata consegnata, e confermarne i risultati spetta al prossimo audit. È il modo di rendere conto di questo progetto: non un livello proclamato, un livello misurato — scarti compresi.
+Il piano d'azione è organizzato in ondate, ciascuna con criteri di uscita misurabili; la prima è stata consegnata, poi verificata: l'audit ne ha constatato l'essenziale tra i suoi controlli positivi e ha riaperto un punto. È il modo di rendere conto di questo progetto: non un livello proclamato, un livello misurato — scarti compresi.
 
 Questa esigenza ha una conseguenza che il progetto ha imparato a proprie spese: **una suite di test verde non dimostra che una funzionalità funzioni**. Dimostra che ciò che è stato testato si comporta come è scritto. I difetti che sopravvivono ai controlli sono esattamente quelli su cui non sono mai stati interrogati — una capacità che nessuno invoca, una cifra che nessuno somma, una guardia che riconosce un nome anziché un meccanismo. Non sono quasi mai errori di codice: sono domande che non erano mai state poste.
 

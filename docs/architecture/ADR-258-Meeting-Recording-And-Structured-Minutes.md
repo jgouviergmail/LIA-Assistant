@@ -222,6 +222,59 @@ whose `kind` is set now answers 403 `space_managed_by_domain`, the card hides
 the action and says « Managed by LIA »; renaming and switching it off stay
 open. `kind` joined the space's wire shape for that.
 
+## Amendment 2026-10-24 — a meeting imported from a file
+
+A file the person already holds — a phone's voice memo, a recorder's WAV — now
+becomes a meeting exactly as a recording does. Nothing downstream of `stopped`
+changed: the import only adds a second road INTO it.
+
+- **The same row, the same refusals.** `POST /meetings/imports` is admitted by
+  the recording's own checks (`MeetingService.admit`: usage limits, the start
+  rate limit, an engine) and creates the row `uploading`, in one of three file
+  formats (`import_wav`, `import_mp3`, `import_m4a`). ONE import per account is
+  a partial unique index on the member NAME, beside the one-recording index
+  (migration `3cb24a85d3f5`); a recording and an import may run together. The
+  meeting is dated by the person — the file's last write minus its length, by
+  default — never in the future.
+- **Every bound is published before a byte is sent** (ADR-184):
+  `GET /meetings/imports/limits` (file size, chunk size, duration cap), the
+  chunk held under `MAX_REQUEST_BODY_BYTES` at boot. Chunks travel as raw
+  bodies on the segments' own durable path (`PUT /{id}/import/{sequence}`,
+  idempotent, the row lock held through the disk write), the first one checked
+  to START as the format it claims (415 `import_format_mismatch`); completion
+  refuses any hole (409 `segments_missing`) and hands the row to processing.
+- **ffmpeg never guesses.** An imported file is untrusted input: it is read
+  through the demuxer of its declared format only (`-f wav|mp3|mov`, M4A being
+  QuickTime/MP4), over the local-file protocol (`-protocol_whitelist file`),
+  and a QuickTime file never follows its references to other files
+  (`-enable_drefs 0`). Measured with ffmpeg 7.1.5 (the production image): a
+  playlist disguised as `.m4a` and a concat script disguised as `.mp3` are
+  refused by the imposed demuxer, with no network access, where guessing would
+  have handed them to the HLS or concat demuxers.
+- **Judged before anything is paid.** The normalizing stage, extracted to
+  `audio_stage.py` (the job file was at its size cap), measures the file with
+  `ffprobe` first: past the instance's duration cap it fails `import_too_long`,
+  unreadable `audio_unreadable` — both permanent, before any engine is called,
+  and what was uploaded is deleted at once (no retry can save it; a failed
+  recording keeps its audio because one can).
+  The file is then transcoded to mono Opus/WebM at the bitrate that keeps it
+  one remote request, and the meeting ends where its audio does
+  (`stopped_at = started_at + duration`, checkpointed with the audio).
+- **A half file is no meeting.** An import that received no chunk for
+  `MEETINGS_IMPORT_STALE_MINUTES` is failed `import_incomplete` by the reaper
+  and its chunks deleted; deleting it while it uploads is a cancellation; a
+  bulk delete leaves it to its dialog, like a live recording.
+  `meeting_imports_total{format,outcome}` counts started, completed, refused,
+  abandoned and cancelled imports (dashboard 27).
+
+The client checks the same bounds, reads the length through an `<audio>`
+element when it can, cuts the file with `Blob.slice()` onto the recorder's own
+retrying `SegmentUploader`, and opens the meeting's page on its progress.
+Proven with the real ffmpeg on the three formats, the cap and the two
+disguises (`tests/integration/domains/meetings/test_meeting_import_ffmpeg.py`)
+and on PostgreSQL for the index, the transitions and the abandon sweep
+(`test_meeting_imports_pg.py`).
+
 ## Verification
 
 `tests/unit/domains/meetings/` (models, templates and i18n parity, audio

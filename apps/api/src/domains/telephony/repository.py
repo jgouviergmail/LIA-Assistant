@@ -19,6 +19,7 @@ from src.domains.telephony.models import (
     PhoneCallStatus,
     ReturnSynthesisStatus,
 )
+from src.infrastructure.database.keyset import Keyset, older_than
 
 # Statuses that count as an in-flight call (mirrors the model's partial-index predicate).
 _ACTIVE_STATUSES = (PhoneCallStatus.DIALING, PhoneCallStatus.IN_PROGRESS)
@@ -125,6 +126,35 @@ class TelephonyRepository(BaseRepository[PhoneCall]):
             .order_by(PhoneCall.created_at.desc())
             .limit(limit)
         )
+        return list((await self.db.scalars(stmt)).all())
+
+    async def list_calls_for_callees_page(
+        self,
+        user_id: UUID,
+        callees: list[str],
+        *,
+        limit: int,
+        before: Keyset | None = None,
+    ) -> list[PhoneCall]:
+        """Calls to these EXACT spellings, newest first, after a timeline cursor.
+
+        Args:
+            user_id: Owner.
+            callees: Raw spellings, as stored (resolved in Python).
+            limit: Page size.
+            before: Where the page resumes; None for the newest.
+
+        Returns:
+            The page, the ordering ending on the primary key.
+        """
+        if not callees:
+            return []
+        stmt = select(PhoneCall).where(
+            PhoneCall.user_id == user_id, PhoneCall.callee_display.in_(callees)
+        )
+        if before is not None:
+            stmt = stmt.where(older_than(PhoneCall.created_at, PhoneCall.id, before))
+        stmt = stmt.order_by(PhoneCall.created_at.desc(), PhoneCall.id.desc()).limit(limit)
         return list((await self.db.scalars(stmt)).all())
 
     async def get_by_elevenlabs_conversation_id(self, conversation_id: str) -> PhoneCall | None:

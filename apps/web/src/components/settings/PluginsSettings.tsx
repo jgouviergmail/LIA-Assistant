@@ -7,9 +7,10 @@ import { useApplicationAccountState } from '@/hooks/useApplicationAccountState';
 import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 import { Puzzle, Trash2, Link2, Upload, Blocks, Server, Send } from 'lucide-react';
 import { RowActions, type RowAction } from '@/components/ui/row-actions';
-import { CapabilityOriginBadge } from '@/components/peers/CapabilityOriginBadge';
+import { CapabilityProvenance } from '@/components/peers/CapabilityProvenance';
 import { CapabilitySharingDialog } from '@/components/peers/CapabilitySharingDialog';
 import { useCapabilitySharing } from '@/hooks/useCapabilitySharing';
+import { blockedRecipients } from '@/lib/capability-sharing';
 import { useApplicationAccountToast } from '@/hooks/useApplicationAccountToast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
@@ -76,37 +77,51 @@ function PluginRow({
       icon: Send,
       onSelect: () => onShare(plugin),
     });
+  const provenance = Boolean(plugin.shared_origin) || Boolean(plugin.shared_with?.length);
   return (
-    <li className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="truncate font-medium">{plugin.name}</span>
-          {plugin.version && (
-            <Badge variant="outline" className="font-mono text-xs">
-              v{plugin.version}
-            </Badge>
+    <li className="flex flex-col gap-2 rounded-lg border p-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="truncate font-medium">{plugin.name}</span>
+            {plugin.version && (
+              <Badge variant="outline" className="font-mono text-xs">
+                v{plugin.version}
+              </Badge>
+            )}
+          </div>
+          {plugin.description && (
+            <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
+              {plugin.description}
+            </p>
           )}
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className="gap-1">
+              <Blocks className="h-3 w-3" aria-hidden="true" />
+              {t('settings.plugins.skills_count', { count: plugin.skill_names.length })}
+            </Badge>
+            <Badge variant="outline" className="gap-1">
+              <Server className="h-3 w-3" aria-hidden="true" />
+              {t('settings.plugins.servers_count', { count: plugin.server_names.length })}
+            </Badge>
+          </div>
         </div>
-        {plugin.description && (
-          <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{plugin.description}</p>
-        )}
-        <div className="mt-1.5 flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className="gap-1">
-            <Blocks className="h-3 w-3" aria-hidden="true" />
-            {t('settings.plugins.skills_count', { count: plugin.skill_names.length })}
-          </Badge>
-          <Badge variant="outline" className="gap-1">
-            <Server className="h-3 w-3" aria-hidden="true" />
-            {t('settings.plugins.servers_count', { count: plugin.server_names.length })}
-          </Badge>
-        </div>
-        <CapabilityOriginBadge origin={plugin.shared_origin} lng={lng} />
+        <RowActions
+          actions={actions}
+          menuLabel={t('common.actions_for', { name: plugin.name })}
+          className="shrink-0 self-end sm:self-center"
+        />
       </div>
-      <RowActions
-        actions={actions}
-        menuLabel={t('common.actions_for', { name: plugin.name })}
-        className="shrink-0 self-end sm:self-center"
-      />
+      {/* Who it came from, whom it went to: under a rule (owner request 2026-10-24). */}
+      {provenance && (
+        <div className="border-t pt-2">
+          <CapabilityProvenance
+            origin={plugin.shared_origin}
+            sharedWith={plugin.shared_with}
+            lng={lng}
+          />
+        </div>
+      )}
     </li>
   );
 }
@@ -359,7 +374,13 @@ export function PluginsSettings({ lng }: PluginsSettingsProps) {
               lng={lng}
               onShare={
                 sharingEnabled
-                  ? plugin => sharing.share({ kind: 'plugin', id: plugin.id, name: plugin.name })
+                  ? plugin =>
+                      sharing.share({
+                        kind: 'plugin',
+                        id: plugin.id,
+                        name: plugin.name,
+                        blockedRecipientIds: blockedRecipients(plugin.shared_with),
+                      })
                   : undefined
               }
             />

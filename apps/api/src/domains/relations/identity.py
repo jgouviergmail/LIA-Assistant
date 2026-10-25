@@ -115,4 +115,27 @@ class IdentityResolver:
 #: A resolver with no merge at all — the behaviour that predates this module.
 NO_MERGES = IdentityResolver.from_pairs([])
 
-__all__ = ["NO_MERGES", "IdentityResolver"]
+
+@dataclass(frozen=True)
+class RelationIdentity:
+    """One person of the relationship list, with every spelling that names them.
+
+    What a spoken name is resolved against (``shared/name_resolution``): the
+    card's display name is one spelling among those the sources gave, and a
+    merge gathers the spellings of both halves under the canonical key.
+
+    Attributes:
+        key: The canonical identity key.
+        display_name: The spelling the card shows.
+        spellings: Every raw spelling, sorted.
+        is_peer: Whether the identity is a connected LIA user — a DISPLAY
+            resolution like the card's badge, never a way to pick an account.
+    """
+
+    key: str
+    display_name: str
+    spellings: tuple[str, ...]
+    is_peer: bool
+
+
+__all__ = ["NO_MERGES", "IdentityResolver", "RelationIdentity"]

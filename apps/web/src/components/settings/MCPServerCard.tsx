@@ -20,7 +20,7 @@
 import { ExpandableDescription } from '@/components/ui/expandable-description';
 import type { TFunction } from 'i18next';
 import { AlertTriangle, Pencil, Plug, Server, Trash2, Unplug, Zap, Send } from 'lucide-react';
-import { CapabilityOriginBadge } from '@/components/peers/CapabilityOriginBadge';
+import { CapabilityProvenance } from '@/components/peers/CapabilityProvenance';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -217,7 +217,6 @@ export function MCPServerCard(props: MCPServerCardProps) {
               <Badge variant="outline">{t('settings.plugins.via_plugin')}</Badge>
             )}
           </div>
-          <CapabilityOriginBadge origin={server.shared_origin} lng={lng} />
         </div>
         <Switch
           className="mt-1.5 shrink-0"
@@ -235,6 +234,12 @@ export function MCPServerCard(props: MCPServerCardProps) {
 
       {/* `mt-auto`: in a grid row the footers line up whatever each card holds. */}
       <div className="mt-auto space-y-3 border-t pt-3">
+        {/* Who it came from, whom it went to: under the rule (owner request 2026-10-24). */}
+        <CapabilityProvenance
+          origin={server.shared_origin}
+          sharedWith={server.shared_with}
+          lng={lng}
+        />
         <ServerFacts server={server} lng={lng} t={t} />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <OAuthAction

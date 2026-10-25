@@ -808,7 +808,7 @@ class DependencyGraph:
             # Expand step into N copies
             expanded_ids: list[str] = []
             for idx, item in enumerate(items):
-                expanded_id = f"{step.step_id}_item_{idx}"
+                expanded_id = step.item_step_id(idx)
                 expanded_ids.append(expanded_id)
 
                 # Clone step with modified id and parameters

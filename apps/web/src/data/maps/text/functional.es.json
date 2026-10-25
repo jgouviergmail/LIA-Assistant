@@ -133,9 +133,9 @@
     },
     "f.relations": {
       "name": "Relaciones",
-      "role": "Una ficha por persona que reúne tus intercambios, y un resumen escrito una vez al día: en qué punto estás, qué conviene tratar.",
+      "role": "Una ficha por persona que reúne tus intercambios y su cronología fechada, y un resumen escrito una vez al día: en qué punto estás, qué conviene tratar.",
       "goal": "No volver a perder el hilo de tus relaciones.",
-      "src": "10f1a5e20272"
+      "src": "1e2bb83157af"
     },
     "f.openloops": {
       "name": "Hilos abiertos",
@@ -241,9 +241,9 @@
     },
     "f.meetings": {
       "name": "Reuniones",
-      "role": "Grabar una reunión desde el teléfono o el ordenador y recibir un acta estructurada, con una plantilla elegida automáticamente. Busca en títulos y actas completas para recuperar una decisión.",
+      "role": "Grabar una reunión desde el teléfono o el ordenador, o importar una grabación existente, y recibir un acta estructurada, con una plantilla elegida automáticamente. Busca en títulos y actas completas para recuperar una decisión.",
       "goal": "Asistir a la reunión, no a la toma de notas.",
-      "src": "fc9f4f1c8204"
+      "src": "835f172f16ae"
     },
     "f.heartbeat": {
       "name": "Heartbeat autónomo",

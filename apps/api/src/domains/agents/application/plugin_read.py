@@ -31,7 +31,7 @@ async def read_plugins(
     await require_plugin_access(db, owner_id)
     data = await list_plugin_projection(db, owner_id)
     items = tuple(
-        PluginReadItem.model_validate(row.model_dump(exclude={"shared_origin"}))
+        PluginReadItem.model_validate(row.model_dump(exclude={"shared_origin", "shared_with"}))
         for row in data.plugins[selected.offset : selected.offset + selected.limit]
     )
     await require_plugin_access(db, owner_id)

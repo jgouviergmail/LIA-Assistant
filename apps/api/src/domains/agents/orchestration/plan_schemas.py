@@ -61,6 +61,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from src.core.config import settings
 from src.core.field_names import FIELD_AGENT_NAME, FIELD_STEP_ID, FIELD_TOOL_NAME
 
+#: How a FOR_EACH item names its step: ``step_2`` runs as ``step_2_item_0``,
+#: ``step_2_item_1``… (``DependencyGraph.expand_for_each_steps``).
+FOR_EACH_ITEM_INFIX = "_item_"
+
 # ============================================================================
 # Parameter Types (OpenAI Strict Mode Compatible)
 # ============================================================================
@@ -339,6 +343,10 @@ class ExecutionStep(BaseModel):
     def is_for_each_step(self) -> bool:
         """Check if this step uses for_each pattern."""
         return self.for_each is not None
+
+    def item_step_id(self, index: int) -> str:
+        """The id this FOR_EACH step's ``index``-th item runs under (``step_2_item_0``)."""
+        return f"{self.step_id}{FOR_EACH_ITEM_INFIX}{index}"
 
     @field_validator(FIELD_STEP_ID)
     @classmethod

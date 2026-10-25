@@ -52,6 +52,7 @@ export function buildHandlerContext(options: FixtureOptions = {}): HandlerFixtur
     hitlQuestionBuffer: { current: new Map<string, string>() },
     executionStepsRef: { current: [] as string[] },
     emittedStepKeysRef: { current: new Set<string>() },
+    stepTalliesRef: { current: new Map() },
     reasoningBufRef: { current: '' },
     traceStepsRef: { current: [] as ExecutionTraceStep[] },
     traceReasoningRef: { current: '' },

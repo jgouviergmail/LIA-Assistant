@@ -44,8 +44,8 @@ export interface SegmentUploaderOptions {
   onFatal?: (code: string) => void;
 }
 
-/** HTTP statuses after which retrying cannot help. */
-const FATAL_STATUSES = new Set([401, 403, 404, 409, 413]);
+/** HTTP statuses after which retrying cannot help (415: an import that is not its format). */
+const FATAL_STATUSES = new Set([401, 403, 404, 409, 413, 415]);
 
 interface QueuedSegment {
   sequence: number;
@@ -217,32 +217,46 @@ export class SegmentUploader {
 }
 
 /**
- * Production transport: a raw-body PUT on the segments endpoint.
+ * A raw-body PUT transport on `path(meetingId, sequence)`.
  *
  * Not `apiClient.put` — that path JSON-encodes its body and stamps
  * `application/json`; a segment is bytes. The two invariants the client
  * enforces are kept by hand: the session cookie (`credentials: 'include'`) and
  * the native-shell marker (ADR-246).
  */
-export const apiSegmentTransport: SegmentTransport = {
-  async put(meetingId, sequence, blob) {
-    const headers: Record<string, string> = { 'Content-Type': 'application/octet-stream' };
-    if (isNativeShell()) headers[NATIVE_CLIENT_HEADER] = '1';
-    const response = await fetch(apiEndpointUrl(`/meetings/${meetingId}/segments/${sequence}`), {
-      method: 'PUT',
-      credentials: 'include',
-      headers,
-      body: blob,
-    });
-    if (!response.ok) {
-      let data: unknown = undefined;
-      try {
-        data = await response.json();
-      } catch {
-        data = undefined;
-      }
-      throw new ApiError(`Segment upload failed (${response.status})`, response.status, data);
+function rawPutTransport(path: (meetingId: string, sequence: number) => string): SegmentTransport {
+  return {
+    put: (meetingId, sequence, blob) => putRaw(path(meetingId, sequence), blob),
+  };
+}
+
+async function putRaw(path: string, blob: Blob): Promise<MeetingSegmentAck> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/octet-stream' };
+  if (isNativeShell()) headers[NATIVE_CLIENT_HEADER] = '1';
+  const response = await fetch(apiEndpointUrl(path), {
+    method: 'PUT',
+    credentials: 'include',
+    headers,
+    body: blob,
+  });
+  if (!response.ok) {
+    let data: unknown = undefined;
+    try {
+      data = await response.json();
+    } catch {
+      data = undefined;
     }
-    return (await response.json()) as MeetingSegmentAck;
-  },
-};
+    throw new ApiError(`Segment upload failed (${response.status})`, response.status, data);
+  }
+  return (await response.json()) as MeetingSegmentAck;
+}
+
+/** Production transport of a recording's segments. */
+export const apiSegmentTransport = rawPutTransport(
+  (meetingId, sequence) => `/meetings/${meetingId}/segments/${sequence}`
+);
+
+/** Production transport of an imported file's chunks (2026-10-24). */
+export const apiImportTransport = rawPutTransport(
+  (meetingId, sequence) => `/meetings/${meetingId}/import/${sequence}`
+);

@@ -1,6 +1,78 @@
 import type { MockRoute } from './api-mock';
 
 /**
+ * The card's own records on one line (owner request 2026-10-24), exactly as
+ * the API pages them: newest first, four to a page, so the fifth (the memory)
+ * waits behind a cursor and a scan sees the « Older » control as well as the
+ * rows — the relayed message whose text expired included.
+ */
+export const relationTimelinePage = {
+  items: [
+    {
+      kind: 'peer_message',
+      at: '2026-07-27T18:00:00Z',
+      open_loop: null,
+      call: null,
+      memory: null,
+      peer_message: {
+        id: 'pm1',
+        direction: 'received',
+        content: 'Gérard vous fait dire qu’il sera en retard.',
+        occurred_at: '2026-07-27T18:00:00Z',
+      },
+      sms: null,
+    },
+    {
+      kind: 'peer_message',
+      at: '2026-07-26T08:00:00Z',
+      open_loop: null,
+      call: null,
+      memory: null,
+      peer_message: {
+        id: 'pm2',
+        direction: 'sent',
+        content: null,
+        occurred_at: '2026-07-26T08:00:00Z',
+      },
+      sms: null,
+    },
+    {
+      kind: 'call',
+      at: '2026-07-25T10:00:00Z',
+      open_loop: null,
+      call: {
+        id: 'c1',
+        objective: 'Anniversaire surprise',
+        outcome: 'objective_met',
+        summary: 'Il est partant.',
+        created_at: '2026-07-25T10:00:00Z',
+      },
+      memory: null,
+      peer_message: null,
+      sms: null,
+    },
+    {
+      kind: 'open_loop',
+      at: '2026-07-21T09:00:00Z',
+      open_loop: {
+        id: 'l1',
+        subject: 'Rendre la perceuse',
+        direction: 'user_owes',
+        due_hint: null,
+        days_open: 4,
+        opened_at: '2026-07-21T09:00:00Z',
+      },
+      call: null,
+      memory: null,
+      peer_message: null,
+      sms: null,
+    },
+  ],
+  next_cursor: 'e2e-after-the-open-loop',
+  page_size: 4,
+};
+
+/**
  * The 360° relationship fixture, shared by every spec that opens a contact.
  *
  * Extracted 2026-08-03: the accessibility journey and the mobile-overflow
@@ -177,6 +249,9 @@ export const relationsData: MockRoute[] = [
             direction: 'received',
             subject: 'Devis pour la terrasse',
             occurred_at: '2026-07-28T09:00:00Z',
+            // The whole mail contract (`ExchangedEmail`): an excerpt is the
+            // second line of its row, in its section and on the timeline.
+            excerpt: 'Bonjour, voici le chiffrage révisé, à valider avant vendredi.',
           },
         ],
         events: [],
@@ -192,7 +267,11 @@ export const relationsData: MockRoute[] = [
             id: 'e1',
             summary: 'Visite du chantier',
             starts_at: '2026-08-05T09:00:00Z',
+            // The whole event contract (`SharedEvent`): the API always sends it.
+            ends_at: null,
             is_past: false,
+            role: 'organizer',
+            organizer_known: true,
           },
         ],
       },
@@ -225,6 +304,11 @@ export const relationsData: MockRoute[] = [
       unavailable: ['events'],
       can_rebuild: true,
     },
+  },
+  {
+    // AFTER the catch-all (LIFO), like `/context`.
+    url: '**/api/v1/relations/*/timeline',
+    json: relationTimelinePage,
   },
   {
     // The address-book actions read the account's connectors: a call is

@@ -15,6 +15,7 @@ import src.domains.telephony.reapers as rp
 import src.domains.telephony.router as rt
 from src.core.config import settings
 from src.domains.telephony.models import CallKind, PhoneCallOutcome, PhoneCallStatus
+from src.domains.telephony.spend import phone_call_run_id
 from tests.helpers.notifications import ScriptedChannels, scripted_dispatcher, sse_only
 
 
@@ -147,6 +148,8 @@ async def test_notification_reaper_recovers_pending(monkeypatch) -> None:
     await rp.telephony_notification_reaper()
 
     assert _dispatched(actions) == [str(call.id)]
+    # A recovered return names the call's run like the live dispatch would.
+    assert [sent.run_id for sent in actions["channels"].sent] == [phone_call_run_id(call.id)]
     assert actions["delivered"] == [call.id]
     assert actions["failed"] == []
 

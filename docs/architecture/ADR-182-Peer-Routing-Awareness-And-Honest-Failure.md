@@ -237,3 +237,60 @@ qu'un appel LLM de plus et un risque de boucle.
 - `apps/web/src/components/connectors/ConnectorHealthBanner.tsx`
 - ADR-134 (notices connecteur actionnables), ADR-172 (liens profonds réglages),
   ADR-180 (connexions entre utilisateurs)
+
+## Amendement 2026-10-24 — le routage et l'outil s'accordent sur qui existe
+
+**Constat.** Le routage reconnaissait une connexion par son nom complet OU par un
+de ses mots de trois lettres et plus (`shared/name_mentions`) ; les outils de
+pair, eux, comparaient le nom complet plié (`fold_name(nom) == fold_name(dit)`).
+Une question sur « Mei » était donc routée vers l'outil d'agenda de la connexion
+« Mei Durand », qui répondait « No accepted connection matches 'Mei' ». La même
+égalité stricte existait en trois copies (lecture d'un pair, relais de message,
+assignation d'un ticket), et la lecture prenait en plus le PREMIER homonyme sans
+le dire (`next(...)`).
+
+**Décision — une règle, deux annuaires.**
+
+- `shared/name_resolution.resolve_name` décide au premier palier qui trouve
+  quelque chose : (1) le nom complet plié identique, (2) chaque mot dit est un
+  mot ENTIER du nom (deux lettres et plus ; une initiale ne fait que compléter
+  un mot). Un candidat = résolu ; plusieurs = ambiguïté, jamais tranchée par
+  l'ordre ; aucun = inconnu. Ni fragment de mot, ni distance d'édition.
+- Les outils de pair (`agents/peer/name_directory.resolve_connected_peer`) lisent
+  les CONNEXIONS ACCEPTÉES, seules lisibles. Un nom complet exact est lu sans
+  autre requête. Sur une correspondance partielle, la liste des relations
+  (`RelationsService.directory`, pairs et non-pairs) ne fait que RETRANCHER :
+  une personne non connectée que le nom désigne aussi, et qu'un mot absent du
+  nom de la connexion distingue, transforme la lecture en question ; une
+  source qui nomme la connexion par son seul prénom n'est pas une seconde
+  personne. Un nom qui ne désigne que des personnes non connectées est dit
+  (`not_a_connection`), pour que la boucle se tourne vers les sources de
+  l'utilisateur. Une fusion déclarée sur la page Relations ne choisit JAMAIS
+  un compte (règle de `relations/identity.py`). Une liste illisible laisse
+  décider les connexions seules, journalisé par type.
+- Les refus nomment les candidats, bornés (`MAX_NAMED_CANDIDATES`), avec une
+  seule formulation (`agents/tools/name_refusals.ambiguous_name_failure`,
+  `DISAMBIGUATION_REQUIRED`). Aucune lecture, aucune ligne du journal d'accès
+  tant que la personne n'est pas résolue. Les journaux portent l'issue et un
+  compte, jamais un nom.
+- L'assignation d'un ticket applique la même règle sur les seules connexions :
+  son chemin depuis le chat est un brouillon que la personne confirme.
+- La liste lue par les outils est celle de l'ASSISTANT : ses noms atteignent le
+  modèle comme candidats, donc un expéditeur de SMS n'y figure que si la
+  personne a permis à l'assistant de lire ses SMS (`directory()` lit le
+  carnet SMS avec `assistant=True` ; la page Relations, vue de la personne
+  elle-même, lit sans ce consentement). Et comme ce carnet peut interroger le
+  fournisseur de contacts pour un expéditeur nouveau, les outils de pair
+  terminent leur transaction de lecture avant de consulter la liste (ADR-304).
+
+**Limite assumée.** En mode pipeline, après `not_a_connection`, rien ne
+re-planifie dans le même tour (ADR-346) : la réponse le dit et la personne
+reformule ; la boucle ReAct bascule d'elle-même. Les noms écrits sans espaces
+(chinois) ne se découpent pas en mots. Deux connexions au nom complet identique
+restent indiscernables par le nom : l'outil refuse (ambiguïté) au lieu de lire
+la première, comme il le faisait. La liste des relations n'est lue que sur une
+correspondance partielle ; ce sont les requêtes d'agrégat d'un chargement de la
+page Relations (mesuré sur dev le 2026-10-24 : 6 à 14 ms par lecture).
+
+**Garde.** `tests/unit/domains/shared/test_name_resolution_single_rule_guard.py`
+refuse qu'un des trois modules plie et compare des noms lui-même.

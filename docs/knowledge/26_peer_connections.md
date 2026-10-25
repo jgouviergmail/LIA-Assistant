@@ -25,6 +25,11 @@ Replying works the same way: a reply is simply a new relayed message. The small 
 
 Relayed messages have a length limit (2,000 characters by default, instance-tunable): if yours is too long, LIA tells you the exact length and the limit, and offers to shorten or summarize it — nothing is sent without you knowing.
 
+## Can I name a connection by their first name?
+Yes. Asking about a connected person — their availability, their tasks, or a message to relay — a first name is enough when it designates **one** of your connections ("is Marie free tomorrow?").
+
+When several connections share it, or when it also designates someone in your **Relations** who is not connected, LIA asks which one you mean instead of guessing — and reads nothing until you say. When it designates only people who are not connected, LIA says so and answers from your own sources instead. Its answer always names the person it read, so a mix-up shows at once. Merging two cards on the Relations page never makes a nickname select a connection.
+
 ## What can I share, and what does the other person see?
 Per connection, you choose **read-only** shares:
 • **Calendar** — free/busy only, or slots with event titles
@@ -67,3 +72,11 @@ A copy of the image, filed in their own gallery as if they had generated it, wit
 Use **Share** on its settings card, choose an accepted connection, review the package and confirm. The recipient receives an independent copy, **disabled by default**, with the sender and sharing date/time. Credentials and permissions do not transfer. They can edit, configure, activate or delete it through the usual controls. Once enabled, a received skill has the same execution capabilities as one they created, so review it before activation. Later changes at the sender do not update the copy.
 
 A notice confirms the share once the copy is installed — or says why it did not complete, and the dialog stays open to retry. LIA tells the recipient in their chat who shared which skill, MCP server or plugin with them, and its title.
+
+## Can I see whom I shared a capability with, and share it again?
+
+You can see it: under the rule of each skill, MCP server or plugin card, a folded
+**Shared with** list names each connection that received it and when, marked
+“incomplete” when part of it could not be installed. A copy you received shows
+**Shared by**, with the sender and the date, in the same place. For now a share is
+final: the share window no longer offers a connection that already received it.

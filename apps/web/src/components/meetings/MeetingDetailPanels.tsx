@@ -34,6 +34,7 @@ import type { Language } from '@/i18n/settings';
 import { apiEndpointUrl } from '@/lib/api-client';
 import { formatEuro } from '@/lib/format';
 import { meetingPdfEndpoint } from '@/lib/meetings/api';
+import { isLiveFormat } from '@/lib/meetings/audio-format';
 import { formatElapsed } from '@/lib/meetings/format';
 import { costLabel } from '@/components/meetings/MeetingMinutesCard';
 import type { MeetingDetail, MeetingReport, TranscriptTurn } from '@/types/meetings';
@@ -435,6 +436,12 @@ export function MeetingHeader({
           stage={meeting.stage}
           size="default"
         />
+        {/* A file the person imported, not a recording LIA heard (2026-10-24). */}
+        {!isLiveFormat(meeting.audio_format) && (
+          <Badge variant="secondary" size="sm">
+            {t('meetings.detail.imported_badge')}
+          </Badge>
+        )}
         {report && (
           <Badge variant={meeting.report_is_edited ? 'default' : 'secondary'} size="sm">
             {t(

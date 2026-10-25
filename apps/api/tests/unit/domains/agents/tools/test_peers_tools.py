@@ -54,7 +54,18 @@ def _repo(connections=None, today=0, pair_today=0):
     repo.db.execute = AsyncMock(
         return_value=MagicMock(all=MagicMock(return_value=[(PEER_ID, "Marie Dupont")]))
     )
+    repo.db.commit = AsyncMock()
     return repo
+
+
+@pytest.fixture(autouse=True)
+def _relationship_list_empty():
+    """Never the real relationship list: it opens sessions of its own."""
+    with patch(
+        "src.domains.agents.peer.name_directory.RelationsService",
+        return_value=SimpleNamespace(directory=AsyncMock(return_value=[])),
+    ):
+        yield
 
 
 @pytest.fixture
@@ -113,6 +124,75 @@ class TestSendPeerMessageTool:
         assert content["recipient_name"] == "Marie Dupont"
         assert content["message"] == "Demande-lui comment il va"
         assert content["connection_id"] == str(CONNECTION_ID)
+
+    async def test_a_unique_first_name_drafts_for_the_full_name(self, sender_not_blocked):
+        repo = _repo(connections=[_connection()])
+        db_patch, repo_patch = _patch_db(repo)
+        draft_service = MagicMock()
+        draft_service.create_draft.return_value = "DRAFT_OUTPUT"
+        with (
+            db_patch,
+            repo_patch,
+            _patch_runtime(),
+            patch("src.domains.agents.tools.peers_tools.DraftService", return_value=draft_service),
+        ):
+            await peers_tools.send_peer_message_tool.coroutine(  # type: ignore[misc]
+                recipient_name="Marie", message="Bonne journée", runtime=MagicMock()
+            )
+        # The card the person confirms names who will receive it.
+        content = draft_service.create_draft.call_args.kwargs["content"]
+        assert content["recipient_name"] == "Marie Dupont"
+        assert content["recipient_id"] == str(PEER_ID)
+
+    async def test_a_first_name_two_connections_share_is_asked_about(self, sender_not_blocked):
+        other_id = uuid4()
+        other = SimpleNamespace(
+            id=uuid4(), user_a_id=USER_ID, user_b_id=other_id, status="accepted"
+        )
+        repo = _repo(connections=[_connection(), other])
+        repo.db.execute = AsyncMock(
+            return_value=MagicMock(
+                all=MagicMock(return_value=[(PEER_ID, "Marie Dupont"), (other_id, "Marie Lin")])
+            )
+        )
+        db_patch, repo_patch = _patch_db(repo)
+        draft_service = MagicMock()
+        with (
+            db_patch,
+            repo_patch,
+            _patch_runtime(),
+            patch("src.domains.agents.tools.peers_tools.DraftService", return_value=draft_service),
+        ):
+            output = await peers_tools.send_peer_message_tool.coroutine(  # type: ignore[misc]
+                recipient_name="Marie", message="salut", runtime=MagicMock()
+            )
+        assert output.success is False
+        assert output.error_code == "DISAMBIGUATION_REQUIRED"
+        assert output.metadata["candidates"] == ["Marie Dupont", "Marie Lin"]
+        draft_service.create_draft.assert_not_called()
+
+    async def test_the_reads_end_before_the_relationship_list_is_read(self, sender_not_blocked):
+        # A partial name reads the relationship list, whose SMS senders can
+        # ask the contacts provider: no transaction waits on it (ADR-304).
+        order: list[str] = []
+        repo = _repo(connections=[_connection()])
+        repo.db.commit = AsyncMock(side_effect=lambda: order.append("commit"))
+        directory = AsyncMock(side_effect=lambda: order.append("directory") or [])
+        db_patch, repo_patch = _patch_db(repo)
+        with (
+            db_patch,
+            repo_patch,
+            _patch_runtime(),
+            patch(
+                "src.domains.agents.peer.name_directory.RelationsService",
+                return_value=SimpleNamespace(directory=directory),
+            ),
+        ):
+            output = await peers_tools.send_peer_message_tool.coroutine(  # type: ignore[misc]
+                recipient_name="Paul", message="salut", runtime=MagicMock()
+            )
+        assert output.error_code == "NOT_FOUND"
+        assert order == ["commit", "directory"]
 
     async def test_empty_message_rejected_before_any_io(self):
         with _patch_runtime():

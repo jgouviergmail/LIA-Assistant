@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -32,8 +33,12 @@ from src.domains.agents.tools.relation_read_tools import (
     get_open_loops_tool,
     get_peer_messages_tool,
 )
+from src.domains.relations.identity import RelationIdentity
 
 pytestmark = pytest.mark.unit
+
+#: The real seam, captured before the autouse fixture replaces it.
+_REAL_RELATION_DETAIL = mod._relation_detail
 
 USER_ID = uuid4()
 NOW = datetime(2026, 8, 1, 10, 0, tzinfo=UTC)
@@ -243,3 +248,87 @@ class TestNoPIIAtInfoLevel:
 
         assert "Alice Vernier" not in caplog.text
         assert "ma femme" not in caplog.text
+
+
+def _identity(name: str, *spellings: str) -> RelationIdentity:
+    return RelationIdentity(
+        key=name.casefold(),
+        display_name=name,
+        spellings=(name, *spellings),
+        is_peer=False,
+    )
+
+
+class TestTheNameIsResolvedAgainstTheRelationshipList:
+    """The tools resolve a person the way the relationship list knows them."""
+
+    @staticmethod
+    def _service(monkeypatch: pytest.MonkeyPatch, *identities: RelationIdentity):
+        built: list[str] = []
+
+        async def _build_detail(name: str, **_kwargs: object) -> object:
+            built.append(name)
+            return _detail(display_name=name)
+
+        service = SimpleNamespace(
+            directory=AsyncMock(return_value=list(identities)), build_detail=_build_detail
+        )
+        monkeypatch.setattr(mod, "RelationsService", lambda _user_id: service)
+        return built
+
+    async def test_a_first_name_reads_the_one_person_it_designates(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        built = self._service(monkeypatch, _identity("Mei Durand"), _identity("Paul Martin"))
+
+        detail = await _REAL_RELATION_DETAIL(USER_ID, "mei")
+
+        assert built == ["Mei Durand"]
+        assert detail.display_name == "Mei Durand"
+
+    async def test_a_merged_spelling_reads_the_merged_card(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        built = self._service(monkeypatch, _identity("Jean Dupont", "Papa"))
+
+        await _REAL_RELATION_DETAIL(USER_ID, "papa")
+
+        assert built == ["Jean Dupont"]
+
+    async def test_several_people_are_asked_about_never_read(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        built = self._service(monkeypatch, _identity("Mei Durand"), _identity("Mei Lin"))
+
+        output = await _REAL_RELATION_DETAIL(USER_ID, "Mei")
+
+        assert isinstance(output, UnifiedToolOutput)
+        assert output.error_code == "DISAMBIGUATION_REQUIRED"
+        assert output.metadata["candidates"] == ["Mei Durand", "Mei Lin"]
+        assert built == []
+
+    async def test_nobody_on_record_is_said_never_an_empty_card(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        built = self._service(monkeypatch, _identity("Paul Martin"))
+
+        output = await _REAL_RELATION_DETAIL(USER_ID, "Zoé")
+
+        assert isinstance(output, UnifiedToolOutput)
+        assert output.success is False
+        assert output.error_code == "NOT_FOUND"
+        assert built == []
+
+    async def test_a_refusal_reaches_the_tool_answer(
+        self, monkeypatch: pytest.MonkeyPatch, _patch_service
+    ) -> None:
+        refusal = UnifiedToolOutput.failure(message="x", error_code="NOT_FOUND")
+
+        async def _refused(_user_id, _name):
+            return refusal
+
+        monkeypatch.setattr(mod, "_relation_detail", _refused)
+
+        output = await _run(get_calls_tool)
+
+        assert output is refusal

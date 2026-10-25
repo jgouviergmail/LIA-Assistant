@@ -53,6 +53,35 @@ describe('executionTraceFromMetadata', () => {
     });
   });
 
+  it('restores what a step did, integers only', () => {
+    // 2026-10-24: calls, results, failures travel with the step — and nothing
+    // but non-negative integers is ever read back.
+    const metadata = tracePayload([
+      {
+        emoji: '🔍',
+        i18n_key: 'get_contacts',
+        category: 'tool',
+        outcome: { calls: 2, found: 12, shown: 5, failed: 1 },
+      },
+      {
+        emoji: '📋',
+        i18n_key: 'planner_generation',
+        category: 'system',
+        outcome: { found: '12 contacts', failed: -1 },
+      },
+    ]);
+
+    expect(executionTraceFromMetadata(metadata, t)?.steps).toEqual([
+      {
+        emoji: '🔍',
+        label: 'Fetching contacts',
+        category: 'tool',
+        outcome: { calls: 2, found: 12, shown: 5, failed: 1 },
+      },
+      { emoji: '📋', label: 'Planning', category: 'system' },
+    ]);
+  });
+
   it('drops steps whose i18n key does not resolve', () => {
     const metadata = tracePayload([
       { emoji: '🧭', i18n_key: 'router_decision', category: 'system' },

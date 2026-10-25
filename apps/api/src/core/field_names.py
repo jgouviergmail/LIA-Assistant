@@ -106,6 +106,15 @@ FIELD_FOR_EACH_FAILED_ITEMS = "_for_each_failed_items"
 #: data section, removed from every persisted copy that is not the turn's own
 #: (ADR-347).
 FIELD_TOOL_DATA = "_tool_data"
+#: What a tool's step accomplished, shown under its line in the live trace
+#: (2026-10-24): the items a read returned and the ones that reached the model,
+#: written on the ReAct ``ToolMessage`` and read by the stream's step outcomes.
+FIELD_ITEMS_FOUND = "items_found"
+FIELD_ITEMS_SHOWN = "items_shown"
+#: One tool call's identity across its « started » and « finished » steps.
+FIELD_STEP_KEY = "step_key"
+#: A step's counts — calls, found, shown, failed: integers, never words.
+FIELD_OUTCOME = "outcome"
 FIELD_ERROR_MESSAGE = "error_message"
 FIELD_ERROR_TYPE = "error_type"
 FIELD_IS_ACTIVE = "is_active"

@@ -45,7 +45,12 @@ import {
 } from './handlers';
 
 // Re-export types
-export type { SSEHandlerContext, SSEHandler, ProgressMessageMetadata } from './types';
+export type {
+  LiveStepTally,
+  SSEHandlerContext,
+  SSEHandler,
+  ProgressMessageMetadata,
+} from './types';
 
 // Re-export helper
 export { getProgressMessage };

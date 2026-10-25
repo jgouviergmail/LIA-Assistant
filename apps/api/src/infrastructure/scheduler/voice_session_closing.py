@@ -34,10 +34,11 @@ while ``voice_sessions`` imports no carrier. The carriers keep what is theirs
 from __future__ import annotations
 
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from functools import partial
 from typing import Any, Final
 
 import structlog
@@ -155,6 +156,17 @@ async def _learn(
         )
 
 
+async def _learn_then(
+    learning: Awaitable[None], after: Callable[[], Awaitable[None]] | None
+) -> None:
+    """The learning, then what follows it — whatever the learning raised."""
+    try:
+        await learning
+    finally:
+        if after is not None:
+            await after()
+
+
 async def schedule_voice_learning(
     *,
     user_id: uuid.UUID,
@@ -164,6 +176,7 @@ async def schedule_voice_learning(
     rows: list[tuple[str, str]],
     language: str,
     run_inline: bool = False,
+    after: Callable[[], Awaitable[None]] | None = None,
 ) -> None:
     """Hand the voice-only exchanges to the extractors, never raising.
 
@@ -183,19 +196,25 @@ async def schedule_voice_learning(
         rows: ``(role, text)`` of every voice-only row, in order.
         language: The person's backend-canonical language.
         run_inline: Tests only — await instead of scheduling.
+        after: Run once the learning's spend is persisted — even when the
+            learning failed, since the tracker persists what it spent then
+            too; never when there was nothing to learn.
     """
     messages = voice_turn_messages(rows)
     if not messages:
         return
     # Only PRIMITIVES cross into the background task: an ORM row belongs to
     # the request's session, which is gone by the time the task runs.
-    coroutine = _learn(
-        user_id=user_id,
-        memory_enabled=memory_enabled,
-        conversation_id=conversation_id,
-        run_id=run_id,
-        messages=messages,
-        language=language,
+    coroutine = _learn_then(
+        _learn(
+            user_id=user_id,
+            memory_enabled=memory_enabled,
+            conversation_id=conversation_id,
+            run_id=run_id,
+            messages=messages,
+            language=language,
+        ),
+        after,
     )
     if run_inline:
         try:
@@ -397,6 +416,25 @@ async def _settle_standby_relay(
     logger.info("voice_standby_relay_settled", origin_id=session.origin_id, outcome=fate)
 
 
+async def _session_bill(
+    db: AsyncSession, session: VoiceSession
+) -> tuple[list[str], VoiceSessionUsage | None]:
+    """The delegated turns' run ids, and LIA's spend over the session — ONE formula.
+
+    The session's OWN run id carries what was filed under it rather than under
+    a delegated turn: a direct session's lookups and relayed turn, the learning.
+    """
+    run_ids = await session_run_ids(
+        db, conversation_id=session.conversation_id, live_session_id=session.key
+    )
+    return run_ids, await aggregate_usage(db, [*run_ids, session.run_id])
+
+
+def _card_figures(row: ConversationMessage) -> dict[str, Any]:
+    """What the closing settled on the card (outcome, duration, counts)."""
+    return dict((row.message_metadata or {}).get(FIELD_LIVE_SUMMARY) or {})
+
+
 async def _rewrite_card(
     db: AsyncSession,
     session: VoiceSession,
@@ -416,7 +454,88 @@ async def _rewrite_card(
     if row is None:
         logger.warning("voice_direct_relay_card_missing", origin_id=session.origin_id)
         return
-    figures = dict((row.message_metadata or {}).get(FIELD_LIVE_SUMMARY) or {})
+    _, usage = await _session_bill(db, session)
+    await _redraw_card(
+        db,
+        session,
+        card_id,
+        _card_figures(row),
+        usage,
+        relay=relay,
+        extensions=extensions,
+        relay_summary=relay_summary,
+    )
+
+
+#: The chat meter's keys of the card's bill (``build_live_session_summary_metadata``).
+_BILL_KEYS: Final = ("tokens_in", "tokens_out", "tokens_cache", "cost_eur", "google_api_requests")
+
+
+def _bill_grew(metadata: Mapping[str, Any], usage: VoiceSessionUsage) -> bool:
+    """Whether the bill moved UP since the card was drawn — a figure shown is never lowered."""
+    fresh = usage.model_dump()
+    shown = {key: metadata.get(key) or 0 for key in _BILL_KEYS}
+    return any(fresh[key] != shown[key] for key in _BILL_KEYS) and all(
+        fresh[key] >= shown[key] for key in _BILL_KEYS
+    )
+
+
+async def restate_card_bill(session: VoiceSession, card_id: uuid.UUID) -> None:
+    """Restate the closing card's bill once the session's learning spent (ADR-185).
+
+    The card is archived with the bill known at the closing; the learning of
+    the voice-only exchanges runs AFTER it, under the session's own run id,
+    and a card keeping the closing's figure would understate the bill it
+    claims to state (measured on production on 2026-10-24: a card frozen
+    before its learning). Redrawn only when the bill GREW, everything the
+    closing settled kept; on a short session of its own, opened once the
+    learning is over (no transaction waits on a model, ADR-304). Never raises.
+
+    Args:
+        session: The closed session.
+        card_id: Its closing card.
+    """
+    try:
+        async with get_db_context() as db:
+            row = await session_card(db, card_id)
+            if row is None:
+                return
+            _, usage = await _session_bill(db, session)
+            if usage is None or not _bill_grew(row.message_metadata or {}, usage):
+                return
+            figures = _card_figures(row)
+            relay_summary = figures.get("relay_summary")
+            await _redraw_card(
+                db,
+                session,
+                card_id,
+                figures,
+                usage,
+                relay=figures.get("relay"),
+                extensions=int(figures.get("extensions") or 0),
+                relay_summary=str(relay_summary) if relay_summary else None,
+            )
+            await db.commit()
+    except Exception as exc:  # noqa: BLE001 — a stale bill is logged, never raised
+        logger.warning(
+            "voice_card_restate_failed",
+            origin_id=session.origin_id,
+            error_type=type(exc).__name__,
+        )
+
+
+async def _redraw_card(
+    db: AsyncSession,
+    session: VoiceSession,
+    card_id: uuid.UUID,
+    figures: Mapping[str, Any],
+    usage: VoiceSessionUsage | None,
+    *,
+    relay: str | None,
+    extensions: int,
+    relay_summary: str | None,
+) -> None:
+    """Draw the card again from the figures the closing settled and the bill read now."""
     outcome = str(figures.get("outcome") or "ended")
     duration_seconds = int(figures.get("duration_seconds") or 0)
     delegations = int(figures.get("delegations") or 0)
@@ -424,7 +543,6 @@ async def _rewrite_card(
     # The closing's own figures of the sleeps travel with the rewrite.
     standbys = int(figures.get("standbys") or 0)
     standby_recaps = [str(recap) for recap in figures.get("standby_recaps") or ()]
-    usage = await aggregate_usage(db, [session.run_id])
     await rewrite_session_card(
         db,
         card_id,
@@ -607,12 +725,7 @@ async def close_voice_session(
         # person's own turn in the task below — the card says so now, and
         # says the fate once the words settled. No model runs here.
         relay = RELAY_SCHEDULED if transcript else RelayOutcome.EMPTY.value
-    run_ids = await session_run_ids(
-        db, conversation_id=session.conversation_id, live_session_id=session.key
-    )
-    # The session's OWN run id carries what the tool host filed under it — a
-    # direct session's lookups, the learning; nothing else on a delegated one.
-    usage = await aggregate_usage(db, [*run_ids, session.run_id])
+    run_ids, usage = await _session_bill(db, session)
     # The card's figures are EXACT, never the client's claim (ADR-185).
     delegations = len(run_ids)
     voice_turns = await count_voice_turns(
@@ -685,6 +798,8 @@ async def close_voice_session(
             rows=voice_rows,
             language=session.language,
             run_inline=learn_inline,
+            # The learning spends under the session's run AFTER the card.
+            after=partial(restate_card_bill, session, row.id),
         )
     return ClosedSession(
         summary_message_id=row.id,
@@ -702,6 +817,7 @@ __all__ = [
     "archive_voice_turns",
     "close_voice_session",
     "relay_direct_transcript",
+    "restate_card_bill",
     "schedule_standby_relay",
     "schedule_voice_learning",
     "voice_turn_messages",

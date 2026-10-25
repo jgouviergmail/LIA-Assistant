@@ -1,11 +1,13 @@
 """One original UI metadata projection for HTTP and native personal management."""
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.capability_origin import CapabilityOrigin
+from src.core.capability_origin import CapabilityOrigin, CapabilityShare
 from src.domains.shared.capability_origins import capability_origins
+from src.domains.shared.capability_shares import capability_shares
 from src.domains.user_mcp.models import (
     UserMCPAuthType,
     UserMCPServer,
@@ -28,6 +30,7 @@ def server_to_response(
     tools_limit: int | None = None,
     include_tool_schemas: bool = True,
     shared_origin: CapabilityOrigin | None = None,
+    shared_with: Sequence[CapabilityShare] = (),
 ) -> UserMCPServerResponse:
     tools: list[MCPDiscoveredToolResponse] = []
     tool_count = 0
@@ -48,6 +51,7 @@ def server_to_response(
     metadata = service.build_response_metadata(server)
     return UserMCPServerResponse(
         shared_origin=shared_origin,
+        shared_with=list(shared_with),
         id=server.id,
         name=server.name,
         url=server.url,
@@ -76,4 +80,10 @@ async def owned_server_response(
     db: AsyncSession, server: UserMCPServer, service: UserMCPServerService
 ) -> UserMCPServerResponse:
     origins = await capability_origins(db, server.user_id, "mcp", [server.id])
-    return server_to_response(server, service, shared_origin=origins.get(server.id))
+    shares = await capability_shares(db, server.user_id, "mcp", [server.id])
+    return server_to_response(
+        server,
+        service,
+        shared_origin=origins.get(server.id),
+        shared_with=shares.get(server.id, ()),
+    )

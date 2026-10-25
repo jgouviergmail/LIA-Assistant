@@ -28,6 +28,7 @@ shared ``connectors/preferences/owner_defaults`` helper.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 from uuid import UUID
@@ -38,8 +39,11 @@ from langchain_core.tools import InjectedToolArg
 
 from src.domains.agents.constants import AGENT_PEER
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.peer.name_directory import PeerNameOutcome, resolve_connected_peer
 from src.domains.agents.peer.summaries import format_peer_availability, format_peer_tasks
+from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.decorators import read_tool
+from src.domains.agents.tools.name_refusals import ambiguous_name_failure
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import get_user_preferences, validate_runtime_config
 from src.domains.connectors.active_client import ActiveClient, open_active_client
@@ -52,7 +56,6 @@ from src.domains.connectors.provider_resolver import find_error_connector_type
 from src.domains.connectors.service import ConnectorService
 from src.domains.peers.models import PeerShareDomain, PeerShareLevel
 from src.domains.peers.repository import PeersRepository
-from src.domains.shared.text_normalization import fold_name
 from src.domains.users.models import User
 from src.infrastructure.database.session import get_db_context
 
@@ -62,48 +65,107 @@ _PEER_EVENTS_LOOKAHEAD_HOURS = 48
 _PEER_EVENTS_MAX = 25
 _PEER_TASKS_MAX = 25
 
+#: What the model reads about ``peer_name`` — the rule ``resolve_connected_peer``
+#: applies, stated where the model fills the parameter.
+_PEER_NAME_ARG = (
+    "Name of the CONNECTED user as the person said it: the full name, or a "
+    "first name when it designates one connection. Several people matching "
+    "is answered with the candidates to ask about."
+)
+
+
+@dataclass(frozen=True)
+class _Refusal:
+    """Why a peer read cannot happen, and who to name in the refusal.
+
+    Attributes:
+        reason: ``no_connection`` / ``ambiguous`` / ``not_a_connection`` /
+            ``not_shared`` / ``peer_inactive``.
+        candidates: Display names to ask about or to name, bounded.
+    """
+
+    reason: str
+    candidates: tuple[str, ...] = ()
+
+
+#: The refusal each non-read outcome of the name resolution becomes.
+_UNRESOLVED_REASONS: dict[PeerNameOutcome, str] = {
+    PeerNameOutcome.AMBIGUOUS: "ambiguous",
+    PeerNameOutcome.NOT_A_CONNECTION: "not_a_connection",
+    PeerNameOutcome.UNKNOWN: "no_connection",
+}
+
 
 async def _resolve_shared_peer(
     repo: PeersRepository,
     user_id: UUID,
     peer_name: str,
     domain: PeerShareDomain,
-) -> tuple[Any | None, User | None, str | None, str]:
+) -> tuple[Any | None, User | None, str | None, _Refusal | None]:
     """Resolve (connection, peer user, share level) for a named, sharing peer.
+
+    The name is resolved by ``resolve_connected_peer``: a first name reads the
+    one connection it designates, and a name that also designates someone who
+    is not connected is asked about rather than guessed.
 
     Args:
         repo: Peers repository on the current session.
         user_id: The caller.
-        peer_name: Peer display name (folded exact match on connections).
+        peer_name: The peer's name as the person said it.
         domain: Domain the caller wants to read.
 
     Returns:
-        (connection, peer ORM user, share level or None, failure_reason) —
-        failure_reason is "" on success, else one of
-        ``no_connection`` / ``not_shared`` / ``peer_inactive``.
+        (connection, peer ORM user, share level or None, refusal) — refusal is
+        None on success.
     """
     from sqlalchemy import select
 
     connections = await repo.list_accepted_for_user(user_id)
     peer_ids = {(c.user_b_id if c.user_a_id == user_id else c.user_a_id): c for c in connections}
     if not peer_ids:
-        return None, None, None, "no_connection"
-    rows = (await repo.db.execute(select(User).where(User.id.in_(peer_ids.keys())))).scalars()
-    folded = fold_name(peer_name)
-    peer = next((u for u in rows if fold_name(u.full_name or "") == folded), None)
-    if peer is None:
-        return None, None, None, "no_connection"
+        return None, None, None, _Refusal("no_connection")
+    users = list(
+        (await repo.db.execute(select(User).where(User.id.in_(peer_ids.keys())))).scalars()
+    )
+    # A partial name reads the relationship list, whose SMS senders can ask
+    # the contacts provider: the reads end before that wait (ADR-304).
+    await repo.db.commit()
+    match = await resolve_connected_peer(
+        user_id, peer_name, [(user.full_name or "", user.id) for user in users]
+    )
+    if match.outcome is not PeerNameOutcome.READ:
+        logger.info(
+            "peer_name_unresolved", outcome=match.outcome.value, named=len(match.candidates)
+        )
+        return None, None, None, _Refusal(_UNRESOLVED_REASONS[match.outcome], match.candidates)
+    peer = next(user for user in users if user.id == match.peer_id)
+    return await _shared_level(repo, peer_ids[peer.id], peer, domain)
+
+
+async def _shared_level(
+    repo: PeersRepository, connection: Any, peer: User, domain: PeerShareDomain
+) -> tuple[Any | None, User | None, str | None, _Refusal | None]:
+    """The level the resolved peer shares ``domain`` at, re-read at execution time.
+
+    Args:
+        repo: Peers repository on the current session.
+        connection: The accepted connection with the peer.
+        peer: The resolved peer.
+        domain: Domain the caller wants to read.
+
+    Returns:
+        The same tuple as ``_resolve_shared_peer``.
+    """
     if not peer.is_active or peer.deleted_at:
-        return None, None, None, "peer_inactive"
-    connection = peer_ids[peer.id]
+        return None, None, None, _Refusal("peer_inactive")
     shares = await repo.list_shares(connection.id)
     level = next(
         (s.level for s in shares if s.owner_user_id == peer.id and s.domain == domain.value),
         None,
     )
     if level is None:
-        return connection, peer, None, "not_shared"
-    return connection, peer, level, ""
+        return connection, peer, None, _Refusal("not_shared")
+    return connection, peer, level, None
 
 
 async def _connector_failure(peer: User, category: str, noun: str) -> UnifiedToolOutput:
@@ -155,12 +217,27 @@ async def _connector_failure(peer: User, category: str, noun: str) -> UnifiedToo
     )
 
 
-def _share_failure(reason: str, peer_name: str) -> UnifiedToolOutput:
+#: The error code of each refusal; anything else is a share the peer withholds.
+_REFUSAL_CODES: dict[str, str] = {
+    "no_connection": ToolErrorCode.NOT_FOUND,
+    "not_a_connection": ToolErrorCode.NOT_FOUND,
+}
+
+
+def _share_failure(refusal: _Refusal, peer_name: str) -> UnifiedToolOutput:
     """Typed failure for an unreadable peer domain."""
+    if refusal.reason == "ambiguous":
+        return ambiguous_name_failure(peer_name, refusal.candidates)
+    named = ", ".join(refusal.candidates)
     messages = {
         "no_connection": (
             f"No accepted connection matches '{peer_name}'. "
             "Use list_peer_connections to see who you are connected to."
+        ),
+        "not_a_connection": (
+            f"'{peer_name}' designates {named}, who is not a connected LIA user: "
+            "none of their data can be read here. Answer from the user's own "
+            "sources instead (calendar, e-mails, messages)."
         ),
         "not_shared": (
             f"{peer_name} does not share this domain with you. "
@@ -169,8 +246,9 @@ def _share_failure(reason: str, peer_name: str) -> UnifiedToolOutput:
         "peer_inactive": f"{peer_name} is not reachable at the moment.",
     }
     return UnifiedToolOutput.failure(
-        message=messages.get(reason, "This peer data is not available."),
-        error_code="NOT_FOUND" if reason == "no_connection" else "FORBIDDEN",
+        message=messages.get(refusal.reason, "This peer data is not available."),
+        error_code=_REFUSAL_CODES.get(refusal.reason, ToolErrorCode.FORBIDDEN),
+        metadata={"candidates": list(refusal.candidates)} if refusal.candidates else None,
     )
 
 
@@ -216,7 +294,7 @@ def _event_slot(event: dict[str, Any], include_title: bool) -> dict[str, Any]:
 
 @read_tool(name="get_peer_availability", agent_name=AGENT_PEER)
 async def get_peer_availability_tool(
-    peer_name: Annotated[str, "Full name of the CONNECTED user whose availability to check"],
+    peer_name: Annotated[str, _PEER_NAME_ARG],
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Read a connected peer's calendar availability (their shared level).
@@ -231,7 +309,7 @@ async def get_peer_availability_tool(
     frame for inter-step references.
 
     Args:
-        peer_name: Display name among the caller's accepted connections.
+        peer_name: The peer's name as the person said it (full or first name).
         runtime: LangChain tool runtime (injected).
 
     Returns:
@@ -244,11 +322,11 @@ async def get_peer_availability_tool(
 
     async with get_db_context() as db:
         repo = PeersRepository(db)
-        connection, peer, level, reason = await _resolve_shared_peer(
+        connection, peer, level, refusal = await _resolve_shared_peer(
             repo, user_id, peer_name, PeerShareDomain.CALENDAR
         )
-        if reason:
-            return _share_failure(reason, peer_name)
+        if refusal is not None:
+            return _share_failure(refusal, peer_name)
         assert connection is not None and peer is not None and level is not None  # noqa: S101
         # Transparency BEFORE the provider call: the attempt itself is what
         # the owner is entitled to see (spec §12.4).
@@ -303,13 +381,13 @@ async def get_peer_availability_tool(
 
 @read_tool(name="get_peer_tasks", agent_name=AGENT_PEER)
 async def get_peer_tasks_tool(
-    peer_name: Annotated[str, "Full name of the CONNECTED user whose tasks to read"],
+    peer_name: Annotated[str, _PEER_NAME_ARG],
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Read a connected peer's pending task titles (share level ``titles``).
 
     Args:
-        peer_name: Display name among the caller's accepted connections.
+        peer_name: The peer's name as the person said it (full or first name).
         runtime: LangChain tool runtime (injected).
 
     Returns:
@@ -322,11 +400,11 @@ async def get_peer_tasks_tool(
 
     async with get_db_context() as db:
         repo = PeersRepository(db)
-        connection, peer, level, reason = await _resolve_shared_peer(
+        connection, peer, level, refusal = await _resolve_shared_peer(
             repo, user_id, peer_name, PeerShareDomain.TASK
         )
-        if reason:
-            return _share_failure(reason, peer_name)
+        if refusal is not None:
+            return _share_failure(refusal, peer_name)
         assert connection is not None and peer is not None and level is not None  # noqa: S101
         await repo.log_access(
             accessor_id=user_id,

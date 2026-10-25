@@ -4,6 +4,8 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.core.config import settings
 from src.core.exceptions import (
     BaseAPIException,
@@ -38,6 +40,7 @@ from src.domains.shared.action_sink import (
     PEER_CAPABILITY_SHARE_CAPABILITY,
     recorded_action,
 )
+from src.domains.shared.capability_shares import share_again_allowed
 from src.domains.skills.cache import SkillsCache
 from src.domains.user_mcp.installation import (
     ValidatedMCPEndpoint,
@@ -63,6 +66,29 @@ def _confirmed_package(row: PeerCapabilityTransfer, digest: str) -> PackageSnaps
     if not verify_snapshot(package, digest):
         raise ResourceConflictError("capability", detail="peers_capability_changed")
     return package
+
+
+async def _ensure_share_allowed(
+    db: AsyncSession,
+    sender: UUID,
+    recipient: UUID,
+    kind: CapabilityKind,
+    source_id: UUID,
+    digest: str,
+    *,
+    excluding: UUID | None = None,
+) -> None:
+    """The sharing policy (a published share is final for now), asked under the pair's lock."""
+    if not await share_again_allowed(
+        db,
+        sender_id=sender,
+        recipient_id=recipient,
+        kind=kind.value,
+        source_id=source_id,
+        current_digest=digest,
+        excluding=excluding,
+    ):
+        raise ResourceConflictError("capability", detail="peers_capability_already_shared")
 
 
 async def get_capability_transfer(sender: UUID, transfer_id: UUID) -> CapabilityTransferView:
@@ -104,6 +130,9 @@ async def preview_capability(
         if existing is not None:
             _same_request(existing, request)
             return transfer_view(existing, await repo.components(existing.id))
+        await _ensure_share_allowed(
+            db, sender, recipient, request.kind, request.source_id, package.digest
+        )
         await check_transfer_caps(db, sender, recipient, size)
         row = PeerCapabilityTransfer(
             sender_id=sender,
@@ -155,6 +184,12 @@ async def send_capability(sender: UUID, transfer_id: UUID, digest: str) -> Capab
             kind,
             lock=True,
             mcp_required=bool(package.servers),
+        )
+        # Another receipt of the same capability may have reached this
+        # recipient since this one was previewed; resuming THIS one is not
+        # sharing again.
+        await _ensure_share_allowed(
+            db, sender, recipient, kind, source_id, digest, excluding=transfer_id
         )
         lease = await CapabilityTransferRepository(db).claim(
             transfer_id,

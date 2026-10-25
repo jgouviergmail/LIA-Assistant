@@ -12,7 +12,7 @@ import contextlib
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -20,6 +20,7 @@ import src.infrastructure.scheduler.phone_relay_runner as runner
 from src.core.config import settings
 from src.domains.telephony.models import PhoneCallStatus
 from src.domains.telephony.schemas import SelfCallRelay
+from src.domains.telephony.spend import phone_call_run_id
 from src.infrastructure.scheduler import voice_relay
 from src.infrastructure.scheduler.out_of_turn_run import RunContext, RunOutcome, RunResult
 from src.infrastructure.scheduler.phone_relay_runner import RelayOutcome, RelayRequest, run_relay
@@ -332,7 +333,9 @@ class TestSettleOwnerCall:
         repo = await _settle(monkeypatch, RelayOutcome.UNANSWERED, channels)
 
         assert repo.transitions == ["fallback:unanswered", "notification_delivered"]
-        assert [sent.target_id for sent in channels.sent] != []
+        (sent,) = channels.sent
+        # The fallback names the call's run: the chat meter joins the bill on it.
+        assert sent.run_id == phone_call_run_id(UUID(sent.target_id))
 
     async def test_a_fallback_that_reached_nobody_stays_pending_for_the_reaper(
         self, monkeypatch: pytest.MonkeyPatch

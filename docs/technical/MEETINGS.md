@@ -58,6 +58,9 @@ Métriques : `infrastructure/observability/metrics_meetings.py`, tableau Grafana
 ```mermaid
 stateDiagram-v2
     [*] --> recording : POST /meetings
+    [*] --> uploading : POST /meetings/imports
+    uploading --> stopped : POST …/import/complete (aucune tranche manquante)
+    uploading --> failed : aucune tranche depuis MEETINGS_IMPORT_STALE_MINUTES (import_incomplete)
     recording --> interrupted : aucun segment depuis MEETINGS_RECORDING_STALE_MINUTES
     interrupted --> recording : un segment arrive
     recording --> stopped : POST /stop
@@ -95,6 +98,41 @@ retry a besoin, il reste jusqu'à la suppression de la réunion.
 le type de la colonne (`_status_literal`), une garde AST refuse tout `case()` nu dans `src/`
 (`tests/unit/test_no_bare_enum_in_sql_case_guard.py`), et chaque transition du repository
 s'exécute sur PostgreSQL réel (`tests/integration/domains/meetings/test_repository_jobs.py`).
+
+### Importer un fichier (2026-10-24)
+
+Un fichier WAV, MP3 ou M4A — le mémo vocal d'un téléphone, le fichier d'un enregistreur —
+devient une réunion par une seconde porte vers `stopped` ; rien n'a changé en aval.
+
+- **Ouverture** (`POST /meetings/imports`) : les refus de l'enregistrement
+  (`MeetingService.admit` : plafonds d'usage, limite de démarrages, moteur disponible), puis la
+  ligne `uploading` au format `import_wav|import_mp3|import_m4a`, datée par la personne (par
+  défaut la date du fichier moins sa durée, jamais dans le futur). Un seul import en cours par
+  compte, tenu par un index unique partiel sur le NOM du membre (`status = 'UPLOADING'`).
+- **Bornes publiées avant le premier octet** (`GET /meetings/imports/limits`) : taille du
+  fichier (`MEETINGS_IMPORT_MAX_MB`), taille d'une tranche (`MEETINGS_IMPORT_CHUNK_MAX_MB`, sous
+  `MAX_REQUEST_BODY_BYTES`, vérifié au démarrage) et durée maximale.
+- **Tranches** (`PUT /{id}/import/{seq}`, corps brut, idempotent) sur le chemin durable des
+  segments ; la tranche 0 doit COMMENCER comme son format (`RIFF…WAVE`, `ID3` ou synchronisation
+  MPEG, `ftyp` en position 4), sinon 415 `import_format_mismatch`. L'achèvement
+  (`POST /{id}/import/complete`) refuse tout trou (409 `segments_missing`) et lance le traitement.
+- **ffmpeg ne devine jamais** : démultiplexeur imposé (`-f wav|mp3|mov`), protocole fichier
+  seul (`-protocol_whitelist file`), aucune référence externe pour un QuickTime
+  (`-enable_drefs 0`). Une playlist déguisée en `.m4a` ou un script `concat` déguisé en `.mp3`
+  sont illisibles par le démultiplexeur imposé : refusés, rien n'est récupéré.
+- **Jugé avant toute dépense** : l'étape de normalisation (`audio_stage.py`) mesure le fichier
+  avec `ffprobe` ; au-delà du plafond de durée, échec permanent `import_too_long` ; illisible,
+  `audio_unreadable` — et ce qui a été envoyé est supprimé aussitôt, aucune relance ne pouvant
+  le sauver (un enregistrement échoué, lui, garde son audio pour la relance). Sinon transcodage en Opus/WebM mono, et la réunion finit là où finit son
+  audio (`stopped_at = started_at + durée`, écrit avec le point de contrôle).
+- **Un demi-fichier n'est pas une réunion** : sans tranche depuis
+  `MEETINGS_IMPORT_STALE_MINUTES`, le faucheur classe l'import `failed` (`import_incomplete`) et
+  supprime ses tranches ; le supprimer pendant l'envoi l'annule ; la suppression groupée le laisse
+  à sa boîte de dialogue. `meeting_imports_total{format,outcome}` (tableau 27).
+- **Côté web** : `MeetingImportDialog` (page des réunions, et « + » du composeur), contrôles
+  locaux des mêmes bornes, durée lue par un élément `<audio>` quand c'est possible, découpe par
+  `Blob.slice()` sur le `SegmentUploader` de l'enregistreur, puis ouverture de la page de la
+  réunion ; la mention « Importé » la distingue d'un enregistrement.
 
 ### Chaîne de moteurs
 

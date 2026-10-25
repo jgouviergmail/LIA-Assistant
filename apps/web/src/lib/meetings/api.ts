@@ -2,8 +2,8 @@
  * Typed calls of the meetings API (ADR-258) — one place for every endpoint.
  *
  * Hooks and the recorder controller call these; nothing else spells a
- * `/meetings/...` path. Segments are the one exception: their raw-body PUT
- * lives in `segment-uploader.ts` because `apiClient` JSON-encodes bodies.
+ * `/meetings/...` path. Segments and import chunks are the one exception: their
+ * raw-body PUT lives in `segment-uploader.ts` because `apiClient` JSON-encodes bodies.
  */
 
 import { apiClient, ApiError } from '@/lib/api-client';
@@ -11,6 +11,8 @@ import type {
   MeetingActionResponse,
   MeetingBulkDeleteResponse,
   MeetingDetail,
+  MeetingImportRequest,
+  MeetingImportResponse,
   MeetingListResponse,
   MeetingPatchRequest,
   MeetingPreferences,
@@ -31,9 +33,21 @@ import type {
 
 const BASE = '/meetings';
 export const MEETING_PREFERENCES_PATH = `${BASE}/preferences`;
+/** What an imported file is held to, read before a file is chosen (2026-10-24). */
+export const MEETING_IMPORT_LIMITS_PATH = `${BASE}/imports/limits`;
 
 export const meetingsApi = {
   start: (request: MeetingStartRequest) => apiClient.post<MeetingStartResponse>(BASE, request),
+
+  /** Open the import of a file; its chunks then travel through `apiImportTransport`. */
+  startImport: (request: MeetingImportRequest) =>
+    apiClient.post<MeetingImportResponse>(`${BASE}/imports`, request),
+
+  /** Every chunk landed: the server queues the processing. */
+  completeImport: (id: string, chunkCount: number) =>
+    apiClient.post<MeetingActionResponse>(`${BASE}/${id}/import/complete`, {
+      chunk_count: chunkCount,
+    }),
 
   /** The live meeting, or `null` (the endpoint answers 204). */
   active: async (): Promise<MeetingDetail | null> => {

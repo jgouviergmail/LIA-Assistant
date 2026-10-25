@@ -34,6 +34,8 @@ export interface MCPDiscoveredTool {
  */
 export interface UserMCPServer {
   shared_origin?: import('@/lib/capability-sharing').CapabilityOrigin | null;
+  /** Sender side: the connections this item was shared with (newest share each). */
+  shared_with?: import('@/lib/capability-sharing').CapabilityShare[];
   id: string;
   name: string;
   url: string;
