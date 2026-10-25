@@ -46,6 +46,7 @@ def _catalogue_pairs() -> list[tuple[str, str]]:
         {
             ("anthropic", "claude-opus-4-5"),  # budget family
             ("gemini", "gemini-3.5-flash"),  # mandatory reasoning (can_disable=False)
+            ("gemini", "gemini-4-argon"),  # low/medium/high, mandatory reasoning
             ("deepseek", "deepseek-v4-flash"),  # toggle family
             ("perplexity", "sonar-reasoning-pro"),  # always-on family
             ("openai", "gpt-4.1"),  # negative rule
@@ -112,6 +113,15 @@ def test_a_mandatory_reasoning_model_does_not_offer_off() -> None:
     assert payload["reasoning_levels"], "the model reasons, so it must offer levels"
     assert "none" not in payload["reasoning_levels"]
     assert payload["reasoning_can_disable"] is False
+
+
+def test_argon_offers_only_the_levels_the_provider_accepts() -> None:
+    payload = LLMConfigService._reasoning_metadata("gemini", _profile("gemini-4-argon"))
+    assert payload["reasoning_family"] == "gemini_level"
+    assert payload["reasoning_levels"] == ["low", "medium", "high"]
+    assert payload["reasoning_can_disable"] is False
+    assert payload["reasoning_supports_budget"] is False
+    assert payload["reasoning_budget_range"] is None
 
 
 def test_a_narrowed_ladder_still_offers_off() -> None:

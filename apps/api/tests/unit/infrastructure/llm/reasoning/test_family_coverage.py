@@ -132,6 +132,16 @@ def test_a_known_model_resolves_to_its_family() -> None:
     assert resolve_reasoning_profile("deepseek", "deepseek-v4-flash").family == "deepseek_toggle"
 
 
+def test_argon_resolves_to_mandatory_level_reasoning_with_a_medium_default() -> None:
+    profile = resolve_reasoning_profile("gemini", "gemini-4-argon")
+    assert profile.family == "gemini_level"
+    assert profile.levels == ("low", "medium", "high")
+    assert profile.can_disable is False
+    assert profile.default_enabled is True
+    assert profile.implicit_level == "medium"
+    assert profile.supports_budget is False
+
+
 def test_a_negative_rule_wins_over_a_broad_one() -> None:
     """``gpt-4.1`` must not inherit the ``gpt-5``-era OpenAI family."""
     assert resolve_reasoning_profile("openai", "gpt-4.1").family == "none"

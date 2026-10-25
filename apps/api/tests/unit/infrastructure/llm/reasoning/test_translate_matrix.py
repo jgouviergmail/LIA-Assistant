@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from src.core.reasoning_intent import LEVELS, ReasoningIntent
+from src.core.reasoning_intent import LEVELS, Level, ReasoningIntent
 from src.infrastructure.llm.reasoning.profiles import resolve_reasoning_profile
 from src.infrastructure.llm.reasoning.translate import translate
 
@@ -29,6 +29,7 @@ MODELS = [
     ("anthropic", "claude-sonnet-5-5"),
     ("anthropic", "claude-haiku-5-5"),
     ("deepseek", "deepseek-v4-flash"),
+    ("gemini", "gemini-4-argon"),
     ("gemini", "gemini-3.5-flash"),
     ("gemini", "gemini-2.5-flash"),
     ("gemini", "gemini-2.5-pro"),
@@ -108,6 +109,24 @@ def test_gemini_2_5_flash_can_still_stop_thinking() -> None:
     profile = resolve_reasoning_profile("gemini", "gemini-2.5-flash")
     produced = translate(ReasoningIntent(level="none"), profile, "gemini-2.5-flash", 65_536)
     assert produced["thinking_budget"] == 0
+
+
+@pytest.mark.parametrize(
+    ("level", "expected"),
+    [
+        ("none", "low"),
+        ("minimal", "low"),
+        ("low", "low"),
+        ("medium", "medium"),
+        ("high", "high"),
+        ("xhigh", "high"),
+        ("max", "high"),
+    ],
+)
+def test_argon_sends_only_supported_thinking_levels(level: Level, expected: str) -> None:
+    profile = resolve_reasoning_profile("gemini", "gemini-4-argon")
+    produced = translate(ReasoningIntent(level=level), profile, "gemini-4-argon", 65_536)
+    assert produced == {"thinking_level": expected, "include_thoughts": True}
 
 
 def test_an_explicit_gemini_budget_is_the_operators() -> None:

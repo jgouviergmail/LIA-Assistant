@@ -304,6 +304,23 @@ _RULES: list[tuple[str, tuple[str, ...], ReasoningProfile]] = [
             "deepseek_toggle", ("none", "low", "high", "max"), False, None, True, True
         ),
     ),
+    # Gemini 4 Argon (ai.google.dev/gemini-api/docs/generate-content/thinking,
+    # 2026-10-25): mandatory reasoning, low/medium/high only, medium by default.
+    # ``minimal`` is refused and a token budget is deprecated, so reuse the
+    # level renderer without inheriting the Gemini 3 family's broader ladder.
+    (
+        "gemini",
+        ("gemini-4-argon",),
+        ReasoningProfile(
+            "gemini_level",
+            ("low", "medium", "high"),
+            False,
+            None,
+            False,
+            True,
+            implicit_level="medium",
+        ),
+    ),
     (
         "gemini",
         ("gemini-3",),

@@ -27,6 +27,10 @@
 -- Disable triggers for faster bulk insert
 SET session_replication_role = replica;
 
+-- Only rows this execution actually inserts may acquire curated provenance.
+DROP TABLE IF EXISTS _lia_inserted_models;
+CREATE TEMP TABLE _lia_inserted_models (model_name text);
+WITH inserted_models AS (
 INSERT INTO llm_models (
     provider,
     model_name,
@@ -227,6 +231,10 @@ INSERT INTO llm_models (
     -- levels low/medium/high only — `minimal` "returns an error", so the
     -- ladder narrowing below is what keeps a slot from sending it.
     ('gemini', 'gemini-3.8-flash', 1048576, 65536, true, true, false, true, true, true, true, true, true, true, 'chat', '["low", "medium", "high"]'::jsonb, NULL, true),
+    -- Official model card and migration guide, checked 2026-10-25:
+    -- ai.google.dev/gemini-api/docs/models/gemini-4-argon and /latest-model.
+    -- Shared 1M context, 64K synchronous output; sampling is ignored.
+    ('gemini', 'gemini-4-argon', 1048576, 65536, true, true, false, true, true, true, false, false, false, false, 'chat', '["low", "medium", "high"]'::jsonb, NULL, true),
     -- Four Gemini models added 2026-09-26, each read on its page under
     -- ai.google.dev/gemini-api/docs/models/<name>. gemini-3.1-flash-lite (the
     -- stable release of the preview above): input 1 048 576 / output 65 536,
@@ -296,8 +304,23 @@ INSERT INTO llm_models (
     ('fishaudio', 'transcribe-1-pro', 1, 1, false, false, false, false, false, false, false, false, false, false, 'audio', NULL, NULL, true),
     ('edge', 'edge-tts', 1, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
     -- Native decision API; the output placeholder is never sent as an output budget.
-    ('typesafe', 'jev-1.13.0', 32000, 1, false, false, false, false, false, false, false, false, false, false, 'decision', NULL, NULL, true)
-ON CONFLICT (model_name) DO NOTHING;
+    ('typesafe', 'jev-1.13.0', 32000, 1, false, false, false, false, false, false, false, false, false, false, 'decision', NULL, NULL, true),
+    -- docs.typesafe.ai/models, checked 2026-10-25: 32K per question;
+    -- the native single-question client does not opt into long context/images.
+    ('typesafe', 'jev-1.14.0', 32000, 1, false, false, false, false, false, false, false, false, false, false, 'decision', NULL, NULL, true)
+ON CONFLICT (model_name) DO NOTHING
+RETURNING model_name
+)
+INSERT INTO _lia_inserted_models SELECT model_name FROM inserted_models;
+
+-- The matching migration curates these rows before an install replays this
+-- bundle. Keep the same provenance when the bundle alone creates them, while
+-- preserving every pre-existing row, including its provenance.
+UPDATE llm_models
+SET capability_provenance = 'verified'
+WHERE model_name IN ('jev-1.14.0', 'gemini-4-argon')
+  AND model_name IN (SELECT model_name FROM _lia_inserted_models)
+  AND capability_provenance = 'declared';
 
 -- The bundle is materialised once: the model set below is read TWICE (to retire
 -- the tariffs this bundle supersedes, then to insert its own), and duplicating
@@ -327,6 +350,12 @@ CREATE TEMP TABLE _lia_pricing_bundle (
 -- tariffs must be edited on that date. Long-context tiers are not expressed.
 INSERT INTO _lia_pricing_bundle VALUES
     ('jev-1.13.0', 0.042000, NULL, 0.000000, 'per_1m_tokens', '2026-09-28T00:00:00+00:00', true),
+    ('jev-1.14.0', 0.042000, NULL, 0.000000, 'per_1m_tokens', '2026-10-25T00:00:00+00:00', true),
+    -- Standard definitive rates, deliberately applied now at the owner's
+    -- request, rather than the promotion through 2026-11-30. Google pricing:
+    -- ai.google.dev/gemini-api/docs/pricing#gemini-4-argon (2026-10-25).
+    -- Implicit cache only; output includes thinking, with no context tiers.
+    ('gemini-4-argon', 4.000000, 0.200000, 20.000000, 'per_1m_tokens', '2026-10-25T00:00:00+00:00', true),
     ('chatgpt-image-latest', 5.000000, 1.250000, 10.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
     ('claude-haiku-4-5', 1.000000, 0.100000, 5.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('claude-opus-4-5', 5.000000, 0.500000, 25.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
