@@ -108,13 +108,16 @@ async def test_plugin_projection_is_owned_bounded_and_shared(
         original = await list_plugin_projection(async_session, owner)
     finally:
         event.remove(connection.sync_connection, "before_cursor_execute", observe)
-    # Three component queries plus ONE batched origin lookup, at every list size.
-    assert len(queries) == 4, "plugin count must not add component or origin queries"
+    # Three component queries plus ONE batched origin lookup and ONE batched
+    # share lookup (« Shared with », ADR-350), at every list size.
+    assert len(queries) == 5, "plugin count must not add component, origin or share queries"
     assert original.plugins[0].shared_origin.sender_display_name == "Private sender"
     result = await read_plugins(async_session, owner, PluginReadInput(limit=1))
     assert result.total == plugin_count
     assert result.next_offset == (1 if plugin_count > 1 else None)
-    assert result.items[0].model_dump() == original.plugins[0].model_dump(exclude={"shared_origin"})
+    assert result.items[0].model_dump() == original.plugins[0].model_dump(
+        exclude={"shared_origin", "shared_with"}
+    )
     assert result.items[0].skill_names == ["my-skill"]
     assert result.items[0].server_names == ["my-server"]
     second = await read_plugins(async_session, owner, PluginReadInput(offset=1))
