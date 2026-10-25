@@ -237,9 +237,14 @@ services:
       retries: 3
       # start_period covers the real boot path: alembic migrations in the
       # entrypoint, then 4 uvicorn workers each importing the full app
-      # (LangGraph graph + tool registry) — ~45s on dev hardware, slower on
-      # the Pi 5. Whisper STT loads lazily on first voice use, not at boot.
-      start_period: 60s
+      # (LangGraph graph + tool registry) — ~45s on dev hardware. Measured on
+      # the Pi 5 (2026-10-25, a deploy applying one migration): 2 min 22 s
+      # from container start to the last worker ready, and at 60 s
+      # `up --wait` saw it unhealthy and failed a deploy that had succeeded.
+      # Failed probes do not count inside this window, a passing one ends it:
+      # a hung boot still turns unhealthy right after it. Held by
+      # test_api_boot_budget_guard.py. Whisper STT loads lazily, not at boot.
+      start_period: 180s
     networks:
       - lia-network
     deploy:

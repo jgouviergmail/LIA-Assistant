@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- 🚀 The API's health grace covers its measured boot on the Pi (`start_period` 60 s →
+  180 s): a deploy applying one migration took 2 min 22 s from container start to the
+  last worker ready, and `up --wait` reported a deploy that had succeeded as failed
+  (`test_api_boot_budget_guard.py`).
+
 ## [3.7.0] - 2026-10-25
 
 **A first name finds the person, what you shared shows where you shared it, any recording becomes minutes, and every step says what it did.**
