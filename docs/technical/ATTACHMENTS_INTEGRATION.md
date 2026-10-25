@@ -154,6 +154,14 @@ Upload d'une piece jointe (multipart/form-data).
 - Field `file` : le fichier binaire
 - Auth : session cookie (BFF)
 
+**Traitement** : une image HEIC/HEIF est convertie en JPEG (Pillow), le texte d'un PDF
+est extrait (PyMuPDF, plafonné par `ATTACHMENTS_MAX_PDF_TEXT_CHARS`) et le fichier est
+écrit sur disque — tous trois hors de la boucle d'événements (`asyncio.to_thread`).
+Sur la boucle, ils gelaient le worker entier : jusqu'à 1,2 s d'arrêt pour une photo
+HEIC de 12 Mpx, contre moins de 20 ms en thread (mesuré sur un poste de travail,
+2026-10-25). PyMuPDF garde le GIL pendant chacun de ses appels : l'arrêt reste borné
+par son plus long appel (15 à 20 ms ici) au lieu de croître avec les pages lues.
+
 **Response** (201 Created) :
 ```json
 {

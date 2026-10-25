@@ -141,9 +141,9 @@ class AttachmentService:
         1. Read the whole body into memory (``UploadFile.read()``)
         2. Detect MIME type from the magic bytes (filetype library)
         3. Validate the decoded size against the per-type limit
-        4. HEIC→JPEG conversion if needed (Pillow)
+        4. HEIC→JPEG conversion if needed (Pillow), offloaded via ``asyncio.to_thread``
         5. Write the buffer to disk, offloaded via ``asyncio.to_thread``
-        6. Extract text from PDF (PyMuPDF)
+        6. Extract text from PDF (PyMuPDF), offloaded via ``asyncio.to_thread``
         7. Create DB record with status='ready'
 
         Memory note (SEC-031): the body is materialised in full at step 1, so
@@ -186,9 +186,13 @@ class AttachmentService:
                 ).inc()
                 raise_attachment_too_large(len(file_bytes), max_size_bytes)
 
-            # Step 3: HEIC→JPEG conversion
+            # Step 3: HEIC→JPEG conversion — Pillow decodes and re-encodes the whole
+            # picture: on the loop, a 12-megapixel photo stalled it about a second
+            # (measured). Off the event loop, like the write below.
             if detected_mime in ("image/heic", "image/heif"):
-                file_bytes, detected_mime = self._convert_heic_to_jpeg(file_bytes)
+                file_bytes, detected_mime = await asyncio.to_thread(
+                    self._convert_heic_to_jpeg, file_bytes
+                )
 
             # Step 4: Write to disk
             stored_filename = f"{uuid.uuid4()}.{self._mime_to_extension(detected_mime)}"
@@ -200,13 +204,15 @@ class AttachmentService:
             # stays free for concurrent requests (CA-4).
             await asyncio.to_thread(absolute_path.write_bytes, file_bytes)
 
-            # Step 5: Extract PDF text
+            # Step 5: Extract PDF text — PyMuPDF parses the document page by page,
+            # CPU-bound: off the event loop, like every other PDF reader.
             extracted_text: str | None = None
             if (
                 content_type_category == AttachmentContentType.DOCUMENT
                 and detected_mime == "application/pdf"
             ):
-                extracted_text = self._extract_pdf_text(
+                extracted_text = await asyncio.to_thread(
+                    self._extract_pdf_text,
                     file_bytes,
                     max_chars=self._settings.attachments_max_pdf_text_chars,
                 )

@@ -1,8 +1,13 @@
-"""Tests for AttachmentService — CA-4 off-event-loop disk write.
+"""Tests for AttachmentService — CA-4: an upload's heavy steps run off the event loop.
 
-The upload path writes the (potentially multi-MB) file bytes to disk. A raw
-synchronous ``write_bytes`` on the async request path blocks the whole event
-loop; the write must be offloaded via ``asyncio.to_thread``.
+The upload path writes the (potentially multi-MB) file bytes to disk, converts a
+HEIC picture to JPEG and extracts a PDF's text. Run synchronously on the async
+request path, each one blocks the whole event loop — every request and stream of
+the worker. Measured 2026-10-25 on a workstation, the longest stall of the loop was
+0.9-1.2 s for a 12-megapixel HEIC and about 230 ms for a 300-page PDF read to its
+last page; offloaded, under 20 ms for both (PyMuPDF holds the GIL during each call,
+so its longest one still bounds the stall). All three go through
+``asyncio.to_thread``.
 """
 
 import threading
@@ -60,6 +65,66 @@ class TestAttachmentUploadOffEventLoop:
         # Behavior preserved: the file is physically written to disk.
         written = list(tmp_path.rglob("*.png"))
         assert written and written[0].read_bytes() == png_bytes
+
+    @pytest.mark.asyncio
+    async def test_a_heic_upload_is_converted_off_event_loop(self, tmp_path) -> None:
+        service = _upload_service(tmp_path, "image/heic", AttachmentContentType.IMAGE)
+        threads: list[int] = []
+        real_convert = AttachmentService._convert_heic_to_jpeg
+
+        def spy_convert(file_bytes: bytes) -> tuple[bytes, str]:
+            threads.append(threading.get_ident())
+            return real_convert(file_bytes)
+
+        with patch.object(AttachmentService, "_convert_heic_to_jpeg", staticmethod(spy_convert)):
+            await service.upload(uuid.uuid4(), _upload_file(_heic_bytes(), "photo.heic"))
+
+        assert threads and threads[0] != threading.get_ident()
+        # Behavior preserved: the JPEG is what is stored and recorded.
+        assert service.repo.create.await_args.args[0]["mime_type"] == "image/jpeg"
+        assert list(tmp_path.rglob("*.jpg"))
+
+    @pytest.mark.asyncio
+    async def test_a_pdf_upload_extracts_its_text_off_event_loop(self, tmp_path) -> None:
+        service = _upload_service(tmp_path, "application/pdf", AttachmentContentType.DOCUMENT)
+        threads: list[int] = []
+        real_extract = AttachmentService._extract_pdf_text
+
+        def spy_extract(file_bytes: bytes, max_chars: int) -> str | None:
+            threads.append(threading.get_ident())
+            return real_extract(file_bytes, max_chars)
+
+        with patch.object(AttachmentService, "_extract_pdf_text", staticmethod(spy_extract)):
+            await service.upload(uuid.uuid4(), _upload_file(_pdf_bytes("a page"), "notes.pdf"))
+
+        assert threads and threads[0] != threading.get_ident()
+        # Behavior preserved: the text reaches the record, within its budget.
+        assert "a page" in service.repo.create.await_args.args[0]["extracted_text"]
+
+
+def _upload_service(
+    tmp_path: Path, mime: str, category: AttachmentContentType
+) -> AttachmentService:
+    """A service whose upload takes the ``mime`` branch and stores under ``tmp_path``."""
+    service = AttachmentService(AsyncMock())
+    service.repo = AsyncMock()
+    service.repo.create = AsyncMock(return_value=MagicMock(id=uuid.uuid4()))
+    service._settings = MagicMock(
+        attachments_storage_path=str(tmp_path),
+        attachments_ttl_hours=24,
+        attachments_max_pdf_text_chars=10_000,
+    )
+    service._detect_mime_type = MagicMock(return_value=mime)
+    service._classify_content = MagicMock(return_value=category)
+    service._get_max_size_bytes = MagicMock(return_value=10_000_000)
+    return service
+
+
+def _upload_file(body: bytes, filename: str) -> MagicMock:
+    file = MagicMock()
+    file.filename = filename
+    file.read = AsyncMock(return_value=body)
+    return file
 
 
 def _heic_bytes() -> bytes:

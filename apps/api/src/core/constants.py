@@ -1251,6 +1251,10 @@ DATABASE_POOL_RECYCLE_DEFAULT = 1800  # Recycle connections every 30min (avoid s
 # idle across a network call is ended by the server. 0 disables either one.
 DATABASE_LOCK_TIMEOUT_MS_DEFAULT = 30_000
 DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS_DEFAULT = 300_000
+# Re-deliveries of a cancellation a session's close survives before it is left to
+# finish on its own (`write_through_cancellation`): the close hands the connection
+# back to the pool, and a bounded grace never holds a stopping worker open.
+DATABASE_SESSION_CLOSE_CANCELLATION_GRACE_ATTEMPTS: Final = 3
 
 # LangGraph PostgreSQL connection pools (ADR-111 — checkpointer & store scalability)
 # Replaces the former single persistent AsyncConnection per worker (audit S2/A7):

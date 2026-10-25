@@ -13,6 +13,8 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy.pool import QueuePool
 
 from src.core.config import settings
+from src.core.constants import DATABASE_SESSION_CLOSE_CANCELLATION_GRACE_ATTEMPTS
+from src.infrastructure.async_utils import write_through_cancellation
 from src.infrastructure.database.errors import database_error_fields
 from src.infrastructure.database.server_bounds import (
     engine_server_settings,
@@ -67,6 +69,34 @@ def _log_session_exception(exc: BaseException, *, endpoint: str) -> None:
     )
 
 
+async def _close_through_cancellation(session: AsyncSession) -> None:
+    """Close ``session`` to its end, then let a cancellation reach its task.
+
+    The close hands the connection back to the pool: cut short, it left the
+    connection checked out (client disconnects during SSE streaming, v1.3.0).
+    It therefore runs as ONE task a cancellation does not reach, and it is the
+    session's only close — which is why neither helper enters the session with
+    ``async with``: ``AsyncSession.__aexit__`` would start a second close beside
+    a first one still running.
+
+    The cancellation used to be suppressed here, and a task cancelled while its
+    session closed carried on as if nothing had been asked of it — measured on
+    dev 2026-10-25: a worker reload held for more than 36 minutes by the
+    lifetime-metrics loop, asleep again after the ``cancel()`` the shutdown was
+    awaiting. It is re-raised once the close is done, or once the close is left
+    to finish on its own after a bounded grace.
+
+    Raises:
+        asyncio.CancelledError: A cancellation delivered while closing.
+    """
+    if await write_through_cancellation(
+        session.close,
+        attempts=DATABASE_SESSION_CLOSE_CANCELLATION_GRACE_ATTEMPTS,
+        label="db_session_close",
+    ):
+        raise asyncio.CancelledError
+
+
 # Create async engine with production-grade connection pooling
 # Reference: https://docs.sqlalchemy.org/en/20/core/pooling.html
 engine = create_async_engine(
@@ -113,36 +143,32 @@ async def get_db_session() -> AsyncGenerator[AsyncSession]:
     import time as _time
 
     _tx_start = _time.perf_counter()
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception as exc:
-            await session.rollback()
-            with suppress(Exception):
-                from src.infrastructure.observability.metrics_database import (
-                    db_transaction_rollback_total,
-                )
+    session = AsyncSessionLocal()
+    try:
+        yield session
+        await session.commit()
+    except Exception as exc:
+        await session.rollback()
+        with suppress(Exception):
+            from src.infrastructure.observability.metrics_database import (
+                db_transaction_rollback_total,
+            )
 
-                db_transaction_rollback_total.labels(
-                    endpoint="fastapi", reason=type(exc).__name__
-                ).inc()
-            _log_session_exception(exc, endpoint="fastapi")
-            raise
-        finally:
-            with suppress(Exception):
-                from src.infrastructure.observability.metrics_database import (
-                    db_transaction_duration_seconds,
-                )
+            db_transaction_rollback_total.labels(
+                endpoint="fastapi", reason=type(exc).__name__
+            ).inc()
+        _log_session_exception(exc, endpoint="fastapi")
+        raise
+    finally:
+        with suppress(Exception):
+            from src.infrastructure.observability.metrics_database import (
+                db_transaction_duration_seconds,
+            )
 
-                db_transaction_duration_seconds.labels(
-                    endpoint="fastapi", transaction_type="request"
-                ).observe(_time.perf_counter() - _tx_start)
-            # Shield session.close() from CancelledError to prevent connection
-            # pool leaks. Without this, client disconnections during SSE streaming
-            # cancel the close() call, leaving connections checked out from the pool.
-            with suppress(asyncio.CancelledError):
-                await asyncio.shield(session.close())
+            db_transaction_duration_seconds.labels(
+                endpoint="fastapi", transaction_type="request"
+            ).observe(_time.perf_counter() - _tx_start)
+        await _close_through_cancellation(session)
 
 
 @asynccontextmanager
@@ -172,34 +198,32 @@ async def get_db_context() -> AsyncGenerator[AsyncSession]:
     import time as _time
 
     _tx_start = _time.perf_counter()
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception as exc:
-            await session.rollback()
-            with suppress(Exception):
-                from src.infrastructure.observability.metrics_database import (
-                    db_transaction_rollback_total,
-                )
+    session = AsyncSessionLocal()
+    try:
+        yield session
+        await session.commit()
+    except Exception as exc:
+        await session.rollback()
+        with suppress(Exception):
+            from src.infrastructure.observability.metrics_database import (
+                db_transaction_rollback_total,
+            )
 
-                db_transaction_rollback_total.labels(
-                    endpoint="background", reason=type(exc).__name__
-                ).inc()
-            _log_session_exception(exc, endpoint="background")
-            raise
-        finally:
-            with suppress(Exception):
-                from src.infrastructure.observability.metrics_database import (
-                    db_transaction_duration_seconds,
-                )
+            db_transaction_rollback_total.labels(
+                endpoint="background", reason=type(exc).__name__
+            ).inc()
+        _log_session_exception(exc, endpoint="background")
+        raise
+    finally:
+        with suppress(Exception):
+            from src.infrastructure.observability.metrics_database import (
+                db_transaction_duration_seconds,
+            )
 
-                db_transaction_duration_seconds.labels(
-                    endpoint="background", transaction_type="task"
-                ).observe(_time.perf_counter() - _tx_start)
-            # Shield session.close() from CancelledError (see get_db_session)
-            with suppress(asyncio.CancelledError):
-                await asyncio.shield(session.close())
+            db_transaction_duration_seconds.labels(
+                endpoint="background", transaction_type="task"
+            ).observe(_time.perf_counter() - _tx_start)
+        await _close_through_cancellation(session)
 
 
 async def init_db() -> None:

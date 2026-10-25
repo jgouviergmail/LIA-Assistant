@@ -493,6 +493,15 @@ except Exception as exc:
 #     pass           # se place AU-DESSUS du bloc suppress()
 ```
 
+`suppress(asyncio.CancelledError)` n'est légitime qu'autour de l'attente d'une tâche
+qu'on vient soi-même d'annuler (exemple ci-dessus). Autour de `await asyncio.shield(...)`,
+l'annulation attrapée est celle de la tâche COURANTE : elle est avalée et la tâche
+annulée continue — mesuré le 2026-10-25, la fermeture des sessions de
+`infrastructure/database/session.py` l'avalait, et un rechargement de worker a attendu
+plus de 36 min une boucle de métriques rendormie après son `cancel()`. Un travail qui
+doit aller au bout malgré une annulation passe par `write_through_cancellation`
+(`infrastructure/async_utils.py`), puis l'annulation est re-levée.
+
 Si le silence masque un vrai signal, ce n'est ni `pass` ni `suppress` : c'est un
 `logger.debug(...)` avec contexte. Exemples canoniques :
 `infrastructure/database/session.py` (métriques), `agents/api/sse_keepalive.py`

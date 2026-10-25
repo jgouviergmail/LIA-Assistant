@@ -50,9 +50,8 @@ class TestGetDbSession:
         mock_session.commit = AsyncMock()
         mock_session.close = AsyncMock()
 
-        # Mock context manager
-        mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session_local.return_value.__aexit__ = AsyncMock()
+        # The factory's session is the helper's own: it closes it itself.
+        mock_session_local.return_value = mock_session
 
         # Lines 54-57 executed: yield session + commit
         async for session in get_db_session():
@@ -79,10 +78,8 @@ class TestGetDbSession:
         mock_session.rollback = AsyncMock()
         mock_session.close = AsyncMock()
 
-        # Mirror the success test's async-context-manager mocking; __aexit__
-        # returns False so the re-raised exception propagates out of the CM.
-        mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session_local.return_value.__aexit__ = AsyncMock(return_value=False)
+        # The factory's session is the helper's own: it closes it itself.
+        mock_session_local.return_value = mock_session
 
         gen = get_db_session()
         session = await gen.__anext__()  # advance to the yield
@@ -94,7 +91,7 @@ class TestGetDbSession:
 
         mock_session.rollback.assert_awaited_once()
         mock_session.commit.assert_not_awaited()
-        mock_session.close.assert_awaited_once()  # finally: asyncio.shield(session.close())
+        mock_session.close.assert_awaited_once()  # finally: the helper's one close
 
         # The rollback above is the invariant, and it holds for EVERY exception.
         # The report is classified though: a ValueError never touched the
@@ -114,9 +111,8 @@ class TestGetDbSession:
         mock_session.commit = AsyncMock()
         mock_session.close = AsyncMock()
 
-        # Mock context manager
-        mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session_local.return_value.__aexit__ = AsyncMock()
+        # The factory's session is the helper's own: it closes it itself.
+        mock_session_local.return_value = mock_session
 
         # Lines 62-63 executed: finally block always runs
         async for _session in get_db_session():
@@ -138,9 +134,8 @@ class TestGetDbContext:
         mock_session.commit = AsyncMock()
         mock_session.close = AsyncMock()
 
-        # Mock context manager
-        mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session_local.return_value.__aexit__ = AsyncMock()
+        # The factory's session is the helper's own: it closes it itself.
+        mock_session_local.return_value = mock_session
 
         # Lines 90-93 executed: yield session + commit
         async with get_db_context() as session:
@@ -163,9 +158,8 @@ class TestGetDbContext:
         mock_session.rollback = AsyncMock()
         mock_session.close = AsyncMock()
 
-        # Mock context manager
-        mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session_local.return_value.__aexit__ = AsyncMock()
+        # The factory's session is the helper's own: it closes it itself.
+        mock_session_local.return_value = mock_session
 
         # Lines 94-102 executed: rollback + enhanced logging
         try:
@@ -198,9 +192,8 @@ class TestGetDbContext:
         mock_session.commit = AsyncMock()
         mock_session.close = AsyncMock()
 
-        # Mock context manager
-        mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session_local.return_value.__aexit__ = AsyncMock()
+        # The factory's session is the helper's own: it closes it itself.
+        mock_session_local.return_value = mock_session
 
         # Lines 103-104 executed: finally block
         async with get_db_context():

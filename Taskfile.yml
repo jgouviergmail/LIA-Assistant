@@ -1223,6 +1223,8 @@ tasks:
         tests/integration/test_oauth_shared_grants.py
         tests/integration/infrastructure/test_server_bounds_pg.py
         tests/unit/infrastructure/database/test_server_bounds.py
+        tests/unit/infrastructure/database/test_session_cancellation.py
+        tests/integration/infrastructure/test_session_close_cancellation_pg.py
         tests/unit/domains/connectors/test_hue_client_closed.py
         tests/unit/infrastructure/test_async_utils_shutdown_join.py
         tests/unit/test_dockerignore_next_dists_guard.py

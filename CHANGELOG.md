@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   180 s): a deploy applying one migration took 2 min 22 s from container start to the
   last worker ready, and `up --wait` reported a deploy that had succeeded as failed
   (`test_api_boot_budget_guard.py`).
+- 🛑 A task cancelled while its database session closes now stops. Both session helpers
+  (`get_db_context`, `get_db_session`) suppressed a cancellation landing during their
+  shielded close, and the task carried on — measured on dev, a worker reload waited more
+  than 36 minutes for the lifetime-metrics loop, asleep again after its `cancel()`. The
+  close now runs to its end as one task the helper owns (`write_through_cancellation`),
+  then the cancellation propagates; and a session is closed once, where
+  `AsyncSession.__aexit__` used to start a second close beside the first
+  (`test_session_cancellation.py`, `test_session_close_cancellation_pg.py`).
+- ⚡ An uploaded HEIC picture is converted and a PDF's text extracted off the event loop
+  (`asyncio.to_thread`), like every other PDF reader. Measured on a workstation, the
+  longest stall of the worker's loop fell from 0.9-1.2 s to under 20 ms for a
+  12-megapixel HEIC, and from about 230 ms to about 20 ms for a 300-page PDF read to its
+  last page; PyMuPDF holds the GIL during each call, so its longest one still bounds the
+  stall.
 
 ## [3.7.0] - 2026-10-25
 
