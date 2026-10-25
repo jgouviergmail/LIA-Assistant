@@ -5,7 +5,10 @@ This module provides processors for structlog to automatically detect and redact
 sensitive personal information from logs, ensuring GDPR compliance and data privacy.
 
 Features:
-- Email address detection and pseudonymization (SHA-256 hash)
+- Email address detection and pseudonymization (SHA-256 hash): in any script,
+  masked (``fir***@``, ``f…@m….test``) or whole, at any depth of any container
+  (list, tuple, set, dict), and under any field named for one (``email``,
+  ``recipient_email``, ``sample_emails``) whatever the value's shape
 - Phone number detection and masking
 - Credit card number detection and masking
 - SSN redacted by field name (no pattern: nine digits are also an order number)
@@ -170,6 +173,14 @@ PII_FIELD_NAMES = {
     "email_address",
     "user_email",
 }
+
+# An address named for what it is, whatever surrounds the name:
+# ``recipient_email``, ``sample_emails``, ``owner_email_address``. The four exact
+# names above were the only ones recognised, so a masked address under
+# ``sample_emails`` reached INFO (2026-10-25). A count, a flag or an absence under
+# such a name stays (``total_emails``, ``has_email``).
+_ADDRESS_FIELD_NAMES = frozenset({"emails", "email_addresses"})
+_ADDRESS_FIELD_SUFFIXES = ("_email", "_emails", "_e_mail", "_email_address", "_email_addresses")
 
 # Phone field names that should be masked
 PHONE_FIELD_NAMES = {
@@ -385,13 +396,21 @@ STRUCTLOG_META_FIELDS = {
 
 # Regex patterns for PII detection (using industry-standard patterns)
 
-# Email pattern (RFC 5322 simplified)
+# The marks a writer shortens an address with (``fir***@``, ``f…@m….test``): a
+# masked address still names a domain and the start of a name.
+_ADDRESS_MARKS = "*•…"
+
+# Email pattern (RFC 5322 simplified). Letters and digits of every script — an
+# address is no less a person's for its accents: ``zoë@mail.test`` and
+# ``contact@café.fr`` went through whole, ``andré.martin@…`` kept its first name
+# — and the masking marks above (2026-10-25). The local part is bounded (RFC
+# 5321: 64) and starts where a run of its characters starts: unbounded, a try at
+# every word boundary re-read the rest of the run — 40 000 characters of
+# ``a.b+c-`` took 4.5 s, and every log line goes through here (ADR-326).
 EMAIL_PATTERN = re.compile(
-    # The local part is bounded (RFC 5321: 64). Unbounded, a try at every word
-    # boundary re-read the rest of the run: 40 000 characters of ``a.b+c-``
-    # took 4.5 s, and every log line goes through here (ADR-326).
-    r"\b[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
-    re.IGNORECASE,
+    rf"(?<![\w.%+{_ADDRESS_MARKS}-])[\w.%+{_ADDRESS_MARKS}-]{{1,64}}"
+    rf"@[\w{_ADDRESS_MARKS}-]{{1,63}}(?:\.[\w{_ADDRESS_MARKS}-]{{1,63}}){{0,8}}"
+    rf"\.[^\W\d_]{{2,63}}(?![\w{_ADDRESS_MARKS}-])"
 )
 
 # Phone pattern: Conservative approach - only match clear phone number formats
@@ -662,7 +681,7 @@ def sanitize_string(text: str, *, redact_content: bool = False) -> str:
         text = redact_quoted_content(text)
 
     # Replace emails with pseudonymized hashes
-    text = EMAIL_PATTERN.sub(lambda m: pseudonymize_email(m.group(0)), text)
+    text = _pseudonymize_addresses_in_text(text)
 
     # Mask phone numbers
     text = PHONE_PATTERN.sub(lambda m: mask_phone(m.group(0)), text)
@@ -677,6 +696,17 @@ def sanitize_string(text: str, *, redact_content: bool = False) -> str:
     text = _QUOTED_API_KEY_PATTERN.sub(r"\1[REDACTED]", text)
 
     return text
+
+
+def _pseudonymize_addresses_in_text(text: str) -> str:
+    """Pseudonymize every address in free text.
+
+    No ``@``, no address: the substring test is an exact pre-filter, and the
+    overwhelming majority of logged strings (event names, codes) carry none.
+    """
+    if "@" not in text:
+        return text
+    return EMAIL_PATTERN.sub(lambda m: pseudonymize_email(m.group(0)), text)
 
 
 def _luhn_valid(digits: str) -> bool:
@@ -715,7 +745,7 @@ def _sanitize_event_text(text: str, *, redact_content: bool) -> str:
     text = sanitize_url_query(text, redact_content=redact_content)
     if redact_content:
         text = redact_quoted_content(text)
-    return EMAIL_PATTERN.sub(lambda m: pseudonymize_email(m.group(0)), text)
+    return _pseudonymize_addresses_in_text(text)
 
 
 def _is_count_or_flag(value: Any) -> bool:
@@ -729,6 +759,64 @@ def _is_count_or_flag(value: Any) -> bool:
         False for a float, which may be a coordinate, and for anything else.
     """
     return value is None or isinstance(value, int)
+
+
+def _is_address_field(key_lower: str) -> bool:
+    """Whether a field is named for an e-mail address (``email``, ``*_emails``…)."""
+    return (
+        key_lower in PII_FIELD_NAMES
+        or key_lower in _ADDRESS_FIELD_NAMES
+        or key_lower.endswith(_ADDRESS_FIELD_SUFFIXES)
+    )
+
+
+def _pseudonymize_addresses(value: Any, *, redact_content: bool) -> Any:
+    """Pseudonymize every text under an address name, whatever its shape.
+
+    A masked or local-only value is still the person's, so a string is hashed
+    whole without being matched first.
+
+    Args:
+        value: The field's value.
+        redact_content: Whether the record is above DEBUG (for a nested dict).
+
+    Returns:
+        Each string hashed, at any depth of any container (as a list); a
+        dict sanitized; a count, a flag or an absence as it was.
+    """
+    if isinstance(value, str):
+        return pseudonymize_email(value)
+    if isinstance(value, list | tuple | set | frozenset):
+        return [_pseudonymize_addresses(item, redact_content=redact_content) for item in value]
+    if isinstance(value, dict):
+        return sanitize_dict(value, redact_content=redact_content)
+    return value
+
+
+def _sanitize_items(items: Any, *, redact_content: bool) -> list[Any]:
+    """Sanitize every item of a container, at any depth, into a list.
+
+    Only a list's strings and dicts used to be read: a tuple, a set, or a list
+    of them went to the log as it was, full addresses included (2026-10-25).
+
+    Args:
+        items: A list, a tuple, a set or a frozenset.
+        redact_content: Whether the record is above DEBUG.
+
+    Returns:
+        The sanitized items, in iteration order.
+    """
+    sanitized: list[Any] = []
+    for item in items:
+        if isinstance(item, dict):
+            sanitized.append(sanitize_dict(item, redact_content=redact_content))
+        elif isinstance(item, str):
+            sanitized.append(sanitize_string(item, redact_content=redact_content))
+        elif isinstance(item, list | tuple | set | frozenset):
+            sanitized.append(_sanitize_items(item, redact_content=redact_content))
+        else:
+            sanitized.append(item)
+    return sanitized
 
 
 def _is_content_field(key_lower: str, value: Any) -> bool:
@@ -760,9 +848,11 @@ def sanitize_dict(data: dict[str, Any], *, redact_content: bool = False) -> dict
 
     This function uses a conservative **field-based approach** to avoid false positives:
     1. Redacts values for known sensitive field names (passwords, tokens, secrets)
-    2. Pseudonymizes PII field names (emails → hash)
+    2. Pseudonymizes fields named for an address (``email``, ``*_email``,
+       ``*_emails``) whatever the value's shape (emails → hash)
     3. Masks phone field names (phones → last 4 digits)
-    4. Recursively processes nested dictionaries and lists
+    4. Recursively processes nested dictionaries and every container
+       (lists, tuples, sets), at any depth
     5. Sanitizes string values for pattern-based PII detection (emails, tokens)
 
     This hybrid approach (field names + patterns) provides the best balance
@@ -829,9 +919,10 @@ def sanitize_dict(data: dict[str, Any], *, redact_content: bool = False) -> dict
             sanitized[key] = redact_value(value)
             continue
 
-        # Check if field is a known PII field (email)
-        if key_lower in PII_FIELD_NAMES and isinstance(value, str):
-            sanitized[key] = pseudonymize_email(value)
+        # A field named for an address (``email``, ``recipient_email``,
+        # ``sample_emails``): its text is pseudonymized whatever its shape
+        if _is_address_field(key_lower):
+            sanitized[key] = _pseudonymize_addresses(value, redact_content=redact_content)
             continue
 
         # Check if field is a known phone field
@@ -839,29 +930,17 @@ def sanitize_dict(data: dict[str, Any], *, redact_content: bool = False) -> dict
             sanitized[key] = mask_phone(value)
             continue
 
-        # Recursively sanitize nested structures
+        # Recursively sanitize nested structures, every container at every depth
         if isinstance(value, dict):
             sanitized[key] = sanitize_dict(value, redact_content=redact_content)
-        elif isinstance(value, list):
-            sanitized_list: list[Any] = [
-                (
-                    sanitize_dict(item, redact_content=redact_content)
-                    if isinstance(item, dict)
-                    else (
-                        sanitize_string(item, redact_content=redact_content)
-                        if isinstance(item, str)
-                        else item
-                    )
-                )
-                for item in value
-            ]
-            sanitized[key] = sanitized_list
+        elif isinstance(value, list | tuple | set | frozenset):
+            sanitized[key] = _sanitize_items(value, redact_content=redact_content)
         elif isinstance(value, str):
             # Sanitize string values for PII patterns (emails, tokens in free
             # text) and, above DEBUG, what an error text quotes of a row.
             sanitized[key] = sanitize_string(value, redact_content=redact_content)
         else:
-            # Keep non-string, non-dict, non-list values as-is
+            # Keep a number, a flag, an absence or an object as it is
             sanitized[key] = value
 
     return sanitized

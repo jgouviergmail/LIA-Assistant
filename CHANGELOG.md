@@ -21,6 +21,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   then the cancellation propagates; and a session is closed once, where
   `AsyncSession.__aexit__` used to start a second close beside the first
   (`test_session_cancellation.py`, `test_session_close_cancellation_pg.py`).
+- 🛑 A chat turn cancelled while its tracked spend is written now ends cancelled. The
+  stream's `finally` shielded the spend commit and caught the cancellation, logging it
+  as « completed » — `shield` does not wait — so the turn ran on past its stream. The
+  commit runs to its end (`orchestration/tracking_commit.py`), then the cancellation
+  propagates; `test_no_swallowed_shield_cancellation_guard.py` refuses the shape anywhere
+  under `src/` and flags the three sites fixed here on their former sources.
+- 🔁 What ends a route reaches its database session. `get_db` delegated to
+  `get_db_session` with `async for`, which forwards nothing: for every route depending on
+  it, a failure never reached the rollback branch (its rollback, its
+  `db_transaction_rollback_total{endpoint="fastapi"}` count, its classified log), and the
+  session closed only when the garbage collector finalized the abandoned generator.
+  `get_db` now enters it as a context manager — the « Tx Rollbacks » panel (dashboard 03)
+  counts route failures from now on — and the unverified-account sweep, which iterated it
+  too, opens `get_db_context()`; `test_no_iterated_session_dependency_guard.py` refuses
+  the shape.
+- 🔒 The unverified-account sweep no longer logs the addresses it deletes. It read them
+  only to log them at INFO, cut to three characters and the whole domain under a comment
+  calling them « hashed », and the runtime PII filter let them through: a masked address
+  no longer matches its pattern, and `sample_emails` is no name it knows. The sweep logs
+  the count, like the demo account purge, and reads no address (ADR-317).
+- 🔒 The log PII filter withholds an address in every shape it takes. Measured on the
+  filter, four went through to INFO: a full address inside a tuple, a set or a list of
+  lists (only a list's strings and dicts were read); a masked one (`fir***@mail.test`,
+  `f…@m….test`); one outside ASCII (`zoë@mail.test` whole, `andré.martin@…` keeping its
+  first name); and any value under a name beyond four exact ones (`recipient_email`,
+  `sample_emails`). Containers are read at every depth, the pattern takes every script
+  and the masking marks (still linear, measured), and a field named for an address hashes
+  its text whatever its shape — a count, a flag or an id under such a name stays.
 - ⚡ An uploaded HEIC picture is converted and a PDF's text extracted off the event loop
   (`asyncio.to_thread`), like every other PDF reader. Measured on a workstation, the
   longest stall of the worker's loop fell from 0.9-1.2 s to under 20 ms for a

@@ -23,7 +23,7 @@ from src.core.constants import (
 )
 from src.domains.users.resource_release import build_capability_origin_scrub
 from src.infrastructure.cache.redis import get_redis_cache
-from src.infrastructure.database.session import get_db_session
+from src.infrastructure.database.session import get_db_context
 from src.infrastructure.locks import SchedulerLock
 from src.infrastructure.observability.metrics import (
     background_job_duration_seconds,
@@ -66,7 +66,6 @@ async def cleanup_unverified_accounts() -> dict[str, Any]:
     stats: dict[str, Any] = {
         "total_checked": 0,
         "deleted": 0,
-        "deleted_emails": [],
         "cutoff_datetime": None,
     }
 
@@ -87,7 +86,7 @@ async def cleanup_unverified_accounts() -> dict[str, Any]:
             cleanup_days=UNVERIFIED_ACCOUNT_CLEANUP_DAYS,
         )
 
-        async for session in get_db_session():
+        async with get_db_context() as session:
             # First, count and log the accounts to be deleted
             eligible = (
                 User.is_verified.is_(False)
@@ -106,12 +105,10 @@ async def cleanup_unverified_accounts() -> dict[str, Any]:
                     cutoff_datetime=cutoff.isoformat(),
                 )
             else:
-                # Get emails for logging (before deletion)
-                select_query = select(User.email).where(eligible)
-                result = await session.execute(select_query)
-                emails = [row[0] for row in result.fetchall()]
-
-                # Delete the accounts
+                # Delete the accounts. Their addresses are neither read nor
+                # logged: a line above DEBUG carries the count (ADR-317), like
+                # the demo account purge — they used to be logged at INFO, cut
+                # to three characters and the whole domain.
                 delete_query = delete(User).where(eligible)
                 await session.execute(
                     build_capability_origin_scrub(select(User.id).where(eligible))
@@ -120,20 +117,12 @@ async def cleanup_unverified_accounts() -> dict[str, Any]:
                 await session.commit()
 
                 stats["deleted"] = delete_result.rowcount  # type: ignore[attr-defined]
-                # Log hashed emails for privacy
-                stats["deleted_emails"] = [
-                    f"{e[:3]}***@{e.split('@')[1] if '@' in e else '***'}"
-                    for e in emails[:10]  # Max 10 for log readability
-                ]
 
                 logger.info(
                     "unverified_accounts_deleted",
                     count=stats["deleted"],
                     cutoff_datetime=cutoff.isoformat(),
-                    sample_emails=stats["deleted_emails"],
                 )
-
-            break  # Exit after first session
 
         # Track duration
         duration = time.perf_counter() - start_time

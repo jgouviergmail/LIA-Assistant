@@ -265,6 +265,11 @@ PII_FIELD_NAMES = {
     "user_email",
 }
 
+# And any name built on one: ``emails``, ``*_email``, ``*_emails``,
+# ``*_email_address(es)`` — ``recipient_email``, ``sample_emails``.
+_ADDRESS_FIELD_NAMES = frozenset({"emails", "email_addresses"})
+_ADDRESS_FIELD_SUFFIXES = ("_email", "_emails", "_e_mail", "_email_address", "_email_addresses")
+
 # Phone field names that should be masked
 PHONE_FIELD_NAMES = {
     "phone",
@@ -478,7 +483,7 @@ there — a copy in this page had gone stale (it still showed the generic
 
 | Family | Detection | Replacement |
 |--------|-----------|-------------|
-| E-mail | RFC 5322 simplified, local part ≤ 64 (linear) | `email_hash_<sha256 prefix>` |
+| E-mail | RFC 5322 simplified, local part ≤ 64 (linear): letters and digits of every script (`zoë@…`, `contact@café.fr`), masked shapes (`fir***@…`, `f…@m….test`), at any depth of any container (list, tuple, set); a field named for an address (`email`, `*_email`, `*_emails`) hashes its text whatever its shape, a count or a flag kept (2026-10-25) | `email_hash_<sha256 prefix>` |
 | Phone | international format, `+` and country code required | `***-***-<last 4>` |
 | Card, 16 digits | any 4-4-4-4 grouping, no Luhn check (masking a non-card costs nothing) | `****-****-****-<last 4>` |
 | Card, Amex | 15 digits grouped 4-6-5, starting 34/37, **Luhn check required** (15 digits are also order numbers) | `****-****-****-<last 4>` |
@@ -625,9 +630,11 @@ def sanitize_dict(data: dict[str, Any]) -> dict[str, Any]:
 
     This function uses a conservative **field-based approach** to avoid false positives:
     1. Redacts values for known sensitive field names (passwords, tokens, secrets)
-    2. Pseudonymizes PII field names (emails → hash)
+    2. Pseudonymizes fields named for an address (``email``, ``*_email``,
+       ``*_emails``) whatever the value's shape (emails → hash)
     3. Masks phone field names (phones → last 4 digits)
-    4. Recursively processes nested dictionaries and lists
+    4. Recursively processes nested dictionaries and every container
+       (lists, tuples, sets), at any depth
     5. Sanitizes string values for pattern-based PII detection (emails, tokens)
 
     This hybrid approach (field names + patterns) provides the best balance

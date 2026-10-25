@@ -45,6 +45,7 @@ from src.domains.agents.models import (
     needs_migration,
 )
 from src.domains.agents.services.orchestration import turn_input
+from src.domains.agents.services.orchestration.tracking_commit import commit_tracked_spend
 from src.infrastructure.llm.instrumentation import enrich_config_with_callbacks
 from src.infrastructure.observability.callbacks import TokenTrackingCallback
 from src.infrastructure.observability.metrics_agents import agent_messages_history_count
@@ -999,34 +1000,9 @@ class OrchestrationService:
             raise
 
         finally:
-            # GUARANTEE: Persist tracked tokens even on exception.
-            # Shield from cancellation to prevent DB connection leaks:
-            # without shield, CancelledError interrupts the DB session context
-            # manager, leaving connections checked out from the pool.
-            try:
-                await asyncio.shield(tracker.commit())
-            except asyncio.CancelledError:
-                # shield() re-raises CancelledError to the caller after the
-                # shielded coroutine completes — safe to suppress here since
-                # the original CancelledError is already being propagated.
-                logger.info(
-                    "tracker_commit_completed_after_cancellation",
-                    run_id=run_id,
-                )
-            except (
-                RuntimeError,
-                ValueError,
-                ConnectionError,
-                AttributeError,
-                OSError,
-            ) as commit_error:
-                logger.error(
-                    "tracker_commit_failed_in_finally",
-                    run_id=run_id,
-                    error=str(commit_error),
-                    error_type=type(commit_error).__name__,
-                    exc_info=True,
-                )
+            # GUARANTEE: persist the tracked spend whatever ends the stream, then
+            # let a cancellation received meanwhile through (tracking_commit).
+            await commit_tracked_spend(tracker, run_id)
 
     async def _build_hitl_resume_command(
         self,

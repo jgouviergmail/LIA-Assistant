@@ -500,7 +500,8 @@ annulée continue — mesuré le 2026-10-25, la fermeture des sessions de
 `infrastructure/database/session.py` l'avalait, et un rechargement de worker a attendu
 plus de 36 min une boucle de métriques rendormie après son `cancel()`. Un travail qui
 doit aller au bout malgré une annulation passe par `write_through_cancellation`
-(`infrastructure/async_utils.py`), puis l'annulation est re-levée.
+(`infrastructure/async_utils.py`), puis l'annulation est re-levée. Garde :
+`apps/api/tests/unit/test_no_swallowed_shield_cancellation_guard.py`.
 
 Si le silence masque un vrai signal, ce n'est ni `pass` ni `suppress` : c'est un
 `logger.debug(...)` avec contexte. Exemples canoniques :

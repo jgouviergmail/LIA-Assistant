@@ -1225,6 +1225,11 @@ tasks:
         tests/unit/infrastructure/database/test_server_bounds.py
         tests/unit/infrastructure/database/test_session_cancellation.py
         tests/integration/infrastructure/test_session_close_cancellation_pg.py
+        tests/unit/test_no_swallowed_shield_cancellation_guard.py
+        tests/unit/test_no_iterated_session_dependency_guard.py
+        tests/unit/domains/agents/services/orchestration/test_stream_spend_commit_cancellation.py
+        tests/unit/infrastructure/scheduler/test_unverified_account_cleanup.py
+        tests/unit/infrastructure/observability/test_pii_filter_address_shapes.py
         tests/unit/domains/connectors/test_hue_client_closed.py
         tests/unit/infrastructure/test_async_utils_shutdown_join.py
         tests/unit/test_dockerignore_next_dists_guard.py

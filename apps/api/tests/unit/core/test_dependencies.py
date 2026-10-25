@@ -7,11 +7,13 @@ Created: 2025-11-20
 Focus: Database session dependency injection
 """
 
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from src.core.dependencies import get_db
+from src.infrastructure.database import session as session_module
 
 
 class TestGetDb:
@@ -125,3 +127,44 @@ class TestGetDb:
 
             # Verify get_db_session was called twice (once per generator)
             assert mock_get_db_session.call_count == 2
+
+
+class TestGetDbForwardsTheRouteOutcome:
+    """A route's outcome reaches the session behind ``get_db`` (2026-10-25).
+
+    ``get_db`` delegated to ``get_db_session`` with ``async for``: an exception
+    FastAPI throws into ``get_db`` at its ``yield`` stopped the loop and never
+    reached the session helper — its rollback branch (the rollback, its metric,
+    its classified log) ran for none of the routes depending on it, and the
+    session's close waited for the garbage collector to finalize the abandoned
+    generator. Driven here the way FastAPI drives a ``yield`` dependency.
+    """
+
+    @pytest.mark.asyncio
+    async def test_a_route_failure_rolls_back_and_closes_before_the_dependency_exits(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        session = AsyncMock()
+        monkeypatch.setattr(session_module, "AsyncSessionLocal", lambda: session)
+
+        with pytest.raises(ValueError, match="the route failed"):
+            async with asynccontextmanager(get_db)():
+                raise ValueError("the route failed")
+
+        session.rollback.assert_awaited_once()
+        session.commit.assert_not_awaited()
+        session.close.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_a_route_success_commits_and_closes(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        session = AsyncMock()
+        monkeypatch.setattr(session_module, "AsyncSessionLocal", lambda: session)
+
+        async with asynccontextmanager(get_db)() as db:
+            assert db is session
+
+        session.commit.assert_awaited_once()
+        session.rollback.assert_not_awaited()
+        session.close.assert_awaited_once()

@@ -78,6 +78,20 @@ FastAPI 0.137+ keeps an included router as one node of `app.routes`) and
 refuses any endpoint that mentions `text/event-stream` and still reaches
 `get_db` in its dependency tree.
 
+**What ends a route reaches its session** (amendment 2026-10-25): `get_db`
+enters `get_db_session` as a context manager. It iterated it with `async for`,
+which forwards nothing: for every route depending on it, a failure never
+reached the helper's rollback branch — its rollback, its
+`db_transaction_rollback_total{endpoint="fastapi"}` count, its classified log —
+and the session closed only when the garbage collector finalized the abandoned
+generator. Code outside a route opens its session with `get_db_context()`
+(the unverified-account sweep iterated `get_db_session` too). Both helpers close
+their session as ONE task they own, then let a cancellation through
+(`write_through_cancellation`): the close used to swallow a cancellation landing
+during it, and a worker reload waited more than 36 minutes on dev. Guards:
+`tests/unit/test_no_iterated_session_dependency_guard.py`,
+`tests/unit/test_no_swallowed_shield_cancellation_guard.py`.
+
 ### Authentication Dependency Chain
 
 ```python

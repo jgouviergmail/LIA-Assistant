@@ -1255,6 +1255,9 @@ DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS_DEFAULT = 300_000
 # finish on its own (`write_through_cancellation`): the close hands the connection
 # back to the pool, and a bounded grace never holds a stopping worker open.
 DATABASE_SESSION_CLOSE_CANCELLATION_GRACE_ATTEMPTS: Final = 3
+# The same grace for the turn's spend commit at the end of its stream: the records
+# are model calls that happened and were billed (ADR-117).
+TRACKER_COMMIT_CANCELLATION_GRACE_ATTEMPTS: Final = 3
 
 # LangGraph PostgreSQL connection pools (ADR-111 — checkpointer & store scalability)
 # Replaces the former single persistent AsyncConnection per worker (audit S2/A7):
