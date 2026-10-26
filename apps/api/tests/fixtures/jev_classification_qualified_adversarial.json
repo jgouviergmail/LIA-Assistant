@@ -1,29 +1,29 @@
 {
   "split": "adversarial",
   "live": true,
-  "policy_sha256": "6386fb285f8cbea53740b8f71b5748087ef990ba76e2d5adf7a58e5efc9540bf",
+  "policy_sha256": "0d697b1bbf187ba756a5444a39bbf96abed3f2b302afbbb1bf3f6a844372afd8",
   "corpus_sha256": "d9bf446014a7645d9a96c5a84caf373753b472cbb1967c6597f8d989e779e858",
   "native_calls_planned": 8,
-  "request_bytes": 199919,
-  "estimated_input_tokens": 38786,
-  "budget_eur": "0.04704277785350000101",
-  "prior_cost_eur": "0.02105321509410000192",
-  "total_cost_eur": "0.02283480549630000213",
+  "request_bytes": 209603,
+  "estimated_input_tokens": 40766,
+  "budget_eur": "0.05",
+  "prior_cost_eur": "0.00557481214752000022",
+  "total_cost_eur": "0.00744161323752000038",
   "models": {
-    "email": "jev-1.13.0",
-    "event": "jev-1.13.0"
+    "email": "jev-1.14.0",
+    "event": "jev-1.14.0"
   },
   "calls": [
     {
       "kind": "email",
       "outcome": "success",
-      "latency_ms": 423.0874029744882,
+      "latency_ms": 349.8000779945869,
       "charge": {
-        "model": "jev-1.13.0",
-        "input_tokens": 6558,
+        "model": "jev-1.14.0",
+        "input_tokens": 6838,
         "output_tokens": 502,
-        "cost_usd": 0.000275436,
-        "cost_eur": 0.0002447662014
+        "cost_usd": 0.00028719600000000003,
+        "cost_eur": 0.00025658665032000005
       },
       "members": [
         "adversarial-en-0",
@@ -36,13 +36,13 @@
         "i0_category": {
           "type": "choice",
           "choice": "professional",
-          "confidence": 0.9875,
+          "confidence": 1.0,
           "probabilities": {
             "unknown": 0.0,
-            "professional": 0.99,
+            "professional": 1.0,
             "personal": 0.0,
             "spam": 0.0,
-            "phishing_scam": 0.01
+            "phishing_scam": 0.0
           }
         },
         "i0_priority": {
@@ -71,10 +71,10 @@
         "i1_priority": {
           "type": "choice",
           "choice": "normal",
-          "confidence": 1.0,
+          "confidence": 0.9866666666666667,
           "probabilities": {
-            "unknown": 0.0,
-            "normal": 1.0,
+            "unknown": 0.01,
+            "normal": 0.99,
             "urgent": 0.0,
             "critical": 0.0
           }
@@ -94,10 +94,10 @@
         "i2_priority": {
           "type": "choice",
           "choice": "normal",
-          "confidence": 0.6,
+          "confidence": 0.53,
           "probabilities": {
-            "unknown": 0.3,
-            "normal": 0.7,
+            "unknown": 0.35,
+            "normal": 0.65,
             "urgent": 0.0,
             "critical": 0.0
           }
@@ -140,11 +140,11 @@
         "i4_priority": {
           "type": "choice",
           "choice": "unknown",
-          "confidence": 0.88,
+          "confidence": 0.92,
           "probabilities": {
-            "unknown": 0.91,
-            "normal": 0.02,
-            "urgent": 0.07,
+            "unknown": 0.94,
+            "normal": 0.0,
+            "urgent": 0.06,
             "critical": 0.0
           }
         }
@@ -153,13 +153,13 @@
     {
       "kind": "email",
       "outcome": "success",
-      "latency_ms": 230.0095199898351,
+      "latency_ms": 183.87674099358264,
       "charge": {
-        "model": "jev-1.13.0",
-        "input_tokens": 6601,
+        "model": "jev-1.14.0",
+        "input_tokens": 6881,
         "output_tokens": 498,
-        "cost_usd": 0.000277242,
-        "cost_eur": 0.0002463711033
+        "cost_usd": 0.000289002,
+        "cost_eur": 0.00025820016684000003
       },
       "members": [
         "adversarial-en-5",
@@ -195,13 +195,13 @@
         "i1_category": {
           "type": "choice",
           "choice": "professional",
-          "confidence": 0.97,
+          "confidence": 0.9875,
           "probabilities": {
             "unknown": 0.01,
-            "professional": 0.98,
+            "professional": 0.99,
             "personal": 0.0,
             "spam": 0.0,
-            "phishing_scam": 0.01
+            "phishing_scam": 0.0
           }
         },
         "i1_priority": {
@@ -230,10 +230,10 @@
         "i2_priority": {
           "type": "choice",
           "choice": "normal",
-          "confidence": 1.0,
+          "confidence": 0.9866666666666667,
           "probabilities": {
-            "unknown": 0.0,
-            "normal": 1.0,
+            "unknown": 0.01,
+            "normal": 0.99,
             "urgent": 0.0,
             "critical": 0.0
           }
@@ -253,10 +253,10 @@
         "i3_priority": {
           "type": "choice",
           "choice": "unknown",
-          "confidence": 0.6266666666666667,
+          "confidence": 0.4266666666666667,
           "probabilities": {
-            "unknown": 0.72,
-            "normal": 0.28,
+            "unknown": 0.57,
+            "normal": 0.43,
             "urgent": 0.0,
             "critical": 0.0
           }
@@ -289,13 +289,13 @@
     {
       "kind": "email",
       "outcome": "success",
-      "latency_ms": 253.8443680095952,
+      "latency_ms": 189.94155299151316,
       "charge": {
-        "model": "jev-1.13.0",
-        "input_tokens": 6615,
+        "model": "jev-1.14.0",
+        "input_tokens": 6895,
         "output_tokens": 502,
-        "cost_usd": 0.00027783,
-        "cost_eur": 0.0002468936295
+        "cost_usd": 0.00028959,
+        "cost_eur": 0.0002587254978
       },
       "members": [
         "adversarial-fr-4",
@@ -320,10 +320,10 @@
         "i0_priority": {
           "type": "choice",
           "choice": "unknown",
-          "confidence": 0.9466666666666667,
+          "confidence": 0.97,
           "probabilities": {
-            "unknown": 0.96,
-            "normal": 0.03,
+            "unknown": 0.98,
+            "normal": 0.01,
             "urgent": 0.01,
             "critical": 0.0
           }
@@ -331,10 +331,10 @@
         "i1_category": {
           "type": "choice",
           "choice": "unknown",
-          "confidence": 1.0,
+          "confidence": 0.9875,
           "probabilities": {
-            "unknown": 1.0,
-            "professional": 0.0,
+            "unknown": 0.99,
+            "professional": 0.01,
             "personal": 0.0,
             "spam": 0.0,
             "phishing_scam": 0.0
@@ -343,10 +343,10 @@
         "i1_priority": {
           "type": "choice",
           "choice": "unknown",
-          "confidence": 0.84,
+          "confidence": 0.8666666666666667,
           "probabilities": {
-            "unknown": 0.88,
-            "normal": 0.11,
+            "unknown": 0.9,
+            "normal": 0.09,
             "urgent": 0.01,
             "critical": 0.0
           }
@@ -411,11 +411,11 @@
         },
         "i4_priority": {
           "type": "choice",
-          "choice": "normal",
+          "choice": "unknown",
           "confidence": 0.38666666666666666,
           "probabilities": {
-            "unknown": 0.46,
-            "normal": 0.54,
+            "unknown": 0.54,
+            "normal": 0.46,
             "urgent": 0.0,
             "critical": 0.0
           }
@@ -425,13 +425,13 @@
     {
       "kind": "email",
       "outcome": "success",
-      "latency_ms": 241.2991419842001,
+      "latency_ms": 188.22847701085266,
       "charge": {
-        "model": "jev-1.13.0",
-        "input_tokens": 6587,
+        "model": "jev-1.14.0",
+        "input_tokens": 6867,
         "output_tokens": 502,
-        "cost_usd": 0.00027665400000000004,
-        "cost_eur": 0.00024584857710000007
+        "cost_usd": 0.000288414,
+        "cost_eur": 0.00025767483588000004
       },
       "members": [
         "adversarial-de-3",
@@ -479,10 +479,10 @@
         "i1_priority": {
           "type": "choice",
           "choice": "unknown",
-          "confidence": 0.93,
+          "confidence": 0.97,
           "probabilities": {
-            "unknown": 0.95,
-            "normal": 0.04,
+            "unknown": 0.98,
+            "normal": 0.01,
             "urgent": 0.01,
             "critical": 0.0
           }
@@ -490,10 +490,10 @@
         "i2_category": {
           "type": "choice",
           "choice": "unknown",
-          "confidence": 1.0,
+          "confidence": 0.9875,
           "probabilities": {
-            "unknown": 1.0,
-            "professional": 0.0,
+            "unknown": 0.99,
+            "professional": 0.01,
             "personal": 0.0,
             "spam": 0.0,
             "phishing_scam": 0.0
@@ -502,10 +502,10 @@
         "i2_priority": {
           "type": "choice",
           "choice": "unknown",
-          "confidence": 0.7066666666666667,
+          "confidence": 0.9466666666666667,
           "probabilities": {
-            "unknown": 0.78,
-            "normal": 0.22,
+            "unknown": 0.96,
+            "normal": 0.04,
             "urgent": 0.0,
             "critical": 0.0
           }
@@ -515,22 +515,22 @@
           "choice": "professional",
           "confidence": 0.9875,
           "probabilities": {
-            "unknown": 0.0,
+            "unknown": 0.01,
             "professional": 0.99,
             "personal": 0.0,
             "spam": 0.0,
-            "phishing_scam": 0.01
+            "phishing_scam": 0.0
           }
         },
         "i3_priority": {
           "type": "choice",
           "choice": "critical",
-          "confidence": 1.0,
+          "confidence": 0.9866666666666667,
           "probabilities": {
             "unknown": 0.0,
             "normal": 0.0,
-            "urgent": 0.0,
-            "critical": 1.0
+            "urgent": 0.01,
+            "critical": 0.99
           }
         },
         "i4_category": {
@@ -548,11 +548,11 @@
         "i4_priority": {
           "type": "choice",
           "choice": "normal",
-          "confidence": 1.0,
+          "confidence": 0.96,
           "probabilities": {
-            "unknown": 0.0,
-            "normal": 1.0,
-            "urgent": 0.0,
+            "unknown": 0.01,
+            "normal": 0.97,
+            "urgent": 0.02,
             "critical": 0.0
           }
         }
@@ -561,13 +561,13 @@
     {
       "kind": "email",
       "outcome": "success",
-      "latency_ms": 252.30202497914433,
+      "latency_ms": 178.3504460036056,
       "charge": {
-        "model": "jev-1.13.0",
-        "input_tokens": 6585,
+        "model": "jev-1.14.0",
+        "input_tokens": 6865,
         "output_tokens": 502,
-        "cost_usd": 0.00027657,
-        "cost_eur": 0.00024577393050000004
+        "cost_usd": 0.00028833,
+        "cost_eur": 0.0002575997886
       },
       "members": [
         "adversarial-es-2",
@@ -592,10 +592,10 @@
         "i0_priority": {
           "type": "choice",
           "choice": "unknown",
-          "confidence": 0.53,
+          "confidence": 0.52,
           "probabilities": {
-            "unknown": 0.65,
-            "normal": 0.35,
+            "unknown": 0.64,
+            "normal": 0.36,
             "urgent": 0.0,
             "critical": 0.0
           }
@@ -638,11 +638,11 @@
         "i2_priority": {
           "type": "choice",
           "choice": "unknown",
-          "confidence": 0.9066666666666666,
+          "confidence": 0.96,
           "probabilities": {
-            "unknown": 0.93,
-            "normal": 0.03,
-            "urgent": 0.04,
+            "unknown": 0.97,
+            "normal": 0.0,
+            "urgent": 0.03,
             "critical": 0.0
           }
         },
@@ -661,24 +661,24 @@
         "i3_priority": {
           "type": "choice",
           "choice": "unknown",
-          "confidence": 0.77,
+          "confidence": 0.9466666666666667,
           "probabilities": {
-            "unknown": 0.83,
-            "normal": 0.17,
-            "urgent": 0.0,
+            "unknown": 0.96,
+            "normal": 0.03,
+            "urgent": 0.01,
             "critical": 0.0
           }
         },
         "i4_category": {
           "type": "choice",
           "choice": "professional",
-          "confidence": 0.97,
+          "confidence": 0.9875,
           "probabilities": {
             "unknown": 0.0,
-            "professional": 0.98,
+            "professional": 0.99,
             "personal": 0.0,
             "spam": 0.0,
-            "phishing_scam": 0.02
+            "phishing_scam": 0.01
           }
         },
         "i4_priority": {
@@ -697,13 +697,13 @@
     {
       "kind": "email",
       "outcome": "success",
-      "latency_ms": 245.82354401354678,
+      "latency_ms": 169.86910499690566,
       "charge": {
-        "model": "jev-1.13.0",
-        "input_tokens": 6601,
+        "model": "jev-1.14.0",
+        "input_tokens": 6881,
         "output_tokens": 502,
-        "cost_usd": 0.000277242,
-        "cost_eur": 0.0002463711033
+        "cost_usd": 0.000289002,
+        "cost_eur": 0.00025820016684000003
       },
       "members": [
         "adversarial-it-1",
@@ -728,11 +728,11 @@
         "i0_priority": {
           "type": "choice",
           "choice": "normal",
-          "confidence": 1.0,
+          "confidence": 0.96,
           "probabilities": {
-            "unknown": 0.0,
-            "normal": 1.0,
-            "urgent": 0.0,
+            "unknown": 0.01,
+            "normal": 0.97,
+            "urgent": 0.02,
             "critical": 0.0
           }
         },
@@ -797,11 +797,11 @@
         "i3_priority": {
           "type": "choice",
           "choice": "unknown",
-          "confidence": 0.9466666666666667,
+          "confidence": 0.9866666666666667,
           "probabilities": {
-            "unknown": 0.96,
-            "normal": 0.02,
-            "urgent": 0.02,
+            "unknown": 0.99,
+            "normal": 0.0,
+            "urgent": 0.01,
             "critical": 0.0
           }
         },
@@ -820,10 +820,10 @@
         "i4_priority": {
           "type": "choice",
           "choice": "unknown",
-          "confidence": 0.9066666666666666,
+          "confidence": 0.93,
           "probabilities": {
-            "unknown": 0.93,
-            "normal": 0.07,
+            "unknown": 0.95,
+            "normal": 0.05,
             "urgent": 0.0,
             "critical": 0.0
           }
@@ -833,13 +833,13 @@
     {
       "kind": "email",
       "outcome": "success",
-      "latency_ms": 235.280854976736,
+      "latency_ms": 159.28468000493012,
       "charge": {
-        "model": "jev-1.13.0",
-        "input_tokens": 6653,
+        "model": "jev-1.14.0",
+        "input_tokens": 6933,
         "output_tokens": 502,
-        "cost_usd": 0.00027942600000000005,
-        "cost_eur": 0.0002483119149000001
+        "cost_usd": 0.00029118600000000003,
+        "cost_eur": 0.00026015139612
       },
       "members": [
         "adversarial-zh-0",
@@ -852,13 +852,13 @@
         "i0_category": {
           "type": "choice",
           "choice": "professional",
-          "confidence": 0.9875,
+          "confidence": 1.0,
           "probabilities": {
             "unknown": 0.0,
-            "professional": 0.99,
+            "professional": 1.0,
             "personal": 0.0,
             "spam": 0.0,
-            "phishing_scam": 0.01
+            "phishing_scam": 0.0
           }
         },
         "i0_priority": {
@@ -909,11 +909,11 @@
         },
         "i2_priority": {
           "type": "choice",
-          "choice": "normal",
-          "confidence": 0.33,
+          "choice": "unknown",
+          "confidence": 0.36,
           "probabilities": {
-            "unknown": 0.5,
-            "normal": 0.5,
+            "unknown": 0.52,
+            "normal": 0.48,
             "urgent": 0.0,
             "critical": 0.0
           }
@@ -956,11 +956,11 @@
         "i4_priority": {
           "type": "choice",
           "choice": "unknown",
-          "confidence": 0.93,
+          "confidence": 0.97,
           "probabilities": {
-            "unknown": 0.95,
-            "normal": 0.03,
-            "urgent": 0.02,
+            "unknown": 0.98,
+            "normal": 0.01,
+            "urgent": 0.01,
             "critical": 0.0
           }
         }
@@ -969,13 +969,13 @@
     {
       "kind": "email",
       "outcome": "success",
-      "latency_ms": 216.60926399636082,
+      "latency_ms": 146.14829499623738,
       "charge": {
-        "model": "jev-1.13.0",
-        "input_tokens": 1534,
+        "model": "jev-1.14.0",
+        "input_tokens": 1590,
         "output_tokens": 102,
-        "cost_usd": 0.000064428,
-        "cost_eur": 0.0000572539422
+        "cost_usd": 0.00006678000000000001,
+        "cost_eur": 0.00005966258760000001
       },
       "members": [
         "adversarial-zh-5"
@@ -996,10 +996,10 @@
         "i0_priority": {
           "type": "choice",
           "choice": "unknown",
-          "confidence": 0.72,
+          "confidence": 0.69,
           "probabilities": {
-            "unknown": 0.79,
-            "normal": 0.2,
+            "unknown": 0.77,
+            "normal": 0.22,
             "urgent": 0.01,
             "critical": 0.0
           }
@@ -1059,7 +1059,7 @@
     },
     "failures": []
   },
-  "run_id": "classification-replay-eb05b2d1-d71a-4b44-8819-508bb751eb2a",
+  "run_id": "classification-replay-8299b8a0-69c3-4e4c-8f49-f8bf4c3a8418",
   "stop_reason": null,
   "predictions": {
     "adversarial-en-0": {

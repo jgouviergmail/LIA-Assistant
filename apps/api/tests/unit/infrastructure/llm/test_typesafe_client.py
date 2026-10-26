@@ -10,7 +10,14 @@ from unittest.mock import patch
 import httpx
 import pytest
 
-from src.infrastructure.llm.typesafe_client import ChoiceQuestion, TypeSafeClient, TypeSafeError
+from src.infrastructure.llm.typesafe_client import (
+    MAX_QUESTION_TOKENS,
+    MAX_RESPONSE_BYTES,
+    ChoiceQuestion,
+    TypeSafeClient,
+    TypeSafeError,
+    encode_decision_request,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -335,7 +342,7 @@ async def test_total_deadline_interrupts_a_slow_provider() -> None:
     "status,body,code",
     [
         (302, b"", "provider_error"),
-        (200, b"x" * 131_073, "response_too_large"),
+        (200, b"x" * (MAX_RESPONSE_BYTES + 1), "response_too_large"),
         (200, b"not json", "invalid_response"),
     ],
     ids=["redirect", "oversized-body", "malformed-json"],
@@ -364,16 +371,33 @@ async def test_large_request_is_refused_before_network() -> None:
     def serve(request: httpx.Request) -> httpx.Response:
         pytest.fail("An oversized request reached the provider")
 
+    # Past the documented per-question context (state plus one question).
+    state = " ".join(str(index) for index in range(MAX_QUESTION_TOKENS))
     async with httpx.AsyncClient(transport=httpx.MockTransport(serve)) as http:
         with pytest.raises(TypeSafeError, match="request_too_large"):
             await TypeSafeClient(http, "secret").choose(
                 model="jev-1.13.0",
-                state="x" * 32_001,
+                state=state,
                 timeout_seconds=1,
                 question=ChoiceQuestion(
                     instructions="Select.", criteria={"a": "A", "none": "Unclear"}
                 ),
             )
+
+
+def test_a_state_past_the_former_32_kb_cap_is_admitted_within_the_documented_context() -> None:
+    """Measured 2026-10-25: a 109 kB initiative state never fit the old local cap.
+
+    The provider documents tokens, not bytes; a 40 kB state of ordinary text is a
+    fraction of its 32k-token per-question context and must reach it.
+    """
+    state = {"evidence": "Réunion budget avec l'équipe, ordre du jour détaillé. " * 700}
+    body = encode_decision_request(
+        "jev-1.14.0",
+        state,
+        {"q": ChoiceQuestion(instructions="Select.", criteria={"a": "A", "b": "B"})},
+    )
+    assert len(body) > 32_000
 
 
 async def test_cancel_is_not_misrepresented_as_a_fallback() -> None:

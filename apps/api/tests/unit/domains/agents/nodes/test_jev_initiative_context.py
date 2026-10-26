@@ -23,7 +23,11 @@ from src.domains.agents.nodes.jev_initiative_evidence import (
 from src.domains.agents.orchestration.schemas import AgentResult
 from src.domains.agents.weather.catalogue_manifests import get_weather_forecast_catalogue_manifest
 from src.infrastructure.llm.decision_types import DecisionAttempt
-from src.infrastructure.llm.typesafe_client import ChoiceAnswer, TypeSafeClient
+from src.infrastructure.llm.typesafe_client import (
+    MAX_QUESTION_TOKENS,
+    ChoiceAnswer,
+    TypeSafeClient,
+)
 
 pytestmark = pytest.mark.unit
 ARGUMENTS = {
@@ -77,7 +81,9 @@ def test_full_sources_survive_all_generative_projection_caps() -> None:
     assert not evidence.omissions
     assert context["memory_facts"] == ["Full retrieved memory"]
     assert context["user_interests"]["interests"][0]["topic"] == "Synthetic"
-    assert context["available_tools"][0]["parameters"]
+    # What a check can do, never how to build its call: the full contracts were
+    # 76 % of a real calendar turn and kept every request from fitting.
+    assert set(context["available_tools"][0]) == {"name", "agent", "description"}
 
 
 def test_card_only_fields_are_removed_before_serialization_even_when_nested_or_opaque() -> None:
@@ -353,7 +359,14 @@ def test_disabled_semantic_feature_is_known_but_failed_loading_is_incomplete(
 async def test_oversized_complete_native_source_is_rejected_before_http() -> None:
     evidence = InitiativeEvidence()
     context = build_context(
-        {"a": {"payload": {"body": "x" * 40000}, "meta": {"turn_id": 4}}}, evidence
+        {
+            "a": {
+                # Past the documented per-question context, never cut to fit it.
+                "payload": {"body": " ".join(str(i) for i in range(MAX_QUESTION_TOKENS))},
+                "meta": {"turn_id": 4},
+            }
+        },
+        evidence,
     )
     state = named_initiative_state(ARGUMENTS, evidence, context=context)
     import httpx

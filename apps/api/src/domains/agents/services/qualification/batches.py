@@ -11,6 +11,7 @@ from src.core.constants import (
     JEV_CLASSIFICATION_MAX_BATCHES,
     JEV_CLASSIFICATION_MAX_ITEMS,
     JEV_CLASSIFICATION_TOTAL_REQUEST_BYTES,
+    JEV_SHARED_STATE_BATCH_BYTES,
 )
 from src.domains.agents.prompts.prompt_loader import PromptName, load_prompt
 from src.domains.agents.services.qualification.contracts import (
@@ -76,6 +77,10 @@ def _batch(
         "items": items,
     }
     encoded = encode_decision_request(model, state, questions)
+    # Several items share one state only within the measured batch shape; a single
+    # item is bounded by the provider's documented context alone.
+    if len(values) > 1 and len(encoded) > JEV_SHARED_STATE_BATCH_BYTES:
+        raise TypeSafeError("request_too_large")
     return ClassificationBatch(
         state,
         questions,

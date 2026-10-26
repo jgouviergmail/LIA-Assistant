@@ -42,6 +42,17 @@ async def test_debug_reports_the_applied_verdict_not_the_untrusted_provider_choi
     assert record.call_args.kwargs["decision_labels"] == {"q0": "Update 0"}
 
 
+@pytest.fixture
+def question_cap_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Exercise the question cap alone: the byte budget has its own test.
+
+    Every question of a batch repeats the instructions, so tiny items reach the byte
+    budget before the question cap once the question grows (2026-10-26, day rule).
+    """
+    module = importlib.import_module("src.domains.agents.display.jev_qualification")
+    monkeypatch.setattr(module, "JEV_SHARED_STATE_BATCH_BYTES", 10**9)
+
+
 def item(index: int, kind: RegistryItemType = RegistryItemType.EMAIL) -> RegistryItem:
     return RegistryItem(
         id=f"item_{index}",
@@ -119,6 +130,7 @@ async def test_unavailable_qualification_preserves_the_existing_path(outcome: st
         )
 
 
+@pytest.mark.usefixtures("question_cap_only")
 async def test_multiple_batches_cover_rows_after_first_24_with_original_keys() -> None:
     module = importlib.import_module("src.domains.agents.display.jev_qualification")
     objects = [item(i) for i in range(30)]
@@ -138,7 +150,8 @@ async def test_multiple_batches_cover_rows_after_first_24_with_original_keys() -
     assert result.candidate_count == 30
     assert all(value.verdict == "match" for value in result.items)
     assert fake.await_count == 2
-    assert set(fake.call_args_list[1].kwargs["questions"]) == {f"q{i}" for i in range(24, 30)}
+    cap = module.MAX_BATCH_QUESTIONS
+    assert set(fake.call_args_list[1].kwargs["questions"]) == {f"q{i}" for i in range(cap, 30)}
 
 
 @pytest.mark.parametrize(
@@ -217,8 +230,8 @@ async def test_request_budget_accounts_for_instructions_and_multibyte_evidence()
         },
         ensure_ascii=False,
     ).encode()
-    assert len(body) <= 32_000
-    assert 1 <= len(request["questions"]) < 24
+    assert len(body) <= module.JEV_SHARED_STATE_BATCH_BYTES
+    assert 1 <= len(request["questions"]) < module.MAX_BATCH_QUESTIONS
 
 
 async def test_missing_mail_status_remains_unknown_without_a_fabricated_flag() -> None:
@@ -275,13 +288,14 @@ async def test_complete_75_item_coverage_is_logged_without_private_data() -> Non
     assert "Upcoming" not in str(counts) and "Podiatrist" not in str(counts)
 
 
+@pytest.mark.usefixtures("question_cap_only")
 async def test_every_batch_reuses_one_configuration_and_failed_batch_keeps_other_verdicts(
     ready_snapshot,
 ) -> None:
     module = importlib.import_module("src.domains.agents.display.jev_qualification")
 
     async def classify(**kwargs):
-        if "q24" in kwargs["questions"]:
+        if f"q{module.MAX_BATCH_QUESTIONS}" in kwargs["questions"]:
             return DecisionAttempt(outcome="invalid_response")
         return DecisionAttempt(
             outcome="success", answers={key: answer("match") for key in kwargs["questions"]}
@@ -295,7 +309,8 @@ async def test_every_batch_reuses_one_configuration_and_failed_batch_keeps_other
             user_id=uuid4(), run_id="r", query="Emails", items=[item(i) for i in range(30)]
         )
     assert result is not None
-    assert [entry.verdict for entry in result.items] == ["match"] * 24 + ["unknown"] * 6
+    cap = module.MAX_BATCH_QUESTIONS
+    assert [entry.verdict for entry in result.items] == ["match"] * cap + ["unknown"] * (30 - cap)
     assert ready_snapshot.await_count == 1
     assert all(
         call.kwargs["snapshot"] is ready_snapshot.return_value for call in native.call_args_list
@@ -303,7 +318,8 @@ async def test_every_batch_reuses_one_configuration_and_failed_batch_keeps_other
     coverages = [call.kwargs["collection_coverage"] for call in recorded.call_args_list]
     assert [coverage.batch_index for coverage in coverages] == [1, 2]
     assert all(
-        coverage.evaluated_count == 30 and coverage.unknown_count == 6 for coverage in coverages
+        coverage.evaluated_count == 30 and coverage.unknown_count == 30 - cap
+        for coverage in coverages
     )
     assert recorded.call_args_list[1].kwargs["action"] == "fallback"
 
@@ -365,11 +381,12 @@ async def test_lot_cap_and_oversized_records_remain_explicitly_unknown() -> None
     assert coverage.unknown_count == 0 and coverage.omitted_count == 10
 
 
+@pytest.mark.usefixtures("question_cap_only")
 async def test_local_runtime_exception_is_not_counted_as_a_submitted_candidate() -> None:
     module = importlib.import_module("src.domains.agents.display.jev_qualification")
 
     async def classify(**kwargs):
-        if "q24" in kwargs["questions"]:
+        if f"q{module.MAX_BATCH_QUESTIONS}" in kwargs["questions"]:
             raise RuntimeError("quota guard")
         return DecisionAttempt(
             outcome="success", answers={key: answer("match") for key in kwargs["questions"]}
@@ -382,18 +399,20 @@ async def test_local_runtime_exception_is_not_counted_as_a_submitted_candidate()
         result = await module.qualify_collection(
             user_id=uuid4(), run_id="r", query="Emails", items=[item(i) for i in range(30)]
         )
-    assert result is not None and result.evaluated_count == 24
+    cap = module.MAX_BATCH_QUESTIONS
+    assert result is not None and result.evaluated_count == cap
     coverage = recorded.call_args.kwargs["collection_coverage"]
-    assert coverage.unevaluated_count == 6 and coverage.unknown_count == 0
-    assert [row.verdict for row in result.items[24:]] == ["unknown"] * 6
+    assert coverage.unevaluated_count == 30 - cap and coverage.unknown_count == 0
+    assert [row.verdict for row in result.items[cap:]] == ["unknown"] * (30 - cap)
 
 
+@pytest.mark.usefixtures("question_cap_only")
 @pytest.mark.parametrize("outcome", ["invalid_request", "invalid_questions", "request_too_large"])
 async def test_local_preflight_result_is_not_counted_as_submitted(outcome) -> None:
     module = importlib.import_module("src.domains.agents.display.jev_qualification")
 
     async def classify(**kwargs):
-        if "q24" in kwargs["questions"]:
+        if f"q{module.MAX_BATCH_QUESTIONS}" in kwargs["questions"]:
             return DecisionAttempt(outcome=outcome)
         return DecisionAttempt(
             outcome="success", answers={key: answer("match") for key in kwargs["questions"]}
@@ -406,8 +425,9 @@ async def test_local_preflight_result_is_not_counted_as_submitted(outcome) -> No
         result = await module.qualify_collection(
             user_id=uuid4(), run_id="r", query="Emails", items=[item(i) for i in range(30)]
         )
-    assert result is not None and result.evaluated_count == 24
-    assert recorded.call_args.kwargs["collection_coverage"].unevaluated_count == 6
+    cap = module.MAX_BATCH_QUESTIONS
+    assert result is not None and result.evaluated_count == cap
+    assert recorded.call_args.kwargs["collection_coverage"].unevaluated_count == 30 - cap
 
 
 async def test_calendar_application_facts_share_reference_and_cannot_be_spoofed_by_payload() -> (
@@ -443,6 +463,40 @@ async def test_calendar_application_facts_share_reference_and_cannot_be_spoofed_
             assert facts["reference_datetime"] == reference.isoformat()
             assert facts["start_at_or_after_reference"] is True
             assert state["items"][key]["application_facts"]["start_at_or_after_reference"] is False
+
+
+@pytest.mark.parametrize(("zone", "day_offset"), [("Europe/Paris", 0), ("America/New_York", -1)])
+async def test_email_facts_state_the_received_day_on_the_persons_own_clock(
+    zone: str, day_offset: int
+) -> None:
+    # 23:30 UTC on Tuesday is already Wednesday in Paris and still Tuesday in New York:
+    # « emails I received today » depends on the person's timezone setting.
+    module = importlib.import_module("src.domains.agents.display.jev_qualification")
+    received = str(int(datetime(2026, 10, 27, 23, 30, tzinfo=UTC).timestamp() * 1000))
+    objects = [item(i) for i in range(3)]
+    for candidate in objects:
+        candidate.payload.update(internalDate=received, application_facts={"received": "spoofed"})
+
+    async def classify(**kwargs):
+        return DecisionAttempt(
+            outcome="success", answers={key: answer("unknown") for key in kwargs["questions"]}
+        )
+
+    with patch.object(module, "choose_many_with_jev", AsyncMock(side_effect=classify)) as native:
+        await module.qualify_collection(
+            user_id=uuid4(),
+            run_id="r",
+            query="Emails I received today",
+            items=objects,
+            reference_datetime=datetime(2026, 10, 28, 8, tzinfo=UTC),
+            timezone=zone,
+        )
+    state = native.call_args.kwargs["state"]
+    assert set(state["application_facts"]) == set(state["items"])
+    for key, facts in state["application_facts"].items():
+        assert facts["reference_timezone"] == zone
+        assert facts["received"]["day_offset"] == day_offset
+        assert state["items"][key]["application_facts"] == {"received": "spoofed"}
 
 
 async def test_incomplete_only_collection_records_zero_api_coverage_with_closed_reasons() -> None:

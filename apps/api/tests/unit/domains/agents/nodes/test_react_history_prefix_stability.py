@@ -15,6 +15,7 @@ every tool result, as production's was.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -23,6 +24,8 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMe
 
 from src.core.config import settings
 from src.core.constants import DYNAMIC_CONTEXT_MARKER
+from src.core.content_classification import EmailClassification
+from src.domains.agents.display.model_history import with_model_view
 from src.domains.agents.models import add_messages_with_truncate, count_messages_tokens_cached
 from src.domains.agents.nodes import react_nodes as rn
 
@@ -151,3 +154,40 @@ async def test_the_next_turn_reads_this_turn_s_prefix_through_its_question(
     first_of_turn, next_turn = sent[0], sent[-1]
     through_question = [m.id for m in first_of_turn].index("now") + 1
     assert _shape(next_turn[:through_question]) == _shape(first_of_turn[:through_question])
+
+
+async def test_an_earlier_answer_s_labels_are_read_at_the_turn_s_start_on_every_call(
+    sent: list[list[BaseMessage]], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The turn replays its own reasoning after the history: were an earlier
+    # answer's labels to expire between two of its calls, the history before that
+    # reasoning would change mid-turn — refused where the thinking is bound to the
+    # conversation (ADR-306), a broken prefix elsewhere. Every call reads them at
+    # the turn's start (ADR-351); here the clock has already passed their validity.
+    written = datetime.now(UTC) - timedelta(minutes=10)
+    annotation = EmailClassification.model_validate(
+        {
+            "category": "phishing_scam",
+            "priority": "urgent",
+            "evidence_scope": "snippet",
+            "evaluated_at": written,
+            "valid_until": written + timedelta(minutes=5),
+        }
+    ).model_dump(mode="json")
+    state = _thread(turn_id=PAST_TURNS + 1, monkeypatch=monkeypatch)
+    answer = with_model_view(
+        AIMessage(f"answer {PAST_TURNS}", id=f"a{PAST_TURNS}"),
+        f"answer {PAST_TURNS}",
+        {"email-1": {"type": "EMAIL", "payload": {"classification": annotation}}},
+    )
+    _apply(state, {"messages": [answer]})
+    state["react_start_time"] = (written + timedelta(minutes=4)).timestamp()
+
+    await _run_loop(state, 3)
+
+    readings = {
+        str(message.content) for call in sent for message in call if message.id == answer.id
+    }
+    assert len(readings) == 1, "the history changed between two calls of one turn"
+    (reading,) = readings
+    assert '"state": "current"' in reading and "valid_until" not in reading

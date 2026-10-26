@@ -176,3 +176,44 @@ async def test_real_email_builder_keeps_display_body_out_of_both_model_inputs(
         assert "Review" in source
     assert "professional" in pipeline and "urgent" in react
     assert output.registry_updates[identity].meta.display["body"] == "HIDDEN SECRET"
+
+
+def test_provider_facts_reach_the_judgment_under_the_unified_names() -> None:
+    """Labels, reply-to and a calendar entry's own type were dropped before 2026-10-25."""
+    mail = publication.observation(
+        "m",
+        {
+            "id": "m",
+            "subject": "Offer",
+            "snippet": "Up to 40 % off",
+            "labelIds": ["INBOX", "CATEGORY_PROMOTIONS"],
+            "reply_to": "deals@example.test",
+        },
+        kind="email",
+    )
+    assert mail is not None
+    assert mail.evidence["labels"] == ["INBOX", "CATEGORY_PROMOTIONS"]
+    assert mail.evidence["reply_to"] == "deals@example.test"
+    event = publication.observation(
+        "e",
+        {
+            "id": "e",
+            "summary": "Focus",
+            "eventType": "focusTime",
+            "hangoutLink": "https://meet.example.test/x",
+            "recurringEventId": "r1",
+        },
+        kind="event",
+    )
+    assert event is not None
+    assert event.evidence["event_type"] == "focusTime"
+    assert event.evidence["video_call"] is True and event.evidence["recurring"] is True
+    assert "hangoutLink" not in event.evidence  # a join link is a fact, never the link
+
+
+def test_an_untyped_entry_carries_no_invented_type_or_flags() -> None:
+    event = publication.observation(
+        "e", {"id": "e", "summary": "Lunch", "eventType": "default", "recurrence": []}, kind="event"
+    )
+    assert event is not None
+    assert not {"event_type", "video_call", "recurring"} & set(event.evidence)

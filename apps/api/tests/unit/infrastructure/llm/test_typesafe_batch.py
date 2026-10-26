@@ -10,7 +10,12 @@ import httpx
 import pytest
 from pydantic import JsonValue, SecretStr
 
-from src.infrastructure.llm.typesafe_client import ChoiceQuestion, TypeSafeClient, TypeSafeError
+from src.infrastructure.llm.typesafe_client import (
+    MAX_QUESTIONS,
+    ChoiceQuestion,
+    TypeSafeClient,
+    TypeSafeError,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -152,7 +157,7 @@ async def test_http_scope_and_item_decisions_keep_one_charge_and_inspectable_hit
     from src.domains.llm.pricing_service import ModelPrice
     from src.domains.llm_config.jev_registry import JevUsage
     from src.domains.llm_config.jev_settings import DecisionConfiguration, JevSnapshot
-    from src.infrastructure.llm import jev_runtime
+    from src.infrastructure.llm import jev_http, jev_runtime
     from src.infrastructure.llm.jev_debug_models import JevCallTrace, context_preview
 
     owner = uuid4()
@@ -234,7 +239,7 @@ async def test_http_scope_and_item_decisions_keep_one_charge_and_inspectable_hit
         patch.object(jev_runtime, "enforce_usage_limit", AsyncMock()),
         patch.object(jev_runtime, "get_cached_usd_eur_rate", return_value=0.9),
         patch.object(jev_runtime, "begin_trace", AsyncMock(return_value=trace)),
-        patch.object(jev_runtime.httpx, "AsyncClient", side_effect=mock_http),
+        patch.object(jev_http.httpx, "AsyncClient", side_effect=mock_http),
         patch("src.infrastructure.llm.jev_debug_store.save_trace", AsyncMock()) as save,
     ):
         async with tracker:
@@ -283,7 +288,7 @@ async def test_http_scope_and_item_decisions_keep_one_charge_and_inspectable_hit
     assert saved.cost_eur == attempt.charge.cost_eur
 
 
-@pytest.mark.parametrize("size", [0, 25])
+@pytest.mark.parametrize("size", [0, MAX_QUESTIONS + 1])
 async def test_batch_bounds_refuse_network_before_spending(size: int) -> None:
     def forbidden(request: httpx.Request) -> httpx.Response:
         pytest.fail("Invalid batch reached provider")

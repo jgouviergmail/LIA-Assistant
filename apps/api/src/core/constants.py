@@ -3715,9 +3715,15 @@ RELATION_DEBRIEF_MAX_NOTABLE_FACTS_DEFAULT = 5
 # ============================================================================
 # Phase 1: LLM nano extracts personal references from query (e.g., "my wife").
 MEMORY_REFERENCE_EXTRACTION_TIMEOUT_SECONDS = 30.0  # Nano model, strict latency budget
-# Absence-only native gate, evaluated on independent multilingual queries.
+# Absence-only native gate, evaluated on independent multilingual queries; kept on
+# jev-1.14.0 (2026-10-26): 25 of 26 absences admitted, no false skip at any level.
 JEV_MEMORY_REFERENCE_MIN_CONFIDENCE = 0.99
-JEV_HITL_REJECTION_MIN_CONFIDENCE = 0.99
+# Re-chosen on jev-1.14.0 (2026-10-26) on two fresh corpora of replies (50 cases, 20
+# total refusals, 30 traps: a no then a correction, a partial refusal, a « yes, delete
+# it » that approves a deletion, an injection): no wrong shortcut at any level; 0.80
+# keeps 19 of 20 refusals where 0.99 kept 4. Margin above the first safe level
+# because this gate cancels the proposed actions.
+JEV_HITL_REJECTION_MIN_CONFIDENCE = 0.80
 # Guarded parameter values (ADR-120 amendment 2026-10-11): a value's judged
 # kind refuses a call only at this confidence or above, and at most this many
 # values of one call are judged (one request each). Calibrated on the version 2
@@ -3727,21 +3733,55 @@ JEV_PARAMETER_KIND_MIN_CONFIDENCE = 0.30
 JEV_PARAMETER_KIND_MAX_VALUES = 8
 
 # Advisory source classifications: conservative gates, not accuracy guarantees.
-# Calibrate on the dedicated corpus before enabling either independently gated usage.
-JEV_CLASSIFICATION_MIN_CONFIDENCE = 0.95
-JEV_CLASSIFICATION_ALERT_MIN_CONFIDENCE = 0.99
+# Re-chosen on jev-1.14.0 (2026-10-25, docs/superpowers/qualification/jev-audit-2026-10-25):
+# no wrong accepted label on the three frozen corpora at ANY level from 0.50 (both
+# layouts, 1.13 and 1.14) except one-request-per-item at 0.50-0.60; the first safe
+# level is 0.70, plus one 0.10 step of margin. At the former 0.95 / 0.99 the
+# production-shaped corpus kept 2 of 6 phishing messages and 62 % of its labels.
+JEV_CLASSIFICATION_MIN_CONFIDENCE = 0.80
+JEV_CLASSIFICATION_ALERT_MIN_CONFIDENCE = 0.80
 JEV_CLASSIFICATION_EMAIL_TTL_SECONDS = 300
 JEV_CLASSIFICATION_EVENT_TTL_SECONDS = 3600
 JEV_CLASSIFICATION_UNKNOWN_TTL_SECONDS = 30
 JEV_CLASSIFICATION_MAX_ITEMS = 48
-JEV_CLASSIFICATION_MAX_BATCHES = 4
-JEV_CLASSIFICATION_MAX_CONCURRENT_BATCHES = 2
-JEV_CLASSIFICATION_TOTAL_REQUEST_BYTES = 64_000
-JEV_CLASSIFICATION_ESTIMATED_INPUT_TOKENS = 16_000
+# One operation classifies every listed item (48 emails pack into about 8 shared
+# batches of at most JEV_SHARED_STATE_BATCH_BYTES); it used to stop at 16 000
+# tokens, so the items past the first three or four batches were never labelled.
+JEV_CLASSIFICATION_MAX_BATCHES = 12
+JEV_CLASSIFICATION_MAX_CONCURRENT_BATCHES = 4
+JEV_CLASSIFICATION_TOTAL_REQUEST_BYTES = 400_000
+JEV_CLASSIFICATION_ESTIMATED_INPUT_TOKENS = 120_000
+# What the provider itself asserted decides before the model does (ADR-325
+# amendment 2026-10-25): mail filed under one of these categories is commercial or
+# notification mail, never published as spam unless it ALSO carries the spam label;
+# a calendar entry of one of these types IS its category.
+JEV_CLASSIFICATION_PROVIDER_COMMERCIAL_LABELS: frozenset[str] = frozenset(
+    {"CATEGORY_PROMOTIONS", "CATEGORY_SOCIAL", "CATEGORY_UPDATES", "CATEGORY_FORUMS"}
+)
+JEV_CLASSIFICATION_PROVIDER_SPAM_LABEL = "SPAM"
+JEV_CLASSIFICATION_EVENT_TYPE_CATEGORIES: dict[str, str] = {
+    "birthday": "personal",
+    "focusTime": "professional",
+    "workingLocation": "professional",
+}
 JEV_CLASSIFICATION_TIMEOUT_SECONDS = 5.0
 JEV_CLASSIFICATION_CACHE_TIMEOUT_SECONDS = 0.25
 JEV_CLASSIFICATION_CLAIM_TTL_SECONDS = 7
 JEV_CLASSIFICATION_CLAIM_POLL_SECONDS = 0.02
+# The batch shape the shared-state usages (classification, collection previews,
+# radio verification) were measured with: several items in ONE state, each
+# question naming its own. A larger state is more distraction for every question,
+# so a multi-item batch stays within it even though the transport admits more.
+JEV_SHARED_STATE_BATCH_BYTES = 32_000
+# One keep-alive client per serving loop (ADR-325 amendment 2026-10-25): every
+# decision used to open its own connection, and every one of the 34 production
+# timeouts of the week before landed on the 2 s deadline. The vendor SDK's own
+# defaults (docs.typesafe.ai/sdk/python/usage/advanced, read 2026-10-26): at most
+# 100 connections, ALL kept open for 30 s while idle "so bursts reuse connections
+# instead of opening new ones". A decision's deadline includes waiting for a pooled
+# connection, so the limit sits far above any burst a worker fires.
+JEV_HTTP_MAX_CONNECTIONS = 100
+JEV_HTTP_KEEPALIVE_EXPIRY_SECONDS = 30.0
 
 # ============================================================================
 # LOCALIZATION DEFAULTS

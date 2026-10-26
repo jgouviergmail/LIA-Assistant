@@ -158,6 +158,12 @@ async def shutdown_application(handles: StartupHandles) -> None:
 
     await close_push_relay()
 
+    # The native decision provider's keep-alive client (ADR-325): its owner is
+    # the lifespan, its jobs stopped with the scheduler above.
+    from src.infrastructure.llm.jev_http import close_jev_http_client
+
+    await close_jev_http_client()
+
     # Prometheus multiprocess: drop this worker's per-process metric files so its
     # contribution leaves the 'live*' gauges on exit. Counters/histograms persist
     # (correct — totals must survive a worker restart). No-op outside multiprocess.

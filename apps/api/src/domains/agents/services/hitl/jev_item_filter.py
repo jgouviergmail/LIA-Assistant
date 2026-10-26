@@ -10,12 +10,18 @@ from src.domains.llm_config.jev_registry import JevUsage
 from src.infrastructure.llm.decision_types import DecisionAttempt
 from src.infrastructure.llm.jev_debug_store import record_action
 from src.infrastructure.llm.jev_runtime import choose_many_with_jev
-from src.infrastructure.llm.typesafe_client import MAX_QUESTIONS, ChoiceQuestion
+from src.infrastructure.llm.typesafe_client import ChoiceQuestion
 from src.infrastructure.observability.metrics_jev import jev_decisions_total
 
-MIN_CONFIDENCE = 0.99
+# Re-chosen on jev-1.14.0 (2026-10-26) on the committed HITL corpora: no wrong
+# exclusion from 0.80; 0.80 and 0.90 tie (calibration 10 of 12, holdout 8 of 11)
+# where 0.99 kept 6 and 5, so the stricter tie. A selection still needs the human's
+# confirmation; the reference scope keeps its own threshold.
+MIN_CONFIDENCE = 0.90
 REFERENCE_SCOPE_MIN_CONFIDENCE = 0.80
 REFERENCE_SCOPE_KEY = "reference_scope"
+# The list shape the HITL corpora measured: the items and the one scope question.
+MAX_BATCH_QUESTIONS = 24
 
 
 def exclusion_questions(count: int) -> dict[str, ChoiceQuestion]:
@@ -52,7 +58,7 @@ async def try_filter_items(
     run_id: str | None,
 ) -> list[int] | None:
     context = runtime_context_if_running()
-    if context is None or not run_id or not 0 < len(item_previews) < MAX_QUESTIONS:
+    if context is None or not run_id or not 0 < len(item_previews) < MAX_BATCH_QUESTIONS:
         return None
     # Snapshot the exact proposed list. Unsupported values, overflow or any
     # later mutation must not turn into a partial positional filter.

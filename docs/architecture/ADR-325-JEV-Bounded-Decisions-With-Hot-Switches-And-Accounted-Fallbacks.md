@@ -48,6 +48,71 @@ deterministic guard let the call through and only ever adds a refusal (ADR-120,
 amendment 2026-10-11). Its decisions join the turn's tracker, so their cost lands
 on the turn's own summary.
 
+**Amendment — 2026-10-25 (what reaches the model, and what comes back used):** an audit
+against the vendor's documentation and seven days of production found the usages
+starved rather than wrong ([evidence](../superpowers/qualification/jev-audit-2026-10-25/README.md)).
+Five decisions follow.
+
+1. **The transport admits what the vendor documents.** A request is refused locally only
+   when its estimated tokens exceed 64k for the whole request or 32k for the state plus
+   any one question (the documented contexts of Jev 1.13 and 1.14); the estimate is the
+   local tokenizer × 1.25 plus measured overheads, never exceeded by more than 87 % on 201
+   billed requests. The former 32 000-byte / 24-question cap had no vendor counterpart and
+   refused every real initiative state (109 kB). Usages that put several items in ONE state
+   keep the batch shape they were measured with (`JEV_SHARED_STATE_BATCH_BYTES`).
+2. **One keep-alive client per serving loop**, opened and closed by the lifespan
+   (`infrastructure/llm/jev_http.py`); outside the serving loop a call keeps its own client.
+   Every one of the week's 34 production timeouts sat on the 2 s deadline, the cost of a
+   fresh DNS/TCP/TLS connection per decision on the production host. Its limits are the
+   vendor SDK's own defaults — 100 connections, all kept open for 30 s while idle, so a
+   burst reuses them — far above any burst a worker fires, since a decision's deadline
+   includes the wait for a connection. It keeps ADR-325's single attempt: the vendor
+   documents retrying 429/529, but production showed none in seven days (792 decisions),
+   and a request retried after it was sent may be billed twice with one charge recorded.
+3. **What the provider asserted is evidence, and some of it is decided in code.** Email
+   labels and reply-to (under the unified names), a calendar entry's type, video call and
+   recurrence reach the classification; mail the provider filed under promotions, social,
+   updates or forums is never published as spam without the spam label, and a birthday,
+   focus-time or working-location entry is its category.
+4. **Acceptance levels are chosen where they can be measured.** The email and appointment
+   floors become 0.80 / 0.80 (from 0.95 / 0.99): no wrong label on any frozen corpus from
+   0.50 on jev-1.14.0, first safe level 0.70 across layouts and versions, plus one step of
+   margin; a production-shaped corpus goes from 62 % to 86 % coverage with no wrong label.
+   The initiative skip becomes p ≤ 0.20 (from 0.11), chosen on the gate corpora rebuilt by
+   the product's state builder. This is the established rule applied to the states the
+   product actually builds — not a lowered threshold absorbing a regression.
+5. **The initiative state names its tools, it does not ship their contracts.** Name, agent
+   and description; the evaluator that builds the calls keeps the full catalogue.
+
+The collection-preview question was measured and kept (its three-way shape outperformed a
+single relevance Noul); its verdicts still have no consumer, which remains an open product
+decision. The radio verifier now counts the scripts it hands back before any call.
+
+**Amendment — 2026-10-26 (every usage on the model it runs):** dev and production run
+`jev-1.14.0` since 2026-10-25 while most thresholds were calibrated on 1.13, and the vendor
+pins a version wherever thresholds are tuned. Every usage was replayed on 1.14 with its
+shipped question, on its committed corpora or, where those were never versioned, on fresh
+ones now kept in the [record](../superpowers/qualification/jev-audit-2026-10-25/README.md);
+`LLM_DEFAULTS` pins `jev-1.14.0` and the catalogue carries its documented facts. One rule,
+fixed before reading: the first level with no wrong decision on every corpus, one step of
+margin, the stricter of a tie.
+
+| Usage | On 1.14 | Decision |
+|---|---|---|
+| Collection previews (8) | dated requests never decided: a relative day needs date arithmetic the rule forbids | the code computes each item's own day (`start`, `received`) in the person's timezone setting; floor kept at 0.94; production-shaped coverage 0.25 → 0.65, no wrong verdict |
+| Consultation (both) | a wrong shortcut at 0.97 (an injection case) | raised to 0.98 |
+| HITL total refusal | no wrong shortcut at any level; 0.99 kept 4 refusals of 20 | 0.80 (19 of 20) |
+| HITL exclusion | no wrong exclusion from 0.80; 0.99 kept 11 of 23 | 0.90 (18 of 23); the scope keeps 0.80 |
+| Meeting template | no wrong template from 0.70; 0.95 kept 9 of 19 | 0.85 (17 of 19) |
+| Memory reference presence, radio, parameter kind, initiative | no wrong decision at the shipped levels | kept |
+| Extraction observers (4) | shadow by design, off in production | unchanged: skipping an extractor would suppress writes, and no labelled corpus exists |
+
+A wrong collection verdict, refusal, exclusion or template stays bounded where it was:
+previews remove nothing, exclusions and refusals return to a human confirmation, a template
+is reformattable. The shared client keeps the vendor SDK's own pool (100 connections, all
+kept 30 s) and the single attempt. A JEV annotation reaches the filtering evidence as its
+view, never its instants (ADR-351 amendment 2026-10-26).
+
 ## Context
 
 LIA spends model time on decisions which do not require prose: choosing a meeting

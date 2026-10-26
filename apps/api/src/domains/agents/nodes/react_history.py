@@ -11,6 +11,8 @@ DATA the model reads, never an example it should imitate.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import structlog
 from langchain_core.messages import AIMessage, BaseMessage
 
@@ -81,6 +83,7 @@ def window_messages_for_react(
     messages: list[BaseMessage],
     turn_id: int | None = None,
     blocks: bool = False,
+    turn_started_at: float | None = None,
 ) -> list[BaseMessage]:
     """Window messages for the ReAct LLM call to control token usage.
 
@@ -111,6 +114,11 @@ def window_messages_for_react(
             results arrive (ADR-309, amended 2026-09-24).
         blocks: Drop the history by blocks — the turn's rhythm is frequent
             (ADR-311). The call node decides; this function reads no setting.
+        turn_started_at: The setup's wall clock (``react_start_time``), the moment
+            the history's annotations are read on EVERY call of the turn: one that
+            expired between two calls would change the history before the turn's
+            own reasoning — refused where thinking is bound to the conversation
+            (ADR-306), a broken prefix elsewhere. ``None`` reads the clock.
 
     Returns:
         Windowed message list.
@@ -161,7 +169,10 @@ def window_messages_for_react(
         if not isinstance(message, SM) or str(message.content).startswith(COMPACTION_SUMMARY_MARKER)
     ]
 
-    windowed = neutralize_widget_sentinels(as_model_messages(windowed_history)) + current_turn
+    read_at = None if turn_started_at is None else datetime.fromtimestamp(turn_started_at, UTC)
+    windowed = (
+        neutralize_widget_sentinels(as_model_messages(windowed_history, read_at)) + current_turn
+    )
 
     if len(windowed) < len(messages):
         logger.debug(

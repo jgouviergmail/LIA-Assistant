@@ -23,8 +23,8 @@ def record_charge(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
 @pytest.mark.parametrize(
     "choice,confidence,selected",
     [
-        ("c1", 0.99, True),
-        ("c1", 0.94, False),
+        ("c1", module.MIN_CONFIDENCE, True),
+        ("c1", module.MIN_CONFIDENCE - 0.01, False),
         ("none", 0.99, False),
         ("invented", 1.0, False),
     ],

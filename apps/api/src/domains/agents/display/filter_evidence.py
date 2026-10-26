@@ -6,6 +6,11 @@ be the very evidence it needs. Preserve those fields and their relationships;
 exclude provider identifiers and private transport metadata. Mail labels are
 semantic evidence even though the voice serializer omits them. Existing content
 length limits remain explicit, so an incomplete field cannot look complete.
+
+A JEV annotation is projected as its model view — labels and the state the code
+decides when it is shown — never its instants: handed ``valid_until`` in UTC
+beside a clock in Europe/Paris, the response called five-minute-old labels
+expired (measured on dev, 2026-10-26).
 """
 
 from collections.abc import Mapping
@@ -14,6 +19,7 @@ from math import isfinite
 
 from pydantic import JsonValue
 
+from src.core.classification_projection import CLASSIFICATION_KEY, classification_view
 from src.core.field_names import FIELD_DISPLAY_ONLY
 from src.domains.agents.display.llm_serializer import CONTENT_MAX_LENGTH, SKIP_FIELDS, SKIP_PATTERNS
 
@@ -98,12 +104,16 @@ def _project_fields(
     value: Mapping[object, object], parents: set[int], omissions: list[bool], preserve_fields: bool
 ) -> dict[str, JsonValue]:
     """Keep field names attached to their evidence, excluding transport metadata."""
-    fields = {}
+    fields: dict[str, JsonValue] = {}
     for key, child in value.items():
         if not isinstance(key, str) or not is_utf8_text(key):
             omissions.append(True)
             continue
         if key == FIELD_DISPLAY_ONLY or (not preserve_fields and _is_transport_field(key)):
+            continue
+        if key == CLASSIFICATION_KEY and (view := classification_view(child)) is not None:
+            labels: dict[str, JsonValue] = dict(view)
+            fields[key] = labels
             continue
         fields[key] = _project(child, parents, omissions, preserve_fields)
     return fields

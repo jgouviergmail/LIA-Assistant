@@ -28,7 +28,7 @@ import tiktoken
 from langchain_core.messages import BaseMessage
 
 from src.core.config import settings as _app_settings
-from src.infrastructure.llm.message_view import model_view_content
+from src.infrastructure.llm.message_view import stored_model_view
 from src.infrastructure.observability.metrics_agents import (
     planner_fallback_triggered_total,
     planner_token_count,
@@ -163,7 +163,7 @@ class TokenCounterService:
         Returns:
             Number of tokens including overhead
         """
-        view = model_view_content(message)
+        view = stored_model_view(message)
         content = view if view is not None else message.text
         base_tokens = self.count_tokens(content)
 

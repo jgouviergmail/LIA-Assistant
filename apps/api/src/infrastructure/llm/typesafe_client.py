@@ -12,6 +12,7 @@ no separate confidence; its answers travel apart from the Choice answers.
 
 import asyncio
 import json
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -27,12 +28,24 @@ from pydantic import (
     field_validator,
 )
 
+from src.core.token_budget import count_external_tokens
 from src.infrastructure.utils.bounded_read import BodyTooLargeError, read_bounded
 
-# Conservative local limits; vendor token validation still applies independently.
-MAX_REQUEST_BYTES = 32_000
-MAX_RESPONSE_BYTES = 131_072
-MAX_QUESTIONS = 24
+# The documented context of Jev 1.13 and 1.14 (docs.typesafe.ai/models, read
+# 2026-10-25): the state plus every question, and the state plus any ONE question.
+# The vendor sets no limit on the number of questions; only these two count.
+MAX_REQUEST_TOKENS = 64_000
+MAX_QUESTION_TOKENS = 32_000
+# An upper estimate from the local tokenizer — the vendor's is unpublished.
+# Measured on 201 billed requests in six languages (2026-10-25): billed = 270 +
+# 1.10 x local tokens + 49 per question, never above 87 % of this estimate. The
+# vendor still refuses an over-long request itself (400 max_tokens_exceeded).
+LOCAL_TOKEN_FACTOR = 1.25
+REQUEST_OVERHEAD_TOKENS = 300
+QUESTION_OVERHEAD_TOKENS = 60
+MAX_RESPONSE_BYTES = 262_144
+# A sanity bound on one batch's answer set, far above any consumer's own.
+MAX_QUESTIONS = 256
 
 # The HTTP schema promises an approximately unit sum. Observed Choice values are
 # cent-quantized, sometimes with binary float residue; preserve that evidence.
@@ -418,23 +431,38 @@ class TypeSafeClient:
         return _parse_batch(raw, questions)
 
 
+def estimated_tokens(local_tokens: int, questions: int) -> int:
+    """An upper estimate of the tokens the provider bills for this content and shape."""
+    return (
+        math.ceil(local_tokens * LOCAL_TOKEN_FACTOR)
+        + REQUEST_OVERHEAD_TOKENS
+        + QUESTION_OVERHEAD_TOKENS * questions
+    )
+
+
+def _json_text(value: object) -> str:
+    return json.dumps(value, ensure_ascii=False, allow_nan=False)
+
+
 def encode_decision_request(
     model: str, state: JsonValue, questions: Mapping[str, DecisionQuestion]
 ) -> bytes:
-    """Reject malformed state before HTTP; do not leak its values in exceptions."""
+    """Reject malformed or over-long requests before HTTP; never leak their values.
+
+    Both documented contexts are checked: the whole request, and the state with
+    its largest question — each question is evaluated against the whole state.
+    """
     _validate_questions(questions)
     try:
-        body = json.dumps(
-            {
-                "model": model,
-                "state": state,
-                "questions": {key: question.model_dump() for key, question in questions.items()},
-            },
-            ensure_ascii=False,
-            allow_nan=False,
-        ).encode("utf-8")
+        dumped = {key: question.model_dump() for key, question in questions.items()}
+        state_tokens = count_external_tokens(_json_text(state))
+        question_tokens = [count_external_tokens(_json_text(value)) for value in dumped.values()]
+        body = _json_text({"model": model, "state": state, "questions": dumped}).encode("utf-8")
     except TypeError, ValueError:
         raise TypeSafeError("invalid_request") from None
-    if len(body) > MAX_REQUEST_BYTES:
+    if (
+        estimated_tokens(state_tokens + sum(question_tokens), len(dumped)) > MAX_REQUEST_TOKENS
+        or estimated_tokens(state_tokens + max(question_tokens), 1) > MAX_QUESTION_TOKENS
+    ):
         raise TypeSafeError("request_too_large")
     return body

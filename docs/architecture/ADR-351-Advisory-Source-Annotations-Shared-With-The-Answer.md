@@ -76,3 +76,52 @@ as the calibration corpora state theirs (`timezone: UTC`). Production used to
 send a UTC instant beside the person's zone: a conversion no corpus measured,
 which disagrees with the local day around midnight.
 
+## Amendment 2026-10-26 — the filtering evidence too
+
+Measured on dev the day after: a ReAct turn listed emails labelled five seconds
+earlier, and the answer called their assessments « périmées ». The response
+prompt carried, for every email, `evaluated_at` and `valid_until` in UTC with no
+state, beside a clock in Europe/Paris. The path was the filtering evidence
+(`display/filter_evidence.py`), which feeds the response's data-for-filtering
+block and the collection filters' native state and had been left out of the
+amendment above. It now projects an annotation as `classification_view` as well.
+`TestEveryModelFacingSerializer` (`tests/unit/core/test_classification_projection.py`)
+renders one annotation through every generic serializer a model reads, so a
+projection that drops the state fails there.
+
+## Amendment 2026-10-26 (b) — the history reads it when it is shown
+
+Read in the dev logs of the same morning: fourteen ReAct requests still carried
+10 to 15 raw `valid_until` each, every one inside an assistant message of the
+history (two earlier answers), none in the system block, the tools or the turn's
+own results, which carried the state. An answer's model view
+(`display/model_history.with_model_view`) archives the answer's data as JSON with
+each annotation whole, and every later turn reads it again: the ReAct window, the
+response history, the compaction summary and the post-response extractions.
+
+The view stays archived whole; its state is decided when it is **read**.
+`model_view_content`, the one door those readers go through, applies
+`serialized_classifications` — `model_classifications` over the JSON the
+application serialized itself, matching a real key only (inside a JSON string
+every quote is escaped, so quoted text never reads as an annotation). Views
+archived before the change are read the same way, with no migration. A label
+current when the answer was written reads `expired` once its validity
+(`JEV_CLASSIFICATION_*_TTL_SECONDS`, by kind) has passed: « an earlier read's
+label, not checked again », as the prompts define it.
+
+- **One moment per ReAct turn.** Every call of a turn reads its history at the
+  setup's wall clock (`react_start_time`, which a HITL resume keeps): a label
+  expiring between two calls would change the history before the turn's own
+  reasoning — refused where thinking is bound to the conversation (ADR-306), a
+  broken prefix elsewhere. Across turns an archived answer changes once, when its
+  labels expire, so the prompt cache is written again from that answer on, once.
+- **The token counters read the stored form** (`stored_model_view`): it does not
+  change between two reads, so their per-message memo holds — projected on every
+  reducer pass, a view of twenty annotated emails cost 174 µs (measured on the
+  workstation). A guard pins its readers.
+- **The initiative state handed to JEV** carried the turn's registry items whole;
+  `canonical_initiative_context` projects every annotation as its view.
+
+`TestEveryModelFacingSerializer` renders through the archived history and the
+initiative state too, and `test_react_history_prefix_stability` drives the real
+call node over three calls with the clock already past the labels' validity.

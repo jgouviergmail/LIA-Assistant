@@ -9,10 +9,12 @@ most ``DECISION_MARGIN`` (supported) or at least ``1 - DECISION_MARGIN``
 import json
 from collections.abc import Sequence
 from time import perf_counter
+from typing import Literal
 from uuid import UUID
 
 from pydantic import JsonValue
 
+from src.core.constants import JEV_SHARED_STATE_BATCH_BYTES
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.llm_config.jev_registry import JevUsage
 from src.domains.radio.checking import checked_positions
@@ -22,7 +24,7 @@ from src.domains.radio.sms_context import sms_pack_current
 from src.domains.radio.verification import VerifiedLine
 from src.infrastructure.llm.jev_debug_store import record_action
 from src.infrastructure.llm.jev_runtime import choose_many_with_jev
-from src.infrastructure.llm.typesafe_client import MAX_QUESTIONS, MAX_REQUEST_BYTES, NoulQuestion
+from src.infrastructure.llm.typesafe_client import NoulQuestion
 from src.infrastructure.observability.metrics_jev import (
     jev_decision_duration_seconds,
     jev_decisions_total,
@@ -32,18 +34,21 @@ from src.infrastructure.observability.metrics_jev import (
 # the 24 held-out stories (no wrong acceptance; 94 % of the scripts decided natively
 # against 77 % for the former three-way Choice), 2026-10-11.
 DECISION_MARGIN = 0.16
+# The script shape those corpora measured: at most this many checked lines.
+MAX_CHECKED_LINES = 24
+
+LocalRefusal = Literal["too_many_lines", "missing_references", "request_too_large"]
 
 
-def verifier_request(
+def _verifier_request(
     lines: Sequence[VerifiedLine], pack: FactPack, station: str
-) -> tuple[JsonValue, dict[str, NoulQuestion]] | None:
-    """No truncation: a script that does not fit uses the existing verifier."""
+) -> tuple[JsonValue, dict[str, NoulQuestion]] | LocalRefusal:
     positions = checked_positions(lines)
-    if not 1 <= len(positions) <= MAX_QUESTIONS:
-        return None
+    if not 1 <= len(positions) <= MAX_CHECKED_LINES:
+        return "too_many_lines"
     cited = {ref for line in lines for ref in line.refs}
     if not cited.issubset(pack.by_id()):
-        return None
+        return "missing_references"
     state: JsonValue = {
         "station": station,
         "facts": [fact.model_dump(mode="json") for fact in pack.facts if fact.id in cited],
@@ -62,7 +67,17 @@ def verifier_request(
         },
         ensure_ascii=False,
     )
-    return (state, questions) if len(encoded.encode()) <= MAX_REQUEST_BYTES else None
+    if len(encoded.encode()) > JEV_SHARED_STATE_BATCH_BYTES:
+        return "request_too_large"
+    return state, questions
+
+
+def verifier_request(
+    lines: Sequence[VerifiedLine], pack: FactPack, station: str
+) -> tuple[JsonValue, dict[str, NoulQuestion]] | None:
+    """No truncation: a script that does not fit uses the existing verifier."""
+    request = _verifier_request(lines, pack, station)
+    return None if isinstance(request, str) else request
 
 
 def _decided(probability: float) -> bool:
@@ -88,8 +103,10 @@ class JevLineChecker:
         positions = checked_positions(lines)
         if not positions:
             return frozenset()
-        request = verifier_request(lines, pack, self._station_name)
-        if request is None:
+        request = _verifier_request(lines, pack, self._station_name)
+        if isinstance(request, str):
+            # Counted: a script handed back before any call used to leave no trace.
+            jev_decisions_total.labels(usage=JevUsage.RADIO_VERIFICATION, outcome=request).inc()
             return await self._fallback.unsupported(lines, pack)
         state, questions = request
         started = perf_counter()

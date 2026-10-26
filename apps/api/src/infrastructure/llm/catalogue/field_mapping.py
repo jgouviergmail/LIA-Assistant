@@ -80,18 +80,22 @@ class RegistryFacts:
 # It accepts neither chat tools, response schemas nor vision. There is no
 # generative output cap to import; prices, kind and sampling remain curated
 # on the database row exactly like every other provider (ADR-244).
-_VENDOR_CAPABILITIES: dict[tuple[str, str], RegistryFacts] = {
-    ("typesafe", "jev-1.13.0"): RegistryFacts(
-        max_input_tokens=32_000,
-        supports_tools=False,
-        supports_structured_output=False,
-        supports_vision=False,
-        matched_registries=frozenset({"vendor"}),
-        sources=dict.fromkeys(
-            ("max_input_tokens", "supports_tools", "supports_structured_output", "supports_vision"),
-            "vendor:typesafe",
-        ),
+# Jev 1.14 checked 2026-10-26 on the same page: the same 64k per-request / 32k
+# per-question contexts, text input (images are not production-ready), same price.
+_JEV_FACTS = RegistryFacts(
+    max_input_tokens=32_000,
+    supports_tools=False,
+    supports_structured_output=False,
+    supports_vision=False,
+    matched_registries=frozenset({"vendor"}),
+    sources=dict.fromkeys(
+        ("max_input_tokens", "supports_tools", "supports_structured_output", "supports_vision"),
+        "vendor:typesafe",
     ),
+)
+_VENDOR_CAPABILITIES: dict[tuple[str, str], RegistryFacts] = {
+    ("typesafe", "jev-1.13.0"): _JEV_FACTS,
+    ("typesafe", "jev-1.14.0"): _JEV_FACTS,
 }
 
 

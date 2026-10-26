@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.security.utils import encrypt_data
 from src.domains.llm.models import LLMModel, LLMModelKindEnum, LLMModelPricing, LLMProviderEnum
+from src.domains.llm_config.constants import LLM_DEFAULTS
 from src.domains.llm_config.jev_admin import update_jev_setting
 from src.domains.llm_config.jev_registry import JevUsage
 from src.domains.llm_config.jev_settings import JevToggleUpdate, read_configuration, read_flags
@@ -18,6 +19,9 @@ from src.domains.system_settings.models import SystemSetting, SystemSettingKey
 from src.domains.users.models import AdminAuditLog
 from tests.fixtures.factories import UserFactory
 
+# The slot defaults pin one model version (the thresholds are tuned per version):
+# read it, never restate it, or a retarget breaks the test instead of the code.
+PINNED_MODEL = LLM_DEFAULTS["meeting_template_selection"].model
 pytestmark = pytest.mark.integration
 
 
@@ -46,7 +50,7 @@ async def test_decision_requires_a_key_active_model_and_active_tariff(
 
     model = LLMModel(
         provider=LLMProviderEnum.typesafe,
-        model_name="jev-1.13.0",
+        model_name=PINNED_MODEL,
         kind=LLMModelKindEnum.decision,
         is_active=True,
     )
@@ -67,7 +71,7 @@ async def test_decision_requires_a_key_active_model_and_active_tariff(
     status, config = await read_configuration(async_session, JevUsage.MEETING_TEMPLATE)
     assert status == "ready" and config is not None
     assert config.api_key.get_secret_value() == "test-secret"
-    assert config.model == "jev-1.13.0"
+    assert config.model == PINNED_MODEL
     model.is_active = False
     await async_session.flush()
     status, config = await read_configuration(async_session, JevUsage.MEETING_TEMPLATE)

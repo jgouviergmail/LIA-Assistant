@@ -1,5 +1,6 @@
 """A worker observes acknowledged admin switches without a cache invalidation."""
 
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import patch
@@ -14,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from src.core.security.utils import encrypt_data
 from src.domains.chat.models import MessageTokenSummary, TokenUsageLog
 from src.domains.llm.models import LLMModel, LLMModelKindEnum, LLMModelPricing, LLMProviderEnum
+from src.domains.llm_config.constants import LLM_DEFAULTS
 from src.domains.llm_config.jev_admin import update_jev_setting
 from src.domains.llm_config.jev_registry import JEV_USAGES, JevUsage
 from src.domains.llm_config.jev_settings import JevToggleUpdate
@@ -24,6 +26,9 @@ from src.infrastructure.llm.jev_runtime import choose_with_jev
 from src.infrastructure.llm.typesafe_client import ChoiceQuestion
 from tests.fixtures.factories import UserFactory
 
+# The slot defaults pin one model version (the thresholds are tuned per version):
+# read it, never restate it, or a retarget breaks the test instead of the code.
+PINNED_MODEL = LLM_DEFAULTS["meeting_template_selection"].model
 pytestmark = pytest.mark.integration
 
 
@@ -36,7 +41,7 @@ async def test_off_on_off_reaches_provider_once_from_independent_sessions(
     admin = UserFactory.create(is_superuser=True)
     model = LLMModel(
         provider=LLMProviderEnum.typesafe,
-        model_name="jev-1.13.0",
+        model_name=PINNED_MODEL,
         kind=LLMModelKindEnum.decision,
         is_active=True,
     )
@@ -60,7 +65,7 @@ async def test_off_on_off_reaches_provider_once_from_independent_sessions(
         return httpx.Response(
             200,
             json={
-                "model": "jev-1.13.0",
+                "model": PINNED_MODEL,
                 "usage": {"input_tokens": 100, "output_tokens": 20},
                 "answers": {
                     "selection": {
@@ -97,10 +102,12 @@ async def test_off_on_off_reaches_provider_once_from_independent_sessions(
 
     try:
         # Real database, configuration, quota guard and ledger; only the remote HTTP is simulated.
-        with patch(
-            "src.infrastructure.llm.jev_runtime.httpx.AsyncClient",
-            side_effect=lambda: real_client(transport=httpx.MockTransport(respond)),
-        ):
+        @asynccontextmanager
+        async def remote_simulated():
+            async with real_client(transport=httpx.MockTransport(respond)) as client:
+                yield client
+
+        with patch("src.infrastructure.llm.jev_runtime.jev_http_client", remote_simulated):
             off = await choose(runs[0])
             await change(usage, True)
             enabled = await change(None, True)

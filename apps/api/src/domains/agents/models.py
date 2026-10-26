@@ -27,7 +27,7 @@ from src.domains.agents.data_registry.state import merge_registry
 from src.domains.agents.utils.message_filters import remove_orphan_tool_messages
 from src.domains.agents.utils.react_budget import react_turn_reset
 from src.domains.agents.utils.react_execution_contracts import CachedRead, ReadObservation
-from src.infrastructure.llm.message_view import model_view_content
+from src.infrastructure.llm.message_view import stored_model_view
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -54,7 +54,7 @@ def _count_message_tokens(message: BaseMessage, encoding: tiktoken.Encoding) -> 
     Returns:
         Token count for the message content.
     """
-    view = model_view_content(message)
+    view = stored_model_view(message)
     content = view if view is not None else message.content
     if not isinstance(content, str):
         return 0
@@ -566,7 +566,9 @@ class MessagesState(TypedDict):
     # react_iteration: reuses existing field from line 304 (Semantic Agent Phase 2)
     react_tool_names: list[str]  # Tool names selected for this ReAct session
     react_hitl_map: dict[str, bool]  # tool_name → hitl_required
-    react_start_time: float | None  # Wall clock, kept for the HITL-wait metric only
+    # Wall clock of the turn's setup: the HITL-wait metric, and the moment every call
+    # of the turn reads its history's annotations (ADR-351, react_history).
+    react_start_time: float | None
     # ADR-169: the turn's system blocks live here, NOT in `messages`. Appending
     # them to the message list persisted one copy per turn, which the windowing
     # then hoisted to the front of every payload.

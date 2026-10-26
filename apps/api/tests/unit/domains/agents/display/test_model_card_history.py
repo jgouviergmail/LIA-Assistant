@@ -1,5 +1,9 @@
 """Stored display HTML must not become a model example or a source of withheld data."""
 
+import ast
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+
 import pytest
 import tiktoken
 from langchain_core.messages import (
@@ -10,6 +14,7 @@ from langchain_core.messages import (
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 
 from src.core.config import settings
+from src.core.content_classification import EmailClassification
 from src.domains.agents.display.model_history import with_model_view
 from src.domains.agents.models import count_messages_tokens_cached
 from src.domains.agents.nodes.react_history import window_messages_for_react
@@ -223,3 +228,71 @@ def test_unserializable_item_keeps_other_authorized_facts_and_external_boundary(
     view = model_view_content(message)
     assert view is not None and "data_unavailable" in view and "Renewal" in view
     assert view.count("<external_content") == view.count("</external_content>") == 2
+
+
+def test_an_archived_qualification_reaches_every_history_reader_with_its_state() -> None:
+    # The answer archives its data with each annotation whole; the ReAct window,
+    # the response history and the compaction summary read it on later turns with
+    # the state of that moment, never its instants (ADR-351).
+    written = datetime.now(UTC)
+    annotation = EmailClassification.model_validate(
+        {
+            "category": "phishing_scam",
+            "priority": "urgent",
+            "evidence_scope": "snippet",
+            "evaluated_at": written - timedelta(seconds=1),
+            "valid_until": written + timedelta(minutes=5),
+        }
+    ).model_dump(mode="json")
+    serde = JsonPlusSerializer(allowed_msgpack_modules=_CHECKPOINT_ALLOWED_MODULES)
+    answer = serde.loads_typed(
+        serde.dumps_typed(
+            [
+                with_model_view(
+                    AIMessage(content=_HTML, id="answer-q"),
+                    "Found it.",
+                    {
+                        "email-1": {
+                            "type": "EMAIL",
+                            "payload": {"subject": "Renewal", "classification": annotation},
+                        }
+                    },
+                )
+            ]
+        )
+    )[0]
+    messages = [HumanMessage(content="Any scam?"), answer, HumanMessage(content="And now?")]
+
+    readings = {
+        "react": str(window_messages_for_react(messages)[1].content),
+        "response": format_conversation_history(filter_for_llm_context([answer])),
+        "compaction": CompactionService()._format_messages_for_summary([answer]),
+    }
+
+    for reader, text in readings.items():
+        assert '"state": "current"' in text, reader
+        assert "valid_until" not in text and "evaluated_at" not in text, reader
+
+
+def test_only_the_token_counters_read_the_stored_snapshot() -> None:
+    # The stored form keeps each annotation whole, instants included; it serves to
+    # measure. A model reads model_view_content, which decides their state when it
+    # is read — a new model-bound reader of the stored form would undo that.
+    src = Path(__file__).resolve().parents[5] / "src"
+    readers = set()
+    for path in src.rglob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        if "stored_model_view" not in text:
+            continue
+        for node in ast.walk(ast.parse(text)):
+            if not isinstance(node, ast.Call):
+                continue
+            name = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
+            if name == "stored_model_view":
+                readers.add(path.relative_to(src).as_posix())
+
+    assert readers == {
+        "domains/agents/models.py",
+        "domains/agents/services/token_counter_service.py",
+        "infrastructure/llm/message_view.py",
+    }

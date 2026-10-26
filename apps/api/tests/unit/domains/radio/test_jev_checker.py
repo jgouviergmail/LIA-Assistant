@@ -8,6 +8,7 @@ from uuid import uuid4
 
 import pytest
 
+from src.core.constants import JEV_SHARED_STATE_BATCH_BYTES
 from src.domains.radio.facts import FactKind, FactPack, RadioFact, Sensitivity, SourceRef
 from src.domains.radio.formats import RadioFormat, RadioRole
 from src.domains.radio.script import LineKind, RadioDelivery, ScriptPart
@@ -91,25 +92,31 @@ async def test_complete_native_script_maps_exact_positions_and_never_checks_tran
     assert sent["state"]["facts"][0]["text"] == PACK.facts[0].text
 
 
-@pytest.mark.parametrize(
-    "lines",
-    [
-        (LINES[1],) * 25,
-        (replace(LINES[1], text="界" * 12000),),
-        (replace(LINES[1], refs=("missing",)),),
-    ],
-)
-async def test_unrepresentable_script_uses_whole_original_without_native_spend(lines) -> None:
+@pytest.mark.parametrize("reason", ["too_many_lines", "request_too_large", "missing_references"])
+async def test_unrepresentable_script_uses_whole_original_without_native_spend(reason) -> None:
     module = importlib.import_module("src.domains.radio.jev_checker")
+    # Relative to the bounds the checker enforces (a CJK character is 3 UTF-8 bytes).
+    lines = {
+        "too_many_lines": (LINES[1],) * (module.MAX_CHECKED_LINES + 1),
+        "request_too_large": (
+            replace(LINES[1], text="界" * (JEV_SHARED_STATE_BATCH_BYTES // 3 + 1)),
+        ),
+        "missing_references": (replace(LINES[1], refs=("missing",)),),
+    }[reason]
     fallback = AsyncMock()
     fallback.unsupported.return_value = None
-    with patch.object(module, "choose_many_with_jev", AsyncMock()) as native:
+    with (
+        patch.object(module, "choose_many_with_jev", AsyncMock()) as native,
+        patch.object(module, "jev_decisions_total") as counted,
+    ):
         checker = module.JevLineChecker(
             fallback, user_id=uuid4(), run_id="radio", station_name="Radio 42"
         )
         assert await checker.unsupported(lines, PACK) is None
     native.assert_not_awaited()
     fallback.unsupported.assert_awaited_once_with(lines, PACK)
+    # A script handed back before any call is counted under its closed reason.
+    counted.labels.assert_called_once_with(usage=module.JevUsage.RADIO_VERIFICATION, outcome=reason)
 
 
 @pytest.mark.parametrize(

@@ -4,13 +4,14 @@ from datetime import UTC, datetime
 
 import pytest
 
+from src.core.constants import JEV_SHARED_STATE_BATCH_BYTES
 from src.domains.agents.services.qualification.batches import build_batches
 from src.domains.agents.services.qualification.contracts import (
     ClassificationObservation,
 )
 from src.infrastructure.llm.typesafe_client import (
+    MAX_QUESTION_TOKENS,
     MAX_QUESTIONS,
-    MAX_REQUEST_BYTES,
     encode_decision_request,
 )
 
@@ -43,7 +44,7 @@ def test_every_whole_item_has_exactly_the_native_questions_for_its_kind(
     seen: list[str] = []
     for batch in batches:
         body = encode_decision_request("a-model", batch.state, batch.questions)
-        assert len(body) <= MAX_REQUEST_BYTES
+        assert len(batch.members) == 1 or len(body) <= JEV_SHARED_STATE_BATCH_BYTES
         assert len(batch.questions) <= MAX_QUESTIONS
         assert len(batch.questions) == len(batch.members) * questions_per_item
         assert b"private-" not in body
@@ -54,7 +55,7 @@ def test_every_whole_item_has_exactly_the_native_questions_for_its_kind(
 
 
 def test_oversized_multibyte_evidence_is_skipped_whole_and_never_silently_cut() -> None:
-    values = [observed(0, text="界" * MAX_REQUEST_BYTES), observed(1)]
+    values = [observed(0, text="界" * MAX_QUESTION_TOKENS), observed(1)]
     batches = build_batches(values, model="a-model", now=datetime.now(UTC), timezone="UTC")
     assert [item.identity for batch in batches for item in batch.members] == ["private-1"]
 

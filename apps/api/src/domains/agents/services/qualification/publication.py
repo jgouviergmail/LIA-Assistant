@@ -35,7 +35,9 @@ _EMAIL_FIELDS = (
     "summary",
     "body_part",
     "body_parts",
-    "replyTo",
+    # The unified vocabulary's name (ADR-287); ``replyTo`` matched no provider,
+    # so a reply-to differing from the sender never reached the judgment.
+    "reply_to",
 )
 _EVENT_FIELDS = (
     "summary",
@@ -46,6 +48,8 @@ _EVENT_FIELDS = (
     "attendees",
     "organizer",
 )
+# Calendar entries the provider itself types; ``default`` says nothing.
+_UNTYPED_EVENT = "default"
 _KINDS: tuple[tuple[RegistryItemType, Literal["email", "event"]], ...] = (
     (RegistryItemType.EMAIL, "email"),
     (RegistryItemType.EVENT, "event"),
@@ -62,6 +66,31 @@ def _scope(payload: Mapping[str, object], kind: Literal["email", "event"]) -> Ev
     return "snippet" if payload.get("snippet") else "metadata"
 
 
+def _provider_facts(
+    payload: Mapping[str, object], kind: Literal["email", "event"]
+) -> dict[str, JsonValue]:
+    """What the provider already asserted and the source fields alone hide.
+
+    Measured on a production-shaped corpus (2026-10-25): without its labels a
+    message the provider filed under promotions read as spam, and an
+    appointment's own type (a birthday, a focus block) was never seen.
+    """
+    facts: dict[str, JsonValue] = {}
+    if kind == "email":
+        labels = payload.get("labelIds")
+        if isinstance(labels, list) and labels:
+            facts["labels"] = [str(label) for label in labels]
+        return facts
+    event_type = payload.get("eventType")
+    if isinstance(event_type, str) and event_type and event_type != _UNTYPED_EVENT:
+        facts["event_type"] = event_type
+    if payload.get("hangoutLink") or payload.get("conferenceData"):
+        facts["video_call"] = True
+    if payload.get("recurringEventId") or payload.get("recurrence"):
+        facts["recurring"] = True
+    return facts
+
+
 def observation(
     identity: str,
     payload: Mapping[str, object],
@@ -74,6 +103,7 @@ def observation(
         for field in _EMAIL_FIELDS if kind == "email" else _EVENT_FIELDS:
             if field in payload:
                 evidence[field] = _JSON.validate_python(payload[field])
+        evidence.update(_provider_facts(payload, kind))
         return ClassificationObservation(
             identity=identity,
             kind=kind,

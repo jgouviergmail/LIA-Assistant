@@ -1,0 +1,271 @@
+{
+ "version": 1,
+ "usage": "memory_reference_presence",
+ "source": "Fictional chat requests, six languages; gold 'absent' = nothing personal to resolve.",
+ "state_shape": {
+  "query": "<request>",
+  "account_owner_identity_known": true
+ },
+ "cases": [
+  {
+   "language": "en",
+   "query": "What's the weather in Lyon tomorrow?",
+   "gold": "absent"
+  },
+  {
+   "language": "en",
+   "query": "Show my unread emails",
+   "gold": "absent"
+  },
+  {
+   "language": "en",
+   "query": "How many days until Christmas?",
+   "gold": "absent"
+  },
+  {
+   "language": "en",
+   "query": "Summarize my meetings this week",
+   "gold": "absent"
+  },
+  {
+   "language": "en",
+   "query": "Translate 'thank you' into Japanese",
+   "gold": "absent"
+  },
+  {
+   "language": "en",
+   "query": "Find files about the Q4 budget",
+   "gold": "absent"
+  },
+  {
+   "language": "en",
+   "query": "Send an email to Claire Petit about the budget",
+   "gold": "absent"
+  },
+  {
+   "language": "en",
+   "query": "What's on my calendar today?",
+   "gold": "absent"
+  },
+  {
+   "language": "en",
+   "query": "Remind me to buy milk at 6pm",
+   "gold": "absent"
+  },
+  {
+   "language": "en",
+   "query": "Convert 100 dollars to euros",
+   "gold": "absent"
+  },
+  {
+   "language": "fr",
+   "query": "Quelle est la météo à Paris ?",
+   "gold": "absent"
+  },
+  {
+   "language": "fr",
+   "query": "Montre-moi mes tâches en retard",
+   "gold": "absent"
+  },
+  {
+   "language": "fr",
+   "query": "Résume mes mails de ce matin",
+   "gold": "absent"
+  },
+  {
+   "language": "fr",
+   "query": "Combien font 15 % de 240 ?",
+   "gold": "absent"
+  },
+  {
+   "language": "fr",
+   "query": "Envoie un mail à Marc Lefèvre pour décaler la réunion",
+   "gold": "absent"
+  },
+  {
+   "language": "fr",
+   "query": "Quels sont mes rendez-vous demain ?",
+   "gold": "absent"
+  },
+  {
+   "language": "de",
+   "query": "Wie wird das Wetter morgen in Berlin?",
+   "gold": "absent"
+  },
+  {
+   "language": "de",
+   "query": "Zeig mir meine Termine für Freitag",
+   "gold": "absent"
+  },
+  {
+   "language": "es",
+   "query": "¿Qué tiempo hará mañana en Madrid?",
+   "gold": "absent"
+  },
+  {
+   "language": "es",
+   "query": "Muéstrame mis correos sin leer",
+   "gold": "absent"
+  },
+  {
+   "language": "it",
+   "query": "Che tempo fa domani a Roma?",
+   "gold": "absent"
+  },
+  {
+   "language": "it",
+   "query": "Mostrami le mie attività di oggi",
+   "gold": "absent"
+  },
+  {
+   "language": "zh",
+   "query": "明天上海天气怎么样？",
+   "gold": "absent"
+  },
+  {
+   "language": "zh",
+   "query": "显示我今天的日程",
+   "gold": "absent"
+  },
+  {
+   "language": "fr",
+   "query": "Trouve le restaurant Le Petit Zinc à Lyon",
+   "gold": "absent"
+  },
+  {
+   "language": "en",
+   "query": "Call Jordan Lee back after lunch",
+   "gold": "absent"
+  },
+  {
+   "language": "en",
+   "query": "Send an email to my wife saying I'll be late",
+   "gold": "preserve"
+  },
+  {
+   "language": "en",
+   "query": "What did my boss say about the report?",
+   "gold": "preserve"
+  },
+  {
+   "language": "en",
+   "query": "Remind me to call my mom tomorrow",
+   "gold": "preserve"
+  },
+  {
+   "language": "en",
+   "query": "How long does it take to drive home?",
+   "gold": "preserve"
+  },
+  {
+   "language": "en",
+   "query": "Book a table near my place",
+   "gold": "preserve"
+  },
+  {
+   "language": "en",
+   "query": "Did he answer my email?",
+   "gold": "preserve"
+  },
+  {
+   "language": "en",
+   "query": "Share this document with my brother",
+   "gold": "preserve"
+  },
+  {
+   "language": "en",
+   "query": "When is my sister's birthday?",
+   "gold": "preserve"
+  },
+  {
+   "language": "en",
+   "query": "Text my neighbour that the package arrived",
+   "gold": "preserve"
+  },
+  {
+   "language": "en",
+   "query": "What time does my daughter's school finish?",
+   "gold": "preserve"
+  },
+  {
+   "language": "fr",
+   "query": "Envoie un message à ma femme pour dire que je rentre tard",
+   "gold": "preserve"
+  },
+  {
+   "language": "fr",
+   "query": "Combien de temps pour rentrer à la maison ?",
+   "gold": "preserve"
+  },
+  {
+   "language": "fr",
+   "query": "Rappelle-moi d'appeler mon père ce soir",
+   "gold": "preserve"
+  },
+  {
+   "language": "fr",
+   "query": "Qu'a dit mon chef dans son dernier mail ?",
+   "gold": "preserve"
+  },
+  {
+   "language": "fr",
+   "query": "Réserve un restaurant près de chez moi",
+   "gold": "preserve"
+  },
+  {
+   "language": "fr",
+   "query": "Est-ce qu'elle a répondu ?",
+   "gold": "preserve"
+  },
+  {
+   "language": "de",
+   "query": "Schick meiner Frau eine Nachricht, dass ich später komme",
+   "gold": "preserve"
+  },
+  {
+   "language": "de",
+   "query": "Wie lange brauche ich nach Hause?",
+   "gold": "preserve"
+  },
+  {
+   "language": "es",
+   "query": "Envía un correo a mi jefe diciendo que estoy enfermo",
+   "gold": "preserve"
+  },
+  {
+   "language": "es",
+   "query": "¿Cuánto tardo en llegar a casa?",
+   "gold": "preserve"
+  },
+  {
+   "language": "it",
+   "query": "Manda un messaggio a mia moglie",
+   "gold": "preserve"
+  },
+  {
+   "language": "it",
+   "query": "Quanto ci vuole per tornare a casa?",
+   "gold": "preserve"
+  },
+  {
+   "language": "zh",
+   "query": "给我老婆发消息说我会晚点回家",
+   "gold": "preserve"
+  },
+  {
+   "language": "zh",
+   "query": "回家要多久？",
+   "gold": "preserve"
+  },
+  {
+   "language": "fr",
+   "query": "Préviens mon associé que le devis est signé",
+   "gold": "preserve"
+  },
+  {
+   "language": "en",
+   "query": "Forward this to them",
+   "gold": "preserve"
+  }
+ ]
+}

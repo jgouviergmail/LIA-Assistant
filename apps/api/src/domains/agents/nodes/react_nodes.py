@@ -388,7 +388,10 @@ async def react_call_model_node(
     messages = compose_turn_messages(
         system_blocks,
         _window_messages_for_react(
-            state["messages"], turn_id=state.get(STATE_KEY_CURRENT_TURN_ID), blocks=cross_turn
+            state["messages"],
+            turn_id=state.get(STATE_KEY_CURRENT_TURN_ID),
+            blocks=cross_turn,
+            turn_started_at=state.get("react_start_time"),
         ),
         context_after_question=cross_turn,
         provider=react_slot_provider() if cross_turn else None,

@@ -292,6 +292,18 @@ async def test_cancellation_after_paid_response_does_not_drop_the_pending_charge
             assert len(tracker.get_llm_calls_breakdown()) == 1
 
 
+def call_scoped(http):
+    """The runtime's client door, handing one call-scoped client (closed after it)."""
+    from contextlib import asynccontextmanager
+
+    @asynccontextmanager
+    async def door():
+        async with http:
+            yield http
+
+    return door
+
+
 @pytest.mark.parametrize("cancelled", [False, True])
 async def test_client_close_cannot_erase_an_already_received_bill(cancelled: bool) -> None:
     import asyncio
@@ -319,7 +331,7 @@ async def test_client_close_cannot_erase_an_already_received_bill(cancelled: boo
             module, "load_jev_snapshot", AsyncMock(return_value=JevSnapshot(True, "ready", config))
         ),
         patch.object(module, "enforce_usage_limit", AsyncMock()),
-        patch.object(module.httpx, "AsyncClient", closing_client),
+        patch.object(module, "jev_http_client", closing_client),
         patch(
             "src.infrastructure.llm.typesafe_client.TypeSafeClient.choose",
             AsyncMock(return_value=reply),
@@ -383,7 +395,7 @@ async def test_real_transport_stream_cleanup_accounts_received_usage_once(
             module, "load_jev_snapshot", AsyncMock(return_value=JevSnapshot(True, "ready", config))
         ),
         patch.object(module, "enforce_usage_limit", AsyncMock()),
-        patch.object(module.httpx, "AsyncClient", return_value=http),
+        patch.object(module, "jev_http_client", call_scoped(http)),
         patch.object(http, "stream", closing_stream),
     ):
         async with tracker:

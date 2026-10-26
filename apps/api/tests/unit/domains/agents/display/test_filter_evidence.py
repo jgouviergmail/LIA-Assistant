@@ -1,12 +1,74 @@
 """Evidence needed to filter a result must survive its LLM projection."""
 
+import re
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
 
+from src.core.classification_projection import classification_view
+from src.core.content_classification import EmailClassification
 from src.domains.agents.formatters.text_summary import generate_data_for_filtering
 
 pytestmark = pytest.mark.unit
+
+AN_INSTANT = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")
+
+
+def annotation(evaluated: timedelta, valid: timedelta) -> dict[str, object]:
+    """A published email annotation, its instants relative to now."""
+    now = datetime.now(UTC)
+    return EmailClassification.model_validate(
+        {
+            "category": "professional",
+            "priority": "normal",
+            "evidence_scope": "snippet",
+            "evaluated_at": now + evaluated,
+            "valid_until": now + valid,
+        }
+    ).model_dump(mode="json")
+
+
+@pytest.mark.parametrize(
+    ("evaluated", "valid", "state"),
+    [
+        (timedelta(seconds=-1), timedelta(minutes=5), "current"),
+        (timedelta(hours=-2), timedelta(hours=-1), "expired"),
+    ],
+    ids=["current", "expired"],
+)
+def test_the_response_filtering_block_states_the_qualification_never_its_instants(
+    evaluated: timedelta, valid: timedelta, state: str
+) -> None:
+    # Measured on dev (2026-10-26): this block handed the response model
+    # `evaluated_at` / `valid_until` in UTC beside a clock in Europe/Paris, and
+    # the answer called five-minute-old labels « périmées ».
+    payload = {"subject": "Agreement", "classification": annotation(evaluated, valid)}
+    rendered = generate_data_for_filtering({"email_test": {"type": "EMAIL", "payload": payload}})
+    assert f"state: {state}" in rendered
+    assert "category: professional" in rendered
+    assert "valid_until" not in rendered and "evaluated_at" not in rendered
+    assert not AN_INSTANT.search(rendered)
+
+
+@pytest.mark.parametrize("preserve_fields", [False, True])
+def test_native_filter_evidence_carries_the_annotation_view(preserve_fields: bool) -> None:
+    from src.domains.agents.display.filter_evidence import project_filter_evidence
+
+    published = annotation(timedelta(seconds=-1), timedelta(minutes=5))
+    evidence = project_filter_evidence(
+        {"subject": "Agreement", "classification": published}, preserve_fields=preserve_fields
+    )
+    assert evidence.complete
+    assert evidence.data["classification"] == classification_view(published)
+    assert not AN_INSTANT.search(evidence.text)
+
+
+def test_a_classification_field_that_is_no_annotation_stays_evidence() -> None:
+    from src.domains.agents.display.filter_evidence import project_filter_evidence
+
+    evidence = project_filter_evidence({"classification": "confidential"}, preserve_fields=True)
+    assert evidence.data == {"classification": "confidential"}
 
 
 @pytest.mark.parametrize(

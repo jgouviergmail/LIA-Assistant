@@ -49,7 +49,7 @@ async def replay(args: argparse.Namespace) -> None:
     from src.infrastructure.database.registry import import_all_models
     from src.infrastructure.llm.jev_runtime import choose_many_with_jev
     from src.infrastructure.llm.typesafe_client import (
-        MAX_REQUEST_BYTES,
+        MAX_REQUEST_TOKENS,
         MAX_RESPONSE_BYTES,
     )
     from src.infrastructure.proactive.tracking import out_of_turn_spend
@@ -150,7 +150,8 @@ async def replay(args: argparse.Namespace) -> None:
                     # counters via the ordinary runtime. No automatic retry.
                     reserve = (
                         (
-                            Decimal(MAX_REQUEST_BYTES * 2) * config.price.input_price
+                            # The documented per-request context bounds what one call bills.
+                            Decimal(MAX_REQUEST_TOKENS) * config.price.input_price
                             + Decimal(MAX_RESPONSE_BYTES) * config.price.output_price
                         )
                         / 1_000_000

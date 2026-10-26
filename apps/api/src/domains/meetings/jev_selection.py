@@ -21,7 +21,11 @@ from src.infrastructure.observability.metrics_jev import (
     jev_decisions_total,
 )
 
-MIN_CONFIDENCE = 0.95
+# Re-chosen on jev-1.14.0 (2026-10-26, scripts/analysis/jev_lot1_replay.py on
+# tests/fixtures/jev_meeting_cases.json): no wrong template at any level from 0.70;
+# 0.80 and 0.85 tie at 17 of 19 (the other two rightly answer « none ») where 0.95
+# kept 9, so the stricter tie. A wrong template is reformattable (ADR-259).
+MIN_CONFIDENCE = 0.85
 
 
 class _ChoicePrompt(BaseModel):

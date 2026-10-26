@@ -8,6 +8,10 @@ from typing import get_args
 import httpx
 import pytest
 
+from src.core.constants import (
+    JEV_CLASSIFICATION_ALERT_MIN_CONFIDENCE,
+    JEV_CLASSIFICATION_MIN_CONFIDENCE,
+)
 from src.core.content_classification import EmailCategory, EmailPriority
 from src.domains.agents.services.qualification.policy import accepted_choice
 from src.infrastructure.llm.typesafe_client import (
@@ -49,10 +53,16 @@ async def test_recorded_cent_rounded_batch_preserves_other_answers_and_its_singl
     for key, answer in result.answers.items():
         assert answer.probabilities == body["answers"][key]["probabilities"]
         assert answer.confidence <= body["answers"][key]["confidence"]
-    assert accepted_choice(result.answers["i0_category"], get_args(EmailCategory)) == "unknown"
+    # i0: the provider's own 0.91 applies (the 0.9125 concentration never raises it).
+    assert accepted_choice(result.answers["i0_category"], get_args(EmailCategory)) == (
+        "personal" if 0.91 >= JEV_CLASSIFICATION_MIN_CONFIDENCE else "unknown"
+    )
     assert accepted_choice(result.answers["i0_priority"], get_args(EmailPriority)) == "normal"
     assert accepted_choice(result.answers["i2_category"], get_args(EmailCategory)) == "professional"
-    assert accepted_choice(result.answers["i3_category"], get_args(EmailCategory)) == "unknown"
+    # i3: the 0.99 deficit mass concentrates to 0.9875, BELOW the provider's 0.99.
+    assert accepted_choice(result.answers["i3_category"], get_args(EmailCategory)) == (
+        "phishing_scam" if 0.9875 >= JEV_CLASSIFICATION_ALERT_MIN_CONFIDENCE else "unknown"
+    )
     assert (
         accepted_choice(result.answers["i4_category"], get_args(EmailCategory)) == "phishing_scam"
     )
@@ -114,15 +124,21 @@ async def test_probability_mass_must_be_feasible_at_the_received_precision(
             assert caught.value.usage.input_tokens == 6244
 
 
+def _winner_at(concentration: float, options: int = 5) -> float:
+    """The winning probability whose documented Choice concentration is ``concentration``."""
+    return round((concentration * (options - 1) + 1) / options, 6)
+
+
 @pytest.mark.parametrize("deficit", [0.0, 1e-12])
 def test_classification_uses_the_same_exact_concentration_boundary(deficit: float) -> None:
+    winner = _winner_at(JEV_CLASSIFICATION_MIN_CONFIDENCE)
     answer = ChoiceAnswer(
         type="choice",
         choice="professional",
-        confidence=0.95,
+        confidence=1.0,
         probabilities={
-            "unknown": 0.04 + deficit,
-            "professional": 0.96 - deficit,
+            "unknown": round(1 - winner, 6) + deficit,
+            "professional": winner - deficit,
             "personal": 0.0,
             "spam": 0.0,
             "phishing_scam": 0.0,
@@ -134,16 +150,19 @@ def test_classification_uses_the_same_exact_concentration_boundary(deficit: floa
 
 
 def test_overfull_rounded_distribution_cannot_promote_a_phishing_alert() -> None:
+    # Cent-rounded and summing to 1.01: the raw winner sits exactly ON the alert
+    # level, the excess mass must lower it below rather than let it through.
+    winner = round(_winner_at(JEV_CLASSIFICATION_ALERT_MIN_CONFIDENCE), 2)
     answer = ChoiceAnswer(
         type="choice",
         choice="phishing_scam",
         confidence=1.0,
         probabilities={
-            "unknown": 0.01,
+            "unknown": round(1.01 - winner, 2),
             "professional": 0.0,
             "personal": 0.0,
             "spam": 0.0,
-            "phishing_scam": 1.0,
+            "phishing_scam": winner,
         },
     )
     assert accepted_choice(answer, get_args(EmailCategory)) == "unknown"
@@ -177,8 +196,8 @@ def test_overfull_rounded_distribution_cannot_promote_a_phishing_alert() -> None
         (
             "professional",
             {
-                "unknown": 0.05,
-                "professional": 0.96,
+                "unknown": round(1.01 - round(_winner_at(JEV_CLASSIFICATION_MIN_CONFIDENCE), 2), 2),
+                "professional": round(_winner_at(JEV_CLASSIFICATION_MIN_CONFIDENCE), 2),
                 "personal": 0.0,
                 "spam": 0.0,
                 "phishing_scam": 0.0,

@@ -1293,7 +1293,9 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     # structured output is native. Low temperature: minutes report, never invent.
     "meeting_template_selection": LLMAgentConfig(
         provider="typesafe",
-        model="jev-1.13.0",
+        # Every JEV threshold is tuned per model version; they were re-measured on
+        # 1.14 (2026-10-26, docs/superpowers/qualification/jev-audit-2026-10-25).
+        model="jev-1.14.0",
         # Native decisions have no sampling or output-budget parameters.
         # Shared configuration placeholders are never sent to the provider.
         temperature=0.0,

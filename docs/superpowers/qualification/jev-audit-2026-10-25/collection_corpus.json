@@ -1,0 +1,4816 @@
+{
+ "version": 1,
+ "reference_time": "2026-10-28T09:00:00+01:00",
+ "timezone": "Europe/Paris",
+ "source": "Fictional production-shaped collections re-dated from realistic_corpus.json; *.test only.",
+ "cases": [
+  {
+   "id": "ev-tomorrow",
+   "kind": "event",
+   "query": "What do I have tomorrow?",
+   "items": [
+    {
+     "id": "real-ev-009",
+     "raw": {
+      "id": "evt009",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Appel client Garnier SA - devis",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/9",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-29T10:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-29T11:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "t.garnier@garnier-sa.test",
+        "displayName": "Thomas Garnier",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-009",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-014",
+     "raw": {
+      "id": "evt014",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Sync",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/14",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "marc.lefevre@nexora-conseil.test",
+       "displayName": "Marc Lefèvre"
+      },
+      "start": {
+       "dateTime": "2026-10-29T09:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-29T10:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "marc.lefevre@nexora-conseil.test",
+        "displayName": "Marc Lefèvre",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "claire.petit@nexora-conseil.test",
+        "displayName": "Claire Petit",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-014",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-017",
+     "raw": {
+      "id": "evt017",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Comité de direction",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/17",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "direction@nexora-conseil.test",
+       "displayName": "Direction"
+      },
+      "start": {
+       "dateTime": "2026-10-29T14:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-29T15:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "membre1@nexora-conseil.test",
+        "displayName": "Membre 1",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "membre2@nexora-conseil.test",
+        "displayName": "Membre 2",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "membre3@nexora-conseil.test",
+        "displayName": "Membre 3",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "membre4@nexora-conseil.test",
+        "displayName": "Membre 4",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "membre5@nexora-conseil.test",
+        "displayName": "Membre 5",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "membre6@nexora-conseil.test",
+        "displayName": "Membre 6",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "membre7@nexora-conseil.test",
+        "displayName": "Membre 7",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ]
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-006",
+     "raw": {
+      "id": "evt006",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Réunion parents-professeurs",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/6",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-29T18:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-29T19:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "location": "École élémentaire Jules Ferry"
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-030",
+     "raw": {
+      "id": "evt030",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Elternabend Kita",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/30",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-29T19:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-29T20:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "location": "Kita Sonnenschein"
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-036",
+     "raw": {
+      "id": "evt036",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "牙医预约",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/36",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-29T08:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-29T09:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "location": "城东口腔诊所"
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-012",
+     "raw": {
+      "id": "evt012",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Webinaire : nouveautés de la facturation électronique",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/12",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "webinar@editeur-compta.test",
+       "displayName": "Éditeur Compta"
+      },
+      "start": {
+       "dateTime": "2026-10-29T11:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-29T12:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "webinar@editeur-compta.test",
+        "displayName": "Éditeur Compta",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-012",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-003",
+     "raw": {
+      "id": "evt003",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Dentiste",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/3",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-28T11:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-28T12:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "location": "Cabinet du Dr Morel, 12 rue des Lilas, 69003 Lyon"
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-004",
+     "raw": {
+      "id": "evt004",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Déjeuner",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/4",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-28T12:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-28T13:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "location": "Le Petit Zinc"
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-007",
+     "raw": {
+      "id": "evt007",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Entretien annuel - Sophie Bernard (RH)",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/7",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "rh@nexora-conseil.test",
+       "displayName": "Sophie Bernard"
+      },
+      "start": {
+       "dateTime": "2026-10-28T15:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-28T16:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "rh@nexora-conseil.test",
+        "displayName": "Sophie Bernard",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ]
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-027",
+     "raw": {
+      "id": "evt027",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "1:1 with Jordan",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/27",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "jordan.lee@lumio-labs.test",
+       "displayName": "Jordan Lee"
+      },
+      "start": {
+       "dateTime": "2026-10-30T10:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-30T11:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "jordan.lee@lumio-labs.test",
+        "displayName": "Jordan Lee",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-027",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      },
+      "recurringEventId": "rec027"
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-029",
+     "raw": {
+      "id": "evt029",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Quarterly business review - Northwind",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/29",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-30T14:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-30T15:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "dana.fox@northwind.test",
+        "displayName": "Dana Fox",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "sam.ortiz@northwind.test",
+        "displayName": "Sam Ortiz",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ]
+     },
+     "gold": "non_match"
+    }
+   ]
+  },
+  {
+   "id": "ev-medical-today",
+   "kind": "event",
+   "query": "Do I have any medical appointments today?",
+   "items": [
+    {
+     "id": "real-ev-003",
+     "raw": {
+      "id": "evt003",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Dentiste",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/3",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-28T11:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-28T12:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "location": "Cabinet du Dr Morel, 12 rue des Lilas, 69003 Lyon"
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-004",
+     "raw": {
+      "id": "evt004",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Déjeuner",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/4",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-28T12:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-28T13:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "location": "Le Petit Zinc"
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-007",
+     "raw": {
+      "id": "evt007",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Entretien annuel - Sophie Bernard (RH)",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/7",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "rh@nexora-conseil.test",
+       "displayName": "Sophie Bernard"
+      },
+      "start": {
+       "dateTime": "2026-10-28T15:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-28T16:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "rh@nexora-conseil.test",
+        "displayName": "Sophie Bernard",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ]
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-022",
+     "raw": {
+      "id": "evt022",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Kiné",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/22",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-28T18:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-28T19:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "location": "Cabinet de kinésithérapie des Brotteaux",
+      "recurringEventId": "rec022"
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-020",
+     "raw": {
+      "id": "evt020",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Bureau",
+      "eventType": "workingLocation",
+      "htmlLink": "https://calendar.example.test/e/20",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "date": "2026-10-28"
+      },
+      "end": {
+       "date": "2026-10-29"
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-019",
+     "raw": {
+      "id": "evt019",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Focus",
+      "eventType": "focusTime",
+      "htmlLink": "https://calendar.example.test/e/19",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-28T14:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-28T15:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-034",
+     "raw": {
+      "id": "evt034",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Visita dal medico",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/34",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-28T16:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-28T17:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "location": "Studio medico Dr. Bianchi"
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-011",
+     "raw": {
+      "id": "evt011",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Cours de yoga",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/11",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-28T12:15:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-28T13:15:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "location": "Studio Shanti",
+      "recurringEventId": "rec011"
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-036",
+     "raw": {
+      "id": "evt036",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "牙医预约",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/36",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-29T08:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-29T09:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "location": "城东口腔诊所"
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-018",
+     "raw": {
+      "id": "evt018",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Vaccin grippe",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/18",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-27T17:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-27T18:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "location": "Pharmacie du Centre"
+     },
+     "gold": "non_match"
+    }
+   ]
+  },
+  {
+   "id": "ev-video-this-week",
+   "kind": "event",
+   "query": "Which video calls do I still have this week?",
+   "items": [
+    {
+     "id": "real-ev-009",
+     "raw": {
+      "id": "evt009",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Appel client Garnier SA - devis",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/9",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-29T10:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-29T11:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "t.garnier@garnier-sa.test",
+        "displayName": "Thomas Garnier",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-009",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-014",
+     "raw": {
+      "id": "evt014",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Sync",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/14",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "marc.lefevre@nexora-conseil.test",
+       "displayName": "Marc Lefèvre"
+      },
+      "start": {
+       "dateTime": "2026-10-29T09:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-29T10:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "marc.lefevre@nexora-conseil.test",
+        "displayName": "Marc Lefèvre",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "claire.petit@nexora-conseil.test",
+        "displayName": "Claire Petit",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-014",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-012",
+     "raw": {
+      "id": "evt012",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Webinaire : nouveautés de la facturation électronique",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/12",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "webinar@editeur-compta.test",
+       "displayName": "Éditeur Compta"
+      },
+      "start": {
+       "dateTime": "2026-10-29T11:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-29T12:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "webinar@editeur-compta.test",
+        "displayName": "Éditeur Compta",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-012",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-027",
+     "raw": {
+      "id": "evt027",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "1:1 with Jordan",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/27",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "jordan.lee@lumio-labs.test",
+       "displayName": "Jordan Lee"
+      },
+      "start": {
+       "dateTime": "2026-10-30T10:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-30T11:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "jordan.lee@lumio-labs.test",
+        "displayName": "Jordan Lee",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-027",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      },
+      "recurringEventId": "rec027"
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-031",
+     "raw": {
+      "id": "evt031",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Projektmeeting Migration",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/31",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-11-02T10:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-11-02T11:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "j.krueger@firma-beispiel.test",
+        "displayName": "Jens Krüger",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "a.vogel@firma-beispiel.test",
+        "displayName": "Anna Vogel",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-031",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-035",
+     "raw": {
+      "id": "evt035",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Call settimanale team vendite",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/35",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-11-02T09:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-11-02T10:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "g.neri@vendite-esempio.test",
+        "displayName": "Giulia Neri",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "p.riva@vendite-esempio.test",
+        "displayName": "Paolo Riva",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-035",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      },
+      "recurringEventId": "rec035"
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-037",
+     "raw": {
+      "id": "evt037",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "项目周会",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/37",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-11-02T10:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-11-02T11:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "wang@huaxin-tech.test",
+        "displayName": "王经理",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "li@huaxin-tech.test",
+        "displayName": "李工",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-037",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      },
+      "recurringEventId": "rec037"
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-017",
+     "raw": {
+      "id": "evt017",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Comité de direction",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/17",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "direction@nexora-conseil.test",
+       "displayName": "Direction"
+      },
+      "start": {
+       "dateTime": "2026-10-29T14:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-29T15:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "membre1@nexora-conseil.test",
+        "displayName": "Membre 1",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "membre2@nexora-conseil.test",
+        "displayName": "Membre 2",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "membre3@nexora-conseil.test",
+        "displayName": "Membre 3",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "membre4@nexora-conseil.test",
+        "displayName": "Membre 4",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "membre5@nexora-conseil.test",
+        "displayName": "Membre 5",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "membre6@nexora-conseil.test",
+        "displayName": "Membre 6",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "membre7@nexora-conseil.test",
+        "displayName": "Membre 7",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ]
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-029",
+     "raw": {
+      "id": "evt029",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Quarterly business review - Northwind",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/29",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-30T14:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-30T15:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "dana.fox@northwind.test",
+        "displayName": "Dana Fox",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "sam.ortiz@northwind.test",
+        "displayName": "Sam Ortiz",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ]
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-007",
+     "raw": {
+      "id": "evt007",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Entretien annuel - Sophie Bernard (RH)",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/7",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "rh@nexora-conseil.test",
+       "displayName": "Sophie Bernard"
+      },
+      "start": {
+       "dateTime": "2026-10-28T15:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-28T16:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "rh@nexora-conseil.test",
+        "displayName": "Sophie Bernard",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ]
+     },
+     "gold": "non_match"
+    }
+   ]
+  },
+  {
+   "id": "ev-weekend-personal",
+   "kind": "event",
+   "query": "What personal plans do I have this weekend?",
+   "items": [
+    {
+     "id": "real-ev-024",
+     "raw": {
+      "id": "evt024",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Dîner chez Paul et Marie",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/24",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-31T20:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-31T21:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-026",
+     "raw": {
+      "id": "evt026",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Atelier peinture enfants",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/26",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-31T14:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-31T15:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "location": "Médiathèque municipale"
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-039",
+     "raw": {
+      "id": "evt039",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Concert de jazz",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/39",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-11-01T20:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-11-01T21:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "location": "Salle Pleyel"
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-032",
+     "raw": {
+      "id": "evt032",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Cumpleaños de mamá",
+      "eventType": "birthday",
+      "htmlLink": "https://calendar.example.test/e/32",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "date": "2026-11-01"
+      },
+      "end": {
+       "date": "2026-11-02"
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-010",
+     "raw": {
+      "id": "evt010",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Vol AF7712 Paris → Nice",
+      "eventType": "fromGmail",
+      "htmlLink": "https://calendar.example.test/e/10",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-31T07:10:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-31T08:10:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "description": "Réservation ABX7Q2 - Siège 14C",
+      "location": "Aéroport Paris-Orly"
+     },
+     "gold": "unknown"
+    },
+    {
+     "id": "real-ev-015",
+     "raw": {
+      "id": "evt015",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Apéro",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/15",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-30T19:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-30T20:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-006",
+     "raw": {
+      "id": "evt006",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Réunion parents-professeurs",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/6",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-29T18:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-29T19:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "location": "École élémentaire Jules Ferry"
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-016",
+     "raw": {
+      "id": "evt016",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Mariage de Julie et Thomas",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/16",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "date": "2026-11-07"
+      },
+      "end": {
+       "date": "2026-11-08"
+      },
+      "location": "Domaine des Tilleuls"
+     },
+     "gold": "non_match"
+    }
+   ]
+  },
+  {
+   "id": "ev-with-hugo",
+   "kind": "event",
+   "query": "Show my meetings with Hugo Blanc",
+   "items": [
+    {
+     "id": "real-ev-001",
+     "raw": {
+      "id": "evt001",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Point hebdo équipe produit",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/1",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "claire.petit@nexora-conseil.test",
+       "displayName": "Claire Petit"
+      },
+      "start": {
+       "dateTime": "2026-10-27T09:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-27T10:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "claire.petit@nexora-conseil.test",
+        "displayName": "Claire Petit",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "marc.lefevre@nexora-conseil.test",
+        "displayName": "Marc Lefèvre",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "ines.roux@nexora-conseil.test",
+        "displayName": "Inès Roux",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "hugo.blanc@nexora-conseil.test",
+        "displayName": "Hugo Blanc",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-001",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      },
+      "recurringEventId": "rec001"
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-005",
+     "raw": {
+      "id": "evt005",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Revue de sprint 42",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/5",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "hugo.blanc@nexora-conseil.test",
+       "displayName": "Hugo Blanc"
+      },
+      "start": {
+       "dateTime": "2026-10-27T14:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-27T15:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "hugo.blanc@nexora-conseil.test",
+        "displayName": "Hugo Blanc",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "ines.roux@nexora-conseil.test",
+        "displayName": "Inès Roux",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-005",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-007",
+     "raw": {
+      "id": "evt007",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Entretien annuel - Sophie Bernard (RH)",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/7",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "rh@nexora-conseil.test",
+       "displayName": "Sophie Bernard"
+      },
+      "start": {
+       "dateTime": "2026-10-28T15:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-28T16:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "rh@nexora-conseil.test",
+        "displayName": "Sophie Bernard",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ]
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-009",
+     "raw": {
+      "id": "evt009",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Appel client Garnier SA - devis",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/9",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-29T10:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-29T11:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "t.garnier@garnier-sa.test",
+        "displayName": "Thomas Garnier",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-009",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-012",
+     "raw": {
+      "id": "evt012",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Webinaire : nouveautés de la facturation électronique",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/12",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "webinar@editeur-compta.test",
+       "displayName": "Éditeur Compta"
+      },
+      "start": {
+       "dateTime": "2026-10-29T11:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-29T12:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "webinar@editeur-compta.test",
+        "displayName": "Éditeur Compta",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-012",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-014",
+     "raw": {
+      "id": "evt014",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Sync",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/14",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "marc.lefevre@nexora-conseil.test",
+       "displayName": "Marc Lefèvre"
+      },
+      "start": {
+       "dateTime": "2026-10-29T09:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-29T10:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "marc.lefevre@nexora-conseil.test",
+        "displayName": "Marc Lefèvre",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "claire.petit@nexora-conseil.test",
+        "displayName": "Claire Petit",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-014",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-017",
+     "raw": {
+      "id": "evt017",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Comité de direction",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/17",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "direction@nexora-conseil.test",
+       "displayName": "Direction"
+      },
+      "start": {
+       "dateTime": "2026-10-29T14:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-29T15:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "membre1@nexora-conseil.test",
+        "displayName": "Membre 1",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "membre2@nexora-conseil.test",
+        "displayName": "Membre 2",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "membre3@nexora-conseil.test",
+        "displayName": "Membre 3",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "membre4@nexora-conseil.test",
+        "displayName": "Membre 4",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "membre5@nexora-conseil.test",
+        "displayName": "Membre 5",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "membre6@nexora-conseil.test",
+        "displayName": "Membre 6",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "membre7@nexora-conseil.test",
+        "displayName": "Membre 7",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ]
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-023",
+     "raw": {
+      "id": "evt023",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Formation sécurité incendie",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/23",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "formation@nexora-conseil.test",
+       "displayName": "Formation"
+      },
+      "start": {
+       "dateTime": "2026-10-30T09:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-30T10:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "formation@nexora-conseil.test",
+        "displayName": "Formation",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ]
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-027",
+     "raw": {
+      "id": "evt027",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "1:1 with Jordan",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/27",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "jordan.lee@lumio-labs.test",
+       "displayName": "Jordan Lee"
+      },
+      "start": {
+       "dateTime": "2026-10-30T10:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-30T11:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "jordan.lee@lumio-labs.test",
+        "displayName": "Jordan Lee",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-027",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      },
+      "recurringEventId": "rec027"
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-029",
+     "raw": {
+      "id": "evt029",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Quarterly business review - Northwind",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/29",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-30T14:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-30T15:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "dana.fox@northwind.test",
+        "displayName": "Dana Fox",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "sam.ortiz@northwind.test",
+        "displayName": "Sam Ortiz",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ]
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-031",
+     "raw": {
+      "id": "evt031",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Projektmeeting Migration",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/31",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-11-02T10:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-11-02T11:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "j.krueger@firma-beispiel.test",
+        "displayName": "Jens Krüger",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "a.vogel@firma-beispiel.test",
+        "displayName": "Anna Vogel",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-031",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-033",
+     "raw": {
+      "id": "evt033",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Reunión con proveedor",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/33",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-10-30T11:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-30T12:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "luis.pardo@proveedor-ejemplo.test",
+        "displayName": "Luis Pardo",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ]
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-035",
+     "raw": {
+      "id": "evt035",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Call settimanale team vendite",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/35",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-11-02T09:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-11-02T10:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "g.neri@vendite-esempio.test",
+        "displayName": "Giulia Neri",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "p.riva@vendite-esempio.test",
+        "displayName": "Paolo Riva",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-035",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      },
+      "recurringEventId": "rec035"
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-037",
+     "raw": {
+      "id": "evt037",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "项目周会",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/37",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-11-02T10:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-11-02T11:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "wang@huaxin-tech.test",
+        "displayName": "王经理",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "li@huaxin-tech.test",
+        "displayName": "李工",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-037",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      },
+      "recurringEventId": "rec037"
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-038",
+     "raw": {
+      "id": "evt038",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Réunion",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/38",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-11-03T14:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-11-03T15:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "description": "Ordre du jour : budget 2027, recrutements, point clients.",
+      "attendees": [
+       {
+        "email": "claire.petit@nexora-conseil.test",
+        "displayName": "Claire Petit",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "direction@nexora-conseil.test",
+        "displayName": "Direction",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ]
+     },
+     "gold": "non_match"
+    }
+   ]
+  },
+  {
+   "id": "ev-next-week",
+   "kind": "event",
+   "query": "What's on my calendar next week?",
+   "items": [
+    {
+     "id": "real-ev-021",
+     "raw": {
+      "id": "evt021",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Congés",
+      "eventType": "outOfOffice",
+      "htmlLink": "https://calendar.example.test/e/21",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "date": "2026-11-02"
+      },
+      "end": {
+       "date": "2026-11-03"
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-031",
+     "raw": {
+      "id": "evt031",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Projektmeeting Migration",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/31",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-11-02T10:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-11-02T11:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "j.krueger@firma-beispiel.test",
+        "displayName": "Jens Krüger",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "a.vogel@firma-beispiel.test",
+        "displayName": "Anna Vogel",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-031",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-035",
+     "raw": {
+      "id": "evt035",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Call settimanale team vendite",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/35",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-11-02T09:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-11-02T10:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "g.neri@vendite-esempio.test",
+        "displayName": "Giulia Neri",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "p.riva@vendite-esempio.test",
+        "displayName": "Paolo Riva",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-035",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      },
+      "recurringEventId": "rec035"
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-037",
+     "raw": {
+      "id": "evt037",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "项目周会",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/37",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-11-02T10:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-11-02T11:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "wang@huaxin-tech.test",
+        "displayName": "王经理",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "li@huaxin-tech.test",
+        "displayName": "李工",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-037",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      },
+      "recurringEventId": "rec037"
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-013",
+     "raw": {
+      "id": "evt013",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "RDV banque - prêt immobilier",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/13",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-11-03T10:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-11-03T11:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "location": "Agence Banque Horizon"
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-038",
+     "raw": {
+      "id": "evt038",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Réunion",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/38",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-11-03T14:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-11-03T15:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "description": "Ordre du jour : budget 2027, recrutements, point clients.",
+      "attendees": [
+       {
+        "email": "claire.petit@nexora-conseil.test",
+        "displayName": "Claire Petit",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "direction@nexora-conseil.test",
+        "displayName": "Direction",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ]
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-008",
+     "raw": {
+      "id": "evt008",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Foot avec les copains",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/8",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-11-04T19:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-11-04T20:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "location": "Stade municipal",
+      "recurringEventId": "rec008"
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-025",
+     "raw": {
+      "id": "evt025",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Rencontre",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/25",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-11-04T18:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-11-04T19:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-040",
+     "raw": {
+      "id": "evt040",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Covoiturage",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/40",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-11-04T07:45:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-11-04T08:45:00+01:00",
+       "timeZone": "Europe/Paris"
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-016",
+     "raw": {
+      "id": "evt016",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Mariage de Julie et Thomas",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/16",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "date": "2026-11-07"
+      },
+      "end": {
+       "date": "2026-11-08"
+      },
+      "location": "Domaine des Tilleuls"
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ev-027",
+     "raw": {
+      "id": "evt027",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "1:1 with Jordan",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/27",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "jordan.lee@lumio-labs.test",
+       "displayName": "Jordan Lee"
+      },
+      "start": {
+       "dateTime": "2026-10-30T10:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-10-30T11:00:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "attendees": [
+       {
+        "email": "jordan.lee@lumio-labs.test",
+        "displayName": "Jordan Lee",
+        "responseStatus": "accepted"
+       },
+       {
+        "email": "camille.durand@gmail.test",
+        "self": true,
+        "responseStatus": "accepted"
+       }
+      ],
+      "hangoutLink": "https://meet.example.test/abc-027",
+      "conferenceData": {
+       "conferenceSolution": {
+        "name": "Visio"
+       },
+       "entryPoints": [
+        {
+         "entryPointType": "video"
+        }
+       ]
+      },
+      "recurringEventId": "rec027"
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ev-039",
+     "raw": {
+      "id": "evt039",
+      "kind": "calendar#event",
+      "status": "confirmed",
+      "summary": "Concert de jazz",
+      "eventType": "default",
+      "htmlLink": "https://calendar.example.test/e/39",
+      "creator": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "organizer": {
+       "email": "camille.durand@gmail.test",
+       "self": true
+      },
+      "start": {
+       "dateTime": "2026-11-01T20:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "end": {
+       "dateTime": "2026-11-01T21:30:00+01:00",
+       "timeZone": "Europe/Paris"
+      },
+      "location": "Salle Pleyel"
+     },
+     "gold": "non_match"
+    }
+   ]
+  },
+  {
+   "id": "ml-unread",
+   "kind": "email",
+   "query": "Show my unread emails",
+   "items": [
+    {
+     "id": "real-ml-002",
+     "raw": {
+      "id": "msg002",
+      "threadId": "thr002",
+      "labelIds": [
+       "INBOX",
+       "IMPORTANT",
+       "UNREAD"
+      ],
+      "snippet": "Le client attend notre proposition avant 17h aujourd'hui, peux-tu relire la partie tarifaire en priorité ? Sans ton accord je ne peux pas l'envoyer.",
+      "from": "Marc Lefèvre <marc.lefevre@nexora-conseil.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "URGENT : proposition Garnier à envoyer avant 17h",
+      "date": "Wed, 28 Oct 2026 08:41:00 +0100",
+      "internalDate": "1793173260000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Marc Lefèvre <marc.lefevre@nexora-conseil.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "URGENT : proposition Garnier à envoyer avant 17h"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ml-033",
+     "raw": {
+      "id": "msg033",
+      "threadId": "thr033",
+      "labelIds": [
+       "INBOX"
+      ],
+      "snippet": "La réunion de demain est annulée, on la reprogramme la semaine prochaine.",
+      "from": "Claire Petit <claire.petit@nexora-conseil.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "Réunion annulée",
+      "date": "Tue, 27 Oct 2026 18:25:00 +0100",
+      "internalDate": "1793121900000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Claire Petit <claire.petit@nexora-conseil.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Réunion annulée"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-014",
+     "raw": {
+      "id": "msg014",
+      "threadId": "thr014",
+      "labelIds": [
+       "INBOX"
+      ],
+      "snippet": "Bonjour, vous trouverez ci-joint le devis signé. Nous pouvons démarrer le 3 novembre comme convenu.",
+      "from": "Thomas Garnier <t.garnier@garnier-sa.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "Devis signé",
+      "date": "Tue, 27 Oct 2026 11:03:00 +0100",
+      "internalDate": "1793095380000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Thomas Garnier <t.garnier@garnier-sa.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Devis signé"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-001",
+     "raw": {
+      "id": "msg001",
+      "threadId": "thr001",
+      "labelIds": [
+       "INBOX",
+       "IMPORTANT",
+       "UNREAD"
+      ],
+      "snippet": "Voici la version corrigée du budget, j'ai intégré tes remarques sur les frais de déplacement. Dis-moi si c'est bon pour toi.",
+      "from": "Claire Petit <claire.petit@nexora-conseil.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "Re: Budget Q4 - version corrigée",
+      "date": "Tue, 27 Oct 2026 17:12:00 +0100",
+      "internalDate": "1793117520000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Claire Petit <claire.petit@nexora-conseil.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Re: Budget Q4 - version corrigée"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ml-004",
+     "raw": {
+      "id": "msg004",
+      "threadId": "thr004",
+      "labelIds": [
+       "INBOX",
+       "CATEGORY_PERSONAL",
+       "UNREAD"
+      ],
+      "snippet": "Coucou ma chérie, voici les photos du repas de dimanche, tu les montreras à Léo. Gros bisous.",
+      "from": "Maman <monique.durand@famille-mail.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Photos de dimanche",
+      "date": "Mon, 26 Oct 2026 19:45:00 +0100",
+      "internalDate": "1793040300000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Maman <monique.durand@famille-mail.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Photos de dimanche"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ml-009",
+     "raw": {
+      "id": "msg009",
+      "threadId": "thr009",
+      "labelIds": [
+       "INBOX",
+       "CATEGORY_UPDATES",
+       "UNREAD"
+      ],
+      "snippet": "Montant : 15,99 €. Elle sera prélevée automatiquement le 5 novembre sur votre compte.",
+      "from": "Free Télécom <factures@free-telecom.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Votre facture du mois d'octobre est disponible",
+      "date": "Mon, 26 Oct 2026 06:10:00 +0100",
+      "internalDate": "1792991400000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Free Télécom <factures@free-telecom.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Votre facture du mois d'octobre est disponible"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ml-018",
+     "raw": {
+      "id": "msg018",
+      "threadId": "thr018",
+      "labelIds": [
+       "INBOX"
+      ],
+      "snippet": "Votre bulletin de paie est disponible dans votre espace salarié.",
+      "from": "Service RH <rh@nexora-conseil.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "Votre bulletin de paie d'octobre",
+      "date": "Mon, 26 Oct 2026 12:00:00 +0100",
+      "internalDate": "1793012400000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Service RH <rh@nexora-conseil.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Votre bulletin de paie d'octobre"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-020",
+     "raw": {
+      "id": "msg020",
+      "threadId": "thr020",
+      "labelIds": [
+       "INBOX"
+      ],
+      "snippet": "Bonjour Camille, j'ai une opportunité de Lead Developer dans une scale-up lyonnaise qui pourrait vous intéresser. Seriez-vous disponible pour un échange ?",
+      "from": "Julie Talents <julie@talents-recrutement.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Opportunité Lead Dev - Lyon",
+      "date": "Mon, 26 Oct 2026 16:22:00 +0100",
+      "internalDate": "1793028120000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Julie Talents <julie@talents-recrutement.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Opportunité Lead Dev - Lyon"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-010",
+     "raw": {
+      "id": "msg010",
+      "threadId": "thr010",
+      "labelIds": [
+       "INBOX",
+       "CATEGORY_SOCIAL"
+      ],
+      "snippet": "Découvrez qui a consulté votre profil et développez votre réseau.",
+      "from": "Réseau Pro <notifications@reseau-pro.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Vous êtes apparu dans 7 recherches cette semaine",
+      "date": "Sun, 25 Oct 2026 09:00:00 +0100",
+      "internalDate": "1792915200000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Réseau Pro <notifications@reseau-pro.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Vous êtes apparu dans 7 recherches cette semaine"
+        },
+        {
+         "name": "List-Unsubscribe",
+         "value": "<mailto:unsubscribe@example.test>"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-040",
+     "raw": {
+      "id": "msg040",
+      "threadId": "thr040",
+      "labelIds": [
+       "INBOX",
+       "UNREAD"
+      ],
+      "snippet": "Le vote par correspondance pour l'assemblée générale doit nous parvenir avant le 31 octobre, faute de quoi il ne sera pas pris en compte.",
+      "from": "Conseil syndical <conseil@copro-residence.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Assemblée générale : votez avant le 31 octobre",
+      "date": "Tue, 20 Oct 2026 14:15:00 +0100",
+      "internalDate": "1792502100000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Conseil syndical <conseil@copro-residence.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Assemblée générale : votez avant le 31 octobre"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ml-013",
+     "raw": {
+      "id": "msg013",
+      "threadId": "thr013",
+      "labelIds": [
+       "INBOX",
+       "CATEGORY_UPDATES"
+      ],
+      "snippet": "Votre rendez-vous de médecine générale est confirmé pour demain lundi à 9h00. En cas d'empêchement, pensez à l'annuler.",
+      "from": "RDV Santé <rappels@rdv-sante.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Rappel : rendez-vous demain à 9h00 avec le Dr Martin",
+      "date": "Fri, 23 Oct 2026 18:00:00 +0100",
+      "internalDate": "1792774800000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "RDV Santé <rappels@rdv-sante.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Rappel : rendez-vous demain à 9h00 avec le Dr Martin"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-017",
+     "raw": {
+      "id": "msg017",
+      "threadId": "thr017",
+      "labelIds": [
+       "INBOX",
+       "CATEGORY_PERSONAL",
+       "UNREAD"
+      ],
+      "snippet": "Salut ! Ça te dit de venir dîner samedi soir à la maison avec Marie ? Dis-moi d'ici jeudi.",
+      "from": "Paul Moreau <paul.moreau@gmail.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Dîner samedi ?",
+      "date": "Tue, 27 Oct 2026 20:02:00 +0100",
+      "internalDate": "1793127720000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Paul Moreau <paul.moreau@gmail.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Dîner samedi ?"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    }
+   ]
+  },
+  {
+   "id": "ml-from-marc",
+   "kind": "email",
+   "query": "Emails from Marc Lefèvre",
+   "items": [
+    {
+     "id": "real-ml-002",
+     "raw": {
+      "id": "msg002",
+      "threadId": "thr002",
+      "labelIds": [
+       "INBOX",
+       "IMPORTANT",
+       "UNREAD"
+      ],
+      "snippet": "Le client attend notre proposition avant 17h aujourd'hui, peux-tu relire la partie tarifaire en priorité ? Sans ton accord je ne peux pas l'envoyer.",
+      "from": "Marc Lefèvre <marc.lefevre@nexora-conseil.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "URGENT : proposition Garnier à envoyer avant 17h",
+      "date": "Wed, 28 Oct 2026 08:41:00 +0100",
+      "internalDate": "1793173260000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Marc Lefèvre <marc.lefevre@nexora-conseil.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "URGENT : proposition Garnier à envoyer avant 17h"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ml-038",
+     "raw": {
+      "id": "msg038",
+      "threadId": "thr038",
+      "labelIds": [
+       "INBOX",
+       "UNREAD"
+      ],
+      "snippet": "Toute l'équipe est bloquée, aucun accès aux serveurs depuis 8h. On a ouvert un ticket prioritaire chez le prestataire.",
+      "from": "Marc Lefèvre <marc.lefevre@nexora-conseil.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "Panne VPN : personne ne peut se connecter depuis ce matin",
+      "date": "Wed, 28 Oct 2026 08:12:00 +0100",
+      "internalDate": "1793171520000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Marc Lefèvre <marc.lefevre@nexora-conseil.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Panne VPN : personne ne peut se connecter depuis ce matin"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ml-001",
+     "raw": {
+      "id": "msg001",
+      "threadId": "thr001",
+      "labelIds": [
+       "INBOX",
+       "IMPORTANT",
+       "UNREAD"
+      ],
+      "snippet": "Voici la version corrigée du budget, j'ai intégré tes remarques sur les frais de déplacement. Dis-moi si c'est bon pour toi.",
+      "from": "Claire Petit <claire.petit@nexora-conseil.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "Re: Budget Q4 - version corrigée",
+      "date": "Tue, 27 Oct 2026 17:12:00 +0100",
+      "internalDate": "1793117520000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Claire Petit <claire.petit@nexora-conseil.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Re: Budget Q4 - version corrigée"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-033",
+     "raw": {
+      "id": "msg033",
+      "threadId": "thr033",
+      "labelIds": [
+       "INBOX"
+      ],
+      "snippet": "La réunion de demain est annulée, on la reprogramme la semaine prochaine.",
+      "from": "Claire Petit <claire.petit@nexora-conseil.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "Réunion annulée",
+      "date": "Tue, 27 Oct 2026 18:25:00 +0100",
+      "internalDate": "1793121900000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Claire Petit <claire.petit@nexora-conseil.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Réunion annulée"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-014",
+     "raw": {
+      "id": "msg014",
+      "threadId": "thr014",
+      "labelIds": [
+       "INBOX"
+      ],
+      "snippet": "Bonjour, vous trouverez ci-joint le devis signé. Nous pouvons démarrer le 3 novembre comme convenu.",
+      "from": "Thomas Garnier <t.garnier@garnier-sa.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "Devis signé",
+      "date": "Tue, 27 Oct 2026 11:03:00 +0100",
+      "internalDate": "1793095380000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Thomas Garnier <t.garnier@garnier-sa.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Devis signé"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-011",
+     "raw": {
+      "id": "msg011",
+      "threadId": "thr011",
+      "labelIds": [
+       "INBOX",
+       "CATEGORY_UPDATES",
+       "UNREAD"
+      ],
+      "snippet": "@claire-p requested your review on this pull request. 3 files changed.",
+      "from": "CodeHub <notifications@codehub.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "[nexora/api] Pull request #482: fix token refresh",
+      "date": "Tue, 27 Oct 2026 15:40:00 +0100",
+      "internalDate": "1793112000000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "CodeHub <notifications@codehub.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "[nexora/api] Pull request #482: fix token refresh"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-025",
+     "raw": {
+      "id": "msg025",
+      "threadId": "thr025",
+      "labelIds": [
+       "INBOX",
+       "UNREAD"
+      ],
+      "snippet": "Die Abnahme blockiert den Go-Live; bitte gib sie bis morgen 12 Uhr frei, sonst verschieben wir um eine Woche.",
+      "from": "Jens Krüger <j.krueger@firma-beispiel.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Abnahme Migration – bitte bis morgen freigeben",
+      "date": "Wed, 28 Oct 2026 07:58:00 +0100",
+      "internalDate": "1793170680000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Jens Krüger <j.krueger@firma-beispiel.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Abnahme Migration – bitte bis morgen freigeben"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-018",
+     "raw": {
+      "id": "msg018",
+      "threadId": "thr018",
+      "labelIds": [
+       "INBOX"
+      ],
+      "snippet": "Votre bulletin de paie est disponible dans votre espace salarié.",
+      "from": "Service RH <rh@nexora-conseil.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "Votre bulletin de paie d'octobre",
+      "date": "Mon, 26 Oct 2026 12:00:00 +0100",
+      "internalDate": "1793012400000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Service RH <rh@nexora-conseil.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Votre bulletin de paie d'octobre"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    }
+   ]
+  },
+  {
+   "id": "ml-today",
+   "kind": "email",
+   "query": "What emails did I receive today?",
+   "items": [
+    {
+     "id": "real-ml-002",
+     "raw": {
+      "id": "msg002",
+      "threadId": "thr002",
+      "labelIds": [
+       "INBOX",
+       "IMPORTANT",
+       "UNREAD"
+      ],
+      "snippet": "Le client attend notre proposition avant 17h aujourd'hui, peux-tu relire la partie tarifaire en priorité ? Sans ton accord je ne peux pas l'envoyer.",
+      "from": "Marc Lefèvre <marc.lefevre@nexora-conseil.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "URGENT : proposition Garnier à envoyer avant 17h",
+      "date": "Wed, 28 Oct 2026 08:41:00 +0100",
+      "internalDate": "1793173260000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Marc Lefèvre <marc.lefevre@nexora-conseil.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "URGENT : proposition Garnier à envoyer avant 17h"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ml-003",
+     "raw": {
+      "id": "msg003",
+      "threadId": "thr003",
+      "labelIds": [
+       "INBOX",
+       "UNREAD"
+      ],
+      "snippet": "Depuis 14h02, 100 % des paiements échouent pour l'ensemble des clients. Cellule de crise ouverte, astreinte mobilisée.",
+      "from": "Supervision <alertes@monitoring.nexora-conseil.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "[P1] Panne du service de paiement - tous les clients impactés",
+      "date": "Wed, 28 Oct 2026 07:05:00 +0100",
+      "internalDate": "1793167500000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Supervision <alertes@monitoring.nexora-conseil.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "[P1] Panne du service de paiement - tous les clients impactés"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ml-038",
+     "raw": {
+      "id": "msg038",
+      "threadId": "thr038",
+      "labelIds": [
+       "INBOX",
+       "UNREAD"
+      ],
+      "snippet": "Toute l'équipe est bloquée, aucun accès aux serveurs depuis 8h. On a ouvert un ticket prioritaire chez le prestataire.",
+      "from": "Marc Lefèvre <marc.lefevre@nexora-conseil.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "Panne VPN : personne ne peut se connecter depuis ce matin",
+      "date": "Wed, 28 Oct 2026 08:12:00 +0100",
+      "internalDate": "1793171520000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Marc Lefèvre <marc.lefevre@nexora-conseil.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Panne VPN : personne ne peut se connecter depuis ce matin"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ml-025",
+     "raw": {
+      "id": "msg025",
+      "threadId": "thr025",
+      "labelIds": [
+       "INBOX",
+       "UNREAD"
+      ],
+      "snippet": "Die Abnahme blockiert den Go-Live; bitte gib sie bis morgen 12 Uhr frei, sonst verschieben wir um eine Woche.",
+      "from": "Jens Krüger <j.krueger@firma-beispiel.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Abnahme Migration – bitte bis morgen freigeben",
+      "date": "Wed, 28 Oct 2026 07:58:00 +0100",
+      "internalDate": "1793170680000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Jens Krüger <j.krueger@firma-beispiel.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Abnahme Migration – bitte bis morgen freigeben"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ml-006",
+     "raw": {
+      "id": "msg006",
+      "threadId": "thr006",
+      "labelIds": [
+       "INBOX",
+       "UNREAD"
+      ],
+      "snippet": "Votre colis n° FR8812 est en attente. Réglez 1,99 € de frais de douane sous 24h via le lien sécurisé, sinon il sera retourné à l'expéditeur.",
+      "from": "Colis Express <suivi@colis-express-livraison.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Votre colis est bloqué - frais de douane 1,99 €",
+      "date": "Wed, 28 Oct 2026 06:30:00 +0100",
+      "internalDate": "1793165400000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Colis Express <suivi@colis-express-livraison.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Votre colis est bloqué - frais de douane 1,99 €"
+        },
+        {
+         "name": "Reply-To",
+         "value": "paiement@secure-frais-colis.test"
+        }
+       ]
+      },
+      "reply_to": "paiement@secure-frais-colis.test"
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ml-036",
+     "raw": {
+      "id": "msg036",
+      "threadId": "thr036",
+      "labelIds": [
+       "INBOX",
+       "CATEGORY_UPDATES",
+       "UNREAD"
+      ],
+      "snippet": "Votre code est 551203. Ne le communiquez à personne.",
+      "from": "Opérateur <noreply@operateur.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Votre code de vérification",
+      "date": "Wed, 28 Oct 2026 08:55:00 +0100",
+      "internalDate": "1793174100000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Opérateur <noreply@operateur.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Votre code de vérification"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ml-030",
+     "raw": {
+      "id": "msg030",
+      "threadId": "thr030",
+      "labelIds": [
+       "INBOX",
+       "UNREAD"
+      ],
+      "snippet": "下周三上午十点给客户做产品演示，请准备好最新的报价和演示环境。",
+      "from": "王经理 <wang@huaxin-tech.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "关于下周客户演示的安排",
+      "date": "Wed, 28 Oct 2026 08:20:00 +0100",
+      "internalDate": "1793172000000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "王经理 <wang@huaxin-tech.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "关于下周客户演示的安排"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ml-001",
+     "raw": {
+      "id": "msg001",
+      "threadId": "thr001",
+      "labelIds": [
+       "INBOX",
+       "IMPORTANT",
+       "UNREAD"
+      ],
+      "snippet": "Voici la version corrigée du budget, j'ai intégré tes remarques sur les frais de déplacement. Dis-moi si c'est bon pour toi.",
+      "from": "Claire Petit <claire.petit@nexora-conseil.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "Re: Budget Q4 - version corrigée",
+      "date": "Tue, 27 Oct 2026 17:12:00 +0100",
+      "internalDate": "1793117520000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Claire Petit <claire.petit@nexora-conseil.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Re: Budget Q4 - version corrigée"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-014",
+     "raw": {
+      "id": "msg014",
+      "threadId": "thr014",
+      "labelIds": [
+       "INBOX"
+      ],
+      "snippet": "Bonjour, vous trouverez ci-joint le devis signé. Nous pouvons démarrer le 3 novembre comme convenu.",
+      "from": "Thomas Garnier <t.garnier@garnier-sa.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "Devis signé",
+      "date": "Tue, 27 Oct 2026 11:03:00 +0100",
+      "internalDate": "1793095380000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Thomas Garnier <t.garnier@garnier-sa.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Devis signé"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-011",
+     "raw": {
+      "id": "msg011",
+      "threadId": "thr011",
+      "labelIds": [
+       "INBOX",
+       "CATEGORY_UPDATES",
+       "UNREAD"
+      ],
+      "snippet": "@claire-p requested your review on this pull request. 3 files changed.",
+      "from": "CodeHub <notifications@codehub.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "[nexora/api] Pull request #482: fix token refresh",
+      "date": "Tue, 27 Oct 2026 15:40:00 +0100",
+      "internalDate": "1793112000000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "CodeHub <notifications@codehub.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "[nexora/api] Pull request #482: fix token refresh"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-033",
+     "raw": {
+      "id": "msg033",
+      "threadId": "thr033",
+      "labelIds": [
+       "INBOX"
+      ],
+      "snippet": "La réunion de demain est annulée, on la reprogramme la semaine prochaine.",
+      "from": "Claire Petit <claire.petit@nexora-conseil.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "Réunion annulée",
+      "date": "Tue, 27 Oct 2026 18:25:00 +0100",
+      "internalDate": "1793121900000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Claire Petit <claire.petit@nexora-conseil.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Réunion annulée"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    }
+   ]
+  },
+  {
+   "id": "ml-q4-budget",
+   "kind": "email",
+   "query": "Emails about the Q4 budget",
+   "items": [
+    {
+     "id": "real-ml-001",
+     "raw": {
+      "id": "msg001",
+      "threadId": "thr001",
+      "labelIds": [
+       "INBOX",
+       "IMPORTANT",
+       "UNREAD"
+      ],
+      "snippet": "Voici la version corrigée du budget, j'ai intégré tes remarques sur les frais de déplacement. Dis-moi si c'est bon pour toi.",
+      "from": "Claire Petit <claire.petit@nexora-conseil.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "Re: Budget Q4 - version corrigée",
+      "date": "Tue, 27 Oct 2026 17:12:00 +0100",
+      "internalDate": "1793117520000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Claire Petit <claire.petit@nexora-conseil.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Re: Budget Q4 - version corrigée"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ml-002",
+     "raw": {
+      "id": "msg002",
+      "threadId": "thr002",
+      "labelIds": [
+       "INBOX",
+       "IMPORTANT",
+       "UNREAD"
+      ],
+      "snippet": "Le client attend notre proposition avant 17h aujourd'hui, peux-tu relire la partie tarifaire en priorité ? Sans ton accord je ne peux pas l'envoyer.",
+      "from": "Marc Lefèvre <marc.lefevre@nexora-conseil.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "URGENT : proposition Garnier à envoyer avant 17h",
+      "date": "Wed, 28 Oct 2026 08:41:00 +0100",
+      "internalDate": "1793173260000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Marc Lefèvre <marc.lefevre@nexora-conseil.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "URGENT : proposition Garnier à envoyer avant 17h"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-014",
+     "raw": {
+      "id": "msg014",
+      "threadId": "thr014",
+      "labelIds": [
+       "INBOX"
+      ],
+      "snippet": "Bonjour, vous trouverez ci-joint le devis signé. Nous pouvons démarrer le 3 novembre comme convenu.",
+      "from": "Thomas Garnier <t.garnier@garnier-sa.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "Devis signé",
+      "date": "Tue, 27 Oct 2026 11:03:00 +0100",
+      "internalDate": "1793095380000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Thomas Garnier <t.garnier@garnier-sa.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Devis signé"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-018",
+     "raw": {
+      "id": "msg018",
+      "threadId": "thr018",
+      "labelIds": [
+       "INBOX"
+      ],
+      "snippet": "Votre bulletin de paie est disponible dans votre espace salarié.",
+      "from": "Service RH <rh@nexora-conseil.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "Votre bulletin de paie d'octobre",
+      "date": "Mon, 26 Oct 2026 12:00:00 +0100",
+      "internalDate": "1793012400000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Service RH <rh@nexora-conseil.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Votre bulletin de paie d'octobre"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-009",
+     "raw": {
+      "id": "msg009",
+      "threadId": "thr009",
+      "labelIds": [
+       "INBOX",
+       "CATEGORY_UPDATES",
+       "UNREAD"
+      ],
+      "snippet": "Montant : 15,99 €. Elle sera prélevée automatiquement le 5 novembre sur votre compte.",
+      "from": "Free Télécom <factures@free-telecom.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Votre facture du mois d'octobre est disponible",
+      "date": "Mon, 26 Oct 2026 06:10:00 +0100",
+      "internalDate": "1792991400000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Free Télécom <factures@free-telecom.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Votre facture du mois d'octobre est disponible"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-028",
+     "raw": {
+      "id": "msg028",
+      "threadId": "thr028",
+      "labelIds": [
+       "INBOX"
+      ],
+      "snippet": "Gentile cliente, confermiamo la ricezione dell'ordine n. 4471 per 200 risme di carta. Consegna prevista giovedì.",
+      "from": "Rossi Forniture <ordini@rossi-forniture.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Conferma ordine n. 4471",
+      "date": "Mon, 26 Oct 2026 09:05:00 +0100",
+      "internalDate": "1793001900000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Rossi Forniture <ordini@rossi-forniture.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Conferma ordine n. 4471"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-033",
+     "raw": {
+      "id": "msg033",
+      "threadId": "thr033",
+      "labelIds": [
+       "INBOX"
+      ],
+      "snippet": "La réunion de demain est annulée, on la reprogramme la semaine prochaine.",
+      "from": "Claire Petit <claire.petit@nexora-conseil.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "Réunion annulée",
+      "date": "Tue, 27 Oct 2026 18:25:00 +0100",
+      "internalDate": "1793121900000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Claire Petit <claire.petit@nexora-conseil.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Réunion annulée"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-030",
+     "raw": {
+      "id": "msg030",
+      "threadId": "thr030",
+      "labelIds": [
+       "INBOX",
+       "UNREAD"
+      ],
+      "snippet": "下周三上午十点给客户做产品演示，请准备好最新的报价和演示环境。",
+      "from": "王经理 <wang@huaxin-tech.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "关于下周客户演示的安排",
+      "date": "Wed, 28 Oct 2026 08:20:00 +0100",
+      "internalDate": "1793172000000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "王经理 <wang@huaxin-tech.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "关于下周客户演示的安排"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    }
+   ]
+  },
+  {
+   "id": "ml-promotions",
+   "kind": "email",
+   "query": "Show me the promotional emails",
+   "items": [
+    {
+     "id": "real-ml-005",
+     "raw": {
+      "id": "msg005",
+      "threadId": "thr005",
+      "labelIds": [
+       "INBOX",
+       "CATEGORY_PROMOTIONS"
+      ],
+      "snippet": "Profitez de nos offres exceptionnelles sur les matelas et oreillers jusqu'à dimanche minuit. Livraison offerte dès 50 €.",
+      "from": "Boutique Hexa <promo@news.boutique-hexa.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "-40% sur toute la literie ce week-end seulement !",
+      "date": "Mon, 26 Oct 2026 10:00:00 +0100",
+      "internalDate": "1793005200000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Boutique Hexa <promo@news.boutique-hexa.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "-40% sur toute la literie ce week-end seulement !"
+        },
+        {
+         "name": "List-Unsubscribe",
+         "value": "<mailto:unsubscribe@example.test>"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ml-016",
+     "raw": {
+      "id": "msg016",
+      "threadId": "thr016",
+      "labelIds": [
+       "INBOX",
+       "CATEGORY_PROMOTIONS"
+      ],
+      "snippet": "Découvrez les nouveautés du mois et reprenez là où vous vous êtes arrêté.",
+      "from": "Streamflix <info@streamflix.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Nouveau sur Streamflix : les séries de novembre",
+      "date": "Sun, 25 Oct 2026 20:00:00 +0100",
+      "internalDate": "1792954800000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Streamflix <info@streamflix.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Nouveau sur Streamflix : les séries de novembre"
+        },
+        {
+         "name": "List-Unsubscribe",
+         "value": "<mailto:unsubscribe@example.test>"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ml-027",
+     "raw": {
+      "id": "msg027",
+      "threadId": "thr027",
+      "labelIds": [
+       "INBOX",
+       "CATEGORY_PROMOTIONS"
+      ],
+      "snippet": "Reserva ahora y disfruta de una semana todo incluido. Oferta válida hasta el lunes.",
+      "from": "Viajes Baratos <ofertas@viajes-baratos.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "¡Últimas plazas a Cancún desde 399 €!",
+      "date": "Fri, 23 Oct 2026 12:00:00 +0100",
+      "internalDate": "1792753200000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Viajes Baratos <ofertas@viajes-baratos.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "¡Últimas plazas a Cancún desde 399 €!"
+        },
+        {
+         "name": "List-Unsubscribe",
+         "value": "<mailto:unsubscribe@example.test>"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ml-037",
+     "raw": {
+      "id": "msg037",
+      "threadId": "thr037",
+      "labelIds": [
+       "INBOX",
+       "CATEGORY_PROMOTIONS"
+      ],
+      "snippet": "Relive your top songs of the year and share them with friends.",
+      "from": "MusicStream <no-reply@musicstream.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Your year in music is here",
+      "date": "Tue, 20 Oct 2026 19:30:00 +0100",
+      "internalDate": "1792521000000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "MusicStream <no-reply@musicstream.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Your year in music is here"
+        },
+        {
+         "name": "List-Unsubscribe",
+         "value": "<mailto:unsubscribe@example.test>"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ml-032",
+     "raw": {
+      "id": "msg032",
+      "threadId": "thr032",
+      "labelIds": [
+       "INBOX",
+       "CATEGORY_UPDATES"
+      ],
+      "snippet": "Politique, économie, culture : l'essentiel de la semaine en dix articles.",
+      "from": "Journal du Jour <newsletter@journal-du-jour.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Votre revue de presse du dimanche",
+      "date": "Sun, 25 Oct 2026 07:30:00 +0100",
+      "internalDate": "1792909800000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Journal du Jour <newsletter@journal-du-jour.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Votre revue de presse du dimanche"
+        },
+        {
+         "name": "List-Unsubscribe",
+         "value": "<mailto:unsubscribe@example.test>"
+        }
+       ]
+      }
+     },
+     "gold": "unknown"
+    },
+    {
+     "id": "real-ml-010",
+     "raw": {
+      "id": "msg010",
+      "threadId": "thr010",
+      "labelIds": [
+       "INBOX",
+       "CATEGORY_SOCIAL"
+      ],
+      "snippet": "Découvrez qui a consulté votre profil et développez votre réseau.",
+      "from": "Réseau Pro <notifications@reseau-pro.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Vous êtes apparu dans 7 recherches cette semaine",
+      "date": "Sun, 25 Oct 2026 09:00:00 +0100",
+      "internalDate": "1792915200000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Réseau Pro <notifications@reseau-pro.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Vous êtes apparu dans 7 recherches cette semaine"
+        },
+        {
+         "name": "List-Unsubscribe",
+         "value": "<mailto:unsubscribe@example.test>"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-009",
+     "raw": {
+      "id": "msg009",
+      "threadId": "thr009",
+      "labelIds": [
+       "INBOX",
+       "CATEGORY_UPDATES",
+       "UNREAD"
+      ],
+      "snippet": "Montant : 15,99 €. Elle sera prélevée automatiquement le 5 novembre sur votre compte.",
+      "from": "Free Télécom <factures@free-telecom.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Votre facture du mois d'octobre est disponible",
+      "date": "Mon, 26 Oct 2026 06:10:00 +0100",
+      "internalDate": "1792991400000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Free Télécom <factures@free-telecom.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Votre facture du mois d'octobre est disponible"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-001",
+     "raw": {
+      "id": "msg001",
+      "threadId": "thr001",
+      "labelIds": [
+       "INBOX",
+       "IMPORTANT",
+       "UNREAD"
+      ],
+      "snippet": "Voici la version corrigée du budget, j'ai intégré tes remarques sur les frais de déplacement. Dis-moi si c'est bon pour toi.",
+      "from": "Claire Petit <claire.petit@nexora-conseil.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "Re: Budget Q4 - version corrigée",
+      "date": "Tue, 27 Oct 2026 17:12:00 +0100",
+      "internalDate": "1793117520000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Claire Petit <claire.petit@nexora-conseil.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Re: Budget Q4 - version corrigée"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-015",
+     "raw": {
+      "id": "msg015",
+      "threadId": "thr015",
+      "labelIds": [
+       "SPAM"
+      ],
+      "snippet": "Vous avez été tiré au sort ! Cliquez ici pour réclamer votre lot avant ce soir.",
+      "from": "Super Gagnant <win@lots-gratuits.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Félicitations ! Vous avez gagné un smartphone",
+      "date": "Fri, 23 Oct 2026 03:12:00 +0100",
+      "internalDate": "1792721520000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Super Gagnant <win@lots-gratuits.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Félicitations ! Vous avez gagné un smartphone"
+        }
+       ]
+      }
+     },
+     "gold": "unknown"
+    }
+   ]
+  },
+  {
+   "id": "ml-family-this-week",
+   "kind": "email",
+   "query": "Emails from my family this week",
+   "items": [
+    {
+     "id": "real-ml-004",
+     "raw": {
+      "id": "msg004",
+      "threadId": "thr004",
+      "labelIds": [
+       "INBOX",
+       "CATEGORY_PERSONAL",
+       "UNREAD"
+      ],
+      "snippet": "Coucou ma chérie, voici les photos du repas de dimanche, tu les montreras à Léo. Gros bisous.",
+      "from": "Maman <monique.durand@famille-mail.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Photos de dimanche",
+      "date": "Mon, 26 Oct 2026 19:45:00 +0100",
+      "internalDate": "1793040300000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Maman <monique.durand@famille-mail.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Photos de dimanche"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ml-031",
+     "raw": {
+      "id": "msg031",
+      "threadId": "thr031",
+      "labelIds": [
+       "INBOX"
+      ],
+      "snippet": "这个周末回家吃饭吗？你爸爸做了你最爱吃的红烧肉。",
+      "from": "妈妈 <mama@family-mail.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "周末回家吃饭吗？",
+      "date": "Mon, 26 Oct 2026 21:10:00 +0100",
+      "internalDate": "1793045400000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "妈妈 <mama@family-mail.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "周末回家吃饭吗？"
+        }
+       ]
+      }
+     },
+     "gold": "match"
+    },
+    {
+     "id": "real-ml-026",
+     "raw": {
+      "id": "msg026",
+      "threadId": "thr026",
+      "labelIds": [
+       "INBOX"
+      ],
+      "snippet": "Hola cariño, ¿vienes el domingo a comer para el cumpleaños de papá? Trae a los niños.",
+      "from": "Mamá <rosa.garcia@correo-familia.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Cumpleaños de papá",
+      "date": "Sun, 25 Oct 2026 11:47:00 +0100",
+      "internalDate": "1792925220000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Mamá <rosa.garcia@correo-familia.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Cumpleaños de papá"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-017",
+     "raw": {
+      "id": "msg017",
+      "threadId": "thr017",
+      "labelIds": [
+       "INBOX",
+       "CATEGORY_PERSONAL",
+       "UNREAD"
+      ],
+      "snippet": "Salut ! Ça te dit de venir dîner samedi soir à la maison avec Marie ? Dis-moi d'ici jeudi.",
+      "from": "Paul Moreau <paul.moreau@gmail.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Dîner samedi ?",
+      "date": "Tue, 27 Oct 2026 20:02:00 +0100",
+      "internalDate": "1793127720000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Paul Moreau <paul.moreau@gmail.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Dîner samedi ?"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-024",
+     "raw": {
+      "id": "msg024",
+      "threadId": "thr024",
+      "labelIds": [
+       "INBOX",
+       "UNREAD"
+      ],
+      "snippet": "Liebe Eltern, wir laden Sie herzlich zum Elternabend am Donnerstag um 19 Uhr ein.",
+      "from": "Kita Sonnenschein <info@kita-sonnenschein.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Elternabend am Donnerstag",
+      "date": "Tue, 27 Oct 2026 10:15:00 +0100",
+      "internalDate": "1793092500000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Kita Sonnenschein <info@kita-sonnenschein.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Elternabend am Donnerstag"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-008",
+     "raw": {
+      "id": "msg008",
+      "threadId": "thr008",
+      "labelIds": [
+       "INBOX",
+       "UNREAD"
+      ],
+      "snippet": "Merci de signer et de rendre l'autorisation de sortie au musée avant mercredi 28 octobre, faute de quoi votre enfant ne pourra pas participer.",
+      "from": "École Jules Ferry <secretariat@ecole-julesferry.test>",
+      "to": "camille.durand@gmail.test",
+      "subject": "Sortie scolaire vendredi - autorisation à rendre avant mercredi",
+      "date": "Tue, 27 Oct 2026 13:30:00 +0100",
+      "internalDate": "1793104200000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "École Jules Ferry <secretariat@ecole-julesferry.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@gmail.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Sortie scolaire vendredi - autorisation à rendre avant mercredi"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    },
+    {
+     "id": "real-ml-018",
+     "raw": {
+      "id": "msg018",
+      "threadId": "thr018",
+      "labelIds": [
+       "INBOX"
+      ],
+      "snippet": "Votre bulletin de paie est disponible dans votre espace salarié.",
+      "from": "Service RH <rh@nexora-conseil.test>",
+      "to": "camille.durand@nexora-conseil.test",
+      "subject": "Votre bulletin de paie d'octobre",
+      "date": "Mon, 26 Oct 2026 12:00:00 +0100",
+      "internalDate": "1793012400000",
+      "payload": {
+       "headers": [
+        {
+         "name": "From",
+         "value": "Service RH <rh@nexora-conseil.test>"
+        },
+        {
+         "name": "To",
+         "value": "camille.durand@nexora-conseil.test"
+        },
+        {
+         "name": "Subject",
+         "value": "Votre bulletin de paie d'octobre"
+        }
+       ]
+      }
+     },
+     "gold": "non_match"
+    }
+   ]
+  }
+ ]
+}

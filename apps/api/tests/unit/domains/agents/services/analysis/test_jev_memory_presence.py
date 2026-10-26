@@ -22,7 +22,7 @@ from src.domains.llm_config.jev_registry import JEV_USAGES, JevUsage
 from src.domains.llm_config.jev_settings import DecisionConfiguration, JevSnapshot, read_flags
 from src.domains.system_settings.models import SystemSettingKey
 from src.domains.system_settings.registry import SETTING_SPECS
-from src.infrastructure.llm import jev_runtime
+from src.infrastructure.llm import jev_http, jev_runtime
 from src.infrastructure.llm.decision_types import DecisionAttempt
 from src.infrastructure.llm.typesafe_client import ChoiceAnswer
 
@@ -244,7 +244,7 @@ async def test_real_disabled_runtime_preserves_the_generative_extractor() -> Non
                 AsyncMock(return_value=JevSnapshot(False, "disabled", None)),
             ),
             patch.object(jev_runtime, "enforce_usage_limit", AsyncMock()) as quota,
-            patch.object(jev_runtime.httpx, "AsyncClient") as transport,
+            patch.object(jev_http.httpx, "AsyncClient") as transport,
             patch.object(module, "record_action", AsyncMock()),
             patch.object(resolver_module, "get_llm") as factory,
             patch.object(
@@ -315,7 +315,7 @@ async def test_real_native_transport_charges_once_then_preserves_paid_failure_fa
             patch.object(jev_runtime, "begin_trace", AsyncMock(return_value=None)),
             patch.object(jev_runtime, "get_cached_usd_eur_rate", return_value=0.9),
             patch.object(
-                jev_runtime.httpx,
+                jev_http.httpx,
                 "AsyncClient",
                 side_effect=lambda: real_client(transport=httpx.MockTransport(transport)),
             ),

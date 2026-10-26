@@ -222,10 +222,10 @@ async def test_the_question_reads_the_request_alone_never_the_analyzer_interpret
     assert "goal_reasoning" not in sent and "domain_scores" not in sent
 
 
-@pytest.mark.parametrize("confidence,selected", [(0.97, True), (0.969, False)])
-async def test_one_threshold_serves_both_selectors(confidence: float, selected: bool) -> None:
+@pytest.mark.parametrize(("offset", "selected"), [(0.0, True), (-0.001, False)])
+async def test_one_threshold_serves_both_selectors(offset: float, selected: bool) -> None:
     module = importlib.import_module("src.domains.agents.services.planner.jev_consultation")
-    assert module.MIN_CONFIDENCE == 0.97
+    confidence = module.MIN_CONFIDENCE + offset
     result, _ = await invoke(module, intelligence(), attempt("email_unread", confidence))
     assert (result is not None) is selected
 

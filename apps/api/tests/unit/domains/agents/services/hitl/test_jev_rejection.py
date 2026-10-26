@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 import pytest
 from pydantic import SecretStr
 
+from src.core.constants import JEV_HITL_REJECTION_MIN_CONFIDENCE
 from src.core.context import current_tracker
 from src.domains.agents.services.hitl import jev_rejection
 from src.domains.agents.services.hitl_classifier import ClassificationResult, HitlResponseClassifier
@@ -109,7 +110,7 @@ async def test_other_replies_keep_original_classifier(native_context, monkeypatc
 @pytest.mark.parametrize(
     ("outcome", "answer"),
     [
-        ("success", _answer(confidence=0.98)),
+        ("success", _answer(confidence=JEV_HITL_REJECTION_MIN_CONFIDENCE - 0.01)),
         ("success", _answer("uncertain")),
         ("success", _answer("other")),
         ("disabled", None),

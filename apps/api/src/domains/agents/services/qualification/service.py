@@ -14,9 +14,12 @@ from src.core.constants import (
     JEV_CLASSIFICATION_CLAIM_TTL_SECONDS,
     JEV_CLASSIFICATION_EMAIL_TTL_SECONDS,
     JEV_CLASSIFICATION_EVENT_TTL_SECONDS,
+    JEV_CLASSIFICATION_EVENT_TYPE_CATEGORIES,
     JEV_CLASSIFICATION_MAX_CONCURRENT_BATCHES,
     JEV_CLASSIFICATION_MAX_ITEMS,
     JEV_CLASSIFICATION_MIN_CONFIDENCE,
+    JEV_CLASSIFICATION_PROVIDER_COMMERCIAL_LABELS,
+    JEV_CLASSIFICATION_PROVIDER_SPAM_LABEL,
     JEV_CLASSIFICATION_TIMEOUT_SECONDS,
     JEV_CLASSIFICATION_UNKNOWN_TTL_SECONDS,
 )
@@ -81,6 +84,13 @@ def policy_fingerprint() -> str:
                 "probability_contract": CHOICE_PROBABILITY_CONTRACT,
                 "threshold": JEV_CLASSIFICATION_MIN_CONFIDENCE,
                 "alert_threshold": JEV_CLASSIFICATION_ALERT_MIN_CONFIDENCE,
+                # A rule that decides before the model is policy too: a cached
+                # label must not outlive the rule it was published under.
+                "provider_rules": {
+                    "commercial_labels": sorted(JEV_CLASSIFICATION_PROVIDER_COMMERCIAL_LABELS),
+                    "spam_label": JEV_CLASSIFICATION_PROVIDER_SPAM_LABEL,
+                    "event_types": JEV_CLASSIFICATION_EVENT_TYPE_CATEGORIES,
+                },
                 "ttls": [
                     JEV_CLASSIFICATION_EMAIL_TTL_SECONDS,
                     JEV_CLASSIFICATION_EVENT_TTL_SECONDS,

@@ -11,9 +11,10 @@ from uuid import UUID
 import structlog
 from pydantic import BaseModel, Field, JsonValue
 
+from src.core.constants import JEV_SHARED_STATE_BATCH_BYTES
 from src.domains.agents.data_registry.models import RegistryItem, RegistryItemType
 from src.domains.agents.display.filter_evidence import FilterEvidence, is_utf8_text
-from src.domains.agents.display.jev_collection_time import calendar_time_facts
+from src.domains.agents.display.jev_collection_time import calendar_time_facts, email_time_facts
 from src.domains.agents.display.jev_snapshot import (
     snapshot_collection_items,
     snapshot_filter_evidence,
@@ -26,8 +27,6 @@ from src.infrastructure.llm.jev_debug_models import AppliedVerdict, JevCollectio
 from src.infrastructure.llm.jev_debug_store import begin_trace, finish_trace, record_action
 from src.infrastructure.llm.jev_runtime import choose_many_with_jev
 from src.infrastructure.llm.typesafe_client import (
-    MAX_QUESTIONS,
-    MAX_REQUEST_BYTES,
     ChoiceAnswer,
     ChoiceQuestion,
 )
@@ -39,11 +38,17 @@ from src.infrastructure.observability.metrics_jev import (
 # Chosen on the collection calibration corpora (no more wrong verdicts than the
 # former wording), verified on the extra-collection holdout (no wrong verdict),
 # 2026-10-11. The holdout is small (24 judgments): widen it before relying on more.
+# Kept on 2026-10-26 when the computed day facts were added (`_TIME_FACTS`): on
+# production-shaped collections, dated agenda requests went from 1 to 35 verdicts of
+# 51 at this floor, dated mail from 5 to 13 of 18, no wrong verdict; the first wrong
+# one appears at 0.80 (docs/superpowers/qualification/jev-audit-2026-10-25).
 MIN_CONFIDENCE = 0.94
 logger = structlog.get_logger(__name__)
 PREVIEW_LIMIT = 100
 MAX_BATCHES = 8
 MAX_CONCURRENT_BATCHES = 2
+# The batch shape the question was measured with (2026-10-11 and 2026-10-25).
+MAX_BATCH_QUESTIONS = 24
 _LOCAL_OUTCOMES = frozenset(
     {
         "disabled",
@@ -71,6 +76,25 @@ if set(COLLECTION_USAGES.values()) != {
     usage for usage in JevUsage if usage.value.startswith("filter_")
 }:
     raise RuntimeError("Every collection qualification must own a registered switch")
+# The computed day of each kind's own date, in the person's timezone: relative-date
+# requests are decided from these facts, never by the model (measured 2026-10-26).
+_TIME_FACTS = {
+    RegistryItemType.EVENT: calendar_time_facts,
+    RegistryItemType.EMAIL: email_time_facts,
+}
+# Kinds whose own day is not computed yet: a dated request on them stays unknown.
+_UNDATED_KINDS = frozenset(
+    {
+        RegistryItemType.TASK,
+        RegistryItemType.FILE,
+        RegistryItemType.REMINDER,
+        RegistryItemType.TICKET,
+        RegistryItemType.MCP_RESULT,
+        RegistryItemType.NOTE,
+    }
+)
+if set(_TIME_FACTS) & _UNDATED_KINDS or set(_TIME_FACTS) | _UNDATED_KINDS != set(COLLECTION_USAGES):
+    raise RuntimeError("Every collection kind declares whether its own day is computed")
 
 
 class QualifiedItem(BaseModel):
@@ -176,10 +200,10 @@ def _batch(
             },
             ensure_ascii=False,
         )
-        if len(body.encode("utf-8")) > MAX_REQUEST_BYTES:
+        if len(body.encode("utf-8")) > JEV_SHARED_STATE_BATCH_BYTES:
             continue
         selected, questions = candidate, candidate_questions
-        if len(questions) == MAX_QUESTIONS:
+        if len(questions) == MAX_BATCH_QUESTIONS:
             break
     return selected, questions
 
@@ -370,11 +394,13 @@ def _project_candidates(
         for item in visible
     ]
     reference = reference_datetime if reference_datetime is not None else datetime.now(UTC)
+    time_facts = _TIME_FACTS.get(kind)
     facts: dict[str, JsonValue] = {}
-    if kind == RegistryItemType.EVENT:
+    if time_facts is not None:
         facts = {
-            f"q{index}": calendar_time_facts(item.payload, reference, timezone)
+            f"q{index}": value
             for index, item in enumerate(visible)
+            if (value := time_facts(item.payload, reference, timezone))
         }
     return evidence, facts
 

@@ -166,9 +166,14 @@ async def test_duplicate_names_cannot_expand_singular_exclusion_when_scope_is_am
 
 
 async def test_clear_scope_does_not_lower_the_individual_item_threshold():
+    from src.domains.agents.services.hitl import jev_item_filter as module
+
     result, _, _ = await call(
         [{"subject": "a"}],
-        {"item_0": answer("exclude", 0.989), "reference_scope": answer("clear", 0.99)},
+        {
+            "item_0": answer("exclude", module.MIN_CONFIDENCE - 0.001),
+            "reference_scope": answer("clear", 0.99),
+        },
     )
     assert result is None
 

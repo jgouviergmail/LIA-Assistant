@@ -22,11 +22,14 @@ from src.infrastructure.observability.metrics_jev import (
 )
 
 # A Noul: "the context leaves something useful to offer". The full evaluator is
-# skipped only when that probability is at most this value. Chosen on the gate
-# calibration corpus (no wrong skip), verified on its holdout and on the structured
-# production-shape states (no wrong skip; 86 % and 92 % of the empty cases skipped,
-# against 7 % and 0 % for the former three-way Choice), 2026-10-11.
-MAX_UTILITY_PROBABILITY = 0.11
+# skipped only when that probability is at most this value. Re-chosen 2026-10-25
+# on the gate corpora rebuilt by the PRODUCT's state builder (policy and tool list
+# included): the 0.11 of 2026-10-11 was fitted on hand-made 100-250 byte states,
+# while the real ones never reached the provider at all (109 kB, refused locally).
+# On the rebuilt states the empty cases read 0.08-0.25 and the useful ones 0.31-0.92;
+# at 0.20 the calibration skips 8 of 8 empty cases, the holdout 6 of 7, neither a
+# useful one (docs/superpowers/qualification/jev-audit-2026-10-25).
+MAX_UTILITY_PROBABILITY = 0.20
 logger = structlog.get_logger(__name__)
 
 

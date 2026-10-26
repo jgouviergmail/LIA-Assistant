@@ -17,7 +17,7 @@ from src.domains.chat.service import TrackingContext
 from src.domains.llm.pricing_service import ModelPrice
 from src.domains.llm_config.jev_registry import JevUsage
 from src.domains.llm_config.jev_settings import DecisionConfiguration, JevSnapshot
-from src.infrastructure.llm import jev_runtime
+from src.infrastructure.llm import jev_http, jev_runtime
 from src.infrastructure.llm.decision_types import DecisionAttempt
 from src.infrastructure.llm.typesafe_client import ChoiceAnswer
 from tests.unit.domains.agents.services.test_classification_batches import observed
@@ -197,7 +197,7 @@ async def test_real_native_transport_and_accounting_close_one_bill_even_for_an_u
 
     original_http = httpx.AsyncClient
     monkeypatch.setattr(
-        jev_runtime.httpx,
+        jev_http.httpx,
         "AsyncClient",
         lambda: original_http(transport=httpx.MockTransport(response)),
     )
@@ -302,7 +302,9 @@ async def test_a_broken_cache_does_not_wait_for_a_claim(
 async def test_provider_failure_stops_queued_paid_batches_but_keeps_completed_results(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    values = [observed(index) for index in range(4)]
+    # One full concurrent wave, then two queued batches the failure must stop.
+    wave = service.JEV_CLASSIFICATION_MAX_CONCURRENT_BATCHES
+    values = [observed(index) for index in range(wave + 2)]
     batches = [
         service.build_batches([value], model="jev-pinned", now=datetime.now(UTC), timezone="UTC")[0]
         for value in values
@@ -328,5 +330,5 @@ async def test_provider_failure_stops_queued_paid_batches_but_keeps_completed_re
         run_id="test-run",
         timezone="UTC",
     )
-    assert calls == 2
-    assert set(result) == {"private-1"}
+    assert calls == wave
+    assert set(result) == {f"private-{index}" for index in range(1, wave)}

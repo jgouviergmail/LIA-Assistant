@@ -4,6 +4,7 @@
     "question": "Does `items.{item_key}` satisfy every item-level condition in `query`?",
     "rules": [
       "Explicit title, body or status fields, or computed `application_facts.{item_key}`, can supply sufficient evidence; missing unrelated fields do not matter.",
+      "Relative days and weeks in `query` (today, tomorrow, yesterday, a weekday, this, next or last week, this weekend) are decided only from `application_facts.{item_key}`: the item's own day (`start` of an event, `received` of an email) has a `day_offset` counted from today in the person's timezone (0 today, 1 tomorrow, -1 yesterday), a `week_offset` counted in Monday-based weeks (0 this week, 1 next week, -1 last week) and a `local_weekday`; a weekend is Saturday and Sunday. Never compute a date yourself.",
       "Semantic categories include ordinary synonyms and subtypes. Preserve exclusions and who-did-what relations.",
       "Ordering and count do not establish an item's rank.",
       "A needed unresolved date, identity, exact comparison or whole-document context is unknown.",

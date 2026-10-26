@@ -27,6 +27,7 @@ load_dotenv(ROOT / ".env")
 
 async def replay(args: argparse.Namespace) -> None:
     # The backend path and settings must be bootstrapped before these imports.
+    from src.domains.llm_config.constants import LLM_DEFAULTS
     from src.domains.meetings import (
         jev_selection,
     )
@@ -45,6 +46,8 @@ async def replay(args: argparse.Namespace) -> None:
         TypeSafeError,
     )
 
+    # The thresholds are tuned per model version: replay the code's pinned one.
+    model = args.model or LLM_DEFAULTS["meeting_template_selection"].model
     cases = json.loads(args.cases.read_text(encoding="utf-8"))
     if not 1 <= len(cases) <= 100:
         raise ValueError("Replay bound is 100 synthetic cases")
@@ -61,18 +64,19 @@ async def replay(args: argparse.Namespace) -> None:
         ]
         native = {}
 
-        async def call(**kwargs):
+        async def call(*, _native: dict = native, **kwargs):
             start = perf_counter()
             try:
                 async with httpx.AsyncClient() as http:
                     result = await TypeSafeClient(http, key).choose(
-                        model="jev-1.13.0",
+                        model=model,
                         state=kwargs["state"],
                         question=kwargs["question"],
                         timeout_seconds=2,
                     )
                 cost = result.usage.input_tokens * 0.042 / 1_000_000
-                native.update(
+                _native.update(
+                    choice=result.answer.choice,
                     confidence=result.answer.confidence,
                     input_tokens=result.usage.input_tokens,
                     output_tokens=result.usage.output_tokens,
@@ -90,16 +94,16 @@ async def replay(args: argparse.Namespace) -> None:
                     "success",
                 )
             except TypeSafeError as exc:
-                native.update(error=exc.code, status_code=exc.status_code)
+                _native.update(error=exc.code, status_code=exc.status_code)
                 if exc.usage:
-                    native.update(
+                    _native.update(
                         input_tokens=exc.usage.input_tokens,
                         output_tokens=exc.usage.output_tokens,
                         cost_usd=exc.usage.input_tokens * 0.042 / 1_000_000,
                     )
                 return DecisionAttempt(outcome=exc.code)
             finally:
-                native["provider_path_ms"] = round((perf_counter() - start) * 1000, 2)
+                _native["provider_path_ms"] = round((perf_counter() - start) * 1000, 2)
 
         with patch.object(jev_selection, "choose_with_jev", call), patch.object(
             jev_selection, "record_selection_charge", AsyncMock()
@@ -135,6 +139,7 @@ async def replay(args: argparse.Namespace) -> None:
             jev_selection.load_meeting_prompt("meeting_jev_selection_prompt").encode()
         ).hexdigest(),
         "cases_sha256": hashlib.sha256(args.cases.read_bytes()).hexdigest(),
+        "model": model,
         "cases": len(rows),
         "accepted": sum(row["accepted"] for row in rows),
         "wrong_acceptances": sum(row["wrong_acceptance"] for row in rows),
@@ -158,5 +163,8 @@ if __name__ == "__main__":
         help="Explicitly permit paid TypeSafe calls",
     )
     parser.add_argument("--cases", type=Path, required=True)
+    parser.add_argument(
+        "--model", help="Model version; defaults to the code's pinned one"
+    )
     parser.add_argument("--output", type=Path, required=True)
     asyncio.run(replay(parser.parse_args()))

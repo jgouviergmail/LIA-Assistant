@@ -106,12 +106,42 @@ cache are replayed on fictional observations with one accounted native call.
 This closes the measured corpus-coverage defect; it is not a population accuracy
 or fraud-detection guarantee. Missing badges still never establish safety.
 
+## Production-shaped requalification — 2026-10-25
+
+Production showed what the frozen corpora could not: 106 appointment batches in seven
+days published no label against 17 that did, and the model's own first choice was usually
+right. The corpora are explicit sentences; real items are short titles, notifications and
+provider metadata. The [audit record](../superpowers/qualification/jev-audit-2026-10-25/README.md)
+measured a production-shaped corpus (Calendar events, Gmail metadata messages) and changed
+three things, all under [ADR-325's 2026-10-25 amendment](../architecture/ADR-325-JEV-Bounded-Decisions-With-Hot-Switches-And-Accounted-Fallbacks.md):
+
+- **The provider's own facts reach the judgment.** Email `labels` (from `labelIds`) and
+  `reply_to` (the unified name; `replyTo` matched no provider); an appointment's
+  `event_type` when the provider typed it, and `video_call` / `recurring` flags — never the
+  join link itself.
+- **What the provider asserted is decided in code.** Mail filed under promotions, social,
+  updates or forums without the spam label is never published as spam; a birthday,
+  focus-time or working-location entry is its category. The spam criterion names those
+  labels too.
+- **Acceptance at 0.80 for every label, alerts included**, chosen on the frozen corpora
+  (no wrong label from 0.50 on jev-1.14.0, first safe level 0.70 across layouts and model
+  versions, one step of margin). One operation now labels every listed item (it stopped at
+  16 000 tokens), in shared batches of the measured shape.
+
+Production-shaped corpus: coverage 0.62 → 0.86, phishing 2/6 → 6/6, no wrong label, through
+the shipped service path. The qualified replays the corpus guard reads were regenerated on
+the new policy (calibration 0.927, holdout 0.917, adversarial 0.889, no wrong label; requalified 2026-10-26
+when the spam criterion came to name every commercial label the code rule reads).
+
 ## Model-facing form — 2026-10-25
 
 A model is never handed an annotation's instants. It reads the labels, the
 evidence scope and a state the code computes when the annotation is shown
-(`current` or `expired`), in the tool data block and in the one-line form; the
-display and the cache keep the whole annotation. Measured on dev before the
+(`current` or `expired`), in the tool data block, in the one-line form and — since
+2026-10-26 — in the filtering evidence the response and the collection filters read,
+in the answers the history archives (their state decided when a later turn reads
+them, once for a whole ReAct turn) and in the initiative state handed to JEV;
+the display and the cache keep the whole annotation. Measured on dev before the
 change: `valid_until` in UTC beside a clock in the person's zone was read as
 expired an hour early. « Missing or expired never means safe » now applies to
 emails; an appointment's category only sorts it. The email priority question

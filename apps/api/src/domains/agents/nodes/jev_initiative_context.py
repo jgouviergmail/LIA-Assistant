@@ -1,12 +1,14 @@
 """Complete model-authorized initiative evidence, scoped to results retrieved this turn."""
 
 import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, cast
 
 from pydantic import JsonValue
 
+from src.core.classification_projection import CLASSIFICATION_KEY, classification_view
 from src.core.constants import SEMANTIC_CANDIDATES_MAX_TOOLS_PER_TYPE
 from src.core.field_names import FIELD_DISPLAY_ONLY
 from src.domains.agents.data_registry.models import RegistryItem, RegistryItemType
@@ -66,31 +68,44 @@ def _without_card_fields(value: dict[str, Any]) -> dict[str, Any]:
     return projected
 
 
-def _authorized_tree(value: Any, evidence: InitiativeEvidence) -> Any:
-    """Card-only fields remain inaccessible even inside nested registry_updates."""
+def _authorized_tree(value: Any, evidence: InitiativeEvidence, now: datetime) -> Any:
+    """Card-only fields remain inaccessible even inside nested registry_updates.
+
+    An annotation reaches the decision as its view — its labels and a state
+    decided at ``now`` — never its instants (ADR-351).
+    """
     if isinstance(value, RegistryItem | AgentResult):
         # Remove card-only subtrees, including opaque values, before strict JSON encoding.
         value = value.model_dump(mode="python")
     if isinstance(value, Decimal) and not value.is_finite():
         raise ValueError("Nonfinite numeric evidence")
     if isinstance(value, list | tuple):
-        return [_authorized_tree(item, evidence) for item in value]
+        return [_authorized_tree(item, evidence, now) for item in value]
     if not isinstance(value, dict):
         return value
     projected = _without_card_fields(value)
     if projected.get("truncated") is True:
         evidence.omit("source_truncated")
-    return {key: _authorized_tree(item, evidence) for key, item in projected.items()}
+    return {key: _authorized_entry(key, item, evidence, now) for key, item in projected.items()}
+
+
+def _authorized_entry(key: object, item: Any, evidence: InitiativeEvidence, now: datetime) -> Any:
+    if key == CLASSIFICATION_KEY and (view := classification_view(item, now)) is not None:
+        return view
+    return _authorized_tree(item, evidence, now)
 
 
 def _tool_contract(manifest: ToolManifest) -> dict[str, object]:
+    """What a read-only check can do — the judgment never builds the call itself.
+
+    The full contract (parameters, outputs, permissions) was 76 % of a calendar
+    turn's state, 83 of 109 kB (measured 2026-10-25), so the request never fit and
+    every decision fell back: the evaluator that builds the calls keeps its own.
+    """
     return {
         "name": manifest.name,
         "agent": manifest.agent,
         "description": manifest.description,
-        "parameters": [asdict(parameter) for parameter in manifest.parameters],
-        "outputs": [asdict(output) for output in manifest.outputs],
-        "permissions": asdict(manifest.permissions),
     }
 
 
@@ -158,7 +173,7 @@ def canonical_initiative_context(
             "agent_results": current_results,
         }
         context["available_tools"] = [_tool_contract(manifest) for manifest in manifests]
-        projected = _authorized_tree(context, evidence)
+        projected = _authorized_tree(context, evidence, datetime.now(UTC))
         encoded = json.dumps(projected, ensure_ascii=False, allow_nan=False, default=_json_default)
         return cast(dict[str, JsonValue], json.loads(encoded))
     except TypeError, ValueError, AttributeError, RecursionError:

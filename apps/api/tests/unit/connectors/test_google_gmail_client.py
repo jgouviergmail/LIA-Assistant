@@ -813,25 +813,32 @@ async def test_search_emails_fetches_metadata_concurrently(gmail_client):
     """Per-message metadata fetches must overlap (audit wave 3, N-194.8).
 
     Gmail's list endpoint returns IDs only; fetching each message's metadata
-    one-by-one costs N sequential round-trips. With a 20 ms fake network
-    latency and 20 results, a sequential implementation needs >= 400 ms while
-    the bounded-concurrency one stays well under half of that.
+    one-by-one costs N sequential round-trips. The overlap is counted, not
+    timed: a wall-clock bound read 979 ms for 25 fetches on a loaded machine
+    (2026-10-26) while the fetches still overlapped, so the peak of fetches in
+    flight is what proves it — exactly the configured bound.
     """
     from src.core.config import settings
 
     # Never hardcode a settings-driven threshold: search results are capped
     # by api_max_items_per_request, so size the workload from settings.
     num_messages = settings.api_max_items_per_request
-    delay = 0.03
     search_response = {
         "messages": [{"id": f"msg{i}"} for i in range(num_messages)],
         "resultSizeEstimate": num_messages,
     }
+    in_flight = peak = 0
 
     async def fake_request(method, endpoint, params=None, **kwargs):
+        nonlocal in_flight, peak
         if endpoint == "/users/me/messages":
             return search_response
-        await asyncio.sleep(delay)  # simulated network round-trip
+        in_flight += 1
+        peak = max(peak, in_flight)
+        try:
+            await asyncio.sleep(0.01)  # simulated network round-trip
+        finally:
+            in_flight -= 1
         msg_id = endpoint.rsplit("/", 1)[-1]
         return {"id": msg_id, "threadId": f"thread-{msg_id}", "snippet": f"snippet {msg_id}"}
 
@@ -844,21 +851,17 @@ async def test_search_emails_fetches_metadata_concurrently(gmail_client):
             mock_redis.set = AsyncMock()
             mock_cache.return_value = mock_redis
 
-            loop = asyncio.get_running_loop()
-            start = loop.time()
             result = await gmail_client.search_emails(query="test", max_results=num_messages)
-            duration = loop.time() - start
 
     # Same payloads, same order as the ID list
     assert [m["id"] for m in result["messages"]] == [f"msg{i}" for i in range(num_messages)]
     assert all(m["threadId"] == f"thread-{m['id']}" for m in result["messages"])
     assert result["from_cache"] is False
 
-    sequential_floor = num_messages * delay
-    assert duration < sequential_floor / 2, (
-        f"search_emails took {duration * 1000:.0f} ms for {num_messages} fetches "
-        f"(sequential floor {sequential_floor * 1000:.0f} ms) — metadata fetches are not concurrent"
-    )
+    # Bounded and concurrent: every slot fills before any fetch returns.
+    assert (
+        peak == min(settings.emails_search_fetch_concurrency, num_messages) > 1
+    ), f"{peak} metadata fetches overlapped — not the configured concurrency"
 
 
 @pytest.mark.asyncio

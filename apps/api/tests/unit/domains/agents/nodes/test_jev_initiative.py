@@ -16,15 +16,15 @@ pytestmark = pytest.mark.unit
     "utility,empty",
     [
         (0.02, True),
-        (0.11, True),
-        (0.12, False),
+        (0.20, True),
+        (0.21, False),
         (0.5, False),
         (0.97, False),
     ],
 )
 async def test_only_a_low_probability_of_any_utility_can_skip(utility, empty) -> None:
     module = importlib.import_module("src.domains.agents.nodes.jev_initiative")
-    assert module.MAX_UTILITY_PROBABILITY == 0.11
+    assert module.MAX_UTILITY_PROBABILITY == 0.20
     answer = NoulAnswer(type="noul", noul=utility)
     with patch.object(
         module,

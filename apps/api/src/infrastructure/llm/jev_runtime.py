@@ -9,7 +9,6 @@ from time import perf_counter, time
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-import httpx
 import structlog
 from pydantic import JsonValue
 
@@ -26,6 +25,7 @@ from src.infrastructure.llm.decision_types import DecisionAttempt, DecisionCharg
 from src.infrastructure.llm.inference_params import capture_inference_params
 from src.infrastructure.llm.jev_debug_models import JevAction
 from src.infrastructure.llm.jev_debug_store import begin_trace, finish_trace
+from src.infrastructure.llm.jev_http import jev_http_client
 from src.infrastructure.llm.typesafe_client import (
     ChoiceAnswer,
     ChoiceBatchResult,
@@ -256,7 +256,7 @@ async def _execute_decision(
     interrupted: asyncio.CancelledError | None = None
     try:
         async with _decision_tracker(run_id, user_id) as tracker:
-            async with httpx.AsyncClient() as http:
+            async with jev_http_client() as http:
                 try:
                     result = await _call_native(
                         TypeSafeClient(http, config.api_key.get_secret_value()),

@@ -1,8 +1,9 @@
 """Startup steps: external integrations and optional channels.
 
 MCP client manager (evolution F2), per-user MCP pool (F2.1), Telegram bot
-(F3), currency rates startup sync and system RAG space indexing. Every step
-is non-fatal; the optional ones are feature-flag gated.
+(F3), currency rates startup sync, system RAG space indexing and the native
+decision provider's keep-alive client (ADR-325). Every step is non-fatal; the
+optional ones are feature-flag gated.
 
 Extracted verbatim from ``src.main.lifespan`` (ADR-123): same structlog
 events, same exception handling, same feature-flag guards.
@@ -23,6 +24,18 @@ if TYPE_CHECKING:
     from src.infrastructure.mcp.client_manager import MCPClientManager
 
 logger = structlog.get_logger(__name__)
+
+
+async def init_jev_http_client() -> None:
+    """Bind the native decision provider's keep-alive client to the serving loop.
+
+    Every native decision reaches the provider through it (``jev_http``);
+    the shutdown sequence closes it. Opening a client makes no request.
+    """
+    from src.infrastructure.llm.jev_http import open_jev_http_client
+
+    open_jev_http_client()
+    logger.info("jev_http_client_opened")
 
 
 async def init_mcp(registry: AgentRegistry | None) -> MCPClientManager | None:

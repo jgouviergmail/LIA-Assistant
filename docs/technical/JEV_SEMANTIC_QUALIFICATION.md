@@ -152,6 +152,12 @@ many cases. A shortcut is the branch that skips or replaces the existing path.
 | HITL total refusal | 66.7 %, 0 wrong | Noul: 16.7 %, 0 wrong | kept |
 | HITL exclusion | 55.6 %, 0 wrong | 86.1 %, **5 wrong** | kept |
 
+These levels were measured on `jev-1.13.0`. On `jev-1.14.0` (2026-10-26) every usage was
+replayed: the consultation rose to 0.98, the HITL refusal (0.80), HITL exclusion (0.90) and
+meeting (0.85) thresholds were re-chosen, the others kept — the
+[ADR-325 amendment of 2026-10-26](../architecture/ADR-325-JEV-Bounded-Decisions-With-Hot-Switches-And-Accounted-Fallbacks.md)
+and its [record](../superpowers/qualification/jev-audit-2026-10-25/README.md).
+
 **Order bias.** Reversing the options changed 0 to 3.8 % of the answers; one
 reversed HITL exclusion took a wrong shortcut. The bias exists and is small at the
 shipped thresholds.
@@ -191,10 +197,11 @@ never lift one.
 
 ## Limits
 
-- **Latency.** The harness reuses one HTTP connection; the application's runtime
-  opens a new client — a new TLS connection — for every decision (`jev_runtime.py`).
-  Six calls through the runtime took 253 to 410 ms (the slowest the first, cold):
-  close to the harness, but a sample of six, not a percentile.
+- **Latency.** The harness reused one HTTP connection while the application's runtime
+  then opened a new client — a new TLS connection — for every decision. Six calls through
+  the runtime took 253 to 410 ms (the slowest the first, cold): close to the harness, but
+  a sample of six, not a percentile. Since 2026-10-25 the runtime shares one keep-alive
+  client per serving loop (ADR-325 amendment of that date).
 - **Every corpus is synthetic** and written by a person or an agent, never read
   from an account. The independent corpora were written without sight of the
   questions, but by authors who knew the decision's vocabulary.

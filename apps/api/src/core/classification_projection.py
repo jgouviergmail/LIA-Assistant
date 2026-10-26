@@ -10,6 +10,7 @@ the code computes the comparison, the decision model never does date arithmetic.
 The display reads the whole annotation (its badges, its cache), never this view.
 """
 
+import json
 from collections.abc import Mapping
 from datetime import UTC, datetime
 
@@ -24,6 +25,9 @@ from src.core.content_classification import (
 _ADAPTER: TypeAdapter[ContentClassification] = TypeAdapter(ContentClassification)
 #: The key under which a published item carries its annotation (``publication``).
 CLASSIFICATION_KEY = "classification"
+# The key as ``json.dumps`` writes it with its default separators.
+_SERIALIZED_KEY = f'"{CLASSIFICATION_KEY}": '
+_DECODER = json.JSONDecoder()
 
 
 def read_classification(value: object) -> ContentClassification | None:
@@ -95,6 +99,43 @@ def model_classifications(
     """
     moment = now if now is not None else datetime.now(UTC)
     return {key: _projected(key, value, moment) for key, value in data.items()}
+
+
+def serialized_classifications(text: str, now: datetime | None = None) -> str:
+    """:func:`model_classifications` over JSON the application serialized itself.
+
+    An answer's model view archives its data as JSON with each annotation whole,
+    and later turns read it again (2026-10-26: a history kept handing the ReAct
+    loop raw instants after the tool data had stopped). Its state is decided
+    here, when the text is read, never when the answer was written. Only a real
+    key matches: inside a JSON string every quote is escaped, so quoted text
+    never reads as an annotation, and a value that is none is left as it is.
+
+    Args:
+        text: Text holding serialized records (prose and wrappers around them).
+        now: The moment it is shown; the current instant by default.
+
+    Returns:
+        The same text, each serialized annotation replaced by its view.
+    """
+    if _SERIALIZED_KEY not in text:
+        return text
+    moment = now if now is not None else datetime.now(UTC)
+    chunks: list[str] = []
+    copied = searched = 0
+    while (found := text.find(_SERIALIZED_KEY, searched)) != -1:
+        start = searched = found + len(_SERIALIZED_KEY)
+        try:
+            value, end = _DECODER.raw_decode(text, start)
+        except json.JSONDecodeError:
+            continue
+        view = classification_view(value, moment)
+        if view is None:
+            continue
+        chunks += [text[copied:start], json.dumps(view, ensure_ascii=False)]
+        copied = searched = end
+    chunks.append(text[copied:])
+    return "".join(chunks)
 
 
 def _projected(key: str, value: object, now: datetime) -> object:

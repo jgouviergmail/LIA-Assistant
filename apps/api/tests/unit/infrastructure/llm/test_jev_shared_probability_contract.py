@@ -14,7 +14,7 @@ from src.domains.chat.service import TrackingContext
 from src.domains.llm.pricing_service import ModelPrice
 from src.domains.llm_config.jev_registry import JevUsage
 from src.domains.llm_config.jev_settings import DecisionConfiguration, JevSnapshot
-from src.infrastructure.llm import jev_runtime
+from src.infrastructure.llm import jev_http, jev_runtime
 from src.infrastructure.llm.typesafe_client import (
     ChoiceQuestion,
     DecisionQuestion,
@@ -85,7 +85,7 @@ async def test_each_usage_preserves_the_shared_native_contract_and_owns_one_bill
 
     original_client = httpx.AsyncClient
     monkeypatch.setattr(
-        jev_runtime.httpx,
+        jev_http.httpx,
         "AsyncClient",
         lambda: original_client(transport=httpx.MockTransport(serve)),
     )

@@ -140,8 +140,14 @@ Le [transport natif](../../apps/api/src/infrastructure/llm/typesafe_client.py)
 effectue une tentative vers l'API TypeSafe officielle, sans redirection ni reprise
 automatique. Le délai couvre l'appel HTTP entier. La lecture de configuration est
 aussi bornée ; le temps de persistance des registres s'ajoute à ces délais.
-Les plafonds de requête/réponse sont locaux et conservateurs : un dépassement
-provoque le repli. Un refus de quota est propagé, jamais contourné par le repli.
+Les plafonds de requête suivent les contextes documentés par le fournisseur
+(64k jetons par requête, 32k pour l'état et une question, estimés par le tokenizer
+local avec une marge mesurée) ; un dépassement provoque le repli, sans troncature.
+Les usages qui regroupent plusieurs éléments dans un même état gardent la taille de
+lot avec laquelle ils ont été mesurés. Depuis le 25 octobre 2026, les décisions
+partagent un client à connexions persistantes, ouvert et fermé par le cycle de vie
+de l'application ([relevé](../superpowers/qualification/jev-audit-2026-10-25/README.md)).
+Un refus de quota est propagé, jamais contourné par le repli.
 
 ## Données, coûts et observation
 
@@ -314,6 +320,14 @@ avec l'instant et le fuseau capturés au début de l'opération. Les journées e
 sont comparées en date civile ; une heure sans offset exige son fuseau source.
 Une heure ambiguë ou inexistante au changement d'heure reste inconnue. Ces faits
 n'inventent aucune borne de recherche ni précision horaire non disponible.
+Depuis le 26 octobre 2026, le code situe aussi le jour propre de chaque élément —
+début d'un événement, réception d'un e-mail (`internalDate`, commun aux trois
+fournisseurs) — par rapport à aujourd'hui : écart en jours et en semaines (lundi
+premier jour) et jour de la semaine, dans le fuseau du réglage de la personne, sans
+lequel aucun jour n'est énoncé. La question décide les jours relatifs de la requête
+(« demain », « cette semaine », « ce week-end ») sur ces seuls faits : sans eux, une
+seule des 51 décisions d'agenda datées du corpus de forme production atteignait un
+verdict au seuil livré, contre 35 avec eux, sans verdict faux.
 
 Ce choix conserve les diagnostics de pertinence. Il ajoute une décision
 payante et ne réduit ni le coût ni la latence de la synthèse finale. Une réponse
@@ -361,8 +375,9 @@ Les séquences historiques dites « golden patterns » ne sont pas exécutées :
 ne contiennent pas un contrat de paramètres suffisamment précis pour ce raccourci.
 
 `initiative_utility` reçoit un état JSON nommé : politique exacte de l'évaluateur,
-résultats autorisés réellement récupérés, erreurs du tour, outils, souvenirs et
-intérêts chargés. Les limites de résumé du prompt génératif ne sont pas utilisées
+résultats autorisés réellement récupérés, erreurs du tour, outils (nom, agent et
+description : leurs contrats complets faisaient 76 % de l'état et l'empêchaient de
+jamais tenir), souvenirs et intérêts chargés. Les limites de résumé du prompt génératif ne sont pas utilisées
 pour tronquer cet état natif. Les champs réservés aux cartes restent exclus.
 Le retrait de `meta.display` exige une enveloppe de registre identifiable ; les
 champs métier homonymes des sous-objets externes restent disponibles.

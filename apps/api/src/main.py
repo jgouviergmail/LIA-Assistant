@@ -145,6 +145,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     registries.init_content_qualification()
 
     registry = await agents.init_agent_registry(checkpointer, scheduler)
+    await integrations.init_jev_http_client()
     mcp_manager = await integrations.init_mcp(registry)
     await integrations.init_user_mcp_pool()
     telegram_bot = await integrations.init_telegram_bot()
