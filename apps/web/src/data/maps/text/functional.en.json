@@ -394,6 +394,12 @@
       "role": "Archives phone-supplied text, resolves senders and offers it in chat, relationships and home with explicit assistant access.",
       "goal": "Keep a searchable personal archive with separate ingestion, push and model permissions.",
       "src": "4972a13608d3"
+    },
+    "f.world": {
+      "name": "LIA World",
+      "role": "A shared isometric campus with movement, a map, LIA and public or direct written exchanges. Your account name and appearance are visible with your consent; functions and home stay private, and consented translations follow ordinary quotas.",
+      "goal": "Meet others and use your own LIA in a welcoming place without sharing personal data.",
+      "src": "ab920566adb0"
     }
   },
   "flows": {

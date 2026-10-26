@@ -460,6 +460,12 @@
         "Private Benachrichtigungen"
       ],
       "src": "da49b8382ff9"
+    },
+    "t.world": {
+      "name": "Isometrische Welt mit nativer Steuerung",
+      "role": "Der Browser zeichnet eine begrenzte Canvas-Szene; Redis entscheidet über Zugang, Warteschlange und Bewegung, bei seinem Ausfall ruhen die Befehle. Native Ansichten behalten Berechtigungen und Freigaben. Flüchtige Texte bleiben in Redis; PostgreSQL sichert abrechenbare Versuche ab, ohne ihren Inhalt zu speichern.",
+      "stack": ["Canvas 2D", "WebSocket", "Redis CAS", "PostgreSQL", "LIA"],
+      "src": "1c146d5b9f21"
     }
   },
   "flows": {

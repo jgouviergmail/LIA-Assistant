@@ -67,6 +67,13 @@ const nextConfig: NextConfig = {
   // (default) everywhere else, including the production Docker image.
   distDir: process.env.NEXT_DIST_DIR || '.next',
 
+  // Isolated world previews reserve the corners for touch controls. Only the
+  // development status badge is suppressed; build/runtime error overlays stay
+  // active. Ordinary development and production retain their normal behavior.
+  ...(isDev && /^\.next-world(?:-|$)/.test(process.env.NEXT_DIST_DIR ?? '')
+    ? { devIndicators: false }
+    : {}),
+
   // Production build configuration for Docker
   output: 'standalone',
 
@@ -80,6 +87,11 @@ const nextConfig: NextConfig = {
   turbopack: {},
 
   experimental: {
+    // The same-origin notification stream sends periodic keepalives. Next's
+    // default 30s idle timeout raced their boundary and severed healthy SSE
+    // connections. Keep a bounded idle timeout with room for several pulses;
+    // individual application requests retain their client/API deadlines.
+    proxyTimeout: 90_000,
     // Increase proxy body size limit for RAG document uploads (default: 10MB)
     // Must match RAG_SPACES_MAX_FILE_SIZE_MB (20MB) + overhead for multipart encoding
     proxyClientMaxBodySize: '25mb',

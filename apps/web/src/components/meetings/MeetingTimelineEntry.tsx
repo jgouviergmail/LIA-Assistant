@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { MeetingOpenLink } from './MeetingNavigation';
 import {
   AudioLines,
   BookOpen,
@@ -95,8 +95,8 @@ function RecordingFacts({ meeting, lng }: { meeting: MeetingSummary; lng: Langua
       )}
       {meeting.source_meeting_id && (
         <Fact icon={FileText} label={t('meetings.detail.derived_from')} wide>
-          <Link
-            prefetch={false}
+          <MeetingOpenLink
+            id={meeting.source_meeting_id}
             href={buildLocalizedPath(
               `/dashboard/meetings/${encodeURIComponent(meeting.source_meeting_id)}`,
               lng
@@ -104,7 +104,7 @@ function RecordingFacts({ meeting, lng }: { meeting: MeetingSummary; lng: Langua
             className="text-primary underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-ring"
           >
             {t('meetings.detail.derived_from')}
-          </Link>
+          </MeetingOpenLink>
         </Fact>
       )}
     </dl>
@@ -187,8 +187,8 @@ export function MeetingTimelineEntry({
             />
             <span className="sr-only">{t('meetings.list.select_row', { title })}</span>
           </label>
-          <Link
-            prefetch={false}
+          <MeetingOpenLink
+            id={meeting.id}
             href={
               detailHref ??
               buildLocalizedPath(`/dashboard/meetings/${encodeURIComponent(meeting.id)}`, lng)
@@ -196,7 +196,7 @@ export function MeetingTimelineEntry({
             className="min-w-0 flex-1 py-2.5 font-medium leading-relaxed text-primary underline-offset-4 [overflow-wrap:anywhere] hover:underline focus-visible:rounded focus-visible:outline-2 focus-visible:outline-ring"
           >
             {title}
-          </Link>
+          </MeetingOpenLink>
           <span className="hidden max-w-[40%] pt-3 md:block [&>span]:h-auto [&>span]:min-h-5 [&>span]:whitespace-normal [&>span]:py-0.5">
             <MeetingStatusBadge lng={lng} status={meeting.status} stage={meeting.stage} />
           </span>

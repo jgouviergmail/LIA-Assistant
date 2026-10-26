@@ -233,3 +233,36 @@ describe('VoiceToggle with the live mode offered', () => {
     expect(blocked).toHaveTextContent('voice.toggle.live_meeting');
   });
 });
+
+describe('VoiceToggle in an embedded world workspace', () => {
+  beforeEach(() => {
+    live.available = true;
+    live.directTools = true;
+    useAuth.mockReturnValue(authed());
+  });
+
+  it.each(['delegated', 'direct'] as const)(
+    'opens the embedded workspace for %s without leaving the world',
+    async mode => {
+      const onOpenLiveWorkspace = vi.fn(() => true);
+      const { user } = renderWithProviders(
+        <VoiceToggle onOpenLiveWorkspace={onOpenLiveWorkspace} />
+      );
+      await user.click(screen.getByRole('button', { name: 'voice.toggle.menu' }));
+      const key = mode === 'direct' ? /live_direct_start/ : /voice\.toggle\.live_start/;
+      await user.click(await screen.findByRole('menuitem', { name: key }));
+      expect(onOpenLiveWorkspace).toHaveBeenCalledTimes(1);
+      expect(useLiveStore.getState().pendingStart).toBe(mode);
+      expect(live.push).not.toHaveBeenCalled();
+    }
+  );
+
+  it('does not queue a session or change preferences if the world refuses the handoff', async () => {
+    const { user } = renderWithProviders(<VoiceToggle onOpenLiveWorkspace={() => false} />);
+    await user.click(screen.getByRole('button', { name: 'voice.toggle.menu' }));
+    await user.click(await screen.findByRole('menuitem', { name: /voice\.toggle\.live_start/ }));
+    expect(useLiveStore.getState().pendingStart).toBeNull();
+    expect(patch).not.toHaveBeenCalled();
+    expect(live.push).not.toHaveBeenCalled();
+  });
+});

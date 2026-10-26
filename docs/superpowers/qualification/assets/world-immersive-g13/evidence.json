@@ -1,0 +1,102 @@
+{
+  "lot": "G13",
+  "preview": "http://127.0.0.6:3010/fr/world-preview?shared=1",
+  "sourceDigest": "eb4f9a59cea39a6ea07d1ff235a155318f8168327df481df7d1c5f97117f9b36",
+  "sourceFiles": 70,
+  "sourceEquality": [
+    "worktree",
+    "optimized candidate",
+    "published preview"
+  ],
+  "frontend": {
+    "fullSuitePassed": 14118,
+    "fullSuiteFailed": 0,
+    "worldTargetedPassed": 157,
+    "worldTestFiles": 32,
+    "coverageFloorsUnchanged": true,
+    "scopedStatements": 98.43,
+    "scopedBranches": 96,
+    "scopedFunctions": 100,
+    "scopedLines": 100
+  },
+  "backend": {
+    "authorityUnitPassed": 12,
+    "nativeFunctionalCasesPassed": 6,
+    "engines": [
+      "chromium",
+      "firefox",
+      "webkit"
+    ],
+    "collisionFootprintUnchanged": true
+  },
+  "browser": {
+    "hermeticOriginalNonTouchPassed": 44,
+    "intentionalEngineSkips": 4,
+    "settingsSeparationPassed": 3,
+    "finalTouchRotationPassed": 6,
+    "narrowestViewport": 320,
+    "enlargedFontPx": 20,
+    "finalOptimizedCapacityCasePassed": 1
+  },
+  "gates": [
+    "frontend lint and ratchets",
+    "non-incremental TypeScript",
+    "world catalogue parity",
+    "six-locale parity",
+    "backend targeted Ruff and Black",
+    "optimized build"
+  ],
+  "performance": [
+    {
+      "profile": "desktop",
+      "viewport": "1280x800",
+      "fps": 59.3,
+      "frameP95Ms": 16.7,
+      "renderP95Ms": 17.5,
+      "decodedTexturesMiB": 62.1
+    },
+    {
+      "profile": "phone viewport, economic quality",
+      "viewport": "390x844",
+      "fps": 29.7,
+      "frameP95Ms": 33.3,
+      "renderP95Ms": 6,
+      "decodedTexturesMiB": 46
+    },
+    {
+      "profile": "phone viewport, economic quality, 4x CPU slowdown",
+      "viewport": "390x844",
+      "fps": 26.6,
+      "frameP95Ms": 50,
+      "renderP95Ms": 24.2,
+      "decodedTexturesMiB": 46.2
+    }
+  ],
+  "performanceContext": {
+    "browser": "chromium",
+    "nativeClients": 5,
+    "fullUiRenderers": 1,
+    "weather": "snow",
+    "phase": "night",
+    "physicalDevice": false
+  },
+  "publication": {
+    "httpStatus": 200,
+    "admitted": true,
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "walkingVerified": true,
+    "runtimeErrors": [],
+    "paidActions": [],
+    "authorityTakenOver": false,
+    "physicalDevice": false
+  },
+  "limits": [
+    "Intermediate delivery, not final art acceptance",
+    "No physical Pi or phone qualification",
+    "No paid-provider translation quality measurement",
+    "G14-G17 remain pending"
+  ]
+}

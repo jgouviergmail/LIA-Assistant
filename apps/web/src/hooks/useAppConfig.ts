@@ -36,6 +36,7 @@ export interface AppConfig {
     default_language: string;
   };
   features: {
+    world_enabled?: boolean;
     interactive_route_maps_enabled?: boolean;
     tool_approval_enabled: boolean;
     attachments_enabled: boolean;

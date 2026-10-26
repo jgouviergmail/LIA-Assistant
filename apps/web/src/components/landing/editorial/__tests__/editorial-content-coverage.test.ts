@@ -46,6 +46,15 @@ function lookup(obj: unknown, dotted: string): unknown {
 describe('editorial content coverage (zero information loss)', () => {
   const covered = [...CHAPTERS.flatMap(c => [...c.catalog]), ...BASICS_CATALOG];
 
+  it('keeps chapter numbers continuous and navigation identities unique', () => {
+    expect(CHAPTERS.map(chapter => chapter.num)).toEqual(
+      Array.from({ length: CHAPTERS.length }, (_, index) => String(index + 1).padStart(2, '0'))
+    );
+    for (const field of ['id', 'key', 'anchor'] as const) {
+      expect(new Set(CHAPTERS.map(chapter => chapter[field])).size).toBe(CHAPTERS.length);
+    }
+  });
+
   it('covers every canonical feature card exactly once', () => {
     expect([...covered].sort()).toEqual([...REQUIRED_FEATURE_KEYS].sort());
     expect(new Set(covered).size).toBe(covered.length);
@@ -76,6 +85,8 @@ describe('editorial i18n contract', () => {
   const REFERENCED: string[] = [
     'chapters.eyebrow',
     'chapters.catalog_label',
+    'chapters.c6.world_note',
+    'chapters.c6.world_link',
     ...CHAPTERS.flatMap(c => {
       const base = `chapters.${c.key}`;
       const benefits = Array.from({ length: c.benefits }, (_, i) => [
@@ -132,6 +143,7 @@ describe('editorial i18n contract', () => {
     'presentation.slide_alt',
     'presentation.slide_counter',
     'rail.aria',
+    ...CHAPTERS.map(chapter => `cosmos.ghost.${chapter.id}`),
     ...['bubble', 'title', 'subtitle', 'button', 'note_beta', 'philosophy_link'].map(
       s => `cta.${s}`
     ),

@@ -3,7 +3,7 @@
 > **Référence technique du schéma PostgreSQL et de ses modèles déclarés**
 >
 > **Version**: 1.10
-> **Date**: 2026-10-19
+> **Date**: 2026-10-26
 > **Reviewed**: sources des commandes, révisions d’apprentissage et réservations relues le 2026-10-12. L’inventaire ORM du 2026-07-11 est un snapshot historique ; les modèles enregistrés et les migrations restent l’autorité, pas une preuve de migration d’une instance.
 >
 > Architecture: PostgreSQL 16 avec SQLAlchemy 2.0 ORM
@@ -74,6 +74,33 @@ Le schéma suit l’architecture Domain-Driven Design. Vue simplifiée des propr
 ```
 
 La vue ci-dessus n’est pas un compteur du schéma actuel. Les checkpoints LangGraph restent distincts des tables métier.
+
+### Monde LIA : préférences durables, texte éphémère
+
+Le [domaine World](WORLD_PROTOTYPE.md) sépare les données de compte, les
+clôtures de tentatives et la présence partagée ([ADR-365](../architecture/ADR-365-Private-Native-LIA-In-An-Authoritative-Isometric-World.md)).
+
+| Stockage | Contrat |
+| --- | --- |
+| `users.world_preferences` | Préférences JSONB de couleurs de la maison, privées et révisées ; aucun souvenir, centre d'intérêt ou contenu de source n'y est copié |
+| `users.world_avatar_preferences` | Apparence publique choisie dans le catalogue et révision d'édition ; publication du nom natif et de l'apparence soumise à consentement |
+| `world_message_attempts` | Tentatives et clôtures durables : espace d'autorité, propriétaire, destinataire, empreinte, jeton de fencing, statut et échéances ; aucun corps de message ou traduction |
+| Redis | Autorité d'admission et de déplacement, file et baux, projections destinataire, textes et variantes éphémères ; une panne suspend l'autorité |
+
+Les références propriétaire/destinataire de la table de tentatives sont liées à
+`users.id` avec suppression en cascade. Les préférences participent à l'export
+et à l'effacement natifs ; la révocation supprime la présence sans effacer celle
+des autres comptes. Les index de file et d'expiration bornent la reprise et le
+nettoyage, et les clôtures empêchent une relance automatique d'un appel payant
+incertain. Le [modèle](../../apps/api/src/domains/world/message_models.py), les
+[règles de données du compte](../../apps/api/src/domains/users/user_data_map.py)
+et les migrations restent l'autorité sur les colonnes et leur cycle de vie.
+
+La migration de convergence du 26 octobre joint les deux historiques sans
+rejouer leurs migrations. Pour le retour sur la fusion seule, utiliser un parent
+explicite, puis réappliquer la montée : `-1` est ambigu à une fusion. Les chemins
+de rejeu et la sauvegarde sont décrits dans le
+[rapport de réconciliation](WORLD_MAIN_RECONCILIATION.md).
 
 ---
 
@@ -3120,8 +3147,9 @@ alembic revision --autogenerate -m "add_new_table"
 # Apply migrations (upgrade to latest)
 alembic upgrade head
 
-# Rollback last migration
-alembic downgrade -1
+# Rollback to an explicitly reviewed target revision
+: "${ROLLBACK_TARGET:?Set the reviewed rollback target revision first}"
+alembic downgrade "$ROLLBACK_TARGET"
 
 # Show current revision
 alembic current
@@ -3132,6 +3160,13 @@ alembic history --verbose
 # Stamp database to specific revision (without running migrations)
 alembic stamp head
 ```
+
+Before a rollback, back up the database and review the migrations between the
+deployed revision and the chosen target, including any destructive downgrades
+and the application version compatible with the resulting schema. Relative
+`-1` has no unique parent at a merge. Downgrading a merge can only split version
+markers when its own downgrade changes no schema; this does not undo the
+features introduced on either parent branch.
 
 ### Migration Best Practices
 
@@ -3148,14 +3183,8 @@ vim alembic/versions/xxx_description.py
 2. **Test Migrations Locally First:**
 
 ```bash
-# Test upgrade
-alembic upgrade head
-
-# Test downgrade (critical!)
-alembic downgrade -1
-
-# Re-test upgrade
-alembic upgrade head
+# Replay from scratch and test every direct parent rollback on a throwaway DB
+task db:migrate:replay-check
 ```
 
 3. **Production Deployment (Zero-Downtime):**
@@ -3421,8 +3450,9 @@ WHERE table_schema = 'public' AND table_name = 'new_table';
 # Option 1: Stamp to correct version (if migration was partially applied)
 alembic stamp <revision_id>
 
-# Option 2: Manual rollback and retry
-alembic downgrade -1
+# Option 2: A reviewed rollback target, after backup and schema diagnosis
+: "${ROLLBACK_TARGET:?Set the reviewed rollback target revision first}"
+alembic downgrade "$ROLLBACK_TARGET"
 alembic upgrade head
 
 # Option 3: Drop table manually and retry

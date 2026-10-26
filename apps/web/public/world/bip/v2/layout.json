@@ -1,0 +1,31 @@
+{
+  "src": "/world/bip/v2/directions.png",
+  "width": 800,
+  "height": 952,
+  "frames": [
+    {
+      "x": 2,
+      "y": 2,
+      "width": 380,
+      "height": 467
+    },
+    {
+      "x": 402,
+      "y": 2,
+      "width": 396,
+      "height": 471
+    },
+    {
+      "x": 2,
+      "y": 478,
+      "width": 388,
+      "height": 470
+    },
+    {
+      "x": 402,
+      "y": 478,
+      "width": 386,
+      "height": 472
+    }
+  ]
+}

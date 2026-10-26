@@ -1,0 +1,181 @@
+{
+  "scope": "Final optimized bundle; native conversations, editors, EventSource and five-plus-one capacity",
+  "physicalDevice": false,
+  "stats": {
+    "startTime": "2026-10-24T01:30:27.896Z",
+    "duration": 654623.821,
+    "expected": 27,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "cases": [
+    {
+      "title": "a real bilingual conversation works in both directions and a failed translation remains recoverable",
+      "engine": "chromium",
+      "durationMs": 23777,
+      "retries": 0
+    },
+    {
+      "title": "a recipient recovers an interrupted mailbox read without losing a draft or resending",
+      "engine": "chromium",
+      "durationMs": 17696,
+      "retries": 0
+    },
+    {
+      "title": "an account change in another tab withdraws the previous private conversation before further interaction",
+      "engine": "chromium",
+      "durationMs": 12341,
+      "retries": 0
+    },
+    {
+      "title": "free text, reciprocal replies, reload and a lost acknowledgment work without duplicate delivery",
+      "engine": "chromium",
+      "durationMs": 25560,
+      "retries": 0
+    },
+    {
+      "title": "a real bilingual conversation works in both directions and a failed translation remains recoverable",
+      "engine": "firefox",
+      "durationMs": 48343,
+      "retries": 0
+    },
+    {
+      "title": "a recipient recovers an interrupted mailbox read without losing a draft or resending",
+      "engine": "firefox",
+      "durationMs": 33100,
+      "retries": 0
+    },
+    {
+      "title": "an account change in another tab withdraws the previous private conversation before further interaction",
+      "engine": "firefox",
+      "durationMs": 21978,
+      "retries": 0
+    },
+    {
+      "title": "free text, reciprocal replies, reload and a lost acknowledgment work without duplicate delivery",
+      "engine": "firefox",
+      "durationMs": 47429,
+      "retries": 0
+    },
+    {
+      "title": "a real bilingual conversation works in both directions and a failed translation remains recoverable",
+      "engine": "webkit",
+      "durationMs": 23057,
+      "retries": 0
+    },
+    {
+      "title": "a recipient recovers an interrupted mailbox read without losing a draft or resending",
+      "engine": "webkit",
+      "durationMs": 20376,
+      "retries": 0
+    },
+    {
+      "title": "an account change in another tab withdraws the previous private conversation before further interaction",
+      "engine": "webkit",
+      "durationMs": 7393,
+      "retries": 0
+    },
+    {
+      "title": "free text, reciprocal replies, reload and a lost acknowledgment work without duplicate delivery",
+      "engine": "webkit",
+      "durationMs": 32939,
+      "retries": 0
+    },
+    {
+      "title": "native functions: private memory read/pin, denied peer mutation and embedded LIA without implicit send",
+      "engine": "chromium",
+      "durationMs": 10914,
+      "retries": 0
+    },
+    {
+      "title": "native functions: private memory read/pin, denied peer mutation and embedded LIA without implicit send",
+      "engine": "firefox",
+      "durationMs": 10237,
+      "retries": 0
+    },
+    {
+      "title": "native functions: private memory read/pin, denied peer mutation and embedded LIA without implicit send",
+      "engine": "webkit",
+      "durationMs": 11417,
+      "retries": 0
+    },
+    {
+      "title": "private home: real save, cancel, conflict/reload, phone accessibility and owner isolation",
+      "engine": "chromium",
+      "durationMs": 14841,
+      "retries": 0
+    },
+    {
+      "title": "private home: real save, cancel, conflict/reload, phone accessibility and owner isolation",
+      "engine": "firefox",
+      "durationMs": 11757,
+      "retries": 0
+    },
+    {
+      "title": "private home: real save, cancel, conflict/reload, phone accessibility and owner isolation",
+      "engine": "webkit",
+      "durationMs": 15433,
+      "retries": 0
+    },
+    {
+      "title": "notification lifecycle: repeated native stream aborts keep the transport usable",
+      "engine": "chromium",
+      "durationMs": 2078,
+      "retries": 0
+    },
+    {
+      "title": "notification lifecycle: repeated native stream aborts keep the transport usable",
+      "engine": "firefox",
+      "durationMs": 619,
+      "retries": 0
+    },
+    {
+      "title": "notification lifecycle: repeated native stream aborts keep the transport usable",
+      "engine": "webkit",
+      "durationMs": 908,
+      "retries": 0
+    },
+    {
+      "title": "polished world: personal cached atmosphere, E interaction, native draft, private paged peers and reachable mobile HUD",
+      "engine": "chromium",
+      "durationMs": 36511,
+      "retries": 0
+    },
+    {
+      "title": "polished world: personal cached atmosphere, E interaction, native draft, private paged peers and reachable mobile HUD",
+      "engine": "firefox",
+      "durationMs": 19161,
+      "retries": 0
+    },
+    {
+      "title": "polished world: personal cached atmosphere, E interaction, native draft, private paged peers and reachable mobile HUD",
+      "engine": "webkit",
+      "durationMs": 34640,
+      "retries": 0
+    },
+    {
+      "title": "five real accounts share positions; a sixth waits; duplicate control is explicit and FIFO entry stays private",
+      "engine": "chromium",
+      "durationMs": 76366,
+      "retries": 0
+    },
+    {
+      "title": "five real accounts share positions; a sixth waits; duplicate control is explicit and FIFO entry stays private",
+      "engine": "firefox",
+      "durationMs": 40625,
+      "retries": 0
+    },
+    {
+      "title": "five real accounts share positions; a sixth waits; duplicate control is explicit and FIFO entry stays private",
+      "engine": "webkit",
+      "durationMs": 49750,
+      "retries": 0
+    }
+  ],
+  "paidProvider": false,
+  "translation": "Authored phrase fixture; supplier fidelity unqualified",
+  "sourceDigest": "20bd6b9216ff7347dea91bba777981061dd8691f852294c7771ae8b660c6e761",
+  "normalizedGlobalCssDigest": "ad1922641bc0077c4cb35cafc66d33a779c63e9def1c79d7db77824bf2dad9e1",
+  "browserHarnessOOM": false
+}

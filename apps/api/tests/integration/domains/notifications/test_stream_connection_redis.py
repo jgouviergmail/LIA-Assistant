@@ -1,10 +1,14 @@
 """A real Pub/Sub notification stream closes and releases its connection on revocation."""
 
+import asyncio
 from types import SimpleNamespace
 from uuid import uuid4
 
+import anyio
 import pytest
 from redis.asyncio import Redis
+from redis.asyncio.client import PubSub
+from starlette.types import Message
 
 from src.core.config import settings
 from src.domains.agents.api import session_watch
@@ -65,4 +69,56 @@ async def test_a_busy_revoked_stream_stops_before_the_next_payload_and_releases_
         await redis.delete(
             f"sse:connection:{owner}", f"sse:streams:{owner}", f"user:{owner}:sessions"
         )
+        await redis.aclose()
+
+
+async def test_repeated_asgi_disconnects_do_not_exhaust_a_two_connection_redis_pool(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Use real Pub/Sub and ASGI level cancellation, with no spare-capacity workaround."""
+    redis = Redis.from_url(str(settings.redis_url), decode_responses=True, max_connections=2)
+    assert redis.connection_pool.connection_kwargs["db"] == 15
+    owner = uuid4()
+    channel = user_notifications_channel(owner)
+    created: list[PubSub] = []
+    native_pubsub = redis.pubsub
+
+    def open_pubsub() -> PubSub:
+        pubsub = native_pubsub()
+        created.append(pubsub)
+        return pubsub
+
+    async def connection() -> Redis:
+        return redis
+
+    monkeypatch.setattr(redis_module, "get_redis_cache", connection)
+    monkeypatch.setattr(redis, "pubsub", open_pubsub)
+    try:
+        await redis.ping()
+        for _ in range(24):
+            connected = anyio.Event()
+            response = await router.stream_notifications(
+                current_user=SimpleNamespace(id=owner), lia_session=None
+            )
+
+            async def receive(ready: anyio.Event = connected) -> Message:
+                await ready.wait()
+                return {"type": "http.disconnect"}
+
+            async def send(message: Message, ready: anyio.Event = connected) -> None:
+                body = message.get("body", b"")
+                if isinstance(body, bytes) and body.startswith(b"event: connected"):
+                    ready.set()
+
+            await asyncio.wait_for(
+                response({"type": "http", "asgi": {"spec_version": "2.3"}}, receive, send),
+                timeout=5,
+            )
+            assert (await redis.pubsub_numsub(channel))[0][1] == 0
+            assert await redis.exists(f"sse:connection:{owner}", f"sse:streams:{owner}") == 0
+            assert await redis.ping()
+    finally:
+        for pubsub in created:
+            await pubsub.aclose()
+        await redis.delete(f"sse:connection:{owner}", f"sse:streams:{owner}")
         await redis.aclose()

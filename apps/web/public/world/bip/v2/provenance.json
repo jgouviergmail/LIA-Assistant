@@ -1,0 +1,37 @@
+{
+  "operation": "lossless RGBA repack with source-pixel gutters; no resampling or generated art",
+  "source": "tools/world-art/source/bip-v1/directions.png",
+  "sourceSha256": "10acd181264ce5b95cde8ae665d866617929a7d6c28e74ce070b3f832d2743d6",
+  "outputSha256": "d3a665e2088bddb4f5b611ada676234066ad7268b0ef9ee5a27dcd2f13a89092",
+  "sourceFrames": [
+    {
+      "x": 141,
+      "y": 101,
+      "width": 380,
+      "height": 467
+    },
+    {
+      "x": 736,
+      "y": 100,
+      "width": 396,
+      "height": 471
+    },
+    {
+      "x": 149,
+      "y": 696,
+      "width": 388,
+      "height": 470
+    },
+    {
+      "x": 719,
+      "y": 695,
+      "width": 386,
+      "height": 472
+    }
+  ],
+  "gutter": 2,
+  "originalRetained": true,
+  "decodedBytesBefore": 6290064,
+  "decodedBytesAfter": 3046400,
+  "note": "Original content credentials remain with the offline source under tools/world-art. They do not attest this derivative."
+}

@@ -31,6 +31,8 @@ export const PUBLIC_PLAYER_ROUTES: readonly string[] = [
 
 /** The routes where the player stops and leaves the DOM. */
 export const PLAYER_STOP_ROUTES: readonly string[] = [
+  // The development graphics prototype owns its animation budget.
+  'world-preview',
   'account-inactive',
   'dashboard',
   'share',

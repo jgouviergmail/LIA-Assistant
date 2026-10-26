@@ -167,5 +167,7 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     # amendment 2026-10-14, owner decision the same day).
     "lia_voices": _SCRUBBED_PREFERENCE,
     "sms_preferences": _SCRUBBED_PREFERENCE,
+    "world_preferences": _SCRUBBED_PREFERENCE,
+    "world_avatar_preferences": _SCRUBBED_PREFERENCE,
     "ingestion_key_encrypted": _SCRUBBED,
 }

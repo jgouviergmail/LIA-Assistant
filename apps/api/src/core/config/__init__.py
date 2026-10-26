@@ -84,6 +84,7 @@ from .telephony import TelephonySettings
 from .usage_limits import UsageLimitsSettings
 from .voice import VoiceSettings
 from .workboard import WorkboardSettings
+from .world import WorldSettings
 
 
 class SupportedCurrency(str, Enum):
@@ -164,6 +165,7 @@ class Settings(
     DemoSettings,
     PushSettings,
     PushRelaySettings,
+    WorldSettings,
     BaseSettings,
 ):
     """

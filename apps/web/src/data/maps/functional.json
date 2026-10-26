@@ -350,7 +350,18 @@
       "icon": "message-circle-heart",
       "domains": ["proactive_discussions"],
       "surfaces": ["/dashboard/settings", "/dashboard/chat", "/dashboard/notifications"],
-      "deps": ["f.memory", "f.journals", "f.calendar", "f.mail", "f.sms", "f.habits", "f.interests", "f.notifications", "f.costs", "f.chat"]
+      "deps": [
+        "f.memory",
+        "f.journals",
+        "f.calendar",
+        "f.mail",
+        "f.sms",
+        "f.habits",
+        "f.interests",
+        "f.notifications",
+        "f.costs",
+        "f.chat"
+      ]
     },
     {
       "id": "f.briefing",
@@ -519,6 +530,14 @@
       "domains": ["sms"],
       "surfaces": ["/dashboard/sms", "/dashboard/settings"],
       "deps": ["f.security", "f.contacts", "f.relations", "f.notifications"]
+    },
+    {
+      "id": "f.world",
+      "group": "g.converse",
+      "icon": "map",
+      "domains": ["world"],
+      "surfaces": ["/dashboard/world"],
+      "deps": ["f.chat", "f.peers", "f.memory", "f.costs", "f.privacy"]
     }
   ],
   "flows": [

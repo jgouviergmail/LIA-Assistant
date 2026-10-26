@@ -39,7 +39,9 @@ export default defineConfig({
   // failures whose page snapshot showed the legacy mockup, unreproducible
   // locally because a manual run passes E2E_SHOWROOM=1 and skips the trap.
   testIgnore:
-    process.env.E2E_SHOWROOM === '1' ? [] : ['**/*public-demo-showroom*', '**/capture/**'],
+    process.env.E2E_SHOWROOM === '1'
+      ? ['**/native/**', '**/production/**']
+      : ['**/*public-demo-showroom*', '**/capture/**', '**/native/**', '**/production/**'],
   // Foundation is a PR smoke: keep it fast and deterministic. Firefox/WebKit
   // and the full zoom/reflow matrix are a documented periodic extension.
   fullyParallel: true,

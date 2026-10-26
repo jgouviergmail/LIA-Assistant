@@ -79,9 +79,14 @@ def is_forward(text: str, subject: str | None) -> bool:
 def _first_quote_header(lines: list[str]) -> int | None:
     """Index of the first line (or pair of lines) that opens the quoted history."""
     for index, line in enumerate(lines):
-        candidates = [line.strip()]
+        stripped = line.strip()
+        # No header starts on an empty line. Retain the original index so a
+        # wrapped header and the kept body preserve every preceding line.
+        if not stripped:
+            continue
+        candidates = [stripped]
         if index + 1 < len(lines):
-            candidates.append(f"{line.strip()} {lines[index + 1].strip()}")
+            candidates.append(f"{stripped} {lines[index + 1].strip()}")
         for candidate in candidates:
             if any(pattern.match(candidate) for pattern in _QUOTE_HEADER_PATTERNS):
                 return index
@@ -116,6 +121,8 @@ def _trailing_quote_start(lines: list[str]) -> int | None:
 
 def _first_signature(lines: list[str]) -> int | None:
     for index, line in enumerate(lines):
+        if not line.strip():
+            continue
         if any(pattern.match(line.rstrip("\r")) for pattern in _SIGNATURE_PATTERNS):
             return index
     return None

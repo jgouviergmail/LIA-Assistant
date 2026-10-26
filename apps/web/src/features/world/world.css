@@ -1,0 +1,899 @@
+.world-prototype {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  height: calc(100dvh - 112px);
+  min-height: 380px;
+  max-height: 960px;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  background: #153037;
+}
+/* Keep transient native notifications clear of the private panel's close action. */
+@media (max-width: 600px) {
+  body:has([data-world-native-panel]) [data-sonner-toaster][data-x-position='center'] {
+    left: 3.25rem;
+    right: 3.25rem;
+    width: calc(100% - 6.5rem);
+    transform: none;
+  }
+  body:has([data-world-native-panel]) [data-sonner-toaster] [data-sonner-toast] {
+    width: 100%;
+  }
+}
+.world-gateway {
+  min-height: min(760px, calc(100dvh - 112px));
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  overflow: hidden;
+  border-radius: 1.25rem;
+}
+.world-gateway-art {
+  display: grid;
+  place-items: center;
+  color: #f1dfb3;
+  background: radial-gradient(ellipse at 45% 35%, #568c82, #1b464b 70%);
+}
+.world-admission {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1rem;
+  padding: clamp(1.25rem, 4vw, 4rem);
+  max-width: 38rem;
+}
+.world-link-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 6px;
+}
+.world-link-status > span:first-child {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.world-shortcut {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .world-shortcut {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 20px;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    font-size: 10px;
+    opacity: 0.7;
+  }
+}
+@media (max-height: 520px) {
+  .world-home-dialog[data-state] {
+    height: calc(100dvh - 1.5rem);
+    max-height: calc(100dvh - 1.5rem);
+  }
+}
+@media (max-width: 639px) {
+  .world-gateway {
+    grid-template-columns: 1fr;
+  }
+  .world-gateway-art {
+    display: none;
+  }
+  .world-message-unread {
+    position: absolute;
+    top: 0;
+    right: 0;
+    line-height: 1.1;
+    padding-inline: 4px;
+    pointer-events: none;
+  }
+}
+.world-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  outline: none;
+}
+.world-preview {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 16px);
+  min-height: 0;
+}
+.world-preview > .relative {
+  flex: 1;
+  min-height: 0;
+}
+.world-preview > p {
+  flex-shrink: 0;
+}
+.world-preview .world-prototype {
+  height: 100%;
+  max-height: none;
+  min-height: 0;
+}
+@media (min-width: 640px) {
+  .world-preview {
+    height: calc(100dvh - 32px);
+  }
+}
+.world-canvas:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: -4px;
+}
+.world-top {
+  position: absolute;
+  inset: 12px 12px auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  pointer-events: none;
+}
+.world-top > * {
+  pointer-events: auto;
+}
+.world-hud-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  max-width: calc(100% - 166px);
+  pointer-events: none;
+}
+.world-hud-left > * {
+  pointer-events: auto;
+}
+.world-heading {
+  width: 100%;
+  border-radius: 14px;
+  padding: 7px 10px;
+}
+.world-minimap {
+  display: block;
+  width: 154px;
+  border-radius: 14px;
+  overflow: hidden;
+  flex-shrink: 0;
+  cursor: crosshair;
+}
+.world-minimap:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 3px;
+}
+.world-metrics {
+  position: absolute;
+  left: 12px;
+  top: 148px;
+  z-index: 1;
+  border-radius: 14px;
+  padding: 9px 12px;
+}
+.world-bottom {
+  position: absolute;
+  inset: auto 12px 12px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  pointer-events: none;
+}
+.world-bottom > * {
+  pointer-events: auto;
+}
+.world-touch-button {
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  touch-action: none;
+}
+.world-tools {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+}
+.world-tool-button {
+  height: 44px;
+  min-width: 70px;
+  gap: 7px;
+}
+/* The numeric zoom label fits four glyphs even with enlarged app text. */
+.world-tools [data-world-zoom] {
+  min-width: 44px;
+}
+.world-quality {
+  height: 44px;
+  max-width: 172px;
+  border-radius: 10px;
+  padding: 0 9px;
+}
+.world-fallback {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px;
+}
+/* Screen width does not tell us whether the player has a keyboard. */
+@media (min-width: 768px) and (hover: hover) and (pointer: fine) {
+  .world-bottom {
+    justify-content: flex-end;
+  }
+}
+@media (min-width: 768px) {
+  .world-hud-left {
+    max-width: 350px;
+  }
+  .world-tools {
+    flex-direction: row;
+    align-items: center;
+    gap: 7px;
+  }
+}
+@media (max-width: 479px) {
+  .world-prototype {
+    height: calc(100dvh - 100px);
+    min-height: 370px;
+    border-radius: 14px;
+  }
+  .world-top {
+    inset: 8px 8px auto;
+    gap: 6px;
+  }
+  .world-hud-left {
+    max-width: calc(100% - 112px);
+  }
+  .world-heading {
+    padding: 8px;
+  }
+  .world-minimap {
+    width: 106px;
+    border-radius: 10px;
+  }
+  .world-bottom {
+    inset: auto 8px max(8px, env(safe-area-inset-bottom));
+  }
+  .world-metrics {
+    left: 8px;
+    top: 148px;
+    max-width: calc(100% - 16px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .world-prototype * {
+    scroll-behavior: auto;
+  }
+}
+
+/* Native notifications stay alive without covering the world's action bar. */
+body:has(.world-prototype[data-world-status='shared']) [data-companion-presence] {
+  right: 20px;
+  bottom: 256px;
+}
+@media (max-height: 520px) {
+  body:has(.world-prototype[data-world-status='shared']) [data-companion-presence] {
+    bottom: 156px;
+  }
+}
+
+/* On short screens use one camera row and a compact heading, so the minimap,
+   action strip and direction pad do not cover each other's hit targets. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .world-prototype {
+    min-height: 0;
+  }
+  .world-minimap {
+    width: 106px;
+  }
+  .world-top {
+    inset: 8px 8px auto;
+  }
+  .world-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 8px;
+    padding: 6px 8px;
+  }
+  .world-hud-left {
+    max-width: calc(100% - 122px);
+  }
+  .world-heading > :first-child {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .world-heading > :nth-child(2) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .world-place-controls {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+  .world-bottom {
+    inset: auto 8px max(8px, env(safe-area-inset-bottom));
+  }
+  .world-tools {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+/* Spatial controls keep their full hit area under a held finger or mouse.
+   Native colours, focus rings and selected states still provide feedback. */
+.world-prototype .btn-scale:active,
+.world-session-strip .btn-scale:active {
+  transform: none;
+  /* Preserve the individual scale reset: CSS optimization otherwise folds it
+     into transform, leaving Tailwind's active scale in effect. */
+  scale: 1 !important;
+}
+
+/* Private conversation dock: the place and its occupants remain visible. */
+.world-conversation {
+  transform: none;
+  /* Keep the individual reset through CSS optimization; the shared dialog
+     supplies Tailwind translations that a transform-only reset cannot cancel. */
+  translate: none !important;
+  animation: none;
+  /* Viewport/keyboard geometry must apply immediately, without the shared surface transition. */
+  transition: none;
+  max-height: none;
+  max-width: calc(100vw - 16px);
+  background: var(--color-background);
+  box-shadow: 0 12px 48px rgb(0 0 0 / 20%);
+  gap: 12px;
+}
+.world-message-composer {
+  max-height: min(48dvh, 360px);
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .world-context-action {
+    max-width: 144px;
+  }
+}
+
+.world-pose-feedback {
+  position: absolute;
+  z-index: 30;
+  bottom: 8rem;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(30rem, calc(100% - 2rem));
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+}
+
+.world-object-hint {
+  position: absolute;
+  z-index: 12;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: min(280px, calc(100% - 2rem));
+  transform: translate(-50%, -100%);
+  padding: 0.65rem 0.85rem;
+  border: 1px solid #a3bfb4;
+  border-radius: 0.75rem;
+  background: #173c36;
+  color: #fff7e6;
+  box-shadow: 0 4px 18px #112e3433;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+@media (hover: none) {
+  .world-object-hint {
+    display: none;
+  }
+}
+
+.world-map-group {
+  position: relative;
+  pointer-events: auto;
+}
+.world-map-trigger {
+  margin-top: 0.3rem;
+  width: 154px;
+  min-height: 44px;
+  white-space: normal;
+  line-height: 1.25;
+  padding: 0.5rem;
+  background: #173c36;
+  color: #fff7e6;
+  border-color: #789d91;
+  font-size: 0.75rem;
+}
+.world-map-directory {
+  width: min(290px, calc(100vw - 24px));
+  max-height: min(55dvh, var(--radix-dropdown-menu-content-available-height));
+  overflow-y: auto;
+}
+.world-map-directory [role='menuitem'] {
+  min-height: 44px;
+  padding: 0.6rem 0.75rem;
+  gap: 0.7rem;
+  font-size: 0.8rem;
+}
+.world-map-directory [data-highlighted] {
+  background: var(--color-accent);
+  color: var(--color-accent-foreground);
+}
+.world-place-color {
+  width: 0.65rem;
+  height: 0.65rem;
+  flex: none;
+  border: 1px solid #d2dcc4;
+  border-radius: 50%;
+}
+@media (max-width: 639px), (max-height: 520px) and (orientation: landscape) {
+  .world-map-trigger {
+    width: 106px;
+  }
+}
+
+.world-map-directory-icon {
+  display: none;
+}
+/* Landscape phones have one row for wayfinding, leaving the action strip clear. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .world-map-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .world-map-trigger {
+    width: 44px;
+    height: 44px;
+    margin-top: 0;
+    flex: none;
+  }
+  .world-map-directory-icon {
+    display: block;
+  }
+  .world-map-trigger > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .world-hud-left {
+    max-width: calc(100% - 168px);
+  }
+}
+
+/* Small portrait phones retain a readable map and a separate 44px directory action. */
+@media (max-width: 359px) and (orientation: portrait) {
+  .world-minimap,
+  .world-map-trigger {
+    width: 88px;
+  }
+  .world-map-trigger {
+    height: 44px;
+    margin-top: 2px;
+    padding: 4px;
+    line-height: 1.1;
+  }
+  .world-hud-left {
+    max-width: calc(100% - 112px);
+  }
+}
+
+.world-context-icon {
+  display: none;
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .world-context-action {
+    flex: none;
+    width: 44px;
+    min-width: 44px;
+    justify-content: center;
+    padding-inline: 0;
+  }
+  .world-context-icon {
+    display: block;
+  }
+  .world-context-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .world-context-action .world-shortcut {
+    display: none;
+  }
+}
+
+/* Compact game chrome: six direct actions, five native device controls. */
+.world-session-strip {
+  position: absolute;
+  z-index: 2;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  width: max-content;
+  max-width: calc(100% - 16px);
+  flex-wrap: nowrap;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 14px;
+}
+.world-session-strip > button {
+  min-width: 44px;
+  min-height: 44px;
+  height: 44px;
+  padding-inline: 10px;
+  gap: 7px;
+}
+.world-session-strip [data-world-system-action] {
+  border-left: 1px solid var(--color-border);
+  border-radius: 0 8px 8px 0;
+}
+.world-session-strip .world-link-status {
+  position: absolute;
+  top: -4px;
+  right: 8px;
+  padding: 0;
+}
+.world-session-strip .world-link-status > span:last-child {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+.world-session-strip .world-shortcut {
+  display: none;
+}
+:has(> .world-prototype[data-world-status='shared']) .world-bottom {
+  bottom: calc(72px + env(safe-area-inset-bottom));
+}
+@media (min-width: 768px) and (min-height: 521px) {
+  :has(> .world-prototype[data-world-status='shared']) > .world-session-strip {
+    left: 12px;
+    transform: none;
+  }
+  .world-prototype[data-world-status='shared'] .world-bottom {
+    bottom: calc(11px + env(safe-area-inset-bottom));
+  }
+  .world-prototype[data-world-status='shared'] .world-bottom > .world-joystick {
+    margin-bottom: 64px;
+  }
+}
+@media (min-width: 768px) and (max-width: 1023px) and (min-height: 521px) {
+  .world-prototype[data-world-status='shared'] .world-tool-button {
+    min-width: 44px;
+    width: 44px;
+    padding-inline: 0;
+  }
+  .world-prototype[data-world-status='shared'] .world-tool-button > span {
+    display: none;
+  }
+}
+.world-device-controls {
+  position: absolute;
+  z-index: 2;
+  left: 12px;
+  top: 148px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 14px;
+}
+.world-device-controls > button {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 9px;
+}
+.world-device-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-background));
+}
+.world-device-icon svg {
+  width: 20px;
+  height: 20px;
+}
+.world-device-label {
+  display: none;
+}
+.world-device-controls button[aria-pressed='true'] .world-radio-icon {
+  color: var(--color-primary-foreground);
+  background: var(--color-primary);
+}
+.world-device-controls .btn-scale:active {
+  transform: none;
+  scale: 1 !important;
+}
+:has(> .world-prototype .world-metrics) > .world-device-controls {
+  visibility: hidden;
+}
+.world-sky-badge {
+  margin-top: 4px;
+}
+.world-actions-menu [role='menuitem'] {
+  min-height: 44px;
+  gap: 10px;
+}
+
+/* Active private conversations have one identity, one history and one composer. */
+.world-thread-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.world-conversation-directory {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+}
+.world-conversation-person {
+  height: auto;
+  min-height: 64px;
+  width: 100%;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 10px 8px;
+  white-space: normal;
+  border: 1px solid transparent;
+}
+.world-conversation-person[aria-current='page'] {
+  border-color: var(--color-border);
+  background: var(--color-accent);
+}
+.world-person-avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-background));
+  font-size: 12px;
+  font-weight: 700;
+}
+.world-person-avatar > span {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--color-background);
+  border-radius: 50%;
+}
+.world-person-online {
+  background: #16834b;
+}
+.world-person-offline {
+  background: var(--color-muted-foreground);
+}
+.world-thread-unread {
+  flex: none;
+  min-width: 20px;
+  padding: 1px 5px;
+  border-radius: 10px;
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  font-size: 11px;
+}
+.world-thread-detail {
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  flex-direction: column;
+}
+.world-thread-welcome {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 14px;
+  padding: 24px;
+  text-align: center;
+  color: var(--color-muted-foreground);
+  font-size: 14px;
+}
+.world-conversation-body {
+  grid-template-rows: minmax(0, 1fr) minmax(0, auto);
+}
+.world-message-composer {
+  max-height: min(48dvh, 250px);
+}
+@media (min-width: 640px) {
+  .world-thread-layout {
+    grid-template-columns: 184px minmax(0, 1fr);
+    gap: 12px;
+  }
+  .world-conversation-directory {
+    border-right: 1px solid var(--color-border);
+    padding-right: 10px;
+  }
+  .world-thread-back {
+    display: none;
+  }
+  .world-thread-welcome {
+    display: flex;
+  }
+}
+@media (max-width: 639px) {
+  .world-device-controls {
+    left: 8px;
+    top: 148px;
+  }
+  .world-session-strip > button {
+    width: 44px;
+    padding: 0;
+  }
+  .world-session-strip > button > span:not(.sr-only):not(.world-message-unread) {
+    display: none;
+  }
+  .world-thread-layout[data-has-thread='true'] .world-conversation-directory {
+    display: none;
+  }
+  .world-tools {
+    display: grid;
+    grid-template-columns: repeat(3, 44px);
+    gap: 3px;
+  }
+  .world-tools > :first-child {
+    grid-column: 2;
+  }
+  .world-tools > :nth-child(2) {
+    grid-column: 3;
+  }
+  .world-tools > :last-child {
+    grid-column: 1 / -1;
+  }
+  .world-tool-button {
+    min-width: 44px;
+    width: 44px;
+    padding: 0;
+  }
+  .world-tool-button > span {
+    display: none;
+  }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .world-device-controls {
+    top: 92px;
+    left: 8px;
+  }
+  .world-session-strip {
+    left: auto;
+    right: 8px;
+    transform: none;
+    bottom: 8px;
+  }
+  .world-session-strip > button {
+    width: 44px;
+    padding: 0;
+  }
+  .world-session-strip > button > span:not(.sr-only):not(.world-message-unread) {
+    display: none;
+  }
+  :has(> .world-prototype[data-world-status='shared']) .world-bottom {
+    bottom: 68px;
+  }
+  .world-tools {
+    display: flex;
+    gap: 3px;
+  }
+}
+
+.world-palette-choice {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 52px;
+  padding: 9px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.world-palette-choice:has(input:focus-visible) {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+.world-palette-selected {
+  background: var(--color-accent);
+}
+.world-palette-choice:has(input:disabled) {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.world-session-strip .world-message-unread {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  min-width: 18px;
+  padding: 1px 4px;
+  font-size: 10px;
+  line-height: 1.3;
+  pointer-events: none;
+}
+
+/* A short landscape phone folds devices into the free slot between walking
+   controls and actions. The native controls remain available in one tap. */
+.world-device-shell {
+  z-index: 3;
+  width: max-content;
+}
+.world-device-shell .world-device-controls {
+  position: static;
+}
+.world-device-toggle {
+  display: none;
+}
+@media (max-width: 639px) {
+  .world-device-shell {
+    left: 8px;
+  }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .world-top {
+    bottom: 8px;
+  }
+  .world-device-shell {
+    position: absolute;
+    top: auto;
+    left: 160px;
+    bottom: 8px;
+  }
+  .world-device-toggle {
+    display: inline-flex;
+  }
+  .world-device-shell .world-device-controls {
+    display: none;
+    position: absolute;
+    left: 0;
+    top: auto;
+    bottom: 56px;
+    width: max-content;
+  }
+  .world-device-shell[data-expanded='true'] .world-device-controls {
+    display: flex;
+  }
+}
+
+.world-prototype:has(.world-metrics) .world-device-shell {
+  visibility: hidden;
+}
+
+/* The compact native chat floats above its scrollable messages. Give the
+   whole footer an opaque backing so approval cards retain their severity
+   tints without showing message text through them or adding another blur. */
+.world-conversation .lia-chat-footer {
+  background: var(--color-background);
+}

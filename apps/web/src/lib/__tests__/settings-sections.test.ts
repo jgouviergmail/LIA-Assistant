@@ -186,12 +186,12 @@ describe('isSettingsSectionToken — the runtime half of the contract', () => {
 
 describe('the workboard has no header destination (ADR-276, D15)', () => {
   it('is reached from its settings section, never from the header', async () => {
-    // The header is at seven destinations, its measured maximum: the owner's
-    // answer was a settings door plus every ticket notification. Asserted so
-    // that adding an eighth is a DECISION, never an oversight.
+    // The owner explicitly requested a world entry in the shared navigation.
+    // Workboard still uses its settings door and ticket notifications.
     const { DASHBOARD_DESTINATIONS } = await import('../dashboard-nav');
 
-    expect(DASHBOARD_DESTINATIONS).toHaveLength(7);
+    expect(DASHBOARD_DESTINATIONS).toHaveLength(8);
+    expect(DASHBOARD_DESTINATIONS.map(destination => destination.segment)).toContain('world');
     expect(DASHBOARD_DESTINATIONS.map(destination => destination.segment)).not.toContain(
       'workboard'
     );

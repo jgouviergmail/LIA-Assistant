@@ -291,3 +291,7 @@ Signing up creates your account, but an administrator has to **activate** it bef
 • **If several days pass with no email**, contact the administrator of your organisation, who can activate the account directly.
 
 Before v1.27.14 this wait was invisible: the application loaded and then refused every screen, which looked like a breakdown rather than a pending step.
+
+## What can I do in LIA World?
+
+Open **LIA World** from the menu when your instance offers it. Explore the shared house and garden, meet other people, exchange private or public text and open your personal LIA conversation and native tools. Choose your character and private home palette. Keyboard, touch, zoom and the minimap help you move around. Lighting follows your account’s local time; available cached weather and optional sounds animate the scene. Movement itself calls no model; activities and translation keep their normal permissions, confirmations, costs and quotas. The **LIA World** section below explains each feature.

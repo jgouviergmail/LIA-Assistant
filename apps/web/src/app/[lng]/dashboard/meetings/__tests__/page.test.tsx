@@ -7,8 +7,19 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import { act, renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import type { MeetingSummary } from '@/types/meetings';
+import type { AppConfig, useAppConfig as useAppConfigFn } from '@/hooks/useAppConfig';
+import { appConfigFixture } from '@/__tests__/fixtures/app-config';
 
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'meeting-list-owner' } }) }));
+
+const appConfig = vi.hoisted((): { value: AppConfig | null } => ({ value: null }));
+vi.mock('@/hooks/useAppConfig', () => ({
+  useAppConfig: (): ReturnType<typeof useAppConfigFn> => ({
+    config: appConfig.value,
+    loading: false,
+    error: null,
+  }),
+}));
 
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }));
 vi.mock('sonner', () => ({ toast }));
@@ -59,6 +70,7 @@ vi.mock('@/hooks/useLocalizedRouter', () => ({
 }));
 
 import MeetingsPage from '../page';
+import { MeetingsWorkspace } from '@/components/meetings/MeetingsWorkspace';
 
 function summary(over: Partial<MeetingSummary> = {}): MeetingSummary {
   return {
@@ -87,6 +99,7 @@ const params = Promise.resolve({ lng: 'en' });
 
 beforeEach(() => {
   vi.clearAllMocks();
+  appConfig.value = null;
   searchParams.value = new URLSearchParams();
   window.history.replaceState({}, '', '/');
   list.meetings = [];
@@ -447,5 +460,40 @@ describe('MeetingsPage — eligibility changes during an invalidation', () => {
     list.meetings = [summary()];
     view.rerender(<MeetingsPage params={params} />);
     expect(screen.getByRole('checkbox', { name: 'meetings.list.select_row' })).not.toBeChecked();
+  });
+});
+
+it('keeps embedded meeting search, paging and detail selection inside its host', async () => {
+  searchParams.value = new URLSearchParams('q=unrelated&page=3');
+  window.history.replaceState({}, '', '/en/world-preview?shared=1&resume=1');
+  const original = window.location.href;
+  list.meetings = [summary()];
+  list.total = 60;
+  const open = vi.fn();
+  const { user } = renderWithProviders(
+    <MeetingsWorkspace lng="en" embedded onOpenMeeting={open} />
+  );
+  expect(screen.getByRole('searchbox')).toHaveValue('');
+  expect(list.read).toHaveBeenLastCalledWith(20, 0, true, '');
+  await user.type(screen.getByRole('searchbox'), 'budget');
+  await waitFor(() => expect(list.read).toHaveBeenLastCalledWith(20, 0, true, 'budget'));
+  expect(window.location.href).toBe(original);
+  await user.click(screen.getByRole('button', { name: 'Point projet' }));
+  expect(open).toHaveBeenCalledExactlyOnceWith('m1');
+  expect(push).not.toHaveBeenCalled();
+  expect(screen.queryByRole('link', { name: 'Point projet' })).not.toBeInTheDocument();
+});
+
+describe('meeting import across native and world workspaces', () => {
+  it.each([false, true])('offers file import without a recorder (embedded: %s)', embedded => {
+    recorder.value = null;
+    appConfig.value = appConfigFixture({
+      features: { meetings_enabled: true, meetings_import_enabled: true },
+    });
+    renderWithProviders(
+      embedded ? <MeetingsWorkspace lng="en" embedded /> : <MeetingsPage params={params} />
+    );
+    expect(screen.getByRole('button', { name: 'meetings.list.import' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'meetings.list.record' })).not.toBeInTheDocument();
   });
 });

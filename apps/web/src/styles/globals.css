@@ -1638,6 +1638,8 @@
     .stream-caret .markdown-content > p:last-of-type::after {
       display: none;
     }
+    /* Message controls need their final geometry before the first frame too. */
+    .animate-message-enter,
     .animate-mood-ping,
     .animate-send-takeoff,
     .animate-greet-float,

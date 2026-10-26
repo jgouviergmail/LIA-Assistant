@@ -11,6 +11,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import type { FunctionComponent, ReactElement } from 'react';
 
 import { SETTINGS_SECTIONS, type SettingsSectionToken } from '@/lib/settings-sections';
 import { exportedComponentOf } from '@/lib/__tests__/helpers/settings-page-source';
@@ -27,8 +28,8 @@ describe('SETTINGS_SECTION_REGISTRY', () => {
     }
   });
 
-  it.each(TOKENS)('%s renders the component its table entry declares', token => {
-    const element = SETTINGS_SECTION_REGISTRY[token].render('en');
+  it.each(TOKENS)('%s renders the component its table entry declares', async token => {
+    const element = await SETTINGS_SECTION_REGISTRY[token].render('en');
     const component = element.type;
     expect(typeof component, `${token}: renderer did not return a component element`).toBe(
       'function'
@@ -39,9 +40,9 @@ describe('SETTINGS_SECTION_REGISTRY', () => {
     ).toBe(exportedComponentOf(SETTINGS_SECTIONS[token].declaredIn));
   });
 
-  it('propagates the language to every section that takes one', () => {
+  it('propagates the language to every section that takes one', async () => {
     for (const token of TOKENS) {
-      const element = SETTINGS_SECTION_REGISTRY[token].render('fr');
+      const element = await SETTINGS_SECTION_REGISTRY[token].render('fr');
       const props = element.props as { lng?: string };
       if ('lng' in props) {
         expect(props.lng, `${token}: lng not forwarded`).toBe('fr');
@@ -56,5 +57,15 @@ describe('SETTINGS_SECTION_REGISTRY', () => {
         expect(feature.length, `${token}: empty feature label`).toBeGreaterThan(0);
       }
     }
+  });
+  it('keeps personal and administrative consumption exports on their separate native modes', async () => {
+    expect(
+      (await SETTINGS_SECTION_REGISTRY['user-consumption-export'].render('en')).props
+    ).toMatchObject({ mode: 'user' });
+    const admin = await SETTINGS_SECTION_REGISTRY['admin-consumption-export'].render('en');
+    // The native admin section is a thin wrapper which owns its export mode.
+    const renderAdmin = admin.type as FunctionComponent<{ lng: string }>;
+    const exportPanel = renderAdmin(admin.props as { lng: string }) as ReactElement;
+    expect(exportPanel.props).toMatchObject({ mode: 'admin' });
   });
 });

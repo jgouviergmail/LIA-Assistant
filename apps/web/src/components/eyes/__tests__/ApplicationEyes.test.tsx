@@ -21,15 +21,18 @@ vi.mock('@/components/companion/CompanionPresence', () => ({
   isChatRoute: (pathname: string | null) => !!pathname?.includes('/dashboard/chat'),
   CompanionPresence: ({
     renderAvatar,
+    attentionOnly,
     onWorkingChange,
   }: {
     renderAvatar: boolean;
+    attentionOnly: boolean;
     onWorkingChange: (working: boolean) => void;
   }) => (
     <button
       type="button"
       data-testid="notification-shortcut"
       data-avatar={String(renderAvatar)}
+      data-attention-only={String(attentionOnly)}
       onClick={() => onWorkingChange(true)}
     >
       Start background work
@@ -50,6 +53,21 @@ beforeEach(() => {
 });
 
 describe('the application avatar', () => {
+  it('suspends duplicate graphics while preserving the notification owner', () => {
+    const { rerender } = render(<ApplicationEyes hidePresentation />);
+    expect(screen.queryByTestId('application-avatar')).not.toBeInTheDocument();
+    expect(screen.getByTestId('notification-shortcut')).toBeInTheDocument();
+    expect(screen.getByTestId('notification-shortcut')).toHaveAttribute(
+      'data-attention-only',
+      'true'
+    );
+    rerender(<ApplicationEyes />);
+    expect(screen.getAllByTestId('application-avatar')).toHaveLength(1);
+    expect(screen.getByTestId('notification-shortcut')).toHaveAttribute(
+      'data-attention-only',
+      'false'
+    );
+  });
   it('shows background work through the same face with a compact notification shortcut', () => {
     route.pathname = '/fr/dashboard/settings';
     render(<ApplicationEyes />);

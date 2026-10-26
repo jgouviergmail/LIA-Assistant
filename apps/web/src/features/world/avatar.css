@@ -1,0 +1,59 @@
+/* Deliberate appearance editing; no permanent game chrome. */
+.world-avatar-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  align-self: start;
+  border-radius: 20px;
+  padding: 4px 8px;
+  background: radial-gradient(
+    ellipse at 50% 55%,
+    color-mix(in srgb, var(--color-primary) 10%, transparent),
+    transparent 72%
+  );
+}
+.world-avatar-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 16px;
+  min-width: 0;
+}
+.world-avatar-fields > .world-avatar-preview {
+  flex: 0 0 144px;
+  margin-inline: auto;
+}
+.world-avatar-fields > :last-child {
+  flex: 1 1 244px;
+  min-width: min(100%, 244px);
+}
+.world-avatar-colors {
+  display: grid;
+  grid-template-columns: repeat(5, 44px);
+  gap: 3px;
+}
+.world-admission:has(.world-avatar-fields) {
+  max-width: none;
+}
+@media (max-height: 520px) {
+  .world-avatar-preview canvas {
+    width: 108px;
+    height: 117px;
+  }
+}
+
+.world-gateway:has(.world-avatar-fields) {
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+  overflow-y: auto;
+}
+.world-gateway:has(.world-avatar-fields) .world-gateway-art {
+  display: none;
+}
+.world-gateway:has(.world-avatar-fields) .world-admission {
+  width: 100%;
+  max-width: 52rem;
+  margin-inline: auto;
+  padding: clamp(1.25rem, 3vw, 2.5rem);
+}

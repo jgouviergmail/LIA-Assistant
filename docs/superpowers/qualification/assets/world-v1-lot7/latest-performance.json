@@ -1,0 +1,143 @@
+{
+  "scope": "Optimized standalone; five real native clients and one full renderer",
+  "physicalDevice": false,
+  "concurrentQualification": "Backend integration, frontend coverage and static gates were running on the same host",
+  "rendererSha256": "19cd8ddc21c10cbad164ff832b8af92905132b1b08831227f8b48e093c11ebe5",
+  "stats": {
+    "startTime": "2026-10-23T21:27:06.936Z",
+    "duration": 94853.11399999999,
+    "expected": 3,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "samples": [
+    {
+      "profile": "desktop: five native server clients, one full UI renderer",
+      "browserName": "chromium",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "zoom": "95%",
+      "fps": 46.2,
+      "frameP95": "33,4 ms",
+      "renderP95": "26,7 ms",
+      "phase": "dawn",
+      "weather": "snow",
+      "clients": 5,
+      "independentHeadlessBrowsers": true,
+      "fullUIRenderers": 1,
+      "physicalDevice": false
+    },
+    {
+      "profile": "phone viewport, economic quality",
+      "browserName": "chromium",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "zoom": "95%",
+      "fps": 29.6,
+      "frameP95": "33,4 ms",
+      "renderP95": "13,1 ms",
+      "phase": "dawn",
+      "weather": "snow",
+      "clients": 5,
+      "independentHeadlessBrowsers": true,
+      "fullUIRenderers": 1,
+      "physicalDevice": false
+    },
+    {
+      "profile": "phone viewport, economic quality, CPU slowdown 4x",
+      "browserName": "chromium",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "zoom": "158%",
+      "fps": 23,
+      "frameP95": "66,7 ms",
+      "renderP95": "31,3 ms",
+      "phase": "dawn",
+      "weather": "snow",
+      "clients": 5,
+      "independentHeadlessBrowsers": true,
+      "fullUIRenderers": 1,
+      "physicalDevice": false
+    },
+    {
+      "profile": "desktop: five native server clients, one full UI renderer",
+      "browserName": "firefox",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "zoom": "95%",
+      "fps": 39.7,
+      "frameP95": "49,5 ms",
+      "renderP95": "41 ms",
+      "phase": "dawn",
+      "weather": "snow",
+      "clients": 5,
+      "independentHeadlessBrowsers": true,
+      "fullUIRenderers": 1,
+      "physicalDevice": false
+    },
+    {
+      "profile": "phone viewport, economic quality",
+      "browserName": "firefox",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "zoom": "95%",
+      "fps": 29.4,
+      "frameP95": "49,6 ms",
+      "renderP95": "32 ms",
+      "phase": "dawn",
+      "weather": "snow",
+      "clients": 5,
+      "independentHeadlessBrowsers": true,
+      "fullUIRenderers": 1,
+      "physicalDevice": false
+    },
+    {
+      "profile": "desktop: five native server clients, one full UI renderer",
+      "browserName": "webkit",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "zoom": "95%",
+      "fps": 16.6,
+      "frameP95": "92 ms",
+      "renderP95": "3 ms",
+      "phase": "dawn",
+      "weather": "snow",
+      "clients": 5,
+      "independentHeadlessBrowsers": true,
+      "fullUIRenderers": 1,
+      "physicalDevice": false
+    },
+    {
+      "profile": "phone viewport, economic quality",
+      "browserName": "webkit",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "zoom": "95%",
+      "fps": 24.5,
+      "frameP95": "58 ms",
+      "renderP95": "2 ms",
+      "phase": "dawn",
+      "weather": "snow",
+      "clients": 5,
+      "independentHeadlessBrowsers": true,
+      "fullUIRenderers": 1,
+      "physicalDevice": false
+    }
+  ],
+  "acceptance": "Journey success does not establish the target frame rate or physical-device thermal behavior"
+}

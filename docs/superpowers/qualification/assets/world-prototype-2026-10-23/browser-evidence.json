@@ -1,0 +1,76 @@
+{
+  "stats": {
+    "startTime": "2026-10-23T03:03:10.098Z",
+    "duration": 121619.269,
+    "expected": 58,
+    "skipped": 2,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "measurements": [
+    {
+      "browser": "chromium",
+      "profile": "desktop browser, not a physical phone",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "fps": "57,4",
+      "frameP95": "16,7 ms",
+      "renderP95": "1,4 ms"
+    },
+    {
+      "browser": "firefox",
+      "profile": "desktop browser, not a physical phone",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "fps": "57,1",
+      "frameP95": "17,2 ms",
+      "renderP95": "13,1 ms"
+    },
+    {
+      "browser": "webkit",
+      "profile": "desktop browser, not a physical phone",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "fps": "25",
+      "frameP95": "59 ms",
+      "renderP95": "1 ms"
+    },
+    {
+      "browser": "chromium",
+      "profile": "Headless Chromium in Docker, 4x CPU slowdown; not physical mobile hardware",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "quality": "low",
+      "fps": "28.1",
+      "frameP95": "50 ms",
+      "renderP95": "6.1 ms"
+    }
+  ],
+  "navigation_matrix": {
+    "browser": "chromium",
+    "languages": [
+      "fr",
+      "en",
+      "de",
+      "es",
+      "it",
+      "zh"
+    ],
+    "widths": [
+      1280,
+      1536
+    ],
+    "destinations": 8,
+    "meetings_enabled": true,
+    "passed": 1,
+    "server": "fresh helper-launched isolated container"
+  }
+}

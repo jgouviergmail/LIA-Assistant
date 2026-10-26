@@ -57,31 +57,61 @@
       "id": "t.web",
       "layer": "l.clients",
       "icon": "monitor",
-      "paths": ["apps/web/src/app", "apps/web/src/components", "apps/web/src/hooks"],
-      "deps": ["t.bff", "t.sse", "t.i18n"]
+      "paths": [
+        "apps/web/src/app",
+        "apps/web/src/components",
+        "apps/web/src/hooks"
+      ],
+      "deps": [
+        "t.bff",
+        "t.sse",
+        "t.i18n"
+      ]
     },
     {
       "id": "t.pwa",
       "layer": "l.clients",
       "icon": "app-window",
-      "paths": ["apps/web/public/firebase-messaging-sw.js", "apps/web/src/components/pwa"],
-      "deps": ["t.web", "t.push"]
+      "paths": [
+        "apps/web/public/firebase-messaging-sw.js",
+        "apps/web/src/components/pwa"
+      ],
+      "deps": [
+        "t.web",
+        "t.push"
+      ]
     },
     {
       "id": "t.mobile",
       "layer": "l.clients",
       "icon": "smartphone",
-      "paths": ["apps/mobile"],
-      "deps": ["t.web", "t.push", "t.bff"]
+      "paths": [
+        "apps/mobile"
+      ],
+      "deps": [
+        "t.web",
+        "t.push",
+        "t.bff"
+      ]
     },
     {
       "id": "t.channels",
       "layer": "l.clients",
       "icon": "send",
-      "paths": ["apps/api/src/infrastructure/channels", "apps/api/src/domains/channels"],
-      "domains": ["channels"],
-      "infra": ["channels"],
-      "deps": ["t.fastapi", "t.scheduler"]
+      "paths": [
+        "apps/api/src/infrastructure/channels",
+        "apps/api/src/domains/channels"
+      ],
+      "domains": [
+        "channels"
+      ],
+      "infra": [
+        "channels"
+      ],
+      "deps": [
+        "t.fastapi",
+        "t.scheduler"
+      ]
     },
     {
       "id": "t.edge",
@@ -95,8 +125,13 @@
         "apps/api/src/core/http_scan.py",
         "apps/api/src/core/client_ip.py"
       ],
-      "infra": ["rate_limiting", "security"],
-      "deps": ["t.redis"]
+      "infra": [
+        "rate_limiting",
+        "security"
+      ],
+      "deps": [
+        "t.redis"
+      ]
     },
     {
       "id": "t.bff",
@@ -108,9 +143,18 @@
         "apps/api/src/core/oauth",
         "apps/api/src/infrastructure/email"
       ],
-      "domains": ["auth", "users"],
-      "infra": ["email", "application_sessions"],
-      "deps": ["t.redis", "t.postgres"]
+      "domains": [
+        "auth",
+        "users"
+      ],
+      "infra": [
+        "email",
+        "application_sessions"
+      ],
+      "deps": [
+        "t.redis",
+        "t.postgres"
+      ]
     },
     {
       "id": "t.fastapi",
@@ -125,7 +169,9 @@
         "apps/api/src/infrastructure/personalization.py",
         "apps/api/src/infrastructure/account_exports.py"
       ],
-      "domains": ["shared"],
+      "domains": [
+        "shared"
+      ],
       "infra": [
         "async_utils",
         "utils",
@@ -137,23 +183,42 @@
         "file_transfer",
         "confirmed_commit"
       ],
-      "deps": ["t.startup", "t.config", "t.postgres", "t.redis"]
+      "deps": [
+        "t.startup",
+        "t.config",
+        "t.postgres",
+        "t.redis"
+      ]
     },
     {
       "id": "t.sse",
       "layer": "l.api",
       "icon": "radio",
-      "paths": ["apps/api/src/infrastructure/streaming", "apps/api/src/domains/agents/api"],
-      "infra": ["streaming"],
-      "deps": ["t.langgraph"]
+      "paths": [
+        "apps/api/src/infrastructure/streaming",
+        "apps/api/src/domains/agents/api"
+      ],
+      "infra": [
+        "streaming"
+      ],
+      "deps": [
+        "t.langgraph"
+      ]
     },
     {
       "id": "t.startup",
       "layer": "l.api",
       "icon": "power",
-      "paths": ["apps/api/src/infrastructure/startup"],
-      "infra": ["startup"],
-      "deps": ["t.config", "t.toolsys"]
+      "paths": [
+        "apps/api/src/infrastructure/startup"
+      ],
+      "infra": [
+        "startup"
+      ],
+      "deps": [
+        "t.config",
+        "t.toolsys"
+      ]
     },
     {
       "id": "t.config",
@@ -164,14 +229,23 @@
         "apps/api/src/domains/feature_switches",
         "apps/api/src/domains/system_settings"
       ],
-      "domains": ["feature_switches", "system_settings", "capabilities"],
-      "deps": ["t.postgres"]
+      "domains": [
+        "feature_switches",
+        "system_settings",
+        "capabilities"
+      ],
+      "deps": [
+        "t.postgres"
+      ]
     },
     {
       "id": "t.i18n",
       "layer": "l.api",
       "icon": "languages",
-      "paths": ["apps/web/locales", "apps/api/src/core/i18n.py"],
+      "paths": [
+        "apps/web/locales",
+        "apps/api/src/core/i18n.py"
+      ],
       "deps": []
     },
     {
@@ -183,8 +257,17 @@
         "apps/api/src/domains/agents/models.py",
         "apps/api/src/domains/agents/graphs"
       ],
-      "domains": ["agents"],
-      "deps": ["t.postgres", "t.router", "t.planner", "t.react", "t.response", "t.hitl"]
+      "domains": [
+        "agents"
+      ],
+      "deps": [
+        "t.postgres",
+        "t.router",
+        "t.planner",
+        "t.react",
+        "t.response",
+        "t.hitl"
+      ]
     },
     {
       "id": "t.router",
@@ -195,7 +278,10 @@
         "apps/api/src/domains/agents/nodes/router_tool_scoring.py",
         "apps/api/src/domains/agents/semantic"
       ],
-      "deps": ["t.embeddings", "t.promptsys"]
+      "deps": [
+        "t.embeddings",
+        "t.promptsys"
+      ]
     },
     {
       "id": "t.planner",
@@ -207,7 +293,11 @@
         "apps/api/src/domains/agents/nodes/task_orchestrator_node.py",
         "apps/api/src/domains/agents/orchestration"
       ],
-      "deps": ["t.toolsys", "t.structured", "t.hitl"]
+      "deps": [
+        "t.toolsys",
+        "t.structured",
+        "t.hitl"
+      ]
     },
     {
       "id": "t.react",
@@ -218,14 +308,25 @@
         "apps/api/src/domains/agents/nodes/react_recovery.py",
         "apps/api/src/domains/agents/nodes/react_context.py"
       ],
-      "deps": ["t.toolsys", "t.llmfactory", "t.sandbox", "t.hitl"]
+      "deps": [
+        "t.toolsys",
+        "t.llmfactory",
+        "t.sandbox",
+        "t.hitl"
+      ]
     },
     {
       "id": "t.response",
       "layer": "l.agents",
       "icon": "message-square",
-      "paths": ["apps/api/src/domains/agents/nodes/response_node.py"],
-      "deps": ["t.promptsys", "t.llmfactory", "t.sse"]
+      "paths": [
+        "apps/api/src/domains/agents/nodes/response_node.py"
+      ],
+      "deps": [
+        "t.promptsys",
+        "t.llmfactory",
+        "t.sse"
+      ]
     },
     {
       "id": "t.hitl",
@@ -236,21 +337,36 @@
         "apps/api/src/domains/agents/drafts",
         "apps/api/src/domains/agents/nodes/draft_sequence.py"
       ],
-      "deps": ["t.langgraph", "t.redis"]
+      "deps": [
+        "t.langgraph",
+        "t.redis"
+      ]
     },
     {
       "id": "t.toolsys",
       "layer": "l.agents",
       "icon": "wrench",
-      "paths": ["apps/api/src/domains/agents/tools", "apps/api/src/domains/agents/registry"],
-      "deps": ["t.connclients", "t.registers", "t.dataregistry"]
+      "paths": [
+        "apps/api/src/domains/agents/tools",
+        "apps/api/src/domains/agents/registry"
+      ],
+      "deps": [
+        "t.connclients",
+        "t.registers",
+        "t.dataregistry"
+      ]
     },
     {
       "id": "t.dataregistry",
       "layer": "l.agents",
       "icon": "boxes",
-      "paths": ["apps/api/src/domains/agents/data_registry", "apps/api/src/domains/agents/context"],
-      "deps": ["t.redis"]
+      "paths": [
+        "apps/api/src/domains/agents/data_registry",
+        "apps/api/src/domains/agents/context"
+      ],
+      "deps": [
+        "t.redis"
+      ]
     },
     {
       "id": "t.promptsys",
@@ -267,8 +383,13 @@
       "id": "t.initiative",
       "layer": "l.agents",
       "icon": "zap",
-      "paths": ["apps/api/src/domains/agents/nodes/initiative_node.py"],
-      "deps": ["t.planner", "t.toolsys"]
+      "paths": [
+        "apps/api/src/domains/agents/nodes/initiative_node.py"
+      ],
+      "deps": [
+        "t.planner",
+        "t.toolsys"
+      ]
     },
     {
       "id": "t.llmfactory",
@@ -279,8 +400,15 @@
         "apps/api/src/infrastructure/llm/providers",
         "apps/api/src/core/claude_surface.py"
       ],
-      "infra": ["llm"],
-      "deps": ["t.reasoning", "t.catalogue", "t.pricing", "t.tracing"]
+      "infra": [
+        "llm"
+      ],
+      "deps": [
+        "t.reasoning",
+        "t.catalogue",
+        "t.pricing",
+        "t.tracing"
+      ]
     },
     {
       "id": "t.reasoning",
@@ -291,7 +419,9 @@
         "apps/api/src/core/reasoning_profiles.py",
         "apps/api/src/infrastructure/llm/reasoning"
       ],
-      "deps": ["t.catalogue"]
+      "deps": [
+        "t.catalogue"
+      ]
     },
     {
       "id": "t.catalogue",
@@ -302,9 +432,16 @@
         "apps/api/src/domains/llm_config",
         "apps/api/src/infrastructure/tabular_io"
       ],
-      "domains": ["llm_config", "llm"],
-      "infra": ["tabular_io"],
-      "deps": ["t.postgres"]
+      "domains": [
+        "llm_config",
+        "llm"
+      ],
+      "infra": [
+        "tabular_io"
+      ],
+      "deps": [
+        "t.postgres"
+      ]
     },
     {
       "id": "t.structured",
@@ -315,7 +452,9 @@
         "apps/api/src/infrastructure/llm/output_truncation.py",
         "apps/api/src/infrastructure/llm/strict_schema.py"
       ],
-      "deps": ["t.llmfactory"]
+      "deps": [
+        "t.llmfactory"
+      ]
     },
     {
       "id": "t.embeddings",
@@ -326,9 +465,17 @@
         "apps/api/src/infrastructure/store/bm25_index.py",
         "apps/api/src/domains/rag_spaces"
       ],
-      "domains": ["rag_spaces"],
-      "infra": ["store", "adaptive"],
-      "deps": ["t.postgres", "t.pricing"]
+      "domains": [
+        "rag_spaces"
+      ],
+      "infra": [
+        "store",
+        "adaptive"
+      ],
+      "deps": [
+        "t.postgres",
+        "t.pricing"
+      ]
     },
     {
       "id": "t.pricing",
@@ -340,8 +487,15 @@
         "apps/api/src/domains/usage_limits",
         "apps/api/src/domains/llm"
       ],
-      "domains": ["usage_limits", "llm", "google_api"],
-      "deps": ["t.postgres", "t.redis"]
+      "domains": [
+        "usage_limits",
+        "llm",
+        "google_api"
+      ],
+      "deps": [
+        "t.postgres",
+        "t.redis"
+      ]
     },
     {
       "id": "t.connclients",
@@ -352,17 +506,31 @@
         "apps/api/src/domains/connectors/active_client.py",
         "apps/api/src/domains/connectors/keyless.py"
       ],
-      "domains": ["connectors"],
-      "deps": ["t.bff", "t.pricing"]
+      "domains": [
+        "connectors"
+      ],
+      "deps": [
+        "t.bff",
+        "t.pricing"
+      ]
     },
     {
       "id": "t.mcp",
       "layer": "l.integrations",
       "icon": "blocks",
-      "paths": ["apps/api/src/infrastructure/mcp", "apps/api/src/domains/user_mcp"],
-      "domains": ["user_mcp"],
-      "infra": ["mcp"],
-      "deps": ["t.toolsys"]
+      "paths": [
+        "apps/api/src/infrastructure/mcp",
+        "apps/api/src/domains/user_mcp"
+      ],
+      "domains": [
+        "user_mcp"
+      ],
+      "infra": [
+        "mcp"
+      ],
+      "deps": [
+        "t.toolsys"
+      ]
     },
     {
       "id": "t.skills",
@@ -373,9 +541,18 @@
         "apps/api/src/domains/plugins",
         "apps/api/src/domains/skill_library"
       ],
-      "domains": ["skills", "plugins", "skill_library"],
-      "infra": ["archives"],
-      "deps": ["t.sandbox", "t.mcp"]
+      "domains": [
+        "skills",
+        "plugins",
+        "skill_library"
+      ],
+      "infra": [
+        "archives"
+      ],
+      "deps": [
+        "t.sandbox",
+        "t.mcp"
+      ]
     },
     {
       "id": "t.sandbox",
@@ -386,15 +563,24 @@
         "infrastructure/sandbox-egress",
         "docker-compose.skill-sandbox.yml"
       ],
-      "deps": ["t.docker", "t.redis"]
+      "deps": [
+        "t.docker",
+        "t.redis"
+      ]
     },
     {
       "id": "t.browser",
       "layer": "l.integrations",
       "icon": "globe",
-      "paths": ["apps/api/src/infrastructure/browser"],
-      "infra": ["browser"],
-      "deps": ["t.storage"]
+      "paths": [
+        "apps/api/src/infrastructure/browser"
+      ],
+      "infra": [
+        "browser"
+      ],
+      "deps": [
+        "t.storage"
+      ]
     },
     {
       "id": "t.voiceinfra",
@@ -405,9 +591,16 @@
         "apps/api/src/infrastructure/media",
         "apps/api/src/infrastructure/multipart_upload.py"
       ],
-      "domains": ["voice"],
-      "infra": ["media", "multipart_upload"],
-      "deps": ["t.pricing"]
+      "domains": [
+        "voice"
+      ],
+      "infra": [
+        "media",
+        "multipart_upload"
+      ],
+      "deps": [
+        "t.pricing"
+      ]
     },
     {
       "id": "t.live",
@@ -420,9 +613,19 @@
         "apps/api/src/infrastructure/live_preferences.py",
         "apps/api/src/infrastructure/live_connector_preferences.py"
       ],
-      "domains": ["live", "voice_sessions"],
-      "infra": ["live_preferences", "live_connector_preferences"],
-      "deps": ["t.bff", "t.sse", "t.pricing"]
+      "domains": [
+        "live",
+        "voice_sessions"
+      ],
+      "infra": [
+        "live_preferences",
+        "live_connector_preferences"
+      ],
+      "deps": [
+        "t.bff",
+        "t.sse",
+        "t.pricing"
+      ]
     },
     {
       "id": "t.phone",
@@ -433,9 +636,19 @@
         "apps/api/src/infrastructure/scheduler/voice_relay.py",
         "apps/api/src/infrastructure/phone_identity.py"
       ],
-      "domains": ["telephony"],
-      "infra": ["phone_identity", "phone_history", "phone_number_preferences", "phone_preferences"],
-      "deps": ["t.live", "t.jobs"]
+      "domains": [
+        "telephony"
+      ],
+      "infra": [
+        "phone_identity",
+        "phone_history",
+        "phone_number_preferences",
+        "phone_preferences"
+      ],
+      "deps": [
+        "t.live",
+        "t.jobs"
+      ]
     },
     {
       "id": "t.push",
@@ -447,9 +660,18 @@
         "apps/api/src/infrastructure/external/push_relay_client.py",
         "apps/api/src/infrastructure/notification_devices.py"
       ],
-      "domains": ["notifications", "push_relay", "push_channels"],
-      "infra": ["external", "notification_devices"],
-      "deps": ["t.postgres"]
+      "domains": [
+        "notifications",
+        "push_relay",
+        "push_channels"
+      ],
+      "infra": [
+        "external",
+        "notification_devices"
+      ],
+      "deps": [
+        "t.postgres"
+      ]
     },
     {
       "id": "t.scheduler",
@@ -460,8 +682,14 @@
         "apps/api/src/core/recurrence",
         "apps/api/src/infrastructure/locks"
       ],
-      "infra": ["scheduler", "locks"],
-      "deps": ["t.redis", "t.postgres"]
+      "infra": [
+        "scheduler",
+        "locks"
+      ],
+      "deps": [
+        "t.redis",
+        "t.postgres"
+      ]
     },
     {
       "id": "t.proactive",
@@ -474,9 +702,21 @@
         "apps/api/src/domains/moments",
         "apps/api/src/domains/proactive_discussions"
       ],
-      "domains": ["heartbeat", "moments", "proactive_discussions"],
-      "infra": ["proactive", "discussion_invalidation"],
-      "deps": ["t.scheduler", "t.llmfactory", "t.push", "t.registers"]
+      "domains": [
+        "heartbeat",
+        "moments",
+        "proactive_discussions"
+      ],
+      "infra": [
+        "proactive",
+        "discussion_invalidation"
+      ],
+      "deps": [
+        "t.scheduler",
+        "t.llmfactory",
+        "t.push",
+        "t.registers"
+      ]
     },
     {
       "id": "t.jobs",
@@ -486,7 +726,9 @@
         "apps/api/src/domains/meetings",
         "apps/api/src/infrastructure/scheduler/voice_session_closing.py"
       ],
-      "domains": ["meetings"],
+      "domains": [
+        "meetings"
+      ],
       "infra": [
         "meeting_deletions",
         "meeting_email",
@@ -501,16 +743,30 @@
         "meeting_templates",
         "meeting_transcripts"
       ],
-      "deps": ["t.postgres", "t.scheduler"]
+      "deps": [
+        "t.postgres",
+        "t.scheduler"
+      ]
     },
     {
       "id": "t.selfdiag",
       "layer": "l.background",
       "icon": "stethoscope",
-      "paths": ["apps/api/src/domains/diagnostics", "apps/api/src/infrastructure/telemetry"],
-      "domains": ["diagnostics"],
-      "infra": ["telemetry"],
-      "deps": ["t.metrics", "t.logs", "t.alerts"]
+      "paths": [
+        "apps/api/src/domains/diagnostics",
+        "apps/api/src/infrastructure/telemetry"
+      ],
+      "domains": [
+        "diagnostics"
+      ],
+      "infra": [
+        "telemetry"
+      ],
+      "deps": [
+        "t.metrics",
+        "t.logs",
+        "t.alerts"
+      ]
     },
     {
       "id": "t.radio",
@@ -521,40 +777,70 @@
         "apps/web/src/lib/radio",
         "apps/web/src/components/radio"
       ],
-      "domains": ["radio"],
-      "deps": ["t.scheduler", "t.voiceinfra", "t.structured", "t.pricing", "t.redis", "t.postgres"]
+      "domains": [
+        "radio"
+      ],
+      "deps": [
+        "t.scheduler",
+        "t.voiceinfra",
+        "t.structured",
+        "t.pricing",
+        "t.redis",
+        "t.postgres"
+      ]
     },
     {
       "id": "t.postgres",
       "layer": "l.data",
       "icon": "database",
-      "paths": ["apps/api/alembic", "apps/api/src/infrastructure/database"],
-      "infra": ["database"],
+      "paths": [
+        "apps/api/alembic",
+        "apps/api/src/infrastructure/database"
+      ],
+      "infra": [
+        "database"
+      ],
       "deps": []
     },
     {
       "id": "t.redis",
       "layer": "l.data",
       "icon": "layers",
-      "paths": ["apps/api/src/infrastructure/cache"],
-      "infra": ["cache"],
+      "paths": [
+        "apps/api/src/infrastructure/cache"
+      ],
+      "infra": [
+        "cache"
+      ],
       "deps": []
     },
     {
       "id": "t.storage",
       "layer": "l.data",
       "icon": "hard-drive",
-      "paths": ["apps/api/src/domains/attachments"],
-      "domains": ["attachments"],
-      "deps": ["t.postgres"]
+      "paths": [
+        "apps/api/src/domains/attachments"
+      ],
+      "domains": [
+        "attachments"
+      ],
+      "deps": [
+        "t.postgres"
+      ]
     },
     {
       "id": "t.registers",
       "layer": "l.data",
       "icon": "scroll",
-      "paths": ["apps/api/src/domains/agents/effects"],
-      "domains": ["agents"],
-      "deps": ["t.postgres"]
+      "paths": [
+        "apps/api/src/domains/agents/effects"
+      ],
+      "domains": [
+        "agents"
+      ],
+      "deps": [
+        "t.postgres"
+      ]
     },
     {
       "id": "t.metrics",
@@ -564,15 +850,22 @@
         "apps/api/src/infrastructure/observability",
         "infrastructure/observability/prometheus"
       ],
-      "infra": ["observability"],
+      "infra": [
+        "observability"
+      ],
       "deps": []
     },
     {
       "id": "t.dashboards",
       "layer": "l.observability",
       "icon": "chart-no-axes-combined",
-      "paths": ["infrastructure/observability/grafana"],
-      "deps": ["t.metrics", "t.logs"]
+      "paths": [
+        "infrastructure/observability/grafana"
+      ],
+      "deps": [
+        "t.metrics",
+        "t.logs"
+      ]
     },
     {
       "id": "t.alerts",
@@ -583,7 +876,9 @@
         "infrastructure/observability/prometheus/alerts-core.yml",
         "docs/runbooks"
       ],
-      "deps": ["t.metrics"]
+      "deps": [
+        "t.metrics"
+      ]
     },
     {
       "id": "t.logs",
@@ -624,8 +919,14 @@
       "id": "t.cicd",
       "layer": "l.delivery",
       "icon": "git-branch",
-      "paths": [".github/workflows/ci.yml", "Taskfile.yml", "scripts/audit"],
-      "deps": ["t.docker"]
+      "paths": [
+        ".github/workflows/ci.yml",
+        "Taskfile.yml",
+        "scripts/audit"
+      ],
+      "deps": [
+        "t.docker"
+      ]
     },
     {
       "id": "t.release",
@@ -637,7 +938,10 @@
         "scripts/install",
         ".github/workflows/release.yml"
       ],
-      "deps": ["t.cicd", "t.docker"]
+      "deps": [
+        "t.cicd",
+        "t.docker"
+      ]
     },
     {
       "id": "t.demo",
@@ -648,9 +952,15 @@
         "docker-compose.demo-instance.yml",
         "apps/api/src/domains/product"
       ],
-      "domains": ["product"],
-      "infra": ["provisioning"],
-      "deps": ["t.release"]
+      "domains": [
+        "product"
+      ],
+      "infra": [
+        "provisioning"
+      ],
+      "deps": [
+        "t.release"
+      ]
     },
     {
       "id": "t.avatar",
@@ -663,9 +973,19 @@
         "apps/web/src/lib/voice-output",
         "apps/web/src/components/avatars"
       ],
-      "domains": ["avatars"],
-      "infra": ["simli"],
-      "deps": ["t.bff", "t.redis", "t.postgres", "t.live", "t.voiceinfra"]
+      "domains": [
+        "avatars"
+      ],
+      "infra": [
+        "simli"
+      ],
+      "deps": [
+        "t.bff",
+        "t.redis",
+        "t.postgres",
+        "t.live",
+        "t.voiceinfra"
+      ]
     },
     {
       "id": "t.application",
@@ -678,8 +998,16 @@
         "apps/web/src/hooks/useApplicationCommandStatus.ts",
         "apps/web/src/hooks/useApplicationResourceSync.ts"
       ],
-      "domains": ["agents"],
-      "deps": ["t.toolsys", "t.hitl", "t.bff", "t.postgres", "t.sse"]
+      "domains": [
+        "agents"
+      ],
+      "deps": [
+        "t.toolsys",
+        "t.hitl",
+        "t.bff",
+        "t.postgres",
+        "t.sse"
+      ]
     },
     {
       "id": "t.nativeavatar",
@@ -692,16 +1020,47 @@
         "apps/web/src/hooks/useAvatarStyleRollout.ts",
         "apps/web/src/app/api/runtime-ui/route.ts"
       ],
-      "deps": ["t.web", "t.bff"]
+      "deps": [
+        "t.web",
+        "t.bff"
+      ]
     },
     {
       "id": "t.phone_ingestion",
       "layer": "l.integrations",
       "icon": "plug-zap",
-      "paths": ["apps/api/src/domains/ingestion", "apps/api/src/domains/sms"],
-      "domains": ["ingestion", "sms"],
+      "paths": [
+        "apps/api/src/domains/ingestion",
+        "apps/api/src/domains/sms"
+      ],
+      "domains": [
+        "ingestion",
+        "sms"
+      ],
       "infra": [],
-      "deps": ["t.postgres", "t.scheduler", "t.push", "t.registers"]
+      "deps": [
+        "t.postgres",
+        "t.scheduler",
+        "t.push",
+        "t.registers"
+      ]
+    },
+    {
+      "id": "t.world",
+      "layer": "l.api",
+      "icon": "map",
+      "paths": [
+        "apps/api/src/domains/world",
+        "apps/web/src/features/world"
+      ],
+      "deps": [
+        "t.web",
+        "t.bff",
+        "t.config",
+        "t.redis",
+        "t.postgres",
+        "t.llmfactory"
+      ]
     }
   ],
   "flows": [
@@ -752,17 +1111,39 @@
     {
       "id": "tflow.live",
       "icon": "audio-lines",
-      "steps": ["t.web", "t.live", "t.live", "t.fastapi", "t.langgraph", "t.live", "t.jobs"]
+      "steps": [
+        "t.web",
+        "t.live",
+        "t.live",
+        "t.fastapi",
+        "t.langgraph",
+        "t.live",
+        "t.jobs"
+      ]
     },
     {
       "id": "tflow.delivery",
       "icon": "rocket",
-      "steps": ["t.cicd", "t.cicd", "t.release", "t.release", "t.docker", "t.release", "t.demo"]
+      "steps": [
+        "t.cicd",
+        "t.cicd",
+        "t.release",
+        "t.release",
+        "t.docker",
+        "t.release",
+        "t.demo"
+      ]
     },
     {
       "id": "tflow.observe",
       "icon": "gauge",
-      "steps": ["t.metrics", "t.logs", "t.dashboards", "t.alerts", "t.selfdiag"]
+      "steps": [
+        "t.metrics",
+        "t.logs",
+        "t.dashboards",
+        "t.alerts",
+        "t.selfdiag"
+      ]
     },
     {
       "id": "tflow.application",

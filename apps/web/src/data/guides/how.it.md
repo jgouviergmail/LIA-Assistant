@@ -6,7 +6,7 @@
 
 **Versione**: 5.6
 **Data**: 2026-10-23
-**Applicazione**: LIA v3.7.0
+**Applicazione**: LIA v4.0.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -58,7 +58,8 @@
 43. [La modalità Live: due intelligenze, una cucitura — e una politica per modalità](#43-la-modalità-live-due-intelligenze-una-cucitura--e-una-politica-per-modalità)
 44. [Schede che mostrano ciò che è stato ricevuto, e azioni che appartengono al loro messaggio](#44-schede-che-mostrano-ciò-che-è-stato-ricevuto-e-azioni-che-appartengono-al-loro-messaggio)
 45. [Comandi applicativi: un’intenzione, autorità attuale](#45-comandi-applicativi-unintenzione-autorità-attuale)
-46. [Conclusione](#46-conclusione)
+46. [Il mondo di LIA](#46-il-mondo-di-lia)
+47. [Conclusione](#47-conclusione)
 ---
 
 ## 1. Contesto e scelte fondanti
@@ -73,7 +74,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), credenziali cifrate con Fernet, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 635 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 362 ADRs, oltre 67.000 test automatizzati per backend e frontend, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 363 ADRs, oltre 68.000 test automatizzati per backend e frontend, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -91,10 +92,10 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | Oltre 67.000 test automatizzati con pytest e Vitest (soglie di copertura bloccate, ADR-116) |
+| Test | Oltre 68.000 test automatizzati con pytest e Vitest (soglie di copertura bloccate, ADR-116) |
 | Fixture pytest | 1.391, di cui 58 condivise tramite conftest |
 | Documenti di documentazione | 835 |
-| ADR (Architecture Decision Record) | 362 |
+| ADR (Architecture Decision Record) | 363 |
 | Metriche Prometheus | 635 definizioni |
 | Dashboard Grafana | 32 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -775,9 +776,9 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 Il `get_llm()` risolve la configurazione effettiva tramite `get_llm_config_for_agent(settings, agent_type)` (code defaults → DB admin overrides), istanzia il modello e applica gli adattatori specifici.
 
-### 12.2. 93 tipi di configurazione LLM
+### 12.2. Una configurazione per ruolo
 
-Il registro effettivo espone **93 configurazioni**: **66 di conversazione**, **23 decisioni native** e **4 per generazione di immagini, trascrizione o sintesi vocale**. Le decisioni native comprendono la scelta del modello di verbale della riunione e altri 22 usi JEV. Ogni slot si configura indipendentemente nell’interfaccia di amministrazione, senza ridistribuzione:
+Il registro effettivo distingue ruoli di conversazione, decisioni native, generazione di immagini, trascrizione e sintesi vocale. La traduzione dei messaggi del mondo ha il proprio slot di conversazione. Le decisioni native comprendono modelli di verbale e usi specializzati di JEV. Ogni slot si configura indipendentemente nell’amministrazione, senza ridistribuzione:
 
 | Categoria | Tipi configurabili |
 |-----------|-------------------|
@@ -1607,7 +1608,7 @@ Due regole d'interfaccia sono diventate contratti dei componenti anziché abitud
 
 ## 24. Architettura delle decisioni (ADR)
 
-362 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+363 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -2023,16 +2024,32 @@ I compagni nativi usano artwork preparati offline e un rig condiviso. Il volume 
 
 Le decisioni JEV si configurano in Amministrazione › Integrazioni JEV, con un interruttore generale e utilizzi indipendenti. Sono facoltative, disattivate per impostazione predefinita e richiedono configurazione e prezzi validi. Il modello aiuta a classificare un valore o scegliere in un ambito dichiarato, mentre compatibilità, diritti ed esecuzione rimangono nel codice. Un giudizio incerto, indisponibile o disattivato torna alle protezioni deterministiche. La diagnostica è opt-in e limitata; parameter_kind è disattivato per impostazione predefinita. Una chiamata a pagamento fallita e il suo ripiego vengono entrambi conteggiati. I risultati di un corpus di test non promettono lo stesso beneficio per ogni richiesta.
 
-Gli studi oMLX, llama.cpp e LM Studio e il mondo isometrico sono lavori di qualificazione o progettazione, non nuove integrazioni rilasciate. Usa i fornitori realmente offerti dalla tua istanza. L’avatar video Simli resta sperimentale, opt-in e dipendente da un servizio esterno; è distinto dai compagni nativi.
+Gli studi oMLX, llama.cpp e LM Studio sono lavori di qualificazione o progettazione, non nuove integrazioni rilasciate. Usa i fornitori realmente offerti dalla tua istanza. L’avatar video Simli resta sperimentale, opt-in e dipendente da un servizio esterno; è distinto dai compagni nativi.
 
 ---
 
-## 46. Conclusione
+## 46. Il mondo di LIA
+
+Il mondo propone un’altra interfaccia per l’assistente esistente: una casa e un giardino isometrici disegnati nel browser con **Canvas 2D**, controlli React e pannelli nativi privati. Disegno in cache, esclusione degli oggetti fuori campo, livelli di qualità e movimento ridotto delimitano il lavoro del client. Camminare, le passeggiate di LIA e l’atmosfera decorativa non chiamano modelli; l’ambiente riutilizza dati meteo recenti in cache senza nuove richieste al fornitore.
+
+**La presenza condivisa ha un’autorità sul server.** Una sessione nativa autenticata ottiene un ticket breve monouso; l’autenticazione WebSocket passa nel primo frame, mai nell’URL. Redis coordina ammissione, collisioni, concessioni di connessione e controllo di una scheda. Regole dell’account, capacità e blocchi filtrano ogni vista. Se l’autorità non è disponibile, il movimento si sospende invece di inventare un mondo locale indipendente.
+
+**L’aspetto pubblico è una scelta; il lavoro privato resta privato.** L’ammissione richiede il consenso a pubblicare nome scelto e avatar nel mondo; le connessioni accettate ricevono anche presenza generale e stato in casa. Il movimento condiviso non trasporta contenuti delle case, documenti o contesto dell’assistente. Colori della casa e modifiche all’avatar mantengono verifiche di proprietario e revisione, esportazione e cancellazione dell’account. Le stanze derivano le funzioni dagli inventari nativi e aprono spazi esistenti; non concedono nuovi diritti, inviano bozze o aggirano HITL.
+
+**Il testo umano ha un proprio ciclo di vita.** Contenuti privati temporanei in Redis e barriere SQL dei tentativi senza contenuto separano i messaggi diretti da cronologia e apprendimento. Lo slot dedicato `world_message_translator` segue risoluzione nativa dei modelli, controlli di spesa e ricevute di consumo private. Solo una scelta esplicita avvia una traduzione a pagamento; l’originale resta e un tentativo fallito o incerto non viene mai ripetuto automaticamente. Il server valida messaggi rigorosi versionati e dimensioni limitate. Test del browser e controlli di accessibilità automatici sostengono l’obiettivo WCAG AA; non certificano prestazioni fisiche né fedeltà linguistica del fornitore. Voce umana e federazione restano fuori da questa implementazione.
+
+Il **canale Tutti** fissa i destinatari presenti ammessi quando accetta il messaggio, escludendo account bloccati e case private. Chi arriva dopo non riceve le vecchie trasmissioni. La traduzione raggruppa le lingue necessarie nello stesso slot, con costo al mittente e nessuna ripetizione automatica a pagamento. I fili pubblici e privati mantengono bozze, consensi e posizioni di lettura separati.
+
+Il **suono locale facoltativo** usa file originali statici per stanze e giardino con volume indipendente per account. La riproduzione parte per scelta, non chiama fornitori e cede a microfono, voce dell’assistente, Live e Radio. Uscita, secondo piano o perdita di autorità sospendono il suono.
+
+---
+
+## 47. Conclusione
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 362 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. Gli oltre 67.000 test automatizzati, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 363 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. Gli oltre 68.000 test automatizzati, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (800+ documenti), dei 362 ADRs e del changelog (da v1.0 a v3.7.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (800+ documenti), dei 363 ADRs e del changelog (da v1.0 a v4.0.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

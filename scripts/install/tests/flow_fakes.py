@@ -27,6 +27,7 @@ ANSWERS = {
     "skill_sandbox": "no",
     "personal_radio": "no",
     "speaking_avatar": "no",
+    "world": "no",
     "admin_password": PASSWORD,
     "provider_key_deepseek": "dk-CANARY-11",
     "provider_key_openai": "sk-CANARY-22",

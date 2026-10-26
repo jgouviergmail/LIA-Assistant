@@ -6,7 +6,7 @@
 
 **Version**: 5.6
 **Date**: 2026-10-23
-**Application**: LIA v3.7.0
+**Application**: LIA v4.0.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -58,7 +58,8 @@
 43. [The live mode: two intelligences, one seam — and one policy per mode](#43-the-live-mode-two-intelligences-one-seam--and-one-policy-per-mode)
 44. [Cards that show what was received, and actions that belong to their message](#44-cards-that-show-what-was-received-and-actions-that-belong-to-their-message)
 45. [Application commands: an intention, current authority](#45-application-commands-an-intention-current-authority)
-46. [Conclusion](#46-conclusion)
+46. [LIA World](#46-lia-world)
+47. [Conclusion](#47-conclusion)
 ---
 
 ## 1. Context and founding choices
@@ -73,7 +74,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), credentials encrypted with Fernet, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 635 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 362 ADRs, 67,000+ automated backend and frontend tests, native observability, 6-level HITL |
+| Production reliability | 363 ADRs, 68,000+ automated backend and frontend tests, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -91,10 +92,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 67,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
+| Tests | 68,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 1,391, 58 of them shared through conftest |
 | Documentation documents | 835 |
-| ADRs (Architecture Decision Records) | 362 |
+| ADRs (Architecture Decision Records) | 363 |
 | Prometheus metrics | 635 definitions |
 | Grafana dashboards | 32 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -775,9 +776,9 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 `get_llm()` resolves the effective configuration via `get_llm_config_for_agent(settings, agent_type)` (code defaults → DB admin overrides), instantiates the model, and applies specific adapters.
 
-### 12.2. 93 LLM configuration types
+### 12.2. A configuration for each role
 
-The effective registry exposes **93 configurations**: **66 chat**, **23 native decisions** and **4 for image generation, transcription or speech synthesis**. The native decisions comprise meeting-template selection and 22 other JEV uses. Each slot is independently configurable through the Admin UI, without redeployment:
+The effective registry separates conversational roles, native decisions, image generation, transcription and speech synthesis. World message translation has its own conversational slot. Native decisions include meeting-template selection and specialised JEV uses. Each slot is independently configurable through the Admin UI, without redeployment:
 
 | Category | Configurable types |
 |----------|-------------------|
@@ -1599,7 +1600,7 @@ Two interface rules became component contracts rather than habits. The first is 
 
 ## 24. Architecture Decision Records (ADR)
 
-362 ADRs in MADR format document the major architectural decisions. Some representative examples:
+363 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -2013,16 +2014,32 @@ Native companions use artwork prepared offline and a shared rig. Their volume is
 
 JEV decisions are configured under Administration › JEV integrations, with a general switch and independent usages. They are optional and off by default, and require valid configuration and prices. The model helps classify a value or choose within a declared scope, while compatibility rules, permissions and execution stay in code. Uncertain, unavailable or disabled judgments fall back to deterministic protections. Diagnostics are opt-in and bounded; parameter_kind is off by default. A paid failed call and its fallback both count. Test-corpus results do not promise the same benefit on all your requests.
 
-The oMLX, llama.cpp and LM Studio studies and the isometric world are qualification or design work, not new shipped integrations. Use the providers actually offered by your instance. The Simli video avatar remains experimental, opt-in and dependent on an external service; it is separate from native companions.
+The oMLX, llama.cpp and LM Studio studies are qualification or design work, not new shipped integrations. Use the providers actually offered by your instance. The Simli video avatar remains experimental, opt-in and dependent on an external service; it is separate from native companions.
 
 ---
 
-## 46. Conclusion
+## 46. LIA World
+
+The world offers another interface to the existing assistant: an authored isometric house and garden drawn in the browser with **Canvas 2D**, with React controls and private native panels. Cached drawing, viewport culling, graphics quality tiers and reduced motion bound the client work. Walking, LIA’s patrol and decorative atmosphere call no model; atmosphere reuses fresh cached weather without a new provider request.
+
+**Shared presence has a server authority.** A native authenticated session obtains a short-lived, single-use ticket; WebSocket authentication uses the first frame, never URL credentials. Redis coordinates admission, collisions, connection leases and control of a tab. Account policy, capabilities and block relationships filter every view. If authority becomes unavailable, movement suspends rather than inventing an independent local world.
+
+**Public appearance is a choice; private work stays private.** Admission requires consent to publish the selected name and avatar in the world; accepted connections also receive coarse presence and home status. Shared movement does not carry home contents, documents or assistant context. Home colour preferences and avatar changes retain owner and revision checks, export and account-deletion handling. Rooms derive their functions from the native inventories and open the existing workspace or panels; they do not grant extra rights, send a draft or bypass HITL.
+
+**Human text has its own lifetime.** Temporary private Redis bodies and content-free SQL attempt fences separate direct messages from assistant history and learning. The dedicated `world_message_translator` slot follows native model resolution, spend controls and private usage receipts. Only an explicit choice starts a paid translation; the original is preserved, and a failed or uncertain attempt is never retried automatically. The server validates strict versioned messages and bounded sizes. Browser tests and automated accessibility checks support the WCAG AA target; they do not certify physical-device performance or a supplier’s linguistic fidelity. Peer voice and federation remain outside this implementation.
+
+The **Everyone channel** freezes eligible live recipients when a message is accepted, excluding blocked accounts and private homes. Late arrivals do not receive old broadcasts. Translation batches the required languages through the same dedicated slot, with sender-paid accounting and no automatic paid replay. Public and private threads retain separate drafts, consent and read positions.
+
+**Optional local sound** uses static original room and garden assets with a separate account-scoped volume. Playback starts by choice, makes no provider call and yields to microphone, assistant voice, Live and Radio. Leaving, backgrounding or losing authority suspends the sound lifecycle.
+
+---
+
+## 47. Conclusion
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 362 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 67,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 363 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 68,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (800+ documents), 362 ADRs, and the changelog (v1.0 to v3.7.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (800+ documents), 363 ADRs, and the changelog (v1.0 to v4.0.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

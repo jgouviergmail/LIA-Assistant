@@ -5,7 +5,7 @@
  * that did not complete leaves no meeting behind and says why.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, waitFor } from '@testing-library/react';
+import { act, fireEvent, waitFor } from '@testing-library/react';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 
@@ -37,6 +37,8 @@ vi.mock('@/lib/meetings/import-file', async importOriginal => ({
 }));
 
 import { MeetingImportDialog } from '../MeetingImportDialog';
+import { MeetingNavigationProvider } from '../MeetingNavigation';
+import type { uploadImportFile } from '@/lib/meetings/import-uploader';
 
 const WRITTEN = Date.UTC(2026, 9, 20, 10, 0, 0);
 
@@ -116,4 +118,40 @@ describe('MeetingImportDialog', () => {
     expect(mocks.remove).toHaveBeenCalledWith('m1');
     expect(mocks.push).not.toHaveBeenCalled();
   });
+});
+
+it('opens a completed import in its embedded host instead of leaving the world', async () => {
+  mocks.upload.mockResolvedValue({ kind: 'complete' });
+  const open = vi.fn();
+  const close = vi.fn();
+  renderWithProviders(
+    <MeetingNavigationProvider onOpen={open}>
+      <MeetingImportDialog lng="en" open onOpenChange={close} />
+    </MeetingNavigationProvider>
+  );
+  chooseFile(500);
+  fireEvent.click(screen.getByRole('button', { name: /meetings\.import\.submit/ }));
+  await waitFor(() => expect(open).toHaveBeenCalledWith('m1'));
+  expect(close).toHaveBeenCalledWith(false);
+  expect(mocks.push).not.toHaveBeenCalled();
+});
+
+it('does not navigate or close a later view after the upload form has unmounted', async () => {
+  const pending = Promise.withResolvers<Awaited<ReturnType<typeof uploadImportFile>>>();
+  mocks.upload.mockReturnValue(pending.promise);
+  const open = vi.fn();
+  const close = vi.fn();
+  const view = renderWithProviders(
+    <MeetingNavigationProvider onOpen={open}>
+      <MeetingImportDialog lng="en" open onOpenChange={close} />
+    </MeetingNavigationProvider>
+  );
+  chooseFile(500);
+  fireEvent.click(screen.getByRole('button', { name: /meetings\.import\.submit/ }));
+  await waitFor(() => expect(mocks.upload).toHaveBeenCalledTimes(1));
+  view.unmount();
+  await act(async () => pending.resolve({ kind: 'complete' }));
+  expect(open).not.toHaveBeenCalled();
+  expect(close).not.toHaveBeenCalled();
+  expect(mocks.push).not.toHaveBeenCalled();
 });

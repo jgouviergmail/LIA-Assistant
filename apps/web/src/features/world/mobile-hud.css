@@ -1,0 +1,135 @@
+/* Touch chrome is revealed deliberately; the scene stays the primary surface. */
+.world-hud-toggle,
+.world-nearby-action {
+  display: none;
+}
+.world-joystick {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+  background: color-mix(in srgb, var(--color-background) 45%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  box-shadow: 0 3px 16px rgb(0 0 0 / 12%);
+}
+.world-joystick:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 3px;
+}
+.world-joystick-ring {
+  position: absolute;
+  inset: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  opacity: 0.65;
+}
+.world-joystick-thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-background);
+  border: 2px solid var(--color-primary);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 20%);
+  pointer-events: none;
+}
+.world-prototype[data-world-editing='true'] .world-joystick {
+  display: none;
+}
+@media (max-width: 767px), (max-height: 520px) and (orientation: landscape) {
+  .world-hud-toggle {
+    display: inline-flex;
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    z-index: 3;
+    border-radius: 14px;
+  }
+  .world-top {
+    top: 60px;
+    bottom: 64px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+  .world-prototype[data-hud-expanded='false'] .world-top,
+  .world-prototype[data-hud-expanded='false'] .world-tools {
+    display: none;
+  }
+  .world-prototype[data-hud-expanded='true'] .world-joystick {
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .world-prototype[data-hud-expanded='false'] .world-nearby-action {
+    position: absolute;
+    display: inline-flex;
+    gap: 6px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: 108px;
+    max-width: calc(100% - 178px);
+    height: 44px;
+    min-width: 44px;
+    padding: 8px;
+  }
+  :has(> .world-prototype[data-hud-expanded='false']) > .world-session-strip {
+    left: auto;
+    right: 8px;
+    transform: none;
+    width: auto;
+    padding: 0;
+  }
+  :has(> .world-prototype[data-hud-expanded='false'])
+    > .world-session-strip
+    > button:not([data-world-conversations]),
+  :has(> .world-prototype[data-hud-expanded='false']) > .world-session-strip > .world-link-status {
+    display: none;
+  }
+  :has(> .world-prototype[data-hud-expanded='false']) .world-bottom {
+    bottom: max(8px, env(safe-area-inset-bottom));
+  }
+  .world-prototype[data-hud-expanded='false'] .world-bottom {
+    justify-content: flex-start;
+  }
+  .world-prototype[data-hud-expanded='true'] .world-bottom {
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 767px), (max-height: 520px) and (orientation: landscape) {
+  .world-hud-left .world-tools {
+    align-self: flex-start;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+  }
+  .world-top {
+    pointer-events: auto;
+  }
+}
+
+/* Re-filtering an animated canvas behind translucent native panels is expensive,
+   especially in WebKit. Native opaque surfaces preserve contrast and frame time. */
+body:has(.world-prototype) .lia-overlay-surface {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: var(--color-background);
+}
+
+@media (max-width: 767px), (max-height: 520px) and (orientation: landscape) {
+  .world-prototype:has(.world-metrics) .world-top {
+    visibility: hidden;
+  }
+  .world-prototype .world-metrics {
+    inset: 60px 8px 64px;
+    width: auto;
+    max-width: 320px;
+    max-height: none;
+    overflow-y: auto;
+  }
+}

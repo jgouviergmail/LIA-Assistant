@@ -1,0 +1,659 @@
+{
+  "softwareProfile": "Optimized standalone; five independently authenticated native HTTP/WebSocket clients with continuously checked live connections, one full application renderer. All five-renderer stress measurements are retained separately.",
+  "physicalDevice": false,
+  "runs": [
+    {
+      "profile": "three engines; initial Chromium touch targeted the metrics overlay",
+      "stats": {
+        "startTime": "2026-10-23T18:57:07.892Z",
+        "duration": 166698.062,
+        "expected": 2,
+        "skipped": 0,
+        "unexpected": 1,
+        "flaky": 0
+      }
+    },
+    {
+      "profile": "Chromium correction: close overlay and prove touch coordinates hit canvas",
+      "stats": {
+        "startTime": "2026-10-23T19:00:46.157Z",
+        "duration": 36866.634999999995,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    }
+  ],
+  "runtimeSamples": [
+    {
+      "time": "2026-10-23T18:57:20.7006064Z",
+      "name": "lia-world-final-production",
+      "cpu": "124.95%",
+      "memory": "342.9MiB / 512MiB",
+      "memoryPercent": "66.97%"
+    },
+    {
+      "time": "2026-10-23T18:57:20.7006064Z",
+      "name": "lia-world-final-api",
+      "cpu": "33.25%",
+      "memory": "630.1MiB / 31.34GiB",
+      "memoryPercent": "1.96%"
+    },
+    {
+      "time": "2026-10-23T18:57:20.7006064Z",
+      "name": "lia-world-v1-postgres",
+      "cpu": "3.32%",
+      "memory": "105.5MiB / 31.34GiB",
+      "memoryPercent": "0.33%"
+    },
+    {
+      "time": "2026-10-23T18:57:20.7006064Z",
+      "name": "lia-world-v1-native-redis",
+      "cpu": "2.70%",
+      "memory": "6.328MiB / 31.34GiB",
+      "memoryPercent": "0.02%"
+    },
+    {
+      "time": "2026-10-23T18:57:26.4711485Z",
+      "name": "lia-world-final-production",
+      "cpu": "1.82%",
+      "memory": "335.8MiB / 512MiB",
+      "memoryPercent": "65.59%"
+    },
+    {
+      "time": "2026-10-23T18:57:26.4711485Z",
+      "name": "lia-world-final-api",
+      "cpu": "17.68%",
+      "memory": "629.5MiB / 31.34GiB",
+      "memoryPercent": "1.96%"
+    },
+    {
+      "time": "2026-10-23T18:57:26.4711485Z",
+      "name": "lia-world-v1-postgres",
+      "cpu": "1.70%",
+      "memory": "104.8MiB / 31.34GiB",
+      "memoryPercent": "0.33%"
+    },
+    {
+      "time": "2026-10-23T18:57:26.4711485Z",
+      "name": "lia-world-v1-native-redis",
+      "cpu": "2.46%",
+      "memory": "6.805MiB / 31.34GiB",
+      "memoryPercent": "0.02%"
+    },
+    {
+      "time": "2026-10-23T18:57:31.2424098Z",
+      "name": "lia-world-final-production",
+      "cpu": "2.57%",
+      "memory": "335.7MiB / 512MiB",
+      "memoryPercent": "65.57%"
+    },
+    {
+      "time": "2026-10-23T18:57:31.2424098Z",
+      "name": "lia-world-final-api",
+      "cpu": "28.16%",
+      "memory": "630.1MiB / 31.34GiB",
+      "memoryPercent": "1.96%"
+    },
+    {
+      "time": "2026-10-23T18:57:31.2424098Z",
+      "name": "lia-world-v1-postgres",
+      "cpu": "2.37%",
+      "memory": "105.6MiB / 31.34GiB",
+      "memoryPercent": "0.33%"
+    },
+    {
+      "time": "2026-10-23T18:57:31.2424098Z",
+      "name": "lia-world-v1-native-redis",
+      "cpu": "3.65%",
+      "memory": "6.352MiB / 31.34GiB",
+      "memoryPercent": "0.02%"
+    },
+    {
+      "time": "2026-10-23T18:57:36.8664504Z",
+      "name": "lia-world-final-production",
+      "cpu": "3.08%",
+      "memory": "335.8MiB / 512MiB",
+      "memoryPercent": "65.59%"
+    },
+    {
+      "time": "2026-10-23T18:57:36.8664504Z",
+      "name": "lia-world-final-api",
+      "cpu": "32.06%",
+      "memory": "630.6MiB / 31.34GiB",
+      "memoryPercent": "1.96%"
+    },
+    {
+      "time": "2026-10-23T18:57:36.8664504Z",
+      "name": "lia-world-v1-postgres",
+      "cpu": "2.14%",
+      "memory": "105.7MiB / 31.34GiB",
+      "memoryPercent": "0.33%"
+    },
+    {
+      "time": "2026-10-23T18:57:36.8664504Z",
+      "name": "lia-world-v1-native-redis",
+      "cpu": "4.14%",
+      "memory": "7.102MiB / 31.34GiB",
+      "memoryPercent": "0.02%"
+    },
+    {
+      "time": "2026-10-23T18:57:42.4008044Z",
+      "name": "lia-world-final-production",
+      "cpu": "2.72%",
+      "memory": "336.1MiB / 512MiB",
+      "memoryPercent": "65.64%"
+    },
+    {
+      "time": "2026-10-23T18:57:42.4008044Z",
+      "name": "lia-world-final-api",
+      "cpu": "26.90%",
+      "memory": "631.2MiB / 31.34GiB",
+      "memoryPercent": "1.97%"
+    },
+    {
+      "time": "2026-10-23T18:57:42.4008044Z",
+      "name": "lia-world-v1-postgres",
+      "cpu": "2.74%",
+      "memory": "106.2MiB / 31.34GiB",
+      "memoryPercent": "0.33%"
+    },
+    {
+      "time": "2026-10-23T18:57:42.4008044Z",
+      "name": "lia-world-v1-native-redis",
+      "cpu": "3.13%",
+      "memory": "7.344MiB / 31.34GiB",
+      "memoryPercent": "0.02%"
+    },
+    {
+      "time": "2026-10-23T18:57:47.1280743Z",
+      "name": "lia-world-final-production",
+      "cpu": "2.57%",
+      "memory": "336.6MiB / 512MiB",
+      "memoryPercent": "65.74%"
+    },
+    {
+      "time": "2026-10-23T18:57:47.1280743Z",
+      "name": "lia-world-final-api",
+      "cpu": "28.11%",
+      "memory": "631.3MiB / 31.34GiB",
+      "memoryPercent": "1.97%"
+    },
+    {
+      "time": "2026-10-23T18:57:47.1280743Z",
+      "name": "lia-world-v1-postgres",
+      "cpu": "1.20%",
+      "memory": "106.5MiB / 31.34GiB",
+      "memoryPercent": "0.33%"
+    },
+    {
+      "time": "2026-10-23T18:57:47.1280743Z",
+      "name": "lia-world-v1-native-redis",
+      "cpu": "2.51%",
+      "memory": "7.852MiB / 31.34GiB",
+      "memoryPercent": "0.02%"
+    },
+    {
+      "time": "2026-10-23T18:57:52.7812021Z",
+      "name": "lia-world-final-production",
+      "cpu": "2.25%",
+      "memory": "335.8MiB / 512MiB",
+      "memoryPercent": "65.59%"
+    },
+    {
+      "time": "2026-10-23T18:57:52.7812021Z",
+      "name": "lia-world-final-api",
+      "cpu": "18.28%",
+      "memory": "631.1MiB / 31.34GiB",
+      "memoryPercent": "1.97%"
+    },
+    {
+      "time": "2026-10-23T18:57:52.7812021Z",
+      "name": "lia-world-v1-postgres",
+      "cpu": "1.27%",
+      "memory": "105.9MiB / 31.34GiB",
+      "memoryPercent": "0.33%"
+    },
+    {
+      "time": "2026-10-23T18:57:52.7812021Z",
+      "name": "lia-world-v1-native-redis",
+      "cpu": "2.70%",
+      "memory": "6.848MiB / 31.34GiB",
+      "memoryPercent": "0.02%"
+    },
+    {
+      "time": "2026-10-23T18:57:58.0025678Z",
+      "name": "lia-world-final-production",
+      "cpu": "2.31%",
+      "memory": "338.1MiB / 512MiB",
+      "memoryPercent": "66.04%"
+    },
+    {
+      "time": "2026-10-23T18:57:58.0025678Z",
+      "name": "lia-world-final-api",
+      "cpu": "21.56%",
+      "memory": "630.6MiB / 31.34GiB",
+      "memoryPercent": "1.96%"
+    },
+    {
+      "time": "2026-10-23T18:57:58.0025678Z",
+      "name": "lia-world-v1-postgres",
+      "cpu": "1.81%",
+      "memory": "106.5MiB / 31.34GiB",
+      "memoryPercent": "0.33%"
+    },
+    {
+      "time": "2026-10-23T18:57:58.0025678Z",
+      "name": "lia-world-v1-native-redis",
+      "cpu": "2.95%",
+      "memory": "6.594MiB / 31.34GiB",
+      "memoryPercent": "0.02%"
+    },
+    {
+      "time": "2026-10-23T18:58:03.4059938Z",
+      "name": "lia-world-final-production",
+      "cpu": "2.37%",
+      "memory": "339.3MiB / 512MiB",
+      "memoryPercent": "66.27%"
+    },
+    {
+      "time": "2026-10-23T18:58:03.4059938Z",
+      "name": "lia-world-final-api",
+      "cpu": "20.74%",
+      "memory": "630.7MiB / 31.34GiB",
+      "memoryPercent": "1.97%"
+    },
+    {
+      "time": "2026-10-23T18:58:03.4059938Z",
+      "name": "lia-world-v1-postgres",
+      "cpu": "1.59%",
+      "memory": "105.2MiB / 31.34GiB",
+      "memoryPercent": "0.33%"
+    },
+    {
+      "time": "2026-10-23T18:58:03.4059938Z",
+      "name": "lia-world-v1-native-redis",
+      "cpu": "2.84%",
+      "memory": "7.133MiB / 31.34GiB",
+      "memoryPercent": "0.02%"
+    },
+    {
+      "time": "2026-10-23T18:58:08.0783339Z",
+      "name": "lia-world-final-production",
+      "cpu": "1.30%",
+      "memory": "340.2MiB / 512MiB",
+      "memoryPercent": "66.44%"
+    },
+    {
+      "time": "2026-10-23T18:58:08.0783339Z",
+      "name": "lia-world-final-api",
+      "cpu": "10.21%",
+      "memory": "630.4MiB / 31.34GiB",
+      "memoryPercent": "1.96%"
+    },
+    {
+      "time": "2026-10-23T18:58:08.0783339Z",
+      "name": "lia-world-v1-postgres",
+      "cpu": "0.57%",
+      "memory": "106.5MiB / 31.34GiB",
+      "memoryPercent": "0.33%"
+    },
+    {
+      "time": "2026-10-23T18:58:08.0783339Z",
+      "name": "lia-world-v1-native-redis",
+      "cpu": "1.65%",
+      "memory": "7.312MiB / 31.34GiB",
+      "memoryPercent": "0.02%"
+    },
+    {
+      "time": "2026-10-23T18:58:13.5123120Z",
+      "name": "lia-world-final-production",
+      "cpu": "1.58%",
+      "memory": "340.2MiB / 512MiB",
+      "memoryPercent": "66.44%"
+    },
+    {
+      "time": "2026-10-23T18:58:13.5123120Z",
+      "name": "lia-world-final-api",
+      "cpu": "10.92%",
+      "memory": "630.8MiB / 31.34GiB",
+      "memoryPercent": "1.97%"
+    },
+    {
+      "time": "2026-10-23T18:58:13.5123120Z",
+      "name": "lia-world-v1-postgres",
+      "cpu": "0.92%",
+      "memory": "106.6MiB / 31.34GiB",
+      "memoryPercent": "0.33%"
+    },
+    {
+      "time": "2026-10-23T18:58:13.5123120Z",
+      "name": "lia-world-v1-native-redis",
+      "cpu": "1.84%",
+      "memory": "7.062MiB / 31.34GiB",
+      "memoryPercent": "0.02%"
+    },
+    {
+      "time": "2026-10-23T18:58:18.9951635Z",
+      "name": "lia-world-final-production",
+      "cpu": "0.23%",
+      "memory": "339.3MiB / 512MiB",
+      "memoryPercent": "66.26%"
+    },
+    {
+      "time": "2026-10-23T18:58:18.9951635Z",
+      "name": "lia-world-final-api",
+      "cpu": "0.54%",
+      "memory": "629.2MiB / 31.34GiB",
+      "memoryPercent": "1.96%"
+    },
+    {
+      "time": "2026-10-23T18:58:18.9951635Z",
+      "name": "lia-world-v1-postgres",
+      "cpu": "0.00%",
+      "memory": "105.1MiB / 31.34GiB",
+      "memoryPercent": "0.33%"
+    },
+    {
+      "time": "2026-10-23T18:58:18.9951635Z",
+      "name": "lia-world-v1-native-redis",
+      "cpu": "0.47%",
+      "memory": "5.855MiB / 31.34GiB",
+      "memoryPercent": "0.02%"
+    }
+  ],
+  "webProofMemoryLimitBytes": 536870912,
+  "oomKilled": false,
+  "limits": "Docker CPU and memory are x86 development-host observations. They neither qualify Raspberry Pi load with normal LIA nor physical mobile GPU/thermal/battery behavior. Server web memory includes loaded native UI and file cache. Frame interval and synchronous render time measure different work.",
+  "sharedVmFiveRendererStress": [
+    {
+      "browser": "firefox",
+      "status": "passed",
+      "durationMs": 40819,
+      "samples": [
+        {
+          "profile": "desktop, native personal atmosphere",
+          "browserName": "firefox",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "fps": 46.8,
+          "frameP95": "33,4 ms",
+          "renderP95": "23 ms",
+          "phase": "night",
+          "weather": "snow",
+          "clients": 5,
+          "independentHeadlessBrowsers": true,
+          "physicalDevice": false
+        },
+        {
+          "profile": "phone viewport, economic quality",
+          "browserName": "firefox",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "fps": 28.8,
+          "frameP95": "49,7 ms",
+          "renderP95": "22 ms",
+          "phase": "night",
+          "weather": "snow",
+          "clients": 5,
+          "independentHeadlessBrowsers": true,
+          "physicalDevice": false
+        }
+      ]
+    },
+    {
+      "browser": "webkit",
+      "status": "passed",
+      "durationMs": 44422,
+      "samples": [
+        {
+          "profile": "desktop, native personal atmosphere",
+          "browserName": "webkit",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "fps": 10.5,
+          "frameP95": "149 ms",
+          "renderP95": "4 ms",
+          "phase": "night",
+          "weather": "snow",
+          "clients": 5,
+          "independentHeadlessBrowsers": true,
+          "physicalDevice": false
+        },
+        {
+          "profile": "phone viewport, economic quality",
+          "browserName": "webkit",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "fps": 11.6,
+          "frameP95": "112 ms",
+          "renderP95": "2 ms",
+          "phase": "night",
+          "weather": "snow",
+          "clients": 5,
+          "independentHeadlessBrowsers": true,
+          "physicalDevice": false
+        }
+      ]
+    },
+    {
+      "browser": "chromium",
+      "status": "passed",
+      "durationMs": 36198,
+      "samples": [
+        {
+          "profile": "desktop, native personal atmosphere",
+          "browserName": "chromium",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "zoom": "95%",
+          "fps": 52.7,
+          "frameP95": "33,3 ms",
+          "renderP95": "21,1 ms",
+          "phase": "night",
+          "weather": "snow",
+          "clients": 5,
+          "independentHeadlessBrowsers": true,
+          "physicalDevice": false
+        },
+        {
+          "profile": "phone viewport, economic quality",
+          "browserName": "chromium",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "zoom": "95%",
+          "fps": 29.3,
+          "frameP95": "33,4 ms",
+          "renderP95": "9,2 ms",
+          "phase": "night",
+          "weather": "snow",
+          "clients": 5,
+          "independentHeadlessBrowsers": true,
+          "physicalDevice": false
+        },
+        {
+          "profile": "phone viewport, economic quality, CPU slowdown 4x",
+          "browserName": "chromium",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "zoom": "158%",
+          "fps": 24.5,
+          "frameP95": "66,6 ms",
+          "renderP95": "27,7 ms",
+          "phase": "night",
+          "weather": "snow",
+          "clients": 5,
+          "independentHeadlessBrowsers": true,
+          "physicalDevice": false
+        }
+      ]
+    }
+  ],
+  "engines": [
+    {
+      "browser": "chromium",
+      "samples": [
+        {
+          "profile": "desktop: five native server clients, one full UI renderer",
+          "browserName": "chromium",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "zoom": "95%",
+          "fps": 53.2,
+          "frameP95": "33,4 ms",
+          "renderP95": "26,3 ms",
+          "phase": "night",
+          "weather": "snow",
+          "clients": 5,
+          "independentHeadlessBrowsers": true,
+          "fullUIRenderers": 1,
+          "physicalDevice": false
+        },
+        {
+          "profile": "phone viewport, economic quality",
+          "browserName": "chromium",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "zoom": "95%",
+          "fps": 29.7,
+          "frameP95": "33,4 ms",
+          "renderP95": "12,3 ms",
+          "phase": "night",
+          "weather": "snow",
+          "clients": 5,
+          "independentHeadlessBrowsers": true,
+          "fullUIRenderers": 1,
+          "physicalDevice": false
+        },
+        {
+          "profile": "phone viewport, economic quality, CPU slowdown 4x",
+          "browserName": "chromium",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "zoom": "158%",
+          "fps": 25.2,
+          "frameP95": "66,6 ms",
+          "renderP95": "27,6 ms",
+          "phase": "night",
+          "weather": "snow",
+          "clients": 5,
+          "independentHeadlessBrowsers": true,
+          "fullUIRenderers": 1,
+          "physicalDevice": false
+        }
+      ]
+    },
+    {
+      "browser": "firefox",
+      "samples": [
+        {
+          "profile": "desktop: five native server clients, one full UI renderer",
+          "browserName": "firefox",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "zoom": "95%",
+          "fps": 44.4,
+          "frameP95": "33,5 ms",
+          "renderP95": "33 ms",
+          "phase": "night",
+          "weather": "snow",
+          "clients": 5,
+          "independentHeadlessBrowsers": true,
+          "fullUIRenderers": 1,
+          "physicalDevice": false
+        },
+        {
+          "profile": "phone viewport, economic quality",
+          "browserName": "firefox",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "zoom": "95%",
+          "fps": 29.3,
+          "frameP95": "33,7 ms",
+          "renderP95": "24 ms",
+          "phase": "night",
+          "weather": "snow",
+          "clients": 5,
+          "independentHeadlessBrowsers": true,
+          "fullUIRenderers": 1,
+          "physicalDevice": false
+        }
+      ]
+    },
+    {
+      "browser": "webkit",
+      "samples": [
+        {
+          "profile": "desktop: five native server clients, one full UI renderer",
+          "browserName": "webkit",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "zoom": "95%",
+          "fps": 18.4,
+          "frameP95": "89 ms",
+          "renderP95": "3 ms",
+          "phase": "night",
+          "weather": "snow",
+          "clients": 5,
+          "independentHeadlessBrowsers": true,
+          "fullUIRenderers": 1,
+          "physicalDevice": false
+        },
+        {
+          "profile": "phone viewport, economic quality",
+          "browserName": "webkit",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "zoom": "95%",
+          "fps": 19.2,
+          "frameP95": "83 ms",
+          "renderP95": "2 ms",
+          "phase": "night",
+          "weather": "snow",
+          "clients": 5,
+          "independentHeadlessBrowsers": true,
+          "fullUIRenderers": 1,
+          "physicalDevice": false
+        }
+      ]
+    }
+  ],
+  "separatedServerLoadRun": {
+    "startTime": "2026-10-23T19:40:13.273Z",
+    "duration": 92316.31,
+    "expected": 3,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "socketReservationsAfterAllClientsClosed": 0
+}

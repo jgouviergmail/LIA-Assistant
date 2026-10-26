@@ -21,6 +21,7 @@ import type { SettingsSearchAvailability } from '@/lib/settings-search';
 
 import { SettingsPane, SECTION_SETTLE_DEADLINE_MS } from '../SettingsPane';
 import apiClient from '@/lib/api-client';
+import { SETTINGS_SECTION_REGISTRY } from '../settings-section-registry';
 
 // The chat-shortcuts fixture section would fetch into the void under fake
 // timers and pollute stderr; its own tests cover the hook. Shape mirrors
@@ -56,7 +57,10 @@ const AVAILABLE: SettingsSearchAvailability = {
 };
 
 /** Advance the fake clock inside `act`: the poll sets React state. */
-function advance(ms: number) {
+async function advance(ms: number) {
+  await act(async () => {
+    await vi.dynamicImportSettled();
+  });
   act(() => {
     vi.advanceTimersByTime(ms);
   });
@@ -73,46 +77,67 @@ describe('SettingsPane', () => {
     vi.restoreAllMocks();
   });
 
-  it('mounts the selected section, open, with its anchor id', () => {
+  it('recovers from a failed section when the user selects another native section', async () => {
+    function BrokenSection(): never {
+      throw new Error('Inert section failure');
+    }
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(SETTINGS_SECTION_REGISTRY.memories, 'render').mockResolvedValue(<BrokenSection />);
+    vi.spyOn(SETTINGS_SECTION_REGISTRY.psyche, 'render').mockResolvedValue(
+      <div id="settings-section-psyche">Available native section</div>
+    );
+    const { rerender } = renderWithProviders(
+      <SettingsPane lng="en" availability={AVAILABLE} token="memories" onBack={() => {}} />
+    );
+    await advance(500);
+    expect(
+      screen.getByRole('button', { name: /errors.featureErrorBoundary.retryAriaLabel/ })
+    ).toBeVisible();
+    rerender(<SettingsPane lng="en" availability={AVAILABLE} token="psyche" onBack={() => {}} />);
+    await advance(500);
+    expect(screen.getByText('Available native section')).toBeVisible();
+  });
+
+  it('mounts the selected section, open, with its anchor id', async () => {
     const { container } = renderWithProviders(
       <SettingsPane lng="en" availability={AVAILABLE} token="chat-shortcuts" onBack={() => {}} />
     );
-    advance(500);
+    await advance(500);
     expect(container.querySelector('#settings-section-chat-shortcuts')).not.toBeNull();
     expect(screen.getByText('settings.chat_shortcuts.title')).toBeInTheDocument();
     expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
   });
 
-  it('offers a way back below the desktop breakpoint', () => {
+  it('offers a way back below the desktop breakpoint', async () => {
     renderWithProviders(
       <SettingsPane lng="en" availability={AVAILABLE} token="chat-shortcuts" onBack={() => {}} />
     );
     expect(screen.getByRole('button', { name: /settings\.shell\.back/ })).toBeInTheDocument();
   });
 
-  it('says so honestly when the section renders nothing, after the settling deadline', () => {
+  it('says so honestly when the section renders nothing, after the settling deadline', async () => {
     renderWithProviders(
       <SettingsPane lng="en" availability={AVAILABLE} token="haptics" onBack={() => {}} />
     );
     expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
 
-    advance(SECTION_SETTLE_DEADLINE_MS + 500);
+    await advance(SECTION_SETTLE_DEADLINE_MS + 500);
     const empty = screen.getByTestId('empty-state');
     expect(empty).toHaveTextContent('settings.search.unavailable');
   });
 
-  it('routes the empty-state action back to the overview', () => {
+  it('routes the empty-state action back to the overview', async () => {
     const onBack = vi.fn();
     renderWithProviders(
       <SettingsPane lng="en" availability={AVAILABLE} token="haptics" onBack={onBack} />
     );
-    advance(SECTION_SETTLE_DEADLINE_MS + 500);
+    await advance(SECTION_SETTLE_DEADLINE_MS + 500);
 
     fireEvent.click(screen.getByRole('button', { name: /settings\.shell\.browse_all/ }));
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
-  it('moves focus onto the settled section when asked — the search-pick contract', () => {
+  it('moves focus onto the settled section when asked — the search-pick contract', async () => {
     const { container } = renderWithProviders(
       <SettingsPane
         lng="en"
@@ -122,16 +147,16 @@ describe('SettingsPane', () => {
         focusRequest={1}
       />
     );
-    advance(500);
+    await advance(500);
     const anchor = container.querySelector<HTMLElement>('#settings-section-chat-shortcuts');
     expect(document.activeElement).toBe(anchor);
   });
 
-  it('does not steal focus for a plain selection or deep link', () => {
+  it('does not steal focus for a plain selection or deep link', async () => {
     renderWithProviders(
       <SettingsPane lng="en" availability={AVAILABLE} token="chat-shortcuts" onBack={() => {}} />
     );
-    advance(500);
+    await advance(500);
     expect(document.activeElement).toBe(document.body);
   });
 
@@ -148,7 +173,7 @@ describe('SettingsPane', () => {
         focusRequest={1}
       />
     );
-    advance(500);
+    await advance(500);
     expect(document.activeElement?.id).toBe('settings-section-chat-shortcuts');
 
     await act(async () => {
@@ -162,12 +187,12 @@ describe('SettingsPane', () => {
         />
       );
     });
-    advance(500);
+    await advance(500);
     expect(container.querySelector('#settings-section-voice-mode')).not.toBeNull();
     expect(document.activeElement?.id).not.toBe('settings-section-voice-mode');
   });
 
-  it('never mounts a section the availability gates rule out — it reports absence instead', () => {
+  it('never mounts a section the availability gates rule out — it reports absence instead', async () => {
     // A non-superuser deep-linking to an admin token: the section must not
     // mount (its queries would fail loudly), and the reader gets the same
     // honest absence message as any gated section.
@@ -175,7 +200,7 @@ describe('SettingsPane', () => {
       <SettingsPane lng="en" availability={AVAILABLE} token="admin-users" onBack={() => {}} />
     );
     expect(container.querySelector('#settings-section-admin-users')).toBeNull();
-    advance(SECTION_SETTLE_DEADLINE_MS + 500);
+    await advance(SECTION_SETTLE_DEADLINE_MS + 500);
     expect(screen.getByTestId('empty-state')).toHaveTextContent('settings.search.unavailable');
   });
 });

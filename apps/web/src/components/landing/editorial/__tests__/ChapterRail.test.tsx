@@ -13,6 +13,7 @@ vi.mock('react-i18next', () => ({
 }));
 
 import { ChapterRail } from '../ChapterRail';
+import { CHAPTERS, WORLD_CHAPTER_ANCHOR } from '../chapters-data';
 
 interface Observed {
   callback: IntersectionObserverCallback;
@@ -61,6 +62,24 @@ function footerInView(footer: Element, isIntersecting: boolean): void {
 }
 
 describe('ChapterRail', () => {
+  it('names every chapter and preserves both the connection and World destinations', () => {
+    render(<ChapterRail />);
+    expect(screen.getAllByRole('link')).toHaveLength(CHAPTERS.length + 1);
+    for (const chapter of CHAPTERS) {
+      const link = screen.getByRole('link', { name: `landing.chapters.${chapter.key}.title` });
+      expect(link).toHaveAttribute('href', `#${chapter.anchor}`);
+      expect(link).toHaveTextContent(chapter.num);
+    }
+    expect(screen.getByRole('link', { name: 'landing.chapters.c6.title' })).toHaveAttribute(
+      'href',
+      '#chapter-connect'
+    );
+    expect(screen.getByRole('link', { name: 'landing.chapters.c7.title' })).toHaveAttribute(
+      'href',
+      `#${WORLD_CHAPTER_ANCHOR}`
+    );
+  });
+
   it('hides while the footer is on screen, and returns when it leaves', () => {
     const footer = document.createElement('footer');
     footer.className = 'landing-footer';
@@ -81,5 +100,31 @@ describe('ChapterRail', () => {
     render(<ChapterRail />);
     const rail = screen.getByRole('navigation', { name: 'landing.rail.aria' });
     expect(rail.className).not.toContain('invisible');
+  });
+
+  it('tracks the World anchor independently of the connection chapter', () => {
+    const world = document.createElement('section');
+    world.id = WORLD_CHAPTER_ANCHOR;
+    document.body.append(world);
+    render(<ChapterRail />);
+    const watcher = observers.find(observer => observer.targets.includes(world));
+    expect(watcher).toBeDefined();
+    const entry: IntersectionObserverEntry = {
+      target: world,
+      isIntersecting: true,
+      boundingClientRect: world.getBoundingClientRect(),
+      intersectionRect: world.getBoundingClientRect(),
+      intersectionRatio: 1,
+      rootBounds: null,
+      time: 0,
+    };
+    act(() => watcher?.callback([entry], {} as IntersectionObserver));
+    expect(screen.getByRole('link', { name: 'landing.chapters.c7.title' })).toHaveAttribute(
+      'aria-current',
+      'true'
+    );
+    expect(screen.getByRole('link', { name: 'landing.chapters.c6.title' })).not.toHaveAttribute(
+      'aria-current'
+    );
   });
 });

@@ -5389,3 +5389,11 @@ graph TD
 **Status**: Accepted, 2026-10-24. Amends ADR-363 (its rejected CAPTCHA), ADR-098 (the CSP opens `https://challenges.cloudflare.com` to scripts and frames), ADR-119 (one core alert).
 
 **Decision**: The sign-up, password sign-in and reset-request routes carry the Turnstile widget's token (`X-LIA-Turnstile-Response`) and each is a guard: the per-IP limiter first, then the check (`turnstile_gate.require_turnstile`), which asks Cloudflare's siteverify (`TurnstileClient`: never raises, two attempts under one idempotency key) and passes a token only if it was made for that door on this instance's pages. When Cloudflare gives no usable answer — an outage, or a refusal of the server's own secret — only the sign-in proceeds (owner decision); a sign-up or a reset request is refused 503 `turnstile_unavailable`, a refused token 403 `turnstile_failed` everywhere. Off by default with the operator's own keys; the site key reaches the sign-in pages through `GET /auth/features` alone; the web loads the explicit-render script once, in `interaction-only` mode. Counted (`turnstile_verifications_total`), drawn on dashboard 09, alerted by `TurnstileUnavailable`; the privacy policy says it, in six languages.
+
+### ADR-365: Private native LIA in an authoritative isometric world
+
+**File**: [ADR-365-Private-Native-LIA-In-An-Authoritative-Isometric-World.md](ADR-365-Private-Native-LIA-In-An-Authoritative-Isometric-World.md)
+
+**Status**: Accepted design, implemented behind the World capability, 2026-10-23. Physical-device and supplier translation qualification remain release gates.
+
+**Decision**: Browser Canvas rendering with bounded native Redis authority, participant-scoped human text and accounted translation. The native account name and chosen appearance are shared with consent; accepted peers see only coarse connection/home status. Existing private panels preserve permissions, HITL, registries and quotas; deterministic owner decoration and cached atmosphere do not call models. The guided installer offers an explicit opt-in; unknown presence is stated rather than inferred from session lifetime or a learning marker. Direct human audio remains a proposal.

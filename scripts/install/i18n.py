@@ -84,6 +84,10 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "Offer the speaking avatar? Each person must connect their OWN Simli key and opt in in Settings; an open avatar session can consume their credits even during silence (yes/no)",
         "fr": "Proposer l'avatar parlant ? Chaque personne doit connecter SA PROPRE clé Simli et l'activer dans les paramètres ; une session avatar ouverte peut consommer ses crédits même pendant les silences (yes/no)",
     },
+    "question.world": {
+        "en": "Offer LIA World? A shared isometric space with private native LIA panels and human text; each participant consents to presence and each paid translation requires consent (yes/no)",
+        "fr": "Proposer le monde LIA ? Un espace isométrique partagé avec les panneaux privés de LIA et des échanges écrits ; chaque personne consent à sa présence et chaque traduction payante exige un accord (yes/no)",
+    },
     "question.admin_password": {
         "en": "Administrator password (min {min_length} chars, {min_uppercase} uppercase, {min_digits} digits, {min_special} special; input hidden)",
         "fr": "Mot de passe administrateur (min {min_length} caractères, {min_uppercase} majuscules, {min_digits} chiffres, {min_special} spéciaux ; saisie masquée)",

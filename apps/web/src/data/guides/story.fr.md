@@ -4,7 +4,7 @@
 
 **Version** : 2.6
 **Date** : 2026-10-23
-**Application** : LIA v3.7.0
+**Application** : LIA v4.0.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Indicateur | Valeur |
 | --- | --- |
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
-| Lignes de source (hors tests) — 58 domaines fonctionnels | **1 003 000+** |
-| Tests automatisés inventoriés ; suites adaptées au commit et à la livraison | **67 000+** |
-| Décisions d'architecture documentées (ADR) | **362** |
-| Versions livrées à rythme régulier | **289** |
+| Lignes de source (hors tests) — 60 paquets de domaines backend | **1 038 000+** |
+| Tests automatisés inventoriés ; suites adaptées au commit et à la livraison | **68 000+** |
+| Décisions d'architecture documentées (ADR) | **363** |
+| Versions livrées à rythme régulier | **290** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **7,9/10** |
 
@@ -66,11 +66,18 @@ Cette règle s’applique aussi au récit : préparer n’est pas accomplir. Une
 
 Le projet est désormais conduit avec plusieurs agents de développement en parallèle — chacun sur son chantier, parfois dans le même arbre de travail. Ce qui les tient ensemble n'est pas la coordination entre eux, mais le référentiel commun : les mêmes règles écrites, les mêmes gardes, les mêmes portes avant toute livraison. Un agent peut renommer un bouton ; c'est une garde qui rappelle que l'aide, la recherche des réglages et le vocabulaire que LIA emploie pour se décrire doivent suivre. Et la livraison qui rassemble ces chantiers commence par un inventaire de ce que chacun a réellement changé — jamais par ce qu'il annonce.
 
+
+### Un lieu de rencontre, des responsabilités intactes
+
+Un monde partagé donne à l’assistante un vocabulaire de lieux : une bibliothèque pour les connaissances, une salle multimédia pour créer, un jardin à explorer à plusieurs. La décision d’ingénierie utile porte sur ce qui franchit chaque frontière. Un avatar public exprime le choix d’une personne ; il n’expose ni le contexte de son assistante ni sa maison privée. Une pièce ouvre un outil existant sans accorder une permission nouvelle.
+
+La conversation suit la même logique. Les messages humains ont une durée de vie temporaire et séparée. La traduction se choisit et se comptabilise ; les déplacements et le dessin n’appellent aucun modèle. Une interface plus riche reste gouvernable lorsque ses coûts, sa propriété et ses confirmations gardent le même sens.
+
 ---
 
 ## 4. Les arbitrages
 
-Trois décisions structurantes, parmi les 362 documentées :
+Trois décisions structurantes, parmi les 363 documentées :
 
 **Souveraineté & réversibilité — aucune dépendance fournisseur irréversible.** Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modèles locaux via Ollama) sont placés derrière une abstraction unique : chaque usage peut changer de fournisseur par configuration, avec comparaison de coût. Même principe côté métier : Google, Apple et Microsoft sont interchangeables par catégorie fonctionnelle. L'auto-hébergement te donne la maîtrise du serveur ; les données du compte sont stockées sur l'instance et les identifiants des connecteurs sont chiffrés. Les services distants que tu choisis reçoivent toujours les données utiles à leur part de la demande.
 
@@ -138,4 +145,4 @@ Ce que cette expérience change dans une pratique de direction :
 - **Entre l'interdiction générale et la confiance aveugle, il existe une voie gouvernable.** Le contrôle humain gradué se spécifie, se teste et s'audite ; c'est l'approche que dessinent les exigences réglementaires, et elle est opérationnelle dès maintenant.
 - **Un dirigeant qui pratique arbitre mieux.** Faire ou faire faire, dette acceptable ou non, promesse fournisseur crédible ou non — ces décisions gagnent en justesse quand on a éprouvé la matière. Ce projet est une façon d'entretenir cette proximité avec le terrain.
 
-*Projet personnel, mené en dehors de toute activité professionnelle. Évaluation technique issue de l’audit de juillet 2026, constats contre-vérifiés. Les comptes structurels suivent le dépôt ; les lignes de source ont été remesurées le 2026-10-22. Dépôt : [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Projet personnel, mené en dehors de toute activité professionnelle. Évaluation technique issue de l’audit de juillet 2026, constats contre-vérifiés. Les comptes structurels suivent le dépôt ; les lignes de source ont été remesurées le 2026-10-26. Dépôt : [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

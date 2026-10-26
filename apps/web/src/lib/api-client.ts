@@ -90,6 +90,32 @@ export async function readPublicUiJson<T>(
   return response.json();
 }
 
+/** Public static bytes, outside the account API. The media owner supplies its cancellation/deadline.
+ * Keep the body unread so the caller can enforce its byte budget before decoding.
+ */
+export async function readPublicAssetResponse(
+  endpoint: string,
+  signal: AbortSignal
+): Promise<Response> {
+  if (
+    !/^\/[A-Za-z0-9_/-]+\.(?:mp3|ogg|opus|wav|png|jpg|jpeg|webp|avif|gif|svg|woff2|onnx|wasm)(?:\?v=[A-Za-z0-9_-]{1,64})?$/.test(
+      endpoint
+    ) ||
+    endpoint.startsWith('//') ||
+    endpoint.startsWith('/api/')
+  )
+    throw new TypeError('Expected a same-origin public static asset');
+  const response = await fetch(endpoint, {
+    credentials: 'omit',
+    cache: 'force-cache',
+    redirect: 'error',
+    signal,
+  });
+  if (!response.ok)
+    throw new ApiError('Static asset unavailable: ' + response.status, response.status);
+  return response;
+}
+
 /**
  * Determine the correct API URL based on execution context.
  *
@@ -211,6 +237,8 @@ function buildUrl(endpoint: string, params?: Record<string, QueryParamValue>): s
  * visitors to the login page.
  */
 const PUBLIC_ROUTE_SEGMENTS = [
+  // Account-free graphics qualification; the server returns 404 outside development.
+  'world-preview',
   'login',
   'register',
   'registration-success',

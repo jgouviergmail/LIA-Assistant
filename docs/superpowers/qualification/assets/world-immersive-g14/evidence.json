@@ -1,0 +1,30 @@
+{
+  "lot": "G14",
+  "status": "qualified-development-preview",
+  "preview": "http://127.0.0.6:3010/fr/world-preview?shared=1&resume=1",
+  "world_unit_tests": 182,
+  "world_unit_files": 34,
+  "ui_cases_three_engines": 27,
+  "native_logical_cases_three_engines": 15,
+  "native": "native.json",
+  "performance": "performance.json",
+  "publication": "publication.json",
+  "source_parity": {
+    "production_world_and_shared_select_files": 74,
+    "sha256": "38025bf2dfab7e7f213ecb2c9eed37050c1868cb3b71e207612e0b9c0d7dda2f",
+    "locales": "separately synchronized and parity checked"
+  },
+  "gates": [
+    "frontend lint including ratchets and TypeScript",
+    "six-locale parity",
+    "optimized G14c build",
+    "new scene intent scoped coverage ratchet; no existing floor relaxed"
+  ],
+  "limitations": [
+    "development preview, no production deployment",
+    "not final artistic acceptance",
+    "no physical phone or Pi measurement",
+    "inert translation fixture, no paid supplier assessment",
+    "full frontend suite last run at G13; G14 runs scoped suite"
+  ]
+}

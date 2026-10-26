@@ -63,6 +63,8 @@ PromptVersion = str  # Accept any version string, validated at runtime
 # tests/unit/domains/agents/prompts/test_prompt_name_literal_sync.py —
 # an entry without a file (or a file without an entry) fails CI.
 PromptName = Literal[
+    "world_message_translator_prompt",
+    "world_public_translator_prompt",
     "application_draft_modifier_prompt",
     "card_composition_context",
     "jev_collection_question",

@@ -23,6 +23,31 @@ async function translator(language: keyof typeof languages) {
 }
 
 describe('FeatureCatalog', () => {
+  it.each(['en', 'fr'] as const)(
+    'keeps the World and peer capabilities in their own readable catalogs in %s',
+    async language => {
+      const t = await translator(language);
+      const chapter = CHAPTERS.find(item => item.id === 'world');
+      if (!chapter) throw new Error('Missing shared-world chapter');
+      const user = userEvent.setup();
+      const { container, unmount } = render(<FeatureCatalog t={t} featureKeys={chapter.catalog} />);
+      expect(screen.getByRole('tabpanel')).toHaveAccessibleName(t('landing.features.world.title'));
+      await user.click(screen.getByRole('tab', { name: t('landing.features.world_audio.title') }));
+      expect(screen.getByRole('tabpanel')).toHaveTextContent(
+        t('landing.catalog_explorer.feature_examples.world_audio.result')
+      );
+      expect(screen.queryByRole('tab', { name: t('landing.features.peers.title') })).toBeNull();
+      expect(container.textContent).not.toContain('landing.');
+      expect(container.textContent).not.toContain('undefined');
+      unmount();
+      const connections = CHAPTERS.find(item => item.id === 'connect');
+      if (!connections) throw new Error('Missing connection chapter');
+      render(<FeatureCatalog t={t} featureKeys={connections.catalog} />);
+      expect(screen.getByRole('tabpanel')).toHaveAccessibleName(t('landing.features.peers.title'));
+      expect(screen.queryByRole('tab', { name: t('landing.features.world.title') })).toBeNull();
+    }
+  );
+
   it('preserves every full description and title while showing one readable detail', async () => {
     const t = await translator('en');
     const featureKeys = CHAPTERS[0].catalog;

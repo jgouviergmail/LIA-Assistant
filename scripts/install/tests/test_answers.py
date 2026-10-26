@@ -51,6 +51,7 @@ BASE_PUBLIC = {
     "live_mode": "no",
     "personal_radio": "no",
     "speaking_avatar": "no",
+    "world": "no",
 }
 SECRETS = {
     "admin_password": ADMIN_PASSWORD,
@@ -227,6 +228,19 @@ def test_speaking_avatar_opt_in_is_public_and_has_no_provider_key_question() -> 
     assert set(secrets.provider_keys) == {"deepseek", "openai"}
 
 
+def test_world_opt_in_survives_reconfiguration_without_a_provider_key() -> None:
+    io = _ScriptedIO({**BASE_PUBLIC, "world": "yes"}, SECRETS)
+    public, secrets = _collect(io)
+    assert public.world is True
+    assert "world" in io.public_served
+    assert set(secrets.provider_keys) == {"deepseek", "openai"}
+    scripted = _ScriptedIO({key: "" for key in BASE_PUBLIC}, {})
+    candidate = collect_reconfiguration(
+        build_reconfiguration_questions(public), io=scripted.adapter(), current=public
+    )
+    assert candidate.world is True
+
+
 @pytest.mark.parametrize(
     ("exposure", "extra"),
     [
@@ -314,6 +328,14 @@ def test_older_answers_file_keeps_speaking_avatar_disabled(tmp_path: Path) -> No
     path = _write_answers(tmp_path / "answers.env", previous_answers)
     public, _secrets = _collect(_ScriptedIO({}, {}), non_interactive=True, answers_path=path)
     assert public.speaking_avatar is False
+
+
+def test_older_answers_file_keeps_world_disabled(tmp_path: Path) -> None:
+    previous_answers = {**BASE_PUBLIC, **SECRETS}
+    previous_answers.pop("world")
+    path = _write_answers(tmp_path / "answers.env", previous_answers)
+    public, _secrets = _collect(_ScriptedIO({}, {}), non_interactive=True, answers_path=path)
+    assert public.world is False
 
 
 def test_non_interactive_requires_an_answers_path() -> None:

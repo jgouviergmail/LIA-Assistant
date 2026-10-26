@@ -1,0 +1,88 @@
+import { vi } from 'vitest';
+
+/**
+ * Structurally complete Canvas 2D recording fixture, checked against lib.dom.
+ * Pixel, font and transform-readback operations require an explicit test driver;
+ * unit drawing contracts must not pretend that jsdom rasterizes a scene.
+ */
+export function canvasContext<T extends Partial<CanvasRenderingContext2D>>(overrides: T) {
+  const unsupported = (): never => {
+    throw new Error('This canvas recording fixture does not rasterize or read back transforms');
+  };
+  const gradient = (): CanvasGradient => ({ addColorStop: vi.fn() });
+  const base: CanvasRenderingContext2D = {
+    canvas: document.createElement('canvas'),
+    globalAlpha: 1,
+    globalCompositeOperation: 'source-over',
+    fillStyle: '#000',
+    strokeStyle: '#000',
+    filter: 'none',
+    imageSmoothingEnabled: true,
+    imageSmoothingQuality: 'low',
+    lineCap: 'butt',
+    lineDashOffset: 0,
+    lineJoin: 'miter',
+    lineWidth: 1,
+    miterLimit: 10,
+    shadowBlur: 0,
+    shadowColor: 'rgba(0, 0, 0, 0)',
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
+    direction: 'inherit',
+    font: '10px sans-serif',
+    fontKerning: 'auto',
+    fontStretch: 'normal',
+    fontVariantCaps: 'normal',
+    letterSpacing: '0px',
+    textAlign: 'start',
+    textBaseline: 'alphabetic',
+    textRendering: 'auto',
+    wordSpacing: '0px',
+    drawImage: vi.fn(),
+    beginPath: vi.fn(),
+    clip: vi.fn(),
+    fill: vi.fn(),
+    isPointInPath: unsupported,
+    isPointInStroke: unsupported,
+    stroke: vi.fn(),
+    createConicGradient: gradient,
+    createLinearGradient: gradient,
+    createPattern: unsupported,
+    createRadialGradient: gradient,
+    createImageData: unsupported,
+    getImageData: unsupported,
+    putImageData: unsupported,
+    arc: vi.fn(),
+    arcTo: vi.fn(),
+    bezierCurveTo: vi.fn(),
+    closePath: vi.fn(),
+    ellipse: vi.fn(),
+    lineTo: vi.fn(),
+    moveTo: vi.fn(),
+    quadraticCurveTo: vi.fn(),
+    rect: vi.fn(),
+    roundRect: vi.fn(),
+    getLineDash: () => [],
+    setLineDash: vi.fn(),
+    clearRect: vi.fn(),
+    fillRect: vi.fn(),
+    strokeRect: vi.fn(),
+    getContextAttributes: () => ({}),
+    isContextLost: () => false,
+    reset: vi.fn(),
+    restore: vi.fn(),
+    save: vi.fn(),
+    fillText: vi.fn(),
+    measureText: unsupported,
+    strokeText: vi.fn(),
+    getTransform: unsupported,
+    resetTransform: vi.fn(),
+    rotate: vi.fn(),
+    scale: vi.fn(),
+    setTransform: vi.fn(),
+    transform: vi.fn(),
+    translate: vi.fn(),
+    drawFocusIfNeeded: vi.fn(),
+  };
+  return Object.assign(base, overrides);
+}

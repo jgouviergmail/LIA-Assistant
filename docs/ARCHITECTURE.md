@@ -25,6 +25,33 @@ activation interactive facturée au clic ([cartes HTML](technical/HTML_CARDS.md)
 Ces flux réutilisent les contrats de sources et de contexte existants sans
 ajouter de clé d'état LangGraph pour une simple annotation ou un widget.
 
+## Monde partagé et fonctions privées
+
+Le [monde LIA](technical/WORLD_PROTOTYPE.md) propose une autre entrée dans
+l'application authentifiée : le navigateur dessine le campus isométrique,
+Redis arbitre l'admission, la file d'attente et les déplacements, et les panneaux
+natifs conservent les permissions, les quotas et les approbations de la personne.
+Le domaine `world` ne passe pas par LangGraph pour animer ou déplacer les acteurs.
+La perte de Redis suspend cette autorité ; aucun monde local de secours ne peut
+accepter des commandes concurrentes.
+
+Les tickets à usage unique sont liés au cookie de session, puis transmis dans
+la première trame WebSocket. Les projections partagées ne contiennent que les
+identités consenties et les mouvements publics : la maison, la météo et les
+activités personnelles restent privées. Les pairs acceptés et non bloqués voient
+seulement un statut de connexion grossier, y compris la présence dans la maison.
+Les échanges humains écrits restent distincts de la mémoire de l'assistante ;
+leurs corps sont éphémères dans Redis et leurs tentatives facturables ont des
+clôtures durables sans contenu dans PostgreSQL. Une traduction exige un accord
+explicite, utilise le créneau natif dédié et conserve les limites de dépense.
+Voir [ADR-365](architecture/ADR-365-Private-Native-LIA-In-An-Authoritative-Isometric-World.md).
+
+L'installateur offre ce monde sur choix de l'exploitant, sans service Compose ni
+clé supplémentaires. Le plafond `WORLD_ENABLED` et l'interrupteur administrateur
+restent deux conditions distinctes. La voix directe entre personnes demeure une
+proposition ; les preuves navigateur ne qualifient ni le matériel physique ni la
+fidélité linguistique du fournisseur.
+
 ## 📋 Table des Matières
 
 - [Vue d'Ensemble](#-vue-densemble)

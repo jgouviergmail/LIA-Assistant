@@ -85,6 +85,8 @@ interface CompanionPresenceProps {
   isAuthenticated: boolean;
   /** The application widget already carries the face; retain only its chat action. */
   renderAvatar?: boolean;
+  /** The world already represents LIA; keep receiving signals and show only attention. */
+  attentionOnly?: boolean;
   /** Report the off-chat background run to the application's one companion. */
   onWorkingChange?: (working: boolean) => void;
 }
@@ -137,11 +139,29 @@ function companionActivity(
   };
 }
 
+function companionPresentationVisible(input: {
+  mounted: boolean;
+  authenticated: boolean;
+  onChat: boolean;
+  attentionOnly: boolean;
+  working: boolean;
+  unread: number;
+  dismissed: boolean;
+}): boolean {
+  return (
+    input.mounted &&
+    input.authenticated &&
+    !input.onChat &&
+    (!input.attentionOnly || input.working || input.unread > 0 || input.dismissed)
+  );
+}
+
 export function CompanionPresence({
   isAuthenticated,
   ownerId,
   smsEnabled = false,
   renderAvatar = true,
+  attentionOnly = false,
   onWorkingChange,
 }: CompanionPresenceProps) {
   const { t } = useTranslation();
@@ -236,7 +256,18 @@ export function CompanionPresence({
     };
   }, [active]);
 
-  if (!mounted || !isAuthenticated || onChat) return null;
+  if (
+    !companionPresentationVisible({
+      mounted,
+      authenticated: isAuthenticated,
+      onChat,
+      attentionOnly,
+      working,
+      unread,
+      dismissed,
+    })
+  )
+    return null;
 
   const state = deriveCompanionState({ working, unreadCount: unread });
 
@@ -247,6 +278,7 @@ export function CompanionPresence({
         type="button"
         onClick={() => setDismissed(false)}
         aria-label={t('companion.restore')}
+        data-companion-presence
         // The dot stays 12 px; the TARGET is 44. The box is anchored to the
         // same corner and grows inward, so the dot does not move a pixel.
         className="group fixed bottom-6 right-6 z-40 flex h-11 w-11 items-end justify-end"
@@ -266,10 +298,13 @@ export function CompanionPresence({
     : t('companion.open_chat');
 
   return (
-    <div className="fixed bottom-6 right-6 z-40 flex flex-col items-center gap-1">
+    <div
+      data-companion-presence
+      className="fixed bottom-6 right-6 z-40 flex flex-col items-center gap-1"
+    >
       {/* Working: a small "thinking" bubble above the avatar */}
       {state.base === 'working' && (
-        <div className="rounded-full bg-card/80 backdrop-blur-md border border-border/30 px-2.5 py-1.5 shadow-md motion-safe:animate-greet-float">
+        <div className="rounded-full bg-card/80 backdrop-blur-md border px-2.5 py-1.5 shadow-md motion-safe:animate-greet-float">
           <TypingIndicator />
         </div>
       )}

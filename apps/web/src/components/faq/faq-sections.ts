@@ -29,6 +29,7 @@ import {
   ImageIcon,
   Library,
   Mail,
+  Map,
   MessageSquare,
   Mic,
   Package,
@@ -54,6 +55,7 @@ import {
 export const FAQ_SECTION_ICONS: Record<string, LucideIcon> = {
   getting_started: Zap,
   chat: MessageSquare,
+  world: Map,
   settings: Settings,
   connectors: Globe,
   telephony: PhoneCall,
@@ -97,6 +99,7 @@ export const FAQ_SECTIONS = [
   'getting_started',
   'today',
   'chat',
+  'world',
   'settings',
   'connectors',
   'telephony',
@@ -138,14 +141,15 @@ export const FAQ_SECTIONS = [
  * FAQ sections shown to signed-out visitors on /faq, in display order.
  *
  * Selection rationale: the questions a prospect asks BEFORE creating an
- * account — what LIA is (getting_started), which services it plugs into
- * (connectors), its boldest differentiators (telephony, voice_mode, radio,
+ * account — what LIA is (getting_started), its shared world (world), which
+ * services it plugs into (connectors), its boldest differentiators (telephony, voice_mode, radio,
  * image_generation), the trust base (privacy, registers) and how to run it
  * yourself (self_hosting). App-operation sections (settings, usage limits,
  * journals…) stay behind login where they make sense.
  */
 export const PUBLIC_FAQ_SECTIONS = [
   'getting_started',
+  'world',
   'connectors',
   'telephony',
   'voice_mode',

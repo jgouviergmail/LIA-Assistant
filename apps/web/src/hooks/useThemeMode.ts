@@ -65,6 +65,12 @@ export function useThemeMode(): UseThemeMode {
   useEffect(() => {
     setOled(readStoredOled());
     setMounted(true);
+    // Multiple native controls share the already-applied DOM refinement.
+    // Observing its one writer avoids a second theme store or preference PATCH.
+    const root = document.documentElement;
+    const observer = new MutationObserver(() => setOled(root.hasAttribute('data-oled')));
+    observer.observe(root, { attributes: true, attributeFilter: ['data-oled'] });
+    return () => observer.disconnect();
   }, []);
 
   // One-way sync, server → local. Keyed on the owner and persisted value: adding

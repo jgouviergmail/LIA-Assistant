@@ -274,6 +274,7 @@ def _answer_variants() -> list[PublicAnswers]:
         replace(lan, live_mode=True),
         replace(lan, personal_radio=True),
         replace(lan, speaking_avatar=True),
+        replace(lan, world=True),
     ]
 
 
@@ -288,6 +289,19 @@ def test_every_value_an_answer_moves_is_declared_answer_derived() -> None:
         moved |= {key for key, value in derived.items() if value != base.get(key)}
     assert moved <= ANSWER_DERIVED_KEYS, sorted(moved - ANSWER_DERIVED_KEYS)
     assert ANSWER_DERIVED_KEYS <= moved, sorted(ANSWER_DERIVED_KEYS - moved)
+
+
+def test_world_follows_operator_choice_and_preserves_tuned_admission() -> None:
+    generated = generate_secrets()
+    disabled = derive_environment(_public(), generated)
+    enabled = derive_environment(replace(_public(), world=True), generated)
+    assert disabled["WORLD_ENABLED"] == "false"
+    assert enabled["WORLD_ENABLED"] == "true"
+    current = "WORLD_ENABLED=false\nWORLD_CAPACITY=3\nWORLD_NAMESPACE=operator-instance\n"
+    candidate = render_reconfigured_env(current, enabled)
+    assert "WORLD_ENABLED=true\n" in candidate
+    assert "WORLD_CAPACITY=3\n" in candidate
+    assert "WORLD_NAMESPACE=operator-instance\n" in candidate
 
 
 def test_a_reconfigured_env_moves_only_what_the_answers_decide() -> None:

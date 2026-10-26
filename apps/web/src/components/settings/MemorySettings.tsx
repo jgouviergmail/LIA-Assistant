@@ -131,6 +131,10 @@ function isAtPurgeRisk(memory: Memory): boolean {
   return memory.purge_risk === 'at_risk' || memory.purge_risk === 'imminent';
 }
 
+function memoryDetailTone(pinned: boolean | undefined): string {
+  return pinned ? 'text-foreground' : 'text-muted-foreground';
+}
+
 export function MemorySettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { user, refreshUser } = useAuth();
@@ -533,7 +537,11 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
                                 {memory.content}
                               </p>
                               {memory.usage_nuance && (
-                                <p className="text-xs text-muted-foreground mt-1 italic">
+                                <p
+                                  className={
+                                    'text-xs mt-1 italic ' + memoryDetailTone(memory.pinned)
+                                  }
+                                >
                                   {memory.usage_nuance}
                                 </p>
                               )}
@@ -554,10 +562,15 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
                                 glyph-prefixed) said little and doubled the
                                 row's footprint — a 390px screen wrapped this
                                 into three lines of fragments. */}
-                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
+                              <div
+                                className={
+                                  'flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 ' +
+                                  memoryDetailTone(memory.pinned)
+                                }
+                              >
                                 {memory.created_at && (
                                   <span
-                                    className="text-xs text-muted-foreground flex items-center gap-1"
+                                    className="text-xs flex items-center gap-1"
                                     title={t('memories.created_at')}
                                   >
                                     <Clock className="h-3 w-3" aria-hidden="true" />
@@ -567,7 +580,7 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
                                 {typeof memory.usage_count === 'number' &&
                                   memory.usage_count > 0 && (
                                     <span
-                                      className="text-xs text-muted-foreground flex items-center gap-1"
+                                      className="text-xs flex items-center gap-1"
                                       title={t('memories.usage_count')}
                                     >
                                       <RefreshCw className="h-3 w-3" aria-hidden="true" />
@@ -575,10 +588,7 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
                                     </span>
                                   )}
                                 {typeof memory.importance === 'number' && (
-                                  <span
-                                    className="text-xs text-muted-foreground"
-                                    title={t('memories.field_importance')}
-                                  >
+                                  <span className="text-xs" title={t('memories.field_importance')}>
                                     ★ {(memory.importance * 100).toFixed(0)}%
                                   </span>
                                 )}

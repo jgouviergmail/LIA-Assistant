@@ -39,9 +39,13 @@ logger = structlog.get_logger(__name__)
 #: ``test_usage_guard_at_every_chokepoint`` refuses both an omission and a
 #: declared door that never calls the guard.
 LLM_CHOKEPOINTS: tuple[tuple[str, str], ...] = (
+    ("domains/world/translation.py", "accounted_translation"),
     ("domains/journals/consolidation_controls.py", "check_consolidation_embedding"),
     ("domains/journals/manual_embeddings.py", "prepare_manual_journal_embeddings"),
-    ("domains/interests/services/extraction_storage.py", "prepare_extraction_embeddings"),
+    (
+        "domains/interests/services/extraction_storage.py",
+        "prepare_extraction_embeddings",
+    ),
     ("domains/agents/application/interest_embeddings.py", "prepare_interest_embedding"),
     ("domains/user_mcp/connection_embeddings.py", "build_connection_embeddings"),
     (

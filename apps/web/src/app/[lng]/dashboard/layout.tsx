@@ -19,6 +19,7 @@ import { ConnectorHealthAlert } from '@/components/connectors/ConnectorHealthAle
 import { OnboardingTutorial } from '@/components/onboarding';
 import { AvatarProvider } from '@/components/avatars/AvatarProvider';
 import { AvatarPreferenceSaveProvider } from '@/components/avatars/AvatarPreferenceSaveProvider';
+import { worldAvailable } from '@/features/world/availability';
 import { capabilityEnabled } from '@/lib/capability-state';
 import { ApplicationEyes } from '@/components/eyes/ApplicationEyes';
 import { usePsycheStore } from '@/stores/psycheStore';
@@ -49,6 +50,7 @@ import {
   Settings,
   HelpCircle,
   LogOut,
+  Map as MapIcon,
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
@@ -61,6 +63,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 const DESTINATION_ICONS: Record<DashboardDestination['segment'], typeof LayoutDashboard> = {
   '': LayoutDashboard,
   chat: MessageSquare,
+  world: MapIcon,
   relations: Users,
   meetings: ClipboardList,
   notifications: Bell,
@@ -72,9 +75,22 @@ interface DashboardLayoutProps {
   params: Promise<{ lng: string }>;
 }
 
+/** A scene owns its animation budget while the shared application providers stay mounted. */
+function dashboardPresentation(pathname: string | null) {
+  if (pathname?.endsWith('/dashboard/world')) {
+    return { background: null, mainClass: 'w-full px-2 pb-2 pt-2 sm:px-4', hideEyes: true };
+  }
+  return {
+    background: <AppCosmos />,
+    mainClass: 'w-full max-w-7xl mx-auto pt-4 pb-0 px-4 sm:px-6 lg:px-8',
+    hideEyes: false,
+  };
+}
+
 export default function DashboardLayout({ children, params }: DashboardLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const presentation = dashboardPresentation(pathname);
   const { user, isLoading, logout } = useAuth();
   useEffect(() => {
     // The companion also lives on pages that never fetch psyche. An account
@@ -89,7 +105,10 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
   const { config: appConfig } = useAppConfig();
   // ADR-258: the meetings destination exists only where the instance offers
   // the feature — the same list feeds the desktop nav and the mobile menu.
-  const destinations = visibleDestinations(appConfig?.features);
+  const destinations = visibleDestinations({
+    ...appConfig?.features,
+    world_enabled: worldAvailable(appConfig),
+  });
   // ADR-324: the radio is offered — header control, logo-menu entry, bar —
   // only where the instance offers it NOW (the operator's switch included).
   const radioEnabled = radioAvailable(appConfig);
@@ -209,7 +228,7 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
             an in-flow background here would cover). The header stays opaque,
             and so do the pages' own panels and cards (owner, 2026-10-03). */}
               <div className="min-h-screen">
-                <AppCosmos />
+                {presentation.background}
 
                 {/* Admin Broadcast Modal */}
                 <BroadcastModal lng={lng} />
@@ -343,7 +362,7 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
                 <ConnectorHealthAlert lng={lng} />
 
                 {/* Main Content - Reduced top spacing, no bottom padding for full-page apps */}
-                <main className="w-full max-w-7xl mx-auto pt-4 pb-0 px-4 sm:px-6 lg:px-8">
+                <main className={presentation.mainClass}>
                   {/* The recording banner: sticky under the header, on every page, so
               the capture can always be seen and stopped (ADR-259). */}
                   <MeetingRecorderBannerSlot lng={lng} />
@@ -364,6 +383,7 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
 
                 {/* One animated avatar and its notification shortcut across all pages. */}
                 <ApplicationEyes
+                  hidePresentation={presentation.hideEyes}
                   ownerId={user?.id}
                   smsEnabled={capabilityEnabled(
                     appConfig?.capabilities,

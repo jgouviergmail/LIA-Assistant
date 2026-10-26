@@ -88,6 +88,10 @@ Check this FAQ - your question may already have an answer!
 
 The film is in French. It presents LIA’s uses through faithfully reconstructed screens and demonstration data, animated native companions and original music generated with Google Lyria. It is not a recording of your session or evidence that a provider executed every operation shown. Settings and confirmations remain available in the application.
 
-## Are the local-model and isometric-world projects available?
+## Are oMLX, llama.cpp and LM Studio integrations available?
 
-The oMLX, llama.cpp and LM Studio studies and the isometric world are qualification or design work, not new shipped integrations. Use the providers actually offered by your instance. The Simli video avatar remains experimental, opt-in and dependent on an external service; it is separate from native companions.
+Those local-model studies remain qualification or design work. Use the providers actually offered by your instance.
+
+**LIA World** is available when the operator enables it: shared presence, private native LIA tools and text correspondence with consented translation are included. See the World section for its scope.
+
+The Simli video avatar remains experimental, opt-in and dependent on an external service; it is separate from native companions.

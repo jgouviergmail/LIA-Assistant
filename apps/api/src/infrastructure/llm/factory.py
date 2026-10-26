@@ -258,6 +258,7 @@ LLMType = Literal[
     "radio_verifier",
     "radio_translator",
     "radio_voice",
+    "world_message_translator",
 ]
 
 

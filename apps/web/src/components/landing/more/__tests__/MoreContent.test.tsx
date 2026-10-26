@@ -16,11 +16,11 @@ import { MORE_CARD_KEYS, MORE_SECTIONS } from '../more-data';
 import { MoreContent } from '../MoreContent';
 
 describe('MoreContent', () => {
-  it('renders the full heading hierarchy: 1 h1, 8 h2, one h3 per card', () => {
+  it('renders the heading hierarchy with the world attentions and one h3 per animated card', () => {
     render(<MoreContent lng="fr" />);
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-    // 6 moment sections + the craft band + the CTA block reusing landing.cta.
-    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(MORE_SECTIONS.length + 2);
+    // The moment sections, world attentions, craft band and shared CTA.
+    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(MORE_SECTIONS.length + 3);
     expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(MORE_CARD_KEYS.length);
   });
 
@@ -69,5 +69,15 @@ describe('MoreContent', () => {
       'href',
       '/en/register'
     );
+  });
+
+  it.each([
+    ['fr', '/#chapter-world'],
+    ['en', '/en#chapter-world'],
+  ])('links the world attentions to the localized chapter (%s)', (lng, href) => {
+    render(<MoreContent lng={lng} />);
+    expect(screen.getByRole('link', { name: 'more.world.link' })).toHaveAttribute('href', href);
+    expect(screen.getByText('more.world.privacy_body')).toBeVisible();
+    expect(screen.getByText('more.world.messages_body')).toBeVisible();
   });
 });

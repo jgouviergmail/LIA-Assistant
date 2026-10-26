@@ -42,6 +42,14 @@ if (-not $pester) {
 # `PassedCount -eq 0` ci-dessous reste la garde qui attrape une decouverte
 # vide (repertoire deplace, filtre casse) : zero test passe est un echec, pas
 # un succes silencieux.
+# Synthetic repositories must never use the caller's index, worktree or Git dir.
+# This process is the test boundary; Git declares the complete local variable list.
+$gitRepositoryVariables = @(& git rev-parse --local-env-vars)
+if ($LASTEXITCODE -ne 0) { throw "Cannot determine Git repository-local variables" }
+foreach ($gitRepositoryVariable in $gitRepositoryVariables) {
+    Remove-Item -LiteralPath "Env:$gitRepositoryVariable" -ErrorAction SilentlyContinue
+}
+
 $result = Invoke-Pester -Path $PSScriptRoot -PassThru
 if ($result.FailedCount -gt 0 -or $result.PassedCount -eq 0) { exit 1 }
 exit 0

@@ -394,6 +394,12 @@
       "role": "Archiva los textos enviados por el teléfono, resuelve remitentes y los muestra en chat, relaciones e inicio con acceso explícito del asistente.",
       "goal": "Mantener un archivo personal consultable con permisos separados de recepción, push y modelo.",
       "src": "4972a13608d3"
+    },
+    "f.world": {
+      "name": "El mundo LIA",
+      "role": "Un campus isométrico compartido con movimiento, mapa, LIA y conversaciones escritas públicas o directas. Tu nombre de cuenta y tu apariencia son visibles con tu consentimiento; las funciones y el hogar siguen siendo privados, y las traducciones consentidas respetan las cuotas habituales.",
+      "goal": "Encontrar a otras personas y usar tu propio LIA en un lugar agradable sin compartir datos personales.",
+      "src": "ab920566adb0"
     }
   },
   "flows": {

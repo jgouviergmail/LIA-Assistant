@@ -25,6 +25,8 @@ import {
   within,
 } from '@/__tests__/test-utils';
 import { CHAT_INPUT_MAX_HEIGHT_PX } from '@/lib/constants';
+import { composerFeatureFlags } from '@/lib/chat-composer-capabilities';
+import { appConfigFixture } from '@/__tests__/fixtures/app-config';
 import type {
   UseVoiceInputOptions,
   UseVoiceInputReturn,
@@ -1130,5 +1132,43 @@ describe('voice spotlight (N-13 — the ?voice=1 PWA shortcut)', () => {
     const button = screen.getByRole('button', { name: 'chat.voice.hold_to_speak' });
     expect(button).not.toHaveFocus();
     expect(button.classList.contains('voice-ptt-spotlight')).toBe(false);
+  });
+});
+
+describe('shared chat workspace capability integration', () => {
+  const config = appConfigFixture({
+    features: { bookmarks_enabled: true, meetings_enabled: true, meetings_import_enabled: true },
+  });
+
+  it.each([
+    ['from_bookmark', 'bookmark-picker'],
+    ['from_generated', 'generated-picker'],
+    ['import_meeting', 'meeting-import'],
+  ])('opens %s from the instance configuration without sending a message', async (entry, dialog) => {
+    const send = vi.fn();
+    const { user } = renderWithProviders(
+      <ChatInput onSendMessage={send} {...composerFeatureFlags(config)} />
+    );
+    await user.click(screen.getByRole('button', { name: 'chat.attachments.add' }));
+    const menu = await screen.findByRole('menu');
+    expect(within(menu).getByRole('menuitem', { name: /from_bookmark/ })).toBeVisible();
+    expect(within(menu).getByRole('menuitem', { name: /from_generated/ })).toBeVisible();
+    // The import door is advertised independently of a mounted microphone recorder.
+    expect(within(menu).getByRole('menuitem', { name: /import_meeting/ })).toBeVisible();
+    await user.click(within(menu).getByRole('menuitem', { name: new RegExp(entry) }));
+    await waitFor(() => expect(screen.getByTestId(dialog)).toBeInTheDocument());
+    expect(send).not.toHaveBeenCalled();
+    expect(upload.uploadFile).not.toHaveBeenCalled();
+  });
+
+  it('keeps generated files readable while unadvertised capabilities stay hidden', async () => {
+    const { user } = renderWithProviders(
+      <ChatInput onSendMessage={vi.fn()} {...composerFeatureFlags(null)} />
+    );
+    await user.click(screen.getByRole('button', { name: 'chat.attachments.add' }));
+    const menu = await screen.findByRole('menu');
+    expect(within(menu).getByRole('menuitem', { name: /from_generated/ })).toBeVisible();
+    expect(within(menu).queryByRole('menuitem', { name: /from_bookmark/ })).not.toBeInTheDocument();
+    expect(within(menu).queryByRole('menuitem', { name: /import_meeting/ })).not.toBeInTheDocument();
   });
 });

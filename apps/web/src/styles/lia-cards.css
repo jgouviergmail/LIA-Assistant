@@ -1141,6 +1141,8 @@
     display: block;
     white-space: normal;
     color: var(--lia-text-secondary);
+    /* The secondary token already sets contrast; do not attenuate it again. */
+    opacity: 1;
     line-height: 1.35;
   }
 

@@ -4,7 +4,7 @@
 
 **Versione**: 2.6
 **Data**: 2026-10-23
-**Applicazione**: LIA v3.7.0
+**Applicazione**: LIA v4.0.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | Indicatore | Valore |
 | --- | --- |
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
-| Righe di codice sorgente (esclusi i test) — 58 domini funzionali | **1.003.000+** |
-| Test automatizzati inventariati; suite adeguate a commit e rilascio | **67.000+** |
-| Decisioni di architettura documentate (ADR) | **362** |
-| Versioni rilasciate a ritmo regolare | **289** |
+| Righe di codice sorgente (esclusi i test) — 60 pacchetti di dominio backend | **1.038.000+** |
+| Test automatizzati inventariati; suite adeguate a commit e rilascio | **68.000+** |
+| Decisioni di architettura documentate (ADR) | **363** |
+| Versioni rilasciate a ritmo regolare | **290** |
 | Lingue, parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **7,9/10** |
 
@@ -66,11 +66,18 @@ La stessa regola guida il racconto: preparare non significa completare. Una rich
 
 Il progetto è ora condotto con più agenti di sviluppo in parallelo — ciascuno sul proprio cantiere, a volte nello stesso albero di lavoro. Ciò che li tiene insieme non è il coordinamento tra loro, ma il referenziale comune: le stesse regole scritte, le stesse guardie, gli stessi controlli prima di ogni consegna. Un agente può rinominare un pulsante; è una guardia a ricordare che l'aiuto, la ricerca nelle impostazioni e il vocabolario con cui LIA si descrive devono seguire. E la consegna che riunisce questi cantieri comincia da un inventario di ciò che ciascuno ha davvero cambiato — mai da ciò che annuncia.
 
+
+### Un luogo d’incontro con responsabilità intatte
+
+Un mondo condiviso dà all’assistente un vocabolario di luoghi: biblioteca per la conoscenza, sala multimediale per creare, giardino da esplorare insieme. La decisione tecnica utile riguarda ciò che attraversa ogni confine. Un avatar pubblico esprime una scelta; non espone il contesto dell’assistente né la casa privata. Una stanza apre uno strumento esistente senza concedere un nuovo permesso.
+
+La conversazione segue la stessa logica. I messaggi umani hanno una vita temporanea e separata. La traduzione si sceglie e si contabilizza; movimento e disegno non chiamano modelli. Un’interfaccia più ricca resta governabile quando costi, proprietà e conferme mantengono lo stesso significato.
+
 ---
 
 ## 4. Gli arbitraggi
 
-Tre decisioni strutturanti, tra le 362 documentate:
+Tre decisioni strutturanti, tra le 363 documentate:
 
 **Sovranità e reversibilità — nessuna dipendenza irreversibile dal fornitore.** I modelli IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelli locali via Ollama) stanno dietro un'astrazione unica: ogni utilizzo può cambiare fornitore per configurazione, con confronto dei costi. Stesso principio sul lato business: Google, Apple e Microsoft sono intercambiabili per categoria funzionale. L'auto-hosting ti dà il controllo del server; i dati dell'account risiedono nell'istanza e le credenziali dei connettori sono cifrate. I servizi remoti che scegli ricevono comunque i dati necessari per la loro parte della richiesta.
 
@@ -138,4 +145,4 @@ Ciò che questa esperienza cambia in una pratica di direzione:
 - **Tra il divieto generale e la fiducia cieca, esiste una via governabile.** Il controllo umano graduato si specifica, si testa e si audita; è l'approccio che le esigenze regolamentari stanno delineando, ed è operativo fin da ora.
 - **Un dirigente che pratica arbitra meglio.** Fare o far fare, debito accettabile o no, promessa del fornitore credibile o no — queste decisioni guadagnano in giustezza quando si è messa alla prova la materia. Questo progetto è un modo di mantenere questa vicinanza al terreno.
 
-*Progetto personale, condotto al di fuori di ogni attività professionale. Valutazione tecnica dall’audit di luglio 2026, con rilievi contro-verificati. I conteggi strutturali seguono il repository; le righe di codice sorgente sono state rimisurate il 2026-10-22. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Progetto personale, condotto al di fuori di ogni attività professionale. Valutazione tecnica dall’audit di luglio 2026, con rilievi contro-verificati. I conteggi strutturali seguono il repository; le righe di codice sorgente sono state rimisurate il 2026-10-26. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

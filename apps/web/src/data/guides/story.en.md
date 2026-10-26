@@ -4,7 +4,7 @@
 
 **Version**: 2.6
 **Date**: 2026-10-23
-**Application**: LIA v3.7.0
+**Application**: LIA v4.0.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
-| Source lines (excluding tests) — 58 functional domains | **1,003,000+** |
-| Inventoried automated tests; suites selected for commits and releases | **67,000+** |
-| Documented architecture decisions (ADR) | **362** |
-| Versions shipped at a steady pace | **289** |
+| Source lines (excluding tests) — 60 backend domain packages | **1,038,000+** |
+| Inventoried automated tests; suites selected for commits and releases | **68,000+** |
+| Documented architecture decisions (ADR) | **363** |
+| Versions shipped at a steady pace | **290** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **7.9/10** |
 
@@ -66,11 +66,18 @@ The same rule governs the story: preparation is not completion. A waiting reques
 
 The project is now run with several development agents in parallel — each on its own work, sometimes in the same working tree. What holds them together is not coordination between them but the shared frame: the same written rules, the same guards, the same gates before any delivery. An agent may rename a button; it is a guard that reminds everyone that the help, the settings search and the vocabulary LIA uses to describe itself must follow. And the delivery that brings this work together starts with an inventory of what each one actually changed — never with what it announces.
 
+
+### A place to meet, with responsibilities intact
+
+A shared world gives the assistant a physical vocabulary: a library for knowledge, a multimedia studio for creation, a garden to explore with someone. The useful engineering decision is what crosses each boundary. A public avatar expresses a person’s choice; it exposes neither their assistant’s context nor their private home. A room opens an existing tool without granting a new permission.
+
+This applies to conversation too. Human messages have a separate, temporary lifetime. Translation is chosen and accounted for, while walking and drawing call no model. A richer interface remains governable when its costs, ownership and confirmations keep the same meaning.
+
 ---
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 362 documented:
+Three structural decisions, among the 363 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Self-hosting gives you control of the server; account data is stored on the instance and connector credentials are encrypted. The remote services you choose still receive the data needed for their part of a request.
 
@@ -138,4 +145,4 @@ What this experience changes in a management practice:
 - **Between blanket prohibition and blind trust, there is a governable path.** Graded human control can be specified, tested and audited; it is the approach regulatory requirements are converging on, and it is operational today.
 - **A leader who practices arbitrates better.** Build or buy, acceptable debt or not, credible vendor promise or not — these decisions gain accuracy when you have worked the material yourself. This project is a way of maintaining that proximity to the field.
 
-*Personal project, carried out outside any professional activity. Technical assessment from the July 2026 audit, with findings cross-checked. Structural counts follow the repository; source lines were measured again on 2026-10-22. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Personal project, carried out outside any professional activity. Technical assessment from the July 2026 audit, with findings cross-checked. Structural counts follow the repository; source lines were measured again on 2026-10-26. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

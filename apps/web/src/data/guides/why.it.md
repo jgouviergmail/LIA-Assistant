@@ -4,7 +4,7 @@
 
 **Versione**: 6.6
 **Data**: 2026-10-23
-**Applicazione**: LIA v3.7.0
+**Applicazione**: LIA v4.0.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -291,6 +291,15 @@ L'amministratore mantiene il controllo sui consumi:
 
 Immagina: un Raspberry Pi nel tuo salotto, e tutta la famiglia che gode di un assistente IA intelligente — ognuno con la propria esperienza personalizzata, i propri ricordi, il proprio stile di conversazione, e un assistente che sviluppa con lui la propria relazione emotiva. L'istanza resta sotto il tuo controllo; i modelli o servizi remoti utilizzati ricevono i dati necessari per la loro parte della richiesta.
 
+
+### 4.4. Un mondo da abitare insieme
+
+Il mondo di LIA offre alla tua istanza una casa e un giardino condivisi. Ti muovi con l’avatar scelto, ritrovi altri partecipanti non bloccati e lasci che LIA ti accompagni. La biblioteca porta alla conoscenza, la sala multimediale alle creazioni e la sala di divinazione alle routine. Il laboratorio di ingegneria riunisce competenze ed estensioni. Tastiera, touch, zoom e minimappa permettono di esplorare; l’applicazione abituale resta disponibile.
+
+Condividere un luogo non condivide la tua assistente. L’ingresso chiede il consenso a mostrare nome e avatar nel mondo; le connessioni accettate vedono anche presenza generale e se sei in casa. Casa, colori, documenti e pannelli dell’assistente restano privati. Una stanza apre le stesse funzioni native con gli stessi permessi, costi e conferme; entrarci non esegue mai un’azione preparata.
+
+Puoi anche scambiare testo privato con un partecipante disponibile non bloccato o scegliere esplicitamente il canale Tutti per le persone presenti negli spazi condivisi. L’originale resta disponibile. Tradurre è una scelta esplicita a pagamento, conteggiata nei consumi; un tentativo fallito o incerto non viene ripetuto automaticamente. Questi messaggi umani temporanei restano separati da cronologia e memoria di LIA. La disponibilità dipende dalle funzioni attive nell’istanza; la voce tra avatar resta fuori da questa versione.
+
 ---
 
 ## 5. Sovrano e frugale
@@ -401,7 +410,7 @@ La stessa esigenza governa ciò che LIA trattiene delle tue indicazioni: ogni re
 
 ### 6.8. Una superficie che descrive il prodotto ne risponde
 
-La trasparenza ha un modo di fallire che nessuno nota: uno schermo che smette silenziosamente di dire il vero. Niente si rompe, nessun test diventa rosso, e la pagina che esisteva per essere aggiornata diventa la meno aggiornata dell'applicazione. La mappa delle capacità — la pagina che risponde _che cosa sa fare il mio assistente per me?_ — non si mantiene quindi più a mano: ogni capacità che la piattaforma sa attivare o spegnere deve avere lì il suo posto dichiarato, e una capacità rilasciata senza quella decisione impedisce all'applicazione di avviarsi. La stessa convinzione, un gradino oltre: ciò che uno schermo afferma dei tuoi dati dev'essere **esatto o assente**. Un conteggio è il numero che restituisce il database, mai una lunghezza che si trovava a portata di mano; e finché la risposta è in arrivo, o quando è fallita, la scheda non dice nulla anziché indovinare. «Niente di configurato» è un'affermazione sul tuo account — di quelle di cui è meglio essere sicuri prima di pronunciarle. La FAQ segue la stessa esigenza: ogni funzione che una persona può usare vi ha la sua sezione — 506 domande, in sei lingue —, e una sezione tradotta che l'ordine di visualizzazione dimenticasse fa fallire i test invece di restare invisibile.
+La trasparenza ha un modo di fallire che nessuno nota: uno schermo che smette silenziosamente di dire il vero. Niente si rompe, nessun test diventa rosso, e la pagina che esisteva per essere aggiornata diventa la meno aggiornata dell'applicazione. La mappa delle capacità — la pagina che risponde _che cosa sa fare il mio assistente per me?_ — non si mantiene quindi più a mano: ogni capacità che la piattaforma sa attivare o spegnere deve avere lì il suo posto dichiarato, e una capacità rilasciata senza quella decisione impedisce all'applicazione di avviarsi. La stessa convinzione, un gradino oltre: ciò che uno schermo afferma dei tuoi dati dev'essere **esatto o assente**. Un conteggio è il numero che restituisce il database, mai una lunghezza che si trovava a portata di mano; e finché la risposta è in arrivo, o quando è fallita, la scheda non dice nulla anziché indovinare. «Niente di configurato» è un'affermazione sul tuo account — di quelle di cui è meglio essere sicuri prima di pronunciarle. La FAQ segue la stessa esigenza: ogni funzione che una persona può usare vi ha la sua sezione — 518 domande, in sei lingue —, e una sezione tradotta che l'ordine di visualizzazione dimenticasse fa fallire i test invece di restare invisibile.
 
 La trasparenza vale anche per le regole interne dell'assistente. Un vincolo che il sistema applica deve essere pubblicato a chi lo subisce: quando l'apprendimento delle abitudini non rileva nulla, le Impostazioni mostrano la soglia realmente richiesta — più severa nel weekend, dove i giorni osservati sono meno — invece di un silenzio inspiegato. E quando una regolazione si aggiusta da sola, come la soglia che decide se una nota del diario entra in una risposta, lo fa entro limiti rigidi, un piccolo passo al giorno, con un interruttore di spegnimento e ogni aggiustamento conteggiato: un sistema che apprende è accettabile solo se resta osservabile e disattivabile.
 

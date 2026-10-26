@@ -100,6 +100,8 @@ EXPECTED_CAPABILITIES: frozenset[str] = frozenset(
         # A personal avatar owns provider sessions independently of Live/TTS.
         "avatar",
         "application_tools",
+        # Shared presence has its own server-enforced admission/operator ceiling.
+        "world",
     }
 )
 

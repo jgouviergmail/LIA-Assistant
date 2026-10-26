@@ -1,5 +1,5 @@
 /**
- * Single source of truth for the editorial landing narrative (chapters 01-06
+ * Single source of truth for the editorial landing narrative (chapters 01-07
  * plus the basics band). Every detailed feature card of the former features
  * wall is re-parented here — never deleted — and rendered inside the
  * per-chapter expandable catalogs, reusing the translated
@@ -84,14 +84,16 @@ import {
   SquareKanban,
 } from 'lucide-react';
 
-export type ChapterId = 'act' | 'know' | 'anticipate' | 'control' | 'grow' | 'connect';
+export type ChapterId = 'act' | 'know' | 'anticipate' | 'control' | 'grow' | 'connect' | 'world';
+
+export const WORLD_CHAPTER_ANCHOR = 'chapter-world';
 
 export interface ChapterConfig {
   id: ChapterId;
-  /** Shared functional illustration from the hero demonstration. */
+  /** Shared illustration tone and fallback scene; a chapter may show a capture. */
   scene: ProductSceneId;
-  /** i18n suffix under `landing.chapters.` (c1..c6). */
-  key: 'c1' | 'c2' | 'c3' | 'c4' | 'c5' | 'c6';
+  /** i18n suffix under `landing.chapters.`. */
+  key: 'c1' | 'c2' | 'c3' | 'c4' | 'c5' | 'c6' | 'c7';
   /** Anchor id (chapter rail + deep links). */
   anchor: string;
   num: string;
@@ -222,8 +224,37 @@ export const CHAPTERS: readonly ChapterConfig[] = [
     num: '06',
     mood: '🙂',
     benefits: 3,
-    catalog: ['peers', 'peer_shares', 'peer_safety'],
+    catalog: [
+      'peers',
+      'peer_shares',
+      'peer_capabilities',
+      'peer_provenance',
+      'peer_images',
+      'peer_presence',
+      'peer_safety',
+    ],
     tinted: true,
+  },
+  {
+    id: 'world',
+    scene: 'relay',
+    key: 'c7',
+    anchor: WORLD_CHAPTER_ANCHOR,
+    num: '07',
+    mood: '🙂',
+    benefits: 3,
+    catalog: [
+      'world',
+      'world_companion',
+      'world_functions',
+      'world_atmosphere',
+      'world_controls',
+      'world_access',
+      'world_home',
+      'world_messages',
+      'world_audio',
+    ],
+    tinted: false,
   },
 ] as const;
 
@@ -278,8 +309,21 @@ export const REQUIRED_FEATURE_KEYS: readonly string[] = [
   'bookmarks',
   'personal_crm',
   'sms_archive',
+  'world',
+  'world_companion',
+  'world_functions',
+  'world_atmosphere',
+  'world_controls',
+  'world_access',
+  'world_home',
+  'world_messages',
+  'world_audio',
   'peers',
   'peer_shares',
+  'peer_capabilities',
+  'peer_provenance',
+  'peer_images',
+  'peer_presence',
   'peer_safety',
   'personalities',
   'psyche',
@@ -352,8 +396,21 @@ export const FEATURE_ICONS: Record<string, LucideIcon> = {
   bookmarks: Bookmark,
   personal_crm: Users,
   sms_archive: MessagesSquare,
+  world: Globe,
+  world_companion: Bot,
+  world_functions: LayoutGrid,
+  world_atmosphere: CloudSun,
+  world_controls: MousePointerClick,
+  world_access: UserCheck,
+  world_home: Palette,
+  world_messages: MessageCircle,
+  world_audio: AudioLines,
   peers: Handshake,
   peer_shares: KeyRound,
+  peer_capabilities: Package,
+  peer_provenance: FileOutput,
+  peer_images: ImagePlus,
+  peer_presence: Users,
   peer_safety: ShieldAlert,
   personalities: Smile,
   psyche: Heart,

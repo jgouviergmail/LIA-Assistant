@@ -86,7 +86,7 @@ export function WeatherCard({ section, isRefreshing, onRefresh, staggerIndex }: 
   );
 }
 
-function WeatherContent({ data }: { data: WeatherData }) {
+export function WeatherContent({ data }: { data: WeatherData }) {
   const { t } = useTranslation();
   const tempLabel = t('dashboard.briefing.cards.weather.temp', {
     value: Math.round(data.temperature_c),

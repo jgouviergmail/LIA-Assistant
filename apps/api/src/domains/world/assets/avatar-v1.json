@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "defaults": {
+    "version": 1,
+    "skin": "caramel",
+    "hair": "short",
+    "hair_color": "brown",
+    "outfit": "casual",
+    "outfit_color": "green",
+    "headwear": "none",
+    "headwear_color": "blue",
+    "glasses": false
+  },
+  "hair": [
+    "bald",
+    "short",
+    "long",
+    "curly",
+    "ponytail",
+    "mohawk"
+  ],
+  "colors": [
+    "charcoal",
+    "brown",
+    "silver",
+    "gold",
+    "red",
+    "green",
+    "blue",
+    "violet",
+    "cream",
+    "orange"
+  ],
+  "skins": [
+    "porcelain",
+    "sand",
+    "caramel",
+    "walnut",
+    "espresso"
+  ],
+  "outfits": [
+    "casual",
+    "suit",
+    "dress"
+  ],
+  "headwear": [
+    "none",
+    "cap",
+    "beanie",
+    "hat"
+  ]
+}

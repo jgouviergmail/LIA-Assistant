@@ -1,0 +1,103 @@
+{
+  "optimizedBuild": ".next-world-districts-g17c",
+  "stats": {
+    "startTime": "2026-10-24T20:49:53.527Z",
+    "duration": 353889.04799999995,
+    "expected": 18,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "cases": [
+    {
+      "title": "a real bilingual conversation works in both directions and a failed translation remains recoverable",
+      "engine": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "a recipient recovers an interrupted mailbox read without losing a draft or resending",
+      "engine": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "an account change in another tab withdraws the previous private conversation before further interaction",
+      "engine": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "free text, reciprocal replies, reload and a lost acknowledgment work without duplicate delivery",
+      "engine": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "a real bilingual conversation works in both directions and a failed translation remains recoverable",
+      "engine": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "a recipient recovers an interrupted mailbox read without losing a draft or resending",
+      "engine": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "an account change in another tab withdraws the previous private conversation before further interaction",
+      "engine": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "free text, reciprocal replies, reload and a lost acknowledgment work without duplicate delivery",
+      "engine": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "a real bilingual conversation works in both directions and a failed translation remains recoverable",
+      "engine": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "a recipient recovers an interrupted mailbox read without losing a draft or resending",
+      "engine": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "an account change in another tab withdraws the previous private conversation before further interaction",
+      "engine": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "free text, reciprocal replies, reload and a lost acknowledgment work without duplicate delivery",
+      "engine": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "native functions: private memory read/pin, denied peer mutation and embedded LIA without implicit send",
+      "engine": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "native functions: private memory read/pin, denied peer mutation and embedded LIA without implicit send",
+      "engine": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "native functions: private memory read/pin, denied peer mutation and embedded LIA without implicit send",
+      "engine": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "scene seating is shared, survives reconnect, stands safely and keeps the bedroom private",
+      "engine": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "scene seating is shared, survives reconnect, stands safely and keeps the bedroom private",
+      "engine": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "scene seating is shared, survives reconnect, stands safely and keeps the bedroom private",
+      "engine": "webkit",
+      "status": "passed"
+    }
+  ]
+}

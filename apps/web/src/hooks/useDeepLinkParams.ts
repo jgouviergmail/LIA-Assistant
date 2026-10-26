@@ -124,12 +124,21 @@ export interface DeepLinkParams {
  *   value, so the URL is the only place it could come from).
  * @returns The live flags for this render, plus the intent's own eraser.
  */
-export function useDeepLinkParams(saveDraft: (text: string) => void): DeepLinkParams {
-  const searchParams = useSearchParams();
+export function useDeepLinkParams(
+  saveDraft: (text: string) => void,
+  enabled = true
+): DeepLinkParams {
+  const observedParams = useSearchParams();
+  const searchParams = enabled ? observedParams : null;
 
-  // The History API, never `router.replace` (`dropSearchParams`, ADR-192):
-  // Next syncs `useSearchParams` with it, so the latch below re-arms as before.
-  const drop = dropSearchParams;
+  // Keep main's single History API implementation. Embedded chat must leave
+  // the host page's URL and intent ledger untouched.
+  const drop = useCallback(
+    (names: readonly string[]) => {
+      if (enabled) dropSearchParams(names);
+    },
+    [enabled]
+  );
 
   // Rule 4 (ADR-210): an iid already in the consumed ledger marks this URL as
   // a RESURRECTION (omnibox, session restore, router bookkeeping), not a
@@ -156,12 +165,13 @@ export function useDeepLinkParams(saveDraft: (text: string) => void): DeepLinkPa
   }, [searchParams, drop, saveDraft, replayed, intentValue]);
 
   const clearIntent = useCallback(() => {
+    if (!enabled) return;
     // Read the iid from the ADDRESS BAR, like `drop`: it is what a replay
     // would re-present, so it is the value the ledger must hold.
     const liveIntentId = new URLSearchParams(window.location.search).get('iid');
     if (liveIntentId) markIntentConsumed(liveIntentId);
     drop(['intent', 'capability', 'subject', 'iid']);
-  }, [drop]);
+  }, [drop, enabled]);
 
   const capability = searchParams?.get('capability');
   const subject = searchParams?.get('subject')?.trim();

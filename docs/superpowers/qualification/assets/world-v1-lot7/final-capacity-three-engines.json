@@ -1,0 +1,15 @@
+{
+  "scope": "Five admitted accounts, sixth waiting, explicit duplicate control and private FIFO offer",
+  "physicalDevices": false,
+  "stats": {
+    "startTime": "2026-10-24T01:04:14.449Z",
+    "duration": 148819.5,
+    "expected": 3,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "retries": 0,
+  "browserHarnessOOM": false,
+  "serverLimitsChanged": false
+}

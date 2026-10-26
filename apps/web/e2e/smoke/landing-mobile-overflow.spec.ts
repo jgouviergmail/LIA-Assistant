@@ -144,9 +144,12 @@ async function exerciseDemoScenes(page: Page, width: number): Promise<void> {
   await waitForHydration(page, '[aria-label="Choisir une situation"]');
   await chooser.scrollIntoViewIfNeeded();
   await page.clock.runFor(1500);
-  // Freeze decorative entrance motion after hydration. The scene's steps are
-  // explicit controls, so layout checks cannot race an automatic reveal.
-  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100));
+  // Pin Date across the RPCs, pause at that instant, then restore simulated
+  // time so the idle-retention check continues to advance Date.now().
+  const pausedAt = await page.evaluate(() => Date.now());
+  await page.clock.setFixedTime(pausedAt);
+  await page.clock.pauseAt(pausedAt);
+  await page.clock.setSystemTime(pausedAt);
 
   for (const title of SCENES) {
     const choice = chooser.getByRole('button', { name: title, exact: true });
@@ -178,7 +181,9 @@ async function exerciseDemoScenes(page: Page, width: number): Promise<void> {
     // scenario or letting a later animation frame push content off-screen.
     // This assertion checks retention after idle time, not each decorative
     // frame. Advance the elapsed time without replaying 600 unrelated RAFs.
+    const beforeIdle = await page.evaluate(() => Date.now());
     await page.clock.fastForward(10_000);
+    expect(await page.evaluate(() => Date.now())).toBe(beforeIdle + 10_000);
     await expectSelectedScene(chooser, title);
     await expectDemoStep(steps, 'Le résultat');
     await expectUnclippedScene(scene, `${width}px ${title}: retained result`);

@@ -1,0 +1,172 @@
+{
+  "removedContainers": [
+    {
+      "name": "lia-world-chat-secret-scan",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-qualification-scroll",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-qualification-production",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-qualification-web",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-final-secret-scan",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-final-frozen-browser",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-final-production",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-final-regression-browser",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-final-build-validation",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-final-build-previous",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-polish-browser",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-polish-candidate",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-polish-api",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-social-browser",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-social-candidate",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-social-api",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-functions-browser",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-functions-candidate",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-functions-api",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-home-candidate",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-home-api",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-native-web",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-v1-api",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-v1-redis",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-v1-browser",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-v1-candidate",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-prototype-browser",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-prototype-web",
+      "removed": true,
+      "error": ""
+    },
+    {
+      "name": "lia-world-final-browser",
+      "removed": true
+    },
+    {
+      "name": "lia-world-native-final-browser",
+      "removed": true
+    },
+    {
+      "name": "lia-world-ergonomics-candidate",
+      "removed": true
+    }
+  ],
+  "removedContainerCount": 31,
+  "removedObsoletePreviewBuilds": 6,
+  "removedUnusedVolumes": [
+    "a865821aa53facb277b1ddb36ccad605cde6d32b898f3ed658e09aef1f14c15b"
+  ],
+  "retainedPreview": [
+    "lia-world-final-candidate",
+    "lia-world-final-api",
+    "lia-world-v1-postgres",
+    "lia-world-v1-native-redis"
+  ],
+  "blockedContainer": "lia-world-qualification-api",
+  "blockReason": "Docker daemon cannot stop it: tried to kill container, but did not receive an exit event; readiness process observed in D state",
+  "sharedImagesVolumesAndBuildkitCache": "preserved; no task-specific image or builder found",
+  "previewHttp": 200,
+  "anonymousIdentityHttp": 401
+}

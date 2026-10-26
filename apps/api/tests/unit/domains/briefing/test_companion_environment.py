@@ -14,7 +14,7 @@ from src.core.session_dependencies import get_current_active_session, get_sessio
 from src.domains.briefing.companion import project_weather
 from src.domains.briefing.constants import SECTION_WEATHER_TTL_SECONDS
 from src.domains.briefing.router import router
-from src.domains.briefing.schemas import CardSection, CardStatus, WeatherData
+from src.domains.briefing.schemas import AgendaData, CardSection, CardStatus, WeatherData
 from src.domains.briefing.service import BriefingService
 from src.domains.users.models import User
 from src.infrastructure.cache.session_store import SessionStore
@@ -157,7 +157,8 @@ def test_redis_failure_degrades_to_the_accounts_clock() -> None:
     assert result.json() == {"timezone": "Pacific/Auckland", "weather": None}
 
 
-def test_anonymous_requests_never_reach_the_weather_cache() -> None:
+@pytest.mark.parametrize("endpoint", ["/briefing/companion-context", "/briefing/cached-weather"])
+def test_anonymous_requests_never_reach_the_weather_cache(endpoint: str) -> None:
     app = FastAPI()
     app.include_router(router)
     app.dependency_overrides[get_session_store] = lambda: MagicMock(spec=SessionStore)
@@ -166,6 +167,46 @@ def test_anonymous_requests_never_reach_the_weather_cache() -> None:
         patch.object(BriefingService, "read_cached_weather", new_callable=AsyncMock) as read,
         TestClient(app) as client,
     ):
-        result = client.get("/briefing/companion-context")
+        result = client.get(endpoint)
     assert result.status_code == 401
     read.assert_not_awaited()
+
+
+def test_cached_weather_widget_reads_only_the_owner_cache_without_starting_sources() -> None:
+    app = FastAPI()
+    app.include_router(router)
+    user = User(id=uuid4(), language="en", timezone="UTC")
+    app.dependency_overrides[get_current_active_session] = lambda: user
+    cached = section()
+    with (
+        patch.object(
+            BriefingService, "read_cached_weather", AsyncMock(return_value=cached)
+        ) as read,
+        patch.object(BriefingService, "build_cards", new_callable=AsyncMock) as build,
+        patch("src.domains.briefing.service.fetch_weather", new_callable=AsyncMock) as fetch,
+        TestClient(app) as client,
+    ):
+        result = client.get("/briefing/cached-weather")
+    assert result.status_code == 200
+    assert result.json()["data"]["temperature_c"] == 8
+    read.assert_awaited_once()
+    build.assert_not_awaited()
+    fetch.assert_not_awaited()
+
+
+def test_cached_weather_widget_refuses_another_valid_card_payload() -> None:
+    app = FastAPI()
+    app.include_router(router)
+    user = User(id=uuid4(), language="en", timezone="UTC")
+    app.dependency_overrides[get_current_active_session] = lambda: user
+    wrong_card = CardSection(status=CardStatus.OK, generated_at=NOW, data=AgendaData(events=[]))
+    with (
+        patch.object(BriefingService, "read_cached_weather", AsyncMock(return_value=wrong_card)),
+        patch("src.domains.briefing.service.fetch_weather", new_callable=AsyncMock) as fetch,
+        TestClient(app) as client,
+    ):
+        result = client.get("/briefing/cached-weather")
+    assert result.status_code == 200
+    assert result.json() is None
+    assert "no-store" in result.headers["Cache-Control"]
+    fetch.assert_not_awaited()

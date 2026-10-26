@@ -320,8 +320,8 @@
     },
     "45": {
       "title": "Cleanly injected dependencies",
-      "summary": "Repositories, services and routers chain together through FastAPI dependency injection, with database sessions opened and closed at the right time and easy to mock in tests.",
-      "src": "a9edf6548888"
+      "summary": "Repositories, services and routers chain together through FastAPI dependency injection, with database sessions opened and closed at the right time and easy to mock in tests. A route failure reaches the session to roll back its transaction; closing finishes before cancellation propagates.",
+      "src": "2918bf9a2be6"
     },
     "46": {
       "title": "Scheduled background jobs",
@@ -1912,6 +1912,11 @@
       "title": "An anti-robot check at the password doors",
       "summary": "Sign-up, password sign-in and reset requests now require the token of a Cloudflare Turnstile check, which the server has verified: a script calling the API without a browser is refused. Most visitors see nothing, and when Cloudflare does not answer only the sign-in goes through — a new account or a reset e-mail waits.",
       "src": "5f218ef296be"
+    },
+    "365": {
+      "title": "Private LIA in a shared isometric world",
+      "summary": "The browser draws the world while Redis arbitrates access and movement; actions retain their native interfaces and approvals. Account name and appearance are shared with consent, activities and home stay private, and peers see only a coarse connection status. Messages stay between their recipients, and consented translations are bounded and accounted.",
+      "src": "53942019983c"
     }
   }
 }

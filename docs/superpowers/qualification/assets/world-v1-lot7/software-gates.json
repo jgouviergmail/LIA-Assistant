@@ -1,0 +1,120 @@
+{
+  "backend": {
+    "passed": 46049,
+    "skipped": 33,
+    "command": "task test:backend:unit:fast",
+    "coveragePercent": 78.59,
+    "coverageScope": "Same complete unit perimeter; preserved instrumented run plus unchanged isolated timing-guard replay"
+  },
+  "worldIntegrationAndUnit": {
+    "passed": 168,
+    "storage": "real disposable Redis and SQL fixtures",
+    "scope": "Earlier focused storage campaign; the final global suites include these paths."
+  },
+  "frontend": {
+    "passed": 14102,
+    "files": 1150,
+    "command": "task test:frontend:coverage -- --maxWorkers=4",
+    "coverage": {
+      "statements": 86.51,
+      "branches": 80.79,
+      "functions": 84.37,
+      "lines": 88.07
+    }
+  },
+  "hermeticBrowsers": {
+    "passed": 699,
+    "skipped": 1,
+    "retries": 0,
+    "flaky": 0,
+    "skipReason": "Existing development-only HMR test on an optimized production build"
+  },
+  "companionChromium": {
+    "passed": 6
+  },
+  "markers": {
+    "collected": 52576,
+    "allowlisted": 49,
+    "newOrphans": 0
+  },
+  "migrations": {
+    "emptyReplay": true,
+    "downgradeUpgrade": true,
+    "structuralDrift": false,
+    "head": "4ea6258b83d2"
+  },
+  "secrets": {
+    "scanner": "Native pinned Gitleaks over indexed blobs",
+    "indexedFiles": 373,
+    "leaks": 0
+  },
+  "ratchets": {
+    "backendCCOver": 262,
+    "previousBackendCCOver": 263,
+    "frontendCCOver": 38,
+    "frontendMax": 46,
+    "a11y": 0,
+    "inheritedHooks": 30
+  },
+  "deployDrivers": {
+    "passed": 177
+  },
+  "installerAndRelease": {
+    "passed": 92,
+    "skipped": 3,
+    "composeScenarios": 24
+  },
+  "unitCoverageCampaign": {
+    "passed": 46048,
+    "failed": 1,
+    "skipped": 33,
+    "failure": "Wall-clock ceiling in an unchanged hostile-text guard under concurrent load",
+    "unchangedCoveredReplayPassed": true,
+    "thresholdRaised": false
+  },
+  "finalNativeBrowsers": {
+    "passed": 27,
+    "skipped": 0,
+    "retries": 0,
+    "flaky": 0,
+    "notificationOpenCloseCycles": 72,
+    "physicalDevice": false
+  },
+  "backendIntegration": {
+    "passed": 5347,
+    "skipped": 2,
+    "scope": "5343 integration cases and 4 co-located integration cases",
+    "skipReason": "Two POSIX-only sandbox cases on Windows"
+  },
+  "backendCombined": {
+    "covered": 189915,
+    "lines": 217273,
+    "coveragePercent": 87.41
+  },
+  "backendDiff": {
+    "covered": 1771,
+    "changedExecutableLines": 1927,
+    "files": 42,
+    "coveragePercent": 91.9,
+    "base": "HEAD",
+    "readOnlyExternalCanonicalGuard": true,
+    "guardSha256": "d75360075eb0313998a026353b51338076dc728651142cfca1d354a0bd439275"
+  },
+  "source": {
+    "worldAndSelectDigest": "20bd6b9216ff7347dea91bba777981061dd8691f852294c7771ae8b660c6e761",
+    "normalizedGlobalCssDigest": "ad1922641bc0077c4cb35cafc66d33a779c63e9def1c79d7db77824bf2dad9e1",
+    "notificationRouterDigest": "2ce530ab8288c1395b80e969229cd6305da4dace7920e900a79f75f5da0efd52",
+    "previewSourcesMatch": true
+  },
+  "remainingAcceptance": {
+    "physicalPiAndPhones": false,
+    "supplierTranslationFidelity": false,
+    "ownerFinalArtApproval": false
+  },
+  "staticGates": {
+    "command": "task lint",
+    "passed": true,
+    "newRatchetViolations": 0,
+    "inheritedReactHooksViolations": 30
+  }
+}

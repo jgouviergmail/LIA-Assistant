@@ -4,7 +4,7 @@
 
 **Version**: 6.6
 **Date**: 2026-10-23
-**Application**: LIA v3.7.0
+**Application**: LIA v4.0.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -291,6 +291,15 @@ The administrator maintains control over consumption:
 
 Imagine: a Raspberry Pi in your living room, and the whole family enjoying an intelligent AI assistant — each with their own personalized experience, memories, conversation style, and an assistant that develops its own emotional relationship with them. The instance stays under your control; any remote models or services you use receive the data needed for their part of a request.
 
+
+### 4.4. A world to inhabit together
+
+LIA World gives your instance a shared house and garden. You move with your chosen avatar, meet other unblocked participants and let LIA accompany you. The library leads to your knowledge spaces, the multimedia studio to your creations and the divination room to your routines. The engineering lab brings together your skills and extensions. Keyboard, touch, zoom and a minimap provide ways to explore; the ordinary application remains available.
+
+Sharing a place does not share your assistant. Entry asks your permission to display your name and avatar in the world; accepted connections can also see your coarse presence and home status. Your home, its colours, documents and assistant panels remain private. A room opens the same native functions with the same permissions, costs and confirmations; walking in never executes a prepared action.
+
+You can also exchange private text with another available, unblocked participant or deliberately choose the Everyone channel for people present in shared areas. The original stays available. Translating a message is an explicit paid choice, counted in your usage; a failed or uncertain attempt is not replayed automatically. These temporary human messages stay separate from LIA’s conversation history and memory. Availability depends on the features enabled on your instance; human voice between avatars is outside this version’s scope.
+
 ---
 
 ## 5. Sovereign and frugal
@@ -401,7 +410,7 @@ The same requirement governs what LIA retains of your instructions: every lastin
 
 ### 6.8. A surface that describes the product is held to it
 
-Transparency has a failure mode nobody notices: a screen that quietly stops telling the truth. Nothing breaks, no test goes red, and the page that existed to be current becomes the least current in the application. So the capability map — the page answering _what can my assistant do for me?_ — is no longer maintained by hand: every capability the platform can switch on or off must have its declared place on it, and a capability that ships without that decision stops the application from starting. The same conviction, one notch further: what a screen says about your data must be **exact or absent**. A tally is the number the database returns, never a length that happens to be at hand; and while an answer is still on its way, or when it failed, the card says nothing rather than guessing. "Nothing set up yet" is a claim about your account — one worth being sure of before making it. The FAQ obeys the same rule: every feature a person can use has its section there — 506 questions, in six languages —, and a translated section the display order forgot fails the tests instead of staying invisible.
+Transparency has a failure mode nobody notices: a screen that quietly stops telling the truth. Nothing breaks, no test goes red, and the page that existed to be current becomes the least current in the application. So the capability map — the page answering _what can my assistant do for me?_ — is no longer maintained by hand: every capability the platform can switch on or off must have its declared place on it, and a capability that ships without that decision stops the application from starting. The same conviction, one notch further: what a screen says about your data must be **exact or absent**. A tally is the number the database returns, never a length that happens to be at hand; and while an answer is still on its way, or when it failed, the card says nothing rather than guessing. "Nothing set up yet" is a claim about your account — one worth being sure of before making it. The FAQ obeys the same rule: every feature a person can use has its section there — 518 questions, in six languages —, and a translated section the display order forgot fails the tests instead of staying invisible.
 
 Transparency also applies to the assistant's internal rules. A constraint the system enforces must be published to whoever it affects: when habit learning detects nothing, Settings display the threshold actually required — stricter on weekends, where observed days are fewer — instead of an unexplained silence. And when a setting tunes itself, like the threshold deciding that a journal note enters a reply, it does so inside strict bounds, one small step per day, with a kill switch and every adjustment counted: a learning system is only acceptable if it stays observable and stoppable.
 

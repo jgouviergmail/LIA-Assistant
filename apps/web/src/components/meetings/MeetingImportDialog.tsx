@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/select';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
+import { useMeetingNavigation } from './MeetingNavigation';
 import { useMeetingTemplates } from '@/hooks/useMeetingTemplates';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
@@ -153,6 +154,7 @@ function ImportForm({
   const { t } = useTranslation(lng);
   const id = useId();
   const router = useLocalizedRouter();
+  const openMeeting = useMeetingNavigation();
   const { templates } = useMeetingTemplates(true);
   const { chosen, choose, recordedAt, editDate } = useChosenFile();
   const [language, setLanguage] = useState('auto');
@@ -193,8 +195,11 @@ function ImportForm({
         onProgress: (sent, total) => setProgress({ sent, total }),
       });
       if (result.kind === 'complete') {
+        // A completed response can settle after the host view was closed.
+        if (controller.signal.aborted) return;
         onClose();
-        router.push(`/dashboard/meetings/${started.id}`);
+        if (openMeeting) openMeeting(started.id);
+        else router.push(`/dashboard/meetings/${started.id}`);
         return;
       }
       // Part of a file is no meeting: what was sent goes with the import.

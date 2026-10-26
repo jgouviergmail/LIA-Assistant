@@ -1,0 +1,96 @@
+{
+  "stats": {
+    "startTime": "2026-10-23T06:13:42.775Z",
+    "duration": 145748.61000000002,
+    "expected": 59,
+    "skipped": 4,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "metrics": [
+    {
+      "project": "chromium",
+      "name": "world-performance",
+      "data": {
+        "profile": "desktop browser, not a physical phone",
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "fps": "59,3",
+        "frameP95": "16,7 ms",
+        "renderP95": "1,6 ms"
+      }
+    },
+    {
+      "project": "firefox",
+      "name": "world-performance",
+      "data": {
+        "profile": "desktop browser, not a physical phone",
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "fps": "59,7",
+        "frameP95": "17,2 ms",
+        "renderP95": "13,2 ms"
+      }
+    },
+    {
+      "project": "webkit",
+      "name": "world-performance",
+      "data": {
+        "profile": "desktop browser, not a physical phone",
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "fps": "27,6",
+        "frameP95": "48 ms",
+        "renderP95": "1 ms"
+      }
+    },
+    {
+      "project": "chromium",
+      "name": "axe-world-german.json",
+      "data": {
+        "page": "world-german",
+        "violations": [],
+        "passes": 19
+      }
+    },
+    {
+      "project": "firefox",
+      "name": "axe-world-german.json",
+      "data": {
+        "page": "world-german",
+        "violations": [],
+        "passes": 19
+      }
+    },
+    {
+      "project": "webkit",
+      "name": "axe-world-german.json",
+      "data": {
+        "page": "world-german",
+        "violations": [],
+        "passes": 19
+      }
+    },
+    {
+      "project": "chromium",
+      "name": "world-throttled-performance",
+      "data": {
+        "profile": "Headless Chromium in Docker, 4x CPU slowdown; not physical mobile hardware",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "quality": "low",
+        "fps": "26.8",
+        "frameP95": "50 ms",
+        "renderP95": "10.5 ms"
+      }
+    }
+  ]
+}

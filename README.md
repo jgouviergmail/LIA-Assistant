@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>Prepare a conversation. Listen to your day. Keep track of your commitments.</strong>
+  <strong>Prepare a conversation. Listen to your day. Step into LIA World.</strong>
 </p>
 
 <p align="center">
@@ -44,7 +44,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 3.7.0</strong> — <strong>Found by name, shared in plain sight.</strong> A first name now reaches the person it designates and a name that fits several is asked about, a skill or a connector says who you shared it with, a kept answer or a generated file comes back into a discussion, a relationship's records line up on one timeline, a WAV, MP3 or M4A recording becomes a meeting with its minutes, each step of an answer says what it did, and a phone call's report shows its cost — 25 October 2026.
+  <strong>Version 4.0.0</strong> — <strong>A world to explore. Your assistant, still yours.</strong> LIA World brings a shared isometric campus, your own home, private access to LIA's everyday functions and multilingual human text into the application. Its spatial interface keeps the same permissions, approval flows and spending controls. This release also refreshes the model catalogue and strengthens uploads, cancellation and log privacy — 26 October 2026.
 </p>
 
 ---
@@ -78,6 +78,8 @@ Its strength is the continuity between those activities. Memory, knowledge space
 
 LIA also helps between conversations: a daily briefing, a personal **Radio**, reminders, routines, proactive suggestions and, when you allow it, a personal discussion it opens itself. You choose the sources and enabled features, and the time windows and channels for proactive help. Chat, rich cards, voice and Live sessions keep this assistance accessible in the same application.
 
+**LIA World** gives that assistance a place. Walk through a shared campus with LIA, open your private workspaces from its rooms, return to your own home or exchange text with other people. The world is shared; your assistant's conversations, documents and home preferences stay private. The operator chooses whether to enable this optional experience.
+
 You can inspect sources, correct remembered information and review prepared drafts. Actions covered by approval flows ask for your decision before execution. Registers expose recorded consultations, action attempts and outcomes; usage and budgets are visible to users and operators.
 
 ### Start with something that would help you
@@ -87,9 +89,10 @@ You can inspect sources, correct remembered information and review prepared draf
 | **A discussion to prepare**   | “Prepare my catch-up with Claire using the project brief, our recent emails and the last meeting notes. Highlight anything that conflicts.”                                                                 |
 | **A promise to follow up**    | Open **Relations** to review recent exchanges, the debrief and open commitments before contacting someone.                                                                                                  |
 | **A message to get right**    | “Draft an email to the supplier asking which delivery date they can commit to. Show me the draft before sending it.”                                                                                        |
-| **A meeting to keep useful**  | Record it, review and correct the minutes, search their full content, then export a PDF. Successfully indexed minutes can be retrieved in a later conversation.                                                                        |
+| **A meeting to keep useful**  | Record it, review and correct the minutes, search their full content, then export a PDF. Successfully indexed minutes can be retrieved in a later conversation.                                             |
 | **A day to listen to**        | Choose personal and news sources in **Radio**, then listen with the programme, transcript and articles beside you.                                                                                          |
 | **People to coordinate with** | “Find a time for dinner with Sam tomorrow evening using the availability shared with me. Show the invitation before sending it.” This uses an accepted connection and its permissions on the same instance. |
+| **A place to work and meet**  | Enter **LIA World**, find LIA in the campus, open your private calendar or meeting records, then exchange a message with another person without sharing your assistant's context.                           |
 
 These examples use the services and permissions enabled on your instance. Generated conclusions and documents remain yours to review.
 
@@ -146,6 +149,17 @@ provenance for future product updates. Release assets include a
 The video is a product demonstration, not a recorded provider session.
 
 ## Screenshots
+
+<p align="center">
+  <a href="docs/assets/screenshot-lia-world.jpg"><img src="docs/assets/screenshot-lia-world.jpg" alt="LIA World — isometric campus, LIA companion, private home and rooms leading to native functions" width="1000" /></a>
+  <br /><em>LIA World — a shared campus and a private place for your assistant.</em>
+</p>
+
+The World illustration above is the owner's supplied French application capture,
+published with this release. It is an unmodified illustration of the current
+interface; its visible account name is part of that supplied image. Its
+[provenance manifest](apps/web/public/screenshots/proof/world-manifest.json)
+distinguishes it from the automated fictional-data captures below.
 
 Explore the real application interface in English and light mode, filled with fictional demonstration data. The geographic maps and walking route use [real Google Maps imagery and geographic data](apps/web/e2e/fixtures/maps/provenance.json), prepared separately and served locally with attribution. The browser captures exercise the actual pages, controls and widgets without model inference, provider calls, connected accounts or external actions. Radio uses a local silent audio fixture. The interactive budget is a custom skill example produced by an executed [Python fixture generator](apps/web/e2e/capture/render_trip_budget.py); its estimates are illustrative and no booking is made.
 
@@ -346,12 +360,42 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 | Explore                                            | What you'll find                                                       |
 | -------------------------------------------------- | ---------------------------------------------------------------------- |
+| [LIA World](#lia-world)                            | A shared campus, your private home and familiar LIA functions          |
 | [Talk to it](#talk-to-it)                          | Chat, voice, live sessions, radio and a companion that feels present   |
 | [Connect your world](#connect-your-world)          | Your accounts, documents, home, health, tools and skills               |
 | [Act, under your control](#act-under-your-control) | Orchestration, approvals, calls, creation, browser work and tickets    |
 | [Anticipate](#anticipate)                          | Timely suggestions, routines, reminders and a daily briefing           |
 | [Remember](#remember)                              | Memory, journals, knowledge, meetings, people and saved work           |
 | [Trust it](#trust-it)                              | Records, spending limits, authentication, data protection and controls |
+
+### LIA World
+
+An isometric campus makes LIA's capabilities places you can visit. Explore its
+rooms and garden with keyboard or touch, use the minimap and camera controls,
+and let LIA accompany you. Daylight, optional cached weather and separately
+controlled sounds give the place atmosphere without calling a model for decoration.
+
+- **Your familiar assistant, in a place:** rooms and the Functions menu open
+  private native panels for conversations, meetings, knowledge, Relations and
+  other enabled activities. Drafts, approval requests, costs and quotas follow
+  the same application rules.
+- **Your own home and appearance:** choose your avatar and your home's colour
+  palette. Home contents and native assistant data do not enter shared presence.
+- **A place to meet:** consent to showing your native account name, see other
+  admitted people and exchange direct or explicitly public text. Translation
+  requires an explicit choice and uses the configured model and spending controls.
+  Coarse presence information is shared with accepted, unblocked connections.
+- **A bounded shared space:** the server admits people, manages the waiting
+  queue and validates movement. Losing authority suspends interaction until
+  reconnection; a second tab cannot silently take control.
+
+World is optional and starts disabled in the minimal installer. An operator
+enables it for the instance, with the native capability policy still applying.
+Live voice with LIA remains its existing feature; direct voice between people
+is a separate proposal. See the [World guide](docs/technical/WORLD_PROTOTYPE.md),
+[architecture decision](docs/architecture/ADR-365-Private-Native-LIA-In-An-Authoritative-Isometric-World.md)
+and [qualification ledger](docs/superpowers/qualification/2026-10-23-world-v1-ledger.md)
+for implementation, evidence and remaining physical-device/provider checks.
 
 ### Talk to it
 
@@ -599,7 +643,7 @@ The home page opens on the date and LIA's living face, then aggregates your sour
 
 #### Knowledge spaces
 
-- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive folder sync, a Gmail label as a source, and a system space that indexes the product's own help corpus so LIA can explain itself — drawn from the in-app FAQ, whose 506 questions cover every feature a person can use, in six languages.
+- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive folder sync, a Gmail label as a source, and a system space that indexes the product's own help corpus so LIA can explain itself — drawn from the in-app FAQ, whose 518 questions cover every feature a person can use, in six languages.
 - A document that cannot be indexed says why in your language — a scanned PDF without a text layer names its remedy.
 - Any indexed document, paused space or not, attaches to a chat message as a copy from the composer's « + » ([ADR-295](docs/architecture/ADR-295-Knowledge-Documents-As-Message-Attachments.md), [GUIDE_RAG_SPACES](docs/guides/GUIDE_RAG_SPACES.md), [ADR-055](docs/architecture/ADR-055-RAG-Spaces-Architecture.md), [ADR-058](docs/architecture/ADR-058-System-RAG-Spaces.md)).
 
@@ -767,12 +811,12 @@ Nearly **100% of this codebase was written by an AI**, under human direction: a 
 engineering rulebook, blocking automated checks, systematic review, adversarial audits.
 The result is measured, not proclaimed:
 
-|                           |                                           |                                         |                                                                         |
-| ------------------------- | ----------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
-| **58** functional domains | **1,003,000+** source lines (excl. tests) | **67,000+** inventoried automated tests | **362** ADRs                                                            |
-| **289** versions shipped  | **6 languages**, parity enforced in CI    | **635** Prometheus metrics              | [**7.9/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+|                                |                                           |                                         |                                                                         |
+| ------------------------------ | ----------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
+| **60** backend domain packages | **1,038,000+** source lines (excl. tests) | **68,000+** inventoried automated tests | **363** ADRs                                                            |
+| **290** versions shipped       | **6 languages**, parity enforced in CI    | **635** Prometheus metrics              | [**7.9/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
-Source-line figure: 1,003,000+ physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-22). Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
+Source-line figure: 1,038,000+ physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-26). The domain figure counts backend domain packages. Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -1025,12 +1069,12 @@ task test:frontend                 # vitest
 task test:e2e                      # Playwright + axe journeys (hermetic, mocked API)
 ```
 
-| Metric                  | Value                                                                                                                                                |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Backend tests           | 53,211 collected over `tests/`, across 3,559 files (`pytest --collect-only -q --no-cov`, 2026-10-25)                                                 |
-| Frontend tests (vitest) | 14,191 across 1,139 files (`vitest list`, 2026-10-25), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
-| Coverage floor          | 78% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob                                               |
-| Technical audit         | **7.9/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md)                                                        |
+| Metric                  | Value                                                                                                                        |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Backend tests           | 53,667 collected over `tests/`, across 3,605 files (`pytest --collect-only -q --no-cov`, 2026-10-26)                         |
+| Frontend tests (vitest) | 14,674 across 1,238 files (`vitest list`, 2026-10-26), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
+| Coverage floor          | 78% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob                       |
+| Technical audit         | **7.9/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md)                                |
 
 Tests are risk-driven and behavioural: a module never disables itself on a missing provider key, a test double that receives a coroutine owns it, and an unawaited coroutine or a post-summary warning is a failure ([GUIDE_TESTING](docs/guides/GUIDE_TESTING.md)).
 
@@ -1059,31 +1103,31 @@ Pre-push: secret scan           Security workflow (weekly)
                                 E2E + a11y matrix: Chromium · Firefox · WebKit (weekly)
 ```
 
-| Practice                 | Implementation                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Reproducible builds**  | Universal Python lockfiles (linux/amd64, arm64, Windows), hash-verified installs everywhere, a guard failing manifest edits without lock regeneration ([ADR-112](docs/architecture/ADR-112-Python-Dependency-Locking.md))                                                                                                                                                                                                                             |
-| **Supply chain**         | Every GitHub Action pinned by commit SHA and every production build input by version and digest, `permissions: contents: read`; a weekly watch of the advisories each dependency publishes, a refresh under a cooling-off period that never moves backwards, Dependabot on the same cooldowns ([ADR-331](docs/architecture/ADR-331-Dependency-Watch-And-A-Refresh-That-Never-Goes-Back.md)); the CI's secret scan before every push; SBOM per release |
-| **Shrink-only ratchets** | Coverage, file size, cyclomatic complexity, MyPy debt, React hooks, accessibility and metric visibility can only improve — a baseline is lowered after the work, never raised to absorb a regression                                                                                                                                                                                                                                                  |
-| **Coverage where code runs** | The backend floor holds over the unit and integration suites together, combined strictly, and the lines a change adds are held at the floor in CI ([ADR-113](docs/architecture/ADR-113-Backend-Test-Suite-Rehabilitation.md)) |
-| **Findings register**    | Every audit finding lives in a machine-readable public register checked on every documentation build: a closure or a remediation carries its proof, and a release is refused while a priority finding is overdue ([AUDIT_PROTOCOL](docs/audit/AUDIT_PROTOCOL.md)) |
-| **Documentation gate**   | Every version, count and threshold a document states is recomputed from the code that owns it and a mismatch fails the build; broken links, stale code paths and unreachable documents too                                                                                                                                                                                                                                                            |
-| **Release pipeline**     | A tag builds candidates; a release is promoted only from a qualified, disposable-machine installer run ([ADR-215](docs/architecture/ADR-215-Self-Host-Installer.md)); multi-arch images on ghcr.io                                                                                                                                                                                                                                                    |
+| Practice                     | Implementation                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Reproducible builds**      | Universal Python lockfiles (linux/amd64, arm64, Windows), hash-verified installs everywhere, a guard failing manifest edits without lock regeneration ([ADR-112](docs/architecture/ADR-112-Python-Dependency-Locking.md))                                                                                                                                                                                                                             |
+| **Supply chain**             | Every GitHub Action pinned by commit SHA and every production build input by version and digest, `permissions: contents: read`; a weekly watch of the advisories each dependency publishes, a refresh under a cooling-off period that never moves backwards, Dependabot on the same cooldowns ([ADR-331](docs/architecture/ADR-331-Dependency-Watch-And-A-Refresh-That-Never-Goes-Back.md)); the CI's secret scan before every push; SBOM per release |
+| **Shrink-only ratchets**     | Coverage, file size, cyclomatic complexity, MyPy debt, React hooks, accessibility and metric visibility can only improve — a baseline is lowered after the work, never raised to absorb a regression                                                                                                                                                                                                                                                  |
+| **Coverage where code runs** | The backend floor holds over the unit and integration suites together, combined strictly, and the lines a change adds are held at the floor in CI ([ADR-113](docs/architecture/ADR-113-Backend-Test-Suite-Rehabilitation.md))                                                                                                                                                                                                                         |
+| **Findings register**        | Every audit finding lives in a machine-readable public register checked on every documentation build: a closure or a remediation carries its proof, and a release is refused while a priority finding is overdue ([AUDIT_PROTOCOL](docs/audit/AUDIT_PROTOCOL.md))                                                                                                                                                                                     |
+| **Documentation gate**       | Every version, count and threshold a document states is recomputed from the code that owns it and a mismatch fails the build; broken links, stale code paths and unreachable documents too                                                                                                                                                                                                                                                            |
+| **Release pipeline**         | A tag builds candidates; a release is promoted only from a qualified, disposable-machine installer run ([ADR-215](docs/architecture/ADR-215-Self-Host-Installer.md)); multi-arch images on ghcr.io                                                                                                                                                                                                                                                    |
 
 > Full details: [CI/CD documentation](docs/technical/CI_CD.md).
 
 ### Security
 
-| Reference                                                                              | Concrete measure                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [GDPR / RGPD](https://eur-lex.europa.eu/eli/reg/2016/679)                              | PII filtering, data minimisation, full-account export and account deletion that also removes linked OAuth grants and transparency records ([privacy guide](docs/knowledge/15_privacy.md))                                                                                                                                                                                                                                                 |
-| [EU AI Act](https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai) | The interface identifies LIA as AI; approval before mutation and separate records of actions, reads and decisions support transparency and traceability. Applicable duties still depend on the deployment and use case ([traceability boundaries](docs/technical/AI_ACT_TRACEABILITY.md))                                                                                                                                                 |
-| OWASP Top 10                                                                           | XSS, SQL injection and CSRF safeguards; a global Redis-backed rate limit before routes; request bodies bounded before they are read, webhooks included; reset links bound to their account and capped per account, an optional anti-robot check on the password doors ([ADR-363](docs/architecture/ADR-363-Password-Reset-Bounded-Per-Account-And-Bound-To-It.md), [ADR-364](docs/architecture/ADR-364-Turnstile-Bot-Check-On-The-Password-Doors.md))                                                                                                                                                                                                                                                                                    |
-| Prompt injection                                                                       | External content wrapped in safety markers, trust classified by data type rather than by producing tool, and a provenance that survives history compaction — a summary built from third-party text inherits its banner instead of promoting the claim to system authority                                                                                                                                                                 |
-| SSRF & hostile text                                                                    | Every fetched URL is validated, then fetched on the very address the check resolved, one redirect hop at a time; text flatteners run in linear time on hostile input, held by growth and equivalence tests ([ADR-326](docs/architecture/ADR-326-Linear-Flatteners-And-Pinned-Fetches.md))                                                                                                                                                 |
-| OAuth / PKCE                                                                           | PKCE S256, single-use state and issuer/identity checks; grouped Google/Microsoft consent shares grants only within the verified provider account, and every token renews through one door ([ADR-302](docs/architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md)); linking a federated identity never changes an account's status ([ADR-002](docs/architecture/ADR-002-BFF-Pattern-Authentication.md))                                                             |
-| [MCP](https://modelcontextprotocol.io/) / plugins                                      | Model Context Protocol servers and apps, agentskills.io skills and Agent Plugins v1 packages use documented open interfaces, with separately reviewed trust and sandbox boundaries ([MCP](docs/technical/MCP_INTEGRATION.md), [plugins](docs/technical/PLUGINS_INTEGRATION.md))                                                                                                                                                           |
-| Supply chain                                                                           | Hash-verified universal lockfiles and every build input pinned by digest, pip-audit on the full transitive tree, a weekly watch of each dependency's own advisories and end-of-life dates, a refresh that never moves a version backwards ([ADR-331](docs/architecture/ADR-331-Dependency-Watch-And-A-Refresh-That-Never-Goes-Back.md)), a CycloneDX SBOM per release                                                                     |
-| Untrusted code                                                                         | Skill scripts execute in a throwaway container — no Docker socket, no network, read-only filesystem, unprivileged uid, all capabilities dropped — and no sandbox means no execution, never a weaker fallback; a script the assistant writes, or a skill's command that names its hosts, reaches the web only through one egress proxy holding the keys and the allowlist ([ADR-298](docs/architecture/ADR-298-Sandbox-Egress-Toolbox.md)) |
+| Reference                                                                              | Concrete measure                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [GDPR / RGPD](https://eur-lex.europa.eu/eli/reg/2016/679)                              | PII filtering, data minimisation, full-account export and account deletion that also removes linked OAuth grants and transparency records ([privacy guide](docs/knowledge/15_privacy.md))                                                                                                                                                                                                                                                             |
+| [EU AI Act](https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai) | The interface identifies LIA as AI; approval before mutation and separate records of actions, reads and decisions support transparency and traceability. Applicable duties still depend on the deployment and use case ([traceability boundaries](docs/technical/AI_ACT_TRACEABILITY.md))                                                                                                                                                             |
+| OWASP Top 10                                                                           | XSS, SQL injection and CSRF safeguards; a global Redis-backed rate limit before routes; request bodies bounded before they are read, webhooks included; reset links bound to their account and capped per account, an optional anti-robot check on the password doors ([ADR-363](docs/architecture/ADR-363-Password-Reset-Bounded-Per-Account-And-Bound-To-It.md), [ADR-364](docs/architecture/ADR-364-Turnstile-Bot-Check-On-The-Password-Doors.md)) |
+| Prompt injection                                                                       | External content wrapped in safety markers, trust classified by data type rather than by producing tool, and a provenance that survives history compaction — a summary built from third-party text inherits its banner instead of promoting the claim to system authority                                                                                                                                                                             |
+| SSRF & hostile text                                                                    | Every fetched URL is validated, then fetched on the very address the check resolved, one redirect hop at a time; text flatteners run in linear time on hostile input, held by growth and equivalence tests ([ADR-326](docs/architecture/ADR-326-Linear-Flatteners-And-Pinned-Fetches.md))                                                                                                                                                             |
+| OAuth / PKCE                                                                           | PKCE S256, single-use state and issuer/identity checks; grouped Google/Microsoft consent shares grants only within the verified provider account, and every token renews through one door ([ADR-302](docs/architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md)); linking a federated identity never changes an account's status ([ADR-002](docs/architecture/ADR-002-BFF-Pattern-Authentication.md))                                |
+| [MCP](https://modelcontextprotocol.io/) / plugins                                      | Model Context Protocol servers and apps, agentskills.io skills and Agent Plugins v1 packages use documented open interfaces, with separately reviewed trust and sandbox boundaries ([MCP](docs/technical/MCP_INTEGRATION.md), [plugins](docs/technical/PLUGINS_INTEGRATION.md))                                                                                                                                                                       |
+| Supply chain                                                                           | Hash-verified universal lockfiles and every build input pinned by digest, pip-audit on the full transitive tree, a weekly watch of each dependency's own advisories and end-of-life dates, a refresh that never moves a version backwards ([ADR-331](docs/architecture/ADR-331-Dependency-Watch-And-A-Refresh-That-Never-Goes-Back.md)), a CycloneDX SBOM per release                                                                                 |
+| Untrusted code                                                                         | Skill scripts execute in a throwaway container — no Docker socket, no network, read-only filesystem, unprivileged uid, all capabilities dropped — and no sandbox means no execution, never a weaker fallback; a script the assistant writes, or a skill's command that names its hosts, reaches the web only through one egress proxy holding the keys and the allowlist ([ADR-298](docs/architecture/ADR-298-Sandbox-Egress-Toolbox.md))             |
 
 These references describe implemented controls, not a GDPR/AI Act legal opinion, OWASP or ISO certification, or a security-audit score. The [public 7.9/10 audit](docs/audit/README.md) measures 24 technical-quality areas against an ISO/IEC 25010:2023-inspired grid and explicitly excludes security.
 
@@ -1129,7 +1173,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 
 ### Architecture Decision Records
 
-362 ADR files (ADR-001 through ADR-364 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
+363 ADR files (ADR-001 through ADR-365 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
 
 - [ADR-070: ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md) — why two execution modes rather than one
 - [ADR-263: Execution Authority Chain and Effect Register](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) — how every act is claimed, closed and recorded

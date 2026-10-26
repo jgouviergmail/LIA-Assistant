@@ -1,0 +1,645 @@
+{
+  "qualifiedAt": "2026-10-24",
+  "scope": "F9: touch HUD; no backend business or renderer algorithm change",
+  "source": {
+    "scope": "World production source and shared select",
+    "rootDigest": "7bc32a8c6c0e2c7f05a9588d441b36a0fef06cc8642d2d6e4fc5deeb074d88bf",
+    "files": {
+      "src/features/world/art/actor-direction.ts": "ba62b1133cb49e5adb99518342067fea2223dd2327e66119462858b21351fbbd",
+      "src/features/world/art/atmosphere.ts": "c5feee1027fcf8add7ed1cda382059950c804bcec57b87c54ecc5c5cefdb71bd",
+      "src/features/world/art/floors.ts": "6768c179a79d258d0864c71086a4c0216a1c8625a1ee4c7bfe01985f083c5873",
+      "src/features/world/art/home-motif.ts": "46886f57f14aa90ecaa2377b4b93c408e4baa4384764c4e1561d7c2cd6ed1673",
+      "src/features/world/art/labels.ts": "bab295e9821c3498c4d8824656001c8e48f9ab64c7f34fa90fcad4b333bab3fa",
+      "src/features/world/art/lia-atlas.ts": "fdc7430701fea468b82550a89ea8867998b76a789ad3e6806810901ae33eac79",
+      "src/features/world/art/painter.ts": "7e767fadf8f2154fc4a4c87f0f7b4096a30afc511be0b47b16dfde9cbf4d04b7",
+      "src/features/world/art/props.ts": "f8886b1a4e7b6a0492229f022f9c25241deeb8bbb11170145d1722423afe4543",
+      "src/features/world/atmosphere.ts": "32a3732ff4eaff888a7ec63ad7ae23ebe55ae2bcc9bcc618fa5cb0a2b208c217",
+      "src/features/world/availability.ts": "30cbf46facee2046aed9fbc2e5e36e1259914ad0bf35b20a5421b50581b8b6f9",
+      "src/features/world/definition.ts": "67ab177b1a25da8c8ad72468216da9bb1822b04e07d454a4a5bc859521925bf7",
+      "src/features/world/functions.ts": "d5eb7ebd1172ec7997dd77faf61ae4821c9e8965f4713164029e6d080f20cc1a",
+      "src/features/world/geometry.ts": "2874a00349cbdc9e414a2ae28cf3a12b72f53c4a956d40a7a3283495a5765d85",
+      "src/features/world/home-catalogue.ts": "6f613379a6507af3d194058c4804dcc1053b65db38d51c9d6059fd62a7373528",
+      "src/features/world/home-preview.ts": "181fe169f49837088a24776e0bd01702a07dfdd38aa74247779657bff1d2670d",
+      "src/features/world/home-projection.ts": "7046d278b7c285330c26291b3f1c9b82bf8481338f3121d6062eec84fe3d516c",
+      "src/features/world/home-protocol.ts": "2ba3a4c21315f39117215a6c7a0b2f0417e7a97f2c66699ea62269a2c00d62a4",
+      "src/features/world/input.ts": "709681b0593c34dbba63224e4b7acc416f1620b4a94a156aee57ef794f09f000",
+      "src/features/world/mailbox-client.ts": "85afa8de6287d4ffbb4795f7249b473f0a0fd7248d141597559dcccb096c8852",
+      "src/features/world/message-protocol.ts": "30e65eac8be2fc4411b732affe2bda0644de346616a213fa90bd8deebb7dc31b",
+      "src/features/world/message-scroll-store.ts": "243ee84f090ba9aefbc4cd299c88883d2df8712cfb2837112ad6fcdcb10e0c24",
+      "src/features/world/minimap-geometry.ts": "76a16ec926b223b16f6f3d8a4910e3e5bc2a9249f8d80765abfbc8d12608d256",
+      "src/features/world/navigation.ts": "3d939e82d03c08803800201e751a06186de71c60f6d8886f2f4e1b2e35a37522",
+      "src/features/world/occlusion.ts": "cc8b623b42d26c9c1dac506fec2829fc167d064cb8019c120b4d4db4c8a186ef",
+      "src/features/world/performance.ts": "43bb7dd498d9c2ebac3be9d4747a4e81aa0dc40242d7ce8828b73b34356ebc7d",
+      "src/features/world/protocol.ts": "ba8a5751ec86fa395eb8d81d422369d51c5cfefaf368ad81a63aa3dead1097b2",
+      "src/features/world/renderer.ts": "19cd8ddc21c10cbad164ff832b8af92905132b1b08831227f8b48e093c11ebe5",
+      "src/features/world/runtime.ts": "bdd099f83524ac5ef282f3ef4abca03369f93ca27e2b9e19eff653841b27cc1d",
+      "src/features/world/shared-link.ts": "17ee48c1cfb608ae5de92ce34af2d84204f37069d2875ed2745bf365529a960c",
+      "src/features/world/shared-simulation.ts": "a704a932b1601688573839b95261659d2cee9a12d496bac4a26d10c332e9b1f4",
+      "src/features/world/simulation.ts": "7d5b66113aee699d1e1e4f992e0817ed53283a337adfcb8775a9ee8f069ff01f",
+      "src/features/world/types.ts": "1840f653d36f4397fb5902d04964224ab76532063e9cad47b69d3a32245a75db",
+      "src/features/world/useMessageLogScroll.ts": "c5918a4fd4ff05c69c0db6a11d42f825da3d0a3e2c1995f622ce0e1c2f540d97",
+      "src/features/world/useWorldEnvironment.ts": "cd5f1e6fa80c0dee5b479965d5cd382a3c3fc177342affc7d4b011fafc8bb91d",
+      "src/features/world/useWorldHome.ts": "9648c5085e1661c4d0c11956fbd070bd090668634a0a6518e69edfa9d27c9d16",
+      "src/features/world/useWorldMessages.ts": "edc5cdf0230dfbb9a44e5a5745dede195a3dcb483fa227d0292e1b42db9dced4",
+      "src/features/world/useWorldRuntime.ts": "48eb992a7d0fb4f0e9180382d0fd7be8d26d59d4a034f0f8ff7fdf44b3a901b6",
+      "src/features/world/useWorldSession.ts": "70e5c9cc0bd7fbca552d3df79a42e5955eb0c905eb97c0c44d32c44143b2cac5",
+      "src/features/world/useWorldVerificationFocus.ts": "e588caa2660499438cdd35f8c90e5e2716b0c56848658f9bc1be2b3035951edb",
+      "src/features/world/world.css": "58bb7cff8956233d73bd7c5d9866765ecce1de3b2bcc898b77a4347c0fe31027",
+      "src/features/world/WorldAccountGuard.tsx": "ce22cd7a6465e190b9ef7e8055bbdd39a48e0a9bbe093534acd7c650cc57e4a6",
+      "src/features/world/WorldCatalogue.tsx": "eb7960cda47b8b729c2c111fad58e6210cb73cf50f95c30e7348137a2f946a41",
+      "src/features/world/WorldDirections.tsx": "1b7d669f5eda1abdbc51222c3890d23ec2a3853e529fb46bae08317da3cd0482",
+      "src/features/world/WorldEntry.tsx": "74747818dc5ea4f2cca233ab74f240c76702695dea34af5e78a5a9acb192e319",
+      "src/features/world/WorldFunctionControls.tsx": "74177eb9501ffa5ac12759e20d2ca0c33a2fb259efcf133385610cf90ae79d69",
+      "src/features/world/WorldHomeControls.tsx": "310739104796c397e9d2a868c0541b5787ea387e98788f665dfd50e90e86c533",
+      "src/features/world/WorldHomeFields.tsx": "253f3f2b9f0467f1ca5f1d37d67f53fad7925a2645ea20b9c03053baf42b50da",
+      "src/features/world/WorldHomeMove.tsx": "641bba13d15895ad003a3043e0be2187a2575e6cc28530273fd632ec99ae26b9",
+      "src/features/world/WorldHud.tsx": "73f40b1aa7bfd0a79f7e8f1b82d8c3d6e67ffc7e22dffca1ae11bba928aa98d7",
+      "src/features/world/WorldMessageControls.tsx": "5ad3e0b5e1e3b85f5d50ce05935dfe4b4a561f15221939c11bdf5aaeba114b85",
+      "src/features/world/WorldMessageForm.tsx": "83914f4a2f269007cfa727390546121aebe2e67aeb6143be88a29e40fc6f9372",
+      "src/features/world/WorldMessageList.tsx": "d62d78e78c8765138785cfe899e2f25cc22eeacd61cd4703dd8363ff01c27896",
+      "src/features/world/WorldMessagePanel.tsx": "84b2b664f5bfef019e828d307157f11ead27d443e82003458ef815e731bbc9fd",
+      "src/features/world/WorldMinimap.tsx": "989dcbf1a290717f4ee813b41d921817a6b78f0a09783c1a54ccfcd16012037c",
+      "src/features/world/WorldNativePanel.tsx": "a4741a3141fddf03fad867764df80573c9c9b2f89f8cab963b22b3da24e3c8a3",
+      "src/features/world/WorldPeerPanel.tsx": "e709d6a8b783672c2af498779b555f6b3f016df6600591335f71dafc68930b70",
+      "src/features/world/WorldProof.tsx": "38843ab79896eece4335ecadd41bcf4419cfc2b51e88959b0b173ce432f04b53",
+      "src/features/world/WorldPrototype.tsx": "683481b9527a6930f4b1e766fae8b28a4517f6c89c740d237431bec79f77d421",
+      "src/features/world/WorldSessionDialog.tsx": "70a1fc1333c616cd0451ded989aca9a04dc77088389ccb5fbf3b94d06d5da40b",
+      "src/features/world/WorldShared.tsx": "a8287c0f4b4d6d8236b84b144678d8fd8db8da5d0b335e94403e103b64bf51e9",
+      "src/features/world/WorldSkyBadge.tsx": "09231f5d4a39c7e235a47bd7e5b8eadc2b9941fc846274021f8348f56e573abb",
+      "src/components/ui/select.tsx": "e3605456b0aad1d957d62287e785f227aabb729f867094625fc425e0440bbb89"
+    }
+  },
+  "preview": {
+    "url": "http://127.0.0.6:3010/fr/world-preview?shared=1",
+    "sourceMatchesQualifiedCandidate": true,
+    "smoke": {
+      "httpStatus": 200,
+      "admitted": true,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "runtimeErrors": [],
+      "authorityTakenOver": false,
+      "physicalDevice": false
+    },
+    "publishedConversation": {
+      "stats": {
+        "startTime": "2026-10-24T13:02:55.446Z",
+        "duration": 13556.019,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "accounts": [
+        {
+          "index": 4,
+          "configuredLanguage": "es"
+        },
+        {
+          "index": 8,
+          "configuredLanguage": "en"
+        }
+      ],
+      "independentBrowsers": true,
+      "authorityTakenOver": false,
+      "verified": [
+        "Configured proof language matches the selected interface",
+        "Translated authored phrase delivered in both directions",
+        "Unsupported fixture text is marked unavailable and its original appears only after an explicit action"
+      ],
+      "simulatedTranslationOnly": true
+    },
+    "developmentRecovery": {
+      "previousHttpStatus": 500,
+      "diagnostic": "SyntaxError while parsing JSON metadata; no invalid application JSON was introduced",
+      "freshBuildDirectory": ".next-world-f9-interactive",
+      "previousBuildCachePreserved": true,
+      "postRecoveryHttpStatus": 200
+    }
+  },
+  "frontend": {
+    "full": {
+      "passed": 14098,
+      "failed": 0,
+      "skipped": 4,
+      "files": 1150,
+      "success": true
+    },
+    "contractReplay": {
+      "passed": 64,
+      "failed": 0,
+      "skipped": 0,
+      "files": 3
+    },
+    "recoveredSkippedCases": 4,
+    "effective": {
+      "passed": 14102,
+      "failed": 0,
+      "skipped": 0
+    },
+    "method": "Full coverage run, followed by exact previously skipped contract names with their backend source corpus; no test assertion removed",
+    "coveragePercent": {
+      "statements": 86.51,
+      "branches": 80.78,
+      "functions": 84.36,
+      "lines": 88.08
+    },
+    "commands": [
+      "NEXT_PUBLIC_API_URL= pnpm test --coverage --maxWorkers=4 --configLoader=runner --reporter=dot --reporter=json",
+      "same pinned runner: chat-starters.test.ts scheduled-actions.test.ts sse-symmetry.test.ts"
+    ]
+  },
+  "nativeDelivery": {
+    "stats": {
+      "startTime": "2026-10-24T12:02:22.361Z",
+      "duration": 415768.229,
+      "expected": 30,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "cases": [
+      {
+        "title": "a real bilingual conversation works in both directions and a failed translation remains recoverable",
+        "project": "chromium",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "a recipient recovers an interrupted mailbox read without losing a draft or resending",
+        "project": "chromium",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "an account change in another tab withdraws the previous private conversation before further interaction",
+        "project": "chromium",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "free text, reciprocal replies, reload and a lost acknowledgment work without duplicate delivery",
+        "project": "chromium",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "a real bilingual conversation works in both directions and a failed translation remains recoverable",
+        "project": "firefox",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "a recipient recovers an interrupted mailbox read without losing a draft or resending",
+        "project": "firefox",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "an account change in another tab withdraws the previous private conversation before further interaction",
+        "project": "firefox",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "free text, reciprocal replies, reload and a lost acknowledgment work without duplicate delivery",
+        "project": "firefox",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "a real bilingual conversation works in both directions and a failed translation remains recoverable",
+        "project": "webkit",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "a recipient recovers an interrupted mailbox read without losing a draft or resending",
+        "project": "webkit",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "an account change in another tab withdraws the previous private conversation before further interaction",
+        "project": "webkit",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "free text, reciprocal replies, reload and a lost acknowledgment work without duplicate delivery",
+        "project": "webkit",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "native functions: private memory read/pin, denied peer mutation and embedded LIA without implicit send",
+        "project": "chromium",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "native functions: private memory read/pin, denied peer mutation and embedded LIA without implicit send",
+        "project": "firefox",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "native functions: private memory read/pin, denied peer mutation and embedded LIA without implicit send",
+        "project": "webkit",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "private home: real save, cancel, conflict/reload, phone accessibility and owner isolation",
+        "project": "chromium",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "private home: real save, cancel, conflict/reload, phone accessibility and owner isolation",
+        "project": "firefox",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "private home: real save, cancel, conflict/reload, phone accessibility and owner isolation",
+        "project": "webkit",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "direct text stays private, translates before display, handles failure without resend and remains usable on phone",
+        "project": "chromium",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "direct text stays private, translates before display, handles failure without resend and remains usable on phone",
+        "project": "firefox",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "direct text stays private, translates before display, handles failure without resend and remains usable on phone",
+        "project": "webkit",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "notification lifecycle: repeated native stream aborts keep the transport usable",
+        "project": "chromium",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "notification lifecycle: repeated native stream aborts keep the transport usable",
+        "project": "firefox",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "notification lifecycle: repeated native stream aborts keep the transport usable",
+        "project": "webkit",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "polished world: personal cached atmosphere, E interaction, native draft, private paged peers and reachable mobile HUD",
+        "project": "chromium",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "polished world: personal cached atmosphere, E interaction, native draft, private paged peers and reachable mobile HUD",
+        "project": "firefox",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "polished world: personal cached atmosphere, E interaction, native draft, private paged peers and reachable mobile HUD",
+        "project": "webkit",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "five real accounts share positions; a sixth waits; duplicate control is explicit and FIFO entry stays private",
+        "project": "chromium",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "five real accounts share positions; a sixth waits; duplicate control is explicit and FIFO entry stays private",
+        "project": "firefox",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "five real accounts share positions; a sixth waits; duplicate control is explicit and FIFO entry stays private",
+        "project": "webkit",
+        "status": "expected",
+        "attempts": 1
+      }
+    ],
+    "build": ".next-world-f9-qualified",
+    "note": "World TS/TSX source unchanged by the subsequent protected CSS scale reset; layout is rechecked below on the release build."
+  },
+  "releaseNativeLayout": {
+    "stats": {
+      "startTime": "2026-10-24T12:15:03.183Z",
+      "duration": 49422.888999999996,
+      "expected": 3,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "cases": [
+      {
+        "title": "polished world: personal cached atmosphere, E interaction, native draft, private paged peers and reachable mobile HUD",
+        "project": "chromium",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "polished world: personal cached atmosphere, E interaction, native draft, private paged peers and reachable mobile HUD",
+        "project": "firefox",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "title": "polished world: personal cached atmosphere, E interaction, native draft, private paged peers and reachable mobile HUD",
+        "project": "webkit",
+        "status": "expected",
+        "attempts": 1
+      }
+    ],
+    "build": ".next-world-f9-release"
+  },
+  "releaseTouch": {
+    "passed": 6,
+    "failed": 0,
+    "skipped": 0,
+    "build": ".next-world-f9-release",
+    "engines": [
+      "chromium",
+      "firefox",
+      "webkit"
+    ],
+    "peerAvailability": [
+      false,
+      true
+    ],
+    "mailboxMessages": 50,
+    "viewportMatrix": [
+      [
+        390,
+        844
+      ],
+      [
+        844,
+        390
+      ],
+      [
+        568,
+        320
+      ],
+      [
+        320,
+        568
+      ],
+      [
+        768,
+        1024
+      ]
+    ],
+    "enlargedType": [
+      {
+        "viewport": [
+          568,
+          320
+        ],
+        "rootFontPixels": 20
+      },
+      {
+        "viewport": [
+          390,
+          844
+        ],
+        "rootFontPixels": 20
+      }
+    ],
+    "heldTargetAndAxeChecked": true,
+    "physicalDevice": false
+  },
+  "performance": {
+    "stats": {
+      "startTime": "2026-10-24T12:24:49.246Z",
+      "duration": 89883.87000000001,
+      "expected": 3,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "physicalDevice": false,
+    "concurrentCompilerOrFullSuite": false,
+    "samples": [
+      {
+        "profile": "desktop: five native server clients, one full UI renderer",
+        "browserName": "chromium",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "zoom": "95%",
+        "fps": 59.7,
+        "frameP95": "16,7 ms",
+        "renderP95": "16,4 ms",
+        "phase": "evening",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      },
+      {
+        "profile": "phone viewport, economic quality",
+        "browserName": "chromium",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "zoom": "95%",
+        "fps": 29.7,
+        "frameP95": "33,3 ms",
+        "renderP95": "4,9 ms",
+        "phase": "evening",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      },
+      {
+        "profile": "phone viewport, economic quality, CPU slowdown 4x",
+        "browserName": "chromium",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "zoom": "158%",
+        "fps": 27.9,
+        "frameP95": "50 ms",
+        "renderP95": "25 ms",
+        "phase": "evening",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      },
+      {
+        "profile": "desktop: five native server clients, one full UI renderer",
+        "browserName": "firefox",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "zoom": "95%",
+        "fps": 57.1,
+        "frameP95": "17,2 ms",
+        "renderP95": "19,6 ms",
+        "phase": "evening",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      },
+      {
+        "profile": "phone viewport, economic quality",
+        "browserName": "firefox",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "zoom": "95%",
+        "fps": 29.6,
+        "frameP95": "50,4 ms",
+        "renderP95": "12,1 ms",
+        "phase": "evening",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      },
+      {
+        "profile": "desktop: five native server clients, one full UI renderer",
+        "browserName": "webkit",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "zoom": "95%",
+        "fps": 30.1,
+        "frameP95": "54 ms",
+        "renderP95": "2 ms",
+        "phase": "evening",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      },
+      {
+        "profile": "phone viewport, economic quality",
+        "browserName": "webkit",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "zoom": "95%",
+        "fps": 25.8,
+        "frameP95": "59 ms",
+        "renderP95": "3 ms",
+        "phase": "evening",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      }
+    ]
+  },
+  "images": {
+    "desktop.png": {
+      "sha256": "6e9c0dbd7bd6ed0c262d3a28d9759cbd717ebf6edf90313a1de5d3ab74bc5a97",
+      "pixels": [
+        1280,
+        800
+      ]
+    },
+    "landscape.png": {
+      "sha256": "190beb1c929d0dfa1e4678cfef36d57da93d66f7381fef1a5044b2f443218623",
+      "pixels": [
+        844,
+        390
+      ]
+    },
+    "phone.png": {
+      "sha256": "0c6bc829c5d187a671e7edf2c147fac3e686244cc22948e3a1a42070c64d180c",
+      "pixels": [
+        390,
+        844
+      ]
+    },
+    "small-phone.png": {
+      "sha256": "9ba0076d18db686726ff5ee3768c104467d680bcc4c02d917189695a302b1323",
+      "pixels": [
+        320,
+        568
+      ]
+    },
+    "tablet.png": {
+      "sha256": "0aa7aae8091fa94a7d2f8f0625f8ec6a132eb34ceec8a7be0882945f7cb6646d",
+      "pixels": [
+        768,
+        1024
+      ]
+    }
+  },
+  "static": {
+    "nonFrontendCanonicalTasks": "passed",
+    "linuxEslint": "passed",
+    "a11yViolations": 0,
+    "hooksInheritedViolations": 30,
+    "hooksBaselineChanged": false,
+    "frontendComplexity": {
+      "functions": 38,
+      "max": 46
+    },
+    "strictProductionTypeCheck": "passed",
+    "strictE2ETypeCheck": "passed",
+    "worldCatalogue": "passed",
+    "windowsRootLint": "Blocked by incomplete shared D: dependencies: initial zod/v4 and zod; final retry after zod resolved still lacked es-iterator-helpers/Iterator.from. No shared dependency repair or installation was performed. The canonical frontend commands passed on the exact isolated source with read-only Linux dependencies; all other canonical host gates passed.",
+    "docs": "passed: task lint:docs after staging the new sources and proof artifacts",
+    "indexedSecretScan": {
+      "result": "no leaks",
+      "version": "8.24.3",
+      "indexedFiles": 381,
+      "redacted": true
+    }
+  },
+  "remainingAcceptance": [
+    "Physical Pi and phone GPU, thermals and battery under normal LIA load",
+    "Real translation-provider linguistic fidelity",
+    "Owner approval of final artwork"
+  ],
+  "reviewNotes": [
+    "No subagents, main changes, dependency installation, merge, push or production deployment",
+    "Old development preview returned JSON metadata errors after hot refresh; fresh isolated dist restored its authenticated touch preview, while retaining the old build cache",
+    "Four corpus-dependent skips in the complete coverage run were replayed successfully with their backend source files; no assertions removed or floors lowered",
+    "Equal-priority CSS transform/scale reset was optimized away; held-pointer failure and compiled-rule inspection verified the protected individual scale reset"
+  ]
+}

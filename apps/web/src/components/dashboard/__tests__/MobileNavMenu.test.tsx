@@ -147,7 +147,7 @@ describe('MobileNavMenu — instance-gated destinations (ADR-258)', () => {
         translate={translate}
         isActiveRoute={() => false}
         triggerLabel="Menu"
-        destinations={visibleDestinations({ meetings_enabled: false })}
+        destinations={visibleDestinations({ meetings_enabled: false, world_enabled: true })}
       />
     );
     await user.click(screen.getByRole('button', { name: 'Menu' }));
@@ -162,7 +162,7 @@ describe('MobileNavMenu — instance-gated destinations (ADR-258)', () => {
         translate={translate}
         isActiveRoute={() => false}
         triggerLabel="Menu"
-        destinations={visibleDestinations({ meetings_enabled: true })}
+        destinations={visibleDestinations({ meetings_enabled: true, world_enabled: true })}
       />
     );
     await user.click(screen.getByRole('button', { name: 'Menu' }));

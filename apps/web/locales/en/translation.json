@@ -1050,7 +1050,13 @@
       "reactivate_description": "Your device paused location sharing while the app was closed. Re-enable it so LIA keeps using your real position instead of your home address.",
       "reactivate_button": "Re-enable",
       "detection": {
-        "keywords": ["nearby", "vicinity", "neighborhood", "surroundings", "area"],
+        "keywords": [
+          "nearby",
+          "vicinity",
+          "neighborhood",
+          "surroundings",
+          "area"
+        ],
         "patterns": [
           "around (me|here|us)",
           "close (by|to me)",
@@ -3202,7 +3208,8 @@
           "jev_parameter_kind": "Before a tool call, judges what each address, place or email value is. Only a confident judgment can refuse a value of another kind (a person's name, a phone number, a date). An uncertain or failed judgment leaves the decision to the existing guard, and JEV cannot accept a value that guard refuses.",
           "jev_email_classification": "Classifies already available email evidence into an advisory category and one attention level. Uncertainty shows no badge. No extra message, link or attachment is fetched.",
           "jev_event_classification": "Classifies already available appointment evidence as professional or personal. Uncertainty shows no badge; the appointment is unchanged.",
-          "sms_agent": "Domain agent reading received SMS with your permission"
+          "sms_agent": "Domain agent reading received SMS with your permission",
+          "world_message_translator": "Translates direct world messages into the recipient's language, using the requesting person's native LIA quotas and accounting."
         },
         "voiceTts": {
           "sectionTitle": "Voice & provider tuning",
@@ -4801,7 +4808,7 @@
         "psyche": "emotions, mood, feelings, affect, emotional, self-efficacy, experience, evidence, relationship, traits, OCEAN, evolution, reset, Psyche Engine",
         "memories": "memory, remember, forget, facts, recollection, export, rules, directives, standing instructions, procedural",
         "interests": "topics, tastes, subjects, curiosity, preferences, history, recent notifications, weight, explanation, decay, export",
-        "peer-connections": "contacts, friends, family, network, share calendar, availability, block, discover users, connect, my name, copy my name, connection request, access log, relay message, blocked users, peers, social network, discovery, loved ones, relatives, share my address, email visible, my email, 360 overview, visibility, requests, share an image, shared images share received sender disabled copy",
+        "peer-connections": "contacts, friends, family, network, share calendar, availability, block, discover users, connect, my name, copy my name, connection request, access log, relay message, blocked users, peers, social network, discovery, loved ones, relatives, share my address, email visible, my email, 360 overview, visibility, requests, share an image, shared images share received sender disabled copy, World presence, at home, away, online, offline, block World messages",
         "heartbeat": "proactive, spontaneous, initiative, check-in, autonomous messages, notification topics, sources, history, recent notifications, priority, urgency, high, medium, low, colour, weather, frequency, time window, proposals, offers, missed routine, push wake, react to an email, react to an invitation, trigger, wake-up, anticipated moments, after a meeting, how did it go, instant, moment, not connected, fourteen sources, SMS source, habits source, workboard source, local time, in a meeting, Proactive notifications",
         "scheduled-actions": "cron, schedule, recurring, automation, timer, planned, week view, timeline, weekly grid, every three days, 2nd Tuesday, interval, end of series, advanced options, watch, watch for a reply, finished, tell me when, closes on its own",
         "journals": "diary, logbook, portrait, reflections, notes, configuration, consolidation, export, Personal Journals",
@@ -4819,12 +4826,12 @@
         "admin-llm-pricing": "pricing, price, tariff, tokens, text models, cost per token, Excel, spreadsheet, import, export, bulk update, workbook, reasoning, accepted depths, ladder, capability provenance, public registries, catalogue, time windows, off-peak, peak hours, weekdays, weekend, cache write",
         "admin-google-api-pricing": "pricing, Google API, Maps, Places, routes, geocoding cost",
         "admin-image-pricing": "pricing, images, image generation, cost per image, reference image, edit, tier, OpenAI, Qwen",
-        "admin-llm-config": "LLM, models, provider, configuration, temperature, reasoning, api keys, Ollama, local models, context window, email digest, output tokens, pinned voices, Fish Audio, latency, WebSocket, max tokens, output cap, model limit",
+        "admin-llm-config": "LLM, models, provider, configuration, temperature, reasoning, api keys, Ollama, local models, context window, email digest, output tokens, pinned voices, Fish Audio, latency, WebSocket, max tokens, output cap, model limit, World message translator, translated messages",
         "admin-voice-library": "voices, voice library, clone, cloning, voice design, Fish Audio, recordings, consent, speech synthesis, TTS",
         "admin-personalities": "personalities, styles, tone, system prompt, assistant character, Personality Administration",
         "admin-skills": "skills, system skills, import, reload, capabilities catalog, System skills administration",
         "rag-spaces-admin": "RAG, spaces, knowledge, reindex, documents, embeddings, System RAG Administration",
-        "admin-capabilities": "capabilities, feature flags, switches, platform features",
+        "admin-capabilities": "capabilities, feature flags, switches, platform features, World, shared world, isometric, admission, public presence",
         "admin-public-demo-link": "demo, demonstrator, public link, showroom, share",
         "debug-settings": "debug, diagnostics, logs, panel, token tracking",
         "eyes-style": "eyes, avatar, animation, style, gaze, companion, cozmo, face, mouth, brows, mimics, sketches, capsules",
@@ -5533,7 +5540,8 @@
     "faq": "Help",
     "relations": "Relations",
     "notifications": "Alerts",
-    "meetings": "Meetings"
+    "meetings": "Meetings",
+    "world": "LIA World"
   },
   "errors": {
     "generic": "An error occurred",
@@ -6168,9 +6176,13 @@
       "title": "How LIA Works",
       "description": "A multi-agent AI assistant that connects your services and answers with your own data.",
       "features": {
+        "world": {
+          "title": "🗺️ LIA World",
+          "description": "Walk through an isometric house and garden with other people, in your chosen character. Places open LIA’s existing tools: your conversation, knowledge, meetings, files and more, under their usual confirmations and budgets. Your home and personal panels stay private. Exchange temporary text, translated with consent; day, weather and optional sound bring the scene to life. Human-to-human voice is not available."
+        },
         "architecture": {
           "title": "🏗️ LangGraph Multi-Agent Architecture",
-          "description": "LIA runs on LangGraph, a state graph: 20+ specialised agents (email, calendar, contacts, files, weather, web, home…) plus MCP agents added at runtime, each with conditional transitions and state checkpointed to PostgreSQL — so a conversation survives a restart in the middle of a task. On every turn the graph receives only what changed since the previous one, not the whole restored state: a checkpoint stays small, even in a conversation weeks long."
+          "description": "LangGraph coordinates specialised agents for mail, calendars, contacts, files, weather and more, with MCP tools added at runtime. PostgreSQL checkpoints preserve the conversation across restarts. Each turn submits only its changes, keeping saves bounded as the conversation grows."
         },
         "queryAnalyzer": {
           "title": "🧭 Query Analyzer v3.2",
@@ -6186,7 +6198,7 @@
         },
         "planning": {
           "title": "📋 Intelligent Planning & FOR_EACH",
-          "description": "The planner writes the plan before acting: parallel steps with dependencies, a FOR_EACH pattern for bulk work (“email everyone in this group”), and around 100 pre-trained patterns so common requests are planned right the first time. The catalogue it reads is closed and honest — every tool needed to obtain a datum is present, and every limit the validator enforces is published, so a plan is never failed for obeying instructions it was never given."
+          "description": "LIA plans before acting: dependencies order the steps, independent work runs in parallel, and bulk requests use a bounded loop. Its catalogue exposes the tools and limits the validator actually enforces, so the plan is built from capabilities the instance really offers."
         },
         "semanticTypes": {
           "title": "📦 Semantic Type System",
@@ -6242,7 +6254,7 @@
         },
         "security": {
           "title": "🔐 Multi-Layer Security",
-          "description": "Defence in depth: passkeys, TOTP with backup codes, re-authentication, revocable sessions, reset links bound to account and password, an optional anti-robot check, and scans or brute force banned by every worker. OAuth 2.1 with PKCE, encrypted credentials, logs that keep facts, never your words. Skills and scripts run in a throwaway container; third-party text reaches the model as data, never as instruction. Every building block is pinned by digest and watched weekly."
+          "description": "Defence in depth: passkeys, TOTP with backup codes, re-authentication, revocable sessions, reset links bound to account and password, an optional anti-robot check, and scans or brute force banned by every worker. OAuth 2.1 with PKCE, encrypted credentials, technical logs that filter personal data. Skills and scripts run in a throwaway container; third-party text is marked as external data before reaching the model. Every building block is pinned by digest and watched weekly."
         },
         "resilience": {
           "title": "🛡️ Performance & Token Optimization",
@@ -6338,7 +6350,7 @@
         },
         "qualityAssurance": {
           "title": "🎯 LLM-as-Judge Quality Assurance",
-          "description": "An automated evaluation pipeline scores answers on three axes — relevance to the question, fabricated content, and latency against its SLA — and exports the metrics to Prometheus and Langfuse, so a quality drift is seen rather than reported. On the interface side, every journey is replayed on Chromium with each change, and every week on Firefox and WebKit, with an automated accessibility check. And no test can switch itself off in silence when a provider key is missing: a skipped test is green, therefore invisible."
+          "description": "Automated evaluations measure relevance, fabricated content and latency. Browser journeys cover Chromium, Firefox and WebKit, alongside accessibility checks. Missing provider credentials are reported explicitly; a silently skipped test cannot stand in for a result."
         },
         "attachments": {
           "title": "📎 Photos & File Attachments",
@@ -6475,6 +6487,22 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v4_0_0": {
+          "title": "v4.0.0 — 🌍 A world to explore, your assistant beside you",
+          "date": "26 October 2026",
+          "count": "9",
+          "items": {
+            "i1": "<b>🌍 Step into LIA World</b> — Explore a shared campus and garden with LIA, using keyboard or touch, a minimap and camera controls. The operator chooses whether this optional space is available.",
+            "i2": "<b>🏠 Your own place</b> — Choose your avatar and your home's colour palette. Your home preferences and assistant data stay private, even when you meet other people in the shared world.",
+            "i3": "<b>🧭 Familiar functions, in their rooms</b> — Open conversations, meetings, knowledge, Relations and other enabled activities in private native panels. Approval requests, permissions, costs and quotas follow the same rules.",
+            "i4": "<b>🤝 Meet and write</b> — Consent to displaying your account name, see admitted people, exchange direct text or join an explicitly public discussion. Accepted, unblocked connections can see your coarse World presence.",
+            "i5": "<b>🌐 Translation by choice</b> — Choose translation when you need it, with the configured model and spending controls. Private messages do not become assistant history. Direct voice between people is not part of this release.",
+            "i6": "<b>🌙 A place with atmosphere</b> — Day and night, optional cached weather, local sounds and separate volume controls accompany your visit. Decoration makes no model or weather-provider request.",
+            "i7": "<b>🛠️ A controlled shared space</b> — Administrators can enable World and set its capacity. A waiting queue and explicit tab control keep admission predictable; losing the connection pauses interaction until reconnection.",
+            "i8": "<b>🧠 More model choices</b> — Jev 1.14 and Gemini 4 Argon join the catalogue. Optional JEV assistance keeps its own controls, accounting and documented limits.",
+            "i9": "<b>🛡️ Smoother uploads and stronger privacy</b> — Large PDF and HEIC processing leave the main request loop available. Cancellation and transaction cleanup are more reliable, log addresses are better protected, and production startup allows more time for migrations."
+          }
+        },
         "v3_7_0": {
           "title": "v3.7.0 — 🔎 Found by first name, shared in plain sight",
           "date": "25 October 2026",
@@ -9302,7 +9330,7 @@
       "getting_started": {
         "title": "Getting Started",
         "description": "How to get started with LIA",
-        "count": "12",
+        "count": "13",
         "questions": {
           "q1": {
             "question": "What is LIA?",
@@ -9351,6 +9379,10 @@
           "q12": {
             "question": "Does LIA work without a connection once installed?",
             "answer": "No — LIA runs on your server, and what you install is a window onto it. Conversations, answers, actions and synchronisation all need the network.<br><br><strong>📴 When the connection drops:</strong><br>• installed from the browser, LIA shows its own offline page, in your language, with a <strong>Try again</strong> button instead of a browser error<br>• the mobile app shows its offline screen, with a retry and a way to choose a different server — handy if the address was mistyped<br><br><strong>🔒 Nothing personal is kept for offline reading:</strong> at most the application's own files are stored on the device; your conversations and data stay on the server.<br><br>When you reconnect, the open conversation catches up with what happened in the meantime."
+          },
+          "q13": {
+            "question": "What can I do in LIA World?",
+            "answer": "Open <strong>LIA World</strong> from the menu when your instance offers it. Explore the shared house and garden, meet other people, exchange private or public text and open your personal LIA conversation and native tools. Choose your character and private home palette. Keyboard, touch, zoom and the minimap help you move around. Lighting follows your account’s local time; available cached weather and optional sounds animate the scene. Movement itself calls no model; activities and translation keep their normal permissions, confirmations, costs and quotas. The <strong>LIA World</strong> section below explains each feature."
           }
         }
       },
@@ -10745,8 +10777,8 @@
             "answer": "<p>The film is in French. It presents LIA’s uses through faithfully reconstructed screens and demonstration data, animated native companions and original music generated with Google Lyria. It is not a recording of your session or evidence that a provider executed every operation shown. Settings and confirmations remain available in the application.</p>"
           },
           "q7": {
-            "question": "Are the local-model and isometric-world projects available?",
-            "answer": "<p>The oMLX, llama.cpp and LM Studio studies and the isometric world are qualification or design work, not new shipped integrations. Use the providers actually offered by your instance. The Simli video avatar remains experimental, opt-in and dependent on an external service; it is separate from native companions.</p>"
+            "question": "Are oMLX, llama.cpp and LM Studio integrations available?",
+            "answer": "<p>Those local-model studies remain qualification or design work. Use the providers actually offered by your instance.</p><p><strong>LIA World</strong> is available when the operator enables it: shared presence, private native LIA tools and text correspondence with consented translation are included. See the World section for its scope.</p><p>The Simli video avatar remains experimental, opt-in and dependent on an external service; it is separate from native companions.</p>"
           }
         }
       },
@@ -11586,6 +11618,57 @@
           "q11": {
             "question": "Can the mobile apps connect to my own server?",
             "answer": "Yes: the official Android and iPhone apps work with any self-hosted LIA (see “Is there a mobile app for Android or iPhone?” in Getting Started). What your server needs:<br>• <strong>an HTTPS address</strong>: the apps refuse plain HTTP, so an installation reached in <strong>lan</strong> mode is for browsers only — choose <strong>proxy</strong> or <strong>caddy</strong><br>• <strong>on iPhone</strong>, web and API addresses under the same domain (for example lia.example.org and api.example.org): Apple's browser engine blocks the sign-in cookie across different domains<br>• <strong>notifications</strong>: on Android, through a Firebase project you own and configure on the server; on iPhone, Apple lets only the app's publisher push, so your server must be given a wake relay's address — it carries one fixed sentence with no content, and without it the iPhone app receives no push"
+          }
+        }
+      },
+      "world": {
+        "title": "LIA World",
+        "description": "A shared place to meet, with your own private LIA close at hand.",
+        "count": "11",
+        "questions": {
+          "q1": {
+            "question": "What is LIA World, and how do I enter?",
+            "answer": "LIA World is a shared isometric house and garden where places lead to LIA’s functions. Open <strong>World</strong> in the menu when your instance offers it. Choose your character, review the displayed LIA account name and accept sharing your name, appearance and coarse presence. Change your name in your LIA profile settings. The operator sets capacity; when full, a queue offers a place for you to confirm. Leaving releases your place and keeps you signed in to LIA."
+          },
+          "q2": {
+            "question": "How do I move, look around and sit down?",
+            "answer": "Focus the scene and use arrows, WASD or ZQSD, or click or tap reachable ground. A mobile joystick is available. Drag to explore the camera; use the wheel, pinch or zoom buttons to change scale. The minimap moves the view; recenter follows your character again. Nearby authored seats and resting places offer their available poses. Help explains the controls and lets you adjust graphics quality."
+          },
+          "q3": {
+            "question": "What can other people see about me?",
+            "answer": "People in the shared scene see your LIA name, chosen appearance and public movements. Your accepted connections can see a coarse status: in the world, at home, away or offline. Your private home interior, conversation with LIA, memories, documents and personal panels stay outside shared snapshots. Blocking filters visibility and correspondence. Instance operators may have technical access; text sent for translation reaches the configured AI provider under its policies."
+          },
+          "q4": {
+            "question": "What can I personalise in my home and character?",
+            "answer": "Choose your character’s skin tone, hair, clothing, colours and accessories at entry or through <strong>My character</strong>. Your saved appearance is visible in shared places. Your home is private: preview its colour palette and save it, or follow your application theme. Saved choices return on your next visit; a concurrent change asks you to reload before saving. This version offers bounded palette choices; home visits and shared furniture editing are unavailable."
+          },
+          "q5": {
+            "question": "Can I use LIA’s normal functions without leaving the world?",
+            "answer": "Yes. The places and function directory open the existing LIA panels privately: knowledge spaces, memories, files and kept answers, meetings, workboard, relations, reminders, routines, connectors and extensions, according to your account’s capabilities. Your personal conversation uses the normal workspace, including available attachments and voice controls. Confirmations, permissions, quotas and costs still apply. Administration stays in the ordinary settings. You can return to the usual application at any time."
+          },
+          "q6": {
+            "question": "How do I talk to LIA, and can I speak to other people?",
+            "answer": "Call LIA or select the character to open your personal conversation, journals, notifications or psyche. LIA can patrol or follow you; walking the character itself calls no AI model. Dictation, spoken answers and Live sessions use LIA’s existing voice features when available and configured. They connect you to LIA. Communication between human participants in this version uses text; direct human audio is unavailable."
+          },
+          "q7": {
+            "question": "How do private and public messages work?",
+            "answer": "Open <strong>Conversations</strong> and choose a person visible in a shared place for a direct message, or the public conversation for a message to its eligible audience present at sending. A public message stays with that audience; later arrivals do not receive its history. Return from home to a shared place before sending. Original and translated text can be viewed, with pending, failed or uncertain delivery shown explicitly. These temporary messages expire after the duration shown in the panel and are not added to LIA’s memory."
+          },
+          "q8": {
+            "question": "Who pays for message translation?",
+            "answer": "Sending asks for consent to any translation charge under your LIA quotas. Same-language delivery calls no model; a translation uses the instance’s dedicated translator and shows its available token and cost receipt. A public send groups the required target languages into one translation request. A later translation you explicitly request uses your own quotas. Failure can still consume paid work; an uncertain request offers a status check rather than automatic resending."
+          },
+          "q9": {
+            "question": "What are the phone, weather and sound controls for?",
+            "answer": "The compact device panel gives private access to your SMS, reminders, notifications and available calling or radio controls. Proactive notifications can also be offered by LIA without exposing their content to the scene. The weather panel reads your available cached weather; day/night lighting follows your account’s local time, anchored to the server clock. The scene makes no extra weather-provider request. Optional ambience and message sounds have their own controls. Sound and animation do not create a shared microphone or publish your personal data."
+          },
+          "q10": {
+            "question": "What if the connection drops, another tab takes control or my device struggles?",
+            "answer": "The server confirms movement and collisions. Losing authority pauses input while the world reconnects; an expired place can require joining again. Another tab must explicitly take control. Changing account closes the old private workspace and asks you to reload with the current account. Help offers graphics quality and performance information; reduced motion limits decorative animation. Keyboard focus can leave the scene normally, and touch controls support phones. Observed performance depends on your device and connection."
+          },
+          "q11": {
+            "question": "How does an administrator make World available?",
+            "answer": "The operator enables World in server configuration, then the administrator permits it in <strong>Settings › Administration › Platform capabilities</strong>. The operator also sets capacity and the server limits; the capability switch cannot override a disabled deployment. World reuses native account sessions, Redis-backed presence and saved account preferences. Personal panels keep their own capability gates, while message translation uses its own model slot and the existing usage limits. No administrator panel is exposed inside the shared scene."
           }
         }
       }
@@ -12435,6 +12518,17 @@
       "tests": "automated tests",
       "languages": "languages, strict parity",
       "releases": "releases shipped"
+    },
+    "world": {
+      "title": "A world with small attentions.",
+      "intro": "The same care follows you into LIA World, from the way you move to what another person can see.",
+      "navigation_title": "Find your bearings.",
+      "navigation_body": "Walk by keyboard or touch, zoom and recenter with the minimap. Reduced motion and graphics quality controls let you adjust the scene.",
+      "privacy_title": "Stay in control.",
+      "privacy_body": "A room opens your usual private tools. Sending, deleting and sensitive changes keep their native confirmations; your assistant’s context stays yours.",
+      "messages_title": "Choose the words you share.",
+      "messages_body": "Keep a private conversation private, or deliberately address Everyone in the shared space. Translation is an explicit paid choice, with your cost visible and no automatic retry after a failure.",
+      "link": "Discover LIA World"
     }
   },
   "healthMetrics": {
@@ -13746,15 +13840,15 @@
       },
       "peers": {
         "title": "Your circle, assistant to assistant",
-        "description": "Connect with the people close to you on the same LIA instance: discovery is opt-in, by exact name or email address, with a word to say who you are. Then ask LIA to pass on a message: you approve the wording, then THEIR assistant delivers it and confirms to yours. The message lands in a tinted bubble with Reply right below — nothing is ever sent by itself. Share an image LIA generated in one click: it lands in their gallery and their chat, your comment quoted as written. When a connection is removed, both assistants let you know. Share images and useful capabilities with an accepted connection. Skills, MCP servers and plugins arrive as independent disabled copies, with sender and time, without your credentials. A first name is enough to reach a connection — when several share it, LIA asks which one — and under your own card you see who received what you shared."
+        "description": "Find people on your instance through opt-in discovery by exact name or email, then accept your connections. Ask LIA to pass on a message: you approve the wording, their assistant delivers it and the outcome returns to your thread. Reply can prepare the next message below it. A first name can reach a known connection; when it matches several people, LIA asks which one."
       },
       "peer_shares": {
         "title": "Read-only shares, revocable",
-        "description": "Per connection, you open what you choose — nothing by default: your availability, free/busy or with event titles, the titles of your tasks, your real email address. Ask LIA “is Marie free on Thursday?” and she reads what Marie shared, nothing more. Every read is re-validated on the spot and logged: you see who looked at what, and you revoke in one tap. And hand a ticket from your board to a connected person: they hold it, comment, and give you the result back."
+        "description": "Choose what each connection may read: your availability, event titles if you allow them, or pending task titles. Access granted in both directions stays visible. Each consultation is checked and recorded in your access log; you can withdraw a right whenever you wish. Read access does not let the other person modify your events or tasks."
       },
       "peer_safety": {
         "title": "Protection by construction",
-        "description": "Nobody finds you without your consent: discovery is off by default, by exact name, and a declined request imposes a hold before the next one. A stranger, a refusal and a block all get the same answer, byte for byte — an account’s existence cannot be probed. Blocking is silent: the person is not told, can no longer find you, sees nothing, and unblocking restores nothing. Relays are capped per day, and LIA never runs one person’s instruction with the other one’s tools."
+        "description": "Discovery is your choice and each connection must be accepted. Blocking cuts off relevant discovery, exchanges and access; unblocking does not restore old rights. Conversations, connectors and memories remain account-scoped. Read permission can be revoked; a capability already delivered is its recipient’s independent copy."
       },
       "plugins": {
         "title": "Plugins (Agent Plugins standard)",
@@ -13799,6 +13893,58 @@
       "personal_radio": {
         "title": "A radio about your day",
         "description": "An on-demand station mixes your day with sourced news in your language. Choose programmes, sources, voices and optional checks; follow sources and cost under a daily budget, until your timer ends. Commercial pitches and sponsorships are filtered while genuine invoices, reservations and editorial or scientific news remain. Voices play over the station's own music, which steps back while they speak, and, where a programme converses, a chuckle or a sigh may open a reply."
+      },
+      "world": {
+        "title": "LIA World",
+        "description": "Explore an isometric house and garden with your own avatar and LIA beside you. A minimap, keyboard and touch controls help you move between places. Each room opens existing LIA functions privately; entering a room never sends a message or starts an action. Availability follows your instance’s settings."
+      },
+      "world_home": {
+        "title": "Your own corner of the world",
+        "description": "Choose your avatar’s appearance and your private home’s colours. Entry asks permission to show your name and avatar to other unblocked participants. Accepted connections can also see your coarse presence and whether you are home. Home contents, documents and assistant context remain private."
+      },
+      "world_messages": {
+        "title": "People, messages and languages",
+        "description": "Write privately to an available, unblocked participant or choose Everyone for people present in shared areas. Translation is an explicit paid choice, with the original available and costs private to the payer. Temporary human text stays separate from LIA’s conversation and memory; failed or uncertain translation attempts are not retried automatically."
+      },
+      "world_audio": {
+        "title": "A world you can listen to",
+        "description": "Turn on optional room and garden soundscapes, with a separate volume control. These static original sounds call no provider during playback. The library stays silent; world sound pauses for LIA’s voice, microphone, Live and Radio, and stops when you leave."
+      },
+      "world_companion": {
+        "title": "LIA stays close",
+        "description": "Call LIA, let her follow or wander, then open your personal conversation. Her menu also opens her journal, psyche and your alerts. Her animated presence and movement need no model; conversations reuse the chat and voice features available to your account."
+      },
+      "world_functions": {
+        "title": "Familiar tools, familiar places",
+        "description": "Library, meeting room, multimedia studio, engineering lab, divination room: places open your usual activities privately. The Functions directory finds authorized knowledge, memories, meetings, Relations, Workboard, reminders, routines, files and extensions. Shortcuts prepare requests; sending and sensitive actions keep their approvals. Administration stays in ordinary settings."
+      },
+      "world_atmosphere": {
+        "title": "The time and weather of your day",
+        "description": "Light follows your account’s local time, anchored to the server clock. When recent real weather is already cached, the scene reflects sunshine, rain, snow or fog. The weather panel lets you inspect that context. Without fresh data the scenery stays neutral: atmosphere makes no new weather request or model call."
+      },
+      "world_controls": {
+        "title": "Move at your own pace",
+        "description": "Walk with the keyboard, click or tap the ground, or use the optional mobile joystick. Pan, zoom and find your character again with the minimap and recenter control. Authored seats and resting places offer their poses nearby. Help brings together controls, graphics quality and observed performance; reduced motion limits decorative animation."
+      },
+      "world_access": {
+        "title": "A shared world with clear controls",
+        "description": "The operator chooses availability and capacity. When the world is full, a queue offers a place for you to confirm. Another tab must explicitly take control; losing the connection pauses interaction while reconnecting. Leaving releases your place and keeps you signed in to LIA. Blocks filter visible people and correspondence."
+      },
+      "peer_capabilities": {
+        "title": "Share your skills, MCP servers and plugins",
+        "description": "Pass a skill, an MCP server configuration or a plugin to an accepted connection. Inspect the transfer preview and confirm sending. The copy arrives disabled with its origin; personal connections and credentials are not transferred. The recipient can review it, add their own configuration and choose to activate it. An activated capability retains its normal powers; that choice remains theirs."
+      },
+      "peer_provenance": {
+        "title": "Who sent what, and who you shared it with",
+        "description": "A received copy shows its sender and sharing date. Under your own item, find recipients, dates and partial deliveries. Each person sees their own side of the transfer. A received copy evolves independently of the original; changes are not synchronized. An item already delivered to the same person cannot currently be shared with them again."
+      },
+      "peer_images": {
+        "title": "An image to give",
+        "description": "From a live generated image you own, choose an accepted connection and confirm sharing, with an optional comment. A copy joins their gallery; the chat notification quotes your comment as written. The copy has its own lifetime and sharing itself makes no model call. Gallery delivery and chat notification have separate outcomes."
+      },
+      "peer_presence": {
+        "title": "Find your circle in the World",
+        "description": "Inside LIA World, the directory of accepted, unblocked connections shows coarse presence: in the world, in their private home, away or offline. It comes from their World connection and reveals neither scene coordinates nor home contents. The next chapter presents encounters and discussions in the shared world."
       }
     },
     "use_cases": {
@@ -14044,7 +14190,8 @@
         "places": "Google Places · inspect a complete place card with opening hours and practical details.",
         "maps": "Google Maps · inspect a location with its map, coordinates and address.",
         "routes": "Routes · read a walking itinerary with its map, distance and travel time.",
-        "meetings_list": "Meetings list · browse recordings and reports with their processing states."
+        "meetings_list": "Meetings list · browse recordings and reports with their processing states.",
+        "world": "LIA World · a shared house and garden, your avatar and companion (French interface)."
       }
     },
     "presentation": {
@@ -14220,14 +14367,14 @@
       "c6": {
         "bubble": "Two calendars, two assistants. One proposal that respects each person’s sharing choices.",
         "title": "With family, friends and colleagues.",
-        "sub": "One server, a personal assistant for each person. Your LIAs can deliver a message and coordinate the availability you choose to share.",
+        "sub": "One server, a personal assistant for each person. Connect your circle, coordinate availability and share messages, images or useful tools, each with a space of their own.",
         "b1_t": "Coordinate with fewer back-and-forth messages.",
-        "b1_d": "Dinner with friends, a family appointment or a catch-up with colleagues: LIA brings authorized time slots together and proposes a next step. An approved message can be delivered by the recipient’s assistant.",
-        "b2_t": "Your chosen circle, your sharing choices.",
-        "b2_d": "Accept connections, choose the availability or other information each person can access, and withdraw sharing when you wish. Coordination follows that scope.",
+        "b1_d": "Dinner with friends, a family appointment or a catch-up with colleagues: LIA brings shared time slots and authorized information together. To pass on a message, you approve the wording; the recipient’s assistant delivers it and reports the outcome.",
+        "b2_t": "Useful know-how to pass on.",
+        "b2_d": "Share an image, a skill, an MCP server or a plugin with an accepted connection. Received capabilities are disabled copies; personal connections and credentials are not transferred. The recipient chooses to configure and activate them.",
         "b3_t": "Individual context. A shared instance.",
-        "b3_d": "Each account retains its connectors, memory and preferences. Administration manages accounts, capabilities and server budgets for a family, a team or a circle of friends.",
-        "how": "one canonical row per connection, claim-once transitions, an HITL draft before any relay, delivery through the recipient's own assistant, and an access log re-validated at every read.",
+        "b3_d": "Each account keeps its connectors, memory and preferences. You choose shared reads, inspect access and can withdraw those rights. Administration retains control of accounts, capabilities and server budgets.",
+        "how": "Permissions and blocks checked again, read access log, relay after approval, a preview bound to the confirmed content, disabled native installation and visible copy provenance.",
         "catalog_hint": "{{count}} detailed capabilities",
         "s_chip": "Connections",
         "s_user": "Tell Marie I'll pick the kids up tonight.",
@@ -14235,7 +14382,23 @@
         "s_to": "Message to Marie",
         "s_message": "I'll pick the kids up tonight.",
         "s_delivered": "Delivered — her assistant passed it on and confirmed.",
-        "mechanism": "Each connection defines what the other assistant can consult. LIA can compare shared time slots and pass on an approved proposal, without accessing the rest of the calendar or booking on the other person’s behalf."
+        "mechanism": "Relayed messages, read access and capability copies are distinct choices. Each connection defines the time slots, event titles or task titles the other assistant may consult. You approve a relay or capability transfer; withdrawing access stops later reads, while a delivered copy remains independent.",
+        "world_note": "When LIA World is available, its directory also helps you find accepted connections and their coarse presence.",
+        "world_link": "Discover LIA World"
+      },
+      "c7": {
+        "bubble": "Places to meet, your assistant beside you and a corner of your own.",
+        "title": "Step into LIA’s world.",
+        "sub": "A house to explore, a garden for a pause and people to meet. LIA walks with you; the tools you know take their place a few steps from your private home.",
+        "b1_t": "LIA beside you.",
+        "b1_d": "Call her over, let her follow and open your personal conversation without leaving the world. Your knowledge awaits in the library, your meetings in their room and your creations in the multimedia studio.",
+        "b2_t": "A world in step with your day.",
+        "b2_d": "Day and night follow your local time; rain, snow or sunshine reflect recent weather LIA already knows, when available. From the garden to the cafeteria, each place has its own optional soundscape and your own volume control.",
+        "b3_t": "Together, with room for privacy.",
+        "b3_d": "Meet the people present, write privately or join the public discussion. Choose to translate a message, make your avatar your own and pick your home’s colours. Your documents, memory and conversation with LIA stay private.",
+        "how": "Canvas 2D in your browser, shared presence checked by the server, account-scoped panels and private messages. Movement calls no model; translations use the normal quotas and cost register.",
+        "catalog_hint": "{{count}} detailed capabilities",
+        "mechanism": "The library opens your knowledge, the engineering lab your skills and extensions, the divination room your routines and the multimedia studio your creations. The Functions directory finds other activities available to your account. Every entrance keeps its permissions and confirmations."
       }
     },
     "basics": {
@@ -14326,11 +14489,11 @@
     },
     "gallery": {
       "title": "This is the application you will use.",
-      "sub": "Workflows and settings in the real interface, captured with fictional data. Open a screenshot full screen to read the details.",
+      "sub": "Explore real workflows, settings and LIA World. Open a screenshot full screen to read the details.",
       "tabs_label": "Choose a view",
       "tab_screens": "The application in use",
       "tab_slides": "The deck (15 slides)",
-      "provenance": "Application screenshots in English. Demonstration data; no real actions or measured performance."
+      "provenance": "Application screenshots in English, plus LIA World in French supplied by the project owner. Demonstration views; no performance benchmark."
     },
     "motion": {
       "pause": "Pause the animations"
@@ -14364,7 +14527,8 @@
         "connect": "CONNECTS",
         "day": "DAY",
         "transparency": "PROOF",
-        "cta": "AHEAD"
+        "cta": "AHEAD",
+        "world": "EXPLORES"
       },
       "planet": {
         "maison": "Home",
@@ -14540,7 +14704,8 @@
         "tools": "Possibilities you can combine",
         "devices": "The same thread, across your screens",
         "weather": "Prepare for your next outing",
-        "health": "Your measurements, in context"
+        "health": "Your measurements, in context",
+        "world": "Shared places, personal tools"
       },
       "example_label": "Example request",
       "result_label": "What you can get",
@@ -14890,6 +15055,58 @@
         "voice_mode": {
           "request": "I dictate my request, then listen to LIA’s reply.",
           "result": "Transcription and speech playback use enabled engines; local French wake-word detection remains in beta."
+        },
+        "world": {
+          "request": "I enter LIA World and walk to the library.",
+          "result": "A shared isometric place, with your avatar and LIA; the library opens your private knowledge tools."
+        },
+        "world_home": {
+          "request": "I choose my avatar’s appearance and preview my home colours.",
+          "result": "Declared visual choices stay in your account; home contents and assistant context remain private."
+        },
+        "world_messages": {
+          "request": "I write to a participant or deliberately choose Everyone.",
+          "result": "The chosen audience is explicit. Translation requires consent, keeps the original available and shows the payer’s cost."
+        },
+        "world_audio": {
+          "request": "I turn on room sounds and adjust their volume.",
+          "result": "Local original sounds follow your room, yield to voice and Radio, and make no provider call during playback."
+        },
+        "world_companion": {
+          "request": "I call LIA over, then open our conversation.",
+          "result": "Your personal conversation, her journal, psyche and your alerts remain within reach."
+        },
+        "world_functions": {
+          "request": "I go to the divination room to find my routines.",
+          "result": "Scheduled actions open in their usual panel, with your account’s rights and confirmations."
+        },
+        "world_atmosphere": {
+          "request": "I look at the sky and open the weather panel.",
+          "result": "Local time and recent real cached weather shape the scene, with no new weather search for decoration."
+        },
+        "world_controls": {
+          "request": "I walk by touch, zoom and recenter my character.",
+          "result": "Controls fit your screen, with an optional joystick, graphics quality and reduced motion settings."
+        },
+        "world_access": {
+          "request": "The world is full, so I join the queue.",
+          "result": "A place is offered when one becomes available; you confirm before entering."
+        },
+        "peer_capabilities": {
+          "request": "I share my skill with an accepted connection.",
+          "result": "A preview to confirm, then a disabled copy for its recipient to configure and activate."
+        },
+        "peer_provenance": {
+          "request": "On my MCP server’s card, I inspect whom I shared it with.",
+          "result": "The recipients and dates of your transfers; the received copy shows its origin on the other side."
+        },
+        "peer_images": {
+          "request": "I share this image with Marie and add a note.",
+          "result": "After your confirmation, a copy joins her gallery and chat with your comment quoted."
+        },
+        "peer_presence": {
+          "request": "Inside the World, I open my connections directory.",
+          "result": "Coarse status for accepted, unblocked connections, without their private data."
         }
       }
     },
@@ -15149,6 +15366,27 @@
       "meetings": "Record a meeting from the application, then review structured minutes prepared by the configured engines. Correct decisions and discussed tasks, download a PDF to share or receive it at your own email address. Gaps and unattributed information should remain marked; reviewing is still useful. Once indexing succeeds in your enabled knowledge spaces, LIA can recall this content in conversation. Processing cost is shown. Availability depends on the instance’s capabilities and services. Record, choose a minutes format and find a decision again by searching the full meeting record.",
       "live_voice": "Think out loud with LIA in a full-duplex conversation using your Gemini Live, OpenAI or ElevenLabs API key. In delegated mode, requests use the chat engine, its context and action controls. Direct mode uses authorised read tools. Models, voices, interruptions and delegation capabilities, including parallel execution, vary by provider. Availability and costs depend on the configured services.",
       "telephony": "With your ElevenLabs telephony connector configured, LIA can contact someone, ask a question or request a time slot on your behalf. You approve the recipient, number and objective before the call; a summary then returns to the conversation. The mandate instructs LIA to avoid unexpected spending and report alternatives for your decision. Review the outcome before choosing a follow-up. Availability and costs depend on the configured services."
+    },
+    "world_places": {
+      "title": "The places, and what you find there",
+      "intro": "Open a door, approach an object or use the Functions directory. Shared spaces bring people together; the tools you open remain personal.",
+      "note": "Available functions follow the services and capabilities enabled for your account. Shortcuts open your familiar tools with their usual permissions, costs and confirmations.",
+      "places": {
+        "arrival": "Meet by the fountain and benches; the connections board opens your links with other people.",
+        "meeting": "Your meetings, recordings and reports in the native workspace, opened from the meeting table.",
+        "multimedia": "The drawing table prepares an image request; your images, documents, screenshots and kept answers live in their galleries.",
+        "phone": "Prepare a call, revisit call history and find mail shortcuts; sending keeps its usual confirmations.",
+        "memory": "The archives open LIA’s memories: inspect, correct or delete what your assistant retains.",
+        "cafeteria": "The reading desk leads to news; the jukebox opens your personal Radio. Booths offer somewhere to pause.",
+        "engineering": "Skills, MCP servers, plugins and task shortcuts appear in this place’s directory.",
+        "gym": "Habits and health measurements have their panels; equipment opens the authored activities.",
+        "divination": "The crystal opens routines and the telescope weather; the directory also offers calendar and scheduling shortcuts.",
+        "library": "The shelves open your knowledge spaces and documents, with the same sources and access as the application.",
+        "restroom": "Private access to your SMS through the authored object and this place’s function directory.",
+        "garden": "Your interests, a walk among trees and the pond; seats let you pause near LIA or other people.",
+        "terrace": "An outdoor place to meet or rest, with seats and an atmosphere that follows the time of day.",
+        "home": "Your private space: colour palette, avatar mirror, Relations, Workboard, reminders and commitments. Its contents remain yours."
+      }
     }
   },
   "maps": {
@@ -15673,7 +15911,7 @@
       "privacy-by-design": {
         "title": "Privacy by Design: GDPR, Encryption, and Data Control",
         "excerpt": "Encrypted credentials, controlled access, data export and clear provider boundaries: the practical scope of LIA's privacy controls.",
-        "body": "<h2>Privacy by design</h2><p>LIA is designed from the ground up with data protection as a founding principle, not an afterthought.</p><h2>Fernet symmetric encryption</h2><p><strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256), through <code>encrypt_data()</code>, protects OAuth tokens, connector and MCP credentials and designated stored fields. Services decrypt these values when needed. This is selective encryption, not a claim that every personal field is encrypted; conversation messages are stored as database text. The instance operator controls the keys and database access.</p><h2>Collection minimization</h2><p>LIA only collects data strictly necessary for its operation:</p><ul><li>Profile information (name, email, preferences)</li><li>Conversation history stored on your instance</li><li>Service connection tokens (encrypted)</li><li>Usage metrics with pseudonymous identifiers</li></ul><h2>Operators and configured providers</h2><p>The instance operator may have technical access to stored data. A configured model receives the question and useful context, including selected memories or document excerpts; connected voice, image and other services receive what their features need. Their privacy, retention and possible training policies apply. Local storage and access controls do not replace provider agreements and settings.</p><h2>Deletion and cascading</h2><p>The account-deletion flow purges personal content across conversations, memories, connectors, documents and related stores. Billing records remain; deletion can keep a name and email for billing contact, while final erasure deletes the account row. Audit or diagnostic records may retain identifying details under their retention policies; backups follow the operator’s retention policy. Reactivation does not restore purged content.</p><h2>Secure sessions and cookies</h2><p>Session cookies are configured with <code>HttpOnly</code>, <code>Secure</code> (in production), and <code>SameSite=lax</code> attributes. Session duration is 7 days by default, extendable to 30 days with the \"Remember me\" option. Single-use tokens are invalidated after first use via a Redis blacklist.</p><h2>External content protection</h2><p>Content retrieved from external sources (emails, web pages, documents) is tagged as <code>UNTRUSTED</code> with configurable wrapping before injection into prompts. The web_fetch tool is rate limited to 10 calls per 60-second window per user to prevent abuse.</p><h2>Filtered operational logs</h2><p>Following the <strong>OWASP Logging Cheat Sheet</strong>, a log line above debug level carries <strong>facts</strong> — counts, lengths, identifiers, error codes, a URL's host — and never the text a person wrote, or a model wrote about them: no search, no interest, no name of a file, a label or a space, no page visited.</p><p>The rule is checked <strong>by the value</strong>, not by the field name: a test reads every logging call in the code and refuses a preview or a value derived from content, whatever it is called. What an error message <strong>quotes</strong> — a value PostgreSQL rejected, a validation input — is withheld before the line is written, and a database error is described by its facts: code, constraint, table. Provider keys are masked in every logged address. Metrics and traces follow the same rule: they name the route taken by its pattern, never the name or the search an address contains. Two limits are stated as they are: an external service's error in an unknown format can still quote a value, and the debug level — off in production — keeps more.</p><h2>Your SMS, under two consents</h2><p>The SMS your phone relays through an iPhone Shortcuts automation reach LIA with a write-only token of their own and land in an encrypted personal archive. Recognised access codes are set aside before anything is stored, the push announcing a new message carries no content, and the assistant reads the archive only once you give it access — a consent separate from receiving them. Your export includes the readable messages, and erasing them invalidates the exports still hosted.</p><p>The same caution governs proactive discussions: an opening touching a sensitive topic is never sent to an external channel, and its notification is masked.</p><h2>Data portability (v1.9.1)</h2><p>LIA allows each user to <strong>export their own consumption data</strong> as CSV from Settings > Features. Three export types: LLM consumption (tokens and costs per call), Google API consumption, and aggregated summary. Security: the <code>user_id</code> is forced server-side — no parameter is exposed, preventing access to other users' data (IDOR protection).</p><h2>Backups with a proven restore</h2><p>The production deployment provides nightly backup and restore-check tools, with default retention of 7 days, 4 weeks and 6 months. The operator enables and monitors them. The restore drill loads the latest dump into a disposable database and compares its schema revision and row counts with the source. Recovery still depends on successful backups and the deployment's chosen policy.</p><h2>A complete record, not a sample</h2><p>Three registers kept automatically say what LIA <strong>did</strong> for you, what it <strong>consulted</strong> to answer you, and what it undertook <strong>on its own initiative</strong>. They carry no content: a consultation keeps the capability — \"your calendar\" — and never what was searched for, because writing it down would copy the very data the register exists to make accountable.</p><p>The record you download from the <strong>Registers</strong> page is <strong>complete</strong>. It used to carry a row ceiling: a real protection, since the whole document was assembled in memory on a Raspberry Pi, but applied to the wrong variable. What was scarce was memory; what was bounded was the truth. A server-side cursor now bounds the buffer: whatever the volume, the file carries everything your filters name, the exact count is stated in the header alongside the instant of generation, and the download is compressed on the fly when your browser accepts it.</p><h2>Commands and private continuations</h2><p>Keys, file choices, account connections and browser consent use the operation’s secure interface, rather than parameters invented by the model. A command is tied to the account and its authorised context; permissions and the resource version are checked again before writing. Encrypted command content does not hide the whole service from its operator: messages and operational data retain the limits described here.</p><p>Confirmation applies to the operation and content shown. OAuth sign-in, file selection, a key or device permission continue in your authenticated browser: do not paste these secrets into chat. LIA may prepare the request and wait for that step. Enabling hands-free listening and sensitive permissions retain their protections; a command cannot bypass them.</p>"
+        "body": "<h2>Privacy by design</h2><p>LIA is designed from the ground up with data protection as a founding principle, not an afterthought.</p><h2>Fernet symmetric encryption</h2><p><strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256), through <code>encrypt_data()</code>, protects OAuth tokens, connector and MCP credentials and designated stored fields. Services decrypt these values when needed. This is selective encryption, not a claim that every personal field is encrypted; conversation messages are stored as database text. The instance operator controls the keys and database access.</p><h2>Collection minimization</h2><p>LIA only collects data strictly necessary for its operation:</p><ul><li>Profile information (name, email, preferences)</li><li>Conversation history stored on your instance</li><li>Service connection tokens (encrypted)</li><li>Usage metrics with pseudonymous identifiers</li></ul><h2>Operators and configured providers</h2><p>The instance operator may have technical access to stored data. A configured model receives the question and useful context, including selected memories or document excerpts; connected voice, image and other services receive what their features need. Their privacy, retention and possible training policies apply. Local storage and access controls do not replace provider agreements and settings.</p><h2>Deletion and cascading</h2><p>The account-deletion flow purges personal content across conversations, memories, connectors, documents and related stores. Billing records remain; deletion can keep a name and email for billing contact, while final erasure deletes the account row. Audit or diagnostic records may retain identifying details under their retention policies; backups follow the operator’s retention policy. Reactivation does not restore purged content.</p><h2>Secure sessions and cookies</h2><p>Session cookies are configured with <code>HttpOnly</code>, <code>Secure</code> (in production), and <code>SameSite=lax</code> attributes. Session duration is 7 days by default, extendable to 30 days with the \"Remember me\" option. Single-use tokens are invalidated after first use via a Redis blacklist.</p><h2>External content protection</h2><p>Content retrieved from external sources (emails, web pages, documents) is tagged as <code>UNTRUSTED</code> with configurable wrapping before injection into prompts. The web_fetch tool is rate limited to 10 calls per 60-second window per user to prevent abuse.</p><h2>Filtered operational logs</h2><p>Following the <strong>OWASP Logging Cheat Sheet</strong>, a log line above debug level carries <strong>facts</strong> — counts, lengths, identifiers, error codes, a URL's host — and never the text a person wrote, or a model wrote about them: no search, no interest, no name of a file, a label or a space, no page visited.</p><p>The rule is checked <strong>by the value</strong>, not by the field name: a test reads every logging call in the code and refuses a preview or a value derived from content, whatever it is called. What an error message <strong>quotes</strong> — a value PostgreSQL rejected, a validation input — is withheld before the line is written, and a database error is described by its facts: code, constraint, table. Provider keys are masked in every logged address. Metrics and traces follow the same rule: they name the route taken by its pattern, never the name or the search an address contains. Two limits are stated as they are: an external service's error in an unknown format can still quote a value, and the debug level — off in production — keeps more.</p><h2>Your SMS, under two consents</h2><p>The SMS your phone relays through an iPhone Shortcuts automation reach LIA with a write-only token of their own and land in an encrypted personal archive. Recognised access codes are set aside before anything is stored, the push announcing a new message carries no content, and the assistant reads the archive only once you give it access — a consent separate from receiving them. Your export includes the readable messages, and erasing them invalidates the exports still hosted.</p><p>The same caution governs proactive discussions: an opening touching a sensitive topic is never sent to an external channel, and its notification is masked.</p><h2>Data portability (v1.9.1)</h2><p>LIA allows each user to <strong>export their own consumption data</strong> as CSV from Settings > Features. Three export types: LLM consumption (tokens and costs per call), Google API consumption, and aggregated summary. Security: the <code>user_id</code> is forced server-side — no parameter is exposed, preventing access to other users' data (IDOR protection).</p><h2>Backups with a proven restore</h2><p>The production deployment provides nightly backup and restore-check tools, with default retention of 7 days, 4 weeks and 6 months. The operator enables and monitors them. The restore drill loads the latest dump into a disposable database and compares its schema revision and row counts with the source. Recovery still depends on successful backups and the deployment's chosen policy.</p><h2>A complete record, not a sample</h2><p>Three registers kept automatically say what LIA <strong>did</strong> for you, what it <strong>consulted</strong> to answer you, and what it undertook <strong>on its own initiative</strong>. They carry no content: a consultation keeps the capability — \"your calendar\" — and never what was searched for, because writing it down would copy the very data the register exists to make accountable.</p><p>The record you download from the <strong>Registers</strong> page is <strong>complete</strong>. It used to carry a row ceiling: a real protection, since the whole document was assembled in memory on a Raspberry Pi, but applied to the wrong variable. What was scarce was memory; what was bounded was the truth. A server-side cursor now bounds the buffer: whatever the volume, the file carries everything your filters name, the exact count is stated in the header alongside the instant of generation, and the download is compressed on the fly when your browser accepts it.</p><h2>Commands and private continuations</h2><p>Keys, file choices, account connections and browser consent use the operation’s secure interface, rather than parameters invented by the model. A command is tied to the account and its authorised context; permissions and the resource version are checked again before writing. Encrypted command content does not hide the whole service from its operator: messages and operational data retain the limits described here.</p><p>Confirmation applies to the operation and content shown. OAuth sign-in, file selection, a key or device permission continue in your authenticated browser: do not paste these secrets into chat. LIA may prepare the request and wait for that step. Enabling hands-free listening and sensitive permissions retain their protections; a command cannot bypass them.</p><h2>A shared place keeps private boundaries</h2><p>LIA World gives the instance’s unblocked participants a place to meet as avatars while personal tools stay account-scoped. Entry asks permission to publish a name and chosen appearance; accepted connections can also see coarse presence and home status. The server filters blocked accounts and keeps private home contents and assistant context out of shared projections. Rooms open existing tools with their usual permissions and confirmations.</p><p>Direct human text is temporary and separate from assistant history and memory. A paid translation starts only on an explicit choice, keeps the original and records its cost for its payer. A failed or uncertain attempt is not replayed automatically. Drawing and movement run without a model call; optional translation uses the configured provider and normal usage controls.</p><p>Private text addresses one available participant; the Everyone channel deliberately addresses eligible people already present in shared areas, excluding blocks and private homes. Optional original room and garden sounds are static assets with independent volume. They start by choice and yield to microphone, assistant voice, Live and Radio, without new provider calls.</p>"
       },
       "observability": {
         "title": "635 Prometheus Metrics, 32 Grafana Dashboards, and Langfuse Tracing",
@@ -15693,7 +15931,7 @@
       "multilingual": {
         "title": "6 Languages, a Complete i18n Architecture",
         "excerpt": "LIA speaks French, English, German, Spanish, Italian, and Chinese. Internationalization covers the UI, AI responses, and documentation.",
-        "body": "<h2>6 natively supported languages</h2><p>LIA is fully available in <strong>French, English, German, Spanish, Italian, and Chinese</strong>. Internationalization isn't limited to the interface: it covers assistant responses, notifications, FAQ, and documentation.</p><h2>Frontend i18n architecture</h2><p>The frontend uses <strong>react-i18next</strong> with per-language JSON files and language choice persistence via a <code>NEXT_LOCALE</code> cookie (1-year TTL). Next.js routing uses a dynamic <code>[lng]</code> segment to serve each language at its dedicated URL. Language flags are displayed as Unicode emojis. The locale mapping associates each short code with its full variant (fr-FR, en-US, de-DE, es-ES, it-IT, zh-CN). Pages are statically pre-generated for each language at build time.</p><h2>Hreflang and multilingual SEO</h2><p>Each public page declares <code>hreflang</code> alternates for all 6 languages, with an <code>x-default</code> value pointing to French. The XML sitemap includes multilingual alternates for each URL.</p><h2>Multilingual AI responses</h2><p>The assistant responds in the user's configured language. Supported languages are configurable on the backend via the <code>SUPPORTED_LANGUAGES</code> environment variable. System prompts are written in English to maximize LLM reasoning quality, but an explicit language instruction guides response generation in the target language. Three prompts are specifically adapted per language: <code>journal_introspection_personality_addon</code>, <code>memory_extraction_personality_addon</code> and <code>broadcast_translation_prompt</code>.</p><h2>Multilingual voice recognition</h2><p>The Whisper model used for voice transcription natively supports 99+ languages in offline mode, allowing you to speak to LIA in virtually any language without additional configuration or cloud service dependency.</p><h2>Searching in your own language</h2><p>Translating an interface is not enough to make it navigable: you still have to find a setting using the words you actually use. On top of its translated title and description, every settings section therefore carries a list of <strong>synonyms written language by language</strong> — \"dark\" reaches Appearance, \"GDPR\" the data export, \"cron\" the scheduled actions. Matching goes through a normalizer shared by every search surface of the product: case, diacritics, typographic apostrophes and no-break spaces are folded to the form a keyboard produces, so \"theme\" finds \"Thème\". That folding obeys a strict constraint — one code point for one code point — without which the highlighters that map offsets back to the original text would drift by exactly as much.</p>"
+        "body": "<h2>6 natively supported languages</h2><p>LIA is fully available in <strong>French, English, German, Spanish, Italian, and Chinese</strong>. Internationalization isn't limited to the interface: it covers assistant responses, notifications, FAQ, and documentation.</p><h2>Frontend i18n architecture</h2><p>The frontend uses <strong>react-i18next</strong> with per-language JSON files and language choice persistence via a <code>NEXT_LOCALE</code> cookie (1-year TTL). Next.js routing uses a dynamic <code>[lng]</code> segment to serve each language at its dedicated URL. Language flags are displayed as Unicode emojis. The locale mapping associates each short code with its full variant (fr-FR, en-US, de-DE, es-ES, it-IT, zh-CN). Pages are statically pre-generated for each language at build time.</p><h2>Hreflang and multilingual SEO</h2><p>Each public page declares <code>hreflang</code> alternates for all 6 languages, with an <code>x-default</code> value pointing to French. The XML sitemap includes multilingual alternates for each URL.</p><h2>Multilingual AI responses</h2><p>The assistant responds in the user's configured language. Supported languages are configurable on the backend via the <code>SUPPORTED_LANGUAGES</code> environment variable. System prompts are written in English to maximize LLM reasoning quality, but an explicit language instruction guides response generation in the target language. Three prompts are specifically adapted per language: <code>journal_introspection_personality_addon</code>, <code>memory_extraction_personality_addon</code> and <code>broadcast_translation_prompt</code>.</p><h2>Multilingual voice recognition</h2><p>The Whisper model used for voice transcription natively supports 99+ languages in offline mode, allowing you to speak to LIA in virtually any language without additional configuration or cloud service dependency.</p><h2>Searching in your own language</h2><p>Translating an interface is not enough to make it navigable: you still have to find a setting using the words you actually use. On top of its translated title and description, every settings section therefore carries a list of <strong>synonyms written language by language</strong> — \"dark\" reaches Appearance, \"GDPR\" the data export, \"cron\" the scheduled actions. Matching goes through a normalizer shared by every search surface of the product: case, diacritics, typographic apostrophes and no-break spaces are folded to the form a keyboard produces, so \"theme\" finds \"Thème\". That folding obeys a strict constraint — one code point for one code point — without which the highlighters that map offsets back to the original text would drift by exactly as much.</p><h2>A shared place keeps private boundaries</h2><p>LIA World gives the instance’s unblocked participants a place to meet as avatars while personal tools stay account-scoped. Entry asks permission to publish a name and chosen appearance; accepted connections can also see coarse presence and home status. The server filters blocked accounts and keeps private home contents and assistant context out of shared projections. Rooms open existing tools with their usual permissions and confirmations.</p><p>Direct human text is temporary and separate from assistant history and memory. A paid translation starts only on an explicit choice, keeps the original and records its cost for its payer. A failed or uncertain attempt is not replayed automatically. Drawing and movement run without a model call; optional translation uses the configured provider and normal usage controls.</p><p>Private text addresses one available participant; the Everyone channel deliberately addresses eligible people already present in shared areas, excluding blocks and private homes. Optional original room and garden sounds are static assets with independent volume. They start by choice and yield to microphone, assistant voice, Live and Radio, without new provider calls.</p>"
       },
       "react-execution-mode": {
         "title": "Pipeline vs ReAct: When Structured Engineering Outperforms the Laissez-Faire",
@@ -15718,7 +15956,7 @@
       "account-lifecycle": {
         "title": "Account Lifecycle: 4 States for Access, Deletion and Billing Retention",
         "excerpt": "LIA manages user accounts through a 4-state model — Active, Deactivated, Deleted, Erased — with automatic purge of more than 50 tables and billing history preservation.",
-        "body": "<h2>A 4-state model</h2><p>Four states organise account access and data deletion, with explicit billing retention. These technical controls support privacy obligations; they do not certify a deployment as GDPR-compliant.</p><ol><li><strong>Active</strong> — Account access enabled</li><li><strong>Deactivated</strong> — Access blocked, data retained</li><li><strong>Deleted</strong> — Personal content purged; billing and billing-contact identity retained</li><li><strong>Erased</strong> — Account row removed; billing records retained without its link, audit retention still applies</li></ol><p>Deactivation can be reversed. Purged personal content cannot be recovered through reactivation, and final account erasure is irreversible.</p><p>No federated sign-in moves an account from one state to another: signing in with Google proves an address, never an approval, so a pending registration or a blocked account stays as it is — and even an inactive account can always sign out.</p><h2>A purge of more than 50 tables</h2><p>The <code>AccountDeletionService</code> orchestrates data deletion across <strong>more than 50 database tables</strong>, including conversations, messages, memories, journals, connectors, reminders, skills, and files. LangGraph checkpoints and store are also purged, along with Redis caches and disk files.</p><h2>Billing preservation</h2><p>Billing tables (<code>token_usage_logs</code>, <code>message_token_summary</code>, <code>user_statistics</code>, <code>google_api_usage_logs</code>) are <strong>retained</strong>. Deletion can keep the name and email for billing contact. Final erasure deletes the account row; foreign keys using <code>SET NULL</code> preserve billing records without its link. Existing audit or diagnostic records can retain identifying details under their retention policies.</p><h2>Background task protection</h2><p>Seven background tasks check account status before execution: the proactive runner, scheduled action executor, reminder notifications, journal consolidation, OAuth token refresh, OAuth health check, and session dependencies. A deactivated or deleted user is <strong>silently skipped</strong> by all these tasks.</p><h2>Cache invalidation</h2><p>On account deactivation, the authorization cache is <strong>immediately invalidated</strong>. This prevents a deactivated user from continuing to access the service during the cache TTL.</p><h2>Admin interface</h2><p>The admin panel distinguishes deactivation from <strong>Delete</strong>, which irreversibly purges personal content, and <strong>Erase</strong>, which removes the remaining account identity. Visual badges show the current status.</p>"
+        "body": "<h2>A 4-state model</h2><p>Four states organise account access and data deletion, with explicit billing retention. These technical controls support privacy obligations; they do not certify a deployment as GDPR-compliant.</p><ol><li><strong>Active</strong> — Account access enabled</li><li><strong>Deactivated</strong> — Access blocked, data retained</li><li><strong>Deleted</strong> — Personal content purged; billing and billing-contact identity retained</li><li><strong>Erased</strong> — Account row removed; billing records retained without its link, audit retention still applies</li></ol><p>Deactivation can be reversed. Purged personal content cannot be recovered through reactivation, and final account erasure is irreversible.</p><p>No federated sign-in moves an account from one state to another: signing in with Google proves an address, never an approval, so a pending registration or a blocked account stays as it is — and even an inactive account can always sign out.</p><h2>A purge of more than 50 tables</h2><p>The <code>AccountDeletionService</code> orchestrates data deletion across <strong>more than 50 database tables</strong>, including conversations, messages, memories, journals, connectors, reminders, skills, and files. LangGraph checkpoints and store are also purged, along with Redis caches and disk files.</p><h2>Billing preservation</h2><p>Billing tables (<code>token_usage_logs</code>, <code>message_token_summary</code>, <code>user_statistics</code>, <code>google_api_usage_logs</code>) are <strong>retained</strong>. Deletion can keep the name and email for billing contact. Final erasure deletes the account row; foreign keys using <code>SET NULL</code> preserve billing records without its link. Existing audit or diagnostic records can retain identifying details under their retention policies.</p><h2>Background task protection</h2><p>Seven background tasks check account status before execution: the proactive runner, scheduled action executor, reminder notifications, journal consolidation, OAuth token refresh, OAuth health check, and session dependencies. A deactivated or deleted user is <strong>silently skipped</strong> by all these tasks.</p><h2>Cache invalidation</h2><p>On account deactivation, the authorization cache is <strong>immediately invalidated</strong>. This prevents a deactivated user from continuing to access the service during the cache TTL.</p><h2>Admin interface</h2><p>The admin panel distinguishes deactivation from <strong>Delete</strong>, which irreversibly purges personal content, and <strong>Erase</strong>, which removes the remaining account identity. Visual badges show the current status.</p><h2>A shared place keeps private boundaries</h2><p>LIA World gives the instance’s unblocked participants a place to meet as avatars while personal tools stay account-scoped. Entry asks permission to publish a name and chosen appearance; accepted connections can also see coarse presence and home status. The server filters blocked accounts and keeps private home contents and assistant context out of shared projections. Rooms open existing tools with their usual permissions and confirmations.</p><p>Direct human text is temporary and separate from assistant history and memory. A paid translation starts only on an explicit choice, keeps the original and records its cost for its payer. A failed or uncertain attempt is not replayed automatically. Drawing and movement run without a model call; optional translation uses the configured provider and normal usage controls.</p><p>Private text addresses one available participant; the Everyone channel deliberately addresses eligible people already present in shared areas, excluding blocks and private homes. Optional original room and garden sounds are static assets with independent volume. They start by choice and yield to microphone, assistant voice, Live and Radio, without new provider calls.</p>"
       },
       "hallucination-defense": {
         "title": "Hallucination Defense: When the LLM Invents Parameters",
@@ -15909,7 +16147,8 @@
       "cards": "Cards that show what was received",
       "live_mode": "The live mode: one seam, one policy per mode",
       "application_commands": "Application commands",
-      "conclusion": "Conclusion"
+      "conclusion": "Conclusion",
+      "world": "LIA World: shared presence, private tools"
     }
   },
   "psyche": {
@@ -16265,7 +16504,7 @@
   "story": {
     "meta": {
       "title": "Story — Directing an AI That Codes | LIA",
-      "description": "How LIA was built: ~100% AI-written code under human direction, 67,000+ tests, 362 ADRs, a 7.9/10 technical audit. The complete field report."
+      "description": "How LIA was built: ~100% AI-written code under human direction, 68,000+ tests, 363 ADRs, a 7.9/10 technical audit. The complete field report."
     },
     "breadcrumb": "Story",
     "hero": {
@@ -18891,5 +19130,357 @@
     "history_empty": "No proactive discussions yet.",
     "history_count": "{{count}} discussions",
     "history_more": "More discussions"
+  },
+  "world": {
+    "explore_places": "Explore places",
+    "session": {
+      "proof": "Choose an isolated demo account. Use separate browser profiles to try several people. No paid service is called.",
+      "account_changed": "The account in this browser has changed. The previous session was closed to protect your data.",
+      "reload_account": "Continue with the current account",
+      "proof_multiplayer": "For unrestricted text chat, use visitors 1 and 7 (French), or 2 and 8 (English), in two separate browser profiles or devices. Tabs in the same browser share one account. Demo translation only supports the stated phrase.",
+      "proof_chat_hint": "Free chat: visitors 1 + 7 (French), separate browser profiles. Demo translation is limited.",
+      "controller_hint": "After reloading or using another tab, explicitly take control again to move and chat.",
+      "proof_account": "Visitor {{index}}",
+      "shared": "Shared space",
+      "intro": "A garden to meet in, places to explore LIA. Your LIA name follows you into the world.",
+      "alias": "Your alias",
+      "alias_hint": "1 to 24 characters. Your account name stays private.",
+      "consent": "I agree to share my LIA name and appearance in the world. My accepted connections can also see my presence status and whether I am in my home.",
+      "enter": "Enter the world",
+      "private": "Your LIA, memories and personal panels remain private.",
+      "leave": "Leave the world",
+      "connecting": "Connecting to the world…",
+      "reconnecting": "Reconnecting…",
+      "online": "Connected to the world",
+      "ended": "Your world session has ended",
+      "unavailable": "The world is temporarily unavailable",
+      "waiting": "Waiting for a place",
+      "other_tab": "Another tab controls your character",
+      "queue": "Your queue position: {{position}}. You can confirm entry when a place is offered.",
+      "connection_hint": "Movement is paused until the server confirms your control. You can leave and return.",
+      "offer": "A place is briefly reserved for you. Confirm your entry.",
+      "accept": "Join the world",
+      "takeover": "Control from this tab",
+      "proof_translation": "Isolated demo: simulated translation, no charge. Available phrase: “Hello, pleased to meet you.” Other cross-language messages show an unavailable result.",
+      "proof_atmosphere": "Weather in this preview is also simulated.",
+      "proof_guide": "Demo · simulated data",
+      "expired": "Your presence has expired",
+      "expired_hint": "Your place was released while you were away. You can rejoin the world.",
+      "rejoin": "Rejoin the world"
+    },
+    "title": "LIA World",
+    "prototype": "Prototype",
+    "local": "Local exploration · 0 LLM tokens",
+    "you": "You",
+    "bip": "LIA",
+    "canvas": "Isometric world. Focus here to move.",
+    "minimap": "World map: click to explore with the camera; press Enter to recenter.",
+    "metrics": "Performance",
+    "close_metrics": "Close performance",
+    "help": "How to explore",
+    "unavailable": "The world could not start",
+    "unavailable_hint": "Your browser could not create the graphics surface. Ordinary LIA remains available.",
+    "retry": "Try again",
+    "keyboard_hint": "Focus the scene, then use arrows, WASD or ZQSD to move. Touch controls are available on phones.",
+    "pointer_hint": "Click or tap the ground to walk; double-click or double-tap to run. Drag to explore with the camera. Pinch or use the wheel to zoom.",
+    "camera_hint": "The minimap moves the camera only. Recenter returns to your character. Browser zoom still works outside the scene.",
+    "bip_hint": "LIA explores autonomously. Use the LIA button to call him or let him resume his patrol.",
+    "disclaimer": "This first prototype is local: no shared presence, peer chat or private LIA operation yet. Movement and LIA generate no model calls.",
+    "play": "Explore",
+    "fps": "Frames / second",
+    "frame": "Frame p95",
+    "render": "Render work p95",
+    "textures": "Decoded textures",
+    "draws": "Visible draws",
+    "measurement_hint": "Measured in this browser; viewport emulation is not a physical phone benchmark.",
+    "up": "Move up",
+    "down": "Move down",
+    "left": "Move left",
+    "right": "Move right",
+    "call_bip": "Call LIA or resume his patrol",
+    "recenter": "Follow my character",
+    "zoom": "Camera zoom",
+    "zoom_out": "Zoom out",
+    "zoom_in": "Zoom in",
+    "quality": "Graphics quality",
+    "quality_low": "Light · 30 FPS",
+    "quality_balanced": "Balanced",
+    "quality_high": "Detailed",
+    "follow": "Following",
+    "free": "Free camera",
+    "zones": {
+      "arrival": "Social atrium",
+      "meeting": "Meeting room",
+      "multimedia": "Multimedia studio",
+      "phone": "Phone booth",
+      "memory": "Memory archives",
+      "cafeteria": "American diner",
+      "engineering": "Engineering lab",
+      "gym": "Gym",
+      "divination": "Divination room",
+      "library": "Library",
+      "restroom": "Restroom",
+      "garden": "Garden",
+      "terrace": "Terrace",
+      "home": "My studio"
+    },
+    "home": {
+      "open": "Customize my home colours",
+      "short": "My home",
+      "title": "My home colours",
+      "description": "Choose the colours for your personal space.",
+      "palette": "Atmosphere",
+      "private": "Your colours stay private and do not change anyone else's decor.",
+      "save": "Save",
+      "cancel": "Cancel",
+      "reset": "Default settings",
+      "retry": "Retry home",
+      "reload": "Reload and discard my changes",
+      "failed": "Your home is unavailable. Try again shortly.",
+      "conflict": "Settings changed elsewhere. Reload them before saving.",
+      "needs_reset": "These older settings cannot be read. Choose the defaults, then save to restore them.",
+      "palettes": {
+        "auto": "My LIA colour",
+        "sage": "Garden",
+        "teal": "Lagoon",
+        "clay": "Terracotta",
+        "violet": "Twilight",
+        "amber": "Honey",
+        "cream": "Linen"
+      },
+      "colours_hint": "The preview updates immediately. Save to keep these colours."
+    },
+    "functions": {
+      "title": "LIA functions",
+      "short": "Functions",
+      "talk": "Talk to LIA",
+      "place": "Open {{place}}",
+      "private": "These interfaces are private. The usual LIA rules, quotas and confirmations apply.",
+      "empty": "No functions are available here at the moment.",
+      "unavailable": "This function is no longer available.",
+      "search": "Find an activity or setting",
+      "transverse": "Always within reach",
+      "application": "Explore LIA"
+    },
+    "messages": {
+      "action": "Chat with people",
+      "short": "Chat",
+      "title": "Conversations",
+      "privacy": "Messages stay between the participants and expire after {{minutes}} minutes. LIA does not add them to memory.",
+      "recipient": "Recipient",
+      "choose": "Choose someone",
+      "no_peers": "Nobody is available for a new conversation.",
+      "empty": "Your conversations will appear here.",
+      "placeholder": "Write your message…",
+      "message": "Your message",
+      "send": "Send",
+      "consent": "I accept any translation cost under my LIA quotas.",
+      "pending": "Translation in progress…",
+      "translated": "Translated",
+      "failed": "Translation unavailable",
+      "uncertain": "Uncertain result",
+      "unavailable": "Translation needed",
+      "original": "Original",
+      "show_original": "Show original",
+      "hide_original": "Hide original",
+      "translate": "Translate using my quotas",
+      "sent": "Sent",
+      "offline": "Messaging is unavailable.",
+      "unknown_send": "This request may already have succeeded. Check its status before trying again.",
+      "check": "Check request",
+      "discard": "Clear this draft",
+      "discard_translation": "Close this status",
+      "rejected": "The request was refused. Your draft is kept.",
+      "home": "Return to a shared place to send a message.",
+      "truncated": "Only recent conversations are shown.",
+      "unread": "Unread messages: {{count}}",
+      "invalid": "The message is too long or contains unsupported characters.",
+      "cost_unknown": "Cost unavailable",
+      "latest": "Latest messages",
+      "tokens_in": "IN",
+      "tokens_out": "OUT",
+      "all": "All conversations",
+      "left": "This person has left the world. Your draft is kept.",
+      "conversations": "Conversations",
+      "choose_conversation": "Choose someone to chat with.",
+      "start_conversation": "Start a conversation",
+      "you": "You",
+      "draft": "Draft",
+      "present": "In the world",
+      "translation_consent_short": "Allow translation",
+      "translation_details": "Translation and usage",
+      "to": "Message to {{name}}",
+      "privacy_short": "Private conversation · {{minutes}} min"
+    },
+    "peers": {
+      "privacy": "These statuses concern only LIA World and your accepted connections. Profiles, positions inside homes and private activities remain confidential.",
+      "empty": "No accepted connections yet.",
+      "relay": "Write through LIA",
+      "first": "Back to the start",
+      "next": "Next connections",
+      "online": "Online",
+      "home": "At home",
+      "away": "Away",
+      "offline": "Offline",
+      "presence_unavailable": "Status temporarily unavailable"
+    },
+    "atmosphere": {
+      "private": "Your time and weather",
+      "unknown": "Neutral ambience",
+      "dawn": "Dawn",
+      "morning": "Morning",
+      "noon": "Midday",
+      "afternoon": "Afternoon",
+      "evening": "Evening",
+      "night": "Night"
+    },
+    "follow_me": "Follow me",
+    "following_you": "By my side",
+    "settings": {
+      "application": "LIA settings",
+      "short": "Settings"
+    },
+    "interaction_action": "Interact: {{activity}}",
+    "poses": {
+      "sit": "Sit down",
+      "lie": "Lie down",
+      "stand": "Stand up",
+      "occupied": "Someone just took this seat. Choose another one.",
+      "out_of_reach": "Move closer to the furniture to settle in.",
+      "invalid": "This place is no longer available."
+    },
+    "activities": {
+      "gallery": "Generated files · {{family}}",
+      "image": "Generate an image",
+      "image_draft": "Generate the image ",
+      "call": "Place a call",
+      "call_draft": "Call ",
+      "relations": "Relations",
+      "meetings": "Meetings",
+      "workboard": "Workboard",
+      "alerts": "Alerts",
+      "journal": "LIA journal",
+      "sms": "My SMS"
+    },
+    "lia_menu": {
+      "title": "With LIA",
+      "conversation": "Conversation",
+      "journal": "LIA journal",
+      "alerts": "Alerts",
+      "psyche": "LIA psyche"
+    },
+    "device": {
+      "tools": "Quick tools",
+      "phone": "Smartphone · {{sms}} SMS · {{reminders}} reminders",
+      "forecast": "Weather forecast",
+      "title": "My smartphone",
+      "private": "Private arrivals received during this world session.",
+      "reminder": "Reminder received",
+      "forecast_hint": "Forecast already available in LIA. Open a conversation to request an update.",
+      "radio_short": "Radio",
+      "phone_short": "Phone",
+      "weather_short": "Weather",
+      "no_notifications": "No new notifications in this session."
+    },
+    "controls": "World controls",
+    "joystick": {
+      "label": "Joystick",
+      "auto": "Automatic",
+      "show": "Always show",
+      "hide": "Hide",
+      "move": "Move using the joystick or arrow keys"
+    },
+    "avatar": {
+      "title": "My character",
+      "change": "Change my appearance",
+      "welcome": "Use your LIA name and choose a character that feels like you.",
+      "name_hint": "Your LIA name is used and may be shortened on labels. Change it in LIA settings.",
+      "description": "Choose your appearance freely. People present in the world can see it.",
+      "consent": "I agree to share my LIA name and appearance in the world. My accepted connections can also see my presence status and whether I am in my home.",
+      "preview": "My character preview",
+      "rotate": "Rotate",
+      "defaults": "Default appearance",
+      "failed": "Appearance is unavailable. Try again.",
+      "conflict": "Appearance changed elsewhere. Reload before saving.",
+      "needs_reset": "These older settings cannot be read. Saving replaces them with the choices shown.",
+      "tabs": {
+        "hair": "Hair",
+        "outfit": "Outfit",
+        "accessories": "Accessories"
+      },
+      "skin": "Skin tone",
+      "hair": "Hairstyle",
+      "outfit": "Clothing",
+      "headwear": "Headwear",
+      "hair_color": "Hair color",
+      "outfit_color": "Outfit color",
+      "headwear_color": "Accessory color",
+      "glasses": "Glasses",
+      "blond": "Blond",
+      "hair_options": {
+        "bald": "Bald",
+        "short": "Short",
+        "long": "Long",
+        "curly": "Curly",
+        "ponytail": "Ponytail",
+        "mohawk": "Mohawk"
+      },
+      "outfit_options": {
+        "casual": "Casual",
+        "suit": "Suit and tie",
+        "dress": "Dress"
+      },
+      "headwear_options": {
+        "none": "None",
+        "cap": "Cap",
+        "beanie": "Beanie",
+        "hat": "Hat"
+      },
+      "skin_options": {
+        "porcelain": "Porcelain",
+        "sand": "Sand",
+        "caramel": "Caramel",
+        "walnut": "Walnut",
+        "espresso": "Espresso"
+      },
+      "colors": {
+        "charcoal": "Black",
+        "brown": "Brown",
+        "silver": "Gray",
+        "gold": "Gold",
+        "red": "Red",
+        "green": "Green",
+        "blue": "Blue",
+        "violet": "Purple",
+        "cream": "Ivory",
+        "orange": "Orange"
+      }
+    },
+    "public": {
+      "title": "Everyone",
+      "caption": "Public discussion",
+      "description": "Visible to people present in the shared space when you send. New arrivals do not receive earlier messages.",
+      "compose": "Write to everyone",
+      "unavailable": "Public discussion is temporarily unavailable. Private conversations remain available.",
+      "translation_details": "Translation uses your usual quotas. Required languages share one request. A send is never retried automatically.",
+      "failed_hint": "Translation is unavailable. You can view the original.",
+      "short": "Short messages",
+      "empty": "Start a discussion with the people present."
+    },
+    "preview_lighting": {
+      "label": "Preview lighting",
+      "auto": "Actual time",
+      "day": "Simulated day",
+      "night": "Simulated night"
+    },
+    "sound": {
+      "enable": "Enable world sounds",
+      "disable": "Mute world sounds",
+      "short": "Sounds",
+      "unavailable": "The browser could not activate sound. Try the Sounds button again.",
+      "settings": "World sounds",
+      "volume": "World sound volume",
+      "independent": "Independent of LIA's spoken replies and the radio."
+    }
   }
 }

@@ -20,6 +20,7 @@ import {
   CHAT_SURFACES,
   hitlAwaitsUser,
   visibleChatSurfaces,
+  chatListActivity,
   type ChatSurface,
   type ChatSurfaceContext,
 } from '../chat-surfaces';
@@ -47,6 +48,15 @@ function visible(overrides: Partial<ChatSurfaceContext> = {}): ChatSurface[] {
 }
 
 describe('hitlAwaitsUser — which card states owe the user an action', () => {
+  it('does not mix the live stream or history pagination into search results', () => {
+    const live = { isTyping: true, activeStreamId: 'stream-1', hasMoreOlder: true };
+    expect(chatListActivity('', live)).toEqual(live);
+    expect(chatListActivity('old message', live)).toEqual({
+      isTyping: false,
+      activeStreamId: null,
+      hasMoreOlder: false,
+    });
+  });
   it.each<[HitlCardStatus, boolean]>([
     ['awaiting', true],
     // In flight: the answer is being processed, still not the moment to suggest

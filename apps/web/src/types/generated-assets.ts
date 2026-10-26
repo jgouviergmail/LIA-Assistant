@@ -80,3 +80,6 @@ export interface GeneratedAssetsKeepResult {
   skipped: string[];
   keep: GeneratedAssetKeepUsage;
 }
+
+/** Initial tab for embedded access; gallery families retain their existing API shape. */
+export type GeneratedAssetTab = GeneratedAssetFamily | 'bookmarks';

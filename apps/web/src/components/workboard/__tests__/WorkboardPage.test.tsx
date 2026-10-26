@@ -232,4 +232,18 @@ describe('the open panel is a place in the history, not a mode', () => {
     expect(router.replace).toHaveBeenCalledWith('/fr/dashboard/workboard', { scroll: false });
     expect(router.push).not.toHaveBeenCalled();
   });
+
+  it('keeps embedded filters and ticket navigation inside the host', async () => {
+    const { user } = renderWithProviders(<WorkboardPage lng="fr" embedded />);
+    router.push.mockClear();
+    router.replace.mockClear();
+    await user.type(screen.getByLabelText('workboard.filters.search'), 'salle');
+    expect(router.replace).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Réserver la salle' }));
+    expect(router.push).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeVisible();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('workboard.filters.search')).toHaveValue('salle');
+  });
 });

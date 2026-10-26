@@ -101,10 +101,11 @@ export interface LiveStore {
    * navigation, and so does the click's user activation.
    */
   pendingStart: LiveSessionMode | null;
+  pendingStartOwner: string | null;
   /** What this session is: delegating to the chat, or direct (ADR-300 wave 4). */
   mode: LiveSessionMode;
-  requestStart: (mode?: LiveSessionMode) => void;
-  consumeStart: () => LiveSessionMode | null;
+  requestStart: (mode?: LiveSessionMode, ownerId?: string) => void;
+  consumeStart: (ownerId?: string) => LiveSessionMode | null;
   begin: (sessionId: string | null, mode?: LiveSessionMode) => void;
   apply: (event: LiveEvent) => void;
   setVoiceState: (state: VoiceModeState) => void;
@@ -168,17 +169,19 @@ const INITIAL = {
   wakePhrase: null as string | null,
   wakeRefusal: null as { code: string | null } | null,
   pendingStart: null,
+  pendingStartOwner: null,
   mode: 'delegated' as LiveSessionMode,
 };
 
 export const useLiveStore = create<LiveStore>((set, get) => ({
   ...INITIAL,
-  requestStart: (mode = 'delegated') => set({ pendingStart: mode }),
-  consumeStart: () => {
-    const mode = get().pendingStart;
+  requestStart: (mode = 'delegated', ownerId) =>
+    set({ pendingStart: mode, pendingStartOwner: ownerId ?? null }),
+  consumeStart: ownerId => {
+    const { pendingStart: mode, pendingStartOwner: owner } = get();
     if (mode === null) return null;
-    set({ pendingStart: null });
-    return mode;
+    set({ pendingStart: null, pendingStartOwner: null });
+    return owner !== null && owner !== ownerId ? null : mode;
   },
   recordActivity: event => set({ lastActivity: { event, at: Date.now() } }),
   begin: (sessionId, mode = 'delegated') => set({ ...INITIAL, sessionId, mode, status: 'minting' }),

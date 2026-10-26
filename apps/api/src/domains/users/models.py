@@ -570,6 +570,12 @@ class User(
         comment="List of admin MCP server keys disabled by this user (e.g., ['google_flights'])",
     )
 
+    # Owner-only world catalogue choices. Derived memories are never stored here.
+    world_preferences: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
+
+    # Explicit finite avatar choices; only their public projection enters world snapshots.
+    world_avatar_preferences: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
+
     # Briefing grid preferences (UXR Lot 5, B4): {hidden: [...], order: [...]}.
     # NULL = all cards visible in canonical order (an account created before
     # 2026-10-22 whose grid was never saved); a new account starts with the

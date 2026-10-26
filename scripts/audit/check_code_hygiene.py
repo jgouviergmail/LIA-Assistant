@@ -24,6 +24,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import ast
 import re
 import sys
 from dataclasses import dataclass, field
@@ -213,6 +214,35 @@ def check_raw_http_exception() -> CheckResult:
     return result
 
 
+def _migration_metadata(path: Path) -> dict[str, str | tuple[str, ...] | None]:
+    """Read literal revision links without importing or executing a migration."""
+    metadata: dict[str, str | tuple[str, ...] | None] = {}
+    for node in ast.parse(path.read_text(encoding="utf-8")).body:
+        if isinstance(node, ast.AnnAssign):
+            targets, value = [node.target], node.value
+        elif isinstance(node, ast.Assign):
+            targets, value = node.targets, node.value
+        else:
+            continue
+        names = [
+            target.id
+            for target in targets
+            if isinstance(target, ast.Name)
+            and target.id in {"revision", "down_revision"}
+        ]
+        if not names or value is None:
+            continue
+        literal = ast.literal_eval(value)
+        valid_parents = isinstance(literal, tuple) and all(
+            isinstance(parent, str) and parent for parent in literal
+        )
+        if literal is not None and not isinstance(literal, str) and not valid_parents:
+            raise ValueError("revision links must be strings, a parent tuple or None")
+        for name in names:
+            metadata[name] = literal
+    return metadata
+
+
 def check_alembic_single_head(versions: Path | None = None) -> CheckResult:
     """The migration chain must have exactly one head.
 
@@ -228,24 +258,32 @@ def check_alembic_single_head(versions: Path | None = None) -> CheckResult:
         result.failed = True
         return result
 
-    rev_re = re.compile(r"^revision[^=]*=\s*[\"']([^\"']+)", re.MULTILINE)
-    down_re = re.compile(r"^down_revision[^=]*=\s*[\"']([^\"']+)", re.MULTILINE)
-
     revisions: dict[str, str] = {}
     duplicates: list[str] = []
     parents: set[str] = set()
+    invalid: list[str] = []
     for path in sorted(versions.glob("*.py")):
-        content = path.read_text(encoding="utf-8")
-        if match := rev_re.search(content):
-            rev = match.group(1)
+        try:
+            metadata = _migration_metadata(path)
+        except (SyntaxError, ValueError) as error:
+            invalid.append(f"invalid migration metadata: {path.name}: {error}")
+            continue
+        rev = metadata.get("revision")
+        if isinstance(rev, str):
             if rev in revisions:
                 duplicates.append(f"{rev} ({revisions[rev]}, {path.name})")
             revisions[rev] = path.name
-        if match := down_re.search(content):
-            parents.add(match.group(1))
+        down = metadata.get("down_revision")
+        if isinstance(down, str):
+            parents.add(down)
+        elif isinstance(down, tuple):
+            parents.update(down)
 
     heads = [rev for rev in revisions if rev not in parents]
-    if duplicates:
+    if invalid:
+        result.failed = True
+        result.details = invalid
+    elif duplicates:
         # A reused id makes alembic raise CycleDetected at upgrade time — and it
         # made THIS check report "no revisions found" as a pass (2026-09-03).
         result.failed = True

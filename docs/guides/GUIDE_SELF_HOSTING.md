@@ -226,6 +226,7 @@ anything sensitive. Each prompt is prefixed with its key (for example
 | `live_mode`            | always                | `yes` / `no` — the Live voice mode (ADR-299): each person talks with LIA in real time on a live model they connect with their own key | `no`    |
 | `personal_radio`       | always                | `yes` / `no` — on-demand personal radio (ADR-324); uses the instance's writing and voice providers and charges its cost to the listener | `no`    |
 | `speaking_avatar`      | always                | `yes` / `no` — offer a speaking avatar; each person connects their own Simli key and opts in in Settings | `no`    |
+| `world`               | always                | `yes` / `no` — offer LIA World, its shared presence and written exchanges; native activities remain private | `no`    |
 | `admin_password`       | always *(hidden)*     | 10+ chars, 2 uppercase, 2 digits, 2 specials   | —       |
 | `provider_key_deepseek`| always *(hidden)*     | your DeepSeek API key                          | —       |
 | `provider_key_openai`  | always *(hidden)*     | your OpenAI API key                            | —       |
@@ -286,6 +287,7 @@ your private `.env` (mode `0600`):
 | `ENVIRONMENT`, `DEBUG`, `LOG_LEVEL` | `production`, `false`, `INFO`              |
 | `DIAGNOSTICS_ENABLED`, `LIVE_ENABLED`, `RADIO_ENABLED` | Your `self_diagnostics` / `live_mode` / `personal_radio` answers |
 | `AVATAR_ENABLED`        | Your `speaking_avatar` answer; each account still needs its own opt-in and Simli connector |
+| `WORLD_ENABLED`         | Your `world` answer; the administrator capability switch and each participant's presence consent remain effective |
 | `AVATAR_MINTS_PER_HOUR`, `AVATAR_SESSION_LENGTH_SECONDS`, `AVATAR_IDLE_SECONDS`, `AVATAR_HTTP_TIMEOUT_SECONDS`, `AVATAR_CONNECT_TIMEOUT_SECONDS`, `AVATAR_PRESENCE_TIMEOUT_SECONDS` | Finite defaults aligned with [the API's avatar settings](../../apps/api/src/core/config/avatars.py), including the server-controlled relay's validated-presence bound |
 | `ELEVENLABS_TTS_MAX_CONCURRENCY` | The application default; lower it to your ElevenLabs account allowance before enabling its speech synthesis |
 | `FISHAUDIO_MAX_CONCURRENCY` | The application default; lower it to your Fish Audio account allowance before enabling its speech or transcription |
@@ -303,6 +305,22 @@ never appear in `.env`, in a command line, in the installer state, or in the
 log. The same applies to your admin password.
 
 ### 4.6 Optional capabilities
+
+**LIA World** (`world = yes`) offers the shared isometric campus through the
+authenticated application's navigation. The browser draws it; the existing
+Redis and PostgreSQL services own admission, movement and private messaging
+attempts. No service, provider key question or special bootstrap step is added.
+The ordinary migrations create its tables and owner preferences; its dedicated
+translator slot comes from the native model registry. The installer defaults to
+`no`, and older answers/state files keep it disabled. Reconfiguration preserves
+the recorded choice and any tuned capacity or namespace. Forward WebSocket
+upgrades for `/api/v1/world/ws`, retain the native operator capability, and
+review the translator model/provider key and its price before offering paid
+translation. Each participant consents to sharing their account name and
+appearance; accepted peers can see coarse connection/home status, while native
+activities and home contents stay private. Human voice remains a proposal. See
+[the World guide](../technical/WORLD_PROTOTYPE.md) for settings and hardware or
+supplier qualification limits.
 
 **Speaking avatar** (`speaking_avatar = yes`) makes the option available on the
 instance. Each person connects their own **Simli** key and enables the avatar
@@ -440,6 +458,8 @@ self_diagnostics=no
 skill_sandbox=no
 live_mode=no
 personal_radio=no
+speaking_avatar=no
+world=no
 admin_password=CHANGE_ME_Ab12!!cdEf
 provider_key_deepseek=CHANGE_ME_DEEPSEEK_KEY
 provider_key_openai=CHANGE_ME_OPENAI_KEY

@@ -36,6 +36,7 @@ from src.domains.connectors.models import (
     ConnectorType,
 )
 from src.domains.conversations.models import Conversation
+from src.domains.shared.world_cleanup import cleanup_world_presence
 from src.domains.users.models import User
 from src.domains.users.resource_release import (
     build_capability_origin_scrub,
@@ -193,6 +194,7 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
             ),
         ),
         by_either_side("peer_messages", "sender_id", "recipient_id"),
+        by_either_side("world_message_attempts", "user_id", "recipient_id"),
         by_user("peer_capability_transfers", "recipient_id"),
         by_either_side("peer_image_shares", "sender_id", "recipient_id"),
         by_either_side("peer_access_log", "accessor_id", "owner_id"),
@@ -355,6 +357,7 @@ class AccountDeletionService:
         await self._revoke_all_oauth_tokens(user_id)
         await self._disconnect_mcp_pool(user_id)
         await self._invalidate_redis_sessions(user_id)
+        await self._cleanup_world_presence(user_id)
         await self._cleanup_redis_caches(user_id)
 
         # =====================================================================
@@ -591,6 +594,9 @@ class AccountDeletionService:
                 user_id=str(user_id),
                 error=str(e),
             )
+
+    async def _cleanup_world_presence(self, user_id: UUID) -> None:
+        await cleanup_world_presence(user_id)
 
     async def _cleanup_redis_caches(self, user_id: UUID) -> None:
         """Delete every user-scoped Redis key (best-effort, ADR-260).
@@ -919,6 +925,8 @@ class AccountDeletionService:
         # exported while it lives, never kept after.
         user.lia_voices = None
         user.sms_preferences = None
+        user.world_preferences = None
+        user.world_avatar_preferences = None
         user.ingestion_key_encrypted = None
         user.deleted_at = datetime.now(UTC)
         user.deleted_reason = reason

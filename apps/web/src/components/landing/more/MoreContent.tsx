@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
 
 import { LANDING_STATS } from '@/components/landing/constants';
+import { WORLD_CHAPTER_ANCHOR } from '@/components/landing/editorial/chapters-data';
 import { AnimatedCounter } from '@/components/landing/AnimatedCounter';
 import { FadeInOnScroll } from '@/components/landing/FadeInOnScroll';
 import type { Language } from '@/i18n/settings';
@@ -35,6 +36,7 @@ export function MoreContent({ lng }: { lng: string }) {
   const { t } = useTranslation();
   const total = MORE_CARD_KEYS.length;
   const registerHref = buildLocalizedPath('/register', lng as Language);
+  const worldHref = `${buildLocalizedPath('/', lng as Language)}#${WORLD_CHAPTER_ANCHOR}`;
 
   return (
     <MoreAnimationProvider>
@@ -101,6 +103,35 @@ export function MoreContent({ lng }: { lng: string }) {
           </div>
         </section>
       ))}
+
+      <section
+        id="more-world"
+        aria-labelledby="more-world-title"
+        className="landing-section mt-12 border-y border-border/60 bg-card py-12"
+      >
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <h2 id="more-world-title" className="text-2xl font-bold tracking-tight mobile:text-3xl">
+            {t('more.world.title')}
+          </h2>
+          <p className="mt-2 max-w-[60ch] text-muted-foreground">{t('more.world.intro')}</p>
+          <dl className="mt-8 grid gap-6 sm:grid-cols-3">
+            {(['navigation', 'privacy', 'messages'] as const).map(part => (
+              <div key={part} className="border-t border-border pt-4">
+                <dt className="font-semibold">{t(`more.world.${part}_title`)}</dt>
+                <dd className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  {t(`more.world.${part}_body`)}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <Link
+            href={worldHref}
+            className="mt-6 inline-block rounded text-sm font-medium text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {t('more.world.link')}
+          </Link>
+        </div>
+      </section>
 
       {/* Craft band */}
       <section

@@ -320,8 +320,8 @@
     },
     "45": {
       "title": "Dipendenze iniettate in modo pulito",
-      "summary": "Repository, servizi e router si concatenano tramite l'iniezione delle dipendenze di FastAPI, con sessioni di database aperte e chiuse al momento giusto e facili da simulare nei test.",
-      "src": "a9edf6548888"
+      "summary": "Repository, servizi e router si concatenano tramite l'iniezione delle dipendenze di FastAPI, con sessioni di database aperte e chiuse al momento giusto e facili da simulare nei test. Un errore della rotta raggiunge la sessione per annullare la transazione; la chiusura termina prima di propagare una cancellazione.",
+      "src": "2918bf9a2be6"
     },
     "46": {
       "title": "Attività in background pianificate",
@@ -1912,6 +1912,11 @@
       "title": "Una verifica anti-robot alle porte della password",
       "summary": "Registrazione, accesso con password e richieste di reimpostazione richiedono ora il token di una verifica Cloudflare Turnstile, che il server fa convalidare: uno script che chiama l'API senza browser viene respinto. La maggior parte dei visitatori non vede nulla e, se Cloudflare non risponde, passa solo l'accesso: un nuovo account o un'e-mail di reimpostazione attendono.",
       "src": "5f218ef296be"
+    },
+    "365": {
+      "title": "LIA privato in un mondo isometrico condiviso",
+      "summary": "Il browser disegna il mondo mentre Redis gestisce accesso e movimenti; le azioni conservano interfacce e approvazioni native. Nome dell'account e aspetto sono condivisi con consenso, attività e casa restano private e i contatti vedono solo uno stato di connessione generale. I messaggi restano tra i destinatari e le traduzioni autorizzate sono limitate e contabilizzate.",
+      "src": "53942019983c"
     }
   }
 }

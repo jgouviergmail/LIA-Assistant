@@ -98,2221 +98,3723 @@
       "adr": 1,
       "date": "2025-10-15",
       "theme": "orchestration",
-      "functional": ["f.planning", "f.hitl"],
-      "technical": ["t.langgraph", "t.sse"]
+      "functional": [
+        "f.planning",
+        "f.hitl"
+      ],
+      "technical": [
+        "t.langgraph",
+        "t.sse"
+      ]
     },
     {
       "adr": 2,
       "date": "2025-10-20",
       "theme": "security",
-      "functional": ["f.security"],
-      "technical": ["t.bff", "t.redis"]
+      "functional": [
+        "f.security"
+      ],
+      "technical": [
+        "t.bff",
+        "t.redis"
+      ]
     },
     {
       "adr": 3,
       "date": "2025-11-09",
       "theme": "models",
-      "functional": ["f.routing"],
-      "technical": ["t.router", "t.toolsys"]
+      "functional": [
+        "f.routing"
+      ],
+      "technical": [
+        "t.router",
+        "t.toolsys"
+      ]
     },
     {
       "adr": 4,
       "date": "2025-11-10",
       "theme": "orchestration",
-      "functional": ["f.planning"],
-      "technical": ["t.planner"]
+      "functional": [
+        "f.planning"
+      ],
+      "technical": [
+        "t.planner"
+      ]
     },
     {
       "adr": 5,
       "date": "2025-11-14",
       "theme": "orchestration",
-      "functional": ["f.planning"],
-      "technical": ["t.planner"]
+      "functional": [
+        "f.planning"
+      ],
+      "technical": [
+        "t.planner"
+      ]
     },
     {
       "adr": 6,
       "date": "2025-11-14",
       "theme": "models",
-      "functional": ["f.contacts", "f.planning"],
-      "technical": ["t.toolsys"]
+      "functional": [
+        "f.contacts",
+        "f.planning"
+      ],
+      "technical": [
+        "t.toolsys"
+      ]
     },
     {
       "adr": 7,
       "date": "2025-11-16",
       "theme": "platform",
-      "functional": ["f.planning"],
-      "technical": ["t.langgraph", "t.fastapi"]
+      "functional": [
+        "f.planning"
+      ],
+      "technical": [
+        "t.langgraph",
+        "t.fastapi"
+      ]
     },
     {
       "adr": 8,
       "date": "2025-11-09",
       "theme": "orchestration",
-      "functional": ["f.hitl", "f.planning"],
-      "technical": ["t.hitl", "t.planner"],
+      "functional": [
+        "f.hitl",
+        "f.planning"
+      ],
+      "technical": [
+        "t.hitl",
+        "t.planner"
+      ],
       "nofile": "Documented in docs/technical/HITL.md (Phase 8 section) and in the ADR index."
     },
     {
       "adr": 9,
       "date": "2025-11-20",
       "theme": "platform",
-      "functional": ["f.admin"],
-      "technical": ["t.config"]
+      "functional": [
+        "f.admin"
+      ],
+      "technical": [
+        "t.config"
+      ]
     },
     {
       "adr": 10,
       "date": "2025-11-20",
       "theme": "connectors",
-      "functional": ["f.mail", "f.connectors"],
-      "technical": ["t.connclients"]
+      "functional": [
+        "f.mail",
+        "f.connectors"
+      ],
+      "technical": [
+        "t.connclients"
+      ]
     },
     {
       "adr": 11,
       "date": "2025-12-21",
       "theme": "orchestration",
-      "functional": ["f.context"],
-      "technical": ["t.toolsys"]
+      "functional": [
+        "f.context"
+      ],
+      "technical": [
+        "t.toolsys"
+      ]
     },
     {
       "adr": 12,
       "date": "2025-12-21",
       "theme": "orchestration",
-      "functional": ["f.context", "f.hitl"],
-      "technical": ["t.dataregistry", "t.toolsys"]
+      "functional": [
+        "f.context",
+        "f.hitl"
+      ],
+      "technical": [
+        "t.dataregistry",
+        "t.toolsys"
+      ]
     },
     {
       "adr": 13,
       "date": "2025-12-21",
       "theme": "memory",
-      "functional": ["f.memory"],
-      "technical": ["t.postgres", "t.embeddings"]
+      "functional": [
+        "f.memory"
+      ],
+      "technical": [
+        "t.postgres",
+        "t.embeddings"
+      ]
     },
     {
       "adr": 14,
       "date": "2025-12-21",
       "theme": "orchestration",
-      "functional": ["f.planning"],
-      "technical": ["t.planner"]
+      "functional": [
+        "f.planning"
+      ],
+      "technical": [
+        "t.planner"
+      ]
     },
     {
       "adr": 15,
       "date": "2025-12-21",
       "theme": "connectors",
-      "functional": ["f.connectors"],
-      "technical": ["t.toolsys", "t.connclients"]
+      "functional": [
+        "f.connectors"
+      ],
+      "technical": [
+        "t.toolsys",
+        "t.connclients"
+      ]
     },
     {
       "adr": 16,
       "date": "2025-12-21",
       "theme": "orchestration",
-      "functional": ["f.context"],
-      "technical": ["t.dataregistry"]
+      "functional": [
+        "f.context"
+      ],
+      "technical": [
+        "t.dataregistry"
+      ]
     },
     {
       "adr": 17,
       "date": "2025-12-21",
       "theme": "reliability",
-      "functional": ["f.costs"],
-      "technical": ["t.redis", "t.fastapi"]
+      "functional": [
+        "f.costs"
+      ],
+      "technical": [
+        "t.redis",
+        "t.fastapi"
+      ]
     },
     {
       "adr": 18,
       "date": "2025-12-21",
       "theme": "experience",
-      "functional": ["f.chat"],
-      "technical": ["t.sse", "t.web"]
+      "functional": [
+        "f.chat"
+      ],
+      "technical": [
+        "t.sse",
+        "t.web"
+      ]
     },
     {
       "adr": 19,
       "date": "2025-12-21",
       "theme": "orchestration",
-      "functional": ["f.planning", "f.routing"],
-      "technical": ["t.toolsys"]
+      "functional": [
+        "f.planning",
+        "f.routing"
+      ],
+      "technical": [
+        "t.toolsys"
+      ]
     },
     {
       "adr": 20,
       "date": "2025-12-21",
       "theme": "reliability",
-      "functional": ["f.diagnostics"],
-      "technical": ["t.metrics", "t.tracing"]
+      "functional": [
+        "f.diagnostics"
+      ],
+      "technical": [
+        "t.metrics",
+        "t.tracing"
+      ]
     },
     {
       "adr": 21,
       "date": "2025-12-21",
       "theme": "security",
-      "functional": ["f.connectors", "f.security"],
-      "technical": ["t.connclients", "t.redis"]
+      "functional": [
+        "f.connectors",
+        "f.security"
+      ],
+      "technical": [
+        "t.connclients",
+        "t.redis"
+      ]
     },
     {
       "adr": 22,
       "date": "2025-12-21",
       "theme": "orchestration",
-      "functional": ["f.chat", "f.hitl"],
-      "technical": ["t.langgraph", "t.postgres"]
+      "functional": [
+        "f.chat",
+        "f.hitl"
+      ],
+      "technical": [
+        "t.langgraph",
+        "t.postgres"
+      ]
     },
     {
       "adr": 23,
       "date": "2025-12-21",
       "theme": "reliability",
-      "functional": ["f.provenance"],
-      "technical": ["t.fastapi", "t.toolsys"]
+      "functional": [
+        "f.provenance"
+      ],
+      "technical": [
+        "t.fastapi",
+        "t.toolsys"
+      ]
     },
     {
       "adr": 24,
       "date": "2025-12-21",
       "theme": "experience",
-      "functional": ["f.chat"],
-      "technical": ["t.i18n", "t.web"]
+      "functional": [
+        "f.chat"
+      ],
+      "technical": [
+        "t.i18n",
+        "t.web"
+      ]
     },
     {
       "adr": 25,
       "date": "2025-12-21",
       "theme": "models",
-      "functional": ["f.planning"],
-      "technical": ["t.promptsys"]
+      "functional": [
+        "f.planning"
+      ],
+      "technical": [
+        "t.promptsys"
+      ]
     },
     {
       "adr": 26,
       "date": "2025-12-21",
       "theme": "models",
-      "functional": ["f.llmconfig"],
-      "technical": ["t.llmfactory"]
+      "functional": [
+        "f.llmconfig"
+      ],
+      "technical": [
+        "t.llmfactory"
+      ]
     },
     {
       "adr": 27,
       "date": "2025-12-21",
       "theme": "reliability",
-      "functional": ["f.privacy"],
-      "technical": ["t.logs"]
+      "functional": [
+        "f.privacy"
+      ],
+      "technical": [
+        "t.logs"
+      ]
     },
     {
       "adr": 28,
       "date": "2025-12-21",
       "theme": "platform",
-      "functional": ["f.admin"],
-      "technical": ["t.postgres"]
+      "functional": [
+        "f.admin"
+      ],
+      "technical": [
+        "t.postgres"
+      ]
     },
     {
       "adr": 29,
       "date": "2025-12-21",
       "theme": "platform",
-      "functional": ["f.security"],
-      "technical": ["t.redis"]
+      "functional": [
+        "f.security"
+      ],
+      "technical": [
+        "t.redis"
+      ]
     },
     {
       "adr": 30,
       "date": "2025-12-21",
       "theme": "orchestration",
-      "functional": ["f.context"],
-      "technical": ["t.dataregistry", "t.router"]
+      "functional": [
+        "f.context"
+      ],
+      "technical": [
+        "t.dataregistry",
+        "t.router"
+      ]
     },
     {
       "adr": 31,
       "date": "2025-12-21",
       "theme": "platform",
       "functional": [],
-      "technical": ["t.cicd"]
+      "technical": [
+        "t.cicd"
+      ]
     },
     {
       "adr": 32,
       "date": "2025-12-21",
       "theme": "platform",
-      "functional": ["f.admin"],
-      "technical": ["t.fastapi"]
+      "functional": [
+        "f.admin"
+      ],
+      "technical": [
+        "t.fastapi"
+      ]
     },
     {
       "adr": 33,
       "date": "2025-12-21",
       "theme": "platform",
       "functional": [],
-      "technical": ["t.docker"]
+      "technical": [
+        "t.docker"
+      ]
     },
     {
       "adr": 34,
       "date": "2026-01-13",
       "theme": "security",
-      "functional": ["f.security"],
-      "technical": ["t.bff", "t.edge"]
+      "functional": [
+        "f.security"
+      ],
+      "technical": [
+        "t.bff",
+        "t.edge"
+      ]
     },
     {
       "adr": 35,
       "date": "2025-12-21",
       "theme": "reliability",
-      "functional": ["f.connectors"],
-      "technical": ["t.fastapi", "t.connclients"]
+      "functional": [
+        "f.connectors"
+      ],
+      "technical": [
+        "t.fastapi",
+        "t.connclients"
+      ]
     },
     {
       "adr": 36,
       "date": "2025-12-21",
       "theme": "memory",
-      "functional": ["f.personality"],
-      "technical": ["t.postgres", "t.promptsys"]
+      "functional": [
+        "f.personality"
+      ],
+      "technical": [
+        "t.postgres",
+        "t.promptsys"
+      ]
     },
     {
       "adr": 37,
       "date": "2025-12-21",
       "theme": "memory",
-      "functional": ["f.memory"],
-      "technical": ["t.embeddings", "t.postgres"]
+      "functional": [
+        "f.memory"
+      ],
+      "technical": [
+        "t.embeddings",
+        "t.postgres"
+      ]
     },
     {
       "adr": 38,
       "date": "2025-12-21",
       "theme": "experience",
-      "functional": ["f.chat"],
-      "technical": ["t.web"]
+      "functional": [
+        "f.chat"
+      ],
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 39,
       "date": "2025-12-28",
       "theme": "models",
-      "functional": ["f.costs"],
-      "technical": ["t.pricing", "t.metrics"]
+      "functional": [
+        "f.costs"
+      ],
+      "technical": [
+        "t.pricing",
+        "t.metrics"
+      ]
     },
     {
       "adr": 40,
       "date": "2025-12-21",
       "theme": "platform",
       "functional": [],
-      "technical": ["t.postgres"]
+      "technical": [
+        "t.postgres"
+      ]
     },
     {
       "adr": 41,
       "date": "2025-12-21",
       "theme": "orchestration",
-      "functional": ["f.chat"],
-      "technical": ["t.langgraph"]
+      "functional": [
+        "f.chat"
+      ],
+      "technical": [
+        "t.langgraph"
+      ]
     },
     {
       "adr": 42,
       "date": "2025-12-21",
       "theme": "security",
-      "functional": ["f.chat", "f.privacy"],
-      "technical": ["t.postgres"]
+      "functional": [
+        "f.chat",
+        "f.privacy"
+      ],
+      "technical": [
+        "t.postgres"
+      ]
     },
     {
       "adr": 43,
       "date": "2025-12-21",
       "theme": "orchestration",
-      "functional": ["f.planning"],
-      "technical": ["t.langgraph", "t.toolsys"]
+      "functional": [
+        "f.planning"
+      ],
+      "technical": [
+        "t.langgraph",
+        "t.toolsys"
+      ]
     },
     {
       "adr": 44,
       "date": "2025-12-21",
       "theme": "orchestration",
-      "functional": ["f.hitl"],
-      "technical": ["t.hitl", "t.langgraph"]
+      "functional": [
+        "f.hitl"
+      ],
+      "technical": [
+        "t.hitl",
+        "t.langgraph"
+      ]
     },
     {
       "adr": 45,
       "date": "2025-12-21",
       "theme": "platform",
       "functional": [],
-      "technical": ["t.fastapi", "t.postgres"]
+      "technical": [
+        "t.fastapi",
+        "t.postgres"
+      ]
     },
     {
       "adr": 46,
       "date": "2025-12-28",
       "theme": "platform",
-      "functional": ["f.reminders", "f.memory"],
-      "technical": ["t.scheduler"]
+      "functional": [
+        "f.reminders",
+        "f.memory"
+      ],
+      "technical": [
+        "t.scheduler"
+      ]
     },
     {
       "adr": 47,
       "date": "2025-12-21",
       "theme": "connectors",
-      "functional": ["f.connectors", "f.mail", "f.calendar", "f.contacts", "f.drive", "f.tasks"],
-      "technical": ["t.connclients"]
+      "functional": [
+        "f.connectors",
+        "f.mail",
+        "f.calendar",
+        "f.contacts",
+        "f.drive",
+        "f.tasks"
+      ],
+      "technical": [
+        "t.connclients"
+      ]
     },
     {
       "adr": 48,
       "date": "2025-12-28",
       "theme": "models",
-      "functional": ["f.routing"],
-      "technical": ["t.router", "t.embeddings"]
+      "functional": [
+        "f.routing"
+      ],
+      "technical": [
+        "t.router",
+        "t.embeddings"
+      ]
     },
     {
       "adr": 49,
       "date": "2026-03-29",
       "theme": "models",
-      "functional": ["f.routing", "f.memory"],
-      "technical": ["t.embeddings"]
+      "functional": [
+        "f.routing",
+        "f.memory"
+      ],
+      "technical": [
+        "t.embeddings"
+      ]
     },
     {
       "adr": 50,
       "date": "2026-05-07",
       "theme": "voice",
-      "functional": ["f.voice"],
-      "technical": ["t.voiceinfra"]
+      "functional": [
+        "f.voice"
+      ],
+      "technical": [
+        "t.voiceinfra"
+      ]
     },
     {
       "adr": 51,
       "date": "2025-12-28",
       "theme": "proactive",
-      "functional": ["f.reminders", "f.notifications"],
-      "technical": ["t.scheduler", "t.push"]
+      "functional": [
+        "f.reminders",
+        "f.notifications"
+      ],
+      "technical": [
+        "t.scheduler",
+        "t.push"
+      ]
     },
     {
       "adr": 52,
       "date": "2026-01-24",
       "theme": "orchestration",
-      "functional": ["f.planning"],
-      "technical": ["t.toolsys"]
+      "functional": [
+        "f.planning"
+      ],
+      "technical": [
+        "t.toolsys"
+      ]
     },
     {
       "adr": 53,
       "date": "2026-01-27",
       "theme": "memory",
-      "functional": ["f.interests"],
-      "technical": ["t.langgraph"]
+      "functional": [
+        "f.interests"
+      ],
+      "technical": [
+        "t.langgraph"
+      ]
     },
     {
       "adr": 54,
       "date": "2026-02-02",
       "theme": "voice",
-      "functional": ["f.voice"],
-      "technical": ["t.voiceinfra", "t.web"]
+      "functional": [
+        "f.voice"
+      ],
+      "technical": [
+        "t.voiceinfra",
+        "t.web"
+      ]
     },
     {
       "adr": 55,
       "date": "2026-03-14",
       "theme": "knowledge",
-      "functional": ["f.rag"],
-      "technical": ["t.embeddings", "t.postgres"]
+      "functional": [
+        "f.rag"
+      ],
+      "technical": [
+        "t.embeddings",
+        "t.postgres"
+      ]
     },
     {
       "adr": 56,
       "date": "2026-03-17",
       "theme": "knowledge",
-      "functional": ["f.rag", "f.drive"],
-      "technical": ["t.connclients", "t.jobs"]
+      "functional": [
+        "f.rag",
+        "f.drive"
+      ],
+      "technical": [
+        "t.connclients",
+        "t.jobs"
+      ]
     },
     {
       "adr": 57,
       "date": "2026-03-19",
       "theme": "memory",
-      "functional": ["f.journals"],
-      "technical": ["t.embeddings", "t.promptsys"]
+      "functional": [
+        "f.journals"
+      ],
+      "technical": [
+        "t.embeddings",
+        "t.promptsys"
+      ]
     },
     {
       "adr": 58,
       "date": "2026-03-19",
       "theme": "knowledge",
-      "functional": ["f.rag"],
-      "technical": ["t.embeddings"]
+      "functional": [
+        "f.rag"
+      ],
+      "technical": [
+        "t.embeddings"
+      ]
     },
     {
       "adr": 59,
       "date": "2026-03-19",
       "theme": "connectors",
-      "functional": ["f.web"],
-      "technical": ["t.toolsys", "t.docker", "t.browser"]
+      "functional": [
+        "f.web"
+      ],
+      "technical": [
+        "t.toolsys",
+        "t.docker",
+        "t.browser"
+      ]
     },
     {
       "adr": 60,
       "date": "2026-03-21",
       "theme": "models",
-      "functional": ["f.costs"],
-      "technical": ["t.pricing"]
+      "functional": [
+        "f.costs"
+      ],
+      "technical": [
+        "t.pricing"
+      ]
     },
     {
       "adr": 61,
       "date": "2026-03-23",
       "theme": "orchestration",
-      "functional": ["f.admin", "f.mcp"],
-      "technical": ["t.router", "t.config"]
+      "functional": [
+        "f.admin",
+        "f.mcp"
+      ],
+      "technical": [
+        "t.router",
+        "t.config"
+      ]
     },
     {
       "adr": 62,
       "date": "2026-03-24",
       "theme": "orchestration",
-      "functional": ["f.initiative", "f.mcp"],
-      "technical": ["t.initiative", "t.mcp"]
+      "functional": [
+        "f.initiative",
+        "f.mcp"
+      ],
+      "technical": [
+        "t.initiative",
+        "t.mcp"
+      ]
     },
     {
       "adr": 63,
       "date": "2026-03-24",
       "theme": "reliability",
-      "functional": ["f.admin"],
-      "technical": ["t.redis", "t.config"]
+      "functional": [
+        "f.admin"
+      ],
+      "technical": [
+        "t.redis",
+        "t.config"
+      ]
     },
     {
       "adr": 64,
       "date": "2026-03-25",
       "theme": "memory",
-      "functional": ["f.journals"],
-      "technical": ["t.promptsys"]
+      "functional": [
+        "f.journals"
+      ],
+      "technical": [
+        "t.promptsys"
+      ]
     },
     {
       "adr": 65,
       "date": "2026-03-26",
       "theme": "platform",
-      "functional": ["f.llmconfig"],
-      "technical": ["t.langgraph"]
+      "functional": [
+        "f.llmconfig"
+      ],
+      "technical": [
+        "t.langgraph"
+      ]
     },
     {
       "adr": 66,
       "date": "2026-03-30",
       "theme": "memory",
-      "functional": ["f.memory", "f.journals"],
-      "technical": ["t.postgres", "t.embeddings"]
+      "functional": [
+        "f.memory",
+        "f.journals"
+      ],
+      "technical": [
+        "t.postgres",
+        "t.embeddings"
+      ]
     },
     {
       "adr": 67,
       "date": "2026-03-31",
       "theme": "security",
-      "functional": ["f.privacy", "f.security"],
-      "technical": ["t.postgres"]
+      "functional": [
+        "f.privacy",
+        "f.security"
+      ],
+      "technical": [
+        "t.postgres"
+      ]
     },
     {
       "adr": 68,
       "date": "2026-04-01",
       "theme": "memory",
-      "functional": ["f.psyche"],
-      "technical": ["t.promptsys"]
+      "functional": [
+        "f.psyche"
+      ],
+      "technical": [
+        "t.promptsys"
+      ]
     },
     {
       "adr": 69,
       "date": "2026-04-02",
       "theme": "models",
-      "functional": ["f.memory", "f.rag"],
-      "technical": ["t.embeddings"]
+      "functional": [
+        "f.memory",
+        "f.rag"
+      ],
+      "technical": [
+        "t.embeddings"
+      ]
     },
     {
       "adr": 70,
       "date": "2026-04-08",
       "theme": "orchestration",
-      "functional": ["f.react"],
-      "technical": ["t.react", "t.langgraph"]
+      "functional": [
+        "f.react"
+      ],
+      "technical": [
+        "t.react",
+        "t.langgraph"
+      ]
     },
     {
       "adr": 71,
       "date": "2026-04-15",
       "theme": "connectors",
-      "functional": ["f.skills"],
-      "technical": ["t.skills", "t.router"]
+      "functional": [
+        "f.skills"
+      ],
+      "technical": [
+        "t.skills",
+        "t.router"
+      ]
     },
     {
       "adr": 72,
       "date": "2026-04-18",
       "theme": "orchestration",
-      "functional": ["f.context"],
-      "technical": ["t.dataregistry"]
+      "functional": [
+        "f.context"
+      ],
+      "technical": [
+        "t.dataregistry"
+      ]
     },
     {
       "adr": 73,
       "date": "2026-04-19",
       "theme": "proactive",
-      "functional": ["f.heartbeat", "f.places"],
-      "technical": ["t.proactive"]
+      "functional": [
+        "f.heartbeat",
+        "f.places"
+      ],
+      "technical": [
+        "t.proactive"
+      ]
     },
     {
       "adr": 74,
       "date": "2026-04-19",
       "theme": "orchestration",
-      "functional": ["f.context"],
-      "technical": ["t.toolsys"]
+      "functional": [
+        "f.context"
+      ],
+      "technical": [
+        "t.toolsys"
+      ]
     },
     {
       "adr": 75,
       "date": "2026-04-20",
       "theme": "experience",
-      "functional": ["f.skills"],
-      "technical": ["t.skills", "t.web"]
+      "functional": [
+        "f.skills"
+      ],
+      "technical": [
+        "t.skills",
+        "t.web"
+      ]
     },
     {
       "adr": 76,
       "date": "2026-04-20",
       "theme": "connectors",
-      "functional": ["f.health"],
-      "technical": ["t.fastapi", "t.postgres"]
+      "functional": [
+        "f.health"
+      ],
+      "technical": [
+        "t.fastapi",
+        "t.postgres"
+      ]
     },
     {
       "adr": 77,
       "date": "2026-04-22",
       "theme": "proactive",
-      "functional": ["f.briefing"],
-      "technical": ["t.fastapi", "t.redis"]
+      "functional": [
+        "f.briefing"
+      ],
+      "technical": [
+        "t.fastapi",
+        "t.redis"
+      ]
     },
     {
       "adr": 78,
       "date": "2026-05-05",
       "theme": "models",
-      "functional": ["f.llmconfig", "f.costs"],
-      "technical": ["t.catalogue", "t.postgres"]
+      "functional": [
+        "f.llmconfig",
+        "f.costs"
+      ],
+      "technical": [
+        "t.catalogue",
+        "t.postgres"
+      ]
     },
     {
       "adr": 79,
       "date": "2026-05-06",
       "theme": "memory",
-      "functional": ["f.journals"],
-      "technical": ["t.promptsys"]
+      "functional": [
+        "f.journals"
+      ],
+      "technical": [
+        "t.promptsys"
+      ]
     },
     {
       "adr": 80,
       "date": "2026-05-07",
       "theme": "voice",
-      "functional": ["f.voice", "f.costs"],
-      "technical": ["t.voiceinfra", "t.pricing"]
+      "functional": [
+        "f.voice",
+        "f.costs"
+      ],
+      "technical": [
+        "t.voiceinfra",
+        "t.pricing"
+      ]
     },
     {
       "adr": 81,
       "date": "2026-05-07",
       "theme": "voice",
-      "functional": ["f.voice", "f.llmconfig"],
-      "technical": ["t.voiceinfra", "t.catalogue"]
+      "functional": [
+        "f.voice",
+        "f.llmconfig"
+      ],
+      "technical": [
+        "t.voiceinfra",
+        "t.catalogue"
+      ]
     },
     {
       "adr": 82,
       "date": "2026-05-07",
       "theme": "voice",
-      "functional": ["f.voice"],
-      "technical": ["t.voiceinfra", "t.sse"]
+      "functional": [
+        "f.voice"
+      ],
+      "technical": [
+        "t.voiceinfra",
+        "t.sse"
+      ]
     },
     {
       "adr": 83,
       "date": "2026-05-13",
       "theme": "orchestration",
-      "functional": ["f.subagents"],
-      "technical": ["t.react"]
+      "functional": [
+        "f.subagents"
+      ],
+      "technical": [
+        "t.react"
+      ]
     },
     {
       "adr": 84,
       "date": "2026-05-15",
       "theme": "orchestration",
-      "functional": ["f.planning", "f.calendar"],
-      "technical": ["t.planner"]
+      "functional": [
+        "f.planning",
+        "f.calendar"
+      ],
+      "technical": [
+        "t.planner"
+      ]
     },
     {
       "adr": 85,
       "date": "2026-05-17",
       "theme": "experience",
-      "functional": ["f.hitl"],
-      "technical": ["t.hitl", "t.startup"]
+      "functional": [
+        "f.hitl"
+      ],
+      "technical": [
+        "t.hitl",
+        "t.startup"
+      ]
     },
     {
       "adr": 86,
       "date": "2026-05-19",
       "theme": "reliability",
-      "functional": ["f.chat"],
-      "technical": ["t.langgraph", "t.metrics"]
+      "functional": [
+        "f.chat"
+      ],
+      "technical": [
+        "t.langgraph",
+        "t.metrics"
+      ]
     },
     {
       "adr": 87,
       "date": "2026-05-31",
       "theme": "models",
-      "functional": ["f.llmconfig"],
-      "technical": ["t.llmfactory", "t.reasoning"]
+      "functional": [
+        "f.llmconfig"
+      ],
+      "technical": [
+        "t.llmfactory",
+        "t.reasoning"
+      ]
     },
     {
       "adr": 88,
       "date": "2026-06-02",
       "theme": "memory",
-      "functional": ["f.journals"],
-      "technical": ["t.promptsys"]
+      "functional": [
+        "f.journals"
+      ],
+      "technical": [
+        "t.promptsys"
+      ]
     },
     {
       "adr": 89,
       "date": "2026-06-03",
       "theme": "reliability",
-      "functional": ["f.diagnostics"],
-      "technical": ["t.metrics"]
+      "functional": [
+        "f.diagnostics"
+      ],
+      "technical": [
+        "t.metrics"
+      ]
     },
     {
       "adr": 90,
       "date": "2026-07-02",
       "theme": "orchestration",
-      "functional": ["f.planning", "f.initiative"],
-      "technical": ["t.planner", "t.toolsys"]
+      "functional": [
+        "f.planning",
+        "f.initiative"
+      ],
+      "technical": [
+        "t.planner",
+        "t.toolsys"
+      ]
     },
     {
       "adr": 91,
       "date": "2026-07-02",
       "theme": "reliability",
-      "functional": ["f.initiative", "f.chat"],
-      "technical": ["t.response"]
+      "functional": [
+        "f.initiative",
+        "f.chat"
+      ],
+      "technical": [
+        "t.response"
+      ]
     },
     {
       "adr": 92,
       "date": "2026-07-02",
       "theme": "orchestration",
-      "functional": ["f.hitl"],
-      "technical": ["t.hitl", "t.langgraph"]
+      "functional": [
+        "f.hitl"
+      ],
+      "technical": [
+        "t.hitl",
+        "t.langgraph"
+      ]
     },
     {
       "adr": 93,
       "date": "2026-07-03",
       "theme": "security",
-      "functional": ["f.security"],
-      "technical": ["t.edge", "t.bff"]
+      "functional": [
+        "f.security"
+      ],
+      "technical": [
+        "t.edge",
+        "t.bff"
+      ]
     },
     {
       "adr": 94,
       "date": "2026-07-03",
       "theme": "platform",
       "functional": [],
-      "technical": ["t.langgraph"]
+      "technical": [
+        "t.langgraph"
+      ]
     },
     {
       "adr": 95,
       "date": "2026-07-03",
       "theme": "reliability",
       "functional": [],
-      "technical": ["t.cicd"]
+      "technical": [
+        "t.cicd"
+      ]
     },
     {
       "adr": 96,
       "date": "2026-07-03",
       "theme": "reliability",
       "functional": [],
-      "technical": ["t.fastapi", "t.edge"]
+      "technical": [
+        "t.fastapi",
+        "t.edge"
+      ]
     },
     {
       "adr": 97,
       "date": "2026-07-04",
       "theme": "security",
-      "functional": ["f.privacy", "f.skills"],
-      "technical": ["t.postgres", "t.sandbox"]
+      "functional": [
+        "f.privacy",
+        "f.skills"
+      ],
+      "technical": [
+        "t.postgres",
+        "t.sandbox"
+      ]
     },
     {
       "adr": 98,
       "date": "2026-07-04",
       "theme": "security",
-      "functional": ["f.mcp"],
-      "technical": ["t.edge", "t.web"]
+      "functional": [
+        "f.mcp"
+      ],
+      "technical": [
+        "t.edge",
+        "t.web"
+      ]
     },
     {
       "adr": 99,
       "date": "2026-07-04",
       "theme": "platform",
       "functional": [],
-      "technical": ["t.docker"]
+      "technical": [
+        "t.docker"
+      ]
     },
     {
       "adr": 100,
       "date": "2026-07-04",
       "theme": "models",
-      "functional": ["f.planning"],
-      "technical": ["t.structured", "t.promptsys"]
+      "functional": [
+        "f.planning"
+      ],
+      "technical": [
+        "t.structured",
+        "t.promptsys"
+      ]
     },
     {
       "adr": 101,
       "date": "2026-07-04",
       "theme": "connectors",
-      "functional": ["f.calendar"],
-      "technical": ["t.connclients", "t.toolsys"]
+      "functional": [
+        "f.calendar"
+      ],
+      "technical": [
+        "t.connclients",
+        "t.toolsys"
+      ]
     },
     {
       "adr": 102,
       "date": "2026-07-04",
       "theme": "orchestration",
-      "functional": ["f.routing"],
-      "technical": ["t.toolsys"]
+      "functional": [
+        "f.routing"
+      ],
+      "technical": [
+        "t.toolsys"
+      ]
     },
     {
       "adr": 103,
       "date": "2026-07-05",
       "theme": "experience",
-      "functional": ["f.hitl"],
-      "technical": ["t.i18n", "t.hitl"]
+      "functional": [
+        "f.hitl"
+      ],
+      "technical": [
+        "t.i18n",
+        "t.hitl"
+      ]
     },
     {
       "adr": 104,
       "date": "2026-07-05",
       "theme": "memory",
-      "functional": ["f.psyche"],
-      "technical": ["t.promptsys"]
+      "functional": [
+        "f.psyche"
+      ],
+      "technical": [
+        "t.promptsys"
+      ]
     },
     {
       "adr": 105,
       "date": "2026-07-05",
       "theme": "memory",
-      "functional": ["f.psyche"],
-      "technical": ["t.promptsys"]
+      "functional": [
+        "f.psyche"
+      ],
+      "technical": [
+        "t.promptsys"
+      ]
     },
     {
       "adr": 106,
       "date": "2026-07-06",
       "theme": "orchestration",
-      "functional": ["f.hitl", "f.react"],
-      "technical": ["t.hitl"]
+      "functional": [
+        "f.hitl",
+        "f.react"
+      ],
+      "technical": [
+        "t.hitl"
+      ]
     },
     {
       "adr": 107,
       "date": "2026-07-07",
       "theme": "platform",
       "functional": [],
-      "technical": ["t.langgraph", "t.cicd"]
+      "technical": [
+        "t.langgraph",
+        "t.cicd"
+      ]
     },
     {
       "adr": 108,
       "date": "2026-07-07",
       "theme": "connectors",
-      "functional": ["f.web", "f.places"],
-      "technical": ["t.connclients", "t.redis"]
+      "functional": [
+        "f.web",
+        "f.places"
+      ],
+      "technical": [
+        "t.connclients",
+        "t.redis"
+      ]
     },
     {
       "adr": 109,
       "date": "2026-07-08",
       "theme": "platform",
-      "functional": ["f.privacy"],
-      "technical": ["t.postgres", "t.docker"]
+      "functional": [
+        "f.privacy"
+      ],
+      "technical": [
+        "t.postgres",
+        "t.docker"
+      ]
     },
     {
       "adr": 110,
       "date": "2026-07-08",
       "theme": "security",
-      "functional": ["f.privacy"],
-      "technical": ["t.postgres"]
+      "functional": [
+        "f.privacy"
+      ],
+      "technical": [
+        "t.postgres"
+      ]
     },
     {
       "adr": 111,
       "date": "2026-07-08",
       "theme": "reliability",
-      "functional": ["f.chat"],
-      "technical": ["t.langgraph", "t.postgres"]
+      "functional": [
+        "f.chat"
+      ],
+      "technical": [
+        "t.langgraph",
+        "t.postgres"
+      ]
     },
     {
       "adr": 112,
       "date": "2026-07-08",
       "theme": "platform",
       "functional": [],
-      "technical": ["t.cicd", "t.docker"]
+      "technical": [
+        "t.cicd",
+        "t.docker"
+      ]
     },
     {
       "adr": 113,
       "date": "2026-07-08",
       "theme": "platform",
       "functional": [],
-      "technical": ["t.cicd"]
+      "technical": [
+        "t.cicd"
+      ]
     },
     {
       "adr": 114,
       "date": "2026-07-08",
       "theme": "reliability",
-      "functional": ["f.connectors"],
-      "technical": ["t.connclients"]
+      "functional": [
+        "f.connectors"
+      ],
+      "technical": [
+        "t.connclients"
+      ]
     },
     {
       "adr": 115,
       "date": "2026-07-09",
       "theme": "reliability",
       "functional": [],
-      "technical": ["t.fastapi", "t.docker"]
+      "technical": [
+        "t.fastapi",
+        "t.docker"
+      ]
     },
     {
       "adr": 116,
       "date": "2026-07-09",
       "theme": "experience",
-      "functional": ["f.chat"],
-      "technical": ["t.web", "t.cicd"]
+      "functional": [
+        "f.chat"
+      ],
+      "technical": [
+        "t.web",
+        "t.cicd"
+      ]
     },
     {
       "adr": 117,
       "date": "2026-07-09",
       "theme": "reliability",
-      "functional": ["f.chat"],
-      "technical": ["t.sse", "t.redis"]
+      "functional": [
+        "f.chat"
+      ],
+      "technical": [
+        "t.sse",
+        "t.redis"
+      ]
     },
     {
       "adr": 118,
       "date": "2026-07-09",
       "theme": "connectors",
-      "functional": ["f.skills"],
-      "technical": ["t.skills"]
+      "functional": [
+        "f.skills"
+      ],
+      "technical": [
+        "t.skills"
+      ]
     },
     {
       "adr": 119,
       "date": "2026-07-10",
       "theme": "reliability",
-      "functional": ["f.diagnostics"],
-      "technical": ["t.alerts", "t.metrics"]
+      "functional": [
+        "f.diagnostics"
+      ],
+      "technical": [
+        "t.alerts",
+        "t.metrics"
+      ]
     },
     {
       "adr": 120,
       "date": "2026-07-10",
       "theme": "orchestration",
-      "functional": ["f.planning", "f.context"],
-      "technical": ["t.planner"]
+      "functional": [
+        "f.planning",
+        "f.context"
+      ],
+      "technical": [
+        "t.planner"
+      ]
     },
     {
       "adr": 121,
       "date": "2026-07-10",
       "theme": "orchestration",
-      "functional": ["f.planning"],
-      "technical": ["t.toolsys"]
+      "functional": [
+        "f.planning"
+      ],
+      "technical": [
+        "t.toolsys"
+      ]
     },
     {
       "adr": 122,
       "date": "2026-07-10",
       "theme": "platform",
-      "functional": ["f.voice"],
-      "technical": ["t.sse"]
+      "functional": [
+        "f.voice"
+      ],
+      "technical": [
+        "t.sse"
+      ]
     },
     {
       "adr": 123,
       "date": "2026-07-10",
       "theme": "platform",
       "functional": [],
-      "technical": ["t.startup"]
+      "technical": [
+        "t.startup"
+      ]
     },
     {
       "adr": 124,
       "date": "2026-07-10",
       "theme": "reliability",
       "functional": [],
-      "technical": ["t.fastapi"]
+      "technical": [
+        "t.fastapi"
+      ]
     },
     {
       "adr": 125,
       "date": "2026-07-11",
       "theme": "experience",
-      "functional": ["f.hitl"],
-      "technical": ["t.hitl"]
+      "functional": [
+        "f.hitl"
+      ],
+      "technical": [
+        "t.hitl"
+      ]
     },
     {
       "adr": 126,
       "date": "2026-07-11",
       "theme": "platform",
-      "functional": ["f.security"],
-      "technical": ["t.bff", "t.fastapi"]
+      "functional": [
+        "f.security"
+      ],
+      "technical": [
+        "t.bff",
+        "t.fastapi"
+      ]
     },
     {
       "adr": 127,
       "date": "2026-07-13",
       "theme": "voice",
-      "functional": ["f.telephony"],
-      "technical": ["t.phone", "t.connclients"]
+      "functional": [
+        "f.telephony"
+      ],
+      "technical": [
+        "t.phone",
+        "t.connclients"
+      ]
     },
     {
       "adr": 128,
       "date": "2026-07-13",
       "theme": "orchestration",
-      "functional": ["f.planning"],
-      "technical": ["t.planner"]
+      "functional": [
+        "f.planning"
+      ],
+      "technical": [
+        "t.planner"
+      ]
     },
     {
       "adr": 129,
       "date": "2026-07-14",
       "theme": "knowledge",
-      "functional": ["f.rag"],
-      "technical": ["t.jobs", "t.postgres"]
+      "functional": [
+        "f.rag"
+      ],
+      "technical": [
+        "t.jobs",
+        "t.postgres"
+      ]
     },
     {
       "adr": 130,
       "date": "2026-07-14",
       "theme": "platform",
       "functional": [],
-      "technical": ["t.cicd"]
+      "technical": [
+        "t.cicd"
+      ]
     },
     {
       "adr": 131,
       "date": "2026-07-18",
       "theme": "proactive",
-      "functional": ["f.interests", "f.heartbeat"],
-      "technical": ["t.proactive"]
+      "functional": [
+        "f.interests",
+        "f.heartbeat"
+      ],
+      "technical": [
+        "t.proactive"
+      ]
     },
     {
       "adr": 132,
       "date": "2026-07-18",
       "theme": "experience",
-      "functional": ["f.hitl"],
-      "technical": ["t.web", "t.hitl"]
+      "functional": [
+        "f.hitl"
+      ],
+      "technical": [
+        "t.web",
+        "t.hitl"
+      ]
     },
     {
       "adr": 133,
       "date": "2026-07-22",
       "theme": "trust",
-      "functional": ["f.chat", "f.provenance"],
-      "technical": ["t.web", "t.sse"]
+      "functional": [
+        "f.chat",
+        "f.provenance"
+      ],
+      "technical": [
+        "t.web",
+        "t.sse"
+      ]
     },
     {
       "adr": 134,
       "date": "2026-07-18",
       "theme": "experience",
-      "functional": ["f.connectors"],
-      "technical": ["t.web", "t.connclients"]
+      "functional": [
+        "f.connectors"
+      ],
+      "technical": [
+        "t.web",
+        "t.connclients"
+      ]
     },
     {
       "adr": 135,
       "date": "2026-07-19",
       "theme": "proactive",
-      "functional": ["f.heartbeat", "f.interests"],
-      "technical": ["t.proactive"]
+      "functional": [
+        "f.heartbeat",
+        "f.interests"
+      ],
+      "technical": [
+        "t.proactive"
+      ]
     },
     {
       "adr": 136,
       "date": "2026-07-21",
       "theme": "experience",
-      "functional": ["f.mcp", "f.skills"],
-      "technical": ["t.edge", "t.web"]
+      "functional": [
+        "f.mcp",
+        "f.skills"
+      ],
+      "technical": [
+        "t.edge",
+        "t.web"
+      ]
     },
     {
       "adr": 137,
       "date": "2026-07-21",
       "theme": "experience",
-      "functional": ["f.skills", "f.mcp"],
-      "technical": ["t.web", "t.response"]
+      "functional": [
+        "f.skills",
+        "f.mcp"
+      ],
+      "technical": [
+        "t.web",
+        "t.response"
+      ]
     },
     {
       "adr": 138,
       "date": "2026-07-22",
       "theme": "experience",
-      "functional": ["f.chat", "f.product"],
-      "technical": ["t.web", "t.postgres"]
+      "functional": [
+        "f.chat",
+        "f.product"
+      ],
+      "technical": [
+        "t.web",
+        "t.postgres"
+      ]
     },
     {
       "adr": 139,
       "date": "2026-07-22",
       "theme": "proactive",
-      "functional": ["f.openloops", "f.heartbeat"],
-      "technical": ["t.postgres", "t.proactive"]
+      "functional": [
+        "f.openloops",
+        "f.heartbeat"
+      ],
+      "technical": [
+        "t.postgres",
+        "t.proactive"
+      ]
     },
     {
       "adr": 140,
       "date": "2026-07-22",
       "theme": "proactive",
-      "functional": ["f.routines", "f.hitl"],
-      "technical": ["t.scheduler", "t.hitl"]
+      "functional": [
+        "f.routines",
+        "f.hitl"
+      ],
+      "technical": [
+        "t.scheduler",
+        "t.hitl"
+      ]
     },
     {
       "adr": 141,
       "date": "2026-07-22",
       "theme": "knowledge",
-      "functional": ["f.rag", "f.relations"],
-      "technical": ["t.toolsys", "t.embeddings"]
+      "functional": [
+        "f.rag",
+        "f.relations"
+      ],
+      "technical": [
+        "t.toolsys",
+        "t.embeddings"
+      ]
     },
     {
       "adr": 142,
       "date": "2026-07-22",
       "theme": "memory",
-      "functional": ["f.psyche"],
-      "technical": ["t.metrics"]
+      "functional": [
+        "f.psyche"
+      ],
+      "technical": [
+        "t.metrics"
+      ]
     },
     {
       "adr": 143,
       "date": "2026-07-23",
       "theme": "security",
-      "functional": ["f.security"],
-      "technical": ["t.bff"]
+      "functional": [
+        "f.security"
+      ],
+      "technical": [
+        "t.bff"
+      ]
     },
     {
       "adr": 144,
       "date": "2026-07-23",
       "theme": "security",
-      "functional": ["f.security"],
-      "technical": ["t.bff", "t.redis"]
+      "functional": [
+        "f.security"
+      ],
+      "technical": [
+        "t.bff",
+        "t.redis"
+      ]
     },
     {
       "adr": 145,
       "date": "2026-07-23",
       "theme": "security",
-      "functional": ["f.privacy"],
-      "technical": ["t.jobs"]
+      "functional": [
+        "f.privacy"
+      ],
+      "technical": [
+        "t.jobs"
+      ]
     },
     {
       "adr": 146,
       "date": "2026-07-23",
       "theme": "experience",
-      "functional": ["f.notifications"],
-      "technical": ["t.pwa"]
+      "functional": [
+        "f.notifications"
+      ],
+      "technical": [
+        "t.pwa"
+      ]
     },
     {
       "adr": 147,
       "date": "2026-07-23",
       "theme": "trust",
-      "functional": ["f.context"],
-      "technical": ["t.response", "t.dataregistry"]
+      "functional": [
+        "f.context"
+      ],
+      "technical": [
+        "t.response",
+        "t.dataregistry"
+      ]
     },
     {
       "adr": 148,
       "date": "2026-07-24",
       "theme": "reliability",
-      "functional": ["f.health", "f.heartbeat"],
-      "technical": ["t.postgres"]
+      "functional": [
+        "f.health",
+        "f.heartbeat"
+      ],
+      "technical": [
+        "t.postgres"
+      ]
     },
     {
       "adr": 149,
       "date": "2026-07-25",
       "theme": "security",
-      "functional": ["f.skills", "f.sandbox"],
-      "technical": ["t.sandbox"]
+      "functional": [
+        "f.skills",
+        "f.sandbox"
+      ],
+      "technical": [
+        "t.sandbox"
+      ]
     },
     {
       "adr": 150,
       "date": "2026-07-25",
       "theme": "knowledge",
-      "functional": ["f.rag"],
-      "technical": ["t.jobs", "t.embeddings"]
+      "functional": [
+        "f.rag"
+      ],
+      "technical": [
+        "t.jobs",
+        "t.embeddings"
+      ]
     },
     {
       "adr": 151,
       "date": "2026-07-25",
       "theme": "platform",
       "functional": [],
-      "technical": ["t.cicd"]
+      "technical": [
+        "t.cicd"
+      ]
     },
     {
       "adr": 152,
       "date": "2026-07-25",
       "theme": "platform",
       "functional": [],
-      "technical": ["t.web"]
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 153,
       "date": "2026-07-26",
       "theme": "orchestration",
-      "functional": ["f.hitl"],
-      "technical": ["t.hitl"]
+      "functional": [
+        "f.hitl"
+      ],
+      "technical": [
+        "t.hitl"
+      ]
     },
     {
       "adr": 154,
       "date": "2026-07-26",
       "theme": "voice",
-      "functional": ["f.voice"],
-      "technical": ["t.voiceinfra"]
+      "functional": [
+        "f.voice"
+      ],
+      "technical": [
+        "t.voiceinfra"
+      ]
     },
     {
       "adr": 155,
       "date": "2026-07-26",
       "theme": "platform",
       "functional": [],
-      "technical": ["t.cicd"]
+      "technical": [
+        "t.cicd"
+      ]
     },
     {
       "adr": 156,
       "date": "2026-07-26",
       "theme": "platform",
       "functional": [],
-      "technical": ["t.web", "t.i18n"]
+      "technical": [
+        "t.web",
+        "t.i18n"
+      ]
     },
     {
       "adr": 157,
       "date": "2026-07-27",
       "theme": "security",
       "functional": [],
-      "technical": ["t.cicd"]
+      "technical": [
+        "t.cicd"
+      ]
     },
     {
       "adr": 158,
       "date": "2026-07-27",
       "theme": "experience",
       "functional": [],
-      "technical": ["t.i18n"]
+      "technical": [
+        "t.i18n"
+      ]
     },
     {
       "adr": 159,
       "date": "2026-07-27",
       "theme": "memory",
-      "functional": ["f.journals"],
-      "technical": ["t.promptsys"]
+      "functional": [
+        "f.journals"
+      ],
+      "technical": [
+        "t.promptsys"
+      ]
     },
     {
       "adr": 160,
       "date": "2026-07-27",
       "theme": "orchestration",
-      "functional": ["f.images", "f.skills"],
-      "technical": ["t.router", "t.planner"]
+      "functional": [
+        "f.images",
+        "f.skills"
+      ],
+      "technical": [
+        "t.router",
+        "t.planner"
+      ]
     },
     {
       "adr": 161,
       "date": "2026-07-27",
       "theme": "reliability",
-      "functional": ["f.chat"],
-      "technical": ["t.web", "t.sse"]
+      "functional": [
+        "f.chat"
+      ],
+      "technical": [
+        "t.web",
+        "t.sse"
+      ]
     },
     {
       "adr": 162,
       "date": "2026-07-27",
       "theme": "reliability",
-      "functional": ["f.rag"],
-      "technical": ["t.jobs", "t.startup"]
+      "functional": [
+        "f.rag"
+      ],
+      "technical": [
+        "t.jobs",
+        "t.startup"
+      ]
     },
     {
       "adr": 163,
       "date": "2026-07-27",
       "theme": "reliability",
-      "functional": ["f.routing"],
-      "technical": ["t.embeddings", "t.startup"]
+      "functional": [
+        "f.routing"
+      ],
+      "technical": [
+        "t.embeddings",
+        "t.startup"
+      ]
     },
     {
       "adr": 164,
       "date": "2026-07-27",
       "theme": "memory",
-      "functional": ["f.memory", "f.interests", "f.journals"],
-      "technical": ["t.metrics"]
+      "functional": [
+        "f.memory",
+        "f.interests",
+        "f.journals"
+      ],
+      "technical": [
+        "t.metrics"
+      ]
     },
     {
       "adr": 165,
       "date": "2026-07-27",
       "theme": "connectors",
-      "functional": ["f.skills"],
-      "technical": ["t.skills"]
+      "functional": [
+        "f.skills"
+      ],
+      "technical": [
+        "t.skills"
+      ]
     },
     {
       "adr": 166,
       "date": "2026-07-27",
       "theme": "memory",
-      "functional": ["f.interests", "f.memory"],
-      "technical": ["t.promptsys"]
+      "functional": [
+        "f.interests",
+        "f.memory"
+      ],
+      "technical": [
+        "t.promptsys"
+      ]
     },
     {
       "adr": 167,
       "date": "2026-07-27",
       "theme": "security",
-      "functional": ["f.provenance", "f.mail"],
-      "technical": ["t.dataregistry", "t.response"]
+      "functional": [
+        "f.provenance",
+        "f.mail"
+      ],
+      "technical": [
+        "t.dataregistry",
+        "t.response"
+      ]
     },
     {
       "adr": 168,
       "date": "2026-07-27",
       "theme": "platform",
-      "functional": ["f.memory"],
-      "technical": ["t.postgres"]
+      "functional": [
+        "f.memory"
+      ],
+      "technical": [
+        "t.postgres"
+      ]
     },
     {
       "adr": 169,
       "date": "2026-07-27",
       "theme": "orchestration",
-      "functional": ["f.react"],
-      "technical": ["t.react", "t.langgraph"]
+      "functional": [
+        "f.react"
+      ],
+      "technical": [
+        "t.react",
+        "t.langgraph"
+      ]
     },
     {
       "adr": 170,
       "date": "2026-07-27",
       "theme": "orchestration",
-      "functional": ["f.react"],
-      "technical": ["t.react"]
+      "functional": [
+        "f.react"
+      ],
+      "technical": [
+        "t.react"
+      ]
     },
     {
       "adr": 171,
       "date": "2026-07-28",
       "theme": "experience",
       "functional": [],
-      "technical": ["t.web"]
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 172,
       "date": "2026-07-28",
       "theme": "experience",
-      "functional": ["f.admin"],
-      "technical": ["t.web"]
+      "functional": [
+        "f.admin"
+      ],
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 173,
       "date": "2026-07-29",
       "theme": "experience",
-      "functional": ["f.chat"],
-      "technical": ["t.web"]
+      "functional": [
+        "f.chat"
+      ],
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 174,
       "date": "2026-07-29",
       "theme": "voice",
-      "functional": ["f.telephony"],
-      "technical": ["t.postgres"]
+      "functional": [
+        "f.telephony"
+      ],
+      "technical": [
+        "t.postgres"
+      ]
     },
     {
       "adr": 175,
       "date": "2026-07-29",
       "theme": "proactive",
-      "functional": ["f.routines"],
-      "technical": ["t.scheduler"]
+      "functional": [
+        "f.routines"
+      ],
+      "technical": [
+        "t.scheduler"
+      ]
     },
     {
       "adr": 176,
       "date": "2026-07-29",
       "theme": "memory",
-      "functional": ["f.relations"],
-      "technical": ["t.fastapi"]
+      "functional": [
+        "f.relations"
+      ],
+      "technical": [
+        "t.fastapi"
+      ]
     },
     {
       "adr": 177,
       "date": "2026-07-29",
       "theme": "experience",
-      "functional": ["f.chat"],
-      "technical": ["t.response", "t.web"]
+      "functional": [
+        "f.chat"
+      ],
+      "technical": [
+        "t.response",
+        "t.web"
+      ]
     },
     {
       "adr": 178,
       "date": "2026-07-29",
       "theme": "reliability",
-      "functional": ["f.product"],
-      "technical": ["t.dashboards", "t.postgres"]
+      "functional": [
+        "f.product"
+      ],
+      "technical": [
+        "t.dashboards",
+        "t.postgres"
+      ]
     },
     {
       "adr": 179,
       "date": "2026-07-29",
       "theme": "models",
-      "functional": ["f.telephony"],
-      "technical": ["t.structured"]
+      "functional": [
+        "f.telephony"
+      ],
+      "technical": [
+        "t.structured"
+      ]
     },
     {
       "adr": 180,
       "date": "2026-07-29",
       "theme": "memory",
-      "functional": ["f.peers"],
-      "technical": ["t.postgres", "t.fastapi"]
+      "functional": [
+        "f.peers"
+      ],
+      "technical": [
+        "t.postgres",
+        "t.fastapi"
+      ]
     },
     {
       "adr": 181,
       "date": "2026-07-30",
       "theme": "experience",
       "functional": [],
-      "technical": ["t.web"]
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 182,
       "date": "2026-07-30",
       "theme": "trust",
-      "functional": ["f.peers", "f.provenance"],
-      "technical": ["t.router", "t.response"]
+      "functional": [
+        "f.peers",
+        "f.provenance"
+      ],
+      "technical": [
+        "t.router",
+        "t.response"
+      ]
     },
     {
       "adr": 183,
       "date": "2026-07-31",
       "theme": "orchestration",
-      "functional": ["f.planning", "f.routing"],
-      "technical": ["t.planner", "t.toolsys"]
+      "functional": [
+        "f.planning",
+        "f.routing"
+      ],
+      "technical": [
+        "t.planner",
+        "t.toolsys"
+      ]
     },
     {
       "adr": 184,
       "date": "2026-07-31",
       "theme": "trust",
-      "functional": ["f.planning", "f.provenance"],
-      "technical": ["t.planner", "t.toolsys"]
+      "functional": [
+        "f.planning",
+        "f.provenance"
+      ],
+      "technical": [
+        "t.planner",
+        "t.toolsys"
+      ]
     },
     {
       "adr": 185,
       "date": "2026-07-31",
       "theme": "trust",
-      "functional": ["f.relations", "f.peers"],
-      "technical": ["t.postgres"]
+      "functional": [
+        "f.relations",
+        "f.peers"
+      ],
+      "technical": [
+        "t.postgres"
+      ]
     },
     {
       "adr": 186,
       "date": "2026-07-31",
       "theme": "security",
-      "functional": ["f.peers", "f.privacy"],
-      "technical": ["t.postgres"]
+      "functional": [
+        "f.peers",
+        "f.privacy"
+      ],
+      "technical": [
+        "t.postgres"
+      ]
     },
     {
       "adr": 187,
       "date": "2026-07-31",
       "theme": "experience",
-      "functional": ["f.peers"],
-      "technical": ["t.fastapi"]
+      "functional": [
+        "f.peers"
+      ],
+      "technical": [
+        "t.fastapi"
+      ]
     },
     {
       "adr": 188,
       "date": "2026-07-31",
       "theme": "connectors",
-      "functional": ["f.relations", "f.contacts"],
-      "technical": ["t.connclients"]
+      "functional": [
+        "f.relations",
+        "f.contacts"
+      ],
+      "technical": [
+        "t.connclients"
+      ]
     },
     {
       "adr": 189,
       "date": "2026-07-31",
       "theme": "security",
-      "functional": ["f.peers", "f.privacy"],
-      "technical": ["t.postgres"]
+      "functional": [
+        "f.peers",
+        "f.privacy"
+      ],
+      "technical": [
+        "t.postgres"
+      ]
     },
     {
       "adr": 190,
       "date": "2026-08-01",
       "theme": "orchestration",
-      "functional": ["f.relations", "f.contacts"],
-      "technical": ["t.toolsys", "t.cicd"]
+      "functional": [
+        "f.relations",
+        "f.contacts"
+      ],
+      "technical": [
+        "t.toolsys",
+        "t.cicd"
+      ]
     },
     {
       "adr": 191,
       "date": "2026-08-01",
       "theme": "orchestration",
-      "functional": ["f.relations", "f.routing"],
-      "technical": ["t.toolsys"]
+      "functional": [
+        "f.relations",
+        "f.routing"
+      ],
+      "technical": [
+        "t.toolsys"
+      ]
     },
     {
       "adr": 192,
       "date": "2026-08-01",
       "theme": "experience",
-      "functional": ["f.chat"],
-      "technical": ["t.web"]
+      "functional": [
+        "f.chat"
+      ],
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 193,
       "date": "2026-08-01",
       "theme": "orchestration",
-      "functional": ["f.telephony", "f.openloops", "f.peers"],
-      "technical": ["t.toolsys"]
+      "functional": [
+        "f.telephony",
+        "f.openloops",
+        "f.peers"
+      ],
+      "technical": [
+        "t.toolsys"
+      ]
     },
     {
       "adr": 194,
       "date": "2026-08-02",
       "theme": "orchestration",
-      "functional": ["f.planning"],
-      "technical": ["t.cicd", "t.planner"]
+      "functional": [
+        "f.planning"
+      ],
+      "technical": [
+        "t.cicd",
+        "t.planner"
+      ]
     },
     {
       "adr": 195,
       "date": "2026-08-02",
       "theme": "experience",
-      "functional": ["f.hitl"],
-      "technical": ["t.hitl", "t.i18n"]
+      "functional": [
+        "f.hitl"
+      ],
+      "technical": [
+        "t.hitl",
+        "t.i18n"
+      ]
     },
     {
       "adr": 196,
       "date": "2026-08-03",
       "theme": "proactive",
-      "functional": ["f.heartbeat", "f.notifications"],
-      "technical": ["t.proactive"]
+      "functional": [
+        "f.heartbeat",
+        "f.notifications"
+      ],
+      "technical": [
+        "t.proactive"
+      ]
     },
     {
       "adr": 197,
       "date": "2026-08-03",
       "theme": "proactive",
-      "functional": ["f.heartbeat"],
-      "technical": ["t.proactive"]
+      "functional": [
+        "f.heartbeat"
+      ],
+      "technical": [
+        "t.proactive"
+      ]
     },
     {
       "adr": 198,
       "date": "2026-08-03",
       "theme": "proactive",
-      "functional": ["f.routines"],
-      "technical": ["t.scheduler"]
+      "functional": [
+        "f.routines"
+      ],
+      "technical": [
+        "t.scheduler"
+      ]
     },
     {
       "adr": 199,
       "date": "2026-08-03",
       "theme": "experience",
-      "functional": ["f.briefing", "f.chat"],
-      "technical": ["t.redis"]
+      "functional": [
+        "f.briefing",
+        "f.chat"
+      ],
+      "technical": [
+        "t.redis"
+      ]
     },
     {
       "adr": 200,
       "date": "2026-08-03",
       "theme": "experience",
-      "functional": ["f.heartbeat", "f.interests"],
-      "technical": ["t.web"]
+      "functional": [
+        "f.heartbeat",
+        "f.interests"
+      ],
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 201,
       "date": "2026-08-04",
       "theme": "trust",
-      "functional": ["f.provenance", "f.memory", "f.journals"],
-      "technical": ["t.postgres"]
+      "functional": [
+        "f.provenance",
+        "f.memory",
+        "f.journals"
+      ],
+      "technical": [
+        "t.postgres"
+      ]
     },
     {
       "adr": 202,
       "date": "2026-08-04",
       "theme": "experience",
-      "functional": ["f.activity", "f.notifications"],
-      "technical": ["t.web"]
+      "functional": [
+        "f.activity",
+        "f.notifications"
+      ],
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 203,
       "date": "2026-08-04",
       "theme": "trust",
-      "functional": ["f.telephony", "f.hitl"],
-      "technical": ["t.web"]
+      "functional": [
+        "f.telephony",
+        "f.hitl"
+      ],
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 204,
       "date": "2026-08-04",
       "theme": "trust",
-      "functional": ["f.interests"],
-      "technical": ["t.fastapi"]
+      "functional": [
+        "f.interests"
+      ],
+      "technical": [
+        "t.fastapi"
+      ]
     },
     {
       "adr": 205,
       "date": "2026-08-04",
       "theme": "experience",
       "functional": [],
-      "technical": ["t.web"]
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 206,
       "date": "2026-08-05",
       "theme": "experience",
       "functional": [],
-      "technical": ["t.web"]
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 207,
       "date": "2026-08-05",
       "theme": "experience",
       "functional": [],
-      "technical": ["t.web"]
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 208,
       "date": "2026-08-05",
       "theme": "experience",
-      "functional": ["f.memory", "f.interests"],
-      "technical": ["t.web"]
+      "functional": [
+        "f.memory",
+        "f.interests"
+      ],
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 209,
       "date": "2026-08-05",
       "theme": "trust",
-      "functional": ["f.provenance", "f.costs"],
-      "technical": ["t.web", "t.pricing"]
+      "functional": [
+        "f.provenance",
+        "f.costs"
+      ],
+      "technical": [
+        "t.web",
+        "t.pricing"
+      ]
     },
     {
       "adr": 210,
       "date": "2026-08-05",
       "theme": "reliability",
-      "functional": ["f.chat", "f.briefing"],
-      "technical": ["t.web", "t.redis"]
+      "functional": [
+        "f.chat",
+        "f.briefing"
+      ],
+      "technical": [
+        "t.web",
+        "t.redis"
+      ]
     },
     {
       "adr": 211,
       "date": "2026-08-05",
       "theme": "platform",
       "functional": [],
-      "technical": ["t.docker", "t.release"]
+      "technical": [
+        "t.docker",
+        "t.release"
+      ]
     },
     {
       "adr": 212,
       "date": "2026-08-05",
       "theme": "reliability",
       "functional": [],
-      "technical": ["t.logs"]
+      "technical": [
+        "t.logs"
+      ]
     },
     {
       "adr": 213,
       "date": "2026-08-05",
       "theme": "security",
-      "functional": ["f.security"],
-      "technical": ["t.bff", "t.edge"]
+      "functional": [
+        "f.security"
+      ],
+      "technical": [
+        "t.bff",
+        "t.edge"
+      ]
     },
     {
       "adr": 214,
       "date": "2026-08-05",
       "theme": "memory",
-      "functional": ["f.habits", "f.heartbeat"],
-      "technical": ["t.postgres", "t.proactive"]
+      "functional": [
+        "f.habits",
+        "f.heartbeat"
+      ],
+      "technical": [
+        "t.postgres",
+        "t.proactive"
+      ]
     },
     {
       "adr": 215,
       "date": "2026-08-06",
       "theme": "platform",
       "functional": [],
-      "technical": ["t.release", "t.docker"]
+      "technical": [
+        "t.release",
+        "t.docker"
+      ]
     },
     {
       "adr": 216,
       "date": "2026-08-06",
       "theme": "models",
-      "functional": ["f.costs"],
-      "technical": ["t.pricing", "t.postgres"]
+      "functional": [
+        "f.costs"
+      ],
+      "technical": [
+        "t.pricing",
+        "t.postgres"
+      ]
     },
     {
       "adr": 217,
       "date": "2026-08-06",
       "theme": "platform",
-      "functional": ["f.admin"],
-      "technical": ["t.config"]
+      "functional": [
+        "f.admin"
+      ],
+      "technical": [
+        "t.config"
+      ]
     },
     {
       "adr": 218,
       "date": "2026-08-06",
       "theme": "security",
-      "functional": ["f.admin"],
-      "technical": ["t.demo", "t.cicd"]
+      "functional": [
+        "f.admin"
+      ],
+      "technical": [
+        "t.demo",
+        "t.cicd"
+      ]
     },
     {
       "adr": 219,
       "date": "2026-08-16",
       "theme": "connectors",
-      "functional": ["f.places", "f.heartbeat"],
-      "technical": ["t.proactive"]
+      "functional": [
+        "f.places",
+        "f.heartbeat"
+      ],
+      "technical": [
+        "t.proactive"
+      ]
     },
     {
       "adr": 220,
       "date": "2026-08-16",
       "theme": "models",
-      "functional": ["f.costs"],
-      "technical": ["t.pricing", "t.llmfactory"]
+      "functional": [
+        "f.costs"
+      ],
+      "technical": [
+        "t.pricing",
+        "t.llmfactory"
+      ]
     },
     {
       "adr": 221,
       "date": "2026-08-16",
       "theme": "models",
-      "functional": ["f.llmconfig"],
-      "technical": ["t.llmfactory"]
+      "functional": [
+        "f.llmconfig"
+      ],
+      "technical": [
+        "t.llmfactory"
+      ]
     },
     {
       "adr": 222,
       "date": "2026-08-16",
       "theme": "platform",
-      "functional": ["f.hitl"],
-      "technical": ["t.hitl"]
+      "functional": [
+        "f.hitl"
+      ],
+      "technical": [
+        "t.hitl"
+      ]
     },
     {
       "adr": 223,
       "date": "2026-08-17",
       "theme": "models",
-      "functional": ["f.costs"],
-      "technical": ["t.pricing"]
+      "functional": [
+        "f.costs"
+      ],
+      "technical": [
+        "t.pricing"
+      ]
     },
     {
       "adr": 224,
       "date": "2026-07-28",
       "theme": "connectors",
-      "functional": ["f.mcp"],
-      "technical": ["t.mcp"]
+      "functional": [
+        "f.mcp"
+      ],
+      "technical": [
+        "t.mcp"
+      ]
     },
     {
       "adr": 225,
       "date": "2026-08-17",
       "theme": "connectors",
-      "functional": ["f.skills", "f.mcp"],
-      "technical": ["t.skills", "t.mcp"]
+      "functional": [
+        "f.skills",
+        "f.mcp"
+      ],
+      "technical": [
+        "t.skills",
+        "t.mcp"
+      ]
     },
     {
       "adr": 226,
       "date": "2026-08-17",
       "theme": "knowledge",
-      "functional": ["f.documents"],
-      "technical": ["t.structured", "t.storage"]
+      "functional": [
+        "f.documents"
+      ],
+      "technical": [
+        "t.structured",
+        "t.storage"
+      ]
     },
     {
       "adr": 227,
       "date": "2026-08-18",
       "theme": "experience",
-      "functional": ["f.admin"],
-      "technical": ["t.web"]
+      "functional": [
+        "f.admin"
+      ],
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 228,
       "date": "2026-08-19",
       "theme": "platform",
-      "functional": ["f.llmconfig", "f.costs"],
-      "technical": ["t.catalogue", "t.fastapi"]
+      "functional": [
+        "f.llmconfig",
+        "f.costs"
+      ],
+      "technical": [
+        "t.catalogue",
+        "t.fastapi"
+      ]
     },
     {
       "adr": 229,
       "date": "2026-08-18",
       "theme": "trust",
-      "functional": ["f.admin"],
-      "technical": ["t.startup", "t.fastapi"]
+      "functional": [
+        "f.admin"
+      ],
+      "technical": [
+        "t.startup",
+        "t.fastapi"
+      ]
     },
     {
       "adr": 230,
       "date": "2026-08-19",
       "theme": "experience",
       "functional": [],
-      "technical": ["t.web"]
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 231,
       "date": "2026-08-29",
       "theme": "orchestration",
       "functional": [],
-      "technical": ["t.langgraph"]
+      "technical": [
+        "t.langgraph"
+      ]
     },
     {
       "adr": 232,
       "date": "2026-08-19",
       "theme": "memory",
-      "functional": ["f.journals", "f.initiative"],
-      "technical": ["t.embeddings"]
+      "functional": [
+        "f.journals",
+        "f.initiative"
+      ],
+      "technical": [
+        "t.embeddings"
+      ]
     },
     {
       "adr": 233,
       "date": "2026-08-19",
       "theme": "platform",
-      "functional": ["f.planning"],
-      "technical": ["t.toolsys"]
+      "functional": [
+        "f.planning"
+      ],
+      "technical": [
+        "t.toolsys"
+      ]
     },
     {
       "adr": 234,
       "date": "2026-08-19",
       "theme": "trust",
-      "functional": ["f.activity"],
-      "technical": ["t.fastapi"]
+      "functional": [
+        "f.activity"
+      ],
+      "technical": [
+        "t.fastapi"
+      ]
     },
     {
       "adr": 235,
       "date": "2026-08-19",
       "theme": "memory",
-      "functional": ["f.memory"],
-      "technical": ["t.postgres"]
+      "functional": [
+        "f.memory"
+      ],
+      "technical": [
+        "t.postgres"
+      ]
     },
     {
       "adr": 236,
       "date": "2026-08-19",
       "theme": "memory",
-      "functional": ["f.memory"],
-      "technical": ["t.promptsys"]
+      "functional": [
+        "f.memory"
+      ],
+      "technical": [
+        "t.promptsys"
+      ]
     },
     {
       "adr": 237,
       "date": "2026-08-19",
       "theme": "voice",
-      "functional": ["f.voice", "f.psyche"],
-      "technical": ["t.voiceinfra"]
+      "functional": [
+        "f.voice",
+        "f.psyche"
+      ],
+      "technical": [
+        "t.voiceinfra"
+      ]
     },
     {
       "adr": 238,
       "date": "2026-08-20",
       "theme": "proactive",
-      "functional": ["f.heartbeat", "f.react"],
-      "technical": ["t.proactive", "t.react"]
+      "functional": [
+        "f.heartbeat",
+        "f.react"
+      ],
+      "technical": [
+        "t.proactive",
+        "t.react"
+      ]
     },
     {
       "adr": 239,
       "date": "2026-08-20",
       "theme": "platform",
-      "functional": ["f.routines", "f.hitl", "f.skills"],
-      "technical": ["t.scheduler", "t.jobs"]
+      "functional": [
+        "f.routines",
+        "f.hitl",
+        "f.skills"
+      ],
+      "technical": [
+        "t.scheduler",
+        "t.jobs"
+      ]
     },
     {
       "adr": 240,
       "date": "2026-08-20",
       "theme": "experience",
-      "functional": ["f.psyche", "f.chat"],
-      "technical": ["t.web"]
+      "functional": [
+        "f.psyche",
+        "f.chat"
+      ],
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 241,
       "date": "2026-08-20",
       "theme": "platform",
       "functional": [],
-      "technical": ["t.docker", "t.cicd"]
+      "technical": [
+        "t.docker",
+        "t.cicd"
+      ]
     },
     {
       "adr": 242,
       "date": "2026-08-22",
       "theme": "knowledge",
-      "functional": ["f.rag"],
-      "technical": ["t.embeddings"]
+      "functional": [
+        "f.rag"
+      ],
+      "technical": [
+        "t.embeddings"
+      ]
     },
     {
       "adr": 243,
       "date": "2026-08-23",
       "theme": "experience",
       "functional": [],
-      "technical": ["t.web"]
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 244,
       "date": "2026-08-24",
       "theme": "models",
-      "functional": ["f.llmconfig"],
-      "technical": ["t.catalogue"]
+      "functional": [
+        "f.llmconfig"
+      ],
+      "technical": [
+        "t.catalogue"
+      ]
     },
     {
       "adr": 245,
       "date": "2026-08-26",
       "theme": "models",
-      "functional": ["f.llmconfig"],
-      "technical": ["t.reasoning"]
+      "functional": [
+        "f.llmconfig"
+      ],
+      "technical": [
+        "t.reasoning"
+      ]
     },
     {
       "adr": 246,
       "date": "2026-08-24",
       "theme": "platform",
-      "functional": ["f.notifications"],
-      "technical": ["t.mobile", "t.push"]
+      "functional": [
+        "f.notifications"
+      ],
+      "technical": [
+        "t.mobile",
+        "t.push"
+      ]
     },
     {
       "adr": 247,
       "date": "2026-08-28",
       "theme": "reliability",
-      "functional": ["f.diagnostics"],
-      "technical": ["t.selfdiag", "t.metrics"]
+      "functional": [
+        "f.diagnostics"
+      ],
+      "technical": [
+        "t.selfdiag",
+        "t.metrics"
+      ]
     },
     {
       "adr": 248,
       "date": "2026-08-28",
       "theme": "orchestration",
-      "functional": ["f.react"],
-      "technical": ["t.react"]
+      "functional": [
+        "f.react"
+      ],
+      "technical": [
+        "t.react"
+      ]
     },
     {
       "adr": 249,
       "date": "2026-08-29",
       "theme": "orchestration",
-      "functional": ["f.sandbox", "f.react"],
-      "technical": ["t.sandbox"]
+      "functional": [
+        "f.sandbox",
+        "f.react"
+      ],
+      "technical": [
+        "t.sandbox"
+      ]
     },
     {
       "adr": 250,
       "date": "2026-08-29",
       "theme": "platform",
       "functional": [],
-      "technical": ["t.release"]
+      "technical": [
+        "t.release"
+      ]
     },
     {
       "adr": 251,
       "date": "2026-08-30",
       "theme": "experience",
-      "functional": ["f.admin"],
-      "technical": ["t.web"]
+      "functional": [
+        "f.admin"
+      ],
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 252,
       "date": "2026-08-31",
       "theme": "experience",
-      "functional": ["f.psyche"],
-      "technical": ["t.web"]
+      "functional": [
+        "f.psyche"
+      ],
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 253,
       "date": "2026-09-01",
       "theme": "experience",
-      "functional": ["f.psyche", "f.chat"],
-      "technical": ["t.response", "t.web"]
+      "functional": [
+        "f.psyche",
+        "f.chat"
+      ],
+      "technical": [
+        "t.response",
+        "t.web"
+      ]
     },
     {
       "adr": 254,
       "date": "2026-09-01",
       "theme": "reliability",
       "functional": [],
-      "technical": ["t.scheduler", "t.redis"]
+      "technical": [
+        "t.scheduler",
+        "t.redis"
+      ]
     },
     {
       "adr": 255,
       "date": "2026-09-02",
       "theme": "connectors",
-      "functional": ["f.mcp"],
-      "technical": ["t.mcp"]
+      "functional": [
+        "f.mcp"
+      ],
+      "technical": [
+        "t.mcp"
+      ]
     },
     {
       "adr": 256,
       "date": "2026-09-02",
       "theme": "orchestration",
-      "functional": ["f.react"],
-      "technical": ["t.react"]
+      "functional": [
+        "f.react"
+      ],
+      "technical": [
+        "t.react"
+      ]
     },
     {
       "adr": 257,
       "date": "2026-09-02",
       "theme": "trust",
-      "functional": ["f.provenance", "f.react"],
-      "technical": ["t.react", "t.response"]
+      "functional": [
+        "f.provenance",
+        "f.react"
+      ],
+      "technical": [
+        "t.react",
+        "t.response"
+      ]
     },
     {
       "adr": 258,
       "date": "2026-09-02",
       "theme": "voice",
-      "functional": ["f.meetings"],
-      "technical": ["t.jobs", "t.voiceinfra"]
+      "functional": [
+        "f.meetings"
+      ],
+      "technical": [
+        "t.jobs",
+        "t.voiceinfra"
+      ]
     },
     {
       "adr": 259,
       "date": "2026-09-03",
       "theme": "voice",
-      "functional": ["f.meetings", "f.documents"],
-      "technical": ["t.structured"]
+      "functional": [
+        "f.meetings",
+        "f.documents"
+      ],
+      "technical": [
+        "t.structured"
+      ]
     },
     {
       "adr": 260,
       "date": "2026-09-03",
       "theme": "reliability",
-      "functional": ["f.chat", "f.habits"],
-      "technical": ["t.redis"]
+      "functional": [
+        "f.chat",
+        "f.habits"
+      ],
+      "technical": [
+        "t.redis"
+      ]
     },
     {
       "adr": 261,
       "date": "2026-09-03",
       "theme": "proactive",
-      "functional": ["f.heartbeat", "f.mail", "f.drive"],
-      "technical": ["t.push", "t.proactive", "t.redis"]
+      "functional": [
+        "f.heartbeat",
+        "f.mail",
+        "f.drive"
+      ],
+      "technical": [
+        "t.push",
+        "t.proactive",
+        "t.redis"
+      ]
     },
     {
       "adr": 262,
       "date": "2026-09-03",
       "theme": "knowledge",
-      "functional": ["f.rag", "f.mail"],
-      "technical": ["t.embeddings", "t.connclients"]
+      "functional": [
+        "f.rag",
+        "f.mail"
+      ],
+      "technical": [
+        "t.embeddings",
+        "t.connclients"
+      ]
     },
     {
       "adr": 263,
       "date": "2026-09-04",
       "theme": "trust",
-      "functional": ["f.provenance", "f.hitl", "f.privacy"],
-      "technical": ["t.registers", "t.toolsys", "t.postgres"]
+      "functional": [
+        "f.provenance",
+        "f.hitl",
+        "f.privacy"
+      ],
+      "technical": [
+        "t.registers",
+        "t.toolsys",
+        "t.postgres"
+      ]
     },
     {
       "adr": 264,
       "date": "2026-09-05",
       "theme": "experience",
-      "functional": ["f.psyche"],
-      "technical": ["t.web"]
+      "functional": [
+        "f.psyche"
+      ],
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 265,
       "date": "2026-09-05",
       "theme": "proactive",
-      "functional": ["f.routines"],
-      "technical": ["t.scheduler", "t.web"]
+      "functional": [
+        "f.routines"
+      ],
+      "technical": [
+        "t.scheduler",
+        "t.web"
+      ]
     },
     {
       "adr": 266,
       "date": "2026-09-05",
       "theme": "reliability",
-      "functional": ["f.diagnostics"],
-      "technical": ["t.selfdiag", "t.embeddings"]
+      "functional": [
+        "f.diagnostics"
+      ],
+      "technical": [
+        "t.selfdiag",
+        "t.embeddings"
+      ]
     },
     {
       "adr": 267,
       "date": "2026-09-05",
       "theme": "models",
-      "functional": ["f.llmconfig"],
-      "technical": ["t.llmfactory", "t.catalogue"]
+      "functional": [
+        "f.llmconfig"
+      ],
+      "technical": [
+        "t.llmfactory",
+        "t.catalogue"
+      ]
     },
     {
       "adr": 268,
       "date": "2026-09-06",
       "theme": "proactive",
-      "functional": ["f.reminders", "f.routines"],
-      "technical": ["t.scheduler"]
+      "functional": [
+        "f.reminders",
+        "f.routines"
+      ],
+      "technical": [
+        "t.scheduler"
+      ]
     },
     {
       "adr": 269,
       "date": "2026-09-07",
       "theme": "memory",
-      "functional": ["f.relations", "f.contacts"],
-      "technical": ["t.structured", "t.postgres"]
+      "functional": [
+        "f.relations",
+        "f.contacts"
+      ],
+      "technical": [
+        "t.structured",
+        "t.postgres"
+      ]
     },
     {
       "adr": 270,
       "date": "2026-09-07",
       "theme": "trust",
-      "functional": ["f.costs", "f.provenance"],
-      "technical": ["t.pricing", "t.registers"]
+      "functional": [
+        "f.costs",
+        "f.provenance"
+      ],
+      "technical": [
+        "t.pricing",
+        "t.registers"
+      ]
     },
     {
       "adr": 271,
       "date": "2026-09-07",
       "theme": "reliability",
-      "functional": ["f.briefing"],
-      "technical": ["t.redis", "t.fastapi"]
+      "functional": [
+        "f.briefing"
+      ],
+      "technical": [
+        "t.redis",
+        "t.fastapi"
+      ]
     },
     {
       "adr": 272,
       "date": "2026-09-07",
       "theme": "models",
-      "functional": ["f.costs"],
-      "technical": ["t.pricing", "t.llmfactory"]
+      "functional": [
+        "f.costs"
+      ],
+      "technical": [
+        "t.pricing",
+        "t.llmfactory"
+      ]
     },
     {
       "adr": 273,
       "date": "2026-09-07",
       "theme": "trust",
-      "functional": ["f.privacy"],
-      "technical": ["t.registers", "t.postgres"]
+      "functional": [
+        "f.privacy"
+      ],
+      "technical": [
+        "t.registers",
+        "t.postgres"
+      ]
     },
     {
       "adr": 274,
       "date": "2026-09-08",
       "theme": "knowledge",
-      "functional": ["f.documents"],
-      "technical": ["t.structured", "t.storage"]
+      "functional": [
+        "f.documents"
+      ],
+      "technical": [
+        "t.structured",
+        "t.storage"
+      ]
     },
     {
       "adr": 275,
       "date": "2026-09-08",
       "theme": "reliability",
-      "functional": ["f.documents", "f.meetings"],
-      "technical": ["t.structured"]
+      "functional": [
+        "f.documents",
+        "f.meetings"
+      ],
+      "technical": [
+        "t.structured"
+      ]
     },
     {
       "adr": 276,
       "date": "2026-09-09",
       "theme": "proactive",
-      "functional": ["f.workboard", "f.peers", "f.hitl"],
-      "technical": ["t.fastapi", "t.postgres", "t.hitl"]
+      "functional": [
+        "f.workboard",
+        "f.peers",
+        "f.hitl"
+      ],
+      "technical": [
+        "t.fastapi",
+        "t.postgres",
+        "t.hitl"
+      ]
     },
     {
       "adr": 277,
       "date": "2026-09-09",
       "theme": "experience",
-      "functional": ["f.admin"],
-      "technical": ["t.web"]
+      "functional": [
+        "f.admin"
+      ],
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 278,
       "date": "2026-09-10",
       "theme": "models",
-      "functional": ["f.llmconfig"],
-      "technical": ["t.llmfactory", "t.catalogue"]
+      "functional": [
+        "f.llmconfig"
+      ],
+      "technical": [
+        "t.llmfactory",
+        "t.catalogue"
+      ]
     },
     {
       "adr": 279,
       "date": "2026-09-10",
       "theme": "knowledge",
-      "functional": ["f.documents", "f.images"],
-      "technical": ["t.storage", "t.postgres"]
+      "functional": [
+        "f.documents",
+        "f.images"
+      ],
+      "technical": [
+        "t.storage",
+        "t.postgres"
+      ]
     },
     {
       "adr": 280,
       "date": "2026-09-10",
       "theme": "platform",
-      "functional": ["f.admin"],
-      "technical": ["t.config", "t.startup"]
+      "functional": [
+        "f.admin"
+      ],
+      "technical": [
+        "t.config",
+        "t.startup"
+      ]
     },
     {
       "adr": 281,
       "date": "2026-09-11",
       "theme": "proactive",
-      "functional": ["f.moments", "f.heartbeat", "f.routines"],
-      "technical": ["t.proactive", "t.scheduler"]
+      "functional": [
+        "f.moments",
+        "f.heartbeat",
+        "f.routines"
+      ],
+      "technical": [
+        "t.proactive",
+        "t.scheduler"
+      ]
     },
     {
       "adr": 282,
       "date": "2026-09-12",
       "theme": "memory",
-      "functional": ["f.bookmarks"],
-      "technical": ["t.postgres", "t.web"]
+      "functional": [
+        "f.bookmarks"
+      ],
+      "technical": [
+        "t.postgres",
+        "t.web"
+      ]
     },
     {
       "adr": 283,
       "date": "2026-09-12",
       "theme": "reliability",
       "functional": [],
-      "technical": ["t.fastapi", "t.metrics", "t.voiceinfra"]
+      "technical": [
+        "t.fastapi",
+        "t.metrics",
+        "t.voiceinfra"
+      ]
     },
     {
       "adr": 284,
       "date": "2026-09-12",
       "theme": "orchestration",
-      "functional": ["f.planning"],
-      "technical": ["t.promptsys"]
+      "functional": [
+        "f.planning"
+      ],
+      "technical": [
+        "t.promptsys"
+      ]
     },
     {
       "adr": 285,
       "date": "2026-09-12",
       "theme": "models",
-      "functional": ["f.reminders", "f.llmconfig"],
-      "technical": ["t.reasoning"]
+      "functional": [
+        "f.reminders",
+        "f.llmconfig"
+      ],
+      "technical": [
+        "t.reasoning"
+      ]
     },
     {
       "adr": 286,
       "date": "2026-09-15",
       "theme": "orchestration",
-      "functional": ["f.react", "f.mail"],
-      "technical": ["t.react", "t.toolsys"]
+      "functional": [
+        "f.react",
+        "f.mail"
+      ],
+      "technical": [
+        "t.react",
+        "t.toolsys"
+      ]
     },
     {
       "adr": 287,
       "date": "2026-09-15",
       "theme": "connectors",
-      "functional": ["f.mail"],
-      "technical": ["t.connclients", "t.redis"]
+      "functional": [
+        "f.mail"
+      ],
+      "technical": [
+        "t.connclients",
+        "t.redis"
+      ]
     },
     {
       "adr": 288,
       "date": "2026-09-16",
       "theme": "orchestration",
-      "functional": ["f.hitl"],
-      "technical": ["t.hitl", "t.langgraph"]
+      "functional": [
+        "f.hitl"
+      ],
+      "technical": [
+        "t.hitl",
+        "t.langgraph"
+      ]
     },
     {
       "adr": 289,
       "date": "2026-09-16",
       "theme": "experience",
-      "functional": ["f.hitl", "f.workboard"],
-      "technical": ["t.hitl", "t.web"]
+      "functional": [
+        "f.hitl",
+        "f.workboard"
+      ],
+      "technical": [
+        "t.hitl",
+        "t.web"
+      ]
     },
     {
       "adr": 290,
       "date": "2026-09-16",
       "theme": "voice",
-      "functional": ["f.telephony"],
-      "technical": ["t.phone", "t.voiceinfra"]
+      "functional": [
+        "f.telephony"
+      ],
+      "technical": [
+        "t.phone",
+        "t.voiceinfra"
+      ]
     },
     {
       "adr": 291,
       "date": "2026-09-16",
       "theme": "knowledge",
-      "functional": ["f.bookmarks", "f.rag"],
-      "technical": ["t.embeddings"]
+      "functional": [
+        "f.bookmarks",
+        "f.rag"
+      ],
+      "technical": [
+        "t.embeddings"
+      ]
     },
     {
       "adr": 292,
       "date": "2026-09-17",
       "theme": "memory",
-      "functional": ["f.journals", "f.memory", "f.habits", "f.interests"],
-      "technical": ["t.promptsys"]
+      "functional": [
+        "f.journals",
+        "f.memory",
+        "f.habits",
+        "f.interests"
+      ],
+      "technical": [
+        "t.promptsys"
+      ]
     },
     {
       "adr": 293,
       "date": "2026-09-17",
       "theme": "orchestration",
-      "functional": ["f.react"],
-      "technical": ["t.react", "t.embeddings"]
+      "functional": [
+        "f.react"
+      ],
+      "technical": [
+        "t.react",
+        "t.embeddings"
+      ]
     },
     {
       "adr": 294,
       "date": "2026-09-17",
       "theme": "experience",
-      "functional": ["f.psyche"],
-      "technical": ["t.web"]
+      "functional": [
+        "f.psyche"
+      ],
+      "technical": [
+        "t.web"
+      ]
     },
     {
       "adr": 295,
       "date": "2026-09-17",
       "theme": "knowledge",
-      "functional": ["f.rag", "f.chat"],
-      "technical": ["t.storage"]
+      "functional": [
+        "f.rag",
+        "f.chat"
+      ],
+      "technical": [
+        "t.storage"
+      ]
     },
     {
       "adr": 296,
       "date": "2026-09-17",
       "theme": "connectors",
-      "functional": ["f.mail"],
-      "technical": ["t.connclients", "t.toolsys"]
+      "functional": [
+        "f.mail"
+      ],
+      "technical": [
+        "t.connclients",
+        "t.toolsys"
+      ]
     },
     {
       "adr": 297,
       "date": "2026-09-17",
       "theme": "knowledge",
-      "functional": ["f.drive", "f.rag"],
-      "technical": ["t.connclients", "t.embeddings"]
+      "functional": [
+        "f.drive",
+        "f.rag"
+      ],
+      "technical": [
+        "t.connclients",
+        "t.embeddings"
+      ]
     },
     {
       "adr": 298,
       "date": "2026-09-18",
       "theme": "security",
-      "functional": ["f.sandbox"],
-      "technical": ["t.sandbox", "t.docker"]
+      "functional": [
+        "f.sandbox"
+      ],
+      "technical": [
+        "t.sandbox",
+        "t.docker"
+      ]
     },
     {
       "adr": 299,
       "date": "2026-09-18",
       "theme": "voice",
-      "functional": ["f.live", "f.voice"],
-      "technical": ["t.live", "t.web"]
+      "functional": [
+        "f.live",
+        "f.voice"
+      ],
+      "technical": [
+        "t.live",
+        "t.web"
+      ]
     },
     {
       "adr": 300,
       "date": "2026-09-19",
       "theme": "voice",
-      "functional": ["f.live"],
-      "technical": ["t.live", "t.pricing"]
+      "functional": [
+        "f.live"
+      ],
+      "technical": [
+        "t.live",
+        "t.pricing"
+      ]
     },
     {
       "adr": 301,
       "date": "2026-09-20",
       "theme": "voice",
-      "functional": ["f.live", "f.telephony"],
-      "technical": ["t.live", "t.phone", "t.jobs"]
+      "functional": [
+        "f.live",
+        "f.telephony"
+      ],
+      "technical": [
+        "t.live",
+        "t.phone",
+        "t.jobs"
+      ]
     },
     {
       "adr": 302,
       "date": "2026-09-21",
       "theme": "security",
-      "functional": ["f.connectors", "f.security"],
-      "technical": ["t.connclients", "t.redis"]
+      "functional": [
+        "f.connectors",
+        "f.security"
+      ],
+      "technical": [
+        "t.connclients",
+        "t.redis"
+      ]
     },
     {
       "adr": 303,
       "date": "2026-09-22",
       "theme": "trust",
-      "functional": ["f.react", "f.planning", "f.diagnostics"],
-      "technical": ["t.toolsys", "t.metrics", "t.response"]
+      "functional": [
+        "f.react",
+        "f.planning",
+        "f.diagnostics"
+      ],
+      "technical": [
+        "t.toolsys",
+        "t.metrics",
+        "t.response"
+      ]
     },
     {
       "adr": 304,
       "date": "2026-09-22",
       "theme": "reliability",
-      "functional": ["f.heartbeat", "f.reminders", "f.notifications"],
-      "technical": ["t.postgres", "t.connclients", "t.scheduler", "t.channels"]
+      "functional": [
+        "f.heartbeat",
+        "f.reminders",
+        "f.notifications"
+      ],
+      "technical": [
+        "t.postgres",
+        "t.connclients",
+        "t.scheduler",
+        "t.channels"
+      ]
     },
     {
       "adr": 305,
       "date": "2026-09-23",
       "theme": "models",
-      "functional": ["f.images", "f.costs"],
-      "technical": ["t.llmfactory", "t.pricing"]
+      "functional": [
+        "f.images",
+        "f.costs"
+      ],
+      "technical": [
+        "t.llmfactory",
+        "t.pricing"
+      ]
     },
     {
       "adr": 306,
       "date": "2026-09-23",
       "theme": "models",
-      "functional": ["f.llmconfig", "f.costs"],
-      "technical": ["t.llmfactory", "t.pricing"]
+      "functional": [
+        "f.llmconfig",
+        "f.costs"
+      ],
+      "technical": [
+        "t.llmfactory",
+        "t.pricing"
+      ]
     },
     {
       "adr": 307,
       "date": "2026-09-23",
       "theme": "connectors",
-      "functional": ["f.connectors", "f.admin"],
-      "technical": ["t.connclients", "t.config"]
+      "functional": [
+        "f.connectors",
+        "f.admin"
+      ],
+      "technical": [
+        "t.connclients",
+        "t.config"
+      ]
     },
     {
       "adr": 308,
       "date": "2026-09-23",
       "theme": "models",
-      "functional": ["f.react", "f.costs"],
-      "technical": ["t.react", "t.llmfactory"]
+      "functional": [
+        "f.react",
+        "f.costs"
+      ],
+      "technical": [
+        "t.react",
+        "t.llmfactory"
+      ]
     },
     {
       "adr": 309,
       "date": "2026-09-23",
       "theme": "models",
-      "functional": ["f.costs"],
-      "technical": ["t.promptsys", "t.llmfactory"]
+      "functional": [
+        "f.costs"
+      ],
+      "technical": [
+        "t.promptsys",
+        "t.llmfactory"
+      ]
     },
     {
       "adr": 310,
       "date": "2026-09-24",
       "theme": "orchestration",
-      "functional": ["f.react"],
-      "technical": ["t.react", "t.response"]
+      "functional": [
+        "f.react"
+      ],
+      "technical": [
+        "t.react",
+        "t.response"
+      ]
     },
     {
       "adr": 311,
       "date": "2026-09-24",
       "theme": "models",
-      "functional": ["f.react", "f.costs", "f.admin"],
-      "technical": ["t.react", "t.web"]
+      "functional": [
+        "f.react",
+        "f.costs",
+        "f.admin"
+      ],
+      "technical": [
+        "t.react",
+        "t.web"
+      ]
     },
     {
       "adr": 312,
       "date": "2026-09-24",
       "theme": "experience",
-      "functional": ["f.notifications", "f.admin"],
-      "technical": ["t.push", "t.web"]
+      "functional": [
+        "f.notifications",
+        "f.admin"
+      ],
+      "technical": [
+        "t.push",
+        "t.web"
+      ]
     },
     {
       "adr": 313,
       "date": "2026-09-24",
       "theme": "memory",
-      "functional": ["f.memory", "f.react", "f.telephony"],
-      "technical": ["t.embeddings", "t.toolsys", "t.react"]
+      "functional": [
+        "f.memory",
+        "f.react",
+        "f.telephony"
+      ],
+      "technical": [
+        "t.embeddings",
+        "t.toolsys",
+        "t.react"
+      ]
     },
     {
       "adr": 314,
       "date": "2026-09-24",
       "theme": "connectors",
-      "functional": ["f.mail", "f.routines", "f.hitl"],
-      "technical": ["t.connclients", "t.toolsys"]
+      "functional": [
+        "f.mail",
+        "f.routines",
+        "f.hitl"
+      ],
+      "technical": [
+        "t.connclients",
+        "t.toolsys"
+      ]
     },
     {
       "adr": 315,
       "date": "2026-09-24",
       "theme": "models",
-      "functional": ["f.images", "f.llmconfig"],
-      "technical": ["t.llmfactory", "t.structured", "t.promptsys"]
+      "functional": [
+        "f.images",
+        "f.llmconfig"
+      ],
+      "technical": [
+        "t.llmfactory",
+        "t.structured",
+        "t.promptsys"
+      ]
     },
     {
       "adr": 316,
       "date": "2026-09-24",
       "theme": "experience",
-      "functional": ["f.peers", "f.images"],
-      "technical": ["t.storage", "t.push", "t.web"]
+      "functional": [
+        "f.peers",
+        "f.images"
+      ],
+      "technical": [
+        "t.storage",
+        "t.push",
+        "t.web"
+      ]
     },
     {
       "adr": 317,
       "date": "2026-09-24",
       "theme": "security",
-      "functional": ["f.privacy"],
-      "technical": ["t.logs", "t.postgres"]
+      "functional": [
+        "f.privacy"
+      ],
+      "technical": [
+        "t.logs",
+        "t.postgres"
+      ]
     },
     {
       "adr": 318,
@@ -2326,35 +3828,79 @@
         "f.images",
         "f.telephony"
       ],
-      "technical": ["t.toolsys", "t.registers", "t.storage", "t.embeddings"]
+      "technical": [
+        "t.toolsys",
+        "t.registers",
+        "t.storage",
+        "t.embeddings"
+      ]
     },
     {
       "adr": 319,
       "date": "2026-09-25",
       "theme": "knowledge",
-      "functional": ["f.images", "f.documents", "f.chat"],
-      "technical": ["t.storage", "t.postgres", "t.scheduler", "t.web"]
+      "functional": [
+        "f.images",
+        "f.documents",
+        "f.chat"
+      ],
+      "technical": [
+        "t.storage",
+        "t.postgres",
+        "t.scheduler",
+        "t.web"
+      ]
     },
     {
       "adr": 320,
       "date": "2026-09-25",
       "theme": "experience",
-      "functional": ["f.chat", "f.notifications"],
-      "technical": ["t.sse", "t.redis", "t.postgres", "t.web"]
+      "functional": [
+        "f.chat",
+        "f.notifications"
+      ],
+      "technical": [
+        "t.sse",
+        "t.redis",
+        "t.postgres",
+        "t.web"
+      ]
     },
     {
       "adr": 321,
       "date": "2026-09-25",
       "theme": "connectors",
-      "functional": ["f.mail", "f.documents", "f.images", "f.bookmarks", "f.chat"],
-      "technical": ["t.connclients", "t.fastapi", "t.web", "t.storage", "t.metrics"]
+      "functional": [
+        "f.mail",
+        "f.documents",
+        "f.images",
+        "f.bookmarks",
+        "f.chat"
+      ],
+      "technical": [
+        "t.connclients",
+        "t.fastapi",
+        "t.web",
+        "t.storage",
+        "t.metrics"
+      ]
     },
     {
       "adr": 322,
       "date": "2026-09-25",
       "theme": "proactive",
-      "functional": ["f.routines", "f.mail", "f.briefing", "f.activity"],
-      "technical": ["t.scheduler", "t.postgres", "t.registers", "t.web"]
+      "functional": [
+        "f.routines",
+        "f.mail",
+        "f.briefing",
+        "f.activity"
+      ],
+      "technical": [
+        "t.scheduler",
+        "t.postgres",
+        "t.registers",
+        "t.web"
+      ]
     },
     {
       "adr": 323,
@@ -2391,7 +3937,13 @@
       "adr": 324,
       "date": "2026-09-26",
       "theme": "voice",
-      "functional": ["f.radio", "f.voice", "f.briefing", "f.costs", "f.admin"],
+      "functional": [
+        "f.radio",
+        "f.voice",
+        "f.briefing",
+        "f.costs",
+        "f.admin"
+      ],
       "technical": [
         "t.radio",
         "t.voiceinfra",
@@ -2406,7 +3958,15 @@
       "adr": 325,
       "date": "2026-09-29",
       "theme": "models",
-      "functional": ["f.chat", "f.meetings", "f.radio", "f.costs", "f.admin", "f.memory", "f.hitl"],
+      "functional": [
+        "f.chat",
+        "f.meetings",
+        "f.radio",
+        "f.costs",
+        "f.admin",
+        "f.memory",
+        "f.hitl"
+      ],
       "technical": [
         "t.llmfactory",
         "t.catalogue",
@@ -2421,120 +3981,253 @@
       "adr": 326,
       "date": "2026-09-30",
       "theme": "security",
-      "functional": ["f.chat", "f.mail", "f.web", "f.voice", "f.radio", "f.security"],
-      "technical": ["t.response", "t.toolsys", "t.live", "t.connclients", "t.cicd", "t.web"]
+      "functional": [
+        "f.chat",
+        "f.mail",
+        "f.web",
+        "f.voice",
+        "f.radio",
+        "f.security"
+      ],
+      "technical": [
+        "t.response",
+        "t.toolsys",
+        "t.live",
+        "t.connclients",
+        "t.cicd",
+        "t.web"
+      ]
     },
     {
       "adr": 327,
       "date": "2026-09-30",
       "theme": "trust",
-      "functional": ["f.skills", "f.sandbox", "f.chat", "f.security", "f.admin"],
-      "technical": ["t.skills", "t.sandbox", "t.response", "t.toolsys", "t.metrics", "t.web"]
+      "functional": [
+        "f.skills",
+        "f.sandbox",
+        "f.chat",
+        "f.security",
+        "f.admin"
+      ],
+      "technical": [
+        "t.skills",
+        "t.sandbox",
+        "t.response",
+        "t.toolsys",
+        "t.metrics",
+        "t.web"
+      ]
     },
     {
       "adr": 328,
       "date": "2026-10-01",
       "theme": "proactive",
-      "functional": ["f.heartbeat", "f.moments"],
-      "technical": ["t.proactive", "t.scheduler", "t.web"]
+      "functional": [
+        "f.heartbeat",
+        "f.moments"
+      ],
+      "technical": [
+        "t.proactive",
+        "t.scheduler",
+        "t.web"
+      ]
     },
     {
       "adr": 329,
       "date": "2026-10-01",
       "theme": "voice",
-      "functional": ["f.voice", "f.live"],
-      "technical": ["t.web", "t.mobile", "t.live"]
+      "functional": [
+        "f.voice",
+        "f.live"
+      ],
+      "technical": [
+        "t.web",
+        "t.mobile",
+        "t.live"
+      ]
     },
     {
       "adr": 330,
       "date": "2026-10-01",
       "theme": "experience",
-      "functional": ["f.product"],
-      "technical": ["t.web", "t.edge"]
+      "functional": [
+        "f.product"
+      ],
+      "technical": [
+        "t.web",
+        "t.edge"
+      ]
     },
     {
       "adr": 331,
       "date": "2026-10-02",
       "theme": "platform",
       "functional": [],
-      "technical": ["t.cicd", "t.release", "t.docker"]
+      "technical": [
+        "t.cicd",
+        "t.release",
+        "t.docker"
+      ]
     },
     {
       "adr": 332,
       "date": "2026-10-04",
       "theme": "experience",
-      "functional": ["f.chat", "f.mail", "f.calendar", "f.places"],
-      "technical": ["t.response", "t.dataregistry", "t.web", "t.pricing"]
+      "functional": [
+        "f.chat",
+        "f.mail",
+        "f.calendar",
+        "f.places"
+      ],
+      "technical": [
+        "t.response",
+        "t.dataregistry",
+        "t.web",
+        "t.pricing"
+      ]
     },
     {
       "adr": 333,
       "date": "2026-10-03",
       "theme": "reliability",
       "functional": [],
-      "technical": ["t.dashboards", "t.logs", "t.tracing", "t.metrics", "t.alerts"]
+      "technical": [
+        "t.dashboards",
+        "t.logs",
+        "t.tracing",
+        "t.metrics",
+        "t.alerts"
+      ]
     },
     {
       "adr": 334,
       "date": "2026-10-05",
       "theme": "voice",
-      "functional": ["f.avatar", "f.voice", "f.live"],
-      "technical": ["t.avatar", "t.voiceinfra", "t.live", "t.web", "t.redis"]
+      "functional": [
+        "f.avatar",
+        "f.voice",
+        "f.live"
+      ],
+      "technical": [
+        "t.avatar",
+        "t.voiceinfra",
+        "t.live",
+        "t.web",
+        "t.redis"
+      ]
     },
     {
       "adr": 335,
       "date": "2026-10-07",
       "theme": "orchestration",
-      "functional": ["f.chat"],
-      "technical": ["t.toolsys", "t.planner", "t.dataregistry", "t.initiative"]
+      "functional": [
+        "f.chat"
+      ],
+      "technical": [
+        "t.toolsys",
+        "t.planner",
+        "t.dataregistry",
+        "t.initiative"
+      ]
     },
     {
       "adr": 336,
       "date": "2026-10-07",
       "theme": "reliability",
-      "functional": ["f.chat"],
-      "technical": ["t.router", "t.react", "t.response", "t.dataregistry"]
+      "functional": [
+        "f.chat"
+      ],
+      "technical": [
+        "t.router",
+        "t.react",
+        "t.response",
+        "t.dataregistry"
+      ]
     },
     {
       "adr": 337,
       "date": "2026-10-07",
       "theme": "reliability",
-      "functional": ["f.chat", "f.hitl"],
-      "technical": ["t.react", "t.langgraph", "t.hitl", "t.toolsys"]
+      "functional": [
+        "f.chat",
+        "f.hitl"
+      ],
+      "technical": [
+        "t.react",
+        "t.langgraph",
+        "t.hitl",
+        "t.toolsys"
+      ]
     },
     {
       "adr": 338,
       "date": "2026-10-07",
       "theme": "connectors",
-      "functional": ["f.mcp", "f.hitl"],
-      "technical": ["t.mcp", "t.toolsys", "t.router", "t.hitl"]
+      "functional": [
+        "f.mcp",
+        "f.hitl"
+      ],
+      "technical": [
+        "t.mcp",
+        "t.toolsys",
+        "t.router",
+        "t.hitl"
+      ]
     },
     {
       "adr": 339,
       "date": "2026-10-12",
       "theme": "orchestration",
-      "functional": ["f.application", "f.hitl", "f.security"],
-      "technical": ["t.application", "t.hitl", "t.bff", "t.postgres", "t.sse"]
+      "functional": [
+        "f.application",
+        "f.hitl",
+        "f.security"
+      ],
+      "technical": [
+        "t.application",
+        "t.hitl",
+        "t.bff",
+        "t.postgres",
+        "t.sse"
+      ]
     },
     {
       "adr": 340,
       "date": "2026-10-12",
       "theme": "experience",
-      "functional": ["f.nativeavatar"],
-      "technical": ["t.nativeavatar", "t.web"]
+      "functional": [
+        "f.nativeavatar"
+      ],
+      "technical": [
+        "t.nativeavatar",
+        "t.web"
+      ]
     },
     {
       "adr": 341,
       "date": "2026-10-12",
       "theme": "experience",
-      "functional": ["f.product", "f.chat"],
-      "technical": ["t.web", "t.release"]
+      "functional": [
+        "f.product",
+        "f.chat"
+      ],
+      "technical": [
+        "t.web",
+        "t.release"
+      ]
     },
     {
       "adr": 342,
       "date": "2026-10-12",
       "theme": "experience",
-      "functional": ["f.nativeavatar"],
-      "technical": ["t.nativeavatar", "t.web", "t.config"]
+      "functional": [
+        "f.nativeavatar"
+      ],
+      "technical": [
+        "t.nativeavatar",
+        "t.web",
+        "t.config"
+      ]
     },
     {
       "adr": 343,
@@ -2552,147 +4245,320 @@
         "f.reminders",
         "f.bookmarks"
       ],
-      "technical": ["t.promptsys"]
+      "technical": [
+        "t.promptsys"
+      ]
     },
     {
       "adr": 344,
       "date": "2026-10-13",
       "theme": "connectors",
-      "functional": ["f.mail", "f.hitl"],
-      "technical": ["t.connclients", "t.toolsys", "t.hitl"]
+      "functional": [
+        "f.mail",
+        "f.hitl"
+      ],
+      "technical": [
+        "t.connclients",
+        "t.toolsys",
+        "t.hitl"
+      ]
     },
     {
       "adr": 345,
       "date": "2026-10-14",
       "theme": "voice",
-      "functional": ["f.voice", "f.radio", "f.meetings", "f.costs", "f.llmconfig", "f.admin"],
-      "technical": ["t.voiceinfra", "t.pricing", "t.catalogue", "t.radio"]
+      "functional": [
+        "f.voice",
+        "f.radio",
+        "f.meetings",
+        "f.costs",
+        "f.llmconfig",
+        "f.admin"
+      ],
+      "technical": [
+        "t.voiceinfra",
+        "t.pricing",
+        "t.catalogue",
+        "t.radio"
+      ]
     },
     {
       "adr": 346,
       "date": "2026-10-14",
       "theme": "orchestration",
-      "functional": ["f.planning"],
-      "technical": ["t.planner", "t.metrics"]
+      "functional": [
+        "f.planning"
+      ],
+      "technical": [
+        "t.planner",
+        "t.metrics"
+      ]
     },
     {
       "adr": 347,
       "date": "2026-10-15",
       "theme": "orchestration",
-      "functional": ["f.planning"],
-      "technical": ["t.toolsys", "t.planner", "t.response", "t.metrics"]
+      "functional": [
+        "f.planning"
+      ],
+      "technical": [
+        "t.toolsys",
+        "t.planner",
+        "t.response",
+        "t.metrics"
+      ]
     },
     {
       "adr": 348,
       "date": "2026-10-16",
       "theme": "memory",
-      "functional": ["f.psyche", "f.personality"],
-      "technical": ["t.promptsys", "t.planner", "t.react", "t.postgres"]
+      "functional": [
+        "f.psyche",
+        "f.personality"
+      ],
+      "technical": [
+        "t.promptsys",
+        "t.planner",
+        "t.react",
+        "t.postgres"
+      ]
     },
     {
       "adr": 350,
       "date": "2026-10-19",
       "theme": "connectors",
-      "functional": ["f.peers", "f.skills", "f.mcp"],
-      "technical": ["t.skills", "t.mcp", "t.postgres"]
+      "functional": [
+        "f.peers",
+        "f.skills",
+        "f.mcp"
+      ],
+      "technical": [
+        "t.skills",
+        "t.mcp",
+        "t.postgres"
+      ]
     },
     {
       "adr": 351,
       "date": "2026-10-19",
       "theme": "orchestration",
-      "functional": ["f.mail", "f.calendar", "f.llmconfig"],
-      "technical": ["t.response", "t.catalogue", "t.pricing"]
+      "functional": [
+        "f.mail",
+        "f.calendar",
+        "f.llmconfig"
+      ],
+      "technical": [
+        "t.response",
+        "t.catalogue",
+        "t.pricing"
+      ]
     },
     {
       "adr": 352,
       "date": "2026-10-19",
       "theme": "connectors",
-      "functional": ["f.places", "f.chat"],
-      "technical": ["t.response", "t.connclients", "t.pricing"]
+      "functional": [
+        "f.places",
+        "f.chat"
+      ],
+      "technical": [
+        "t.response",
+        "t.connclients",
+        "t.pricing"
+      ]
     },
     {
       "adr": 353,
       "date": "2026-10-19",
       "theme": "security",
-      "functional": ["f.security"],
-      "technical": ["t.edge", "t.fastapi", "t.redis", "t.metrics", "t.alerts"]
+      "functional": [
+        "f.security"
+      ],
+      "technical": [
+        "t.edge",
+        "t.fastapi",
+        "t.redis",
+        "t.metrics",
+        "t.alerts"
+      ]
     },
     {
       "adr": 354,
       "date": "2026-10-19",
       "theme": "reliability",
-      "functional": ["f.security", "f.diagnostics"],
-      "technical": ["t.edge", "t.logs", "t.dashboards"]
+      "functional": [
+        "f.security",
+        "f.diagnostics"
+      ],
+      "technical": [
+        "t.edge",
+        "t.logs",
+        "t.dashboards"
+      ]
     },
     {
       "adr": 355,
       "date": "2026-10-19",
       "theme": "connectors",
-      "functional": ["f.places", "f.chat"],
-      "technical": ["t.fastapi", "t.response", "t.connclients", "t.pricing"]
+      "functional": [
+        "f.places",
+        "f.chat"
+      ],
+      "technical": [
+        "t.fastapi",
+        "t.response",
+        "t.connclients",
+        "t.pricing"
+      ]
     },
     {
       "adr": 356,
       "date": "2026-10-19",
       "theme": "experience",
-      "functional": ["f.places", "f.chat"],
-      "technical": ["t.web", "t.response", "t.connclients"]
+      "functional": [
+        "f.places",
+        "f.chat"
+      ],
+      "technical": [
+        "t.web",
+        "t.response",
+        "t.connclients"
+      ]
     },
     {
       "adr": 357,
       "date": "2026-10-20",
       "theme": "connectors",
-      "functional": ["f.sms", "f.relations", "f.heartbeat", "f.notifications"],
-      "technical": ["t.phone_ingestion", "t.proactive", "t.registers"]
+      "functional": [
+        "f.sms",
+        "f.relations",
+        "f.heartbeat",
+        "f.notifications"
+      ],
+      "technical": [
+        "t.phone_ingestion",
+        "t.proactive",
+        "t.registers"
+      ]
     },
     {
       "adr": 358,
       "date": "2026-10-20",
       "theme": "proactive",
-      "functional": ["f.chat", "f.heartbeat", "f.notifications"],
-      "technical": ["t.proactive", "t.postgres", "t.push"]
+      "functional": [
+        "f.chat",
+        "f.heartbeat",
+        "f.notifications"
+      ],
+      "technical": [
+        "t.proactive",
+        "t.postgres",
+        "t.push"
+      ]
     },
     {
       "adr": 359,
       "date": "2026-10-20",
       "theme": "memory",
-      "functional": ["f.memory", "f.journals", "f.privacy"],
-      "technical": ["t.proactive", "t.postgres", "t.registers"]
+      "functional": [
+        "f.memory",
+        "f.journals",
+        "f.privacy"
+      ],
+      "technical": [
+        "t.proactive",
+        "t.postgres",
+        "t.registers"
+      ]
     },
     {
       "adr": 360,
       "date": "2026-10-20",
       "theme": "models",
-      "functional": ["f.costs", "f.llmconfig", "f.chat"],
-      "technical": ["t.proactive", "t.llmfactory", "t.pricing"]
+      "functional": [
+        "f.costs",
+        "f.llmconfig",
+        "f.chat"
+      ],
+      "technical": [
+        "t.proactive",
+        "t.llmfactory",
+        "t.pricing"
+      ]
     },
     {
       "adr": 361,
       "date": "2026-10-22",
       "theme": "reliability",
-      "functional": ["f.diagnostics"],
-      "technical": ["t.selfdiag"]
+      "functional": [
+        "f.diagnostics"
+      ],
+      "technical": [
+        "t.selfdiag"
+      ]
     },
     {
       "adr": 362,
       "date": "2026-10-22",
       "theme": "models",
-      "functional": ["f.react", "f.costs", "f.llmconfig"],
-      "technical": ["t.llmfactory", "t.pricing", "t.react"]
+      "functional": [
+        "f.react",
+        "f.costs",
+        "f.llmconfig"
+      ],
+      "technical": [
+        "t.llmfactory",
+        "t.pricing",
+        "t.react"
+      ]
     },
     {
       "adr": 363,
       "date": "2026-10-23",
       "theme": "security",
-      "functional": ["f.security", "f.admin"],
-      "technical": ["t.bff", "t.redis", "t.metrics", "t.alerts", "t.dashboards"]
+      "functional": [
+        "f.security",
+        "f.admin"
+      ],
+      "technical": [
+        "t.bff",
+        "t.redis",
+        "t.metrics",
+        "t.alerts",
+        "t.dashboards"
+      ]
     },
     {
       "adr": 364,
       "date": "2026-10-24",
       "theme": "security",
-      "functional": ["f.security", "f.privacy"],
-      "technical": ["t.web", "t.bff", "t.metrics", "t.alerts", "t.dashboards"]
+      "functional": [
+        "f.security",
+        "f.privacy"
+      ],
+      "technical": [
+        "t.web",
+        "t.bff",
+        "t.metrics",
+        "t.alerts",
+        "t.dashboards"
+      ]
+    },
+    {
+      "adr": 365,
+      "date": "2026-10-23",
+      "theme": "reliability",
+      "functional": [
+        "f.world",
+        "f.privacy",
+        "f.costs"
+      ],
+      "technical": [
+        "t.world",
+        "t.redis",
+        "t.postgres",
+        "t.llmfactory"
+      ]
     }
   ]
 }

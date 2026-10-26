@@ -1,0 +1,223 @@
+import { joinWalls, type WallRun } from './house-authoring';
+import type { Ground, GroundPatch, WorldZone } from './types';
+
+/** Connected house, one front terrace and a garden separating the private studio. */
+export const HOUSE_ZONES: WorldZone[] = [
+  {
+    id: 'gym',
+    x: 0,
+    y: 6,
+    width: 23,
+    height: 12,
+    tone: 'teal',
+    covered: true,
+    arrival: { x: 20.5, y: 16.5 },
+  },
+  {
+    id: 'memory',
+    x: 23,
+    y: 6,
+    width: 18,
+    height: 12,
+    tone: 'amber',
+    covered: true,
+    arrival: { x: 31.5, y: 15.5 },
+  },
+  {
+    id: 'engineering',
+    x: 41,
+    y: 6,
+    width: 19,
+    height: 12,
+    tone: 'teal',
+    covered: true,
+    arrival: { x: 49.5, y: 16.5 },
+  },
+  {
+    id: 'library',
+    x: 8,
+    y: 18,
+    width: 15,
+    height: 12,
+    tone: 'sage',
+    covered: true,
+    arrival: { x: 20.5, y: 26.5 },
+  },
+  // The small foreground room takes precedence over the atrium's bounding rectangle.
+  {
+    id: 'restroom',
+    x: 23,
+    y: 42,
+    width: 6,
+    height: 6,
+    tone: 'cream',
+    covered: true,
+    arrival: { x: 26.5, y: 46.5 },
+  },
+  {
+    id: 'arrival',
+    x: 23,
+    y: 18,
+    width: 18,
+    height: 30,
+    tone: 'cream',
+    covered: true,
+    arrival: { x: 31.5, y: 33.5 },
+  },
+  {
+    id: 'multimedia',
+    x: 41,
+    y: 18,
+    width: 19,
+    height: 17,
+    tone: 'violet',
+    covered: true,
+    arrival: { x: 46.5, y: 33.5 },
+  },
+  {
+    id: 'meeting',
+    x: 8,
+    y: 30,
+    width: 15,
+    height: 18,
+    tone: 'teal',
+    covered: true,
+    arrival: { x: 20.5, y: 40.5 },
+  },
+  {
+    id: 'cafeteria',
+    x: 41,
+    y: 35,
+    width: 19,
+    height: 13,
+    tone: 'clay',
+    covered: true,
+    arrival: { x: 44.5, y: 46.5 },
+  },
+  {
+    id: 'phone',
+    x: 0,
+    y: 18,
+    width: 8,
+    height: 8,
+    tone: 'teal',
+    covered: true,
+    arrival: { x: 5.5, y: 24.5 },
+  },
+  {
+    id: 'divination',
+    x: 0,
+    y: 26,
+    width: 8,
+    height: 22,
+    tone: 'violet',
+    covered: true,
+    arrival: { x: 5.5, y: 37.5 },
+  },
+  {
+    id: 'home',
+    x: 46,
+    y: 62,
+    width: 16,
+    height: 13,
+    tone: 'clay',
+    covered: true,
+    arrival: { x: 54.5, y: 73.5 },
+  },
+  { id: 'terrace', x: 0, y: 48, width: 60, height: 7, tone: 'clay', arrival: { x: 31.5, y: 51.5 } },
+  { id: 'garden', x: 5, y: 55, width: 62, height: 27, tone: 'sage', arrival: { x: 31.5, y: 58.5 } },
+];
+const FLOORS: Partial<Record<WorldZone['id'], Ground>> = {
+  gym: 'wood',
+  memory: 'wood',
+  engineering: 'tile',
+  library: 'wood',
+  arrival: 'marble',
+  multimedia: 'violet-carpet',
+  meeting: 'carpet',
+  cafeteria: 'checker',
+  phone: 'tile',
+  restroom: 'tile',
+  divination: 'slate',
+  home: 'wood',
+  terrace: 'deck',
+};
+export const POND_ROWS = [6, 8, 10, 10, 10, 8, 6, 4] as const;
+export const POND = { x: 16, y: 66, width: 10, height: 8 } as const;
+export const HOUSE_GROUNDS: GroundPatch[] = [
+  { x: 30, y: 54, width: 3, height: 25, kind: 'path' },
+  { x: 32, y: 76, width: 24, height: 3, kind: 'path' },
+  { x: 53, y: 74, width: 3, height: 4, kind: 'path' },
+  // Last wins: the private floor and foreground washroom cover the atrium envelope.
+  ...HOUSE_ZONES.filter(z => z.id !== 'restroom').flatMap(z =>
+    FLOORS[z.id] ? [{ ...z, kind: FLOORS[z.id]! }] : []
+  ),
+  { ...HOUSE_ZONES.find(z => z.id === 'restroom')!, kind: 'tile' },
+  ...POND_ROWS.map((width, i) => ({
+    x: POND.x + (POND.width - width) / 2,
+    y: POND.y + i,
+    width,
+    height: 1,
+    kind: 'water' as const,
+  })),
+];
+export const HOUSE_WALL_RUNS: WallRun[] = [
+  { x: 0, y: 6, length: 60, axis: 'x', height: 3, tone: 'teal', finish: 'brick' },
+  { x: 0, y: 6, length: 13, axis: 'y', height: 3, tone: 'teal' },
+  { x: 59, y: 6, length: 43, axis: 'y', height: 0.85, tone: 'teal' },
+  {
+    x: 8,
+    y: 18,
+    length: 52,
+    axis: 'x',
+    height: 0.85,
+    tone: 'teal',
+    openings: [11, 12, 22, 23, 40, 41],
+  },
+  {
+    x: 23,
+    y: 7,
+    length: 42,
+    axis: 'y',
+    height: 0.85,
+    tone: 'teal',
+    openings: [7, 8, 17, 18, 30, 31],
+  },
+  {
+    x: 41,
+    y: 7,
+    length: 41,
+    axis: 'y',
+    height: 0.85,
+    tone: 'teal',
+    openings: [7, 8, 23, 24, 36, 37],
+  },
+  { x: 8, y: 30, length: 16, axis: 'x', height: 2.8, tone: 'sage', openings: [11, 12] },
+  { x: 41, y: 35, length: 19, axis: 'x', height: 0.85, tone: 'violet', openings: [3, 4] },
+  { x: 8, y: 48, length: 16, axis: 'x', height: 0.85, tone: 'teal' },
+  { x: 23, y: 48, length: 19, axis: 'x', height: 0.85, tone: 'teal', openings: [7, 8, 9, 10] },
+  { x: 41, y: 48, length: 19, axis: 'x', height: 0.85, tone: 'clay', openings: [3, 4] },
+  { x: 0, y: 18, length: 9, axis: 'x', height: 3, tone: 'teal' },
+  { x: 0, y: 18, length: 9, axis: 'y', height: 3, tone: 'teal' },
+  { x: 8, y: 19, length: 29, axis: 'y', height: 0.85, tone: 'teal', openings: [4, 5, 9, 18, 19] },
+  { x: 0, y: 26, length: 9, axis: 'x', height: 0.85, tone: 'violet' },
+  { x: 0, y: 27, length: 21, axis: 'y', height: 2.8, tone: 'violet', finish: 'slate' },
+  { x: 0, y: 48, length: 9, axis: 'x', height: 0.85, tone: 'violet' },
+  { x: 23, y: 42, length: 7, axis: 'x', height: 0.85, tone: 'cream' },
+  { x: 29, y: 43, length: 6, axis: 'y', height: 0.85, tone: 'cream', openings: [2, 3] },
+  { x: 46, y: 62, length: 17, axis: 'x', height: 3, tone: 'clay', finish: 'oak' },
+  { x: 46, y: 63, length: 13, axis: 'y', height: 3, tone: 'clay', finish: 'oak' },
+  { x: 46, y: 75, length: 17, axis: 'x', height: 0.85, tone: 'clay', openings: [7, 8] },
+  { x: 62, y: 63, length: 13, axis: 'y', height: 0.85, tone: 'clay' },
+];
+export const HOUSE_WALLS = joinWalls(HOUSE_WALL_RUNS).map(wall => ({
+  ...wall,
+  // These visible wall bays carry mirrors, the meeting screen and the private TV.
+  wallWindow:
+    wall.wallWindow &&
+    !(
+      (wall.x === 0 && wall.y < 18) ||
+      (wall.y === 30 && wall.x >= 12 && wall.x <= 17) ||
+      (wall.x === 46 && wall.y >= 63)
+    ),
+}));

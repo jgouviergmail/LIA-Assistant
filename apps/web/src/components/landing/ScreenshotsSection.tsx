@@ -6,15 +6,17 @@ import homeProof from '../../../public/screenshots/manifest.json';
 import applicationProof from '../../../public/screenshots/proof/manifest.json';
 import extendedProof from '../../../public/screenshots/proof/extended-manifest.json';
 import monitoringProof from '../../../public/screenshots/proof/grafana-manifest.json';
+import worldProof from '../../../public/screenshots/proof/world-manifest.json';
 
 /**
- * Real frontend views with fictional data and Grafana captures supplied by
- * the project. Each campaign's provenance is recorded in its own manifest.
+ * Real frontend views with fictional data, plus World and Grafana captures
+ * supplied by the project. Each campaign records its own provenance.
  * The shared carousel provides navigation and full-screen inspection.
  */
 
 const APPLICATION_VIEWS = [
   { key: 'dashboard', file: 'dashboard-wide', campaign: 'home' },
+  { key: 'world', file: 'lia-world', campaign: 'world' },
   { key: 'dossier', file: 'dossier', campaign: 'application' },
   { key: 'places', file: 'places', campaign: 'application' },
   { key: 'maps', file: 'maps', campaign: 'application' },
@@ -58,11 +60,15 @@ interface CaptureManifest {
 }
 
 // Every view keeps the revision and native dimensions of its capture campaign.
-const CAPTURE_CAMPAIGNS: Record<string, { manifest: CaptureManifest; directory: string }> = {
+const CAPTURE_CAMPAIGNS: Record<
+  string,
+  { manifest: CaptureManifest; directory: string; extension?: string }
+> = {
   home: { manifest: homeProof, directory: '/screenshots' },
   application: { manifest: applicationProof, directory: '/screenshots/proof' },
   extended: { manifest: extendedProof, directory: '/screenshots/proof' },
   monitoring: { manifest: monitoringProof, directory: '/screenshots/proof' },
+  world: { manifest: worldProof, directory: '/screenshots/proof', extension: 'jpg' },
 };
 
 type ApplicationView = (typeof APPLICATION_VIEWS)[number]['key'];
@@ -84,11 +90,12 @@ export function ScreenshotsSection({
       : APPLICATION_VIEWS;
   const slides: CarouselSlide[] = views.map(({ key, file, campaign }) => {
     const label = t(`landing.screenshots.proof.${key}`);
-    const { manifest, directory } = CAPTURE_CAMPAIGNS[campaign];
-    const capture = manifest.images.find(image => image.file === `${file}.png`);
+    const { manifest, directory, extension = 'png' } = CAPTURE_CAMPAIGNS[campaign];
+    const filename = `${file}.${extension}`;
+    const capture = manifest.images.find(image => image.file === filename);
     return {
       key,
-      src: `${directory}/${file}.png?v=${manifest.revision}`,
+      src: `${directory}/${filename}?v=${manifest.revision}`,
       label,
       caption: label,
       aspectRatio: capture ? capture.width / capture.height : undefined,

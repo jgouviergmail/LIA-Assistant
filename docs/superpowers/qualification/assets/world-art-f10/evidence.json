@@ -1,0 +1,167 @@
+{
+  "lot": "F10",
+  "source": "86caa6b95f16bc39675b91796035ac9fd558b23b21a6dd19d1b1afaf72039054",
+  "previewSource": "86caa6b95f16bc39675b91796035ac9fd558b23b21a6dd19d1b1afaf72039054",
+  "worldUnit": {
+    "files": 31,
+    "passed": 143
+  },
+  "browserArt": {
+    "passed": 6,
+    "engines": [
+      "chromium",
+      "firefox",
+      "webkit"
+    ],
+    "places": 6,
+    "zoom": [
+      "play",
+      "near",
+      "far"
+    ]
+  },
+  "nativeOptimized": {
+    "stats": {
+      "startTime": "2026-10-24T13:45:20.125Z",
+      "duration": 83523.08,
+      "expected": 3,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "physicalDevice": false,
+    "concurrentCompilerOrFullSuite": false,
+    "samples": [
+      {
+        "profile": "desktop: five native server clients, one full UI renderer",
+        "browserName": "chromium",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "zoom": "95%",
+        "fps": 59.7,
+        "frameP95": "16,7 ms",
+        "renderP95": "16,4 ms",
+        "phase": "night",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      },
+      {
+        "profile": "phone viewport, economic quality",
+        "browserName": "chromium",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "zoom": "95%",
+        "fps": 29.7,
+        "frameP95": "33,3 ms",
+        "renderP95": "4,6 ms",
+        "phase": "night",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      },
+      {
+        "profile": "phone viewport, economic quality, CPU slowdown 4x",
+        "browserName": "chromium",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "zoom": "158%",
+        "fps": 27.3,
+        "frameP95": "50 ms",
+        "renderP95": "27,2 ms",
+        "phase": "night",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      },
+      {
+        "profile": "desktop: five native server clients, one full UI renderer",
+        "browserName": "firefox",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "zoom": "95%",
+        "fps": 51.9,
+        "frameP95": "33,4 ms",
+        "renderP95": "25,5 ms",
+        "phase": "night",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      },
+      {
+        "profile": "phone viewport, economic quality",
+        "browserName": "firefox",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "zoom": "95%",
+        "fps": 30,
+        "frameP95": "50,4 ms",
+        "renderP95": "9,4 ms",
+        "phase": "night",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      },
+      {
+        "profile": "desktop: five native server clients, one full UI renderer",
+        "browserName": "webkit",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "zoom": "95%",
+        "fps": 27.3,
+        "frameP95": "60 ms",
+        "renderP95": "2 ms",
+        "phase": "night",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      },
+      {
+        "profile": "phone viewport, economic quality",
+        "browserName": "webkit",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "zoom": "95%",
+        "fps": 27.9,
+        "frameP95": "48 ms",
+        "renderP95": "1 ms",
+        "phase": "night",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      }
+    ]
+  },
+  "benchmarkCaveat": "Gallery ran concurrently; final quiet measurements follow F12. These are emulated devices, not physical hardware.",
+  "publishedProbe": "Authenticated phone entry and zoom passed; no authority takeover.",
+  "geometryChanged": false,
+  "llmCallsAdded": 0
+}

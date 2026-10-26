@@ -1,0 +1,13 @@
+{
+  "httpStatus": 200,
+  "admitted": true,
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "walkingVerified": true,
+  "runtimeErrors": [],
+  "paidActions": [],
+  "authorityTakenOver": false,
+  "physicalDevice": false
+}

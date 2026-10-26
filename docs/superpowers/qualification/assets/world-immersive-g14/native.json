@@ -1,0 +1,80 @@
+{
+  "source": "G14c optimized build, no production code changed between these runs",
+  "logicalCases": [
+    {
+      "title": "a real bilingual conversation works in both directions and a failed translation remains recoverable",
+      "engine": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "a recipient recovers an interrupted mailbox read without losing a draft or resending",
+      "engine": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "an account change in another tab withdraws the previous private conversation before further interaction",
+      "engine": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "a real bilingual conversation works in both directions and a failed translation remains recoverable",
+      "engine": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "a recipient recovers an interrupted mailbox read without losing a draft or resending",
+      "engine": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "an account change in another tab withdraws the previous private conversation before further interaction",
+      "engine": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "a real bilingual conversation works in both directions and a failed translation remains recoverable",
+      "engine": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "a recipient recovers an interrupted mailbox read without losing a draft or resending",
+      "engine": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "an account change in another tab withdraws the previous private conversation before further interaction",
+      "engine": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "free text, reciprocal replies, reload and a lost acknowledgment work without duplicate delivery",
+      "engine": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "free text, reciprocal replies, reload and a lost acknowledgment work without duplicate delivery",
+      "engine": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "free text, reciprocal replies, reload and a lost acknowledgment work without duplicate delivery",
+      "engine": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "native functions: private memory read/pin, denied peer mutation and embedded LIA without implicit send",
+      "engine": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "native functions: private memory read/pin, denied peer mutation and embedded LIA without implicit send",
+      "engine": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "native functions: private memory read/pin, denied peer mutation and embedded LIA without implicit send",
+      "engine": "webkit",
+      "status": "passed"
+    }
+  ]
+}

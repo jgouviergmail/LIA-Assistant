@@ -18,54 +18,15 @@ cohesive table family moves to a module of its own (as the ``users`` columns
 did, 2026-09-30).
 """
 
-from dataclasses import dataclass
-from enum import Enum
-
-
-class TableDataClass(str, Enum):
-    """How a table relates to a user's personal data lifecycle."""
-
-    USER_PURGED = "user_purged"
-    """User-scoped rows explicitly deleted by the account-deletion purge."""
-
-    USER_CASCADE = "user_cascade"
-    """Deleted via an ondelete=CASCADE FK chain from a USER_PURGED table."""
-
-    USER_ROW_SCRUBBED = "user_row_scrubbed"
-    """The users row itself: kept but PII-scrubbed (see USER_COLUMNS)."""
-
-    BILLING_RETAINED = "billing_retained"
-    """Kept after deletion for dispute resolution (ADR-067)."""
-
-    GLOBAL = "global"
-    """Not user data: configuration, pricing, catalogs, admin records."""
-
-
-class ExportPolicy(str, Enum):
-    """Whether the GDPR export includes this table's rows."""
-
-    FULL = "full"
-    """Exported (the exporter still redacts secret columns if any)."""
-
-    EXCLUDED = "excluded"
-    """Never exported — secret material, derived data, or non-user data."""
-
-
-@dataclass(frozen=True)
-class TableRule:
-    """Classification of one table.
-
-    Attributes:
-        data_class: Lifecycle class (purge semantics).
-        export: GDPR-export policy.
-        reason: Audited rationale — mandatory for EXCLUDED / retained /
-            global rules, short content description otherwise.
-    """
-
-    data_class: TableDataClass
-    export: ExportPolicy
-    reason: str
-
+from src.domains.users.user_data_types import (
+    ExportPolicy as ExportPolicy,
+)
+from src.domains.users.user_data_types import (
+    TableDataClass as TableDataClass,
+)
+from src.domains.users.user_data_types import (
+    TableRule as TableRule,
+)
 
 # Tables that exist at runtime but are NOT SQLAlchemy metadata tables —
 # purged out-of-band by the deletion service (LangGraph checkpointer /
@@ -90,6 +51,14 @@ _PURGED_FULL = TableRule(
 
 
 TABLE_RULES: dict[str, TableRule] = {
+    "world_message_attempts": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.EXCLUDED,
+        reason=(
+            "Short-lived direct-message idempotency and spend fences without message bodies; "
+            "native token usage exports the billable act. Purged on either participant's deletion."
+        ),
+    ),
     # ------------------------------------------------------------------
     # The users row: kept, PII-scrubbed column by column (USER_COLUMNS).
     # ------------------------------------------------------------------

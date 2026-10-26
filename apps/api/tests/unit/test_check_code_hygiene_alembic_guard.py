@@ -74,3 +74,30 @@ def test_zero_heads_is_a_failure(tmp_path: Path) -> None:
     result = _load_tool().check_alembic_single_head(tmp_path)
     assert result.failed is True
     assert "no head" in result.details[0]
+
+
+@pytest.mark.parametrize("annotated", [False, True])
+def test_a_merge_revision_consumes_both_parents(tmp_path: Path, annotated: bool) -> None:
+    _write(tmp_path, "0001_a", "aaa", None)
+    _write(tmp_path, "0002_b", "bbb", "aaa")
+    _write(tmp_path, "0003_c", "ccc", "aaa")
+    annotation = ": tuple[str, str]" if annotated else ""
+    (tmp_path / "0004_merge.py").write_text(
+        'revision: str = "ddd"\n' f'down_revision{annotation} = (\n    "bbb",\n    "ccc",\n)\n',
+        encoding="utf-8",
+    )
+    result = _load_tool().check_alembic_single_head(tmp_path)
+    assert result.failed is False
+    assert result.details == ["single head: ddd (0004_merge.py)"]
+
+
+def test_nonliteral_migration_links_fail_without_executing_source(tmp_path: Path) -> None:
+    _write(tmp_path, "0001_a", "aaa", None)
+    (tmp_path / "0002_bad.py").write_text(
+        'revision = "bbb"\ndown_revision = str("aaa")\n'
+        'raise AssertionError("Never import a migration during lint")\n',
+        encoding="utf-8",
+    )
+    result = _load_tool().check_alembic_single_head(tmp_path)
+    assert result.failed is True
+    assert "invalid migration metadata" in result.details[0]

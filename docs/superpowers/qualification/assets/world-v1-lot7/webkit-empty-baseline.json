@@ -1,0 +1,46 @@
+{
+  "profile": "Five independent official headless WebKit browsers, empty pages with a moving 4px dot; no LIA or renderer code",
+  "physicalDevice": false,
+  "results": [
+    {
+      "index": 0,
+      "frames": 186,
+      "fps": 61.75298804780876,
+      "frameP95": 17,
+      "hidden": false,
+      "focused": true
+    },
+    {
+      "index": 1,
+      "frames": 186,
+      "fps": 61.75298804780876,
+      "frameP95": 17,
+      "hidden": false,
+      "focused": true
+    },
+    {
+      "index": 2,
+      "frames": 184,
+      "fps": 61.048440610484406,
+      "frameP95": 17,
+      "hidden": false,
+      "focused": true
+    },
+    {
+      "index": 3,
+      "frames": 185,
+      "fps": 61.62558294470353,
+      "frameP95": 17,
+      "hidden": false,
+      "focused": true
+    },
+    {
+      "index": 4,
+      "frames": 181,
+      "fps": 60.11291929591498,
+      "frameP95": 17,
+      "hidden": false,
+      "focused": true
+    }
+  ]
+}

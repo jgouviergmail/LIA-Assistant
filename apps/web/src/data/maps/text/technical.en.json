@@ -443,6 +443,12 @@
       "role": "Per-source authority, replay receipts, encrypted SMS and leased delivery; model excerpts stay bounded and freshly authorized.",
       "stack": ["Source-scoped tokens", "Blind lexical index", "Private notifications"],
       "src": "da49b8382ff9"
+    },
+    "t.world": {
+      "name": "Isometric world and native authority",
+      "role": "The browser draws a bounded Canvas scene; Redis arbitrates admission, queue and movement, and its failure suspends commands. Native panels retain permissions and approvals. Ephemeral text stays in Redis; PostgreSQL fences billable attempts without retaining their content.",
+      "stack": ["Canvas 2D", "WebSocket", "Redis CAS", "PostgreSQL", "LIA"],
+      "src": "1c146d5b9f21"
     }
   },
   "flows": {

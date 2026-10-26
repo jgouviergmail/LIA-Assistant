@@ -115,7 +115,7 @@ export const MOBILE_SURFACES: readonly MobileSurface[] = [
   // ------------------------------------------------------------- substituted
   {
     id: 'chat-search-field',
-    location: 'app/[lng]/dashboard/chat/page',
+    location: 'components/chat/ChatWorkspace',
     kind: 'action',
     tier: 'substituted',
     minWidth: 880,
@@ -124,7 +124,7 @@ export const MOBILE_SURFACES: readonly MobileSurface[] = [
   },
   {
     id: 'chat-reset-label',
-    location: 'app/[lng]/dashboard/chat/page',
+    location: 'components/chat/ChatWorkspace',
     kind: 'action',
     tier: 'substituted',
     minWidth: 640,
@@ -195,7 +195,7 @@ export const MOBILE_SURFACES: readonly MobileSurface[] = [
   },
   {
     id: 'chat-debug-panel',
-    location: 'app/[lng]/dashboard/chat/page',
+    location: 'components/chat/ChatWorkspace',
     kind: 'observation',
     tier: 'desktop-only',
     minWidth: 1024,

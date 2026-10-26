@@ -320,8 +320,8 @@
     },
     "45": {
       "title": "Sauber injizierte Abhängigkeiten",
-      "summary": "Repositories, Services und Router greifen über die Dependency Injection von FastAPI ineinander, mit Datenbanksitzungen, die zum richtigen Zeitpunkt geöffnet und geschlossen werden und sich in Tests leicht simulieren lassen.",
-      "src": "a9edf6548888"
+      "summary": "Repositories, Services und Router greifen über die Dependency Injection von FastAPI ineinander, mit Datenbanksitzungen, die zum richtigen Zeitpunkt geöffnet und geschlossen werden und sich in Tests leicht simulieren lassen. Ein Routenfehler erreicht die Sitzung, damit sie ihre Transaktion zurückrollt; das Schließen endet, bevor ein Abbruch weitergegeben wird.",
+      "src": "2918bf9a2be6"
     },
     "46": {
       "title": "Geplante Hintergrundaufgaben",
@@ -1912,6 +1912,11 @@
       "title": "Eine Anti-Roboter-Prüfung an den Passwort-Türen",
       "summary": "Registrierung, Anmeldung mit Passwort und Anfragen zum Zurücksetzen verlangen jetzt das Token einer Cloudflare-Turnstile-Prüfung, das der Server bestätigen lässt: Ein Skript, das die API ohne Browser aufruft, wird abgewiesen. Die meisten Besucher sehen nichts, und wenn Cloudflare nicht antwortet, geht nur die Anmeldung durch — ein neues Konto oder eine Zurücksetzungs-E-Mail warten.",
       "src": "5f218ef296be"
+    },
+    "365": {
+      "title": "Privates LIA in einer gemeinsamen isometrischen Welt",
+      "summary": "Der Browser zeichnet die Welt, während Redis Zugang und Bewegung steuert; Aktionen behalten ihre nativen Oberflächen und Freigaben. Kontoname und Aussehen werden mit Zustimmung geteilt, Aktivitäten und Zuhause bleiben privat, Kontakte sehen nur einen groben Verbindungsstatus. Nachrichten bleiben zwischen ihren Empfängern, genehmigte Übersetzungen werden begrenzt und abgerechnet.",
+      "src": "53942019983c"
     }
   }
 }

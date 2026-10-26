@@ -382,6 +382,10 @@ tasks:
         platforms: [windows]
       - cmd: apps/api/.venv/bin/python scripts/audit/check_code_hygiene.py {{.CLI_ARGS}}
         platforms: [linux, darwin]
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/world_contract_docs.py
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/world_contract_docs.py
+        platforms: [linux, darwin]
 
   lint:lockfiles:
     desc: Verify the Python lockfiles are in sync with their manifests (ADR-112)
@@ -419,7 +423,7 @@ tasks:
       NEXT_PUBLIC_API_URL: ""
       NEXT_PUBLIC_PRODUCT_TELEMETRY: ""
     cmds:
-      - pnpm test:coverage
+      - pnpm test:coverage {{.CLI_ARGS}}
 
   mobile:prepare:android:
     desc: Regenerate the Android shell and lay our own sources on top
@@ -807,6 +811,56 @@ tasks:
       - npm run test:transport
       - npm run typecheck
       - npx playwright test
+
+  world:proof:start:
+    desc: Create isolated SQL, Redis, inert accounts and a current World web snapshot
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python scripts/world-proof.py start {{.CLI_ARGS}}
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/world-proof.py start {{.CLI_ARGS}}
+        platforms: [linux, darwin]
+
+  world:proof:stop:
+    desc: Remove only the labelled disposable World proof containers and network
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python scripts/world-proof.py stop
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/world-proof.py stop
+        platforms: [linux, darwin]
+
+  test:backend:world:integration:
+    desc: Run World SQL/Redis integration inside the isolated proof (world:proof:start first)
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python scripts/world-proof.py test
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/world-proof.py test
+        platforms: [linux, darwin]
+
+  test:e2e:world-native:
+    desc: Native world proof against an explicit disposable SQL/Redis preview
+    dir: "{{.WEB_DIR}}/e2e"
+    preconditions:
+      - sh: test -n "{{.E2E_WORLD_NATIVE_URL}}"
+        msg: Set E2E_WORLD_NATIVE_URL to the isolated proof preview, never production
+    env:
+      E2E_WORLD_NATIVE_URL: "{{.E2E_WORLD_NATIVE_URL}}"
+      E2E_WORLD_NATIVE_API_CONTAINER: lia-world-qa-api
+      E2E_ALL_BROWSERS: "{{.E2E_ALL_BROWSERS}}"
+    cmds:
+      - npx playwright test --config world-native.config.ts
+
+  test:e2e:world-production:
+    desc: Optimized world qualification on the isolated inert-account standalone host
+    dir: "{{.WEB_DIR}}/e2e"
+    preconditions:
+      - sh: test -n "{{.E2E_WORLD_NATIVE_URL}}"
+        msg: Set E2E_WORLD_NATIVE_URL to the isolated optimized proof host, never a live instance
+    env:
+      E2E_WORLD_NATIVE_URL: "{{.E2E_WORLD_NATIVE_URL}}"
+      E2E_ALL_BROWSERS: "{{.E2E_ALL_BROWSERS}}"
+      E2E_WORLD_NATIVE_OPTIMIZED: "1"
+    cmds:
+      - npx playwright test --config world-production.config.ts
 
   test:e2e:browsers:
     desc: The same journeys on Chromium, Firefox and WebKit (the weekly accessibility matrix)
@@ -1209,6 +1263,8 @@ tasks:
         tests/unit/test_findings_register_guard.py tests/unit/test_doc_language_guard.py
         tests/unit/test_diff_coverage_guard.py tests/unit/test_ci_job_timeouts_guard.py
         tests/unit/test_hung_test_watchdog_guard.py tests/unit/test_git_sandbox.py
+        tests/unit/test_secret_scan_merge_lineage.py
+        tests/unit/domains/world/test_message_namespaces.py
         tests/helpers/notifications.py tests/unit/test_durable_delivery_guard.py
         tests/unit/infrastructure/proactive/test_notification_durable.py
         tests/integration/domains/telephony/test_notification_reaper_durability.py
@@ -1295,6 +1351,7 @@ tasks:
       - pnpm cc:ratchet
       # AC-037: `as unknown as` per file may only go down (tests, e2e, production).
       - pnpm double-cast:ratchet
+      - node ../../scripts/world-catalogue.cjs --check
       - pnpm type-check
 
   format:
@@ -1501,7 +1558,7 @@ tasks:
       NEXT_PUBLIC_API_URL: ""
       NEXT_PUBLIC_PRODUCT_TELEMETRY: ""
     cmds:
-      - pnpm test
+      - pnpm test {{.CLI_ARGS}}
 
   test:deploy:
     desc: Hermetic deploy-path tests (F008) — readiness-gate lib + Pester driver suite (needs Pester >= 5.5)
@@ -1675,15 +1732,20 @@ tasks:
       vars: [CLI_ARGS]
 
   db:migrate:down:
-    desc: Rollback last migration
+    desc: 'Roll back to a reviewed revision: task db:migrate:down -- REVISION'
     dir: "{{.API_DIR}}"
+    preconditions:
+      - sh: test -n "{{.CLI_ARGS}}"
+        msg: 'Choose a reviewed rollback target: task db:migrate:down -- REVISION (relative rollback is ambiguous at a merge).'
     env:
       PYTHONUTF8: "1"  # F047: UTF-8 output regardless of the Windows console code page
     cmds:
-      - cmd: .venv/Scripts/alembic downgrade -1
+      - cmd: .venv/Scripts/alembic downgrade {{.CLI_ARGS}}
         platforms: [windows]
-      - cmd: .venv/bin/alembic downgrade -1
+      - cmd: .venv/bin/alembic downgrade {{.CLI_ARGS}}
         platforms: [linux, darwin]
+    requires:
+      vars: [CLI_ARGS]
 
   db:migrate:replay-check:
     desc: Verify migrations replay from an EMPTY database (F007) — throwaway DB in the dev PostgreSQL

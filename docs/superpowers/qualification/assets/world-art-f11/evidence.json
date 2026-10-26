@@ -1,0 +1,13 @@
+{
+  "lot": "F11",
+  "source": "8ef6688c3296bdefd2b5d1875e32d2920eb644d8fe2c2188dd80c8a3f4d997d5",
+  "previewSource": "8ef6688c3296bdefd2b5d1875e32d2920eb644d8fe2c2188dd80c8a3f4d997d5",
+  "worldUnitPassed": 143,
+  "initialSceneAndMovementPassed": 12,
+  "finalPixelsAndGalleryPassed": 6,
+  "privateArtCoverage": "All eight authored motifs, six palettes and six home anchors checked for clipping and exact opaque masks.",
+  "originalCreativeArtwork": 3,
+  "publishedProbe": "Authenticated phone entry and zoom passed.",
+  "geometryChanged": false,
+  "llmCallsAdded": 0
+}

@@ -302,6 +302,11 @@ PLATFORM_CAPABILITY_NODES: dict[PlatformCapability, str] = {
 #: column is "the ONE next step"; a capability with no per-account state and
 #: no destination would draw a star that never changes and links nowhere.
 CAPABILITIES_OFF_THE_MAP: dict[PlatformCapability, str] = {
+    PlatformCapability.WORLD: (
+        "An alternative presentation of the existing capability nodes, entered "
+        "through dashboard navigation. Home layout is cosmetic; it does not "
+        "add an assistant capability or a second configuration of those functions."
+    ),
     PlatformCapability.APPLICATION_TOOLS: (
         "Ambient: conversation can inspect and manage existing application "
         "surfaces, with no separate per-account setup or count."

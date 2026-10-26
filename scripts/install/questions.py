@@ -75,6 +75,7 @@ def build_reconfiguration_questions(current: PublicAnswers) -> tuple[Question, .
         "live_mode": _yes_no(current.live_mode),
         "personal_radio": _yes_no(current.personal_radio),
         "speaking_avatar": _yes_no(current.speaking_avatar),
+        "world": _yes_no(current.world),
     }
     return tuple(
         dataclasses.replace(question, default=in_force[question.key] or question.default)
@@ -230,6 +231,12 @@ def build_questions() -> tuple[Question, ...]:
             key="speaking_avatar",
             kind=QuestionKind.BOOL,
             message_id="question.speaking_avatar",
+            default="no",
+        ),
+        Question(
+            key="world",
+            kind=QuestionKind.BOOL,
+            message_id="question.world",
             default="no",
         ),
         Question(

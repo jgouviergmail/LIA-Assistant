@@ -125,6 +125,7 @@ export const HOW_TOC_SECTIONS: readonly GuideTocSection[] = [
   { id: 'live_mode', icon: AudioLines },
   { id: 'cards', icon: LayoutTemplate },
   { id: 'application_commands', icon: SlidersHorizontal },
+  { id: 'world', icon: Globe },
   { id: 'conclusion', icon: Flag },
 ] as const;
 

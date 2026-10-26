@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from tests._git_sandbox import isolate_from_the_running_repository, run_git
 from tests._repo_paths import repo_root_or_skip
 
 pytestmark = pytest.mark.unit
@@ -17,7 +18,7 @@ ROOT = repo_root_or_skip()
 
 
 def _git(repo: Path, *args: str) -> str:
-    return subprocess.check_output(["git", *args], cwd=repo, text=True).strip()
+    return run_git(repo, *args).stdout.strip()
 
 
 def _commit(repo: Path, value: str) -> str:
@@ -28,7 +29,8 @@ def _commit(repo: Path, value: str) -> str:
 
 
 @pytest.fixture
-def merged_repo(tmp_path: Path) -> tuple[Path, str, set[str]]:
+def merged_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, str, set[str]]:
+    isolate_from_the_running_repository(monkeypatch)
     _git(tmp_path, "init", "-b", "main")
     _git(tmp_path, "config", "user.name", "Lineage proof")
     _git(tmp_path, "config", "user.email", "proof@local.invalid")

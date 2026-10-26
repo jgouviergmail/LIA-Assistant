@@ -529,3 +529,27 @@ describe('the bookmarks tab (ADR-282)', () => {
     expect(gallery.calls[0]).toMatchObject({ family: 'images' });
   });
 });
+
+describe('explicit embedded gallery entry', () => {
+  it.each(['images', 'documents', 'screenshots'] as const)(
+    'opens %s instead of an unrelated URL tab',
+    family => {
+      navigation.search = 'tab=bookmarks';
+      config.bookmarks = true;
+      renderWithProviders(<GeneratedAssetsSettings lng="fr" initialTab={family} />);
+      expect(screen.getByRole('tab', { name: new RegExp('family.' + family) })).toHaveAttribute(
+        'data-state',
+        'active'
+      );
+      expect(gallery.calls).toHaveLength(1);
+      expect(gallery.calls[0]).toMatchObject({ family });
+      expect(bookmarkList.mounted).toBe(0);
+    }
+  );
+  it('opens the explicitly requested bookmarks without fetching an image gallery', () => {
+    config.bookmarks = true;
+    renderWithProviders(<GeneratedAssetsSettings lng="fr" initialTab="bookmarks" />);
+    expect(screen.getByTestId('bookmark-list')).toBeVisible();
+    expect(gallery.calls).toHaveLength(0);
+  });
+});

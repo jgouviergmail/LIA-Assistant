@@ -4,7 +4,7 @@
 
 **Versión**: 6.6
 **Fecha**: 2026-10-23
-**Aplicación**: LIA v3.7.0
+**Aplicación**: LIA v4.0.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -291,6 +291,15 @@ El administrador mantiene el control del consumo:
 
 Imagínalo: una Raspberry Pi en tu salón, y toda la familia disfrutando de un asistente IA inteligente — cada uno con su experiencia personalizada, sus recuerdos, su estilo de conversación, y un asistente que desarrolla su propia relación emocional con él. La instancia queda bajo tu control; los modelos o servicios remotos que uses reciben los datos necesarios para su parte de la solicitud.
 
+
+### 4.4. Un mundo para habitar juntos
+
+El mundo de LIA ofrece a tu instancia una casa y un jardín compartidos. Te mueves con el avatar elegido, encuentras a otros participantes no bloqueados y dejas que LIA te acompañe. La biblioteca lleva a tus conocimientos, la sala multimedia a tus creaciones y la sala de adivinación a tus rutinas. El laboratorio de ingeniería reúne habilidades y extensiones. Teclado, controles táctiles, zoom y minimapa permiten explorar; la aplicación habitual sigue disponible.
+
+Compartir un lugar no comparte tu asistente. Entrar pide permiso para mostrar nombre y avatar en el mundo; las conexiones aceptadas también ven tu presencia general y si estás en casa. Tu casa, sus colores, documentos y paneles de la asistente siguen siendo privados. Una sala abre las mismas funciones nativas, con los mismos permisos, costes y confirmaciones; entrar nunca ejecuta una acción preparada.
+
+También puedes intercambiar texto privado con otro participante disponible no bloqueado o elegir expresamente el canal Todos para personas presentes en espacios compartidos. El original sigue disponible. Traducir es una elección explícita de pago, contabilizada en tu consumo; un intento fallido o incierto no se repite automáticamente. Estos mensajes humanos temporales permanecen separados del historial y la memoria de LIA. La disponibilidad depende de las funciones activadas en tu instancia; la voz entre avatares queda fuera de esta versión.
+
 ---
 
 ## 5. Soberanía y frugalidad
@@ -401,7 +410,7 @@ La misma exigencia gobierna lo que LIA retiene de tus indicaciones: cada regla d
 
 ### 6.8. Una superficie que describe el producto está obligada a él
 
-La transparencia tiene un modo de fallo que nadie advierte: una pantalla que deja de decir la verdad en silencio. Nada se rompe, ninguna prueba se pone en rojo, y la página que existía para estar al día se convierte en la menos actualizada de la aplicación. Por eso el mapa de capacidades — la página que responde _¿qué sabe hacer mi asistente por mí?_ — ya no se mantiene a mano: cada capacidad que la plataforma puede activar o cortar debe tener allí su lugar declarado, y una capacidad entregada sin esa decisión impide que la aplicación arranque. La misma convicción, un punto más allá: lo que una pantalla afirma sobre tus datos debe ser **exacto o inexistente**. Un recuento es el número que devuelve la base de datos, nunca una longitud que estaba a mano; y mientras la respuesta está en camino, o cuando ha fallado, la tarjeta no dice nada en lugar de adivinar. «Nada configurado» es una afirmación sobre tu cuenta — de esas de las que conviene estar seguro antes de pronunciarlas. La FAQ cumple la misma exigencia: cada función que una persona puede usar tiene allí su sección —506 preguntas, en seis idiomas—, y una sección traducida que el orden de visualización olvidara hace fallar las pruebas en lugar de quedar invisible.
+La transparencia tiene un modo de fallo que nadie advierte: una pantalla que deja de decir la verdad en silencio. Nada se rompe, ninguna prueba se pone en rojo, y la página que existía para estar al día se convierte en la menos actualizada de la aplicación. Por eso el mapa de capacidades — la página que responde _¿qué sabe hacer mi asistente por mí?_ — ya no se mantiene a mano: cada capacidad que la plataforma puede activar o cortar debe tener allí su lugar declarado, y una capacidad entregada sin esa decisión impide que la aplicación arranque. La misma convicción, un punto más allá: lo que una pantalla afirma sobre tus datos debe ser **exacto o inexistente**. Un recuento es el número que devuelve la base de datos, nunca una longitud que estaba a mano; y mientras la respuesta está en camino, o cuando ha fallado, la tarjeta no dice nada en lugar de adivinar. «Nada configurado» es una afirmación sobre tu cuenta — de esas de las que conviene estar seguro antes de pronunciarlas. La FAQ cumple la misma exigencia: cada función que una persona puede usar tiene allí su sección —518 preguntas, en seis idiomas—, y una sección traducida que el orden de visualización olvidara hace fallar las pruebas en lugar de quedar invisible.
 
 La transparencia también se aplica a las reglas internas del asistente. Una restricción que el sistema impone debe publicarse a quien la sufre: cuando el aprendizaje de hábitos no detecta nada, los Ajustes muestran el umbral realmente exigido — más estricto el fin de semana, cuando hay menos días observados — en lugar de un silencio sin explicación. Y cuando un ajuste se regula solo, como el umbral que decide que una nota del diario entra en una respuesta, lo hace dentro de límites estrictos, un pequeño paso al día, con interruptor de apagado y cada ajuste contabilizado: un sistema que aprende solo es aceptable si sigue siendo observable y desconectable.
 

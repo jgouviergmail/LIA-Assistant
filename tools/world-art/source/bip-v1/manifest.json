@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "character": "bip",
+  "display_name": "LIA",
+  "source": "Original directional artwork generated from LIA's existing masculine BIP body. Native EyeRig supplies eyes and mouth at runtime.",
+  "reference": "/avatars/bip/v1/male/body.webp",
+  "generation": "exec-eeed4cf9-4ceb-4c98-a331-ac7c8dd10890.png",
+  "asset": "directions.png",
+  "sha256": "10acd181264ce5b95cde8ae665d866617929a7d6c28e74ce070b3f832d2743d6",
+  "width": 1254,
+  "height": 1254,
+  "alpha": true,
+  "directions": ["positive_x", "positive_y", "negative_x", "negative_y"]
+}

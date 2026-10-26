@@ -447,6 +447,12 @@
       "role": "Autorizzazione per sorgente, ricevute per i tentativi, SMS cifrati e invio con prenotazione; gli estratti del modello restano limitati e autorizzati.",
       "stack": ["Token per sorgente", "Indice lessicale cieco", "Notifiche private"],
       "src": "da49b8382ff9"
+    },
+    "t.world": {
+      "name": "Mondo isometrico e autorità nativa",
+      "role": "Il browser disegna una scena Canvas limitata; Redis gestisce accesso, coda e movimenti, e un suo guasto sospende i comandi. I pannelli nativi mantengono permessi e approvazioni. I testi effimeri restano in Redis; PostgreSQL delimita i tentativi fatturabili senza conservarne il contenuto.",
+      "stack": ["Canvas 2D", "WebSocket", "Redis CAS", "PostgreSQL", "LIA"],
+      "src": "1c146d5b9f21"
     }
   },
   "flows": {

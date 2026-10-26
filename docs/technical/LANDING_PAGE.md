@@ -93,7 +93,7 @@ et l’ancien moteur du mockup ont été remplacés par ce rendu commun.
 | Composant                                  | Type             | Description                                                                                                                                                                                                                                                                                                       |
 | ------------------------------------------ | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `chapters-data.ts`                         | data             | Configuration des chapitres, association `scene` partagée avec les liens des cas d’usage, ordre éditorial des capacités, `BASICS_CATALOG`, `BASICS_CHIPS`, `FEATURE_ICONS` et inventaire `REQUIRED_FEATURE_KEYS`. Les capacités différenciantes précèdent les fonctions courantes ; le compte est dérivé du code. |
-| `EditorialChapters`                        | Server           | Orchestre les six chapitres sous l’ancre historique `features` et rend le `ProductScene` complet désigné par `chapter.scene`.                                                                                                                                                                                     |
+| `EditorialChapters`                        | Server           | Orchestre les chapitres déclarés sous l’ancre historique `features`, avec leurs scènes ou captures. Le chapitre `connect` conserve le relais entre assistantes ; `world` présente la capture du Monde et son répertoire de lieux. |
 | `ChapterSection`                           | Server           | Titre, sous-titre, bénéfices courts, illustration partagée, explication « Ce qui rend cela possible » en `<details>`, puis catalogue dépliable. Les détails techniques restent disponibles dans le même dépliant.                                                                                                 |
 | `FeatureCatalog`                           | Server           | Traduit les titres, descriptions complètes, légendes et noms de commandes avant de transmettre ces données sérialisables à `FeatureExplorer`. Réutilise les textes `landing.features.*`.                                                                                                                          |
 | `FeatureExplorer`                          | Client           | Index de titres iconisés en deux colonnes, de hauteur bornée et défilable ; un panneau détaillé visible à la fois, avec illustration, texte intégral et boutons précédent/suivant. L’ordre vient du catalogue du chapitre. Tous les panneaux textuels restent dans le DOM.                                        |
@@ -104,13 +104,24 @@ et l’ancien moteur du mockup ont été remplacés par ce rendu commun.
 | `PromiseSection`                           | Server           | Trois promesses entre le hero et les scénarios : écosystème, confiance, disponibilité sur les écrans.                                                                                                                                                                                                             |
 | `TransparencySection`                      | Server           | Preuves de confiance, coûts, audit public, open source, retour d’expérience et CTA intermédiaire (`#transparency`).                                                                                                                                                                                               |
 | `DayTimeline`                              | Client           | Journées par profil en onglets ; version verticale de repli pour `CosmosDay` sur mobile et en mouvement réduit.                                                                                                                                                                                                   |
-| `GallerySection`                           | Client           | Galerie à onglets de captures réelles et de présentation. La présentation est sélectionnée à l’arrivée ; `ScreenshotsSection` et `PresentationSection` partagent `LandingCarousel`.                                                                                                                               |
+| `GallerySection`                           | Client           | Galerie à onglets de captures réelles et de présentation. Les captures sont sélectionnées à l’arrivée ; `ScreenshotsSection` et `PresentationSection` partagent `LandingCarousel`.                                                                                                                               |
 | `ChapterRail`                              | Client           | Rail fixe desktop (`xl+`) dérivé des chapitres, puis transparence ; liens d’ancre nommés, suivi de la section active.                                                                                                                                                                                             |
 | `Tabs`                                     | Client           | Onglets WAI-ARIA génériques : roving tabindex, flèches, Home/End, panneaux `hidden` conservés dans le DOM.                                                                                                                                                                                                        |
 
 Le remaniement conserve l’inventaire complet de `REQUIRED_FEATURE_KEYS`, sans doublon entre chapitres et fonctions
 courantes. Une présentation plus compacte ne raccourcit ni ne supprime les descriptions. Le compteur de chaque
 catalogue est calculé depuis sa liste, jamais recopié dans la traduction.
+
+Le chapitre `connect` (`c6`, `#chapter-connect`) conserve sa scène de relais entre
+assistantes et présente les connexions, les lectures autorisées, les images et les
+copies de skills, serveurs MCP et plugins. Le chapitre `world` (`c7`,
+`#chapter-world`) présente séparément le Monde de LIA. Sa capture fournie est
+copiée sans transformation ; `public/screenshots/proof/world-manifest.json`
+conserve ses dimensions, son empreinte et sa provenance. `WorldPlaces` reprend
+les noms natifs `world.zones.*` et décrit les fonctions des lieux dans les six
+langues. Son test compare l’inventaire des lieux à `WORLD.zones`. Le rail et les
+compteurs de catalogue restent dérivés de `CHAPTERS` ; le lien de `/more` utilise
+la même constante d’ancre du Monde.
 
 ### 2.3 Autres sections
 
@@ -279,7 +290,7 @@ Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel 
 - 6 langues (fr, en, es, de, it, zh), fallback fr ; parite stricte (hook pre-commit, reference `en`).
 - La landing **tutoie** ; les titres a la voix du produit sont **transcrees** par langue, pas traduits.
 - Namespaces principaux : `landing.hero.*`, `landing.product_demo.*` (scènes, sources, phases, commandes et
-  limites), `landing.editorial.*` (parcours et dépliants), `landing.chapters.*` (c1..c6, bénéfices et mécanismes),
+  limites), `landing.editorial.*` (parcours et dépliants), `landing.chapters.*` (c1..c7, bénéfices et mécanismes),
   `landing.catalog_explorer.*` (navigation et légendes), `landing.engineering.*` (principes et bénéfices),
   `landing.tech.*` (choix techniques détaillés), `landing.features.<k>.*` (textes intégraux conservés).
 - Les autres surfaces conservent `landing.basics.*`, `landing.transparency.*`, `landing.day.*`,

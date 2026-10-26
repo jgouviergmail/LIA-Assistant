@@ -154,6 +154,9 @@ class PublicAnswers:
     # Instance availability only: each account opts in with its own Simli key.
     # Older answers/state files keep the feature disabled.
     speaking_avatar: bool = False
+    # World is an instance ceiling; each participant still consents to presence.
+    # Older answers and state files keep this optional surface disabled.
+    world: bool = False
 
 
 @dataclass(frozen=True)

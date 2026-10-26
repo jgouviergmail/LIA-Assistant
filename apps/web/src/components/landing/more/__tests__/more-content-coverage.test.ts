@@ -54,6 +54,17 @@ const STATIC_KEYS = [
   'more.craft.tests',
   'more.craft.languages',
   'more.craft.releases',
+  ...[
+    'title',
+    'intro',
+    'navigation_title',
+    'navigation_body',
+    'privacy_title',
+    'privacy_body',
+    'messages_title',
+    'messages_body',
+    'link',
+  ].map(key => `more.world.${key}`),
 ] as const;
 
 describe('more-data structural contract', () => {

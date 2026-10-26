@@ -65,6 +65,7 @@ import { activeAssetFilterCount } from '@/lib/generated-assets/filters';
 import type {
   GeneratedAsset,
   GeneratedAssetFamily,
+  GeneratedAssetTab,
   GeneratedAssetFilters,
   GeneratedAssetKeepUsage,
   GeneratedAssetsDeleteResult,
@@ -81,7 +82,7 @@ const FAMILIES: readonly { key: GeneratedAssetFamily; icon: typeof ImageIcon }[]
 const BOOKMARKS_TAB = 'bookmarks';
 
 /** Every tab this section can open. */
-type SectionTab = GeneratedAssetFamily | typeof BOOKMARKS_TAB;
+type SectionTab = GeneratedAssetTab;
 
 function isSectionTab(value: string | null): value is SectionTab {
   return value === BOOKMARKS_TAB || FAMILIES.some(family => family.key === value);
@@ -91,9 +92,11 @@ const NO_FILTERS: GeneratedAssetFilters = {};
 
 export interface GeneratedAssetsSettingsProps {
   lng: Language;
+  /** Explicit host input wins over unrelated URL query parameters, on first mount only. */
+  initialTab?: GeneratedAssetTab;
 }
 
-export function GeneratedAssetsSettings({ lng }: GeneratedAssetsSettingsProps) {
+export function GeneratedAssetsSettings({ lng, initialTab }: GeneratedAssetsSettingsProps) {
   const { t } = useTranslation(lng);
   const { config } = useAppConfig();
   // The deployment ceiling, not the operator's switch: switching keeping off
@@ -102,8 +105,8 @@ export function GeneratedAssetsSettings({ lng }: GeneratedAssetsSettingsProps) {
   // `?tab=` is read ONCE, on arrival: the capability map sends a reader
   // straight to their bookmarks. The rest of the time the tab is local state.
   const requested = useSearchParams().get('tab');
-  const [tab, setTab] = useState<SectionTab>(() =>
-    isSectionTab(requested) ? requested : 'images'
+  const [tab, setTab] = useState<SectionTab>(
+    () => initialTab ?? (isSectionTab(requested) ? requested : 'images')
   );
   const shown: SectionTab = tab === BOOKMARKS_TAB && !bookmarksEnabled ? 'images' : tab;
   const columns = bookmarksEnabled ? 'grid-cols-4' : 'grid-cols-3';

@@ -151,13 +151,23 @@ Impact: low. Notifications degrade gracefully — the prompt omits the city suff
 
 ### Migration rollback
 
+Inspect the deployed graph and prepare a backup before choosing an explicit
+rollback target compatible with the application being restored. This feature's
+column migration is historical: rolling back the current head does not
+necessarily remove it. Reaching a target before it may also undo later changes.
+At a merge, `-1` is ambiguous, and unmerging version markers alone does not
+remove either branch's schema. Review the actual downgrade path rather than
+choosing an arbitrary parent.
+
 ```bash
-task db:migrate:down
-# or manually:
-alembic downgrade -1
+alembic current
+alembic history --verbose
+: "${ROLLBACK_TARGET:?Set the reviewed rollback target revision first}"
+alembic downgrade "$ROLLBACK_TARGET"
 ```
 
-Drops the three columns — data is lost (acceptable, ephemeral + opt-in).
+If the reviewed path removes the location columns, their stored values are lost.
+Do not infer that this makes the rest of the downgrade path safe to discard.
 
 ## Privacy incident playbook
 

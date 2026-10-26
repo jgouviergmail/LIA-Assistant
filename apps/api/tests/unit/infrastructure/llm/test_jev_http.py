@@ -1,6 +1,8 @@
 """The native decision provider's keep-alive client: one owner, one loop, closed at shutdown."""
 
 import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 import httpx
 import pytest
@@ -86,6 +88,9 @@ class _BurstServer:
         self.burst = burst
         self.connections = 0
         self._arrived = 0
+        self._waiting = 0
+        self.peak_waiting = 0
+        self._arrival_changed = asyncio.Condition()
         self._everyone_in = asyncio.Event()
         self._server: asyncio.Server | None = None
 
@@ -102,30 +107,101 @@ class _BurstServer:
 
     def next_burst(self) -> None:
         self._arrived = 0
+        self.peak_waiting = 0
         self._everyone_in = asyncio.Event()
+
+    async def wait_arrivals(self, count: int) -> None:
+        async with self._arrival_changed:
+            await self._arrival_changed.wait_for(lambda: self._arrived >= count)
 
     async def _handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         self.connections += 1
         try:
             while True:
                 await reader.readuntil(b"\r\n\r\n")
-                self._arrived += 1
-                if self._arrived == self.burst:
-                    self._everyone_in.set()
-                await self._everyone_in.wait()
+                async with self._arrival_changed:
+                    self._arrived += 1
+                    self._waiting += 1
+                    self.peak_waiting = max(self.peak_waiting, self._waiting)
+                    self._arrival_changed.notify_all()
+                    if self._arrived == self.burst:
+                        self._everyone_in.set()
+                try:
+                    await self._everyone_in.wait()
+                finally:
+                    self._waiting -= 1
                 writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n")
                 await writer.drain()
         except asyncio.IncompleteReadError, ConnectionError:
             writer.close()
 
 
-async def _burst(url: str, size: int) -> list[int]:
+async def _burst(url: str, size: int, server: _BurstServer | None = None) -> list[int]:
     async def decide() -> int:
         async with jev_http.jev_http_client() as http:
             return (await http.get(url)).status_code
 
-    async with asyncio.timeout(10):
-        return await asyncio.gather(*(decide() for _ in range(size)))
+    tasks: list[asyncio.Task[int]] = []
+    try:
+        async with asyncio.timeout(10):
+            for index in range(size):
+                tasks.append(asyncio.create_task(decide()))
+                if server is not None:
+                    # Admit the next request only after this one reached the
+                    # server. Every response stays blocked until ALL arrived,
+                    # so the full burst is still concurrently in flight. This
+                    # avoids HTTPcore's idle-connection reassignment cascade
+                    # becoming an accidental scheduling benchmark under coverage.
+                    await server.wait_arrivals(index + 1)
+            return await asyncio.gather(*tasks)
+    finally:
+        # gather propagates the first error without stopping its other children.
+        # Await cancellation before closing the pool/server or the owning loop.
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
+async def test_a_failed_burst_cancels_and_awaits_every_other_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    started = asyncio.Event()
+    cancelled = asyncio.Event()
+    requests: set[asyncio.Task[object]] = set()
+
+    async def answer(request: httpx.Request) -> httpx.Response:
+        task = asyncio.current_task()
+        assert task is not None
+        requests.add(task)
+        if len(requests) == 1:
+            await started.wait()
+            raise httpx.ReadTimeout("inert burst failure", request=request)
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cancelled.set()
+        return httpx.Response(200)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(answer)) as client:
+
+        @asynccontextmanager
+        async def borrowed() -> AsyncIterator[httpx.AsyncClient]:
+            yield client
+
+        monkeypatch.setattr(jev_http, "jev_http_client", borrowed)
+        try:
+            with pytest.raises(httpx.ReadTimeout, match="inert burst failure"):
+                await _burst("http://fixture.invalid/", 2)
+            assert cancelled.is_set(), "a failed burst must finish its siblings before returning"
+            assert all(task.done() for task in requests)
+        finally:
+            # The red regression must not itself strand the legacy gather's work.
+            for task in requests:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*requests, return_exceptions=True)
 
 
 async def test_a_burst_up_to_the_documented_limit_never_waits_for_a_connection() -> None:
@@ -135,8 +211,10 @@ async def test_a_burst_up_to_the_documented_limit_never_waits_for_a_connection()
     # the vendor SDK's own default (docs.typesafe.ai/sdk/python/usage/advanced).
     size = jev_http.JEV_HTTP_MAX_CONNECTIONS
     jev_http.open_jev_http_client()
-    async with _BurstServer(size) as url:
-        assert await _burst(url, size) == [200] * size
+    server = _BurstServer(size)
+    async with server as url:
+        assert await _burst(url, size, server) == [200] * size
+        assert server.peak_waiting == size
 
 
 async def test_a_second_burst_reuses_every_connection_of_the_first() -> None:
@@ -147,7 +225,9 @@ async def test_a_second_burst_reuses_every_connection_of_the_first() -> None:
     jev_http.open_jev_http_client()
     server = _BurstServer(size)
     async with server as url:
-        await _burst(url, size)
+        assert await _burst(url, size, server) == [200] * size
+        assert server.peak_waiting == size
         server.next_burst()
-        await _burst(url, size)
+        assert await _burst(url, size, server) == [200] * size
+        assert server.peak_waiting == size
     assert server.connections == size

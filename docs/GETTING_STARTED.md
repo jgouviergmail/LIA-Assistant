@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-10-19
-**Compatibility**: LIA v3.7.0
+**Compatibility**: LIA v4.0.0
 
 ## Table of Contents
 
@@ -41,6 +41,19 @@ Both modes converge on the same streaming response (SSE) and the same HITL (Huma
 The guided self-host installer asks whether to offer the **personal radio**. It is off on a fresh guided installation until the operator opts in: programmes are produced on demand in the existing API service using the configured writing and voice providers, and their cost is charged to the listener. The installer sets `RADIO_ENABLED` from that answer; no extra Compose service or boot step is needed. Configure the radio model and voice slots in the Admin UI before enabling it. See [the self-hosting guide](guides/GUIDE_SELF_HOSTING.md) and [radio design](technical/RADIO.md).
 
 The **speaking avatar** is also optional: the installer leaves `AVATAR_ENABLED=false` unless the operator chooses to offer it. Each person then connects their own Simli key and explicitly enables the avatar in Settings. The installer emits the finite session, idle, connection, HTTP and validated-presence bounds declared by [the avatar configuration](../apps/api/src/core/config/avatars.py); no instance Simli key or additional Compose service is needed. The API controls the signalling/audio relay; any reverse proxy must forward WebSocket upgrades for `/api/v1/avatars/ws`, as for the existing voice WebSocket. An open session can consume that person's Simli credits during silence, and the window's stop control shows confirmed or pending closure. See [the speaking-avatar guide](technical/SPEAKING_AVATAR.md).
+
+**LIA World is optional.** The installer asks whether to offer it and leaves
+`WORLD_ENABLED=false` until the operator opts in. The native administrator
+capability switch and each person's presence consent still apply. Existing
+PostgreSQL and Redis services own its admission, movement and private message
+fences; the browser draws the scene, so no additional Compose service or
+instance credential is needed. The normal boot migrations include World and
+the native model registry supplies its translator slot. A reverse proxy must forward WebSocket upgrades
+for `/api/v1/world/ws`. Configure the `world_message_translator` slot and its
+provider key before offering paid translation, which always requires consent
+and uses native spending limits. Full environment examples explicitly enable
+World; the guided installer and minimal production template keep it off by
+default. See [World activation, architecture and qualification limits](technical/WORLD_PROTOTYPE.md).
 
 **Interactive place maps are optional.** At initial setup, the installer can collect a browser Maps API key and a production Cloud map ID together. Leave both empty to skip; the Position card still lists the places. These inputs stay in the private `.env`, outside public installer state and LLM bootstrap data. Restrict the browser key by HTTP referrer and API; enable the required Google Maps services in your own project. Do not use `DEMO_MAP_ID` in production. Later changes are made in that private environment file; the installer preserves existing operator values. Loading the interactive map requires a click after its cost is shown. No additional service or migration is needed. See [HTML cards](technical/HTML_CARDS.md).
 

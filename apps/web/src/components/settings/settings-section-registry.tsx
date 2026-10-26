@@ -17,220 +17,499 @@
 
 import type { ReactElement } from 'react';
 
-import { RadioSettings } from '@/components/radio/settings/RadioSettings';
-import { SpacesSettingsSection } from '@/components/spaces/SpacesSettingsSection';
-import { ThemeSelector } from '@/components/theme-selector';
 import type { Language } from '@/i18n/settings';
 import type { SettingsSectionToken } from '@/lib/settings-sections';
-
-import AdminBroadcastSection from './AdminBroadcastSection';
-import { AvatarSettings } from './AvatarSettings';
-import AdminCapabilitiesSection from './AdminCapabilitiesSection';
-import AdminRegistersSection from './AdminRegistersSection';
-import AdminConnectorsSection from './AdminConnectorsSection';
-import AdminConsumptionExportSection from './AdminConsumptionExportSection';
-import AdminDebugSettingsSection from './AdminDebugSettingsSection';
-import AdminDiagnosticsSection from './AdminDiagnosticsSection';
-import AdminGoogleApiPricingSection from './AdminGoogleApiPricingSection';
-import AdminImagePricingSection from './AdminImagePricingSection';
-import AdminVoiceLibrarySection from './AdminVoiceLibrarySection';
-import AdminLLMConfigSection from './AdminLLMConfigSection';
-import AdminJevSection from './AdminJevSection';
-import AdminLLMPricingSection from './AdminLLMPricingSection';
-import { AdminMCPServersSettings } from './AdminMCPServersSettings';
-import AdminPersonalitiesSection from './AdminPersonalitiesSection';
-import AdminPublicDemoLinkSection from './AdminPublicDemoLinkSection';
-import AdminRAGSpacesSection from './AdminRAGSpacesSection';
-import { AdminSkillsSection } from './AdminSkillsSection';
-import AdminUsersSection from './AdminUsersSection';
-import { AdminUsageLimitsSection } from './AdminUsageLimitsSection';
-import { AccountExportSettings } from './AccountExportSettings';
-import { BriefingGridSettings } from './BriefingGridSettings';
-import { CardsDisplaySettings } from './CardsDisplaySettings';
-import { UsagePreferencesSettings } from './UsagePreferencesSettings';
-import { ChannelSettings } from './ChannelSettings';
-import { ChatShortcutsSettings } from './ChatShortcutsSettings';
-import ConsumptionExportSection from './ConsumptionExportSection';
-import { DeviceSessionsSettings } from './DeviceSessionsSettings';
-import { EyesStyleSettings } from './EyesStyleSettings';
-import { FontSettings } from './FontSettings';
-import { FontSizeSettings } from './FontSizeSettings';
-import { HabitsSettings } from './HabitsSettings';
-import { HapticsSettings } from './HapticsSettings';
-import { HealthMetricsSettings } from './HealthMetricsSettings';
-import { HeartbeatSettings } from './HeartbeatSettings';
-import { ProactiveDiscussionSettings } from './ProactiveDiscussionSettings';
-import { GeneratedAssetsSettings } from './GeneratedAssetsSettings';
-import { ImageGenerationSettings } from './ImageGenerationSettings';
-import { InterestsSettings } from './InterestsSettings';
-import { JournalsSettings } from './JournalsSettings';
-import { LanguageSettings } from './LanguageSettings';
-import { LocationSettings } from './LocationSettings';
-import { MCPServersSettings } from './MCPServersSettings';
-import { SandboxEgressSettings } from './SandboxEgressSettings';
-import { MemorySettings } from './MemorySettings';
-import { MyShortcutsSettings } from './MyShortcutsSettings';
-import { NotificationSettings } from './NotificationSettings';
-import { OpenLoopsSection } from './OpenLoopsSection';
-import { PeerConnectionsSettings } from './PeerConnectionsSettings';
-import { PersonalitySettings } from './PersonalitySettings';
-import { PluginsSettings } from './PluginsSettings';
-import { PsycheSettings } from './PsycheSettings';
-import { RemindersSettings } from './RemindersSettings';
-import { ScheduledActionsSettings } from './ScheduledActionsSettings';
-import { SecuritySettings } from './SecuritySettings';
-import { SkillsSettings } from './SkillsSettings';
-import TelephonyCallsSection from './TelephonyCallsSection';
-import TelephonyIdentitySection from './TelephonyIdentitySection';
-import { MeetingsSettings } from './MeetingsSettings';
-import { SmsSettings } from './SmsSettings';
-import { WorkboardSettings } from '@/components/settings/WorkboardSettings';
-import { TimezoneSelector } from './TimezoneSelector';
-import UserConnectorsSection from './UserConnectorsSection';
-import { UserDebugSettings } from './UserDebugSettings';
-import { LiveModeSettings } from './LiveModeSettings';
-import { VoiceModeSettings } from './VoiceModeSettings';
 
 export interface SettingsSectionEntry {
   /** `FeatureErrorBoundary` label; absent = the section renders unwrapped. */
   feature?: string;
   /** The section, exactly as the accordion page used to mount it. */
-  render: (lng: Language) => ReactElement;
+  render: (lng: Language) => Promise<ReactElement>;
 }
 
 export const SETTINGS_SECTION_REGISTRY: Readonly<
   Record<SettingsSectionToken, SettingsSectionEntry>
 > = {
   // ---- Preferences / Personalization
-  language: { render: lng => <LanguageSettings lng={lng} /> },
-  timezone: { render: lng => <TimezoneSelector lng={lng} /> },
-  location: { render: lng => <LocationSettings lng={lng} /> },
-  theme: { render: lng => <ThemeSelector lng={lng} /> },
-  font: { render: lng => <FontSettings lng={lng} /> },
-  'font-size': { render: lng => <FontSizeSettings lng={lng} /> },
-  'eyes-style': { render: lng => <EyesStyleSettings lng={lng} /> },
-  'display-mode': { render: lng => <CardsDisplaySettings lng={lng} /> },
-  'usage-preferences': { render: lng => <UsagePreferencesSettings lng={lng} /> },
-  haptics: { render: lng => <HapticsSettings lng={lng} /> },
-  'briefing-grid': { render: lng => <BriefingGridSettings lng={lng} /> },
-  'chat-shortcuts': { render: lng => <ChatShortcutsSettings lng={lng} /> },
-  'my-shortcuts': { render: lng => <MyShortcutsSettings lng={lng} /> },
+  language: {
+    render: async lng => {
+      const { LanguageSettings } = await import('./LanguageSettings');
+      return <LanguageSettings lng={lng} />;
+    },
+  },
+  timezone: {
+    render: async lng => {
+      const { TimezoneSelector } = await import('./TimezoneSelector');
+      return <TimezoneSelector lng={lng} />;
+    },
+  },
+  location: {
+    render: async lng => {
+      const { LocationSettings } = await import('./LocationSettings');
+      return <LocationSettings lng={lng} />;
+    },
+  },
+  theme: {
+    render: async lng => {
+      const { ThemeSelector } = await import('@/components/theme-selector');
+      return <ThemeSelector lng={lng} />;
+    },
+  },
+  font: {
+    render: async lng => {
+      const { FontSettings } = await import('./FontSettings');
+      return <FontSettings lng={lng} />;
+    },
+  },
+  'font-size': {
+    render: async lng => {
+      const { FontSizeSettings } = await import('./FontSizeSettings');
+      return <FontSizeSettings lng={lng} />;
+    },
+  },
+  'eyes-style': {
+    render: async lng => {
+      const { EyesStyleSettings } = await import('./EyesStyleSettings');
+      return <EyesStyleSettings lng={lng} />;
+    },
+  },
+  'display-mode': {
+    render: async lng => {
+      const { CardsDisplaySettings } = await import('./CardsDisplaySettings');
+      return <CardsDisplaySettings lng={lng} />;
+    },
+  },
+  'usage-preferences': {
+    render: async lng => {
+      const { UsagePreferencesSettings } = await import('./UsagePreferencesSettings');
+      return <UsagePreferencesSettings lng={lng} />;
+    },
+  },
+  haptics: {
+    render: async lng => {
+      const { HapticsSettings } = await import('./HapticsSettings');
+      return <HapticsSettings lng={lng} />;
+    },
+  },
+  'briefing-grid': {
+    render: async lng => {
+      const { BriefingGridSettings } = await import('./BriefingGridSettings');
+      return <BriefingGridSettings lng={lng} />;
+    },
+  },
+  'chat-shortcuts': {
+    render: async lng => {
+      const { ChatShortcutsSettings } = await import('./ChatShortcutsSettings');
+      return <ChatShortcutsSettings lng={lng} />;
+    },
+  },
+  'my-shortcuts': {
+    render: async lng => {
+      const { MyShortcutsSettings } = await import('./MyShortcutsSettings');
+      return <MyShortcutsSettings lng={lng} />;
+    },
+  },
 
   // ---- Preferences / Notifications & Communication
-  notifications: { render: lng => <NotificationSettings lng={lng} /> },
-  channels: { feature: 'channels', render: lng => <ChannelSettings lng={lng} /> },
+  notifications: {
+    render: async lng => {
+      const { NotificationSettings } = await import('./NotificationSettings');
+      return <NotificationSettings lng={lng} />;
+    },
+  },
+  channels: {
+    feature: 'channels',
+    render: async lng => {
+      const { ChannelSettings } = await import('./ChannelSettings');
+      return <ChannelSettings lng={lng} />;
+    },
+  },
 
   // ---- Preferences / Security
-  'security-auth': { feature: 'security', render: () => <SecuritySettings /> },
-  'security-devices': { feature: 'security', render: () => <DeviceSessionsSettings /> },
-  'security-export': { feature: 'security', render: () => <AccountExportSettings /> },
+  'security-auth': {
+    feature: 'security',
+    render: async () => {
+      const { SecuritySettings } = await import('./SecuritySettings');
+      return <SecuritySettings />;
+    },
+  },
+  'security-devices': {
+    feature: 'security',
+    render: async () => {
+      const { DeviceSessionsSettings } = await import('./DeviceSessionsSettings');
+      return <DeviceSessionsSettings />;
+    },
+  },
+  'security-export': {
+    feature: 'security',
+    render: async () => {
+      const { AccountExportSettings } = await import('./AccountExportSettings');
+      return <AccountExportSettings />;
+    },
+  },
 
   // ---- Preferences / Voice & Media
-  'voice-mode': { render: lng => <VoiceModeSettings lng={lng} /> },
-  'live-mode': { feature: 'live-mode', render: lng => <LiveModeSettings lng={lng} /> },
-  avatar: { feature: 'avatar', render: lng => <AvatarSettings lng={lng} /> },
-  radio: { feature: 'radio', render: lng => <RadioSettings lng={lng} /> },
+  'voice-mode': {
+    render: async lng => {
+      const { VoiceModeSettings } = await import('./VoiceModeSettings');
+      return <VoiceModeSettings lng={lng} />;
+    },
+  },
+  'live-mode': {
+    feature: 'live-mode',
+    render: async lng => {
+      const { LiveModeSettings } = await import('./LiveModeSettings');
+      return <LiveModeSettings lng={lng} />;
+    },
+  },
+  avatar: {
+    feature: 'avatar',
+    render: async lng => {
+      const { AvatarSettings } = await import('./AvatarSettings');
+      return <AvatarSettings lng={lng} />;
+    },
+  },
+  radio: {
+    feature: 'radio',
+    render: async lng => {
+      const { RadioSettings } = await import('@/components/radio/settings/RadioSettings');
+      return <RadioSettings lng={lng} />;
+    },
+  },
   'image-generation': {
     feature: 'image-generation',
-    render: lng => <ImageGenerationSettings lng={lng} />,
+    render: async lng => {
+      const { ImageGenerationSettings } = await import('./ImageGenerationSettings');
+      return <ImageGenerationSettings lng={lng} />;
+    },
   },
   'generated-assets': {
     feature: 'generated-assets',
-    render: lng => <GeneratedAssetsSettings lng={lng} />,
+    render: async lng => {
+      const { GeneratedAssetsSettings } = await import('./GeneratedAssetsSettings');
+      return <GeneratedAssetsSettings lng={lng} />;
+    },
   },
 
   // ---- Preferences / Connections & Integrations
-  connectors: { feature: 'connectors', render: lng => <UserConnectorsSection lng={lng} /> },
+  connectors: {
+    feature: 'connectors',
+    render: async lng => {
+      const { default: UserConnectorsSection } = await import('./UserConnectorsSection');
+      return <UserConnectorsSection lng={lng} />;
+    },
+  },
   'telephony-calls': {
     feature: 'telephony-calls',
-    render: lng => <TelephonyCallsSection lng={lng} />,
+    render: async lng => {
+      const { default: TelephonyCallsSection } = await import('./TelephonyCallsSection');
+      return <TelephonyCallsSection lng={lng} />;
+    },
   },
   'telephony-identity': {
     feature: 'telephony-identity',
-    render: lng => <TelephonyIdentitySection lng={lng} />,
+    render: async lng => {
+      const { default: TelephonyIdentitySection } = await import('./TelephonyIdentitySection');
+      return <TelephonyIdentitySection lng={lng} />;
+    },
   },
   'admin-mcp-servers': {
     feature: 'admin-mcp-servers',
-    render: lng => <AdminMCPServersSettings lng={lng} />,
+    render: async lng => {
+      const { AdminMCPServersSettings } = await import('./AdminMCPServersSettings');
+      return <AdminMCPServersSettings lng={lng} />;
+    },
   },
-  'mcp-servers': { feature: 'mcp-servers', render: lng => <MCPServersSettings lng={lng} /> },
+  'mcp-servers': {
+    feature: 'mcp-servers',
+    render: async lng => {
+      const { MCPServersSettings } = await import('./MCPServersSettings');
+      return <MCPServersSettings lng={lng} />;
+    },
+  },
   'sandbox-egress': {
     feature: 'sandbox-egress',
-    render: lng => <SandboxEgressSettings lng={lng} />,
+    render: async lng => {
+      const { SandboxEgressSettings } = await import('./SandboxEgressSettings');
+      return <SandboxEgressSettings lng={lng} />;
+    },
   },
-  'debug-panel': { render: lng => <UserDebugSettings lng={lng} /> },
+  'debug-panel': {
+    render: async lng => {
+      const { UserDebugSettings } = await import('./UserDebugSettings');
+      return <UserDebugSettings lng={lng} />;
+    },
+  },
 
   // ---- Features / Identity & Memory
-  personality: { render: lng => <PersonalitySettings lng={lng} /> },
-  psyche: { feature: 'psyche', render: lng => <PsycheSettings lng={lng} /> },
-  memories: { feature: 'memory-settings', render: lng => <MemorySettings lng={lng} /> },
-  interests: { render: lng => <InterestsSettings lng={lng} /> },
-  'open-loops': { render: lng => <OpenLoopsSection lng={lng} /> },
-  habits: { feature: 'habits', render: lng => <HabitsSettings lng={lng} /> },
+  personality: {
+    render: async lng => {
+      const { PersonalitySettings } = await import('./PersonalitySettings');
+      return <PersonalitySettings lng={lng} />;
+    },
+  },
+  psyche: {
+    feature: 'psyche',
+    render: async lng => {
+      const { PsycheSettings } = await import('./PsycheSettings');
+      return <PsycheSettings lng={lng} />;
+    },
+  },
+  memories: {
+    feature: 'memory-settings',
+    render: async lng => {
+      const { MemorySettings } = await import('./MemorySettings');
+      return <MemorySettings lng={lng} />;
+    },
+  },
+  interests: {
+    render: async lng => {
+      const { InterestsSettings } = await import('./InterestsSettings');
+      return <InterestsSettings lng={lng} />;
+    },
+  },
+  'open-loops': {
+    render: async lng => {
+      const { OpenLoopsSection } = await import('./OpenLoopsSection');
+      return <OpenLoopsSection lng={lng} />;
+    },
+  },
+  habits: {
+    feature: 'habits',
+    render: async lng => {
+      const { HabitsSettings } = await import('./HabitsSettings');
+      return <HabitsSettings lng={lng} />;
+    },
+  },
   'peer-connections': {
     feature: 'peer-connections',
-    render: lng => <PeerConnectionsSettings lng={lng} />,
+    render: async lng => {
+      const { PeerConnectionsSettings } = await import('./PeerConnectionsSettings');
+      return <PeerConnectionsSettings lng={lng} />;
+    },
   },
 
   // ---- Features / Automation & Tracking
-  heartbeat: { feature: 'heartbeat', render: lng => <HeartbeatSettings lng={lng} /> },
-  'proactive-discussions': { render: lng => <ProactiveDiscussionSettings lng={lng} /> },
+  heartbeat: {
+    feature: 'heartbeat',
+    render: async lng => {
+      const { HeartbeatSettings } = await import('./HeartbeatSettings');
+      return <HeartbeatSettings lng={lng} />;
+    },
+  },
+  'proactive-discussions': {
+    render: async lng => {
+      const { ProactiveDiscussionSettings } = await import('./ProactiveDiscussionSettings');
+      return <ProactiveDiscussionSettings lng={lng} />;
+    },
+  },
   'scheduled-actions': {
     feature: 'scheduled-actions',
-    render: lng => <ScheduledActionsSettings lng={lng} />,
+    render: async lng => {
+      const { ScheduledActionsSettings } = await import('./ScheduledActionsSettings');
+      return <ScheduledActionsSettings lng={lng} />;
+    },
   },
-  reminders: { feature: 'reminders', render: lng => <RemindersSettings lng={lng} /> },
-  journals: { feature: 'journals', render: lng => <JournalsSettings lng={lng} /> },
+  reminders: {
+    feature: 'reminders',
+    render: async lng => {
+      const { RemindersSettings } = await import('./RemindersSettings');
+      return <RemindersSettings lng={lng} />;
+    },
+  },
+  journals: {
+    feature: 'journals',
+    render: async lng => {
+      const { JournalsSettings } = await import('./JournalsSettings');
+      return <JournalsSettings lng={lng} />;
+    },
+  },
   'health-metrics': {
     feature: 'health-metrics',
-    render: lng => <HealthMetricsSettings lng={lng} />,
+    render: async lng => {
+      const { HealthMetricsSettings } = await import('./HealthMetricsSettings');
+      return <HealthMetricsSettings lng={lng} />;
+    },
   },
 
   // ---- Features / Extensions & Data
-  skills: { feature: 'skills', render: lng => <SkillsSettings lng={lng} /> },
-  plugins: { feature: 'plugins', render: lng => <PluginsSettings lng={lng} /> },
-  'rag-spaces': { feature: 'rag-spaces', render: lng => <SpacesSettingsSection lng={lng} /> },
-  meetings: { feature: 'meetings', render: lng => <MeetingsSettings lng={lng} /> },
-  sms: { feature: 'sms', render: lng => <SmsSettings lng={lng} /> },
-  workboard: { feature: 'workboard', render: lng => <WorkboardSettings lng={lng} /> },
+  skills: {
+    feature: 'skills',
+    render: async lng => {
+      const { SkillsSettings } = await import('./SkillsSettings');
+      return <SkillsSettings lng={lng} />;
+    },
+  },
+  plugins: {
+    feature: 'plugins',
+    render: async lng => {
+      const { PluginsSettings } = await import('./PluginsSettings');
+      return <PluginsSettings lng={lng} />;
+    },
+  },
+  'rag-spaces': {
+    feature: 'rag-spaces',
+    render: async lng => {
+      const { SpacesSettingsSection } = await import('@/components/spaces/SpacesSettingsSection');
+      return <SpacesSettingsSection lng={lng} />;
+    },
+  },
+  meetings: {
+    feature: 'meetings',
+    render: async lng => {
+      const { MeetingsSettings } = await import('./MeetingsSettings');
+      return <MeetingsSettings lng={lng} />;
+    },
+  },
+  sms: {
+    feature: 'sms',
+    render: async lng => {
+      const { SmsSettings } = await import('./SmsSettings');
+      return <SmsSettings lng={lng} />;
+    },
+  },
+  workboard: {
+    feature: 'workboard',
+    render: async lng => {
+      const { WorkboardSettings } = await import('@/components/settings/WorkboardSettings');
+      return <WorkboardSettings lng={lng} />;
+    },
+  },
   'user-consumption-export': {
     feature: 'user-consumption-export',
-    render: lng => <ConsumptionExportSection lng={lng} mode="user" />,
+    render: async lng => {
+      const { default: ConsumptionExportSection } = await import('./ConsumptionExportSection');
+      return <ConsumptionExportSection lng={lng} mode="user" />;
+    },
   },
 
   // ---- Administration / Users & Access
-  'admin-users': { render: lng => <AdminUsersSection lng={lng} /> },
+  'admin-users': {
+    render: async lng => {
+      const { default: AdminUsersSection } = await import('./AdminUsersSection');
+      return <AdminUsersSection lng={lng} />;
+    },
+  },
   'admin-usage-limits': {
     feature: 'usage-limits',
-    render: lng => <AdminUsageLimitsSection lng={lng} />,
+    render: async lng => {
+      const { AdminUsageLimitsSection } = await import('./AdminUsageLimitsSection');
+      return <AdminUsageLimitsSection lng={lng} />;
+    },
   },
-  'admin-consumption-export': { render: lng => <AdminConsumptionExportSection lng={lng} /> },
-  'admin-broadcast': { render: lng => <AdminBroadcastSection lng={lng} /> },
+  'admin-consumption-export': {
+    render: async lng => {
+      const { default: AdminConsumptionExportSection } =
+        await import('./AdminConsumptionExportSection');
+      return <AdminConsumptionExportSection lng={lng} />;
+    },
+  },
+  'admin-broadcast': {
+    render: async lng => {
+      const { default: AdminBroadcastSection } = await import('./AdminBroadcastSection');
+      return <AdminBroadcastSection lng={lng} />;
+    },
+  },
 
   // ---- Administration / AI & Connectors
-  'admin-connectors': { render: lng => <AdminConnectorsSection lng={lng} /> },
-  'admin-llm-pricing': { render: lng => <AdminLLMPricingSection lng={lng} /> },
-  'admin-google-api-pricing': { render: lng => <AdminGoogleApiPricingSection lng={lng} /> },
-  'admin-image-pricing': { render: lng => <AdminImagePricingSection lng={lng} /> },
-  'admin-llm-config': { feature: 'llm-config', render: lng => <AdminLLMConfigSection lng={lng} /> },
+  'admin-connectors': {
+    render: async lng => {
+      const { default: AdminConnectorsSection } = await import('./AdminConnectorsSection');
+      return <AdminConnectorsSection lng={lng} />;
+    },
+  },
+  'admin-llm-pricing': {
+    render: async lng => {
+      const { default: AdminLLMPricingSection } = await import('./AdminLLMPricingSection');
+      return <AdminLLMPricingSection lng={lng} />;
+    },
+  },
+  'admin-google-api-pricing': {
+    render: async lng => {
+      const { default: AdminGoogleApiPricingSection } =
+        await import('./AdminGoogleApiPricingSection');
+      return <AdminGoogleApiPricingSection lng={lng} />;
+    },
+  },
+  'admin-image-pricing': {
+    render: async lng => {
+      const { default: AdminImagePricingSection } = await import('./AdminImagePricingSection');
+      return <AdminImagePricingSection lng={lng} />;
+    },
+  },
+  'admin-llm-config': {
+    feature: 'llm-config',
+    render: async lng => {
+      const { default: AdminLLMConfigSection } = await import('./AdminLLMConfigSection');
+      return <AdminLLMConfigSection lng={lng} />;
+    },
+  },
   'admin-voice-library': {
     feature: 'voice-library',
-    render: lng => <AdminVoiceLibrarySection lng={lng} />,
+    render: async lng => {
+      const { default: AdminVoiceLibrarySection } = await import('./AdminVoiceLibrarySection');
+      return <AdminVoiceLibrarySection lng={lng} />;
+    },
   },
-  'admin-jev': { feature: 'llm-config', render: lng => <AdminJevSection lng={lng} /> },
+  'admin-jev': {
+    feature: 'llm-config',
+    render: async lng => {
+      const { default: AdminJevSection } = await import('./AdminJevSection');
+      return <AdminJevSection lng={lng} />;
+    },
+  },
 
   // ---- Administration / Content & Extensions
-  'admin-personalities': { render: lng => <AdminPersonalitiesSection lng={lng} /> },
-  'admin-skills': { feature: 'admin-skills', render: lng => <AdminSkillsSection lng={lng} /> },
+  'admin-personalities': {
+    render: async lng => {
+      const { default: AdminPersonalitiesSection } = await import('./AdminPersonalitiesSection');
+      return <AdminPersonalitiesSection lng={lng} />;
+    },
+  },
+  'admin-skills': {
+    feature: 'admin-skills',
+    render: async lng => {
+      const { AdminSkillsSection } = await import('./AdminSkillsSection');
+      return <AdminSkillsSection lng={lng} />;
+    },
+  },
   'rag-spaces-admin': {
     feature: 'rag-spaces-admin',
-    render: lng => <AdminRAGSpacesSection lng={lng} />,
+    render: async lng => {
+      const { default: AdminRAGSpacesSection } = await import('./AdminRAGSpacesSection');
+      return <AdminRAGSpacesSection lng={lng} />;
+    },
   },
 
   // ---- Administration / System
-  'admin-capabilities': { render: lng => <AdminCapabilitiesSection lng={lng} /> },
-  'admin-registers': { render: lng => <AdminRegistersSection lng={lng} /> },
-  'admin-diagnostics': { render: lng => <AdminDiagnosticsSection lng={lng} /> },
-  'admin-public-demo-link': { render: lng => <AdminPublicDemoLinkSection lng={lng} /> },
-  'debug-settings': { render: lng => <AdminDebugSettingsSection lng={lng} /> },
+  'admin-capabilities': {
+    render: async lng => {
+      const { default: AdminCapabilitiesSection } = await import('./AdminCapabilitiesSection');
+      return <AdminCapabilitiesSection lng={lng} />;
+    },
+  },
+  'admin-registers': {
+    render: async lng => {
+      const { default: AdminRegistersSection } = await import('./AdminRegistersSection');
+      return <AdminRegistersSection lng={lng} />;
+    },
+  },
+  'admin-diagnostics': {
+    render: async lng => {
+      const { default: AdminDiagnosticsSection } = await import('./AdminDiagnosticsSection');
+      return <AdminDiagnosticsSection lng={lng} />;
+    },
+  },
+  'admin-public-demo-link': {
+    render: async lng => {
+      const { default: AdminPublicDemoLinkSection } = await import('./AdminPublicDemoLinkSection');
+      return <AdminPublicDemoLinkSection lng={lng} />;
+    },
+  },
+  'debug-settings': {
+    render: async lng => {
+      const { default: AdminDebugSettingsSection } = await import('./AdminDebugSettingsSection');
+      return <AdminDebugSettingsSection lng={lng} />;
+    },
+  },
 };

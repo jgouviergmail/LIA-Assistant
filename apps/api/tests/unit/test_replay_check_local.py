@@ -115,6 +115,29 @@ def test_happy_path_probes_docker_first_creates_replays_then_drops() -> None:
     assert all(isinstance(c, list) for c in runner.calls)
 
 
+def test_replay_copies_the_graph_aware_cycle_helper_before_executing_the_script() -> None:
+    runner = RecordingRunner()
+    launcher.run_replay_check(runner)
+    copies = [call for call in runner.calls if call[:2] == ["docker", "cp"]]
+    assert {call[-1].rsplit("/", 1)[-1] for call in copies} == {
+        "check_migrations_replay.sh",
+        "cycle_migration_head.py",
+    }
+    execution = next(
+        index
+        for index, call in enumerate(runner.calls)
+        if "bash /tmp/check_migrations_replay.sh" in " ".join(call)
+    )
+    assert all(runner.calls.index(call) < execution for call in copies)
+
+
+def test_drop_runs_when_the_cycle_helper_cannot_be_copied() -> None:
+    runner = RecordingRunner(fail_on="cycle_migration_head.py")
+    with pytest.raises(launcher.ReplayCheckError):
+        launcher.run_replay_check(runner)
+    assert "DROP DATABASE IF EXISTS lia_alembic_replay_check_" in runner.flat()
+
+
 def test_database_name_is_unique_per_run() -> None:
     names = set()
     for _ in range(5):
@@ -168,7 +191,9 @@ def test_no_mutation_when_docker_unavailable() -> None:
     assert "DROP DATABASE" not in runner.flat()
 
 
-def test_drop_failure_is_non_fatal_and_warns(capsys: pytest.CaptureFixture[str]) -> None:
+def test_drop_failure_is_non_fatal_and_warns(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     # DROP itself fails, but the (successful) replay result must not be masked.
     runner = RecordingRunner(fail_on="DROP DATABASE")
     launcher.run_replay_check(runner)  # must NOT raise

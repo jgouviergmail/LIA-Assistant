@@ -20,6 +20,20 @@ import {
   UserRound,
 } from 'lucide-react';
 import { FEATURE_SCENES, type FeatureScene } from './FeatureScenes';
+import worldProof from '../../../../public/screenshots/proof/world-manifest.json';
+
+function World() {
+  return (
+    <image
+      href={`/screenshots/proof/${worldProof.images[0].file}?v=${worldProof.revision}`}
+      x="0"
+      y="0"
+      width="320"
+      height="160"
+      preserveAspectRatio="xMidYMid meet"
+    />
+  );
+}
 
 function Lines({
   x,
@@ -616,6 +630,7 @@ const SCENES: Record<FeatureScene, () => ReactNode> = {
   image: ImageArt,
   diagram: Diagram,
   home: Home,
+  world: World,
   memory: Memory,
   radio: RadioArt,
   briefing: Briefing,

@@ -76,6 +76,14 @@ LLM_CATEGORIES_ORDER = [
 
 
 LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
+    "world_message_translator": LLMTypeMetadata(
+        llm_type="world_message_translator",
+        display_name="World Message Translator",
+        category=CATEGORY_SPECIALIZED,
+        description_key="settings.admin.llmConfig.types.world_message_translator",
+        required_capabilities=[],
+        power_tier=POWER_TIER_LOW,
+    ),
     # --- Pipeline (execution order) ---
     "semantic_pivot": LLMTypeMetadata(
         llm_type="semantic_pivot",
@@ -681,6 +689,16 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
 
 
 LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
+    "world_message_translator": LLMAgentConfig(
+        provider="openai",
+        model="gpt-4.1-mini",
+        temperature=0.0,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=2048,
+        timeout_seconds=8.0,
+    ),
     # --- Pipeline ---
     "compaction": LLMAgentConfig(
         provider="qwen",

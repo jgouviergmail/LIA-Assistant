@@ -252,3 +252,16 @@ describe('useThemeMode — persistence under rapid changes', () => {
     expect(mutate).toHaveBeenCalledWith('/users/u1', { theme: 'light' });
   });
 });
+
+it('keeps the header and embedded world controls on the same OLED state', async () => {
+  const { result } = renderHook(() => ({
+    header: useThemeMode(),
+    world: useThemeMode(),
+  }));
+  await act(async () => result.current.world.apply({ mode: 'dark', oled: true }));
+  expect(result.current.world.oled).toBe(true);
+  expect(result.current.header.oled).toBe(true);
+  await act(async () => result.current.header.apply({ mode: 'light', oled: false }));
+  expect(result.current.world.oled).toBe(false);
+  expect(result.current.header.oled).toBe(false);
+});

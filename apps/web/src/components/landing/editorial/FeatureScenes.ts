@@ -9,6 +9,7 @@ export type FeatureScene =
   | 'image'
   | 'diagram'
   | 'home'
+  | 'world'
   | 'memory'
   | 'radio'
   | 'briefing'
@@ -43,6 +44,15 @@ export const FEATURE_SCENES: Readonly<Record<string, FeatureScene>> = {
   image_generation: 'image',
   excalidraw: 'diagram',
   smart_home: 'home',
+  world: 'world',
+  world_companion: 'world',
+  world_functions: 'world',
+  world_atmosphere: 'world',
+  world_controls: 'world',
+  world_access: 'world',
+  world_home: 'world',
+  world_messages: 'world',
+  world_audio: 'world',
   memory: 'memory',
   journals: 'memory',
   personal_crm: 'memory',
@@ -75,6 +85,10 @@ export const FEATURE_SCENES: Readonly<Record<string, FeatureScene>> = {
   peer_safety: 'control',
   peers: 'people',
   peer_shares: 'people',
+  peer_capabilities: 'tools',
+  peer_provenance: 'control',
+  peer_images: 'image',
+  peer_presence: 'people',
   skills: 'tools',
   plugins: 'tools',
   mcp: 'tools',

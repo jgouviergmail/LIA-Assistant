@@ -360,6 +360,7 @@ class TestTheUsageCacheIsForgottenAfterTheCommit:
             patch.object(service, "_disconnect_mcp_pool", noop),
             patch.object(service, "_invalidate_redis_sessions", noop),
             patch.object(service, "_cleanup_redis_caches", noop),
+            patch.object(service, "_cleanup_world_presence", noop),
             patch.object(service, "_cleanup_attachment_files", MagicMock(return_value=0)),
             patch.object(service, "_cleanup_rag_files", MagicMock(return_value=0)),
             patch.object(service, "_cleanup_user_tree", MagicMock(return_value=0)),

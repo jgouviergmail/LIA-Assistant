@@ -29,6 +29,16 @@
 
 import type { HitlCardStatus } from '@/types/hitl';
 
+interface ChatListActivity {
+  isTyping: boolean;
+  activeStreamId: string | null;
+  hasMoreOlder: boolean;
+}
+/** Search results cannot carry the live answer's caret or history sentinel. */
+export function chatListActivity(searchQuery: string, live: ChatListActivity): ChatListActivity {
+  return searchQuery ? { isTyping: false, activeStreamId: null, hasMoreOlder: false } : live;
+}
+
 /**
  * Does the approval card currently owe the user an action?
  *

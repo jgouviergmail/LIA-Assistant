@@ -1,0 +1,126 @@
+{
+  "logicalJourneys": 15,
+  "allLatestResultsPassed": true,
+  "runs": [
+    {
+      "profile": "development native matrix",
+      "stats": {
+        "startTime": "2026-10-23T18:37:59.042Z",
+        "duration": 669560.359,
+        "expected": 14,
+        "skipped": 0,
+        "unexpected": 1,
+        "flaky": 0
+      }
+    },
+    {
+      "profile": "optimized native polish",
+      "stats": {
+        "startTime": "2026-10-23T18:54:59.749Z",
+        "duration": 85043.243,
+        "expected": 3,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    }
+  ],
+  "qualificationNote": "The first run correctly fell back to neutral when authored cached weather expired. The guarded fixture now refreshes at proof login; all three complete polish journeys passed on the optimized authenticated route. No production freshness threshold changed.",
+  "journeys": [
+    {
+      "browser": "chromium",
+      "journey": "native functions: private memory read/pin, denied peer mutation and embedded LIA without implicit send",
+      "status": "passed",
+      "durationMs": 15894
+    },
+    {
+      "browser": "firefox",
+      "journey": "native functions: private memory read/pin, denied peer mutation and embedded LIA without implicit send",
+      "status": "passed",
+      "durationMs": 19072
+    },
+    {
+      "browser": "webkit",
+      "journey": "native functions: private memory read/pin, denied peer mutation and embedded LIA without implicit send",
+      "status": "passed",
+      "durationMs": 14507
+    },
+    {
+      "browser": "chromium",
+      "journey": "private home: real save, cancel, conflict/reload, phone accessibility and owner isolation",
+      "status": "passed",
+      "durationMs": 16457
+    },
+    {
+      "browser": "firefox",
+      "journey": "private home: real save, cancel, conflict/reload, phone accessibility and owner isolation",
+      "status": "passed",
+      "durationMs": 54046
+    },
+    {
+      "browser": "webkit",
+      "journey": "private home: real save, cancel, conflict/reload, phone accessibility and owner isolation",
+      "status": "passed",
+      "durationMs": 19171
+    },
+    {
+      "browser": "chromium",
+      "journey": "direct text stays private, translates before display, handles failure without resend and remains usable on phone",
+      "status": "passed",
+      "durationMs": 34519
+    },
+    {
+      "browser": "firefox",
+      "journey": "direct text stays private, translates before display, handles failure without resend and remains usable on phone",
+      "status": "passed",
+      "durationMs": 49384
+    },
+    {
+      "browser": "webkit",
+      "journey": "direct text stays private, translates before display, handles failure without resend and remains usable on phone",
+      "status": "passed",
+      "durationMs": 50532
+    },
+    {
+      "browser": "chromium",
+      "journey": "polished world: personal cached atmosphere, E interaction, native draft, private paged peers and reachable mobile HUD",
+      "status": "passed",
+      "durationMs": 18445
+    },
+    {
+      "browser": "firefox",
+      "journey": "polished world: personal cached atmosphere, E interaction, native draft, private paged peers and reachable mobile HUD",
+      "status": "passed",
+      "durationMs": 23416
+    },
+    {
+      "browser": "webkit",
+      "journey": "polished world: personal cached atmosphere, E interaction, native draft, private paged peers and reachable mobile HUD",
+      "status": "passed",
+      "durationMs": 39880
+    },
+    {
+      "browser": "chromium",
+      "journey": "five real accounts share positions; a sixth waits; duplicate control is explicit and FIFO entry stays private",
+      "status": "passed",
+      "durationMs": 85452
+    },
+    {
+      "browser": "firefox",
+      "journey": "five real accounts share positions; a sixth waits; duplicate control is explicit and FIFO entry stays private",
+      "status": "passed",
+      "durationMs": 98981
+    },
+    {
+      "browser": "webkit",
+      "journey": "five real accounts share positions; a sixth waits; duplicate control is explicit and FIFO entry stays private",
+      "status": "passed",
+      "durationMs": 121201
+    }
+  ],
+  "limits": [
+    "No physical Pi or phone qualification.",
+    "Authored translation is inert and unbilled; native accounting is separately verified with SQL callbacks.",
+    "The official headless Firefox profile has no WebGL/WebGL2; World uses Canvas 2D and passes. Existing Smiley GPU-card checks are qualified separately on Chromium."
+  ]
+}

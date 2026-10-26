@@ -12,6 +12,7 @@ from time import monotonic
 from uuid import uuid4
 
 import structlog
+from anyio import move_on_after
 from fastapi import APIRouter, Cookie, Depends, Query, status
 from fastapi.responses import StreamingResponse
 from redis.asyncio import Redis
@@ -370,6 +371,7 @@ async def stream_notifications(
                 "sse_client_disconnected",
                 user_id=str(current_user.id),
             )
+            raise
         except Exception as e:
             logger.error(
                 "sse_stream_error",
@@ -379,15 +381,9 @@ async def stream_notifications(
             logger.debug("sse_stream_error_detail", error=str(e))
             yield f"event: error\ndata: {json.dumps({'error': 'An unexpected error occurred'})}\n\n"
         finally:
-            # Best-effort cleanup. The shared per-user marker (OAuth-health
-            # dedup) is deleted only when this was the user's LAST stream —
-            # a closing tab must not blind the health check while another
-            # tab still streams; on any doubt the marker expires by TTL.
-            with suppress(Exception):
-                remaining = await stream_registry.unregister_stream(redis, user_key, stream_id)
-                if remaining == 0:
-                    await redis.delete(sse_key)
-            await _close_pubsub(pubsub, channel)
+            await _cleanup_stream(
+                redis, pubsub, channel, user_key=user_key, stream_id=stream_id, sse_key=sse_key
+            )
 
     return StreamingResponse(
         event_generator(),
@@ -444,6 +440,30 @@ async def _notification_events(
             )
             logger.debug("sse_get_message_error_detail", error=str(error))
             await asyncio.sleep(1.0)
+
+
+async def _cleanup_stream(
+    redis: Redis,
+    pubsub: PubSub,
+    channel: str,
+    *,
+    user_key: str,
+    stream_id: str,
+    sse_key: str,
+) -> None:
+    """Release the pinned connection despite ASGI level cancellation, under a deadline."""
+    from src.domains.notifications import stream_registry
+
+    with move_on_after(settings.redis_socket_timeout, shield=True) as cleanup:
+        # Free the pooled connection BEFORE registry writes need a spare one.
+        await _close_pubsub(pubsub, channel)
+        # A closing tab must not remove another tab's OAuth-health marker.
+        with suppress(Exception):
+            remaining = await stream_registry.unregister_stream(redis, user_key, stream_id)
+            if remaining == 0:
+                await redis.delete(sse_key)
+    if cleanup.cancel_called:
+        logger.warning("sse_cleanup_timeout")
 
 
 async def _close_pubsub(pubsub: PubSub, channel: str) -> None:

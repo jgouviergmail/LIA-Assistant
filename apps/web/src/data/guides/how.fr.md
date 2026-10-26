@@ -6,7 +6,7 @@
 
 **Version** : 5.6
 **Date** : 2026-10-23
-**Application** : LIA v3.7.0
+**Application** : LIA v4.0.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -58,7 +58,8 @@
 43. [Le mode Live : deux intelligences, une couture — et une politique par mode](#43-le-mode-live--deux-intelligences-une-couture--et-une-politique-par-mode)
 44. [Des cartes qui montrent ce qui a été reçu, et des actions qui appartiennent à leur message](#44-des-cartes-qui-montrent-ce-qui-a-été-reçu-et-des-actions-qui-appartiennent-à-leur-message)
 45. [Commandes applicatives : une intention, une autorité actuelle](#45-commandes-applicatives--une-intention-une-autorité-actuelle)
-46. [Conclusion](#46-conclusion)
+46. [Le monde de LIA](#46-le-monde-de-lia)
+47. [Conclusion](#47-conclusion)
 ---
 
 ## 1. Contexte et choix fondateurs
@@ -73,7 +74,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), identifiants chiffrés avec Fernet, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 635 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 362 ADRs, plus de 67 000 tests automatisés côté backend et frontend, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 363 ADRs, plus de 68 000 tests automatisés côté backend et frontend, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -91,10 +92,10 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | Plus de 67 000 tests automatisés avec pytest et Vitest (seuils de couverture verrouillés, ADR-116) |
+| Tests | Plus de 68 000 tests automatisés avec pytest et Vitest (seuils de couverture verrouillés, ADR-116) |
 | Fixtures pytest | 1 391, dont 58 partagées via conftest |
 | Documents de documentation | 835 |
-| ADRs (Architecture Decision Records) | 362 |
+| ADRs (Architecture Decision Records) | 363 |
 | Métriques Prometheus | 635 définitions |
 | Dashboards Grafana | 32 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -775,9 +776,9 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 Le `get_llm()` résout la configuration effective via `get_llm_config_for_agent(settings, agent_type)` (code defaults → DB admin overrides), instancie le modèle, et applique les adaptateurs spécifiques.
 
-### 12.2. 93 types de configuration LLM
+### 12.2. Une configuration par rôle
 
-Le registre effectif expose **93 configurations** : **66 conversationnelles**, **23 décisions natives** et **4 pour la génération d’images, la transcription ou la synthèse vocale**. Les décisions natives comprennent le choix du gabarit de réunion et 22 autres usages JEV. Chaque emplacement est configurable indépendamment dans l’interface d’administration, sans redéploiement :
+Le registre effectif distingue les rôles conversationnels, les décisions natives, la génération d’images, la transcription et la synthèse vocale. La traduction des messages du monde possède son propre rôle conversationnel. Les décisions natives comprennent le choix du gabarit de réunion et les usages spécialisés de JEV. Chaque emplacement se règle indépendamment dans l’interface d’administration, sans redéploiement :
 
 | Catégorie | Types configurables |
 |-----------|-------------------|
@@ -1612,7 +1613,7 @@ Deux règles d'interface sont devenues des contrats de composants plutôt que de
 
 ## 24. Architecture des décisions (ADR)
 
-362 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+363 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -2026,16 +2027,32 @@ Les compagnons natifs utilisent des artworks préparés hors ligne et un rig par
 
 Les décisions JEV se règlent dans Administration › Intégrations JEV, avec un interrupteur général et des usages indépendants. Elles sont optionnelles et désactivées par défaut ; elles nécessitent une configuration et des tarifs valides. Le modèle aide à classer une valeur ou à choisir dans un périmètre déclaré, mais les règles de compatibilité, les droits et l’exécution restent en code. Un jugement incertain, indisponible ou désactivé retrouve les protections déterministes. Les diagnostics sont opt-in et bornés ; l’usage parameter_kind est désactivé par défaut. Un appel payant échoué et son repli sont tous deux comptabilisés. Les résultats d’un corpus de test ne promettent pas le même gain sur toutes tes demandes.
 
-Les études oMLX, llama.cpp et LM Studio ainsi que le monde isométrique sont des travaux de qualification ou de conception ; elles ne constituent pas de nouvelles intégrations livrées. Utilise les fournisseurs réellement proposés par ton instance. L’avatar vidéo Simli reste expérimental, opt-in et dépendant d’un service externe ; il est distinct des compagnons natifs.
+Les études oMLX, llama.cpp et LM Studio sont des travaux de qualification ou de conception ; elles ne constituent pas de nouvelles intégrations livrées. Utilise les fournisseurs réellement proposés par ton instance. L’avatar vidéo Simli reste expérimental, opt-in et dépendant d’un service externe ; il est distinct des compagnons natifs.
 
 ---
 
-## 46. Conclusion
+## 46. Le monde de LIA
+
+Le monde propose une autre interface avec l’assistante existante : une maison et un jardin isométriques dessinés dans le navigateur avec **Canvas 2D**, des commandes React et des panneaux natifs privés. Dessin mis en cache, exclusion des objets hors champ, niveaux de qualité et mouvement réduit bornent le travail du client. Marcher, laisser LIA se promener et afficher l’atmosphère décorative n’appellent aucun modèle ; l’ambiance réutilise la météo fraîche déjà en cache sans requête fournisseur supplémentaire.
+
+**La présence partagée a une autorité serveur.** Une session native authentifiée obtient un ticket court à usage unique ; l’authentification WebSocket passe dans la première trame, jamais dans l’URL. Redis coordonne admission, collisions, baux de connexion et contrôle d’un onglet. Politique du compte, capacités et blocages filtrent chaque vue. Si l’autorité devient indisponible, les déplacements se suspendent plutôt que d’inventer un monde local indépendant.
+
+**L’apparence publique est un choix ; le travail privé reste privé.** L’admission exige un consentement à publier le nom choisi et l’avatar dans le monde ; les connexions acceptées reçoivent aussi une présence générale et le statut dans la maison. Les déplacements partagés ne transportent ni le contenu des maisons, ni les documents, ni le contexte des assistantes. Les préférences de couleur et changements d’avatar conservent contrôles de propriétaire et de révision, export et suppression avec le compte. Les pièces tirent leurs fonctions des inventaires natifs et ouvrent l’espace de travail ou les panneaux existants ; elles n’accordent aucun droit supplémentaire, n’envoient aucun brouillon et ne contournent pas le HITL.
+
+**Le texte humain a son propre cycle de vie.** Des corps privés temporaires dans Redis et des clôtures de tentative SQL sans contenu séparent les messages directs de l’historique et de l’apprentissage des assistantes. Le rôle dédié `world_message_translator` suit la résolution native des modèles, les contrôles de dépense et les reçus de consommation privés. Seul un choix explicite déclenche une traduction payante ; l’original reste conservé et une tentative échouée ou incertaine n’est jamais relancée automatiquement. Le serveur valide des messages stricts versionnés et des tailles bornées. Les parcours navigateur et contrôles d’accessibilité automatisés soutiennent l’objectif WCAG AA ; ils ne certifient ni les performances sur appareil physique ni la fidélité linguistique d’un fournisseur. La voix entre personnes et la fédération restent hors de cette implémentation.
+
+Le **canal Tout le monde** fige les destinataires vivants éligibles à l’acceptation du message, hors comptes bloqués et maisons privées. Une arrivée ultérieure ne reçoit pas les anciennes diffusions. La traduction regroupe les langues nécessaires dans le même rôle dédié, avec coût pour l’émetteur et aucune relance payante automatique. Fils publics et privés gardent des brouillons, consentements et positions de lecture séparés.
+
+Le **son local facultatif** utilise des fichiers originaux statiques pour les pièces et le jardin, avec un volume indépendant propre au compte. La lecture démarre sur choix, n’appelle aucun fournisseur et cède la place au micro, à la voix de l’assistante, au Live et à la Radio. Quitter, passer en arrière-plan ou perdre l’autorité suspend le cycle sonore.
+
+---
+
+## 47. Conclusion
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 362 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Plus de 67 000 tests automatisés, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 363 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Plus de 68 000 tests automatisés, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (800+ documents), des 362 ADRs, et du changelog (v1.0 à v3.7.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (800+ documents), des 363 ADRs, et du changelog (v1.0 à v4.0.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

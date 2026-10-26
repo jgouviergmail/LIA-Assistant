@@ -320,8 +320,8 @@
     },
     "45": {
       "title": "Dependencias inyectadas como es debido",
-      "summary": "Repositorios, servicios y routers se encadenan mediante la inyección de dependencias de FastAPI, con sesiones de base de datos abiertas y cerradas en el momento justo, y fáciles de simular en los tests.",
-      "src": "a9edf6548888"
+      "summary": "Repositorios, servicios y routers se encadenan mediante la inyección de dependencias de FastAPI, con sesiones de base de datos abiertas y cerradas en el momento justo, y fáciles de simular en los tests. Un fallo de ruta llega a la sesión para revertir su transacción; el cierre termina antes de propagar una cancelación.",
+      "src": "2918bf9a2be6"
     },
     "46": {
       "title": "Tareas programadas en segundo plano",
@@ -1912,6 +1912,11 @@
       "title": "Una verificación anti-robot en las puertas de la contraseña",
       "summary": "El registro, el inicio de sesión con contraseña y las solicitudes de restablecimiento exigen ahora el token de una verificación Cloudflare Turnstile, que el servidor hace validar: un script que llama a la API sin navegador es rechazado. La mayoría de los visitantes no ve nada y, si Cloudflare no responde, solo pasa el inicio de sesión: una cuenta nueva o un correo de restablecimiento esperan.",
       "src": "5f218ef296be"
+    },
+    "365": {
+      "title": "LIA privado en un mundo isométrico compartido",
+      "summary": "El navegador dibuja el mundo mientras Redis arbitra el acceso y los movimientos; las acciones conservan sus interfaces y aprobaciones nativas. El nombre de cuenta y la apariencia se comparten con consentimiento, las actividades y el hogar siguen siendo privados, y los contactos solo ven un estado de conexión general. Los mensajes quedan entre sus destinatarios y las traducciones consentidas se limitan y contabilizan.",
+      "src": "53942019983c"
     }
   }
 }

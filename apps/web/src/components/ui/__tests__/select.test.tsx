@@ -43,4 +43,5 @@ describe('Select (closed trigger)', () => {
     renderWithProviders(build({ disabled: true }));
     expect(screen.getByRole('combobox', { name: 'Fruit' })).toBeDisabled();
   });
+
 });

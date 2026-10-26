@@ -153,6 +153,26 @@ They are NOT listed here. See section 12.
 | `BACKGROUND_RUNS_CANCEL_POLL_SECONDS` | `background_runs_cancel_poll_seconds` | 1 s | 1–10 | `agents/api/background_runner.py` | Producer-side poll of the cancel signal — bounds the stop-button latency |
 | `BACKGROUND_RUNS_CANCEL_TTL_SECONDS` | `background_runs_cancel_ttl_seconds` | 600 s | 30–3600 | `infrastructure/streaming/run_stream_broker.py` | Self-cleaning TTL of the cancel-signal key (producer already gone → nothing to cancel) |
 
+### World authority and transport
+
+Defaults and accepted bounds are defined by
+[WorldSettings](../../apps/api/src/core/config/world.py), using the matching
+`WORLD_*_DEFAULT` constants in `core/constants.py`. The deadlines below are
+independent from the existing voice sockets and the translator's model timeout.
+
+| Environment variable | Field | Protects |
+| --- | --- | --- |
+| `WORLD_AUTH_TIMEOUT` | `world_auth_timeout` | First-frame WebSocket authentication and fresh session/capability validation |
+| `WORLD_SEND_TIMEOUT` | `world_send_timeout` | One outgoing snapshot write; a slow browser cannot retain a worker indefinitely |
+| `WORLD_AUTHORITY_TIMEOUT` | `world_authority_timeout` | One Redis operation or CAS transition; failure suspends authority instead of using local state |
+| `WORLD_POLICY_TIMEOUT` | `world_policy_timeout` | Fresh native SQL/account policy, private projections and owned preference operations |
+
+`WORLD_TICKET_SECONDS`, `WORLD_LEASE_SECONDS`, `WORLD_QUEUE_SECONDS`,
+`WORLD_OFFER_SECONDS`, `WORLD_IDLE_SECONDS` and `WORLD_STATE_SECONDS` instead
+bound tickets, admission, inactivity and Redis retention. They are not socket
+read timeouts. Their current values and limits live in the same settings module;
+the [World guide](WORLD_PROTOTYPE.md) explains reconnect and expiry behavior.
+
 ## 9. Scheduler / background jobs
 
 | Env var | Field | Default | Range | Used in | Notes |

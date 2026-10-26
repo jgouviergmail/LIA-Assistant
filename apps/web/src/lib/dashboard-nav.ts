@@ -19,13 +19,14 @@
 
 /** Instance feature flags a destination may depend on (`useAppConfig().features`). */
 export interface DestinationFeatures {
+  world_enabled?: boolean;
   meetings_enabled?: boolean;
 }
 
 /** A destination of the dashboard shell. */
 export interface DashboardDestination {
   /** Path suffix appended to the localized `/dashboard` root ('' = the root). */
-  segment: '' | 'chat' | 'relations' | 'meetings' | 'notifications' | 'settings' | 'faq';
+  segment: '' | 'chat' | 'world' | 'relations' | 'meetings' | 'notifications' | 'settings' | 'faq';
   /** i18n key of the visible label. */
   labelKey: string;
   /**
@@ -66,6 +67,7 @@ export interface DashboardDestination {
 export const DASHBOARD_DESTINATIONS: readonly DashboardDestination[] = [
   { segment: '', labelKey: 'navigation.dashboard' },
   { segment: 'chat', labelKey: 'navigation.chat' },
+  { segment: 'world', labelKey: 'navigation.world', feature: 'world_enabled' },
   { segment: 'relations', labelKey: 'navigation.relations' },
   {
     segment: 'meetings',

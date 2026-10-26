@@ -49,6 +49,19 @@ beforeEach(() => {
 });
 
 describe('useDeepLinkParams', () => {
+  it('leaves a host URL and draft untouched when chat is embedded outside its route', () => {
+    at('intent=Unwanted+execution&draft=Private+host+text&voice=1&iid=host-only');
+    const saveDraft = vi.fn();
+    const { result } = renderHook(() => useDeepLinkParams(saveDraft, false));
+    expect(result.current.pendingIntent).toBe('');
+    expect(result.current.pendingDirective).toBeUndefined();
+    expect(result.current.replayedIntent).toBe('');
+    expect(result.current.spotlightVoice).toBe(false);
+    result.current.clearIntent();
+    expect(saveDraft).not.toHaveBeenCalled();
+    expect(url()).toContain('intent=Unwanted+execution');
+    expect(isIntentConsumed('host-only')).toBe(false);
+  });
   it('reads the intent of the CURRENT url, not the one it mounted with', () => {
     at('intent=Point%20360%C2%B0%20sur%20A');
     const { result, rerender } = renderHook(() => useDeepLinkParams(vi.fn()));

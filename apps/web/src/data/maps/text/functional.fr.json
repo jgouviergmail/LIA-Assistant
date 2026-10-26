@@ -327,6 +327,11 @@
       "name": "Mes SMS",
       "role": "Archive les textes envoyés par le téléphone, résout l’expéditeur et les présente dans la discussion, les relations et l’accueil avec un accès Assistant explicite.",
       "goal": "Garder une archive personnelle consultable, sans confondre réception, push et accès du modèle."
+    },
+    "f.world": {
+      "name": "Le monde LIA",
+      "role": "Un campus isométrique partagé avec déplacements, carte, LIA et échanges écrits publics ou directs. Ton nom de compte et ton apparence sont visibles avec ton accord ; les fonctions et la maison restent privées, et les traductions consenties suivent les quotas habituels.",
+      "goal": "Retrouver les autres et utiliser son propre LIA dans un espace agréable, sans partager ses données personnelles."
     }
   },
   "flows": {

@@ -54,7 +54,7 @@ export interface UseLiveSessionReturn {
   wake: () => Promise<void>;
 }
 
-export function useLiveSession(bindings: LiveChatBindings): UseLiveSessionReturn {
+export function useLiveSession(bindings: LiveChatBindings, ownerId?: string): UseLiveSessionReturn {
   const { i18n } = useTranslation();
   // One controller per mount (a lazy initial state, never re-created); the
   // chat's doors are pointed at the page's CURRENT bindings by an effect.
@@ -98,14 +98,14 @@ export function useLiveSession(bindings: LiveChatBindings): UseLiveSessionReturn
   // here, by the only session that holds the chat's doors — in the mode asked.
   useEffect(() => {
     const consume = () => {
-      const mode = useLiveStore.getState().consumeStart();
+      const mode = useLiveStore.getState().consumeStart(ownerId);
       if (mode !== null) void controller.start(mode);
     };
     consume();
     return useLiveStore.subscribe(state => {
       if (state.pendingStart !== null) consume();
     });
-  }, [controller]);
+  }, [controller, ownerId]);
 
   const start = useCallback((mode?: LiveSessionMode) => controller.start(mode), [controller]);
   const end = useCallback((outcome?: LiveOutcome) => controller.end(outcome), [controller]);

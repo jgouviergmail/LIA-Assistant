@@ -1,7 +1,7 @@
 {
-  "version": "3.7.0",
-  "releaseDate": "2026-10-25",
-  "releases": 289,
+  "version": "4.0.0",
+  "releaseDate": "2026-10-26",
+  "releases": 290,
   "milestones": [
     {
       "version": "1.0.0",
@@ -254,9 +254,13 @@
     {
       "version": "3.7.0",
       "date": "2026-10-25"
+    },
+    {
+      "version": "4.0.0",
+      "date": "2026-10-26"
     }
   ],
-  "domains": 58,
+  "domains": 59,
   "infra": 55,
   "adrFiles": {
     "1": "ADR-001-LangGraph-Orchestration.md",
@@ -620,6 +624,7 @@
     "361": "ADR-361-Egress-Probe-Names-The-Failing-Step-And-Confirms-A-Cut.md",
     "362": "ADR-362-Claude-Cross-Turn-Cache-History-Read-Point-Hour-Lifetime-And-Prior-Thinking.md",
     "363": "ADR-363-Password-Reset-Bounded-Per-Account-And-Bound-To-It.md",
-    "364": "ADR-364-Turnstile-Bot-Check-On-The-Password-Doors.md"
+    "364": "ADR-364-Turnstile-Bot-Check-On-The-Password-Doors.md",
+    "365": "ADR-365-Private-Native-LIA-In-An-Authoritative-Isometric-World.md"
   }
 }

@@ -105,6 +105,7 @@ class PlatformCapability(str, Enum):
     EMAIL_SHARE = "email_share"
     # ADR-324 — a personal radio produced on demand, and the newsroom behind it.
     RADIO = "radio"
+    WORLD = "world"
     # ADR-327 — skills found on a portal, installed and updated from their origin.
     SKILL_LIBRARY = "skill_library"
 
@@ -156,6 +157,14 @@ class CapabilitySpec:
 
 
 CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
+    PlatformCapability.WORLD: CapabilitySpec(
+        capability=PlatformCapability.WORLD,
+        family="people",
+        env_flag="world_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_WORLD_ENABLED,
+        route_enforced=True,
+        service_enforced=True,
+    ),
     PlatformCapability.APPLICATION_TOOLS: CapabilitySpec(
         capability=PlatformCapability.APPLICATION_TOOLS,
         env_flag="application_tools_enabled",

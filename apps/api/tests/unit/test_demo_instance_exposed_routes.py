@@ -139,6 +139,9 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         # Requires the normal session (anonymous HTTP requests receive 401),
         # reveals no location, and can never trigger a provider or LLM call.
         "GET /api/v1/briefing/companion-context",
+        # Same owned cached forecast as /cards; no cache fill, provider or LLM
+        # call. The world widget reads it without triggering a briefing.
+        "GET /api/v1/briefing/cached-weather",
         "GET /api/v1/briefing/preferences",
         "PUT /api/v1/briefing/preferences",
         # Lot 4-A2 (ADR-237): the listen button reads the DISPLAYED synthesis

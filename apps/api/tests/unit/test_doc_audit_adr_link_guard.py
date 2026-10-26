@@ -26,7 +26,7 @@ from pathlib import Path
 
 import pytest
 
-from tests._git_sandbox import run_git
+from tests._git_sandbox import isolate_from_the_running_repository, run_git
 from tests._repo_paths import repo_root_or_skip
 
 REPO_ROOT = repo_root_or_skip()
@@ -112,7 +112,9 @@ def _git(repo: Path, *args: str) -> None:
     )
 
 
-def test_git_checkout_existence_is_index_based(tmp_path: Path) -> None:
+def test_git_checkout_existence_is_index_based(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Inside a git checkout, link targets resolve against the INDEX, not the disk.
 
     Two CI-vs-Windows divergences hid real broken links (F024 wave 2):
@@ -125,6 +127,8 @@ def test_git_checkout_existence_is_index_based(tmp_path: Path) -> None:
     Both must be findings even when the audit runs on a case-insensitive
     filesystem with the untracked file present.
     """
+    # The audit itself invokes git, beyond the commands run_git isolates.
+    isolate_from_the_running_repository(monkeypatch)
     doc_audit = _load_doc_audit()
     repo = tmp_path / "repo"
     docs = repo / "docs"

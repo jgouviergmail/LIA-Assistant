@@ -43,6 +43,11 @@ class KeyScope(str, Enum):
 
 #: Family prefix (``:``-separated segments, no trailing colon) → scope.
 KEY_FAMILIES: dict[str, KeyScope] = {
+    "world:runtime": KeyScope.GLOBAL,
+    "world:ticket": KeyScope.USER_RUNTIME,
+    # Two-sided ephemeral correspondence: native account cleanup invokes the
+    # world's selective body purge before generic account-index removal.
+    "world:message": KeyScope.USER_RUNTIME,
     "ingestion": KeyScope.USER_RUNTIME,
     # --- conversation: purged by a reset ---------------------------------
     "hitl_pending": KeyScope.CONVERSATION,

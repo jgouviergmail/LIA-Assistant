@@ -31,6 +31,7 @@ import homeProof from '../../../../public/screenshots/manifest.json';
 import applicationProof from '../../../../public/screenshots/proof/manifest.json';
 import extendedProof from '../../../../public/screenshots/proof/extended-manifest.json';
 import monitoringProof from '../../../../public/screenshots/proof/grafana-manifest.json';
+import worldProof from '../../../../public/screenshots/proof/world-manifest.json';
 
 /** Thumbnails are the only per-slide named controls: one per view. */
 function thumbnailNames(): string[] {
@@ -62,18 +63,19 @@ describe('ScreenshotsSection', () => {
     expect(image).not.toHaveAttribute('srcset');
   });
 
-  it('starts with the personal hub and offers all 31 distinct application views', async () => {
+  it('starts with the personal hub and offers all 32 distinct application views', async () => {
     const user = userEvent.setup();
     render(<ScreenshotsSection />);
 
     const names = thumbnailNames();
-    expect(names).toHaveLength(31);
-    expect(new Set(names).size).toBe(31);
+    expect(names).toHaveLength(32);
+    expect(new Set(names).size).toBe(32);
     expect(applicationProof.images).toHaveLength(12);
     const extendedImages: { file: string }[] = extendedProof.images;
     expect(extendedImages).toHaveLength(18);
     expect(names[0]).toBe('landing.screenshots.proof.dashboard');
-    expect(names[1]).toBe('landing.screenshots.proof.dossier');
+    expect(names[1]).toBe('landing.screenshots.proof.world');
+    expect(names[2]).toBe('landing.screenshots.proof.dossier');
     expect(names).toContain('landing.screenshots.proof.radio');
     expect(names).toContain('landing.screenshots.proof.relations');
     expect(names).toContain('landing.screenshots.proof.meetings');
@@ -87,7 +89,8 @@ describe('ScreenshotsSection', () => {
     expect(names).toEqual(
       expect.arrayContaining(
         extendedImages.map(
-          image => `landing.screenshots.proof.${image.file.replace('.png', '').replaceAll('-', '_')}`
+          image =>
+            `landing.screenshots.proof.${image.file.replace('.png', '').replaceAll('-', '_')}`
         )
       )
     );
@@ -99,6 +102,21 @@ describe('ScreenshotsSection', () => {
     // The gallery uses the readable viewport capture and preserves its source in full screen.
     await user.click(screen.getByRole('button', { name: 'common.expand_image' }));
     expect(within(screen.getByRole('dialog')).getByRole('img')).toHaveAttribute('src', src);
+  });
+
+  it('opens the owner-supplied world JPEG at its original revision in full screen', async () => {
+    const user = userEvent.setup();
+    render(<ScreenshotsSection view="world" />);
+    const src = `/screenshots/proof/lia-world.jpg?v=${worldProof.revision}`;
+    expect(screen.getByRole('img', { name: 'landing.screenshots.proof.world' })).toHaveAttribute(
+      'src',
+      src
+    );
+    expect(worldProof.images[0]).toMatchObject({ width: 2054, height: 1038 });
+    await user.click(screen.getByRole('button', { name: 'common.expand_image' }));
+    expect(within(screen.getByRole('dialog')).getByRole('img')).toHaveAttribute('src', src);
+    await user.keyboard('{Escape}');
+    expect(screen.getByRole('button', { name: 'common.expand_image' })).toHaveFocus();
   });
 
   it('reaches the added application views by keyboard and keeps their campaign revision in full screen', async () => {
@@ -114,10 +132,9 @@ describe('ScreenshotsSection', () => {
       'src',
       src
     );
-    expect(screen.getByRole('button', { name: 'landing.screenshots.proof.journal' })).toHaveAttribute(
-      'aria-current',
-      'true'
-    );
+    expect(
+      screen.getByRole('button', { name: 'landing.screenshots.proof.journal' })
+    ).toHaveAttribute('aria-current', 'true');
     await user.click(screen.getByRole('button', { name: 'common.expand_image' }));
     expect(within(screen.getByRole('dialog')).getByRole('img')).toHaveAttribute('src', src);
   });

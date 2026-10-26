@@ -1,0 +1,18 @@
+{
+  "scope": "Full hermetic Chromium suite against final optimized build on secure loopback origin",
+  "stats": {
+    "startTime": "2026-10-24T01:30:27.901Z",
+    "duration": 1252248.756,
+    "expected": 699,
+    "skipped": 1,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "retries": 0,
+  "skipped": [
+    "dev HMR stays in an open local sink while another WebSocket reaches only the rejecting guard"
+  ],
+  "skipReason": "Existing development-only HMR contract does not apply to the optimized production build",
+  "realApiFallthroughAllowed": false,
+  "sourceDigest": "20bd6b9216ff7347dea91bba777981061dd8691f852294c7771ae8b660c6e761"
+}

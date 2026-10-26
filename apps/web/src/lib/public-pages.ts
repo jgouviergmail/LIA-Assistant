@@ -66,6 +66,7 @@ export const PUBLIC_PAGES: readonly PublicPage[] = [
  * the guard.
  */
 export const NON_INDEXED_SEGMENTS: Readonly<Record<string, string>> = {
+  'world-preview': 'development-only local graphics prototype; production responds with notFound',
   dashboard: 'authenticated area — blocked for every crawler',
   'account-inactive': 'authenticated lifecycle state, meaningless without a session',
   'registration-success': 'transient confirmation reached only after a POST',

@@ -35,9 +35,11 @@ from src.domains.briefing.preferences import (
 )
 from src.domains.briefing.schemas import (
     BriefingResponse,
+    CardSection,
     CardsResponse,
     RefreshRequest,
     SynthesisResponse,
+    WeatherData,
 )
 from src.domains.briefing.service import BriefingService, build_briefing_windows
 from src.domains.users.models import User
@@ -56,6 +58,23 @@ async def get_companion_context(
     return CompanionEnvironment(
         timezone=str(service.user_tz), weather=project_weather(section, datetime.now(UTC))
     )
+
+
+@router.get("/cached-weather", response_model=CardSection | None)
+async def get_cached_weather(
+    response: Response,
+    current_user: User = Depends(get_current_active_session),
+) -> CardSection | None:
+    """Expose this owner's cached forecast; no cache fill, provider or model call."""
+    response.headers["Cache-Control"] = "private, no-store"
+    section = await BriefingService(current_user).read_cached_weather()
+    if (
+        section is not None
+        and section.data is not None
+        and not isinstance(section.data, WeatherData)
+    ):
+        return None
+    return section
 
 
 # Stable error code — the frontend refuses to offer refresh on hidden cards;

@@ -81,6 +81,7 @@ import {
   FileSpreadsheet,
   SlidersHorizontal,
   MapPin,
+  Map as MapIcon,
   Gauge,
   ClipboardList,
   ScrollText,
@@ -121,6 +122,7 @@ export const changelogVersionKeys = CHANGELOG_VERSION_KEYS;
  * the `as keyof` cast below.
  */
 export const featureIcons = {
+  world: MapIcon,
   architecture: Network,
   queryAnalyzer: Compass,
   planning: ListChecks,
@@ -193,6 +195,7 @@ export const featureIcons = {
  * nowhere — see `__tests__/feature-cards-wiring.test.ts`.
  */
 export const featureKeys = [
+  'world',
   'architecture',
   'queryAnalyzer',
   'planning',

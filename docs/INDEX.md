@@ -3,7 +3,7 @@
 > Carte complète de toute la documentation du projet LIA - Assistant IA multi-agent avec LangGraph
 
 **Version**: 7.12
-**Dernière mise à jour**: 2026-10-19
+**Dernière mise à jour**: 2026-10-26
 **Statut**: Complète (490+ documents)
 
 ---
@@ -18,12 +18,15 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 48 |
-| ADRs | 362 ADR files (ADR-364 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
+| ADRs | 363 ADR files (ADR-365 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
 | Fiches knowledge (RAG système) | 40 |
 
 ---
 
 ## Par Où Commencer ?
+
+- [Monde LIA : fonctions natives et espace partagé](./technical/WORLD_PROTOTYPE.md) — accès dans l'application, activation, commandes, architecture et limites de qualification.
+- [Monde LIA V1 : plan](./superpowers/plans/2026-10-23-lia-world-v1.md) et [preuves par lot](./superpowers/qualification/2026-10-23-world-v1-ledger.md) — périmètre accepté, aperçus et qualification.
 
 ### Pour les Nouveaux Développeurs
 
@@ -49,12 +52,13 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [WORKBOARD.md](./technical/WORKBOARD.md) | Le tableau de tickets (ADR-276) : sept colonnes, un porteur, un résultat ; LIA exécute les tickets qui lui sont affectés |
 | [LIVE_MODE.md](./technical/LIVE_MODE.md) | Le mode Live vocal (ADR-299, ADR-300, ADR-301) : parole à parole sur la clé de la personne, Gemini Live, GPT-Live ET ElevenLabs Agents (catégorie additive, deux fils sous une couture — jeton ou offre SDP, fonction ou délégation native), la voix délègue toute demande au moteur du chat, la session DIRECTE qui tient les outils de lecture elle-même, une session par compte, silence et plafond par modèle, le compteur indicatif du fournisseur (facturation `vendor` : montrée, jamais enregistrée), la dépense de LIA sur la carte de clôture, le mode direct relayé à la fin comme au téléphone |
 | [RADIO.md](./technical/RADIO.md) | La radio personnelle (ADR-324) : une rédaction d'instance sans modèle et une antenne par auditeur qui ne tourne que pendant qu'il écoute ; grille déterministe, modèles qui n'écrivent que ce que des faits citent, voix et mixage, coût en direct ; routes et refus codés, réglages, tâches de fond, métriques et alerte |
+| [WORLD_PROTOTYPE.md](./technical/WORLD_PROTOTYPE.md) | Monde isométrique natif (ADR-365) : admission et mouvements sous autorité Redis, panneaux privés, correspondance humaine et traduction consentie, présence entre pairs ; activation et qualification matérielle séparées |
 | [BOOKMARKS.md](./technical/BOOKMARKS.md) | Les réponses qu'une personne conserve hors de ses conversations (ADR-282) : une copie, pas un pointeur ; l'onglet « Bookmarks » de « Mes fichiers générés » ; chaque réponse conservée projetée dans l'espace de connaissances « Réponses conservées » du compte, réclamée, comptée, retirée avec le bookmark (ADR-291) |
 | [PROACTIVE_DISCUSSIONS.md](./technical/PROACTIVE_DISCUSSIONS.md) | Les discussions proactives (ADR-358, ADR-359, ADR-360) : une exécution de bout en bout, et surtout le contexte — ce qui est lu, admis, interprété, gardé et oublié ; une reconstruction qui couvre tout ce qu'elle peut payer, la réservation dimensionnée à la marge du jour, la mesure sans écriture |
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (362 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (363 ADR files) |
 
 ### Pour les Product Managers
 
@@ -371,6 +375,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| [ADR-365](./architecture/ADR-365-Private-Native-LIA-In-An-Authoritative-Isometric-World.md) | **Monde isométrique et LIA privé** : autorité serveur, rendu navigateur, panneaux natifs, contextes personnels isolés et traduction consentie comptabilisée | 2026-10 |
 | [ADR-364](./architecture/ADR-364-Turnstile-Bot-Check-On-The-Password-Doors.md) | **Vérification anti-robot Turnstile aux portes du mot de passe** : l'inscription, la connexion et la demande de réinitialisation portent un jeton vérifié après le limiteur par IP, valable pour cette porte de cette instance ; sans réponse exploitable de Cloudflare, seule la connexion passe ; désactivée tant que l'opérateur n'apporte pas son widget | 2026-10 |
 | [ADR-363](./architecture/ADR-363-Password-Reset-Bounded-Per-Account-And-Bound-To-It.md) | **Réinitialisation bornée par compte et liée à lui** : une seule décision à la demande et à l'usage (rien pour un administrateur, un avis pour un compte Google sans mot de passe), un budget d'e-mails par compte quelle que soit l'adresse IP, un lien lié à l'empreinte du mot de passe, deux alertes ; la commande `set_password` pour l'administrateur | 2026-10 |
 | [ADR-362](./architecture/ADR-362-Claude-Cross-Turn-Cache-History-Read-Point-Hour-Lifetime-And-Prior-Thinking.md) | **Cache de prompt de Claude d'un tour à l'autre** : un point de relecture à la fin de l'historique, l'heure pour les deux points relus au tour suivant quand une personne attend en échanges fréquents (écriture facturée 2× et enregistrée par appel), la réflexion antérieure rendue au modèle qui l'a écrite quand il la garde sans la lier | 2026-10 |

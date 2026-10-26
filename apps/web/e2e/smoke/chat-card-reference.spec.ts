@@ -212,6 +212,18 @@ for (const sample of samples) {
     await awaitStyledPage(page, 'complete card details');
 
     await expect(page.locator('[data-card-version="2"] > .lia-card')).toHaveCount(5);
+    // A background document can freeze an entry at its first frame. Reduced
+    // motion must retain final control geometry even before a frame advances.
+    const messages = page.locator('.animate-message-enter');
+    await expect(messages).not.toHaveCount(0);
+    await messages.evaluateAll(elements => {
+      for (const element of elements) {
+        for (const animation of element.getAnimations()) {
+          animation.pause();
+          animation.currentTime = 0;
+        }
+      }
+    });
     for (const summary of await page.locator('.lia-card summary').all()) {
       await summary.focus();
       await summary.press('Enter');

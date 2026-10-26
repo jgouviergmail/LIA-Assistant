@@ -75,6 +75,14 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('CompanionPresence — visibility', () => {
+  it('keeps reception alive in the world while showing its shortcut only when attention is needed', async () => {
+    renderWithProviders(<CompanionPresence isAuthenticated attentionOnly />);
+    await waitFor(() => expect(fetchActiveRun).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: AVATAR })).not.toBeInTheDocument();
+    expect(notifications.calls.at(-1)?.enableSSE).toBe(true);
+    await notify('reminder');
+    expect(await screen.findByRole('button', { name: 'companion.aria_state' })).toBeVisible();
+  });
   it('stays away while the user is logged out', async () => {
     render(false);
     await waitFor(() =>

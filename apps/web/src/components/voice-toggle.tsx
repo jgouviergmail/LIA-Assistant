@@ -52,6 +52,10 @@ import { useMeetingIsCapturing } from '@/stores/meetingRecorderStore';
 
 interface VoiceToggleProps {
   lng?: Language;
+  disabled?: boolean;
+  className?: string;
+  /** An embedded chat can own Live without navigating away from its host. */
+  onOpenLiveWorkspace?(): boolean;
 }
 
 const ICON = 'h-[1.2rem] w-[1.2rem]';
@@ -150,10 +154,21 @@ interface LiveMenuProps {
   provider: string;
   /** The chosen model can hold a DIRECT session: the third entry is drawn. */
   directTools: boolean;
+  disabled?: boolean;
+  className?: string;
+  onOpenLiveWorkspace?(): boolean;
 }
 
 /** The voices in one menu: the spoken replies, a live session, a direct one where it can run. */
-function LiveMenu({ lng, state, provider, directTools }: LiveMenuProps) {
+function LiveMenu({
+  lng,
+  state,
+  provider,
+  directTools,
+  disabled = false,
+  className,
+  onOpenLiveWorkspace,
+}: LiveMenuProps) {
   const { t } = useTranslation(lng);
   const onChatPage = useOnChatPage();
   const router = useLocalizedRouter();
@@ -161,10 +176,12 @@ function LiveMenu({ lng, state, provider, directTools }: LiveMenuProps) {
   const liveOpen = useLiveStore(state => isSessionOpen(state.status));
 
   const startLive = (mode: LiveSessionMode) => {
+    if (disabled || !state.user || liveReason !== null) return;
+    if (onOpenLiveWorkspace && !onOpenLiveWorkspace()) return;
     // Exclusive voices: the spoken replies go off, then the session is asked for.
     void state.disableQuietly();
-    useLiveStore.getState().requestStart(mode);
-    if (!onChatPage) router.push('/dashboard/chat');
+    useLiveStore.getState().requestStart(mode, state.user.id);
+    if (!onChatPage && !onOpenLiveWorkspace) router.push('/dashboard/chat');
   };
 
   return (
@@ -173,8 +190,8 @@ function LiveMenu({ lng, state, provider, directTools }: LiveMenuProps) {
         <Button
           variant="ghost"
           size="sm"
-          className={TRIGGER}
-          disabled={!state.user}
+          className={className ?? TRIGGER}
+          disabled={disabled || !state.user}
           aria-label={t('voice.toggle.menu')}
           title={triggerTitle(t, liveOpen, state.isEnabled)}
         >
@@ -184,7 +201,7 @@ function LiveMenu({ lng, state, provider, directTools }: LiveMenuProps) {
       <DropdownMenuContent align="end">
         <DropdownMenuCheckboxItem
           checked={state.isEnabled}
-          disabled={state.isLoading || liveOpen}
+          disabled={disabled || state.isLoading || liveOpen}
           onSelect={() => void state.toggle()}
           title={liveOpen ? t('voice.toggle.comments_live_busy') : undefined}
           className="gap-2"
@@ -195,7 +212,7 @@ function LiveMenu({ lng, state, provider, directTools }: LiveMenuProps) {
         </DropdownMenuCheckboxItem>
         <DropdownMenuItem
           inset
-          disabled={liveReason !== null}
+          disabled={disabled || liveReason !== null}
           onSelect={() => startLive('delegated')}
           title={liveReason ?? undefined}
         >
@@ -206,7 +223,7 @@ function LiveMenu({ lng, state, provider, directTools }: LiveMenuProps) {
         {directTools && (
           <DropdownMenuItem
             inset
-            disabled={liveReason !== null}
+            disabled={disabled || liveReason !== null}
             onSelect={() => startLive('direct')}
             title={liveReason ?? undefined}
           >
@@ -220,7 +237,12 @@ function LiveMenu({ lng, state, provider, directTools }: LiveMenuProps) {
   );
 }
 
-export function VoiceToggle({ lng = 'fr' }: VoiceToggleProps) {
+export function VoiceToggle({
+  lng = 'fr',
+  disabled = false,
+  className,
+  onOpenLiveWorkspace,
+}: VoiceToggleProps) {
   const { t } = useTranslation(lng);
   const state = useSpokenRepliesToggle(lng);
   const live = useLiveAvailability();
@@ -234,7 +256,7 @@ export function VoiceToggle({ lng = 'fr' }: VoiceToggleProps) {
   // Show placeholder during SSR
   if (!mounted) {
     return (
-      <Button variant="ghost" size="sm" className={TRIGGER}>
+      <Button variant="ghost" size="sm" className={className ?? TRIGGER} disabled={disabled}>
         <Volume2 className={ICON} />
         <span className="sr-only">{t('voice.toggle.enable')}</span>
       </Button>
@@ -243,7 +265,15 @@ export function VoiceToggle({ lng = 'fr' }: VoiceToggleProps) {
 
   if (live.available && live.provider !== null) {
     return (
-      <LiveMenu lng={lng} state={state} provider={live.provider} directTools={live.directTools} />
+      <LiveMenu
+        lng={lng}
+        state={state}
+        provider={live.provider}
+        directTools={live.directTools}
+        disabled={disabled}
+        className={className}
+        onOpenLiveWorkspace={onOpenLiveWorkspace}
+      />
     );
   }
 
@@ -252,9 +282,9 @@ export function VoiceToggle({ lng = 'fr' }: VoiceToggleProps) {
     <Button
       variant="ghost"
       size="sm"
-      className={TRIGGER}
+      className={className ?? TRIGGER}
       onClick={() => void state.toggle()}
-      disabled={state.isLoading || !state.user}
+      disabled={disabled || state.isLoading || !state.user}
       aria-label={label}
       title={
         state.isEnabled ? t('voice.toggle.tooltip_enabled') : t('voice.toggle.tooltip_disabled')

@@ -59,6 +59,7 @@ export function ThemeToggle() {
         apply(next, { x: box.left + box.width / 2, y: box.top + box.height / 2 });
       }}
       aria-label={t(key)}
+      title={t(key)}
     >
       <Icon className="h-[1.2rem] w-[1.2rem] transition-all" />
     </Button>

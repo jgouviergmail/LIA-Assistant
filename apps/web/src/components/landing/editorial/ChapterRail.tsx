@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { CHAPTERS } from './chapters-data';
 
 /**
- * Fixed chapter rail (desktop only): five numerals + the transparency
+ * Fixed chapter rail (desktop only): the chapters' numerals + the transparency
  * diamond, scroll-spied. A real <nav> of anchor links — each labelled with
  * its chapter title — so it is keyboard- and screen-reader-usable, not
  * decoration.

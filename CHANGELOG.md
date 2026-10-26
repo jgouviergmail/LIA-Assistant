@@ -5,9 +5,90 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [4.0.0] - 2026-10-26
+
+**A world to explore. Your assistant, still yours.**
+LIA World becomes a featured way to use LIA: a shared isometric campus, a private
+home, native activities and multilingual human text, with the application's
+existing account, permission, approval and spending boundaries.
+
+### Added
+
+- 🌍 **LIA World** (ADR-365): original Canvas 2D campus and garden, native LIA/BIP
+  companion, keyboard/touch navigation, camera follow and anchored zoom, minimap,
+  places explorer, day/night lighting, cached-weather ambience and separately
+  controlled local sounds. Drawing stays in the browser; decorative activity
+  calls no model or weather provider.
+- 🏠 **A private home and native workspaces**: persistent owner/revision-checked
+  home palettes and avatar appearance, private conversation and activity panels,
+  Functions/Settings navigation, meeting import with host-aware navigation and
+  bounded workspace history. Native capabilities, authentication, HITL, costs and
+  quotas remain enforced; opening a station never executes an action implicitly.
+- 🤝 **Shared presence and human correspondence**: explicit native-name consent,
+  authoritative Redis admission/movement, bounded capacity and FIFO waiting,
+  controller-tab takeover, lease/reconnect handling, and coarse presence for
+  accepted, unblocked connections. Direct text is participant scoped; public
+  discussion is explicitly public. Optional translation uses a dedicated native
+  LLM slot, explicit spending consent, one transport attempt and private receipts.
+  Ephemeral message bodies stay outside assistant history and content tracing;
+  durable fences retain no message body. Human-to-human audio remains a proposal.
+- 🧭 **World on the public site**: landing chapter 07, six-language explanations,
+  gallery and README illustration from the owner's supplied capture, with
+  separate provenance from automated fictional-data screenshots. FAQ, settings
+  search, knowledge documents and the functional/technical/decision maps explain
+  the actual integrated feature.
+- 🔗 **Connections keep chapter 06**: its original relay presentation now also
+  explains capability and image sharing, recipient attribution, configured
+  read-only grants, independent received copies and accepted-peer World status,
+  with each permission and revocation boundary stated in all six languages.
+- 🧠 **Jev 1.14 and Gemini 4 Argon**: reference catalogue/pricing seed and additive
+  migration, preserving administered rows and native model configuration.
+
+### Changed
+
+- 🔬 **Bounded JEV evidence**: complete typed evidence projections, explicit
+  answer-source annotations, collection time derived from the turn, sanitized
+  classification inputs and calibrated Jev 1.14 thresholds. Qualification reports
+  publish their limits; deterministic policy, permissions and action approval do
+  not become model decisions. Shared HTTP transport is owned through startup
+  and shutdown; recorded consultations retain their accounting.
+- 🛠️ **Self-hosted World**: opt-in installer question and persisted environment
+  choice, with native operator capability controls and a configurable admission
+  limit. The World domain joins configuration, startup route/capability policy,
+  account export/deletion and migration registration; no additional Compose
+  service or mandatory provider is introduced.
 
 ### Fixed
+
+- 🎮 **World continuity and resource bounds**: retain the visible ground working
+  set instead of evicting on-screen chunks; preserve edits and focus through
+  pending requests, conflicts and private panel lifetimes; keep palette-only
+  home contracts aligned with their renderer and native Select behavior.
+- 🔐 **World privacy and ownership**: scope message/authority storage to the whole
+  instance and scene identity; collect expired spend fences without erasing live
+  attempts; exclude private home/context from shared projections; enforce current
+  account and capability policy through reconnect, deletion and deactivation.
+- 📬 **Translation delivery means publication**: a completed paid translation is
+  reported as uncertain until its Redis publication is explicitly acknowledged.
+  Publication failure or controller takeover cannot report a translation as
+  delivered; the durable paid-call fence still prevents automatic provider replay.
+- 🛡️ **Dependency security**: update the API's `lxml_html_clean` to 0.4.6 for
+  GHSA-hm48-5chc-q85f and the optional wake-word GPU toolbox's `hydra-core` to
+  1.3.8 for GHSA-757g-8w3h-hp29. Runtime/development/GPU locks carry the reviewed
+  versions and hashes; no advisory exception is added.
+- 🌤️ **Readable weather details**: remove inherited opacity from already-muted
+  weather statistic labels in modern cards, restoring contrast in light and
+  dark themes without changing the content or accessibility thresholds.
+- 💬 **Private World response bubbles wait for their place**: opening a personal
+  panel defers assistant text on desktop as well as mobile while the world
+  continues to render. Queued responses keep their existing lifetime and
+  ownership checks before appearing after the panel closes.
+- 🧱 **Merge-aware migration qualification**: replay explicit rollback/upgrade
+  cycles for every direct parent of the single migration head, preserving fresh
+  install and structural-equivalence checks. Manual rollback now requires a
+  reviewed target revision instead of an ambiguous implicit `-1`.
+
+### Fixed — API reliability and privacy
 
 - 🚀 The API's health grace covers its measured boot on the Pi (`start_period` 60 s →
   180 s): a deploy applying one migration took 2 min 22 s from container start to the

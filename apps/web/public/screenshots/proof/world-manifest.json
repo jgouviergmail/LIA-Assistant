@@ -1,0 +1,22 @@
+{
+  "revision": "f5d7ac542d8135c9",
+  "providedAt": "2026-10-26",
+  "capturedAt": null,
+  "provenance": "Original application screenshot supplied by the project owner for the v4.0.0 public presentation.",
+  "language": "fr",
+  "repositoryCopies": [
+    "apps/web/public/screenshots/proof/lia-world.jpg",
+    "docs/assets/screenshot-lia-world.jpg"
+  ],
+  "imageTreatment": "Copied byte for byte. No cropping, retouching, generated graphics or raster resizing.",
+  "data": "Interface and values as shown in the supplied image. No independent capture-time, live-session, hardware-performance or translation-fidelity claim.",
+  "images": [
+    {
+      "file": "lia-world.jpg",
+      "providedFilename": "LeMondeDeLIA.jpg",
+      "sha256": "f5d7ac542d8135c9a81baca445787246fe4f568b5abfbe8f9e34702067f2bab6",
+      "width": 2054,
+      "height": 1038
+    }
+  ]
+}

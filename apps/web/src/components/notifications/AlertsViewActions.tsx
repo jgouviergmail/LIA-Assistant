@@ -30,6 +30,7 @@ export function AlertsViewActions({
   switchable,
   busy,
   onRefresh,
+  onOpenJournal,
 }: {
   lng: string;
   view: AlertsView;
@@ -38,6 +39,7 @@ export function AlertsViewActions({
   /** A read is in flight: the refresh spins and ignores a second press. */
   busy: boolean;
   onRefresh: () => void;
+  onOpenJournal?: () => void;
 }) {
   const { t } = useTranslation();
   const other =
@@ -59,12 +61,19 @@ export function AlertsViewActions({
           hub what reached the reader; the journal is the RECORD of what its
           capabilities actually did. A reader asking "what did LIA do?" lands
           on either page, so the record is one press away from both. */}
-      <Button asChild variant="outline" size="sm" className={CONTROL_CLASS}>
-        <Link href={`/${lng}/dashboard/actions`}>
+      {onOpenJournal ? (
+        <Button variant="outline" size="sm" className={CONTROL_CLASS} onClick={onOpenJournal}>
           <ClipboardList className="h-4 w-4" aria-hidden="true" />
           {t('effects.journal.title')}
-        </Link>
-      </Button>
+        </Button>
+      ) : (
+        <Button asChild variant="outline" size="sm" className={CONTROL_CLASS}>
+          <Link href={`/${lng}/dashboard/actions`}>
+            <ClipboardList className="h-4 w-4" aria-hidden="true" />
+            {t('effects.journal.title')}
+          </Link>
+        </Button>
+      )}
       <Button
         type="button"
         variant="outline"

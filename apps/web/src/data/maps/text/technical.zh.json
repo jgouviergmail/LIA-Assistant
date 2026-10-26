@@ -416,6 +416,12 @@
       "role": "按来源授权、记录重试回执、加密短信并以租约控制投递；模型片段始终有界并检查最新权限。",
       "stack": ["限定来源的令牌", "盲词法索引", "私密通知"],
       "src": "da49b8382ff9"
+    },
+    "t.world": {
+      "name": "等距世界与原生控制",
+      "role": "浏览器绘制有界 Canvas 场景；Redis 仲裁准入、排队和移动，故障时暂停指令。原生面板保留权限与审批。临时文字留在 Redis 中；PostgreSQL 为计费尝试设置持久边界，不保存其内容。",
+      "stack": ["Canvas 2D", "WebSocket", "Redis CAS", "PostgreSQL", "LIA"],
+      "src": "1c146d5b9f21"
     }
   },
   "flows": {

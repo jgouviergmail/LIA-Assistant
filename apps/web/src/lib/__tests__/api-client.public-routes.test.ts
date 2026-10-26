@@ -66,6 +66,8 @@ describe('isPublicPath (401 handler public-route guard)', () => {
     '/verify-email',
     '/oauth-callback',
     '/zh/oauth-callback',
+    '/world-preview',
+    '/fr/world-preview',
   ])('keeps anonymous visitors on public route %s', pathname => {
     expect(isPublicPath(pathname)).toBe(true);
   });
@@ -85,6 +87,7 @@ describe('isPublicPath (401 handler public-route guard)', () => {
     expect(isPublicPath('/blogus')).toBe(false);
     expect(isPublicPath('/storytelling')).toBe(false);
     expect(isPublicPath('/howto')).toBe(false);
+    expect(isPublicPath('/world-preview-private')).toBe(false);
   });
 
   it('covers every public page directory under app/[lng] (completeness scan)', () => {

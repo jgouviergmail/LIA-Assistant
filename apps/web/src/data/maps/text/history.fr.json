@@ -269,7 +269,7 @@
     },
     "45": {
       "title": "Des dépendances injectées proprement",
-      "summary": "Référentiels, services et routeurs s'enchaînent par injection de dépendances FastAPI, avec des sessions de base ouvertes et fermées au bon moment et faciles à simuler en test."
+      "summary": "Référentiels, services et routeurs s'enchaînent par injection de dépendances FastAPI, avec des sessions de base ouvertes et fermées au bon moment et faciles à simuler en test. Une erreur de route atteint la session pour annuler sa transaction ; la fermeture se termine avant de laisser passer une annulation."
     },
     "46": {
       "title": "Des tâches de fond planifiées",
@@ -1530,6 +1530,10 @@
     "364": {
       "title": "Une vérification anti-robot aux portes du mot de passe",
       "summary": "L'inscription, la connexion par mot de passe et la demande de réinitialisation exigent désormais le jeton d'une vérification Cloudflare Turnstile, que le serveur fait valider : un script qui appelle l'API sans navigateur est refusé. La plupart des visiteurs ne voient rien, et si Cloudflare ne répond pas, seule la connexion passe — une inscription ou un e-mail de réinitialisation attendent."
+    },
+    "365": {
+      "title": "LIA privé dans un monde isométrique partagé",
+      "summary": "Le navigateur dessine le monde tandis que Redis en arbitre l'accès et les mouvements ; les actions gardent leurs interfaces et approbations natives. Le nom du compte et l'apparence sont partagés avec accord, les activités et la maison restent privées, et les pairs ne voient qu'un statut de connexion grossier. Les messages restent entre leurs destinataires et les traductions consenties sont bornées et comptées."
     }
   }
 }

@@ -1,0 +1,143 @@
+{
+  "scope": "Optimized application entry; native sessions, SQL, Redis and socket disconnects",
+  "physicalDevice": false,
+  "stats": {
+    "startTime": "2026-10-24T00:43:47.065Z",
+    "duration": 714899.852,
+    "expected": 21,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "cases": [
+    {
+      "title": "a real bilingual conversation works in both directions and a failed translation remains recoverable",
+      "engine": "chromium",
+      "durationMs": 27825,
+      "retries": 0
+    },
+    {
+      "title": "a recipient recovers an interrupted mailbox read without losing a draft or resending",
+      "engine": "chromium",
+      "durationMs": 20790,
+      "retries": 0
+    },
+    {
+      "title": "an account change in another tab withdraws the previous private conversation before further interaction",
+      "engine": "chromium",
+      "durationMs": 13197,
+      "retries": 0
+    },
+    {
+      "title": "free text, reciprocal replies, reload and a lost acknowledgment work without duplicate delivery",
+      "engine": "chromium",
+      "durationMs": 26660,
+      "retries": 0
+    },
+    {
+      "title": "a real bilingual conversation works in both directions and a failed translation remains recoverable",
+      "engine": "firefox",
+      "durationMs": 40656,
+      "retries": 0
+    },
+    {
+      "title": "a recipient recovers an interrupted mailbox read without losing a draft or resending",
+      "engine": "firefox",
+      "durationMs": 25371,
+      "retries": 0
+    },
+    {
+      "title": "an account change in another tab withdraws the previous private conversation before further interaction",
+      "engine": "firefox",
+      "durationMs": 15999,
+      "retries": 0
+    },
+    {
+      "title": "free text, reciprocal replies, reload and a lost acknowledgment work without duplicate delivery",
+      "engine": "firefox",
+      "durationMs": 47757,
+      "retries": 0
+    },
+    {
+      "title": "a real bilingual conversation works in both directions and a failed translation remains recoverable",
+      "engine": "webkit",
+      "durationMs": 88763,
+      "retries": 0
+    },
+    {
+      "title": "a recipient recovers an interrupted mailbox read without losing a draft or resending",
+      "engine": "webkit",
+      "durationMs": 46938,
+      "retries": 0
+    },
+    {
+      "title": "an account change in another tab withdraws the previous private conversation before further interaction",
+      "engine": "webkit",
+      "durationMs": 15263,
+      "retries": 0
+    },
+    {
+      "title": "free text, reciprocal replies, reload and a lost acknowledgment work without duplicate delivery",
+      "engine": "webkit",
+      "durationMs": 89406,
+      "retries": 0
+    },
+    {
+      "title": "native functions: private memory read/pin, denied peer mutation and embedded LIA without implicit send",
+      "engine": "chromium",
+      "durationMs": 10672,
+      "retries": 0
+    },
+    {
+      "title": "native functions: private memory read/pin, denied peer mutation and embedded LIA without implicit send",
+      "engine": "firefox",
+      "durationMs": 15715,
+      "retries": 0
+    },
+    {
+      "title": "native functions: private memory read/pin, denied peer mutation and embedded LIA without implicit send",
+      "engine": "webkit",
+      "durationMs": 24749,
+      "retries": 0
+    },
+    {
+      "title": "private home: real save, cancel, conflict/reload, phone accessibility and owner isolation",
+      "engine": "chromium",
+      "durationMs": 12104,
+      "retries": 0
+    },
+    {
+      "title": "private home: real save, cancel, conflict/reload, phone accessibility and owner isolation",
+      "engine": "firefox",
+      "durationMs": 18357,
+      "retries": 0
+    },
+    {
+      "title": "private home: real save, cancel, conflict/reload, phone accessibility and owner isolation",
+      "engine": "webkit",
+      "durationMs": 35823,
+      "retries": 0
+    },
+    {
+      "title": "polished world: personal cached atmosphere, E interaction, native draft, private paged peers and reachable mobile HUD",
+      "engine": "chromium",
+      "durationMs": 26259,
+      "retries": 0
+    },
+    {
+      "title": "polished world: personal cached atmosphere, E interaction, native draft, private paged peers and reachable mobile HUD",
+      "engine": "firefox",
+      "durationMs": 39678,
+      "retries": 0
+    },
+    {
+      "title": "polished world: personal cached atmosphere, E interaction, native draft, private paged peers and reachable mobile HUD",
+      "engine": "webkit",
+      "durationMs": 64787,
+      "retries": 0
+    }
+  ],
+  "paidProvider": false,
+  "translation": "Authored phrase fixture; linguistic fidelity unqualified",
+  "sourceDigestBeforeFormatting": "3b19a42c71e74724d296b2e5bf0bec8582c58f3a7e786a6e79ba920f657fe134"
+}

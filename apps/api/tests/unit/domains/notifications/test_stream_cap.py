@@ -14,6 +14,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
+import anyio
 import pytest
 import structlog
 
@@ -242,3 +243,75 @@ async def test_unsubscribe_failure_still_closes_the_pubsub_connection(monkeypatc
 
     assert chunks[0].startswith("event: connected")
     assert pubsub.closed
+
+
+@pytest.mark.parametrize("phase", ["subscribe", "poll"])
+async def test_asgi_disconnect_releases_pubsub_under_level_cancellation(
+    monkeypatch, user, phase: str
+) -> None:
+    """Exercise StreamingResponse's cancelled AnyIO scope, not only generator.aclose()."""
+    from src.infrastructure.cache import redis as redis_module
+
+    ready = anyio.Event()
+
+    class CooperativePubSub(_FakePubSub):
+        async def subscribe(self, channel: str) -> None:
+            await super().subscribe(channel)
+            if phase == "subscribe":
+                ready.set()
+                await anyio.sleep_forever()
+
+        async def get_message(self, **kwargs):
+            ready.set()
+            await anyio.sleep_forever()
+
+        async def unsubscribe(self, channel: str) -> None:
+            await anyio.lowlevel.checkpoint()
+            await super().unsubscribe(channel)
+
+        async def aclose(self) -> None:
+            await anyio.lowlevel.checkpoint()
+            await super().aclose()
+
+    async def cooperative_registry_write(*args):
+        await anyio.lowlevel.checkpoint()
+
+    redis = _fake_redis(zscore_result=1.0, zcard_result=0)
+    pubsub = CooperativePubSub()
+    redis.pubsub = lambda: pubsub
+    redis.zrem = AsyncMock(side_effect=cooperative_registry_write)
+    monkeypatch.setattr(redis_module, "get_redis_cache", AsyncMock(return_value=redis))
+    response = await stream_notifications(current_user=user, lia_session="inert-session")
+
+    async def receive():
+        await ready.wait()
+        return {"type": "http.disconnect"}
+
+    async def send(message):
+        pass
+
+    await asyncio.wait_for(
+        response({"type": "http", "asgi": {"spec_version": "2.3"}}, receive, send),
+        timeout=2,
+    )
+    assert pubsub.closed
+    redis.zrem.assert_awaited_once()
+    redis.delete.assert_awaited_once_with(f"sse:connection:{user.id}")
+
+
+async def test_cleanup_frees_pubsub_before_a_stuck_registry_write_times_out(
+    monkeypatch, user
+) -> None:
+    redis = _fake_redis(zscore_result=1.0, zcard_result=0)
+    pubsub = _FakePubSub()
+    redis.pubsub = lambda: pubsub
+
+    async def stuck_registry_write(*args):
+        await anyio.sleep_forever()
+
+    redis.zrem = AsyncMock(side_effect=stuck_registry_write)
+    monkeypatch.setattr(settings, "redis_socket_timeout", 1)
+    chunks = await asyncio.wait_for(_run_stream(monkeypatch, user, redis, limit=1), timeout=5)
+    assert chunks[0].startswith("event: connected")
+    assert pubsub.closed
+    redis.delete.assert_not_awaited()

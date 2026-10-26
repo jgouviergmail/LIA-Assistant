@@ -13,6 +13,7 @@ describe('DASHBOARD_DESTINATIONS', () => {
     expect(segments).toEqual([
       '',
       'chat',
+      'world',
       'relations',
       'meetings',
       'notifications',
@@ -21,9 +22,12 @@ describe('DASHBOARD_DESTINATIONS', () => {
     ]);
   });
 
-  it('gates meetings on the instance flag and nothing else', () => {
+  it('gates meetings and the world on their instance availability', () => {
     const gated = DASHBOARD_DESTINATIONS.filter(d => d.feature !== undefined);
-    expect(gated.map(d => [d.segment, d.feature])).toEqual([['meetings', 'meetings_enabled']]);
+    expect(gated.map(d => [d.segment, d.feature])).toEqual([
+      ['world', 'world_enabled'],
+      ['meetings', 'meetings_enabled'],
+    ]);
   });
 });
 
@@ -32,12 +36,15 @@ describe('visibleDestinations', () => {
     for (const features of [undefined, null, {}, { meetings_enabled: false }]) {
       const segments = visibleDestinations(features).map(d => d.segment);
       expect(segments).not.toContain('meetings');
-      expect(segments).toHaveLength(DASHBOARD_DESTINATIONS.length - 1);
+      expect(segments).not.toContain('world');
+      expect(segments).toHaveLength(DASHBOARD_DESTINATIONS.length - 2);
     }
   });
 
   it('offers it, in place, when the instance has the feature on', () => {
-    const segments = visibleDestinations({ meetings_enabled: true }).map(d => d.segment);
+    const segments = visibleDestinations({ meetings_enabled: true, world_enabled: true }).map(
+      d => d.segment
+    );
     expect(segments).toEqual(DASHBOARD_DESTINATIONS.map(d => d.segment));
     expect(segments.indexOf('meetings')).toBe(segments.indexOf('relations') + 1);
   });

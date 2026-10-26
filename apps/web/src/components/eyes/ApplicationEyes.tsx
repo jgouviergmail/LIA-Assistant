@@ -15,9 +15,11 @@ const EyesWidget = dynamic(() => import('./EyesWidget').then(module => module.Ey
 export function ApplicationEyes({
   ownerId,
   smsEnabled = false,
+  hidePresentation = false,
 }: {
   ownerId?: string;
   smsEnabled?: boolean;
+  hidePresentation?: boolean;
 }) {
   useAvatarStyleRollout();
   const onChat = isChatRoute(usePathname());
@@ -33,9 +35,12 @@ export function ApplicationEyes({
         smsEnabled={smsEnabled}
         isAuthenticated
         renderAvatar={false}
+        attentionOnly={hidePresentation}
         onWorkingChange={setBackgroundWorking}
       />
-      <EyesWidget {...(onChat ? state : backgroundState)} dockToChat={onChat} />
+      {!hidePresentation && (
+        <EyesWidget {...(onChat ? state : backgroundState)} dockToChat={onChat} />
+      )}
     </>
   );
 }

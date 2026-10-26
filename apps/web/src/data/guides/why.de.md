@@ -4,7 +4,7 @@
 
 **Version**: 6.6
 **Datum**: 2026-10-23
-**Anwendung**: LIA v3.7.0
+**Anwendung**: LIA v4.0.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -291,6 +291,15 @@ Der Administrator behält die Kontrolle über den Verbrauch:
 
 Stelle dich vor: ein Raspberry Pi im Wohnzimmer, und die ganze Familie profitiert von einem intelligenten KI-Assistenten — jeder mit seiner personalisierten Erfahrung, seinen Erinnerungen, seinem Gesprächsstil und einem Assistenten, der mit ihm eine ganz eigene emotionale Beziehung entwickelt. Die Instanz bleibt unter deiner Kontrolle; verwendete externe Modelle oder Dienste erhalten die Daten, die sie für ihren Teil einer Anfrage benötigen.
 
+
+### 4.4. Eine Welt zum gemeinsamen Erleben
+
+LIAs Welt gibt deiner Instanz ein gemeinsames Haus mit Garten. Du bewegst dich mit deinem gewählten Avatar, triffst andere nicht blockierte Teilnehmer und lässt LIA dich begleiten. Die Bibliothek führt zu Wissensräumen, das Multimedia-Studio zu deinen Werken und der Wahrsageraum zu Routinen. Das Ingenieurlabor vereint Skills und Erweiterungen. Tastatur, Touch, Zoom und Minikarte helfen beim Erkunden; die gewohnte Anwendung bleibt erreichbar.
+
+Ein geteilter Ort teilt nicht deine Assistentin. Beim Eintritt erlaubst du ausdrücklich, Name und Avatar in der Welt zu zeigen; bestätigte Kontakte sehen außerdem grobe Anwesenheit und ob du zu Hause bist. Dein Zuhause, seine Farben, Dokumente und Assistentenansichten bleiben privat. Ein Raum öffnet dieselben nativen Funktionen mit denselben Rechten, Kosten und Bestätigungen; sein Betreten führt keine vorbereitete Aktion aus.
+
+Mit einem verfügbaren, nicht blockierten Teilnehmer kannst du privat schreiben oder bewusst den Kanal Alle für Menschen in gemeinsamen Bereichen wählen. Das Original bleibt verfügbar. Eine Übersetzung ist eine ausdrückliche kostenpflichtige Wahl und zählt zum Verbrauch; ein fehlgeschlagener oder ungewisser Versuch wird nicht automatisch wiederholt. Diese vorübergehenden menschlichen Nachrichten bleiben von LIAs Verlauf und Gedächtnis getrennt. Die Verfügbarkeit richtet sich nach den aktivierten Funktionen deiner Instanz; menschliche Sprache zwischen Avataren gehört nicht zu dieser Version.
+
 ---
 
 ## 5. Souverän und ressourcenschonend
@@ -401,7 +410,7 @@ Dieselbe Anforderung gilt für das, was LIA aus deinen Vorgaben behält: Jede da
 
 ### 6.8. Eine Oberfläche, die das Produkt beschreibt, wird daran gemessen
 
-Transparenz hat einen Ausfallmodus, den niemand bemerkt: einen Bildschirm, der leise aufhört, die Wahrheit zu sagen. Nichts geht kaputt, kein Test wird rot, und die Seite, die es gab, um aktuell zu sein, wird zur unaktuellsten der Anwendung. Die Fähigkeitskarte — die Seite, die beantwortet, _was kann mein Assistent für mich tun?_ — wird deshalb nicht mehr von Hand gepflegt: Jede Fähigkeit, die die Plattform ein- oder ausschalten kann, muss dort ihren deklarierten Platz haben, und eine Fähigkeit, die ohne diese Entscheidung ausgeliefert wird, verhindert den Start der Anwendung. Dieselbe Überzeugung, eine Stufe weiter: Was ein Bildschirm über deine Daten behauptet, muss **exakt oder abwesend** sein. Eine Zählung ist die Zahl, die die Datenbank liefert, nie eine Länge, die gerade zur Hand war; und solange eine Antwort unterwegs ist oder wenn sie fehlgeschlagen ist, sagt die Karte lieber nichts, als zu raten. „Nichts eingerichtet“ ist eine Aussage über dein Konto — eine, bei der man sich besser sicher ist, bevor man sie ausspricht. Die FAQ folgt demselben Anspruch: Jede Funktion, die eine Person nutzen kann, hat dort ihren Abschnitt — 506 Fragen in sechs Sprachen —, und ein übersetzter Abschnitt, den die Anzeigereihenfolge vergäße, lässt die Tests scheitern, statt unsichtbar zu bleiben.
+Transparenz hat einen Ausfallmodus, den niemand bemerkt: einen Bildschirm, der leise aufhört, die Wahrheit zu sagen. Nichts geht kaputt, kein Test wird rot, und die Seite, die es gab, um aktuell zu sein, wird zur unaktuellsten der Anwendung. Die Fähigkeitskarte — die Seite, die beantwortet, _was kann mein Assistent für mich tun?_ — wird deshalb nicht mehr von Hand gepflegt: Jede Fähigkeit, die die Plattform ein- oder ausschalten kann, muss dort ihren deklarierten Platz haben, und eine Fähigkeit, die ohne diese Entscheidung ausgeliefert wird, verhindert den Start der Anwendung. Dieselbe Überzeugung, eine Stufe weiter: Was ein Bildschirm über deine Daten behauptet, muss **exakt oder abwesend** sein. Eine Zählung ist die Zahl, die die Datenbank liefert, nie eine Länge, die gerade zur Hand war; und solange eine Antwort unterwegs ist oder wenn sie fehlgeschlagen ist, sagt die Karte lieber nichts, als zu raten. „Nichts eingerichtet“ ist eine Aussage über dein Konto — eine, bei der man sich besser sicher ist, bevor man sie ausspricht. Die FAQ folgt demselben Anspruch: Jede Funktion, die eine Person nutzen kann, hat dort ihren Abschnitt — 518 Fragen in sechs Sprachen —, und ein übersetzter Abschnitt, den die Anzeigereihenfolge vergäße, lässt die Tests scheitern, statt unsichtbar zu bleiben.
 
 Transparenz gilt auch für die inneren Regeln des Assistenten. Eine Grenze, die das System durchsetzt, muss dem veröffentlicht werden, den sie betrifft: Erkennt das Gewohnheitslernen nichts, zeigen die Einstellungen die tatsächlich verlangte Schwelle — strenger am Wochenende, wo weniger Tage beobachtet werden — statt eines unerklärten Schweigens. Und wenn sich eine Einstellung selbst justiert, wie die Schwelle, die entscheidet, ob eine Journalnotiz in eine Antwort einfließt, dann innerhalb strikter Grenzen, ein kleiner Schritt pro Tag, mit Notausschalter und gezählten Anpassungen: Ein lernendes System ist nur akzeptabel, wenn es beobachtbar und abschaltbar bleibt.
 

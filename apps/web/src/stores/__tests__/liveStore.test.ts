@@ -179,3 +179,11 @@ describe('liveStore', () => {
     expect(result.current).toBe(false);
   });
 });
+
+it('cannot consume a deferred Live start on another account', () => {
+  useLiveStore.getState().requestStart('direct', 'owner-a');
+  expect(useLiveStore.getState().consumeStart('owner-b')).toBeNull();
+  expect(useLiveStore.getState().pendingStart).toBeNull();
+  useLiveStore.getState().requestStart('delegated', 'owner-a');
+  expect(useLiveStore.getState().consumeStart('owner-a')).toBe('delegated');
+});

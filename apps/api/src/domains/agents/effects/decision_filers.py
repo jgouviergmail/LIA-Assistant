@@ -67,6 +67,9 @@ DECISION_FILERS: Final[dict[str, tuple[str, ...]]] = {
     # The personal radio: a session, and each article translated on opening.
     "domains/radio/adapters.py": ("domains/radio/register.py",),
     "domains/radio/articles.py": ("domains/radio/register.py",),
+    # Literal human correspondence: the act and payer, never its text or
+    # a conversation pointer, like native article translation.
+    "domains/world/translation.py": ("domains/world/translation_register.py",),
 }
 
 #: Modules opening an accounting whose run is no turn, and why.

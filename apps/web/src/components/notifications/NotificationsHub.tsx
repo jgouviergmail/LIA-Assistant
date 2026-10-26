@@ -353,7 +353,13 @@ function DeliveredNotifications({
   );
 }
 
-export function NotificationsHub({ lng }: { lng: Language }) {
+export function NotificationsHub({
+  lng,
+  onOpenJournal,
+}: {
+  lng: Language;
+  onOpenJournal?: () => void;
+}) {
   const { t, i18n } = useTranslation();
   const locale = getIntlLocale(i18n.language as Language);
   const sections = useHubSections();
@@ -371,9 +377,10 @@ export function NotificationsHub({ lng }: { lng: Language }) {
         description={t('notifications_hub.subtitle')}
         actions={
           <AlertsViewActions
+            onOpenJournal={onOpenJournal}
             lng={lng}
             view="hub"
-            switchable={Boolean(config?.features?.activity_timeline_enabled)}
+            switchable={!onOpenJournal && Boolean(config?.features?.activity_timeline_enabled)}
             busy={sections.countsLoading}
             onRefresh={sections.refreshAll}
           />

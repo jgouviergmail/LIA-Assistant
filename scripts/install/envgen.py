@@ -50,6 +50,7 @@ ANSWER_DERIVED_KEYS: frozenset[str] = frozenset(
         "LIVE_ENABLED",
         "RADIO_ENABLED",
         "AVATAR_ENABLED",
+        "WORLD_ENABLED",
         "DIAGNOSTICS_WEBHOOK_SECRET",
         "ALERTMANAGER_LIA_WEBHOOK_URL",
     }
@@ -197,6 +198,9 @@ def derive_environment(public: PublicAnswers, generated: Mapping[str, str]) -> M
         # Personal Simli connector: no instance key or additional service.
         # Finite bounds mirror AvatarSettings; backend alignment checks them.
         "AVATAR_ENABLED": "true" if public.speaking_avatar else "false",
+        # Browser drawing and native SQL/Redis authority need no extra service
+        # or credential. Native operator policy and participant consent remain.
+        "WORLD_ENABLED": "true" if public.world else "false",
         "AVATAR_MINTS_PER_HOUR": "6",
         "AVATAR_SESSION_LENGTH_SECONDS": "3600",
         "AVATAR_IDLE_SECONDS": "3600",

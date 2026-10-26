@@ -1,0 +1,582 @@
+{
+  "lot": "F12",
+  "sources": {
+    "world-art-delivery-host-source": {
+      "scope": "World production source and shared select",
+      "rootDigest": "77395d4e7d06c1208787f1c8663ebebd10fe4c79b4d7e175d00e8fa8c43dad0c",
+      "files": {
+        "src/features/world/art/actor-direction.ts": "ba62b1133cb49e5adb99518342067fea2223dd2327e66119462858b21351fbbd",
+        "src/features/world/art/architecture.ts": "da4bac0440e12cefe5fae658b1befd33c6d501bdeee7ff828bbef5ade93f747d",
+        "src/features/world/art/atmosphere.ts": "6ec7760a52f52e00457b0db01321bf3a5cbff28327a9ef840182fec6dbecfd71",
+        "src/features/world/art/creative.ts": "517c23f090f3016ddda2bbf8a7221c8f02cd4fe78fd6ab478ec963cc371202f5",
+        "src/features/world/art/floors.ts": "e89070892951e5ad4a18ace857f257f4810d41197b26b40f93c082c0959a784c",
+        "src/features/world/art/garden.ts": "c2ae5adedfbaeb466dca489f422fb3c31da23e9f6e85f08a026e83db33d463f3",
+        "src/features/world/art/home-motif.ts": "46886f57f14aa90ecaa2377b4b93c408e4baa4384764c4e1561d7c2cd6ed1673",
+        "src/features/world/art/interiors.ts": "5142e05374aa282c9f11171d24ea73eb42948573251a06c1bcb7691d99cf5772",
+        "src/features/world/art/labels.ts": "bab295e9821c3498c4d8824656001c8e48f9ab64c7f34fa90fcad4b333bab3fa",
+        "src/features/world/art/lia-atlas.ts": "fdc7430701fea468b82550a89ea8867998b76a789ad3e6806810901ae33eac79",
+        "src/features/world/art/painter.ts": "f410c4ff6608bd3b7b4486a0f9b0d72fe85768314a948a67842b03e44748254a",
+        "src/features/world/art/palette.ts": "5a12ba5f96ffc3598649625477c98fcbad00852fd7c9aa26a4b6ec771411c4de",
+        "src/features/world/art/person.ts": "5c8ec5cc822da33bc19f6faba3e880b5d06fa4aa7867ba681c2e7ad44d53cbd7",
+        "src/features/world/art/prop-style.ts": "f9290453feae24c3100242b7bffe9c726b7c36714630c1b34b18cd3b39e73f9d",
+        "src/features/world/art/props.ts": "49e140bd6097c815561fbe2e041482ae3bb65d2c90404a78874ab413bd7f40ae",
+        "src/features/world/atmosphere.ts": "32a3732ff4eaff888a7ec63ad7ae23ebe55ae2bcc9bcc618fa5cb0a2b208c217",
+        "src/features/world/availability.ts": "30cbf46facee2046aed9fbc2e5e36e1259914ad0bf35b20a5421b50581b8b6f9",
+        "src/features/world/definition.ts": "67ab177b1a25da8c8ad72468216da9bb1822b04e07d454a4a5bc859521925bf7",
+        "src/features/world/functions.ts": "d5eb7ebd1172ec7997dd77faf61ae4821c9e8965f4713164029e6d080f20cc1a",
+        "src/features/world/geometry.ts": "2874a00349cbdc9e414a2ae28cf3a12b72f53c4a956d40a7a3283495a5765d85",
+        "src/features/world/home-catalogue.ts": "6f613379a6507af3d194058c4804dcc1053b65db38d51c9d6059fd62a7373528",
+        "src/features/world/home-preview.ts": "181fe169f49837088a24776e0bd01702a07dfdd38aa74247779657bff1d2670d",
+        "src/features/world/home-projection.ts": "7046d278b7c285330c26291b3f1c9b82bf8481338f3121d6062eec84fe3d516c",
+        "src/features/world/home-protocol.ts": "2ba3a4c21315f39117215a6c7a0b2f0417e7a97f2c66699ea62269a2c00d62a4",
+        "src/features/world/input.ts": "709681b0593c34dbba63224e4b7acc416f1620b4a94a156aee57ef794f09f000",
+        "src/features/world/mailbox-client.ts": "85afa8de6287d4ffbb4795f7249b473f0a0fd7248d141597559dcccb096c8852",
+        "src/features/world/message-protocol.ts": "30e65eac8be2fc4411b732affe2bda0644de346616a213fa90bd8deebb7dc31b",
+        "src/features/world/message-scroll-store.ts": "243ee84f090ba9aefbc4cd299c88883d2df8712cfb2837112ad6fcdcb10e0c24",
+        "src/features/world/minimap-geometry.ts": "76a16ec926b223b16f6f3d8a4910e3e5bc2a9249f8d80765abfbc8d12608d256",
+        "src/features/world/navigation.ts": "3d939e82d03c08803800201e751a06186de71c60f6d8886f2f4e1b2e35a37522",
+        "src/features/world/occlusion.ts": "cc8b623b42d26c9c1dac506fec2829fc167d064cb8019c120b4d4db4c8a186ef",
+        "src/features/world/performance.ts": "43bb7dd498d9c2ebac3be9d4747a4e81aa0dc40242d7ce8828b73b34356ebc7d",
+        "src/features/world/protocol.ts": "ba8a5751ec86fa395eb8d81d422369d51c5cfefaf368ad81a63aa3dead1097b2",
+        "src/features/world/renderer.ts": "6b429db9060040bb8ea2ee0ed7d103c30a7ee217ed0c7f482458c1a76cc9a73f",
+        "src/features/world/runtime.ts": "bdd099f83524ac5ef282f3ef4abca03369f93ca27e2b9e19eff653841b27cc1d",
+        "src/features/world/shared-link.ts": "17ee48c1cfb608ae5de92ce34af2d84204f37069d2875ed2745bf365529a960c",
+        "src/features/world/shared-simulation.ts": "a704a932b1601688573839b95261659d2cee9a12d496bac4a26d10c332e9b1f4",
+        "src/features/world/simulation.ts": "7d5b66113aee699d1e1e4f992e0817ed53283a337adfcb8775a9ee8f069ff01f",
+        "src/features/world/types.ts": "1840f653d36f4397fb5902d04964224ab76532063e9cad47b69d3a32245a75db",
+        "src/features/world/useMessageLogScroll.ts": "c5918a4fd4ff05c69c0db6a11d42f825da3d0a3e2c1995f622ce0e1c2f540d97",
+        "src/features/world/useWorldEnvironment.ts": "cd5f1e6fa80c0dee5b479965d5cd382a3c3fc177342affc7d4b011fafc8bb91d",
+        "src/features/world/useWorldHome.ts": "9648c5085e1661c4d0c11956fbd070bd090668634a0a6518e69edfa9d27c9d16",
+        "src/features/world/useWorldMessages.ts": "edc5cdf0230dfbb9a44e5a5745dede195a3dcb483fa227d0292e1b42db9dced4",
+        "src/features/world/useWorldRuntime.ts": "48eb992a7d0fb4f0e9180382d0fd7be8d26d59d4a034f0f8ff7fdf44b3a901b6",
+        "src/features/world/useWorldSession.ts": "70e5c9cc0bd7fbca552d3df79a42e5955eb0c905eb97c0c44d32c44143b2cac5",
+        "src/features/world/useWorldVerificationFocus.ts": "2d42b2bfa74e7d8e89c0cd88f685b3d87a0f6733acd8fbdddcd577b555bd7b56",
+        "src/features/world/world.css": "58bb7cff8956233d73bd7c5d9866765ecce1de3b2bcc898b77a4347c0fe31027",
+        "src/features/world/WorldAccountGuard.tsx": "ce22cd7a6465e190b9ef7e8055bbdd39a48e0a9bbe093534acd7c650cc57e4a6",
+        "src/features/world/WorldCatalogue.tsx": "eb7960cda47b8b729c2c111fad58e6210cb73cf50f95c30e7348137a2f946a41",
+        "src/features/world/WorldDirections.tsx": "1b7d669f5eda1abdbc51222c3890d23ec2a3853e529fb46bae08317da3cd0482",
+        "src/features/world/WorldEntry.tsx": "74747818dc5ea4f2cca233ab74f240c76702695dea34af5e78a5a9acb192e319",
+        "src/features/world/WorldFunctionControls.tsx": "74177eb9501ffa5ac12759e20d2ca0c33a2fb259efcf133385610cf90ae79d69",
+        "src/features/world/WorldHomeControls.tsx": "310739104796c397e9d2a868c0541b5787ea387e98788f665dfd50e90e86c533",
+        "src/features/world/WorldHomeFields.tsx": "253f3f2b9f0467f1ca5f1d37d67f53fad7925a2645ea20b9c03053baf42b50da",
+        "src/features/world/WorldHomeMove.tsx": "641bba13d15895ad003a3043e0be2187a2575e6cc28530273fd632ec99ae26b9",
+        "src/features/world/WorldHud.tsx": "73f40b1aa7bfd0a79f7e8f1b82d8c3d6e67ffc7e22dffca1ae11bba928aa98d7",
+        "src/features/world/WorldMessageControls.tsx": "5ad3e0b5e1e3b85f5d50ce05935dfe4b4a561f15221939c11bdf5aaeba114b85",
+        "src/features/world/WorldMessageForm.tsx": "83914f4a2f269007cfa727390546121aebe2e67aeb6143be88a29e40fc6f9372",
+        "src/features/world/WorldMessageList.tsx": "d62d78e78c8765138785cfe899e2f25cc22eeacd61cd4703dd8363ff01c27896",
+        "src/features/world/WorldMessagePanel.tsx": "84b2b664f5bfef019e828d307157f11ead27d443e82003458ef815e731bbc9fd",
+        "src/features/world/WorldMinimap.tsx": "79be9d2fd70ab6eecd6c88b4ed5bc135b150774091498f25ff151d1cad54c778",
+        "src/features/world/WorldNativePanel.tsx": "a4741a3141fddf03fad867764df80573c9c9b2f89f8cab963b22b3da24e3c8a3",
+        "src/features/world/WorldPeerPanel.tsx": "e709d6a8b783672c2af498779b555f6b3f016df6600591335f71dafc68930b70",
+        "src/features/world/WorldProof.tsx": "38843ab79896eece4335ecadd41bcf4419cfc2b51e88959b0b173ce432f04b53",
+        "src/features/world/WorldPrototype.tsx": "683481b9527a6930f4b1e766fae8b28a4517f6c89c740d237431bec79f77d421",
+        "src/features/world/WorldSessionDialog.tsx": "70a1fc1333c616cd0451ded989aca9a04dc77088389ccb5fbf3b94d06d5da40b",
+        "src/features/world/WorldShared.tsx": "a8287c0f4b4d6d8236b84b144678d8fd8db8da5d0b335e94403e103b64bf51e9",
+        "src/features/world/WorldSkyBadge.tsx": "09231f5d4a39c7e235a47bd7e5b8eadc2b9941fc846274021f8348f56e573abb",
+        "src/components/ui/select.tsx": "e3605456b0aad1d957d62287e785f227aabb729f867094625fc425e0440bbb89"
+      }
+    },
+    "world-art-delivery-source": {
+      "scope": "World production source and shared select",
+      "rootDigest": "77395d4e7d06c1208787f1c8663ebebd10fe4c79b4d7e175d00e8fa8c43dad0c",
+      "files": {
+        "src/features/world/art/actor-direction.ts": "ba62b1133cb49e5adb99518342067fea2223dd2327e66119462858b21351fbbd",
+        "src/features/world/art/architecture.ts": "da4bac0440e12cefe5fae658b1befd33c6d501bdeee7ff828bbef5ade93f747d",
+        "src/features/world/art/atmosphere.ts": "6ec7760a52f52e00457b0db01321bf3a5cbff28327a9ef840182fec6dbecfd71",
+        "src/features/world/art/creative.ts": "517c23f090f3016ddda2bbf8a7221c8f02cd4fe78fd6ab478ec963cc371202f5",
+        "src/features/world/art/floors.ts": "e89070892951e5ad4a18ace857f257f4810d41197b26b40f93c082c0959a784c",
+        "src/features/world/art/garden.ts": "c2ae5adedfbaeb466dca489f422fb3c31da23e9f6e85f08a026e83db33d463f3",
+        "src/features/world/art/home-motif.ts": "46886f57f14aa90ecaa2377b4b93c408e4baa4384764c4e1561d7c2cd6ed1673",
+        "src/features/world/art/interiors.ts": "5142e05374aa282c9f11171d24ea73eb42948573251a06c1bcb7691d99cf5772",
+        "src/features/world/art/labels.ts": "bab295e9821c3498c4d8824656001c8e48f9ab64c7f34fa90fcad4b333bab3fa",
+        "src/features/world/art/lia-atlas.ts": "fdc7430701fea468b82550a89ea8867998b76a789ad3e6806810901ae33eac79",
+        "src/features/world/art/painter.ts": "f410c4ff6608bd3b7b4486a0f9b0d72fe85768314a948a67842b03e44748254a",
+        "src/features/world/art/palette.ts": "5a12ba5f96ffc3598649625477c98fcbad00852fd7c9aa26a4b6ec771411c4de",
+        "src/features/world/art/person.ts": "5c8ec5cc822da33bc19f6faba3e880b5d06fa4aa7867ba681c2e7ad44d53cbd7",
+        "src/features/world/art/prop-style.ts": "f9290453feae24c3100242b7bffe9c726b7c36714630c1b34b18cd3b39e73f9d",
+        "src/features/world/art/props.ts": "49e140bd6097c815561fbe2e041482ae3bb65d2c90404a78874ab413bd7f40ae",
+        "src/features/world/atmosphere.ts": "32a3732ff4eaff888a7ec63ad7ae23ebe55ae2bcc9bcc618fa5cb0a2b208c217",
+        "src/features/world/availability.ts": "30cbf46facee2046aed9fbc2e5e36e1259914ad0bf35b20a5421b50581b8b6f9",
+        "src/features/world/definition.ts": "67ab177b1a25da8c8ad72468216da9bb1822b04e07d454a4a5bc859521925bf7",
+        "src/features/world/functions.ts": "d5eb7ebd1172ec7997dd77faf61ae4821c9e8965f4713164029e6d080f20cc1a",
+        "src/features/world/geometry.ts": "2874a00349cbdc9e414a2ae28cf3a12b72f53c4a956d40a7a3283495a5765d85",
+        "src/features/world/home-catalogue.ts": "6f613379a6507af3d194058c4804dcc1053b65db38d51c9d6059fd62a7373528",
+        "src/features/world/home-preview.ts": "181fe169f49837088a24776e0bd01702a07dfdd38aa74247779657bff1d2670d",
+        "src/features/world/home-projection.ts": "7046d278b7c285330c26291b3f1c9b82bf8481338f3121d6062eec84fe3d516c",
+        "src/features/world/home-protocol.ts": "2ba3a4c21315f39117215a6c7a0b2f0417e7a97f2c66699ea62269a2c00d62a4",
+        "src/features/world/input.ts": "709681b0593c34dbba63224e4b7acc416f1620b4a94a156aee57ef794f09f000",
+        "src/features/world/mailbox-client.ts": "85afa8de6287d4ffbb4795f7249b473f0a0fd7248d141597559dcccb096c8852",
+        "src/features/world/message-protocol.ts": "30e65eac8be2fc4411b732affe2bda0644de346616a213fa90bd8deebb7dc31b",
+        "src/features/world/message-scroll-store.ts": "243ee84f090ba9aefbc4cd299c88883d2df8712cfb2837112ad6fcdcb10e0c24",
+        "src/features/world/minimap-geometry.ts": "76a16ec926b223b16f6f3d8a4910e3e5bc2a9249f8d80765abfbc8d12608d256",
+        "src/features/world/navigation.ts": "3d939e82d03c08803800201e751a06186de71c60f6d8886f2f4e1b2e35a37522",
+        "src/features/world/occlusion.ts": "cc8b623b42d26c9c1dac506fec2829fc167d064cb8019c120b4d4db4c8a186ef",
+        "src/features/world/performance.ts": "43bb7dd498d9c2ebac3be9d4747a4e81aa0dc40242d7ce8828b73b34356ebc7d",
+        "src/features/world/protocol.ts": "ba8a5751ec86fa395eb8d81d422369d51c5cfefaf368ad81a63aa3dead1097b2",
+        "src/features/world/renderer.ts": "6b429db9060040bb8ea2ee0ed7d103c30a7ee217ed0c7f482458c1a76cc9a73f",
+        "src/features/world/runtime.ts": "bdd099f83524ac5ef282f3ef4abca03369f93ca27e2b9e19eff653841b27cc1d",
+        "src/features/world/shared-link.ts": "17ee48c1cfb608ae5de92ce34af2d84204f37069d2875ed2745bf365529a960c",
+        "src/features/world/shared-simulation.ts": "a704a932b1601688573839b95261659d2cee9a12d496bac4a26d10c332e9b1f4",
+        "src/features/world/simulation.ts": "7d5b66113aee699d1e1e4f992e0817ed53283a337adfcb8775a9ee8f069ff01f",
+        "src/features/world/types.ts": "1840f653d36f4397fb5902d04964224ab76532063e9cad47b69d3a32245a75db",
+        "src/features/world/useMessageLogScroll.ts": "c5918a4fd4ff05c69c0db6a11d42f825da3d0a3e2c1995f622ce0e1c2f540d97",
+        "src/features/world/useWorldEnvironment.ts": "cd5f1e6fa80c0dee5b479965d5cd382a3c3fc177342affc7d4b011fafc8bb91d",
+        "src/features/world/useWorldHome.ts": "9648c5085e1661c4d0c11956fbd070bd090668634a0a6518e69edfa9d27c9d16",
+        "src/features/world/useWorldMessages.ts": "edc5cdf0230dfbb9a44e5a5745dede195a3dcb483fa227d0292e1b42db9dced4",
+        "src/features/world/useWorldRuntime.ts": "48eb992a7d0fb4f0e9180382d0fd7be8d26d59d4a034f0f8ff7fdf44b3a901b6",
+        "src/features/world/useWorldSession.ts": "70e5c9cc0bd7fbca552d3df79a42e5955eb0c905eb97c0c44d32c44143b2cac5",
+        "src/features/world/useWorldVerificationFocus.ts": "2d42b2bfa74e7d8e89c0cd88f685b3d87a0f6733acd8fbdddcd577b555bd7b56",
+        "src/features/world/world.css": "58bb7cff8956233d73bd7c5d9866765ecce1de3b2bcc898b77a4347c0fe31027",
+        "src/features/world/WorldAccountGuard.tsx": "ce22cd7a6465e190b9ef7e8055bbdd39a48e0a9bbe093534acd7c650cc57e4a6",
+        "src/features/world/WorldCatalogue.tsx": "eb7960cda47b8b729c2c111fad58e6210cb73cf50f95c30e7348137a2f946a41",
+        "src/features/world/WorldDirections.tsx": "1b7d669f5eda1abdbc51222c3890d23ec2a3853e529fb46bae08317da3cd0482",
+        "src/features/world/WorldEntry.tsx": "74747818dc5ea4f2cca233ab74f240c76702695dea34af5e78a5a9acb192e319",
+        "src/features/world/WorldFunctionControls.tsx": "74177eb9501ffa5ac12759e20d2ca0c33a2fb259efcf133385610cf90ae79d69",
+        "src/features/world/WorldHomeControls.tsx": "310739104796c397e9d2a868c0541b5787ea387e98788f665dfd50e90e86c533",
+        "src/features/world/WorldHomeFields.tsx": "253f3f2b9f0467f1ca5f1d37d67f53fad7925a2645ea20b9c03053baf42b50da",
+        "src/features/world/WorldHomeMove.tsx": "641bba13d15895ad003a3043e0be2187a2575e6cc28530273fd632ec99ae26b9",
+        "src/features/world/WorldHud.tsx": "73f40b1aa7bfd0a79f7e8f1b82d8c3d6e67ffc7e22dffca1ae11bba928aa98d7",
+        "src/features/world/WorldMessageControls.tsx": "5ad3e0b5e1e3b85f5d50ce05935dfe4b4a561f15221939c11bdf5aaeba114b85",
+        "src/features/world/WorldMessageForm.tsx": "83914f4a2f269007cfa727390546121aebe2e67aeb6143be88a29e40fc6f9372",
+        "src/features/world/WorldMessageList.tsx": "d62d78e78c8765138785cfe899e2f25cc22eeacd61cd4703dd8363ff01c27896",
+        "src/features/world/WorldMessagePanel.tsx": "84b2b664f5bfef019e828d307157f11ead27d443e82003458ef815e731bbc9fd",
+        "src/features/world/WorldMinimap.tsx": "79be9d2fd70ab6eecd6c88b4ed5bc135b150774091498f25ff151d1cad54c778",
+        "src/features/world/WorldNativePanel.tsx": "a4741a3141fddf03fad867764df80573c9c9b2f89f8cab963b22b3da24e3c8a3",
+        "src/features/world/WorldPeerPanel.tsx": "e709d6a8b783672c2af498779b555f6b3f016df6600591335f71dafc68930b70",
+        "src/features/world/WorldProof.tsx": "38843ab79896eece4335ecadd41bcf4419cfc2b51e88959b0b173ce432f04b53",
+        "src/features/world/WorldPrototype.tsx": "683481b9527a6930f4b1e766fae8b28a4517f6c89c740d237431bec79f77d421",
+        "src/features/world/WorldSessionDialog.tsx": "70a1fc1333c616cd0451ded989aca9a04dc77088389ccb5fbf3b94d06d5da40b",
+        "src/features/world/WorldShared.tsx": "a8287c0f4b4d6d8236b84b144678d8fd8db8da5d0b335e94403e103b64bf51e9",
+        "src/features/world/WorldSkyBadge.tsx": "09231f5d4a39c7e235a47bd7e5b8eadc2b9941fc846274021f8348f56e573abb",
+        "src/components/ui/select.tsx": "e3605456b0aad1d957d62287e785f227aabb729f867094625fc425e0440bbb89"
+      }
+    },
+    "world-art-preview-final-source": {
+      "scope": "World production source and shared select",
+      "rootDigest": "77395d4e7d06c1208787f1c8663ebebd10fe4c79b4d7e175d00e8fa8c43dad0c",
+      "files": {
+        "src/features/world/art/actor-direction.ts": "ba62b1133cb49e5adb99518342067fea2223dd2327e66119462858b21351fbbd",
+        "src/features/world/art/architecture.ts": "da4bac0440e12cefe5fae658b1befd33c6d501bdeee7ff828bbef5ade93f747d",
+        "src/features/world/art/atmosphere.ts": "6ec7760a52f52e00457b0db01321bf3a5cbff28327a9ef840182fec6dbecfd71",
+        "src/features/world/art/creative.ts": "517c23f090f3016ddda2bbf8a7221c8f02cd4fe78fd6ab478ec963cc371202f5",
+        "src/features/world/art/floors.ts": "e89070892951e5ad4a18ace857f257f4810d41197b26b40f93c082c0959a784c",
+        "src/features/world/art/garden.ts": "c2ae5adedfbaeb466dca489f422fb3c31da23e9f6e85f08a026e83db33d463f3",
+        "src/features/world/art/home-motif.ts": "46886f57f14aa90ecaa2377b4b93c408e4baa4384764c4e1561d7c2cd6ed1673",
+        "src/features/world/art/interiors.ts": "5142e05374aa282c9f11171d24ea73eb42948573251a06c1bcb7691d99cf5772",
+        "src/features/world/art/labels.ts": "bab295e9821c3498c4d8824656001c8e48f9ab64c7f34fa90fcad4b333bab3fa",
+        "src/features/world/art/lia-atlas.ts": "fdc7430701fea468b82550a89ea8867998b76a789ad3e6806810901ae33eac79",
+        "src/features/world/art/painter.ts": "f410c4ff6608bd3b7b4486a0f9b0d72fe85768314a948a67842b03e44748254a",
+        "src/features/world/art/palette.ts": "5a12ba5f96ffc3598649625477c98fcbad00852fd7c9aa26a4b6ec771411c4de",
+        "src/features/world/art/person.ts": "5c8ec5cc822da33bc19f6faba3e880b5d06fa4aa7867ba681c2e7ad44d53cbd7",
+        "src/features/world/art/prop-style.ts": "f9290453feae24c3100242b7bffe9c726b7c36714630c1b34b18cd3b39e73f9d",
+        "src/features/world/art/props.ts": "49e140bd6097c815561fbe2e041482ae3bb65d2c90404a78874ab413bd7f40ae",
+        "src/features/world/atmosphere.ts": "32a3732ff4eaff888a7ec63ad7ae23ebe55ae2bcc9bcc618fa5cb0a2b208c217",
+        "src/features/world/availability.ts": "30cbf46facee2046aed9fbc2e5e36e1259914ad0bf35b20a5421b50581b8b6f9",
+        "src/features/world/definition.ts": "67ab177b1a25da8c8ad72468216da9bb1822b04e07d454a4a5bc859521925bf7",
+        "src/features/world/functions.ts": "d5eb7ebd1172ec7997dd77faf61ae4821c9e8965f4713164029e6d080f20cc1a",
+        "src/features/world/geometry.ts": "2874a00349cbdc9e414a2ae28cf3a12b72f53c4a956d40a7a3283495a5765d85",
+        "src/features/world/home-catalogue.ts": "6f613379a6507af3d194058c4804dcc1053b65db38d51c9d6059fd62a7373528",
+        "src/features/world/home-preview.ts": "181fe169f49837088a24776e0bd01702a07dfdd38aa74247779657bff1d2670d",
+        "src/features/world/home-projection.ts": "7046d278b7c285330c26291b3f1c9b82bf8481338f3121d6062eec84fe3d516c",
+        "src/features/world/home-protocol.ts": "2ba3a4c21315f39117215a6c7a0b2f0417e7a97f2c66699ea62269a2c00d62a4",
+        "src/features/world/input.ts": "709681b0593c34dbba63224e4b7acc416f1620b4a94a156aee57ef794f09f000",
+        "src/features/world/mailbox-client.ts": "85afa8de6287d4ffbb4795f7249b473f0a0fd7248d141597559dcccb096c8852",
+        "src/features/world/message-protocol.ts": "30e65eac8be2fc4411b732affe2bda0644de346616a213fa90bd8deebb7dc31b",
+        "src/features/world/message-scroll-store.ts": "243ee84f090ba9aefbc4cd299c88883d2df8712cfb2837112ad6fcdcb10e0c24",
+        "src/features/world/minimap-geometry.ts": "76a16ec926b223b16f6f3d8a4910e3e5bc2a9249f8d80765abfbc8d12608d256",
+        "src/features/world/navigation.ts": "3d939e82d03c08803800201e751a06186de71c60f6d8886f2f4e1b2e35a37522",
+        "src/features/world/occlusion.ts": "cc8b623b42d26c9c1dac506fec2829fc167d064cb8019c120b4d4db4c8a186ef",
+        "src/features/world/performance.ts": "43bb7dd498d9c2ebac3be9d4747a4e81aa0dc40242d7ce8828b73b34356ebc7d",
+        "src/features/world/protocol.ts": "ba8a5751ec86fa395eb8d81d422369d51c5cfefaf368ad81a63aa3dead1097b2",
+        "src/features/world/renderer.ts": "6b429db9060040bb8ea2ee0ed7d103c30a7ee217ed0c7f482458c1a76cc9a73f",
+        "src/features/world/runtime.ts": "bdd099f83524ac5ef282f3ef4abca03369f93ca27e2b9e19eff653841b27cc1d",
+        "src/features/world/shared-link.ts": "17ee48c1cfb608ae5de92ce34af2d84204f37069d2875ed2745bf365529a960c",
+        "src/features/world/shared-simulation.ts": "a704a932b1601688573839b95261659d2cee9a12d496bac4a26d10c332e9b1f4",
+        "src/features/world/simulation.ts": "7d5b66113aee699d1e1e4f992e0817ed53283a337adfcb8775a9ee8f069ff01f",
+        "src/features/world/types.ts": "1840f653d36f4397fb5902d04964224ab76532063e9cad47b69d3a32245a75db",
+        "src/features/world/useMessageLogScroll.ts": "c5918a4fd4ff05c69c0db6a11d42f825da3d0a3e2c1995f622ce0e1c2f540d97",
+        "src/features/world/useWorldEnvironment.ts": "cd5f1e6fa80c0dee5b479965d5cd382a3c3fc177342affc7d4b011fafc8bb91d",
+        "src/features/world/useWorldHome.ts": "9648c5085e1661c4d0c11956fbd070bd090668634a0a6518e69edfa9d27c9d16",
+        "src/features/world/useWorldMessages.ts": "edc5cdf0230dfbb9a44e5a5745dede195a3dcb483fa227d0292e1b42db9dced4",
+        "src/features/world/useWorldRuntime.ts": "48eb992a7d0fb4f0e9180382d0fd7be8d26d59d4a034f0f8ff7fdf44b3a901b6",
+        "src/features/world/useWorldSession.ts": "70e5c9cc0bd7fbca552d3df79a42e5955eb0c905eb97c0c44d32c44143b2cac5",
+        "src/features/world/useWorldVerificationFocus.ts": "2d42b2bfa74e7d8e89c0cd88f685b3d87a0f6733acd8fbdddcd577b555bd7b56",
+        "src/features/world/world.css": "58bb7cff8956233d73bd7c5d9866765ecce1de3b2bcc898b77a4347c0fe31027",
+        "src/features/world/WorldAccountGuard.tsx": "ce22cd7a6465e190b9ef7e8055bbdd39a48e0a9bbe093534acd7c650cc57e4a6",
+        "src/features/world/WorldCatalogue.tsx": "eb7960cda47b8b729c2c111fad58e6210cb73cf50f95c30e7348137a2f946a41",
+        "src/features/world/WorldDirections.tsx": "1b7d669f5eda1abdbc51222c3890d23ec2a3853e529fb46bae08317da3cd0482",
+        "src/features/world/WorldEntry.tsx": "74747818dc5ea4f2cca233ab74f240c76702695dea34af5e78a5a9acb192e319",
+        "src/features/world/WorldFunctionControls.tsx": "74177eb9501ffa5ac12759e20d2ca0c33a2fb259efcf133385610cf90ae79d69",
+        "src/features/world/WorldHomeControls.tsx": "310739104796c397e9d2a868c0541b5787ea387e98788f665dfd50e90e86c533",
+        "src/features/world/WorldHomeFields.tsx": "253f3f2b9f0467f1ca5f1d37d67f53fad7925a2645ea20b9c03053baf42b50da",
+        "src/features/world/WorldHomeMove.tsx": "641bba13d15895ad003a3043e0be2187a2575e6cc28530273fd632ec99ae26b9",
+        "src/features/world/WorldHud.tsx": "73f40b1aa7bfd0a79f7e8f1b82d8c3d6e67ffc7e22dffca1ae11bba928aa98d7",
+        "src/features/world/WorldMessageControls.tsx": "5ad3e0b5e1e3b85f5d50ce05935dfe4b4a561f15221939c11bdf5aaeba114b85",
+        "src/features/world/WorldMessageForm.tsx": "83914f4a2f269007cfa727390546121aebe2e67aeb6143be88a29e40fc6f9372",
+        "src/features/world/WorldMessageList.tsx": "d62d78e78c8765138785cfe899e2f25cc22eeacd61cd4703dd8363ff01c27896",
+        "src/features/world/WorldMessagePanel.tsx": "84b2b664f5bfef019e828d307157f11ead27d443e82003458ef815e731bbc9fd",
+        "src/features/world/WorldMinimap.tsx": "79be9d2fd70ab6eecd6c88b4ed5bc135b150774091498f25ff151d1cad54c778",
+        "src/features/world/WorldNativePanel.tsx": "a4741a3141fddf03fad867764df80573c9c9b2f89f8cab963b22b3da24e3c8a3",
+        "src/features/world/WorldPeerPanel.tsx": "e709d6a8b783672c2af498779b555f6b3f016df6600591335f71dafc68930b70",
+        "src/features/world/WorldProof.tsx": "38843ab79896eece4335ecadd41bcf4419cfc2b51e88959b0b173ce432f04b53",
+        "src/features/world/WorldPrototype.tsx": "683481b9527a6930f4b1e766fae8b28a4517f6c89c740d237431bec79f77d421",
+        "src/features/world/WorldSessionDialog.tsx": "70a1fc1333c616cd0451ded989aca9a04dc77088389ccb5fbf3b94d06d5da40b",
+        "src/features/world/WorldShared.tsx": "a8287c0f4b4d6d8236b84b144678d8fd8db8da5d0b335e94403e103b64bf51e9",
+        "src/features/world/WorldSkyBadge.tsx": "09231f5d4a39c7e235a47bd7e5b8eadc2b9941fc846274021f8348f56e573abb",
+        "src/components/ui/select.tsx": "e3605456b0aad1d957d62287e785f227aabb729f867094625fc425e0440bbb89"
+      }
+    }
+  },
+  "frontend": {
+    "success": true,
+    "passed": 14108,
+    "failed": 0,
+    "skipped": 0,
+    "files": 1151,
+    "artStyle": {
+      "statements": [
+        7,
+        7
+      ],
+      "functions": [
+        4,
+        4
+      ],
+      "branches": [
+        8,
+        8
+      ]
+    }
+  },
+  "coveragePercent": {
+    "statements": 86.13,
+    "branches": 80.8,
+    "functions": 84.25,
+    "lines": 87.67
+  },
+  "worldUnit": {
+    "files": 31,
+    "passed": 145
+  },
+  "native": {
+    "primary": {
+      "startTime": "2026-10-24T14:41:06.977Z",
+      "duration": 1212988.153,
+      "expected": 29,
+      "skipped": 0,
+      "unexpected": 1,
+      "flaky": 0
+    },
+    "exactReplay": {
+      "startTime": "2026-10-24T15:01:55.688Z",
+      "duration": 61941.907,
+      "expected": 1,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "replayedCase": "firefox / five real accounts share positions; a sixth waits; duplicate control is explicit and FIFO entry stays private",
+    "effective": {
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0
+    },
+    "method": "29 original passes plus the exact failed Firefox capacity case replayed alone; initial late timeout retained. The original case reached its empty accessibility report."
+  },
+  "hermetic": {
+    "initialMatrix": {
+      "passed": 41,
+      "skipped": 4,
+      "reason": "Declared Chromium-only shell and CDP cases; other engines retain their scene/input cases."
+    },
+    "finalAffectedMatrix": {
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0
+    },
+    "climates": "Each condition uses its own fresh fixture; no page-error suppression."
+  },
+  "canonicalFrontendGate": {
+    "command": "task lint:frontend",
+    "exitCode": 0,
+    "a11yViolations": 0,
+    "inheritedHookViolations": 30,
+    "complexityFunctionsAtThreshold": 38,
+    "complexityMaximum": 46
+  },
+  "strictE2ETypes": {
+    "exitCode": 0
+  },
+  "performance": {
+    "stats": {
+      "startTime": "2026-10-24T15:04:02.029Z",
+      "duration": 87237.455,
+      "expected": 3,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "physicalDevice": false,
+    "concurrentCompilerOrFullSuite": false,
+    "samples": [
+      {
+        "profile": "desktop: five native server clients, one full UI renderer",
+        "browserName": "chromium",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "zoom": "95%",
+        "fps": 58.7,
+        "textures": "61,4 MiB",
+        "frameP95": "16,7 ms",
+        "renderP95": "16,9 ms",
+        "phase": "night",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      },
+      {
+        "profile": "phone viewport, economic quality",
+        "browserName": "chromium",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "zoom": "95%",
+        "fps": 29.7,
+        "textures": "45,7 MiB",
+        "frameP95": "33,3 ms",
+        "renderP95": "7,6 ms",
+        "phase": "night",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      },
+      {
+        "profile": "phone viewport, economic quality, CPU slowdown 4x",
+        "browserName": "chromium",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "zoom": "158%",
+        "fps": 27.3,
+        "textures": "46,1 MiB",
+        "frameP95": "50 ms",
+        "renderP95": "24,2 ms",
+        "phase": "night",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      },
+      {
+        "profile": "desktop: five native server clients, one full UI renderer",
+        "browserName": "firefox",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "zoom": "95%",
+        "fps": 48,
+        "textures": "61,6 MiB",
+        "frameP95": "33,5 ms",
+        "renderP95": "28,1 ms",
+        "phase": "night",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      },
+      {
+        "profile": "phone viewport, economic quality",
+        "browserName": "firefox",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "zoom": "95%",
+        "fps": 29.3,
+        "textures": "46,1 MiB",
+        "frameP95": "49,6 ms",
+        "renderP95": "14,4 ms",
+        "phase": "night",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      },
+      {
+        "profile": "desktop: five native server clients, one full UI renderer",
+        "browserName": "webkit",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "zoom": "95%",
+        "fps": 21.2,
+        "textures": "59,8 MiB",
+        "frameP95": "69 ms",
+        "renderP95": "3 ms",
+        "phase": "night",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      },
+      {
+        "profile": "phone viewport, economic quality",
+        "browserName": "webkit",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "zoom": "95%",
+        "fps": 25.4,
+        "textures": "45,7 MiB",
+        "frameP95": "53 ms",
+        "renderP95": "2 ms",
+        "phase": "night",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      }
+    ]
+  },
+  "webkitPriorBuildSameBench": {
+    "stats": {
+      "startTime": "2026-10-24T15:10:31.591Z",
+      "duration": 35253.145000000004,
+      "expected": 1,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "physicalDevice": false,
+    "concurrentCompilerOrFullSuite": false,
+    "samples": [
+      {
+        "profile": "desktop: five native server clients, one full UI renderer",
+        "browserName": "webkit",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "zoom": "95%",
+        "fps": 12.7,
+        "textures": "58,5 MiB",
+        "frameP95": "117 ms",
+        "renderP95": "6 ms",
+        "phase": "night",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      },
+      {
+        "profile": "phone viewport, economic quality",
+        "browserName": "webkit",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "zoom": "95%",
+        "fps": 21,
+        "textures": "44,8 MiB",
+        "frameP95": "69 ms",
+        "renderP95": "3 ms",
+        "phase": "night",
+        "weather": "snow",
+        "clients": 5,
+        "independentHeadlessBrowsers": true,
+        "fullUIRenderers": 1,
+        "physicalDevice": false
+      }
+    ]
+  },
+  "textureTraversal": {
+    "chromium": {
+      "textureMiB": 83.8,
+      "ceilingMiB": 128,
+      "after": "six places plus far zoom"
+    },
+    "firefox": {
+      "textureMiB": 83.8,
+      "ceilingMiB": 128,
+      "after": "six places plus far zoom"
+    },
+    "webkit": {
+      "textureMiB": 83.8,
+      "ceilingMiB": 128,
+      "after": "six places plus far zoom"
+    }
+  },
+  "publication": {
+    "url": "http://127.0.0.6:3010/fr/world-preview?shared=1",
+    "probe": {
+      "httpStatus": 200,
+      "admitted": true,
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "walkingVerified": true,
+      "runtimeErrors": [],
+      "paidActions": [],
+      "authorityTakenOver": false,
+      "physicalDevice": false
+    },
+    "translation": "Inert authored-phrase fixture; free text uses separate profiles with French visitors 1 and 7."
+  },
+  "images": {
+    "actors.png": {
+      "sha256": "0f3c33b8851bdebe770271825b58b6444e53d93a89699db91a7319a24b64f0c3",
+      "width": 600,
+      "height": 820
+    },
+    "desktop.png": {
+      "sha256": "f4b41e9803adb0595109cb4f324cc7fc0490ef071d0a167cb71210b2bfeb4c9c",
+      "width": 1440,
+      "height": 900
+    },
+    "night.png": {
+      "sha256": "e5851a4d162ebbb4f68d18bd57643cd72d3b60a65e0971c00f82c51507880ff1",
+      "width": 1280,
+      "height": 720
+    },
+    "phone.png": {
+      "sha256": "a373ae11fd256ce7939e29505f0678404d9a1cebb3bf317489c13ba3b703e364",
+      "width": 390,
+      "height": 844
+    },
+    "studio.png": {
+      "sha256": "6dd237c594fb30d6be21dda37a35f7811770dfbdb7a10f899104722371eb12af",
+      "width": 1440,
+      "height": 900
+    }
+  },
+  "security": {
+    "gitleaksFindings": 0,
+    "mode": "Exact indexed blobs, redacted, existing pinned scanner"
+  },
+  "limits": [
+    "Headless and emulated-device timings do not certify physical hardware.",
+    "WebKit frame delivery is variable on this Linux bench; physical Safari validation remains.",
+    "No real supplier translation fidelity or Pi thermal/battery claim.",
+    "Owner final aesthetic acceptance remains separate."
+  ],
+  "geometryChanged": false,
+  "llmCallsAdded": 0
+}

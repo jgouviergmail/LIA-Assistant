@@ -4,7 +4,7 @@
 
 **Version**: 2.6
 **Datum**: 2026-10-23
-**Anwendung**: LIA v3.7.0
+**Anwendung**: LIA v4.0.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Indikator | Wert |
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
-| Quellcodezeilen (ohne Tests) — 58 Fachdomänen | **1.003.000+** |
-| Inventarisierte automatisierte Tests; passende Suiten für Commit und Release | **67.000+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **362** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **289** |
+| Quellcodezeilen (ohne Tests) — 60 Backend-Domänenpakete | **1.038.000+** |
+| Inventarisierte automatisierte Tests; passende Suiten für Commit und Release | **68.000+** |
+| Dokumentierte Architekturentscheidungen (ADR) | **363** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **290** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **7,9/10** |
 
@@ -66,11 +66,18 @@ Dieselbe Regel gilt für die Darstellung: Vorbereiten ist nicht Abschließen. Wa
 
 Das Projekt wird inzwischen mit mehreren Entwicklungsagenten parallel geführt — jeder an seiner eigenen Baustelle, manchmal im selben Arbeitsbaum. Was sie zusammenhält, ist nicht die Abstimmung untereinander, sondern der gemeinsame Bezugsrahmen: dieselben schriftlichen Regeln, dieselben Wächter, dieselben Prüftore vor jeder Auslieferung. Ein Agent kann eine Schaltfläche umbenennen; es ist ein Wächter, der daran erinnert, dass die Hilfe, die Suche in den Einstellungen und das Vokabular, mit dem LIA sich selbst beschreibt, folgen müssen. Und die Auslieferung, die diese Baustellen zusammenführt, beginnt mit einer Bestandsaufnahme dessen, was jeder tatsächlich geändert hat — nie mit dem, was er ankündigt.
 
+
+### Ein Treffpunkt mit klaren Verantwortlichkeiten
+
+Eine gemeinsame Welt gibt der Assistentin eine räumliche Sprache: Bibliothek für Wissen, Multimedia-Studio zum Gestalten, Garten zum gemeinsamen Erkunden. Die wichtige technische Entscheidung ist, was eine Grenze überschreitet. Ein öffentlicher Avatar drückt eine bewusste Wahl aus; er veröffentlicht weder Assistentenkontext noch privates Zuhause. Ein Raum öffnet ein bestehendes Werkzeug ohne neue Berechtigung.
+
+Dasselbe gilt für Gespräche. Menschliche Nachrichten haben eine getrennte, vorübergehende Lebensdauer. Übersetzung wird gewählt und abgerechnet; Bewegung und Zeichnung benötigen kein Modell. Eine reichere Oberfläche bleibt steuerbar, wenn Kosten, Eigentum und Bestätigungen dieselbe Bedeutung behalten.
+
 ---
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 362 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 363 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Selbsthosting gibt dir die Kontrolle über den Server; Kontodaten liegen auf der Instanz und Konnektor-Zugangsdaten sind verschlüsselt. Die gewählten externen Dienste erhalten weiterhin die Daten, die sie für ihren Teil einer Anfrage benötigen.
 
@@ -138,4 +145,4 @@ Was diese Erfahrung in einer Führungspraxis verändert:
 - **Zwischen Generalverbot und blindem Vertrauen gibt es einen steuerbaren Weg.** Abgestufte menschliche Kontrolle lässt sich spezifizieren, testen und auditieren; es ist der Ansatz, auf den die regulatorischen Anforderungen zulaufen, und er ist heute einsatzbereit.
 - **Eine Führungskraft, die praktiziert, entscheidet besser.** Selbst machen oder machen lassen, akzeptable Schulden oder nicht, glaubwürdiges Anbieterversprechen oder nicht — diese Entscheidungen gewinnen an Treffsicherheit, wenn man die Materie selbst erprobt hat. Dieses Projekt ist eine Art, diese Nähe zum Terrain zu pflegen.
 
-*Persönliches Projekt, außerhalb jeder beruflichen Tätigkeit durchgeführt. Technische Bewertung aus dem Audit von Juli 2026, Befunde gegengeprüft. Strukturelle Zahlen folgen dem Repository; Quellcodezeilen wurden am 2026-10-22 erneut gemessen. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Persönliches Projekt, außerhalb jeder beruflichen Tätigkeit durchgeführt. Technische Bewertung aus dem Audit von Juli 2026, Befunde gegengeprüft. Strukturelle Zahlen folgen dem Repository; Quellcodezeilen wurden am 2026-10-26 erneut gemessen. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

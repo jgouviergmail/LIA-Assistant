@@ -378,6 +378,11 @@
       "name": "Ingestion du téléphone",
       "role": "Autorité par source, reçus de reprise, SMS chiffrés et livraisons revendiquées ; les extraits du modèle restent bornés et vérifiés.",
       "stack": ["Jetons limités à une source", "Index lexical aveugle", "Notifications privées"]
+    },
+    "t.world": {
+      "name": "Monde isométrique et autorité native",
+      "role": "Le navigateur dessine une scène Canvas bornée ; Redis arbitre admission, file et mouvements, et sa panne suspend les commandes. Les panneaux natifs gardent permissions et approbations. Les textes éphémères restent dans Redis ; PostgreSQL clôt les tentatives facturables sans conserver leur contenu.",
+      "stack": ["Canvas 2D", "WebSocket", "Redis CAS", "PostgreSQL", "LIA"]
     }
   },
   "flows": {

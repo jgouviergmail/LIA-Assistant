@@ -13,6 +13,7 @@ import { minimizeCompanionOnPhones } from './companion';
 import { installOfflineFonts } from './offline-fonts';
 import { dashboardShellMocks } from './dashboard-shell';
 import { makeTestUser, type TestUser } from './test-user';
+import { installDevHmr } from './dev-hmr';
 
 interface Fixtures {
   apiNetworkGuard: ApiNetworkGuard;
@@ -45,28 +46,16 @@ export const test = base.extend<Fixtures>({
   },
   _apiIsolation: [
     async ({ page, apiNetworkGuard, baseURL }, provide) => {
-      // Terminate the exact local dev HMR channel without connecting to a server.
-      // Keeping this local sink open prevents Next's reconnect-limit page reload;
-      // the transport guard still rejects every unmocked API socket and tunnel.
-      if (
-        baseURL &&
-        process.env.E2E_MANAGED_SERVER === '0' &&
-        ['localhost', '127.0.0.1', '[::1]'].includes(new URL(baseURL).hostname)
-      ) {
-        const hmr = new URL('/_next/hmr', baseURL);
-        hmr.protocol = hmr.protocol === 'https:' ? 'wss:' : 'ws:';
-        await page.routeWebSocket(
-          url => url.origin === hmr.origin && url.pathname === hmr.pathname,
-          () => {
-            // No connectToServer, forwarding, or synthetic HMR messages.
-          }
-        );
+      const stopHmr = await installDevHmr(page, baseURL);
+      try {
+        await installOfflineFonts(page);
+        await installApiCatchAll(page);
+        await provide();
+      } finally {
+        stopHmr();
+        apiNetworkGuard.quarantine();
+        await stopApiRequests(page);
       }
-      await installOfflineFonts(page);
-      await installApiCatchAll(page);
-      await provide();
-      apiNetworkGuard.quarantine();
-      await stopApiRequests(page);
     },
     { auto: true, timeout: 10_000 },
   ],
@@ -75,14 +64,15 @@ export const test = base.extend<Fixtures>({
     await provide(routes => registerRoutes(page, routes));
   },
 
-  authenticate: async ({ page, context }, provide) => {
+  authenticate: async ({ page, context, baseURL }, provide) => {
     await provide(async overrides => {
+      if (!baseURL) throw new Error('Hermetic authentication requires the configured app URL');
       const user = makeTestUser(overrides);
       // The real session cookie is HTTP-only and validated server-side; here
       // /auth/me is intercepted, so the value is irrelevant — we only seed a
       // cookie so any client code that merely checks for its presence is happy.
       await context.addCookies([
-        { name: 'lia_session', value: 'e2e-session', domain: 'localhost', path: '/' },
+        { name: 'lia_session', value: 'e2e-session', url: new URL('/', baseURL).href },
       ]);
       // Shell mocks FIRST so any spec-registered mock (and /auth/me below)
       // takes precedence — Playwright routes are LIFO. The 501 catch-all

@@ -81,5 +81,6 @@ def import_all_models() -> None:
     import src.domains.users.models  # noqa: F401
     import src.domains.voice.fishaudio.models  # noqa: F401
     import src.domains.workboard.models  # noqa: F401
+    import src.domains.world.message_models  # noqa: F401
 
     _models_imported = True

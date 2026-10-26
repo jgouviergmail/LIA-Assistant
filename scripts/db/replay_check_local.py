@@ -40,6 +40,7 @@ PG_ADMIN_USER = os.environ.get("PG_ADMIN_USER") or os.environ.get("POSTGRES_USER
 
 # The container-side replay script lives next to this file.
 _CONTAINER_SCRIPT = Path(__file__).resolve().parent / "check_migrations_replay.sh"
+_CYCLE_HELPER = Path(__file__).resolve().parent / "cycle_migration_head.py"
 
 # Runner signature: (argv, capture_output) -> CompletedProcess. Injectable so the
 # orchestration branches can be unit-tested without a real Docker daemon.
@@ -82,7 +83,21 @@ def require_docker(run: Runner = _run) -> None:
 
 def _psql(database: str, sql: str, run: Runner) -> None:
     """Execute a single SQL statement in ``database`` as the admin user."""
-    run(["docker", "exec", PG_CONTAINER, "psql", "-U", PG_ADMIN_USER, "-d", database, "-c", sql], True)
+    run(
+        [
+            "docker",
+            "exec",
+            PG_CONTAINER,
+            "psql",
+            "-U",
+            PG_ADMIN_USER,
+            "-d",
+            database,
+            "-c",
+            sql,
+        ],
+        True,
+    )
 
 
 def _drop_database(testdb: str, run: Runner) -> None:
@@ -92,7 +107,10 @@ def _drop_database(testdb: str, run: Runner) -> None:
     except (subprocess.CalledProcessError, OSError) as exc:
         # Cleanup is best-effort: a failure here must not mask the real result,
         # but must be visible so a residual DB can be dropped by hand.
-        print(f"WARNING: could not drop throwaway database {testdb}: {exc}", file=sys.stderr)
+        print(
+            f"WARNING: could not drop throwaway database {testdb}: {exc}",
+            file=sys.stderr,
+        )
 
 
 def run_replay_check(run: Runner = _run) -> None:
@@ -122,11 +140,21 @@ def run_replay_check(run: Runner = _run) -> None:
             )
         test_url = f"{base_url}/{testdb}"
 
-        run(["docker", "cp", str(_CONTAINER_SCRIPT), f"{API_CONTAINER}:/tmp/check_migrations_replay.sh"], False)
+        for source in (_CONTAINER_SCRIPT, _CYCLE_HELPER):
+            run(
+                ["docker", "cp", str(source), f"{API_CONTAINER}:/tmp/{source.name}"],
+                False,
+            )
         run(
             [
-                "docker", "exec", "-e", f"DATABASE_URL={test_url}", API_CONTAINER,
-                "sh", "-c", "cd /app && bash /tmp/check_migrations_replay.sh",
+                "docker",
+                "exec",
+                "-e",
+                f"DATABASE_URL={test_url}",
+                API_CONTAINER,
+                "sh",
+                "-c",
+                "cd /app && bash /tmp/check_migrations_replay.sh",
             ],
             False,
         )

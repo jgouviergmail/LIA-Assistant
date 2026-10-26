@@ -40,9 +40,11 @@ export interface WorkboardPageProps {
   lng: Language;
   /** The ticket the route named, when the URL carried one in its path. */
   initialTicketId?: string;
+  /** Keep filters and ticket selection local when hosted inside another interface. */
+  embedded?: boolean;
 }
 
-export function WorkboardPage({ lng, initialTicketId }: WorkboardPageProps) {
+export function WorkboardPage({ lng, initialTicketId, embedded = false }: WorkboardPageProps) {
   const { t } = useTranslation(lng);
   const router = useRouter();
   const params = useSearchParams();
@@ -58,8 +60,11 @@ export function WorkboardPage({ lng, initialTicketId }: WorkboardPageProps) {
   // person types: a search box whose value came back through the router
   // dropped every second keystroke.
   const [filters, setFilters] = useState<Filters>(() =>
-    filtersFromParams(new URLSearchParams(Array.from(params.entries())))
+    filtersFromParams(
+      embedded ? new URLSearchParams() : new URLSearchParams(Array.from(params.entries()))
+    )
   );
+  const [embeddedTicket, setEmbeddedTicket] = useState<string | null>(initialTicketId ?? null);
   const [creating, setCreating] = useState(false);
   // Bumped after every write so the open panel re-reads the ticket it shows.
   const [revision, setRevision] = useState(0);
@@ -69,21 +74,26 @@ export function WorkboardPage({ lng, initialTicketId }: WorkboardPageProps) {
   const board = useWorkboard(filters, { paused: dragging });
 
   useEffect(() => {
+    if (embedded) return;
     const current = window.location.search.replace(/^\?/, '');
     const next = writeFilters(new URLSearchParams(current), filters).toString();
     if (next === current) return;
     router.replace(`/${lng}/dashboard/workboard${next ? `?${next}` : ''}`, { scroll: false });
-  }, [filters, lng, router]);
+  }, [filters, lng, router, embedded]);
 
   // The open ticket is DERIVED from the URL, never mirrored into state: a panel
   // is then a link somebody can send, the browser's back button closes it, and
   // there is no second authority to keep in step. `initialTicketId` is the path
   // form (`/dashboard/workboard/<id>`), which the backend puts in every ticket
   // notification; `?ticket=` is what the board itself writes.
-  const open = initialTicketId ?? params.get('ticket');
+  const open = embedded ? embeddedTicket : (initialTicketId ?? params.get('ticket'));
 
   const openTicket = useCallback(
     (id: string | null) => {
+      if (embedded) {
+        setEmbeddedTicket(id);
+        return;
+      }
       const next = new URLSearchParams(Array.from(params.entries()));
       if (id) next.set('ticket', id);
       else next.delete('ticket');
@@ -96,7 +106,7 @@ export function WorkboardPage({ lng, initialTicketId }: WorkboardPageProps) {
       if (id) router.push(href, { scroll: false });
       else router.replace(href, { scroll: false });
     },
-    [lng, params, router]
+    [lng, params, router, embedded]
   );
 
   /** Run one write, say what was refused, and let the panel re-read. */

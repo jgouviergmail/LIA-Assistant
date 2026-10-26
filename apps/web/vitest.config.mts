@@ -52,6 +52,143 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
+        // g30: asynchronous room sound policy and recipient-only notification lifecycle.
+        'src/features/world/audio/{catalogue,message-chime,soundscape,sound-preference}.ts': {
+          statements: 97,
+          branches: 94,
+          functions: 96,
+          lines: 99,
+        },
+
+        // g29 bounded sky / indoor-outdoor lighting: measured 100 on all four axes.
+        'src/features/world/art/{lighting,stars}.ts': {
+          statements: 98,
+          branches: 98,
+          functions: 98,
+          lines: 98,
+        },
+        // g28 explicit public wire projection: measured 100 on all four axes.
+        'src/features/world/public-message-protocol.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        // Shared native-clock/input guard: measured 91.67 statements / 94.74 branches.
+        'src/features/world/message-input.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 100,
+          lines: 90,
+        },
+
+        // g27 owner-local speech lifecycle: measured 95.79 / 93.25 / 100 / 97.87.
+        'src/features/world/speech.ts': { statements: 94, branches: 90, functions: 100, lines: 96 },
+
+        // g26 finite public style + bounded cache: measured 100 on all four axes.
+        'src/features/world/avatar-protocol.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        'src/features/world/art/sprite-cache.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        // Owner fence measured 92.5 / 81.81 / 85.71 / 93.93.
+        'src/features/world/useWorldOwnerPreferences.ts': {
+          statements: 90,
+          branches: 80,
+          functions: 85,
+          lines: 92,
+        },
+
+        // g25 optional device navigation: measured 100/96.29/100/100.
+        'src/features/world/WorldJoystick.tsx': {
+          statements: 100,
+          branches: 94,
+          functions: 100,
+          lines: 100,
+        },
+        'src/features/world/useJoystickPreference.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        // g23 private thread projection: measured 100/96.77/100/100;
+        // retain two branch points of margin after the ordering regressions.
+        'src/features/world/conversation-directory.ts': {
+          statements: 100,
+          branches: 94,
+          functions: 100,
+          lines: 100,
+        },
+        'src/features/world/{home-preview,home-projection}.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        // Finite precipitation and cached tree geometry: shelter, quality bounds,
+        // every authored family and balanced canvas state exercised in g22.
+        'src/features/world/art/{precipitation,trees}.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        // Ambient sprite compositing: phase ordering, full physical bounds,
+        // neutral fast path, context loss and balanced state restoration.
+        'src/features/world/art/lighting.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        // Confirmed seat actions and owner-qualified session arrivals: measured
+        // 100% on every axis in the complete 2026-10-25 suite. These pure
+        // authority/lifetime contracts must not silently lose their edge cases.
+        'src/features/world/{seat-activity-intent,device-inbox}.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        // Contextual scene intent: measured 100% across all four metrics.
+        'src/features/world/scene-interactions.ts': {
+          statements: 98,
+          branches: 98,
+          functions: 98,
+          lines: 98,
+        },
+        // Pointer affordances and bounded social pursuit: measured 100/94.11/100/100.
+        'src/features/world/{scene-pointer,social-approach}.ts': {
+          statements: 98,
+          branches: 92,
+          functions: 98,
+          lines: 98,
+        },
+        // Local world geometry, collision/routes and deterministic actors.
+        // Measured 98.27 / 94.89 / 100 / 99.31; retain two points of margin.
+        // Rendering/input remain in the global pool and have real-browser journeys.
+        'src/features/world/{geometry,navigation,route-smoothing,simulation,occlusion,minimap-geometry,art/actor-direction,art/labels}.ts':
+          {
+            statements: 96,
+            branches: 92,
+            functions: 98,
+            lines: 97,
+          },
+        // Bounded art families and private/mask cache isolation: exhaustive pure contracts.
+        'src/features/world/art/prop-style.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
         // Re-measured 2026-10-15 on the complete Accueil integration tree:
         // 87.05 / 81.17 / 84.69 / 88.55. Lock statements 84 -> 85 and
         // branches 78 -> 79, preserving the established two-point margin.

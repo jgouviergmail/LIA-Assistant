@@ -1,0 +1,41 @@
+import { describe, expect, it, vi } from 'vitest';
+import { ScenePointer } from '../scene-pointer';
+import { SceneInteractions } from '../scene-interactions';
+import { WORLD } from '../definition';
+import { createSimulation } from '../simulation';
+import { createCamera } from '../geometry';
+describe('scene pointer affordance', () => {
+  it('bounds pixel readback, follows camera changes and never offers an unavailable foreground object', () => {
+    const canvas = document.createElement('canvas'),
+      sim = createSimulation(WORLD);
+    const host = { canOpen: vi.fn(() => true), open: vi.fn(() => true) };
+    const scene = new SceneInteractions(sim, host);
+    const pick = vi.fn(() => ({ kind: 'object' as const, id: 'desk:36:9' }));
+    const pointer = new ScenePointer(canvas, pick, scene, host);
+    const camera = createCamera({ width: 800, height: 600 }, WORLD.spawn);
+    pointer.move({ x: 400, y: 300 });
+    pointer.update(0, camera);
+    expect(pointer.value?.target).toEqual({ kind: 'object', id: 'desk:36:9' });
+    expect(canvas.style.cursor).toBe('pointer');
+    expect(pointer.prop).toBe('desk:36:9');
+    for (let i = 1; i < 100; i++) pointer.update(i, camera);
+    expect(pick).toHaveBeenCalledTimes(1);
+    camera.center.x += 100;
+    pointer.update(100, camera);
+    expect(pick.mock.calls[1]).not.toEqual(pick.mock.calls[0]);
+    host.canOpen.mockReturnValue(false);
+    pointer.update(200, camera);
+    expect(pointer.value).toBeNull();
+    expect(pointer.prop).toBeNull();
+    expect(canvas.style.cursor).toBe('');
+    host.canOpen.mockReturnValue(true);
+    pointer.update(300, camera);
+    pointer.move(null);
+    expect(pointer.value).toBeNull();
+    expect(pointer.prop).toBeNull();
+    expect(canvas.style.cursor).toBe('');
+    pointer.update(400, camera);
+    expect(pick).toHaveBeenCalledTimes(4);
+    expect(host.open).not.toHaveBeenCalled();
+  });
+});

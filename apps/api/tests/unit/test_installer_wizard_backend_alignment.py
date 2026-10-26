@@ -98,7 +98,7 @@ def test_provider_base_urls_mirror_the_adapter_defaults() -> None:
 def test_new_capability_defaults_boot_the_real_settings() -> None:
     """The minimal install profile must express what the composed API loads.
 
-    Radio and avatars are deliberate installer opt-ins. Their finite limits
+    Radio, avatars and World are deliberate installer opt-ins. Their finite limits
     and the other capability defaults must remain bootable together.
     """
     from scripts.install.envgen import generate_secrets
@@ -115,6 +115,7 @@ def test_new_capability_defaults_boot_the_real_settings() -> None:
             profile[key] = value.strip()
 
     assert profile["RADIO_ENABLED"] == "false"
+    assert profile["WORLD_ENABLED"] == "false"
     for name, field in AvatarSettings.model_fields.items():
         expected = field.default
         actual = profile[name.upper()]
@@ -135,6 +136,7 @@ def test_new_capability_defaults_boot_the_real_settings() -> None:
     defaults = {
         **{name: profile[name.upper()] for name in AvatarSettings.model_fields},
         "radio_enabled": profile["RADIO_ENABLED"],
+        "world_enabled": profile["WORLD_ENABLED"],
         "elevenlabs_tts_max_concurrency": profile["ELEVENLABS_TTS_MAX_CONCURRENCY"],
         "fishaudio_max_concurrency": profile["FISHAUDIO_MAX_CONCURRENCY"],
         "email_share_enabled": Settings.model_fields["email_share_enabled"].default,
@@ -147,6 +149,7 @@ def test_new_capability_defaults_boot_the_real_settings() -> None:
     }
     settings = Settings(_env_file=None, **required, **defaults)
     assert settings.radio_enabled is False
+    assert settings.world_enabled is False
     assert settings.avatar_enabled is False
     assert 0 < settings.avatar_idle_seconds <= settings.avatar_session_length_seconds
     assert settings.elevenlabs_tts_max_concurrency == 5
@@ -187,6 +190,7 @@ def test_emitted_installer_defaults_load_the_composed_settings(
         caddy_email=None,
         manifest_path=None,
         speaking_avatar=avatar_enabled,
+        world=avatar_enabled,
     )
     environment = derive_environment(public, generate_secrets())
     values = {
@@ -205,6 +209,7 @@ def test_emitted_installer_defaults_load_the_composed_settings(
     assert settings.live_enabled is False
     assert settings.diagnostics_enabled is False
     assert settings.avatar_enabled is avatar_enabled
+    assert settings.world_enabled is avatar_enabled
     for name, field in AvatarSettings.model_fields.items():
         if name != "avatar_enabled":
             assert getattr(settings, name) == field.default, name

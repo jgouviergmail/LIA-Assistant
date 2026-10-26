@@ -9,8 +9,8 @@
 # replays the migrations, so only an execution on an EMPTY database exposes this.
 #
 # This gate replays the whole chain on an empty database and fails if any
-# migration is not replayable, exercises a downgrade/upgrade cycle of the last
-# revision, asserts STRUCTURAL model↔schema equivalence (audit F042), and finally
+# migration is not replayable, exercises a downgrade/upgrade cycle to every
+# direct parent of the head, asserts STRUCTURAL model↔schema equivalence (audit F042), and finally
 # that the standard ``alembic check`` is green — now promotable because the
 # env.py hook empties comment-only autogenerate migrations (F042 tail).
 #
@@ -48,9 +48,8 @@ if ! printf '%s' "${current}" | grep -q "(head)"; then
     exit 1
 fi
 
-echo "==> [3/6] downgrade/upgrade cycle of the last revision"
-alembic downgrade -1
-alembic upgrade head
+echo "==> [3/6] downgrade/upgrade cycle for every explicit parent of the single head"
+python -X frozen_modules=off "$(dirname "$0")/cycle_migration_head.py"
 
 echo "==> [4/6] re-verify head after the cycle"
 if ! alembic current | grep -q "(head)"; then

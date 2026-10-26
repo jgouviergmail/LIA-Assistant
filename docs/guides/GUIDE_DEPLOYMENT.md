@@ -1142,9 +1142,8 @@ nano alembic/versions/20250115_1234_add_user_statistics_table.py
 # 4. Test migration locally
 alembic upgrade head
 
-# 5. Test rollback
-alembic downgrade -1
-alembic upgrade head
+# 5. Test every direct rollback target on the launcher's throwaway database
+task db:migrate:replay-check
 ```
 
 **Déployer migration en production** :
@@ -1509,12 +1508,22 @@ aws ecs wait services-stable \
 
 ### Database Rollback
 
-```bash
-# Downgrade to previous migration
-docker exec lia-api alembic downgrade -1
+Back up the database and select a target revision from the deployed migration
+graph before rolling back. Check that the target schema remains compatible with
+the application version being restored, and review every downgrade that the
+chosen path will execute: dropped columns or tables can lose data. A relative
+`-1` is ambiguous at a merge; choosing one of its parents can merely unmerge the
+version markers while leaving both branch histories applied. It is not, by
+itself, an application rollback.
 
-# Or specific version
-docker exec lia-api alembic downgrade abc123def456
+```bash
+# Inspect the deployed revision and its graph
+docker exec lia-api alembic current
+docker exec lia-api alembic history --verbose
+
+# Set ROLLBACK_TARGET to the reviewed revision, after taking the backup
+: "${ROLLBACK_TARGET:?Set the reviewed rollback target revision first}"
+docker exec lia-api alembic downgrade "$ROLLBACK_TARGET"
 ```
 
 ### Database Restore (depuis backup)

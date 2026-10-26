@@ -6,19 +6,29 @@
  * its second consumer: it lived under the workboard while the board was its only one.
  */
 import { formatEuro, formatNumber } from '@/lib/format';
+import type { Language } from '@/i18n/settings';
 
 /** One figure of the meter: its glyph, its label, its value. */
 export type Figure = readonly [glyph: string, label: string, value: number];
 
 export interface UsageLineProps {
   figures: readonly Figure[];
-  cost: number;
+  cost: number | null;
+  locale?: Language;
+  unknownCostLabel?: string;
   /** Two for a total, as the conversation pill shows it; six for one run, as a message does. */
   decimals: number;
   className?: string;
 }
 
-export function UsageLine({ figures, cost, decimals, className }: UsageLineProps) {
+export function UsageLine({
+  figures,
+  cost,
+  decimals,
+  className,
+  locale,
+  unknownCostLabel = '—',
+}: UsageLineProps) {
   return (
     <p
       className={
@@ -28,13 +38,15 @@ export function UsageLine({ figures, cost, decimals, className }: UsageLineProps
       {figures.map(([glyph, label, value]) => (
         <span key={label} className="whitespace-nowrap">
           <span aria-hidden="true">{glyph} </span>
-          {formatNumber(value)} {label}
+          {formatNumber(value, locale)} {label}
           <span aria-hidden="true" className="ms-1.5 text-muted-foreground">
             ·
           </span>
         </span>
       ))}
-      <span className="whitespace-nowrap font-semibold">{formatEuro(cost, decimals)}</span>
+      <span className="whitespace-nowrap font-semibold">
+        {cost === null ? unknownCostLabel : formatEuro(cost, decimals, locale)}
+      </span>
     </p>
   );
 }

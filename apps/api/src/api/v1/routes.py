@@ -74,6 +74,7 @@ from src.domains.voice.lia_voices_router import router as lia_voices_router
 from src.domains.voice.library_router import router as voice_library_router
 from src.domains.voice.router import router as voice_router
 from src.domains.voice.slot_selection import LibrarySpeechGuard
+from src.domains.world.router import router as world_router
 
 # The composition root wires the typed port without a llm_config -> voice import.
 install_speech_guard(LibrarySpeechGuard())
@@ -114,6 +115,8 @@ api_router.include_router(chain_admin_router)
 api_router.include_router(statistics_admin_router)
 api_router.include_router(conversations_router)
 api_router.include_router(chat_router)
+if getattr(settings, "world_enabled", False):
+    api_router.include_router(world_router)
 # Reminders expose exactly ONE action (cancel by id) — the domain has no
 # management surface by design (discrete, ephemeral, chat-created).
 api_router.include_router(reminders_router)
@@ -464,6 +467,7 @@ async def get_client_config() -> dict:
             "default_language": settings.default_language,
         },
         "features": {
+            "world_enabled": settings.world_enabled,
             "interactive_route_maps_enabled": maps_config["enabled"],
             "tool_approval_enabled": True,  # NOTE: Tool approval is always enabled
             "attachments_enabled": getattr(settings, "attachments_enabled", False),

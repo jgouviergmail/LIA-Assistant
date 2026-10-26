@@ -33,6 +33,12 @@ forwards, before Playwright destroys the context. This
 covers Chromium's detached keepalive sends, which can outlive page interception
 and its offline setting. The guard stays alive until the context has closed.
 
+With `E2E_MANAGED_SERVER=0` on an HTTP loopback server, `fixtures/dev-hmr.ts`
+relays only the fixed same-origin `/_next/hmr` development channel. Next waits
+for its initial text/binary synchronization before hydrating. This bounded,
+fixture-owned relay grants no API socket, CONNECT tunnel or remote destination;
+it closes with the test. Managed production-server journeys do not install it.
+
 The meeting timeline separately checks page-origin traffic and records denied
 browser background probes. Its exact probe list includes Chromium's
 [native autofill service](https://chromium.googlesource.com/chromium/src.git/+/b9ff62bb6ff2143fc168dff0e3392e4335de1b8a/components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.cc),
@@ -274,7 +280,9 @@ The README and landing share three application capture campaigns:
 `public/screenshots/manifest.json` (dashboard and general views),
 `public/screenshots/proof/manifest.json` (twelve advanced workflows), and
 `public/screenshots/proof/extended-manifest.json` (eighteen additional feature views).
-The gallery presents 31 application views. The capture programs render the current Docker
+The gallery's application views are inventoried in
+[`ScreenshotsSection.tsx`](../src/components/landing/ScreenshotsSection.tsx).
+The capture programs render the current Docker
 UI with handwritten examples in the `capture/*screenshot-data.ts` and
 `capture/landing-proof-data.ts` modules: no login,
 account, production API or credential file is read. No inference or provider call
@@ -348,3 +356,15 @@ as `Dockerfile.prod`), then `PORT=3000 HOSTNAME=0.0.0.0 node
 | `E2E_BASE_URL`       | `http://127.0.0.1:3000` | HTTP production server under test.              |
 | `E2E_MANAGED_SERVER` | unset                   | `1` → Playwright builds + serves the app (CI).  |
 | `CI`                 | unset                   | Enables retries, GitHub reporter, `forbidOnly`. |
+
+
+## World artwork regression
+
+`smoke/world-art.spec.ts` stays inside the hermetic browser harness. It checks
+real canvas pixels for colour/mask agreement and clipping across the authored
+home motif catalogue, human facings/walk phases/public palettes, the six-place
+camera gallery, night/weather rendering and the decoded texture budget.
+`fixtures/world-art.ts` bundles only trusted local art modules into its isolated
+same-origin oracle. It adds no production debug API and refuses external module
+imports. Captures require visual review; viewport and CPU emulation do not
+certify physical phone or Raspberry Pi performance.

@@ -596,6 +596,14 @@ build seule ne prouve pas l'installabilité.
 - **Rollback operationnel** (plus seulement textuel) : les services `api`/`web` ont un **tag d'image explicite** (`lia-api:local` / `lia-web:local`) ; avant le build, `capture_rollback_point` sauve l'image courante en `:__rollback` ; si `/ready` echoue apres deploiement, `run_readiness_gate` **restaure automatiquement l'image precedente** (`up --force-recreate --no-build`) et **revalide `/ready`**, puis sort non-zero (deploiement echoue mais service restaure), ou signale une intervention manuelle si le rollback echoue aussi.
 - **Logique testee** : `scripts/deploy/lib/deploy_readiness_gate.sh` (source par le `deploy.sh` genere) + tests hermetiques `scripts/deploy/lib/test_deploy_readiness_gate.sh` (succes / readiness rouge → rollback → revalide / rollback impossible). **A valider par un smoke deploiement reel sur le Pi** (le rollback docker ne peut etre exerce que la).
 
+Le délai de grâce de la sonde API couvre le chemin de démarrage mesuré sur le
+Pi : migrations dans l'entrypoint, lancement des workers, puis lifespan. Sa
+valeur reste déclarée dans `docker-compose.prod.yml`, avec le test qui la tient.
+Un échec de `/health` pendant cette grâce ne rend pas prématurément malsain un
+démarrage encore en cours ; un démarrage bloqué échoue après cette borne.
+`/health` reste une sonde de vie et `/ready` vérifie PostgreSQL/Redis : allonger
+la grâce ne remplace ni l'attente de disponibilité ni le verdict de rollback.
+
 Garde statique : `apps/api/tests/unit/test_release_workflow_gate_guard.py` (le gate ne peut pas etre retire silencieusement).
 
 ---

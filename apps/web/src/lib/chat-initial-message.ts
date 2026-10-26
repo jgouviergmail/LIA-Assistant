@@ -11,8 +11,19 @@
  */
 
 /** The single method this module needs from Next's ReadonlyURLSearchParams. */
+import type { CardCompositionDraft } from '@/types/card-actions';
+
 interface SearchParamsLike {
   get(name: string): string | null;
+}
+
+/** A newly chosen task starts without an older card's execution selection. */
+export function resolveInitialComposition(
+  composition: CardCompositionDraft | undefined,
+  embedded: boolean | undefined,
+  openingDraft: string | undefined
+): CardCompositionDraft | undefined {
+  return embedded && openingDraft !== undefined ? undefined : composition;
 }
 
 /**
@@ -26,8 +37,11 @@ interface SearchParamsLike {
 export function resolveInitialMessage(
   searchParams: SearchParamsLike | null,
   storedDraft: string | undefined,
-  replayedIntent: string
+  replayedIntent: string,
+  embedded = false,
+  openingDraft?: string
 ): string | undefined {
+  if (embedded) return openingDraft ?? storedDraft;
   const draft = searchParams?.get('draft');
   if (draft && draft.trim()) return draft;
   if (replayedIntent) return replayedIntent;
