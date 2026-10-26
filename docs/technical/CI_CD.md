@@ -797,6 +797,56 @@ Tout ajout de ces parcours exige de résoudre
 l'alerte avant usage. Retirer l'exception dès qu'une version compatible de
 VoxCPM permet le paquet corrigé ; l'alerte GitHub reste ouverte entre-temps.
 
+### GPU toolbox advisory review: 26 October 2026
+
+The GitHub default-branch review reports 43 open advisories against the GPU
+toolbox lock: 41 for Pillow, one for fsspec and the datasets advisory above.
+The existing Pillow decision covers an audio-only developer tool; this review
+records the remaining 19 global advisory references individually, with a
+31 October 2026 review date under the maintainer's responsibility in this
+document. Like the datasets advisory above, these additional references come
+from GitHub's global catalogue; the automated registry is reserved for findings
+its repository sources actually report and rejects unmatched entries. GitHub
+alerts remain open, and these decisions do not establish a vulnerability-free
+toolbox.
+
+[VoxCPM metadata](https://pypi.org/pypi/voxcpm/2.0.3/json) requires
+`gradio>=6,<7` and `datasets>=3,<4`. All 37 published stable Gradio 6 versions
+cap Pillow below the patched generation; all 13 published datasets 3 versions
+cap fsspec below its fix. The current compatible dependency graph therefore
+cannot take these fixes. The resolver and package constraints remain enforced.
+
+The kit is absent from application images and both self-host bundle allowlists.
+Its clone path loads a pinned local model with `load_denoiser=False`, then
+generates audio from text and local WAV input. Targeted inspection of the
+official VoxCPM wheel confirms that this path avoids dataset training and the
+optional ModelScope denoiser. Our tool calls no image decoder, Gradio UI,
+ReferenceFileSystem or dataset folder builder. This is static reachability
+evidence; a new GPU runtime measurement was not performed. Adding image input,
+a UI service or those dataset paths requires resolving their advisories first.
+
+Additional Pillow references recorded by this review:
+
+- [GHSA-22hg-r758-rrw9](https://github.com/advisories/GHSA-22hg-r758-rrw9)
+- [GHSA-254f-3936-288h](https://github.com/advisories/GHSA-254f-3936-288h)
+- [GHSA-462x-pgg6-55fp](https://github.com/advisories/GHSA-462x-pgg6-55fp)
+- [GHSA-4rr5-89j8-mwwm](https://github.com/advisories/GHSA-4rr5-89j8-mwwm)
+- [GHSA-5xm2-6676-qcp9](https://github.com/advisories/GHSA-5xm2-6676-qcp9)
+- [GHSA-654x-cwwv-5j9c](https://github.com/advisories/GHSA-654x-cwwv-5j9c)
+- [GHSA-74r2-7ff9-mjj2](https://github.com/advisories/GHSA-74r2-7ff9-mjj2)
+- [GHSA-78g4-xqwv-q3g8](https://github.com/advisories/GHSA-78g4-xqwv-q3g8)
+- [GHSA-cp9v-662q-vvx9](https://github.com/advisories/GHSA-cp9v-662q-vvx9)
+- [GHSA-f2g6-542v-9j58](https://github.com/advisories/GHSA-f2g6-542v-9j58)
+- [GHSA-fc9g-5qg7-mf45](https://github.com/advisories/GHSA-fc9g-5qg7-mf45)
+- [GHSA-g4qv-2jxx-769h](https://github.com/advisories/GHSA-g4qv-2jxx-769h)
+- [GHSA-g7cr-3p24-7wf7](https://github.com/advisories/GHSA-g7cr-3p24-7wf7)
+- [GHSA-gg2r-wvfm-q9rx](https://github.com/advisories/GHSA-gg2r-wvfm-q9rx)
+- [GHSA-j4m9-6w36-pw47](https://github.com/advisories/GHSA-j4m9-6w36-pw47)
+- [GHSA-p4wg-p73j-c528](https://github.com/advisories/GHSA-p4wg-p73j-c528)
+- [GHSA-rfgq-q3w2-pmv2](https://github.com/advisories/GHSA-rfgq-q3w2-pmv2)
+- [GHSA-vx6w-vv9f-6gvg](https://github.com/advisories/GHSA-vx6w-vv9f-6gvg)
+- [GHSA-w889-685w-c8fh](https://github.com/advisories/GHSA-w889-685w-c8fh)
+
 ### Gardes de dependances (sans reseau)
 
 Quatre gardes du programme dependances (lot 3), dans `apps/api/tests/unit/`, tournent avec la

@@ -10,6 +10,15 @@ The whole procedure — data, training, measurement, shipping — and the measur
 that shaped it are explained in
 [docs/technical/WAKE_WORD_TRAINING.md](../../docs/technical/WAKE_WORD_TRAINING.md).
 
+The optional GPU dependency graph also holds an older Pillow and fsspec through
+VoxCPM's Gradio and datasets constraints. The toolbox uses text and local WAV
+input, with no image decoding or UI server, and is absent from application
+images and self-host bundles. Open advisories, dependency constraints, static
+evidence and dated decisions are tracked in the
+[security review](../../docs/technical/CI_CD.md#gpu-toolbox-advisory-review-26-october-2026).
+Check that review before changing its input formats, serving a UI or enabling
+dataset builders. Compatible upstream fixes must replace these decisions.
+
 ## Security boundary of the GPU toolbox
 
 The GPU toolbox carries a `datasets` advisory
