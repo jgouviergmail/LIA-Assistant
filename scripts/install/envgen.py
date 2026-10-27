@@ -103,6 +103,11 @@ def _parse_env_text(text: str) -> dict[str, str]:
     return values
 
 
+def _grafana_credential_is_configured(value: str) -> bool:
+    """Empty Compose literals are unconfigured; keep other raw values intact."""
+    return value not in ("", '""', "''")
+
+
 def load_existing_generated_secrets(
     path: Path, required_keys: Collection[str]
 ) -> Mapping[str, str]:
@@ -176,8 +181,10 @@ def derive_environment(
     grafana_user = in_force.get("GRAFANA_ADMIN_USER", "")
     grafana_password = in_force.get("GRAFANA_ADMIN_PASSWORD", "")
     if public.observability:
-        grafana_user = grafana_user or "admin"
-        grafana_password = grafana_password or secrets.token_urlsafe(32)
+        if not _grafana_credential_is_configured(grafana_user):
+            grafana_user = "admin"
+        if not _grafana_credential_is_configured(grafana_password):
+            grafana_password = secrets.token_urlsafe(32)
     return {
         "ENVIRONMENT": "production",
         "DEBUG": "false",
@@ -298,7 +305,7 @@ def render_reconfigured_env(current_env: str, environment: Mapping[str, str]) ->
     # A configured credential survives both disabling and re-enabling the profile.
     # Empty template values are unconfigured and may be filled on activation.
     for key in ("GRAFANA_ADMIN_USER", "GRAFANA_ADMIN_PASSWORD"):
-        if in_force.get(key):
+        if _grafana_credential_is_configured(in_force.get(key, "")):
             values[key] = in_force[key]
     secret_in_force = in_force.get("DIAGNOSTICS_WEBHOOK_SECRET", "")
     if values.get("DIAGNOSTICS_WEBHOOK_SECRET") and secret_in_force:

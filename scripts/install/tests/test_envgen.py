@@ -509,3 +509,75 @@ def test_grafana_password_is_hidden_in_reconfiguration_confirmation() -> None:
     leaked = password in line
     assert not leaked
     assert "(hidden)" in line
+
+
+@pytest.mark.parametrize("empty_literal", ('""', "''"))
+@pytest.mark.parametrize("empty_keys", ("both", "user", "password"))
+def test_activation_fills_quoted_empty_grafana_credentials(
+    empty_literal: str, empty_keys: str
+) -> None:
+    retained_password = generate_secrets()["SECRET_KEY"]
+    current_values = {
+        "GRAFANA_ADMIN_USER": empty_literal if empty_keys != "password" else "operator",
+        "GRAFANA_ADMIN_PASSWORD": empty_literal if empty_keys != "user" else retained_password,
+    }
+    current = "".join(f"{key}={value}\n" for key, value in current_values.items())
+    values = derive_environment(
+        replace(_public(), observability=True), generate_secrets(), current_env=current
+    )
+    assert values["GRAFANA_ADMIN_USER"] == ("admin" if empty_keys != "password" else "operator")
+    if empty_keys != "user":
+        assert len(values["GRAFANA_ADMIN_PASSWORD"]) >= 32
+        assert values["GRAFANA_ADMIN_PASSWORD"] not in ('""', "''")
+    else:
+        assert values["GRAFANA_ADMIN_PASSWORD"] == retained_password
+
+
+@pytest.mark.parametrize("empty_literal", ('""', "''"))
+@pytest.mark.parametrize("empty_keys", ("both", "user", "password"))
+def test_reconfiguration_does_not_restore_quoted_empty_grafana_credentials(
+    empty_literal: str, empty_keys: str
+) -> None:
+    retained_password = generate_secrets()["SECRET_KEY"]
+    current_values = {
+        "GRAFANA_ADMIN_USER": empty_literal if empty_keys != "password" else "operator",
+        "GRAFANA_ADMIN_PASSWORD": empty_literal if empty_keys != "user" else retained_password,
+    }
+    current = "".join(f"{key}={value}\n" for key, value in current_values.items())
+    proposed = derive_environment(replace(_public(), observability=True), generate_secrets())
+    candidate = _values(render_reconfigured_env(current, proposed))
+    assert candidate["GRAFANA_ADMIN_USER"] == (
+        proposed["GRAFANA_ADMIN_USER"] if empty_keys != "password" else "operator"
+    )
+    assert candidate["GRAFANA_ADMIN_PASSWORD"] == (
+        proposed["GRAFANA_ADMIN_PASSWORD"] if empty_keys != "user" else retained_password
+    )
+
+
+@pytest.mark.parametrize("observability", (False, True))
+@pytest.mark.parametrize(
+    ("username", "password"),
+    (
+        ('"operator"', "'nonempty$literal'"),
+        ("'operator with spaces'", '"nonempty ${NOT_EVALUATED}"'),
+        ('" "', "' '"),
+    ),
+)
+def test_nonempty_quoted_grafana_credentials_remain_exactly_as_written(
+    observability: bool, username: str, password: str
+) -> None:
+    current_values = {
+        "GRAFANA_ADMIN_USER": username,
+        "GRAFANA_ADMIN_PASSWORD": password,
+    }
+    current = "".join(f"{key}={value}\n" for key, value in current_values.items())
+    proposed = derive_environment(
+        replace(_public(), observability=observability),
+        generate_secrets(),
+        current_env=current,
+    )
+    candidate = render_reconfigured_env(current, proposed)
+    for key, value in current_values.items():
+        assert proposed[key] == value
+        assert _values(candidate)[key] == value
+        assert f"{key}={value}\n" in candidate
