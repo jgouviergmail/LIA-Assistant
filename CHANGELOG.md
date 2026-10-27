@@ -98,6 +98,11 @@ existing account, permission, approval and spending boundaries.
   no default cache. The positive workboard notification fixture follows the real
   durable-delivery result model.
 
+- 🧰 **Reproducible CI provisioning**: activate the root pnpm pin through Node 24’s
+  Corepack with signature checks, isolated shims and cache-aware version checks.
+  Installer argument vectors, release metadata output and Xcode selection pass
+  shell validation without masking diagnostics.
+
 ### Fixed — API reliability and privacy
 
 - 🚀 The API's health grace covers its measured boot on the Pi (`start_period` 60 s →

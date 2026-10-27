@@ -243,20 +243,9 @@ jobs:
           python -m cyclonedx_py requirements requirements.lock.txt --of json -o ../../sbom-api.cdx.json
           python -m cyclonedx_py requirements requirements-sandbox.lock.txt --of json -o ../../sbom-sandbox.cdx.json
 
-      - name: Set up pnpm
-        # No explicit version: the action reads `packageManager` from
-        # package.json (same pattern as ci.yml). A hardcoded major here
-        # conflicts with that field, and action-setup >=4.1 refuses the
-        # ambiguity outright — measured on the v1.30.0 candidate run.
-        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v4
-
-      - name: Set up Node.js
-        # Without this step the runner's default Node applies (22.x today)
-        # and pnpm 10 enforces the root `engines.node >=24` strictly — the
-        # v1.30.1 candidate run died on exactly that. Same pin as ci.yml.
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
-        with:
-          node-version: "24"
+      - name: Set up Node.js and pnpm
+        # Node 24 supplies Corepack; the composite installs the root packageManager.
+        uses: ./.github/actions/setup-pnpm
 
       - name: Generate frontend SBOM
         run: |
@@ -451,7 +440,7 @@ jobs:
           major="${version%%.*}"
           minor="${version%.*}"
           python -m scripts.release.self_host_manifest --print-images dist/lia-self-host-manifest.json |
-          while read -r app reference; do
+          while read -r _app reference; do
             repo="${reference%@*}"
             for tag in "$version" "$minor" "$major" latest; do
               docker buildx imagetools create --tag "${repo}:${tag}" "$reference"
@@ -477,10 +466,16 @@ jobs:
         id: identity
         run: |
           set -euo pipefail
-          echo "version=$(jq -r '.release_version' dist/lia-self-host-manifest.json)" >> "$GITHUB_OUTPUT"
-          echo "api_ref=$(python -m scripts.release.self_host_manifest --print-images dist/lia-self-host-manifest.json | awk '$1=="api"{print $2}')" >> "$GITHUB_OUTPUT"
-          echo "web_ref=$(python -m scripts.release.self_host_manifest --print-images dist/lia-self-host-manifest.json | awk '$1=="web"{print $2}')" >> "$GITHUB_OUTPUT"
-          echo "sandbox_ref=$(python -m scripts.release.self_host_manifest --print-images dist/lia-self-host-manifest.json | awk '$1=="sandbox"{print $2}')" >> "$GITHUB_OUTPUT"
+          version="$(jq -r '.release_version' dist/lia-self-host-manifest.json)"
+          api_ref="$(python -m scripts.release.self_host_manifest --print-images dist/lia-self-host-manifest.json | awk '$1=="api"{print $2}')"
+          web_ref="$(python -m scripts.release.self_host_manifest --print-images dist/lia-self-host-manifest.json | awk '$1=="web"{print $2}')"
+          sandbox_ref="$(python -m scripts.release.self_host_manifest --print-images dist/lia-self-host-manifest.json | awk '$1=="sandbox"{print $2}')"
+          {
+            printf 'version=%s\n' "$version"
+            printf 'api_ref=%s\n' "$api_ref"
+            printf 'web_ref=%s\n' "$web_ref"
+            printf 'sandbox_ref=%s\n' "$sandbox_ref"
+          } >> "$GITHUB_OUTPUT"
       - name: Create Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:

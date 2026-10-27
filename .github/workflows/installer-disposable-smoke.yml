@@ -191,7 +191,7 @@ jobs:
           # the end of the job is the single owner of teardown, and on
           # failure the dump steps must still find the stack alive first.
           COMPOSE_PROJECT_NAME="${{ steps.project.outputs.name }}" \
-            ./install.sh $mode_flag --non-interactive --answers answers.env
+            ./install.sh "$mode_flag" --non-interactive --answers answers.env
 
       - name: Apply the hermetic fake-provider overlay
         working-directory: work
@@ -204,12 +204,12 @@ jobs:
           # key. Applied AFTER the wizard's own sequence on purpose: the
           # public installer must be qualified unmodified, the overlay only
           # reshapes the already-verified stack for hermetic probing.
-          files="-f docker-compose.prod.yml -f docker-compose.install.yml"
+          files=(-f docker-compose.prod.yml -f docker-compose.install.yml)
           if [ "${{ matrix.mode }}" = "prebuilt" ]; then
-            files="$files -f docker-compose.images.yml"
+            files+=(-f docker-compose.images.yml)
           fi
-          files="$files -f scripts/install/tests/runtime/docker-compose.disposable.yml"
-          docker compose -p "${{ steps.project.outputs.name }}" $files \
+          files+=(-f scripts/install/tests/runtime/docker-compose.disposable.yml)
+          docker compose -p "${{ steps.project.outputs.name }}" "${files[@]}" \
             up -d --no-build api fake-provider
           # The recreation restarts the API (~40 s boot): the probes have no
           # readiness wait of their own, so the gate lives here.
@@ -228,15 +228,15 @@ jobs:
           ADMIN_PASSWORD: Xx12!!abcdA9$Z
         run: |
           set -euo pipefail
-          manifest_args=""
+          manifest_args=()
           if [ "${{ matrix.mode }}" = "prebuilt" ]; then
-            manifest_args="--manifest lia-self-host-manifest.json --platform ${{ matrix.platform }} --project ${{ steps.project.outputs.name }}"
+            manifest_args=(--manifest lia-self-host-manifest.json --platform "${{ matrix.platform }}" --project "${{ steps.project.outputs.name }}")
           fi
           python3 -B scripts/install/tests/runtime/assert_install.py \
             --base-url http://127.0.0.1:3000 \
             --admin-email admin@qualification.lia \
             --admin-password-env ADMIN_PASSWORD \
-            $manifest_args
+            "${manifest_args[@]}"
 
       - name: Seed failure injection — atomic rollback then clean retry
         working-directory: work

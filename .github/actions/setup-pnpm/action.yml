@@ -1,0 +1,79 @@
+name: Setup Node.js and pinned pnpm
+description: Install Node 24 and the root packageManager through isolated Corepack shims.
+inputs:
+  cache:
+    description: Restore and save the pnpm store after activating the pinned manager.
+    required: false
+    default: 'false'
+  cache-dependency-path:
+    description: Lockfile paths to include alongside this action in the store cache key.
+    required: false
+    default: pnpm-lock.yaml
+runs:
+  using: composite
+  steps:
+    - name: Setup Node 24
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # Node 24 action runtime
+      with:
+        node-version: '24'
+        package-manager-cache: 'false'
+
+    - name: Activate the root packageManager
+      id: bootstrap
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        COREPACK_HOME: ${{ runner.temp }}/lia-corepack
+        PNPM_BIN_DIR: ${{ runner.temp }}/lia-pnpm/bin
+      run: |
+        set -euo pipefail
+        if ! command -v corepack >/dev/null; then
+          echo '::error::Corepack is missing from the configured Node 24 installation.'
+          exit 1
+        fi
+        corepack --version
+        expected="$(node <<'NODE'
+        const { packageManager } = require('./package.json');
+        if (!/^pnpm@[0-9]+[.][0-9]+[.][0-9]+(?:[-+].*)?$/.test(packageManager ?? '')) {
+          throw new Error('The root packageManager must pin an exact pnpm version.');
+        }
+        process.stdout.write(packageManager.slice(5).split('+')[0]);
+        NODE
+        )"
+        mkdir -p "$COREPACK_HOME" "$PNPM_BIN_DIR"
+        corepack enable --install-directory "$PNPM_BIN_DIR" pnpm
+        corepack install
+        export PATH="$PNPM_BIN_DIR:$PATH"
+        actual="$(pnpm --version)"
+        if [ "$actual" != "$expected" ]; then
+          echo "::error::Expected pnpm $expected, received $actual."
+          exit 1
+        fi
+        printf 'COREPACK_HOME=%s\n' "$COREPACK_HOME" >> "$GITHUB_ENV"
+        printf '%s\n' "$PNPM_BIN_DIR" >> "$GITHUB_PATH"
+        printf 'version=%s\n' "$expected" >> "$GITHUB_OUTPUT"
+        printf 'Pinned pnpm %s is active.\n' "$actual"
+
+    - name: Cache the pnpm store
+      if: inputs.cache == 'true'
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # Same Node action as bootstrap
+      with:
+        node-version: '24'
+        cache: pnpm
+        cache-dependency-path: |
+          ${{ inputs.cache-dependency-path }}
+          .github/actions/setup-pnpm/action.yml
+
+    - name: Verify pinned pnpm after cache
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        EXPECTED_PNPM_VERSION: ${{ steps.bootstrap.outputs.version }}
+      run: |
+        set -euo pipefail
+        actual="$(pnpm --version)"
+        if [ "$actual" != "$EXPECTED_PNPM_VERSION" ]; then
+          echo "::error::Expected pnpm $EXPECTED_PNPM_VERSION after cache setup, received $actual."
+          exit 1
+        fi
+        printf 'Pinned pnpm %s remains active after cache setup.\n' "$actual"

@@ -7,6 +7,7 @@
 - `.github/workflows/ci.yml` — Pipeline CI principale
 - `Taskfile.yml` — **l'implementation reelle de tous les gates** (voir ci-dessous)
 - `.github/workflows/security.yml` — Scans de securite (CodeQL, Trivy, SBOM)
+- [`.github/actions/setup-pnpm/action.yml`](../../.github/actions/setup-pnpm/action.yml) — Provisionnement Node/Corepack commun, pin racine et cache pnpm
 - `.github/workflows/release.yml` — artefacts candidats, promotion des digests qualifiés et GitHub Release
 - `.github/workflows/a11y-matrix.yml` — Matrice navigateurs hebdomadaire (AC-002) : rejoue la suite E2E/axe sur Chromium, Firefox et WebKit par la tache de la suite (`task test:e2e:browsers`), rapports archives 30 jours
 - `.github/hooks/pre-commit` — Hook Git pre-commit local
@@ -29,18 +30,27 @@ peut jouer en local, et qui se decouvre par un build rouge apres un local vert �
 ce qui est arrive au gate de couverture par markers, au ratchet de complexite
 frontend, aux seuils de couverture par fichier et a tout le bloc code-hygiene.
 
-Trois exceptions seulement, chacune motivee par ecrit dans le dictionnaire
-`CI_ONLY` de `scripts/audit/check_ci_parity.py` :
+Les exceptions CI-only sont motivées dans le dictionnaire `CI_ONLY` de
+`scripts/audit/check_ci_parity.py`, qui reste leur autorité. Les parcours suivants
+illustrent les différences de provisionnement entre un runner et le poste local :
 
 | Etape CI-only                                           | Raison                                                                      | Equivalent local                                            |
 | ------------------------------------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| `promtool` (binaire natif)                              | promtool n'est pas installe sur une machine de dev                          | `task test:alerts` — **meme version v3.0.0**, via conteneur |
+| Overcommit Redis sur le runner | le noyau appartient au runner CI jetable | les taches locales conservent la configuration du noyau développeur |
 | Replay des migrations (bash, dans le conteneur)         | le wrapper bash ne tourne pas sur l'hote Windows                            | `task db:migrate:replay-check` (portage Python, F048)       |
 | Gate 3.10 de l'installateur (`tests_py310.py`, ADR-215) | doit tourner sous l'interpreteur 3.10 nu de setup-python, hors venv du repo | n'importe quel python >= 3.10 execute le meme fichier       |
 
 Le reste des `run:` est du provisionnement de runner (checkout, venv, `pnpm
 install`). `task lint:ci-parity` echoue sur toute etape qui n'est ni un appel de
 tache, ni un provisionnement declare, ni une exception motivee.
+
+Le composite commun prépare Node 24 puis active, avec Corepack fourni par Node,
+la version de pnpm déclarée dans le `packageManager` racine. Les shims et le cache
+Corepack restent dans le répertoire temporaire du runner ; les contrôles de
+signature et d’intégrité restent actifs. La version effective est contrôlée
+avant et apres la restauration du store pnpm. La clé du cache inclut le lockfile
+et la définition du composite, pour suivre aussi les changements de bootstrap.
+Les installations frozen et les gates restent exécutés par leurs tâches habituelles.
 
 ---
 
