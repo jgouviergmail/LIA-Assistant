@@ -5,11 +5,12 @@
  * `validateSectionSchemas` — Zod as a DETECTOR feeding the anomaly channel
  * (fail-soft: mismatches surface, sections never disappear).
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { validateDomainScores, validateSectionSchemas, validateToolScores } from '../validators';
 import { baseDebugMetrics } from '../../__tests__/fixtures';
 import type { DebugMetrics } from '@/types/chat';
+import { logger } from '@/lib/logger';
 
 const DOMAIN: DebugMetrics['domain_selection'] = {
   ...baseDebugMetrics().domain_selection,
@@ -21,6 +22,10 @@ const DOMAIN: DebugMetrics['domain_selection'] = {
 
 const BASE: DebugMetrics = baseDebugMetrics({ domain_selection: DOMAIN });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe('validateDomainScores', () => {
   it('returns the calibrated score map when scores exist', () => {
     const result = validateDomainScores(DOMAIN);
@@ -30,17 +35,69 @@ describe('validateDomainScores', () => {
   });
 
   it('fails softly when no scores are available', () => {
+    const warning = vi.spyOn(logger, 'warn');
     const result = validateDomainScores({ ...DOMAIN, all_scores: {} });
     expect(result.success).toBe(false);
     expect(result.errors?.[0]).toMatch(/No domain scores/);
+    expect(warning).toHaveBeenCalledExactlyOnceWith('domain_scores_missing', {
+      primary_domain: 'contact',
+      selected_domains: ['contact'],
+      top_score: 0.88,
+    });
+  });
+
+  it.each([
+    { primary_domain: 'none', all_scores: {} },
+    { primary_domain: 'general', all_scores: undefined },
+  ])('keeps a normal empty $primary_domain selection at debug severity', selection => {
+    const warning = vi.spyOn(logger, 'warn');
+    const diagnostic = vi.spyOn(logger, 'debug');
+    // Exercise the runtime schema: external payloads can omit the typed score map.
+    const runtimeSelection: unknown = {
+      ...baseDebugMetrics().domain_selection,
+      ...selection,
+    };
+    const result = validateDomainScores(runtimeSelection as DebugMetrics['domain_selection']);
+    expect(result).toEqual({ success: false, errors: ['No domain scores available.'] });
+    expect(warning).not.toHaveBeenCalled();
+    expect(diagnostic).toHaveBeenCalledExactlyOnceWith('domain_scores_missing', {
+      primary_domain: selection.primary_domain,
+      selected_domains: [],
+      top_score: 0,
+    });
+  });
+
+  it.each([
+    { primary_domain: 'contact', top_score: 0 },
+    { primary_domain: 'none', top_score: 0.5 },
+  ])('warns about an inconsistent empty selection $primary_domain/$top_score', selection => {
+    const warning = vi.spyOn(logger, 'warn');
+    const diagnostic = vi.spyOn(logger, 'debug');
+    const result = validateDomainScores({
+      ...baseDebugMetrics().domain_selection,
+      ...selection,
+    });
+    expect(result).toEqual({ success: false, errors: ['No domain scores available.'] });
+    expect(warning).toHaveBeenCalledExactlyOnceWith('domain_scores_missing', {
+      primary_domain: selection.primary_domain,
+      selected_domains: [],
+      top_score: selection.top_score,
+    });
+    expect(diagnostic).not.toHaveBeenCalled();
   });
 
   it('rejects a structurally invalid section', () => {
+    const error = vi.spyOn(logger, 'error');
     const result = validateDomainScores({
       ...DOMAIN,
       top_score: 42,
     } as DebugMetrics['domain_selection']);
     expect(result.success).toBe(false);
+    expect(error).toHaveBeenCalledExactlyOnceWith(
+      'domain_selection_schema_validation_failed',
+      undefined,
+      { errors: expect.any(Array) }
+    );
   });
 });
 

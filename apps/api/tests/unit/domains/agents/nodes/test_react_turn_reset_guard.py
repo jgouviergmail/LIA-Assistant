@@ -292,12 +292,14 @@ class TestThroughTheRealCheckpointer:
         from unittest.mock import AsyncMock, MagicMock, patch
 
         from langgraph.checkpoint.memory import InMemorySaver
+        from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
         from langgraph.graph import END, START, StateGraph
 
         from src.domains.agents.analysis.query_intelligence import QueryIntelligence, UserGoal
         from src.domains.agents.context.runtime_context import LiaRuntimeContext
         from src.domains.agents.models import MessagesState
         from src.domains.agents.nodes.router_node_v3 import router_node_v3
+        from src.domains.conversations.checkpointer import _CHECKPOINT_ALLOWED_MODULES
 
         intelligence = QueryIntelligence(
             original_query="rappelle-moi samedi",
@@ -334,7 +336,9 @@ class TestThroughTheRealCheckpointer:
             graph.add_edge(entry, END)
             return graph
 
-        saver = InMemorySaver()
+        saver = InMemorySaver(
+            serde=JsonPlusSerializer(allowed_msgpack_modules=_CHECKPOINT_ALLOWED_MODULES)
+        )
         turn_one = build("charge_tools").compile(checkpointer=saver)
         turn_two = build("router").compile(checkpointer=saver)
         patcher = patch(

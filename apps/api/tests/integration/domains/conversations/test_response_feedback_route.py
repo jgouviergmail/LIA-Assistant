@@ -14,7 +14,7 @@ efficacy seam it calls last (ADR-348, AC-030b). Through HTTP, against PostgreSQL
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from typing import Any
 from uuid import UUID
 
@@ -23,16 +23,36 @@ from httpx import AsyncClient
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core import middleware
+from src.core.config import settings
 from src.core.field_names import FIELD_RESPONSE_FEEDBACK
 from src.core.session_dependencies import get_current_active_session
 from src.domains.conversations import efficacy_feedback, response_feedback
 from src.domains.conversations.models import Conversation, ConversationMessage
 from src.domains.users.models import User
+from src.infrastructure.observability.geoip import GeoIPResolver
 from src.main import app
 
 pytestmark = pytest.mark.integration
 
 TITLE = "Before any hook"
+
+
+@pytest.fixture(autouse=True)
+def without_optional_geoip_database(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> Iterator[None]:
+    """Feedback HTTP contracts need no MMDB; restore the original resolver afterward."""
+    resolver = GeoIPResolver()
+    monkeypatch.setattr(settings, "geoip_enabled", False)
+    monkeypatch.setattr(middleware, "geoip_resolver", resolver)
+    try:
+        yield
+        assert not any(
+            "geoip_db_not_found" in record.getMessage() for record in caplog.get_records("call")
+        )
+    finally:
+        resolver.close()
 
 
 def _path(message_id: UUID) -> str:

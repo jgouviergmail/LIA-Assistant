@@ -28,8 +28,12 @@ from src.domains.agents.services.query_analyzer_service import ContextReferenceO
 
 
 @pytest.fixture
-def context_service() -> ContextResolutionService:
-    """Create a ContextResolutionService instance."""
+def context_service(monkeypatch: pytest.MonkeyPatch) -> ContextResolutionService:
+    """Resolve references without a persistent TCM session in these routing tests."""
+    monkeypatch.setattr(
+        "src.domains.agents.services.context_resolution_service.get_tcm_session",
+        AsyncMock(return_value=None),
+    )
     return ContextResolutionService()
 
 

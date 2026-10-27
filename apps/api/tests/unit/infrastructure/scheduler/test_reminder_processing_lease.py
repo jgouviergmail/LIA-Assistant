@@ -175,6 +175,13 @@ class _Harness:
             patch("src.infrastructure.cache.redis.get_redis_cache", AsyncMock(return_value=None)),
             patch(f"{module}.get_relevant_memories", AsyncMock(return_value=[])),
             patch(f"{module}.generate_reminder_message", AsyncMock(side_effect=self._generate)),
+            # Delivery and lease settlement stay real; these two notification sinks
+            # belong to their own tests, not this scheduler's in-memory sessions.
+            patch(
+                "src.infrastructure.proactive.notification.send_notification_to_channels",
+                AsyncMock(return_value=None),
+            ),
+            patch(f"{module}._archive", AsyncMock(return_value=None)),
         ]
 
 

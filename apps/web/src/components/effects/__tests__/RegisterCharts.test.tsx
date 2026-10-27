@@ -12,16 +12,32 @@
  * - one component serves both audiences, so the reader's screen and the
  *   operator's cannot disagree about what a series means.
  *
- * `recharts` measures its container, which jsdom reports as zero — so the bars
- * themselves are not asserted here. What is asserted is everything around them,
- * which is where the claims live.
+ * The fixture supplies a measured container to the real Recharts renderer.
+ * The surrounding claims and the presence of its SVG are asserted together.
  */
 
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
 import { RegisterCharts } from '@/components/effects/RegisterCharts';
 import type { RegisterStatistics } from '@/hooks/useRegisterStatistics';
+
+// ResponsiveContainer reads this boundary before observing it. Give only the
+// chart container a measured JSDOM box; the real Recharts SVG still renders.
+let chartBounds: MockInstance<HTMLElement['getBoundingClientRect']>;
+
+beforeEach(() => {
+  const originalBounds = HTMLElement.prototype.getBoundingClientRect;
+  chartBounds = vi
+    .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+    .mockImplementation(function (this: HTMLElement): DOMRect {
+      return this.classList.contains('recharts-responsive-container')
+        ? new DOMRect(0, 0, 640, 320)
+        : originalBounds.call(this);
+    });
+});
+
+afterEach(() => chartBounds.mockRestore());
 
 const dictionary: Record<string, string> = {
   'registers.charts.loading': 'Loading the figures',
@@ -129,6 +145,7 @@ describe('RegisterCharts', () => {
     render(<RegisterCharts />);
 
     expect(screen.getByText('Total 137')).toBeInTheDocument();
+    expect(document.querySelector('svg.recharts-surface')).toBeInTheDocument();
   });
 
   it('says an empty period is empty rather than showing a blank card', () => {

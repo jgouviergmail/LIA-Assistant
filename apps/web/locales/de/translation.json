@@ -6481,7 +6481,7 @@
         "v4_0_0": {
           "title": "v4.0.0 — 🌍 Eine Welt zum Erkunden, LIA an deiner Seite",
           "date": "27. Oktober 2026",
-          "count": "10",
+          "count": "11",
           "items": {
             "i1": "<b>🌍 Betritt LIAs Welt</b> — Erkunde mit LIA einen gemeinsamen Campus und Garten, per Tastatur oder Touch, mit Minikarte und Kamerasteuerung. Der Betreiber entscheidet, ob dieser optionale Bereich verfügbar ist.",
             "i2": "<b>🏠 Dein eigener Ort</b> — Wähle deinen Avatar und die Farbpalette deines Hauses. Deine Hauseinstellungen und die Daten deiner Assistenz bleiben privat, auch wenn du andere Menschen in der gemeinsamen Welt triffst.",
@@ -6492,7 +6492,8 @@
             "i7": "<b>🛠️ Ein kontrollierter gemeinsamer Bereich</b> — Administratoren können die Welt aktivieren und ihre Kapazität festlegen. Warteschlange und ausdrückliche Tab-Steuerung regeln den Zugang; bei Verbindungsverlust pausieren Interaktionen bis zur Wiederverbindung.",
             "i8": "<b>🧠 Mehr Modellauswahl</b> — Jev 1.14 und Gemini 4 Argon ergänzen den Katalog. Die optionale JEV-Unterstützung behält eigene Einstellungen, Verbrauchserfassung und dokumentierte Grenzen.",
             "i9": "<b>🛡️ Flüssigere Uploads und mehr Datenschutz</b> — Große PDFs und HEIC-Bilder werden verarbeitet, ohne die Hauptschleife der Anfragen zu blockieren. Abbruch und Transaktionsabschluss sind zuverlässiger, Adressen in Logs besser geschützt und Migrationen erhalten beim Start mehr Zeit.",
-            "i10": "<b>⌨️ Der Fokus kehrt zu „+“ zurück</b> — Schließe ein über das Anhangmenü geöffnetes Fenster mit Esc oder Schließen. Der Tastaturfokus liegt danach wieder auf der Schaltfläche „+“."
+            "i10": "<b>⌨️ Der Fokus kehrt zu „+“ zurück</b> — Schließe ein über das Anhangmenü geöffnetes Fenster mit Esc oder Schließen. Der Tastaturfokus liegt danach wieder auf der Schaltfläche „+“.",
+            "i11": "<b>📈 LIAs Entwicklung bleibt lesbar</b> — Unter „LIAs Psyche“ bleiben im Verlauf alle Momentaufnahmen erhalten, auch wenn sie denselben Zeitpunkt haben, ohne doppelte Zeitmarkierungen."
           }
         },
         "v3_7_0": {

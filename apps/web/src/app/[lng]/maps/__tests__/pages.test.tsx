@@ -7,7 +7,9 @@
  * markers: each has its own tests.
  */
 
-import { render, screen, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/components/landing/LandingHeader', () => ({
@@ -51,6 +53,22 @@ const TECHNICAL_BRICKS = String(mapsData('fr').technical.bricks.length);
 const DECISIONS = String(mapsData('fr').history.entries.length);
 const paramsFor = (lng: string) => ({ params: Promise.resolve({ lng }) });
 
+// These assertions inspect server output, without hydrating a client root.
+const serverRoots = new Set<HTMLElement>();
+function renderServerMarkup(node: ReactNode) {
+  const container = document.createElement('div');
+  // HTML-fragment parsing preserves script markup without executing it.
+  container.innerHTML = renderToStaticMarkup(node);
+  document.body.appendChild(container);
+  serverRoots.add(container);
+  return { container, unmount: () => container.remove() };
+}
+
+afterEach(() => {
+  for (const container of serverRoots) container.remove();
+  serverRoots.clear();
+});
+
 describe('/maps metadata', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -83,7 +101,7 @@ describe('/maps metadata', () => {
 
 describe('/maps pages', () => {
   it('opens the section on its three maps, in the cosmos calm scope', async () => {
-    const { container } = render(await MapsPage(paramsFor('fr')));
+    const { container } = renderServerMarkup(await MapsPage(paramsFor('fr')));
     expect(container.querySelector('.landing-page.cosmos.cosmos-calm.lia-maps')).not.toBeNull();
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
       'Trois cartes pour comprendre LIA'
@@ -102,7 +120,7 @@ describe('/maps pages', () => {
   });
 
   it('hands each map its view, under its hero and with its tab current', async () => {
-    render(await FunctionalMapPage(paramsFor('en')));
+    renderServerMarkup(await FunctionalMapPage(paramsFor('en')));
     expect(screen.getByTestId('functional-map')).toHaveAttribute('data-bricks', FUNCTIONAL_BRICKS);
     expect(
       within(screen.getByRole('navigation', { name: "LIA's maps" })).getByRole('link', {
@@ -113,14 +131,14 @@ describe('/maps pages', () => {
   });
 
   it('renders the technical map and the history, prefixed for a non-default language', async () => {
-    const technical = render(await TechnicalMapPage(paramsFor('it')));
+    const technical = renderServerMarkup(await TechnicalMapPage(paramsFor('it')));
     expect(screen.getByTestId('technical-map')).toHaveAttribute('data-bricks', TECHNICAL_BRICKS);
     expect(screen.getByRole('link', { name: 'Storia delle decisioni' })).toHaveAttribute(
       'href',
       '/it/maps/history'
     );
     technical.unmount();
-    render(await HistoryMapPage(paramsFor('es')));
+    renderServerMarkup(await HistoryMapPage(paramsFor('es')));
     expect(screen.getByTestId('history-map')).toHaveAttribute('data-decisions', DECISIONS);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('La historia de LIA');
   });

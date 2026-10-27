@@ -12,7 +12,9 @@
  * translator would pass even if that reuse silently broke.
  */
 
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/components/changelog/ChangelogHistory', () => ({
@@ -32,6 +34,22 @@ const ORIGIN = 'https://lia.test';
 function paramsFor(lng: string) {
   return { params: Promise.resolve({ lng }) };
 }
+
+// These assertions inspect server output, without hydrating a client root.
+const serverRoots = new Set<HTMLElement>();
+function renderServerMarkup(node: ReactNode) {
+  const container = document.createElement('div');
+  // HTML-fragment parsing preserves script markup without executing it.
+  container.innerHTML = renderToStaticMarkup(node);
+  document.body.appendChild(container);
+  serverRoots.add(container);
+  return { container, unmount: () => container.remove() };
+}
+
+afterEach(() => {
+  for (const container of serverRoots) container.remove();
+  serverRoots.clear();
+});
 
 describe('/changelog metadata', () => {
   afterEach(() => {
@@ -95,19 +113,19 @@ describe('/changelog page', () => {
   it('keeps the sign-up call to action in the language being read', async () => {
     // A visitor reading the history in English must not be dropped on the
     // unprefixed French route by the one CTA the page carries.
-    render(await ChangelogPage(paramsFor('en')));
+    renderServerMarkup(await ChangelogPage(paramsFor('en')));
 
     expect(screen.getByRole('link')).toHaveAttribute('href', '/en/register');
   });
 
   it('leaves the default locale unprefixed', async () => {
-    render(await ChangelogPage(paramsFor('fr')));
+    renderServerMarkup(await ChangelogPage(paramsFor('fr')));
 
     expect(screen.getByRole('link')).toHaveAttribute('href', '/register');
   });
 
   it('gives the history a level-1 heading of its own', async () => {
-    render(await ChangelogPage(paramsFor('fr')));
+    renderServerMarkup(await ChangelogPage(paramsFor('fr')));
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Historique des versions');
     expect(screen.getByTestId('changelog-history')).toBeInTheDocument();

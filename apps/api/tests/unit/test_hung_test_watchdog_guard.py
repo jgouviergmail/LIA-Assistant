@@ -17,6 +17,7 @@ lowered on the command line alone.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import time
@@ -56,6 +57,12 @@ def _run_hanging_test(
         sys.executable,
         "-m",
         "pytest",
+        "-p",
+        "pytest_cov.plugin",
+        "-p",
+        "pytest_asyncio.plugin",
+        "-p",
+        "xdist.plugin",
         "test_hang.py",
         "-c",
         str(PYPROJECT),
@@ -68,10 +75,16 @@ def _run_hanging_test(
         "no:cacheprovider",
         *extra,
     ]
+    # This synthetic child needs only its configured option parsers and xdist.
+    # Loading every installed plugin again in the controller and worker makes
+    # startup compete with the parent suite before the watchdog can even run.
+    child_env = os.environ.copy()
+    child_env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
     started = time.monotonic()
     process = subprocess.run(
         command,
         cwd=tmp_path,
+        env=child_env,
         capture_output=True,
         text=True,
         timeout=HANG_SECONDS - 5,

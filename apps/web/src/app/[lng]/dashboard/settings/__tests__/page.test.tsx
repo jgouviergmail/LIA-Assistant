@@ -15,6 +15,24 @@ import { renderWithProviders, screen, within } from '@/__tests__/test-utils';
 
 import SettingsPage from '../page';
 import apiClient from '@/lib/api-client';
+import { LIA_VOICES_ENDPOINT } from '@/hooks/useLiaVoices';
+import type { LiaVoices } from '@/types/lia-voices';
+
+const LIA_VOICES: LiaVoices = {
+  available: true,
+  engine: 'test-engine',
+  provider: 'edge',
+  voices: [],
+  male: null,
+  female: null,
+  default_male: { voice_id: 'test-male', label: 'Test male', gender: 'male', language: 'en' },
+  default_female: {
+    voice_id: 'test-female',
+    label: 'Test female',
+    gender: 'female',
+    language: 'en',
+  },
+};
 
 const { toast } = vi.hoisted(() => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
@@ -76,6 +94,7 @@ describe('Settings page — master-detail shell', () => {
     vi.spyOn(apiClient, 'get').mockImplementation(async endpoint => {
       if (endpoint === '/chat/shortcuts') return { shortcuts: [], max_count: 4 };
       if (endpoint === '/connectors') return { connectors: [] };
+      if (endpoint === LIA_VOICES_ENDPOINT) return LIA_VOICES;
       if (endpoint === '/auth/me/voice-mode-preference') {
         return { stt_remote_available: true };
       }
@@ -131,6 +150,13 @@ describe('Settings page — master-detail shell', () => {
     await waitFor(() => {
       expect(document.querySelector('#settings-section-voice-mode')).not.toBeNull();
     });
+    expect(
+      await screen.findByRole('combobox', { name: 'settings.voice_mode.lia_voices.male' })
+    ).toBeInTheDocument();
+    expect(apiClient.get).toHaveBeenCalledWith(
+      LIA_VOICES_ENDPOINT,
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
   });
 
   it('ignores an unknown ?section= token and lands on the overview', async () => {

@@ -47,9 +47,11 @@ def test_win32_without_reload_serves_under_a_selector_loop_factory(
         patch("uvicorn.Server", return_value=server) as server_cls,
         patch("uvicorn.run") as uv_run,
         patch("asyncio.run") as aio_run,
+        patch("src.infrastructure.observability.tracing.configure_tracing") as tracing,
     ):
         runpy.run_module("src.main", run_name="__main__")
 
+    tracing.assert_called_once()
     uv_run.assert_not_called()
     config = server_cls.call_args.args[0]
     assert config.loop == "asyncio"
@@ -67,9 +69,11 @@ def test_reload_path_delegates_to_uvicorn_run(monkeypatch: pytest.MonkeyPatch) -
     with (
         patch("uvicorn.run") as uv_run,
         patch("asyncio.run") as aio_run,
+        patch("src.infrastructure.observability.tracing.configure_tracing") as tracing,
     ):
         runpy.run_module("src.main", run_name="__main__")
 
+    tracing.assert_called_once()
     aio_run.assert_not_called()
     assert uv_run.call_args.kwargs["reload"] is True
     assert uv_run.call_args.kwargs["loop"] == "asyncio"

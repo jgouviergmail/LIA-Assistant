@@ -60,6 +60,12 @@ existing account, permission, approval and spending boundaries.
 
 ### Fixed
 
+- 🧭 **Conversation diagnostics**: debug only for missing/empty domain scores with
+  explicit `none`/`general`, no selected domains and a zero top score. Suspicious
+  data remain warn, malformed data error; validation results stay unchanged.
+- 📈 **Psyche history at one instant**: retain every snapshot when timestamps
+  coincide or collapse to the same millisecond, with a single time tick and
+  no invented duration. Distinct timestamps keep automatic axis ticks.
 - ⌨️ **Attachment dialog focus**: opening knowledge documents, bookmarks,
   generated files or meeting import from the composer menu retains the persistent
   **+** button as the focus anchor. Escape or Close returns keyboard focus to
@@ -69,7 +75,7 @@ existing account, permission, approval and spending boundaries.
   their shared HTML directory. Distinct artifacts retain failed or cancelled
   passes; skipped tasks create none, and a missing report fails visibly.
 
-- **Complete self-host configuration**: declare optional browser Firebase inputs
+- 🛠️ **Complete self-host configuration**: declare optional browser Firebase inputs
   empty and generate a private Grafana password when observability is enabled.
   Existing non-empty Grafana credentials survive retries and reconfiguration,
   including profile disable/re-enable; the password stays hidden in the

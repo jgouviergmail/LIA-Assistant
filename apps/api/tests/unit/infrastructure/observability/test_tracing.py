@@ -162,7 +162,11 @@ class TestConfigureTracing:
         mock_tracer_provider_class.return_value = Mock()
 
         app = FastAPI()
-        configure_tracing(app)
+        with patch(
+            "src.infrastructure.observability.tracing.trace.set_tracer_provider"
+        ) as set_provider:
+            configure_tracing(app)
+        set_provider.assert_called_once_with(mock_tracer_provider_class.return_value)
 
         # OTLP exporter always uses insecure=True (Docker-internal communication)
         # Even in production, Tempo runs inside the same Docker network without TLS

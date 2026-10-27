@@ -23,6 +23,7 @@ from sqlalchemy import select
 
 from src.domains.agents.effects.models import AgentEffect, EffectStatus
 from src.domains.agents.effects.scope import EffectScope, effect_scope
+from src.domains.agents.effects.treatments import treatment_collector
 from src.domains.agents.expressivity.activity import capture_activity
 from src.domains.agents.tools import tool_registry
 from src.domains.users.models import User
@@ -74,7 +75,7 @@ async def user(maker: Any) -> Any:
 
 
 @pytest.fixture
-def gated_tool() -> StructuredTool:
+def gated_tool(agent_registry: object) -> StructuredTool:
     """A tool registered the way production registers one — gate included."""
     CALLS.clear()
     name = f"e2e_light_{uuid.uuid4().hex[:6]}_tool"
@@ -166,11 +167,19 @@ class TestAnEffectBecomesARow:
     ) -> None:
         scope = EffectScope(run_id="run-e2e", idempotency_key="call-read", source="user")
 
-        with _as_user(user), _policy("read"), effect_scope(scope):
+        with (
+            _as_user(user),
+            _policy("read"),
+            effect_scope(scope),
+            treatment_collector(run_id=scope.run_id) as treatments,
+        ):
             await gated_tool.coroutine(room="Salon")
 
         assert CALLS == [{"room": "Salon"}]
         assert await _rows(maker, gated_tool.name) == []
+        assert len(treatments) == 1
+        assert treatments[0].tool_name == gated_tool.name
+        assert treatments[0].outcome == "ok"
 
 
 class TestAnUnconfirmedEffectNeverHappens:

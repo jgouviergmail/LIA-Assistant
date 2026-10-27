@@ -24,6 +24,7 @@ import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -52,6 +53,15 @@ pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 @pytest.fixture(autouse=True)
 def _offline_consolidation(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep provider work offline while exercising the real SQL settlement."""
+
+    def offline_llm(slot: str) -> SimpleNamespace:
+        assert slot == "journal_consolidation"
+        config = consolidation_service.get_llm_config_for_agent(
+            consolidation_service.settings, slot
+        )
+        return SimpleNamespace(model_name=config.model)
+
+    monkeypatch.setattr(consolidation_service, "get_llm", offline_llm)
     monkeypatch.setattr(consolidation_service.settings, "journals_enabled", True)
     monkeypatch.setattr(
         consolidation_lifecycle, "is_capability_enabled", AsyncMock(return_value=True)

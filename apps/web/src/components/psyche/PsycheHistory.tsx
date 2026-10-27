@@ -236,6 +236,10 @@ interface HistoryChartProps {
 function HistoryChart({ lng, label, activeTab, data, resets, series, busy }: HistoryChartProps) {
   const { t } = useTranslation(lng, 'translation');
   const descriptionId = useId();
+  // Keep both snapshots when their timestamps coincide, including after ms parsing.
+  const instant = data[0]?.time;
+  const timeTicks =
+    instant !== undefined && data.every(point => point.time === instant) ? [instant] : undefined;
   const isArea = activeTab === 'emotions' || activeTab === 'drives';
   const Chart = isArea ? AreaChart : LineChart;
   const labels = Object.fromEntries(series.map(item => [item.key, item.label]));
@@ -270,6 +274,7 @@ function HistoryChart({ lng, label, activeTab, data, resets, series, busy }: His
               type="number"
               scale="time"
               domain={['dataMin', 'dataMax']}
+              ticks={timeTicks}
               tickFormatter={dateLabel}
               tick={{ fontSize: 11, fill: 'var(--color-muted-foreground)' }}
               minTickGap={40}

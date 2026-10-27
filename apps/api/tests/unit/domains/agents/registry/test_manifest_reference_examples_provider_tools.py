@@ -256,6 +256,10 @@ async def _run_list_reminders() -> UnifiedToolOutput:
         patch("src.domains.reminders.service.ReminderService", return_value=service),
         patch("src.domains.agents.application.authorization.load_actor", AsyncMock()),
         patch("src.domains.agents.application.availability.require_application_tools", AsyncMock()),
+        patch(
+            "src.domains.agents.tools.runtime_helpers.get_user_preferences",
+            AsyncMock(return_value=("Europe/Paris", "fr", "fr-FR")),
+        ),
     ):
         return await _drive(reminder_tools.list_reminders_tool, runtime=_tool_runtime())
 

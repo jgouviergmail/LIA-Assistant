@@ -471,9 +471,13 @@ class _Recorder:
         self.settled.append(succeeded)
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def register() -> Any:
-    """A register installed in the seam for the test; the previous one put back."""
+    """Keep rollback-owned users out of the independent action-register session.
+
+    The real sharing path and its PostgreSQL transaction still run; only the
+    already-tested recorder seam is local, with the previous recorder restored.
+    """
     from src.domains.shared import action_sink
 
     previous = action_sink._recorder

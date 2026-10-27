@@ -15,19 +15,24 @@ a real row can be silently ``UPDATE``d to see whether the chain notices.
 
 from __future__ import annotations
 
+import asyncio
 import uuid
+from collections.abc import AsyncIterator, Coroutine
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from sqlalchemy import delete, select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.domains.agents.effects import integrity as integrity_module
 from src.domains.agents.effects.chain_link import ChainBreak
 from src.domains.agents.effects.chain_repository import ChainRepository
 from src.domains.agents.effects.chain_spec import GENESIS_KIND
 from src.domains.agents.effects.chain_verify import verify_chain
+from src.domains.agents.effects.integrity import IntegrityKind
 from src.domains.agents.effects.models import (
     AgentEffect,
     AgentTreatment,
@@ -43,6 +48,43 @@ from src.domains.users.models import User
 pytestmark = pytest.mark.integration
 
 _LIMIT = 500
+
+
+@dataclass
+class _IntegritySink:
+    record: AsyncMock
+    tasks: list[asyncio.Task[object]]
+
+    async def settle(self) -> None:
+        """Join only this fixture's notes, retaining the real background scheduler."""
+        await asyncio.gather(*self.tasks)
+
+
+@pytest.fixture
+async def integrity_sink(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[_IntegritySink]:
+    """The owner is uncommitted: observe its audit I/O without a second DB session."""
+    from src.infrastructure import async_utils
+
+    sink = _IntegritySink(record=AsyncMock(), tasks=[])
+    real_schedule = async_utils.safe_fire_and_forget
+
+    def schedule(
+        coro: Coroutine[object, object, object],
+        name: str | None = None,
+        run_id: str | None = None,
+    ) -> asyncio.Task[object]:
+        task = real_schedule(coro, name=name, run_id=run_id)
+        if name == "integrity_chain_broken":
+            sink.tasks.append(task)
+        return task
+
+    # _note_break imports both names at call time; preserve detection and scheduling.
+    monkeypatch.setattr(integrity_module, "record_integrity_event", sink.record)
+    monkeypatch.setattr(async_utils, "safe_fire_and_forget", schedule)
+    try:
+        yield sink
+    finally:
+        await sink.settle()
 
 
 @pytest.fixture
@@ -294,7 +336,7 @@ class TestAPassIsIdempotentAndCatchesUp:
 
 class TestAnAlteredREGISTERRowIsDetected:
     async def test_a_rewritten_row_breaks_the_chain_at_its_own_position(
-        self, async_session: AsyncSession, user: User
+        self, async_session: AsyncSession, user: User, integrity_sink: _IntegritySink
     ) -> None:
         """The question the chain exists for. A shallow walk cannot see this."""
         treatment = await _treatment(async_session, user)
@@ -313,6 +355,10 @@ class TestAnAlteredREGISTERRowIsDetected:
         assert not audit.ok
         assert audit.reason is ChainBreak.PAYLOAD
         assert audit.broken_at_seq == 2
+        await integrity_sink.settle()
+        integrity_sink.record.assert_awaited_once_with(
+            IntegrityKind.CHAIN_BROKEN, user_id=user.id, detail="payload@2"
+        )
 
     async def test_a_shallow_walk_does_NOT_see_a_rewritten_row(
         self, async_session: AsyncSession, user: User
@@ -332,7 +378,7 @@ class TestAnAlteredREGISTERRowIsDetected:
         assert (await verify_chain(async_session, user.id)).ok
 
     async def test_a_DELETED_row_breaks_the_chain(
-        self, async_session: AsyncSession, user: User
+        self, async_session: AsyncSession, user: User, integrity_sink: _IntegritySink
     ) -> None:
         """Deleting the evidence must be as visible as editing it."""
         treatment = await _treatment(async_session, user)
@@ -346,9 +392,13 @@ class TestAnAlteredREGISTERRowIsDetected:
 
         assert not audit.ok
         assert audit.reason is ChainBreak.PAYLOAD
+        await integrity_sink.settle()
+        integrity_sink.record.assert_awaited_once_with(
+            IntegrityKind.CHAIN_BROKEN, user_id=user.id, detail="payload@2"
+        )
 
     async def test_a_closed_effect_edited_after_notarisation_is_caught(
-        self, async_session: AsyncSession, user: User
+        self, async_session: AsyncSession, user: User, integrity_sink: _IntegritySink
     ) -> None:
         """The outcome stage covers `status`: a FAILED turned SUCCEEDED is the
         alteration that would most change what a user believes happened."""
@@ -374,6 +424,10 @@ class TestAnAlteredREGISTERRowIsDetected:
         assert not audit.ok
         assert audit.reason is ChainBreak.PAYLOAD
         assert audit.broken_at_seq == 3, "the OUTCOME entry, not the claim"
+        await integrity_sink.settle()
+        integrity_sink.record.assert_awaited_once_with(
+            IntegrityKind.CHAIN_BROKEN, user_id=user.id, detail="payload@3"
+        )
 
 
 class TestAnAlteredENTRYIsDetected:

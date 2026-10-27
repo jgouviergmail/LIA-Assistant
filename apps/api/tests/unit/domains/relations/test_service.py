@@ -39,9 +39,9 @@ _EMPTY_PAGE = PeerMessagePage(signals=[], total=0)
 
 @pytest.fixture(autouse=True)
 def _peers_bridge_silent_by_default():
-    """The peers bridge owns its own session — never let it reach a real one.
+    """Detached bridges own their sessions — give these aggregate tests local sources.
 
-    Tests that assert on relayed messages opt in via the explicit patches
+    Tests that assert on relayed messages or SMS opt in via explicit patches
     (an inner patch wins over this one).
     """
     with (
@@ -52,6 +52,10 @@ def _peers_bridge_silent_by_default():
         patch(
             "src.domains.relations.service.fetch_peer_message_activity",
             new=AsyncMock(return_value=[]),
+        ),
+        patch(
+            "src.domains.relations.service.read_relation_sms",
+            new=AsyncMock(return_value=RelationSmsPage()),
         ),
     ):
         yield

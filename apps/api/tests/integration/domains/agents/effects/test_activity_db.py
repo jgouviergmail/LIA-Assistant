@@ -85,7 +85,7 @@ def _read(user: User, tool_name: str, *, source: str, when: datetime) -> Treatme
 
 
 @pytest.fixture
-async def seeded(async_session: AsyncSession) -> tuple[User, User]:
+async def seeded(async_session: AsyncSession, agent_registry: object) -> tuple[User, User]:
     person, stranger = await _user(async_session, "person"), await _user(async_session, "other")
     await _action(
         async_session,

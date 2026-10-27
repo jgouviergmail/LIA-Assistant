@@ -132,13 +132,22 @@ export function validateDomainScores(
     };
   }
 
-  // No scores available - normal case for "general" domain or simple queries
-  // Use warn instead of error since this is not an application error
-  logger.warn('domain_scores_missing', {
+  // A conversational turn selected no domain and therefore produced no scores.
+  // A named domain or a nonzero score without its score map remains suspicious.
+  const normalEmpty =
+    data.selected_domains.length === 0 &&
+    data.top_score === 0 &&
+    (data.primary_domain === 'none' || data.primary_domain === 'general');
+  const context = {
     primary_domain: data.primary_domain,
     selected_domains: data.selected_domains,
     top_score: data.top_score,
-  });
+  };
+  if (normalEmpty) {
+    logger.debug('domain_scores_missing', context);
+  } else {
+    logger.warn('domain_scores_missing', context);
+  }
 
   return {
     success: false,

@@ -21,6 +21,7 @@ from unittest.mock import patch
 
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
 
@@ -36,6 +37,7 @@ from src.domains.agents.constants import (
 from src.domains.agents.models import MessagesState
 from src.domains.agents.nodes.for_each_confirm_node import for_each_confirm_node
 from src.domains.agents.nodes.routing import route_from_for_each_confirm
+from src.domains.conversations.checkpointer import _CHECKPOINT_ALLOWED_MODULES
 
 
 class _SpyFilter:
@@ -99,7 +101,11 @@ def _build_graph() -> Any:
     )
     graph.add_edge(NODE_TASK_ORCHESTRATOR, END)
     graph.add_edge("initiative", END)
-    return graph.compile(checkpointer=InMemorySaver())
+    return graph.compile(
+        checkpointer=InMemorySaver(
+            serde=JsonPlusSerializer(allowed_msgpack_modules=_CHECKPOINT_ALLOWED_MODULES)
+        )
+    )
 
 
 def _initial_input(ctx: dict[str, Any]) -> dict[str, Any]:

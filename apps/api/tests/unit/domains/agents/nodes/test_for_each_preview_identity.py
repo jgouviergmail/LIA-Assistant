@@ -19,6 +19,7 @@ from src.domains.agents.nodes.for_each_preview_identity import (
 from src.domains.agents.nodes.task_orchestrator_node import _handle_execution_plan
 from src.domains.agents.orchestration.plan_schemas import ExecutionPlan, ExecutionStep, StepType
 from src.domains.agents.tools.runtime_helpers import extract_value_by_path
+from src.domains.conversations.checkpointer import _CHECKPOINT_ALLOWED_MODULES
 from tests.unit.domains.agents.nodes.test_for_each_confirm_replay import (
     _build_graph,
     _initial_input,
@@ -110,7 +111,7 @@ async def test_skipped_preview_keeps_original_identity_through_real_orchestrator
         checkpoint = await graph.aget_state(config)
         assert checkpoint.values[STATE_KEY_FOR_EACH_HITL_CTX]["approved"] is False
         assert checkpoint.values[STATE_KEY_FOR_EACH_HITL_CTX]["item_preview_indices"] == [2]
-        serializer = JsonPlusSerializer()
+        serializer = JsonPlusSerializer(allowed_msgpack_modules=_CHECKPOINT_ALLOWED_MODULES)
         roundtrip = serializer.loads_typed(
             serializer.dumps_typed(checkpoint.values[STATE_KEY_FOR_EACH_HITL_CTX])
         )

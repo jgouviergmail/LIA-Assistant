@@ -76,11 +76,21 @@ async def test_actual_sms_tool_node_supplies_literal_body_to_domain_model(
             "src.domains.agents.graphs.base_agent_builder.get_llm", return_value=SmsCallingModel()
         ),
         patch(
+            "src.infrastructure.llm.providers.adapter.configured_api_key",
+            return_value="test-only-inert-key",
+        ) as configured_key,
+        patch(
+            "src.infrastructure.llm.middleware_config.init_chat_model",
+            return_value=_CapturingChatModel(),
+        ) as summarizer,
+        patch(
             "src.domains.agents.registry.get_global_registry",
             return_value=AgentRegistry(store=context.store),
         ),
     ):
         agent = build_sms_agent()
+    configured_key.assert_called_once_with("openai")
+    summarizer.assert_called_once()
     await agent.ainvoke(
         {"messages": [HumanMessage(content="Read the last SMS")]},
         config={"configurable": {"thread_id": context.thread_id}},

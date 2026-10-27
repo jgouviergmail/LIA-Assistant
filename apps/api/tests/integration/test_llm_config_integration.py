@@ -1,5 +1,9 @@
 """Integration tests for LLM Config Refactoring."""
 
+from collections.abc import Iterator
+from typing import NoReturn
+
+import httpx
 import pytest
 
 from src.core.config import settings
@@ -8,6 +12,7 @@ from src.core.llm_config_helper import get_all_llm_configs, get_llm_config_for_a
 from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.domains.llm_config.constants import LLM_DEFAULTS, LLM_TYPES_REGISTRY
 from src.infrastructure.llm.factory import get_llm
+from src.infrastructure.llm.providers import adapter
 
 #: A slot that exists, taken FROM the registry rather than written by hand.
 #:
@@ -19,13 +24,34 @@ from src.infrastructure.llm.factory import get_llm
 _A_SLOT = sorted(LLM_TYPES_REGISTRY)[0]
 
 
+@pytest.fixture(autouse=True)
+def offline_construction_credentials(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> Iterator[None]:
+    """Build real clients with inert local credentials, never invoke a provider."""
+
+    def key_for(provider: str) -> str:
+        return "http://127.0.0.1:11434" if provider == "ollama" else "offline-construction-key"
+
+    def no_provider_request(*_args: object, **_kwargs: object) -> NoReturn:
+        raise AssertionError("LLM configuration tests must not send provider requests")
+
+    monkeypatch.setattr(adapter, "configured_api_key", key_for)
+    monkeypatch.setattr(httpx.Client, "send", no_provider_request)
+    monkeypatch.setattr(httpx.AsyncClient, "send", no_provider_request)
+    yield
+    assert not any(
+        "api_key_not_configured" in record.getMessage() for record in caplog.get_records("call")
+    )
+
+
 class TestLLMConfigIntegration:
     """Integration tests for new LLM config pattern."""
 
     @pytest.mark.integration
     def test_get_llm_with_real_settings(self):
         """Test get_llm with real settings (no override)."""
-        # This test uses actual settings from .env
+        # Keep real slot settings and real SDK constructors; credentials are local fixtures.
         llm = get_llm(_A_SLOT)
 
         assert llm is not None

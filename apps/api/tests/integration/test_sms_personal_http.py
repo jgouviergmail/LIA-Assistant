@@ -5,20 +5,35 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from src.core.session_dependencies import get_current_active_session
 from src.domains.sms.ingestion import SmsIngestionService
+from src.domains.sms.preferences import SmsPreferences
+from src.domains.users.models import User
 from src.main import app
+from tests.helpers.committed_users import commit_owner
 from tests.integration.test_sms_ingestion import authority, message
 
 pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("sms_identity_session")]
 
 
+@pytest.mark.usefixtures("committed_user_ids")
 async def test_personal_search_and_detail_are_readable_without_assistant_consent(
-    async_client, db_session, test_user
+    async_client, db_session, async_engine, committed_user_ids, caplog
 ):
-    actor = await authority(db_session, test_user)
-    await SmsIngestionService(db_session).ingest(actor, [message(body="Café demain")])
+    # Release owner/key locks before independent identity and recorder connections.
+    owner = await commit_owner(async_engine, committed_user_ids)
+    maker = async_sessionmaker(async_engine, expire_on_commit=False)
+    async with maker() as setup:
+        setup_user = await setup.get(User, owner)
+        assert setup_user is not None
+        actor = await authority(setup, setup_user)
+        await SmsIngestionService(setup).ingest(actor, [message(body="Café demain")])
+        await setup.commit()
+    test_user = await db_session.get(User, owner)
+    assert test_user is not None
+    assert SmsPreferences.from_stored(test_user.sms_preferences).assistant_enabled is False
     app.dependency_overrides[get_current_active_session] = lambda: test_user
     try:
         response = await async_client.post("/api/v1/sms/search", json={"query": "cafe"})
@@ -30,6 +45,8 @@ async def test_personal_search_and_detail_are_readable_without_assistant_consent
         assert detail.status_code == 200
         groups = await async_client.get("/api/v1/sms/senders")
         assert groups.status_code == 200 and groups.json()["total"] == 1
+        assert "sms_contact_identity_unavailable" not in caplog.text
+        assert "treatment_flush_failed" not in caplog.text
     finally:
         app.dependency_overrides.pop(get_current_active_session, None)
 

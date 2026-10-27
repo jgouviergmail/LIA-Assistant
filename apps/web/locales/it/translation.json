@@ -6483,7 +6483,7 @@
         "v4_0_0": {
           "title": "v4.0.0 — 🌍 Un mondo da esplorare, LIA al tuo fianco",
           "date": "27 ottobre 2026",
-          "count": "10",
+          "count": "11",
           "items": {
             "i1": "<b>🌍 Entra nel Mondo di LIA</b> — Esplora un campus e il suo giardino con LIA, usando tastiera o tocco, minimappa e comandi della telecamera. Il gestore decide se rendere disponibile questo spazio facoltativo.",
             "i2": "<b>🏠 Un posto tutto tuo</b> — Scegli il tuo avatar e la tavolozza della tua casa. Le tue preferenze e i dati dell'assistente restano privati anche quando incontri altre persone nel mondo condiviso.",
@@ -6494,7 +6494,8 @@
             "i7": "<b>🛠️ Uno spazio condiviso controllato</b> — Gli amministratori possono attivare il Mondo e definirne la capacità. Coda d'attesa e controllo esplicito delle schede organizzano l'accesso; una disconnessione sospende le interazioni fino alla riconnessione.",
             "i8": "<b>🧠 Più modelli tra cui scegliere</b> — Jev 1.14 e Gemini 4 Argon entrano nel catalogo. L'assistenza JEV facoltativa mantiene controlli, contabilizzazione e limiti documentati.",
             "i9": "<b>🛡️ Caricamenti più fluidi e maggiore riservatezza</b> — L'elaborazione di PDF grandi e immagini HEIC lascia disponibile il ciclo principale delle richieste. Annullamenti e transazioni si chiudono più affidabilmente, gli indirizzi sono meglio protetti nei log e l'avvio concede più tempo alle migrazioni.",
-            "i10": "<b>⌨️ Il focus torna a «+»</b> — Chiudi con Esc o Chiudi una finestra aperta dal menu degli allegati: il focus torna al pulsante «+» per continuare con la tastiera."
+            "i10": "<b>⌨️ Il focus torna a «+»</b> — Chiudi con Esc o Chiudi una finestra aperta dal menu degli allegati: il focus torna al pulsante «+» per continuare con la tastiera.",
+            "i11": "<b>📈 L’evoluzione di LIA resta leggibile</b> — In «Psiche di LIA», la cronologia conserva tutte le istantanee anche quando corrispondono allo stesso istante, senza ripetere le indicazioni di tempo."
           }
         },
         "v3_7_0": {

@@ -10,6 +10,7 @@ walk's bounds are published with the figures, and a cut walk says so.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterator
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -20,6 +21,7 @@ from src.core.constants import (
     RAG_DRIVE_MAX_FILES_PER_SYNC,
     RAG_DRIVE_MAX_FOLDERS_PER_WALK,
 )
+from src.domains.agents.effects.treatments import treatment_collector
 from src.domains.rag_spaces import drive_ingest
 from src.domains.rag_spaces.drive_sync import RAGDriveSyncService
 from src.domains.rag_spaces.models import RAGDocumentStatus
@@ -63,12 +65,18 @@ def test_modified_when_drive_is_newer_or_a_stamp_is_missing() -> None:
 
 
 @pytest.fixture
-def service() -> RAGDriveSyncService:
+def service() -> Iterator[RAGDriveSyncService]:
     svc = RAGDriveSyncService(AsyncMock())
     svc.space_repo = AsyncMock()
     svc.doc_repo = AsyncMock()
     svc.source_repo = AsyncMock()
-    return svc
+    with treatment_collector(run_id="drive-preflight-proof") as consultations:
+        yield svc
+    assert len(consultations) == 1
+    assert consultations[0].tool_name == "space:drive"
+    assert consultations[0].outcome == "ok"
+    assert consultations[0].source == "scheduled"
+    assert consultations[0].user_id == str(svc.space_repo.get_by_id.return_value.user_id)
 
 
 def _source(space_id: uuid.UUID) -> MagicMock:

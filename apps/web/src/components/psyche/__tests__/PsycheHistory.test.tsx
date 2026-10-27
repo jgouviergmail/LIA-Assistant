@@ -1,15 +1,14 @@
 /**
  * PsycheHistory — the mood/emotion history panel.
  *
- * The charts themselves are recharts declarative markup (a `ResponsiveContainer`
- * has no measurable size under jsdom, so its internals never paint): what is
+ * The real Recharts charts receive a measured container under JSDOM. What is
  * pinned here is the logic around them — the query is only fired when the panel
  * is open, each time range asks for its own window and limit, reset snapshots
  * are markers rather than data points, and the three display states
  * (loading / empty / charted) are mutually exclusive.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 
 import { renderWithProviders, screen, waitFor, act } from '@/__tests__/test-utils';
 import { publishApplicationResources } from '@/lib/application-resources';
@@ -21,6 +20,23 @@ vi.mock('@/hooks/useApplicationAccountQuery', () => ({ useApplicationAccountQuer
 
 import { PsycheHistory } from '../PsycheHistory';
 import { toPsycheHistoryData } from '../psyche-history-data';
+
+// ResponsiveContainer reads this boundary before observing it. Give only the
+// chart container a measured JSDOM box; the real Recharts SVG still renders.
+let chartBounds: MockInstance<HTMLElement['getBoundingClientRect']>;
+
+beforeEach(() => {
+  const originalBounds = HTMLElement.prototype.getBoundingClientRect;
+  chartBounds = vi
+    .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+    .mockImplementation(function (this: HTMLElement): DOMRect {
+      return this.classList.contains('recharts-responsive-container')
+        ? new DOMRect(0, 0, 640, 320)
+        : originalBounds.call(this);
+    });
+});
+
+afterEach(() => chartBounds.mockRestore());
 
 function entry(over: Partial<PsycheHistoryEntry> = {}): PsycheHistoryEntry {
   return {
@@ -118,13 +134,14 @@ describe('PsycheHistory — display states', () => {
     useApiQuery.mockReturnValue(dataQuery([entry(), entry({ id: 'p2' })]));
     render();
     expect(screen.queryByText(EMPTY)).not.toBeInTheDocument();
+    expect(document.querySelector('svg.recharts-surface')).toBeInTheDocument();
   });
 
   it('accepts the emotion map the backend actually sends', () => {
     // `trait_snapshot.active_emotions` is a `dict[str, float]`, not a scalar:
     // the entry only type-checks since the contract was corrected. The chart
-    // internals never paint under jsdom, so what this pins is that the real
-    // payload feeds the transform without blowing up and produces a chart.
+    // container is measured in this fixture, so the real payload feeds the
+    // transform without blowing up and reaches the actual chart renderer.
     useApiQuery.mockReturnValue(
       dataQuery([
         entry({
@@ -151,6 +168,45 @@ describe('PsycheHistory — display states', () => {
     );
     render();
     expect(screen.getByText(EMPTY)).toBeInTheDocument();
+  });
+});
+
+describe('PsycheHistory — one temporal coordinate', () => {
+  it.each([
+    ['the same recorded instant', '2026-07-18T09:00:00Z', '2026-07-18T09:00:00Z'],
+    [
+      'API microseconds within one millisecond',
+      '2026-07-18T09:00:00.123900Z',
+      '2026-07-18T09:00:00.123400Z',
+    ],
+  ])('keeps both snapshots and one axis tick for %s', (_case, newer, older) => {
+    const entries = [
+      entry({ id: 'p1', created_at: newer, mood_pleasure: 0.4 }),
+      entry({ id: 'p2', created_at: older, mood_pleasure: -0.4 }),
+    ];
+    const { points } = toPsycheHistoryData(entries);
+    expect(points).toHaveLength(2);
+    expect(points[0].time).toBe(points[1].time);
+    useApiQuery.mockReturnValue(dataQuery(entries));
+
+    // The spy calls through: a duplicate React key remains visible in stderr.
+    const errors = vi.spyOn(console, 'error');
+    try {
+      render();
+      const svg = document.querySelector('svg.recharts-surface');
+      expect(svg).toBeInTheDocument();
+      const curve = svg?.querySelector('path.recharts-line-curve')?.getAttribute('d') ?? '';
+      const coordinates = curve.match(/[-+]?\d*\.?\d+(?:e[-+]?\d+)?/gi)?.map(Number) ?? [];
+      expect(coordinates).toHaveLength(4);
+      expect(coordinates[0]).toBe(coordinates[2]);
+      expect(coordinates[1]).not.toBe(coordinates[3]);
+      expect(
+        svg?.querySelectorAll('.recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-label')
+      ).toHaveLength(1);
+      expect(errors).not.toHaveBeenCalled();
+    } finally {
+      errors.mockRestore();
+    }
   });
 });
 
@@ -219,6 +275,12 @@ describe('PsycheHistory — chart data contract', () => {
     expect(points[1].emotionIntensity).toBeNull();
     expect(resets).toEqual([{ time: Date.parse('2026-07-18T09:00:30Z'), type: 'reset_soft' }]);
     expect(entries[0].id).toBe('late');
+    useApiQuery.mockReturnValue(dataQuery(entries));
+    render();
+    expect(
+      document.querySelectorAll('.recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-label')
+        .length
+    ).toBeGreaterThan(1);
   });
   it('preserves all emotion series, relationship and drives as actual percentages', () => {
     const { points, emotions } = toPsycheHistoryData([

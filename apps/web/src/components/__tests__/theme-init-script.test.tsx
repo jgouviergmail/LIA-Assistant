@@ -10,7 +10,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { renderWithProviders } from '@/__tests__/test-utils';
+import { renderToStaticMarkup } from 'react-dom/server';
 import {
   FONT_SIZE_CSS_VAR,
   FONT_SIZE_STEPS,
@@ -29,18 +29,18 @@ function resetRoot() {
   document.documentElement.style.removeProperty(FONT_SIZE_CSS_VAR);
 }
 
-/**
- * Render the component, pull its inline source out, and run it.
- *
- * The harness mounts the real providers, whose effects apply the same stored
- * preferences AFTER mount — so the root is reset between the render and the
- * run, and what the assertions see is the script's work alone.
- */
-function runInitScript() {
-  const { container, unmount } = renderWithProviders(<ThemeInitScript />);
-  const source = container.querySelector('script')?.innerHTML ?? '';
+/** Read the real server-emitted script from a detached, inert template. */
+function initScriptSource() {
+  const template = document.createElement('template');
+  template.innerHTML = renderToStaticMarkup(<ThemeInitScript />);
+  const source = template.content.querySelector('script')?.textContent ?? '';
   expect(source, 'ThemeInitScript emitted no inline source').not.toBe('');
-  unmount();
+  return source;
+}
+
+/** Only this explicit call executes the body, against the pre-paint root. */
+function runInitScript() {
+  const source = initScriptSource();
   resetRoot();
   new Function(source)();
   return source;
@@ -109,12 +109,8 @@ describe('ThemeInitScript', () => {
   });
 
   it('survives localStorage throwing, which is what privacy modes do', () => {
-    // Capture the source BEFORE breaking storage: the render harness itself
-    // touches localStorage, so rendering under the trap would fail the test for
-    // a reason that has nothing to do with the script.
-    const { container, unmount } = renderWithProviders(<ThemeInitScript />);
-    const source = container.querySelector('script')?.innerHTML ?? '';
-    unmount();
+    // Capture the server source first; execute its real body under the trap.
+    const source = initScriptSource();
 
     const original = Object.getOwnPropertyDescriptor(window, 'localStorage');
     Object.defineProperty(window, 'localStorage', {
