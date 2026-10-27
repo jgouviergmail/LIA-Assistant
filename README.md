@@ -44,7 +44,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 4.0.0</strong> — <strong>A world to explore. Your assistant, still yours.</strong> LIA World brings a shared isometric campus, your own home, private access to LIA's everyday functions and multilingual human text into the application. Its spatial interface keeps the same permissions, approval flows and spending controls. This release also refreshes the model catalogue and strengthens uploads, cancellation and log privacy — 26 October 2026.
+  <strong>Version 4.0.0</strong> — <strong>A world to explore. Your assistant, still yours.</strong> LIA World brings a shared isometric campus, your own home, private access to LIA's everyday functions and multilingual human text into the application. Its spatial interface keeps the same permissions, approval flows and spending controls. This release also refreshes the model catalogue and strengthens uploads, cancellation and log privacy — 27 October 2026.
 </p>
 
 ---
@@ -1071,7 +1071,7 @@ task test:e2e                      # Playwright + axe journeys (hermetic, mocked
 
 | Metric                  | Value                                                                                                                        |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Backend tests           | 53,667 collected over `tests/`, across 3,605 files (`pytest --collect-only -q --no-cov`, 2026-10-26)                         |
+| Backend tests           | 53,682 collected over `tests/`, across 3,605 files (`pytest --collect-only -q --no-cov`, Windows/Python 3.14, 2026-10-27)    |
 | Frontend tests (vitest) | 14,674 across 1,238 files (`vitest list`, 2026-10-26), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
 | Coverage floor          | 78% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob                       |
 | Technical audit         | **7.9/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md)                                |

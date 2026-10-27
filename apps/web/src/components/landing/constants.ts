@@ -107,9 +107,9 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Re-measured 2026-10-26 (v4.0.0): backend 53,667 collected in 3,605 files
+ *   Measured for v4.0.0: backend 53,682 collected in 3,605 files (Windows, 2026-10-27)
  *   (pytest tests --collect-only -q --no-cov); frontend 14,674 tests in 1,238
- *   files (vitest list). Combined inventory: 68,341 -> 68000.
+ *   files (vitest list, 2026-10-26). Combined inventory: 68,356 -> 68000.
  *   Re-measured 2026-10-24 (v3.6.0): backend 53,014 collected in 3,542 files
  *   (pytest tests --collect-only -q --no-cov); frontend: 14,114 tests in 1,128
  *   files (vitest list). Combined inventory: 67,128 -> 67000.

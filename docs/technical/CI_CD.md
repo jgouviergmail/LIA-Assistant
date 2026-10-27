@@ -282,9 +282,9 @@ tests exigeant une vraie base portent le marker `integration`.
 | ------------------- | ------------------------------- |
 | Tests d'integration | `task test:backend:integration` |
 
-Memes services PostgreSQL + Redis, mais la base est consommee directement. La
-tache enchaine le preflight AC-001 (classification de la strategie DB, echec
-immediat et actionnable si aucune n'est disponible) puis **deux collections** :
+Mêmes services PostgreSQL + Redis, mais la base est consommée directement. La
+tâche exige un Redis jetable explicite, puis enchaîne le préflight AC-001 et
+**deux collections** :
 `tests/integration/`, et les tests marques `integration` qui vivent
 physiquement sous `tests/unit` ou `tests/agents` (F006) — ce job equipe de
 services est leur seul foyer.
@@ -299,14 +299,46 @@ meme base. La suite mesure sa couverture dans son propre fichier de données
 (`.coverage-integration`, la seconde collection s'y ajoute), que le job Backend
 Coverage combine avec celui des tests unitaires (AC-030b).
 
+Le job fournit aussi `TEST_REDIS_URL=redis://localhost:6379/15` : cette URL
+vise la DB 15 du service Redis jetable du runner. Elle ne possède aucun défaut
+dans `.env.test` et n'est pas un réglage de l'application. La ligne vide
+`TEST_REDIS_URL=` de `.env.example` sert uniquement de documentation : elle ne
+provisionne rien et ne fournit aucun cache de secours aux fixtures World.
+Au bootstrap des tests, seuls les endpoints non vides `TEST_DATABASE_URL` et
+`TEST_REDIS_URL` déjà présents dans le processus sont sauvegardés avant la purge
+des clés du `.env` racine, puis restaurés après le chargement de `.env.test`,
+sans modification de leur valeur. Les exports explicites sont ainsi préservés,
+tandis que les autres réglages développeur restent nettoyés. Le préflight
+[`integration_preflight.py`](../../apps/api/scripts/integration_preflight.py)
+réutilise le validateur
+[`tests.redis_test_url`](../../apps/api/tests/redis_test_url.py) : schéma
+`redis`/`rediss`, hôte et `/15` explicites, aucun fragment ni surcharge de base
+par paramètre `db`. Il refuse l'absence, une URL invalide ou un port TCP
+injoignable **avant pytest et avant la stratégie PostgreSQL**, avec un diagnostic
+`REDIS-PREFLIGHT: FAILED` sans URL complète ni identifiants. Son succès
+`REDIS-PREFLIGHT: explicit-db`, puis le `DB-PREFLIGHT`, ne remplacent pas la
+validation Redis `AUTH`/`PING`/TLS par le healthcheck et les fixtures : le
+préflight ne teste qu'une connexion TCP bornée.
+
+Les jobs `test-backend` et `test-backend-integration` configurent le noyau de
+leur runner Ubuntu éphémère avant les suites avec
+`sudo sysctl -w vm.overcommit_memory=1` (provisionnement `CI_ONLY`).
+Ce réglage concerne l'hôte du conteneur Redis ; il n'ajoute aucune variable à
+`Settings`, aux templates applicatifs ou au déploiement. Les services démarrant
+avant les étapes du job, leur journal peut garder un avertissement antérieur à
+ce réglage.
+
 **`LIA_REQUIRE_DB=1`** (pose par la tache et par le job, F019) : ce job
 _promet_ une base, donc une base injoignable doit faire **echouer** le job, pas
 skipper silencieusement des groupes entiers de tests. Un vert obtenu par skips
 massifs est le pire des resultats.
 
-En local : `TEST_DATABASE_URL=...lia_test task test:backend:integration`
-(base JETABLE obligatoire — les fixtures droppent toutes les tables), ou
-fallback Testcontainers sans variable.
+En local, démarrer d'abord un Redis dédié et jetable puis définir
+`TEST_REDIS_URL` vers sa DB 15. Une base PostgreSQL externe est également
+JETABLE (les fixtures suppriment toutes les tables) ; sans `TEST_DATABASE_URL`,
+la stratégie PostgreSQL peut utiliser Testcontainers, mais Redis reste
+explicite. Le [guide de tests](../guides/GUIDE_TESTING.md#préparer-un-redis-jetable-pour-lintégration)
+donne les commandes POSIX et PowerShell, depuis la racine du dépôt.
 
 #### Backend Coverage
 

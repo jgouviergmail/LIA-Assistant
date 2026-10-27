@@ -210,26 +210,24 @@ markers = [
 
 ### Variables d'Environnement de Test
 
-```python
-# conftest.py - Configuration AVANT tout import
-import os
+`tests/conftest.py` prépare l'environnement avant d'importer l'application :
+OpenTelemetry est désactivé pour les tests, puis les connexions des clients Redis
+sont dirigées vers la DB 15. La suite d'intégration exige en plus une URL
+`TEST_REDIS_URL` fournie explicitement par son lanceur : elle désigne un serveur
+Redis **dédié et jetable**, jamais une instance de développement ou de production.
+Choisir la DB 15 ne suffit pas à rendre un serveur partagé jetable.
 
-# Disable OpenTelemetry pour éviter erreurs Tempo
-os.environ["OTEL_SDK_DISABLED"] = "true"
-
-# Redis test DB (DB 15 pour éviter conflits avec dev/prod)
-if os.path.exists("/.dockerenv"):
-    # Inside Docker: use service name
-    os.environ["REDIS_URL"] = "redis://redis:6379/15"
-else:
-    # Local: use localhost
-    os.environ["REDIS_URL"] = "redis://localhost:6379/15"
-```
-
-**Stratégie** :
-- **DB 15 Redis** : isolation complète des tests (dev = DB 0)
-- **OTEL_SDK_DISABLED** : évite connexions Tempo en tests
-- **Détection Docker** : `/.dockerenv` pour switch automatique
+La validation commune dans
+[`tests/redis_test_url.py`](../../apps/api/tests/redis_test_url.py) accepte
+`redis://` ou `rediss://`, un hôte et le chemin explicite `/15` ; elle refuse
+notamment les fragments et une surcharge de base par paramètre `db` dans la
+query string. L'identité du service de test reste fournie au lancement, sans
+valeur par défaut dans `.env.test` et sans ajout à la configuration applicative.
+La ligne `TEST_REDIS_URL=` de `.env.example` est documentaire : vide, elle ne
+provisionne aucun service, ne satisfait pas le préflight et ne sélectionne pas
+un cache de secours pour les fixtures World.
+Voir la [préparation de l'intégration](#préparer-un-redis-jetable-pour-lintégration)
+pour les commandes POSIX et PowerShell.
 
 ### Testcontainers pour PostgreSQL
 
@@ -310,9 +308,20 @@ les coûts au taux de change **live**) alors que pytest direct restait vert —
 des verdicts dépendants du lanceur, faciles à confondre avec de la pollution
 d'ordre. Remède : `tests/conftest.py` purge de `os.environ` toute clé déclarée
 dans le `.env` racine avant de charger `.env.test` (no-op en CI/conteneur).
+Exception bornée aux deux endpoints de test : les valeurs non vides de
+`TEST_DATABASE_URL` et `TEST_REDIS_URL` présentes dans le processus sont
+sauvegardées avant cette purge, puis restaurées après le chargement de
+`.env.test`, sans réécrire leurs URL. Les exports explicites du lanceur survivent
+ainsi à une clé homonyme dans le `.env` racine ; les autres valeurs de
+configuration développeur restent nettoyées. Une valeur vide du template ne
+fournit aucun endpoint à préserver.
 Contrat : `tests/integration/test_env_isolation_contract.py`. Règle : un test
-ne doit jamais dépendre d'une valeur exclusive au `.env` développeur ; si une
-valeur est nécessaire aux tests, la déclarer dans `.env.test`.
+ne doit jamais dépendre d'une valeur exclusive au `.env` développeur. Les
+valeurs de configuration propres aux tests appartiennent à `.env.test` ; les
+adresses des ressources jetables, `TEST_DATABASE_URL` et `TEST_REDIS_URL`, sont
+fournies explicitement par le lanceur. Ne pas leur ajouter de défaut dans ce
+fichier : une adresse déclarée ne prouve ni la propriété ni la disponibilité du
+service.
 
 **Remise à zéro des états process-wide entre tests** (défense en profondeur,
 défauts réels distincts du piège ci-dessus) : les caches de tarification
@@ -621,6 +630,54 @@ async def test_classify_with_llm_mock():
 - **Scope** : plusieurs composants ensemble (service + repository + DB)
 - **Performance** : <500ms acceptable (vs <10ms pour unit)
 - **Setup/Teardown** : gestion de l'état de la DB/cache
+
+### Préparer un Redis jetable pour l'intégration
+
+Démarrer d'abord un Redis dédié à cette exécution, sans volume ni données de
+l'application. Les exemples ci-dessous supposent ce service déjà disponible
+sur `127.0.0.1:16379`, publié seulement sur le loopback ; adapter le port à son
+instance jetable. Vérifier sa réponse à `PING` avec le client et, le cas échéant,
+les identifiants de ce service. L'image et le healthcheck Redis du job
+[`test-backend-integration`](../../.github/workflows/ci.yml) donnent la référence
+CI. Ne pas réutiliser le Redis de développement, même en sélectionnant sa DB 15.
+
+Depuis la racine du dépôt, sous un shell POSIX :
+
+```bash
+export TEST_REDIS_URL='redis://127.0.0.1:16379/15'
+task test:backend:integration
+```
+
+Sous PowerShell :
+
+```powershell
+$env:TEST_REDIS_URL = 'redis://127.0.0.1:16379/15'
+task test:backend:integration
+```
+
+Ces commandes gardent la stratégie PostgreSQL habituelle : base jetable fournie
+par `TEST_DATABASE_URL`, service de test en conteneur ou Testcontainers. Avec une
+base externe, définir aussi cette variable dans le même shell avant la tâche ;
+les fixtures peuvent supprimer toutes ses tables. Aucun de ces endpoints n'est
+un réglage destiné à l'application ou au déploiement.
+
+La tâche lance d'abord
+[`scripts/integration_preflight.py`](../../apps/api/scripts/integration_preflight.py).
+Une URL Redis absente, refusée par le validateur ou dont le port TCP est
+injoignable fait échouer le préflight avant pytest et avant la sélection de la
+stratégie PostgreSQL. Le diagnostic `REDIS-PREFLIGHT: FAILED` ne restitue ni URL
+complète ni identifiants. Un succès `REDIS-PREFLIGHT: explicit-db` est suivi du
+`DB-PREFLIGHT` : c'est une **sonde TCP bornée**, pas une validation Redis de
+`AUTH`, `PING` ou TLS. Le healthcheck du service et les fixtures restent chargés
+de vérifier le protocole et l'accès effectif. Un préflight réussi ne justifie
+jamais de transformer ensuite un défaut d'infrastructure en skip.
+
+La CI configure `vm.overcommit_memory` sur son runner Ubuntu éphémère avant les
+suites, par `sudo sysctl -w vm.overcommit_memory=1`. Il s'agit du noyau de l'hôte
+qui exécute le service Redis, pas d'une variable `Settings` ni d'une consigne de
+configuration de production. Les conteneurs de service démarrent avant les
+étapes du job : leur journal peut conserver l'avertissement émis avant ce
+réglage.
 
 ### Fixtures de Base de Données
 

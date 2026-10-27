@@ -43,7 +43,7 @@ task test:backend:unit:coverage    # The CI unit suite verbatim, measuring cover
 task test:backend:coverage         # The floor, on unit + integration together (AC-030b; both suites first)
 task test:backend:diff-coverage    # Changed apps/api/src lines covered at the floor (after test:backend:coverage)
 task test:backend:unit             # All unit tests
-task test:backend:integration      # Integration tests (requires PostgreSQL + Redis)
+task test:backend:integration      # Integration tests (PostgreSQL + explicit disposable TEST_REDIS_URL on /15)
 task test:backend:agents           # Agent-specific tests
 task test:markers                  # F006 gate: no test may run in zero CI jobs
 task test:backend:exhaustive       # Full suite with coverage (do not use, too long)

@@ -13,7 +13,6 @@ The claim is the REAL one, on its own connection: only the push is replaced.
 """
 
 import asyncio
-from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
@@ -29,6 +28,7 @@ from src.domains.users.models import User
 from src.domains.workboard.router import update_ticket
 from src.domains.workboard.schemas import TicketCreate, TicketUpdate
 from src.domains.workboard.service import WorkboardService
+from src.infrastructure.proactive.notification import NotificationResult
 
 pytestmark = pytest.mark.integration
 
@@ -59,11 +59,14 @@ async def _seed(engine: AsyncEngine, committed: list[UUID]) -> tuple[UUID, UUID,
 
 
 async def test_a_screen_handover_to_a_peer_commits_then_claims_its_notice(
-    async_engine: AsyncEngine, committed_user_ids: list[UUID], monkeypatch: pytest.MonkeyPatch
+    async_engine: AsyncEngine,
+    committed_user_ids: list[UUID],
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     monkeypatch.setattr(settings, "workboard_enabled", True)
     monkeypatch.setattr(settings, "peers_enabled", True)
-    push = AsyncMock(return_value=SimpleNamespace(success=True))
+    push = AsyncMock(return_value=NotificationResult(fcm_success=1))
     monkeypatch.setattr(
         "src.infrastructure.proactive.notification.NotificationDispatcher.dispatch", push
     )
@@ -79,6 +82,7 @@ async def test_a_screen_handover_to_a_peer_commits_then_claims_its_notice(
 
     assert row.assignee_user_id == peer_id
     push.assert_awaited_once()
+    assert "proactive_notification_dispatch_failed" not in caplog.text
     async with AsyncSession(async_engine) as check:
         claimed = (
             (await check.execute(select(AgentEffect.id).where(AgentEffect.user_id == peer_id)))

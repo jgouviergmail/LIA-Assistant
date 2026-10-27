@@ -25,6 +25,12 @@ from tests.redis_test_url import validated_test_redis_url
 # parents[3] only exists on deep layouts (host checkout, CI); inside the dev
 # container the suite lives at /app/tests and there is no repo root above it —
 # exactly the "root .env does not exist" case this block already tolerates.
+# Explicit disposable endpoints are test inputs even when the root template
+# declares them. Keep only nonempty external values across the developer scrub
+# and .env.test loading; empty template placeholders must still be removed.
+_explicit_test_endpoints = {
+    key: value for key in ("TEST_DATABASE_URL", "TEST_REDIS_URL") if (value := os.environ.get(key))
+}
 _conftest_parents = Path(__file__).resolve().parents
 _root_env_file = _conftest_parents[3] / ".env" if len(_conftest_parents) > 3 else None
 if _root_env_file is not None and _root_env_file.exists():
@@ -40,6 +46,8 @@ if env_test_file.exists():
     from dotenv import load_dotenv
 
     load_dotenv(env_test_file, override=True)
+
+os.environ.update(_explicit_test_endpoints)
 
 os.environ["OTEL_SDK_DISABLED"] = "true"  # Disable OTEL to avoid Tempo connection errors
 

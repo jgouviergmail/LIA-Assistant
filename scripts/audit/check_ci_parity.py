@@ -57,13 +57,23 @@ INFRASTRUCTURE_PATTERNS: tuple[tuple[str, str], ...] = (
     (r"^pip install", "runner provisioning: install a build-time dependency"),
     (r"^pnpm install", "runner provisioning: install workspace dependencies"),
     (r"^npm ci", "runner provisioning: install the isolated E2E package"),
-    (r"^cp \.env\.test \.env", "runner provisioning: supply a settings file the local dev already has"),
+    (
+        r"^cp \.env\.test \.env",
+        "runner provisioning: supply a settings file the local dev already has",
+    ),
     (r"^psql ", "runner provisioning: create PostgreSQL extensions the local image ships with"),
 )
 
 # Genuine CI-only steps. Each needs a reason: this is the list a reviewer reads
 # to know what a local run does NOT cover.
 CI_ONLY: dict[str, str] = {
+    "sudo sysctl -w vm.overcommit_memory=1": (
+        "Configure Redis host overcommit in test-backend and test-backend-integration. "
+        "These disposable Ubuntu CI runners own their kernel configuration; Redis "
+        "requires memory overcommit for reliable background persistence. This is host "
+        "provisioning before the test tasks, not application or test logic. Local "
+        "tasks must not change the developer's host kernel configuration."
+    ),
     "VER=3.0.0": (
         "promtool binary install. The local equivalent is `task test:alerts`, which "
         "runs the SAME pinned version (v3.0.0) on the same files through a container "
@@ -73,12 +83,8 @@ CI_ONLY: dict[str, str] = {
         "and the same rules on the same data returned SUCCESS on 2.53.2 and FAILED "
         "on 3.0.0 — validating on a different engine than production is not validation."
     ),
-    "promtool check rules": (
-        "see above — native binary here, container in `task test:alerts`."
-    ),
-    "promtool test rules": (
-        "see above — native binary here, container in `task test:alerts`."
-    ),
+    "promtool check rules": ("see above — native binary here, container in `task test:alerts`."),
+    "promtool test rules": ("see above — native binary here, container in `task test:alerts`."),
     "bash ../../scripts/db/check_migrations_replay.sh": (
         "the replay runs INSIDE the API container in CI; the local equivalent is "
         "`task db:migrate:replay-check`, a deliberate cross-platform Python port "

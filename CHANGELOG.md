@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.0.0] - 2026-10-26
+## [4.0.0] - 2026-10-27
 
 **A world to explore. Your assistant, still yours.**
 LIA World becomes a featured way to use LIA: a shared isometric campus, a private
@@ -90,6 +90,13 @@ existing account, permission, approval and spending boundaries.
   cycles for every direct parent of the single migration head, preserving fresh
   install and structural-equivalence checks. Manual rollback now requires a
   reviewed target revision instead of an ambiguous implicit `-1`.
+
+- 🧪 **Explicit integration services**: qualify the World against a disposable
+  Redis database 15, validate the endpoint before database bootstrap or pytest,
+  and configure Redis host overcommit on the ephemeral CI runners. Explicit test
+  endpoints survive developer-environment cleanup; template placeholders supply
+  no default cache. The positive workboard notification fixture follows the real
+  durable-delivery result model.
 
 ### Fixed — API reliability and privacy
 

@@ -216,6 +216,11 @@ jobs:
       ENVIRONMENT: test
 
     steps:
+      # Redis services start before steps; fix the ephemeral runner host
+      # before test traffic or any background save can need fork().
+      - name: Configure Redis host overcommit
+        run: sudo sysctl -w vm.overcommit_memory=1
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Python 3.14
@@ -319,6 +324,9 @@ jobs:
       # whole DB test groups (conftest.py::_db_unavailable honours this flag).
       LIA_REQUIRE_DB: '1'
       REDIS_URL: redis://localhost:6379
+      # The explicit test endpoint survives .env.test loading and keeps
+      # every Redis client on this job's disposable database 15.
+      TEST_REDIS_URL: redis://localhost:6379/15
       REDIS_PASSWORD: ''
       SECRET_KEY: test-secret-key-minimum-32-characters-long-for-testing
       # Fallback = the throwaway PUBLIC test key from apps/api/.env.test: the
@@ -329,6 +337,11 @@ jobs:
       ENVIRONMENT: test
 
     steps:
+      # Redis services start before steps; fix the ephemeral runner host
+      # before test traffic or any background save can need fork().
+      - name: Configure Redis host overcommit
+        run: sudo sysctl -w vm.overcommit_memory=1
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Python 3.14
