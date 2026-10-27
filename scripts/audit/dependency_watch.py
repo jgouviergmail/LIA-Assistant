@@ -661,6 +661,11 @@ def inventory(root: Path) -> Inventory:
     python: dict[str, set[str]] = {}
     for lock in _PYTHON_LOCKS:
         _merge(python, parse_lock(root / lock))
+    task = yaml.safe_load((root / "Taskfile.yml").read_text(encoding="utf-8"))
+    uv_version = task.get("vars", {}).get("UV_VERSION")
+    if not isinstance(uv_version, str) or not re.fullmatch(r"\d+\.\d+\.\d+", uv_version):
+        raise LookupError("Taskfile.yml no longer pins an exact UV_VERSION")
+    _merge(python, {"uv": {uv_version}})
     npm = pnpm_locked((root / _PNPM_LOCK).read_text(encoding="utf-8"))
     _merge(npm, npm_lock_locked(json.loads((root / _E2E_LOCK).read_text(encoding="utf-8"))))
     for name in _DOCKERFILES:

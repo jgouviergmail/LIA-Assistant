@@ -82,7 +82,12 @@ existing account, permission, approval and spending boundaries.
 - 🛡️ **Dependency security**: update the API's `lxml_html_clean` to 0.4.6 for
   GHSA-hm48-5chc-q85f and the optional wake-word GPU toolbox's `hydra-core` to
   1.3.8 for GHSA-757g-8w3h-hp29. Runtime/development/GPU locks carry the reviewed
-  versions and hashes. The GPU-only Pillow review also records the remaining
+  versions and hashes. The API's security floors also move `grpcio` to 1.84.1
+  to remove compromised certificate trust and `pyasn1` to 0.6.5 for four
+  quadratic ASN.1 decoding advisories, without moving unrelated packages.
+  The pinned uv writer moves to 0.13.4 for the same compromised-CA incident,
+  gains a portable exact-version check, and joins the dependency-watch inventory.
+  The GPU-only Pillow review also records the remaining
   global advisory references under its existing audio-only boundary, with a
   dated review and unchanged open GitHub alerts; compatible upstream fixes
   remain blocked by VoxCPM dependency constraints.

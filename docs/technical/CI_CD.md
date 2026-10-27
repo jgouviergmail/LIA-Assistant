@@ -805,6 +805,24 @@ from the file: rows missing, pins stale).
 | `@tailwindcss/typography>postcss-selector-parser` | GHSA-rj75-hqrm-r3gf: flat selectors can exhaust CPU. The override is limited to typography; its parser API and compiled project styles are qualified before release.                                                                                                             | release v2.6.1                            |
 | `re2js`                                           | GHSA-gg6h-894w-4m9c (high): quadratic-time lookbehind matching, found by the dependency watch. Reached through `firebase` → `@firebase/firestore`, which LIA never imports (only `firebase/app` and `firebase/messaging`); the patched line is inside Firestore's own `^2.8.3` range | release v3.2.0                            |
 
+The 27 October 2026 release security update raises the manifest floors for
+`grpcio` to 1.84.1 ([GHSA-2xm2-c8xx-p9vh](https://github.com/grpc/grpc/security/advisories/GHSA-2xm2-c8xx-p9vh))
+and `pyasn1` to 0.6.5 (GHSA-2qm8-x737-gmw5, GHSA-fm9c-5rcf-2q5p,
+GHSA-mm57-4v3p-rchx and GHSA-9m75-vc3g-4x39). The targeted canonical compile
+changes only these two packages in the application/development locks;
+`grpcio-status` stays compatible and the sandbox lock is unchanged.
+The local CPython 3.14 Windows gRPC wheel's TLS trust store was inspected: the affected
+emSign ECC G3 and AAA Certificate Services roots are absent. Updating an OS
+or certifi store alone does not repair gRPC's separate bundled store.
+
+The lock writer also moves to uv 0.13.4 for
+[GHSA-hq85-5cpj-mr62](https://github.com/astral-sh/uv/security/advisories/GHSA-hq85-5cpj-mr62).
+`UV_VERSION` in `Taskfile.yml` remains its source; workflow and development-image
+copies are guarded against it. The watch now inventories this tool pin as well
+as the Python locks. The portable `check_uv_version.py` precondition invokes the
+selected binary through an argument vector, enforces its exact version and a
+bounded timeout, and requires no `grep` or custom CA workaround.
+
 **Accepted advisories** — when an advisory has NO published fix, no override can remove it:
 it is accepted by its GHSA in `pnpm.auditConfig.ignoreGhsas` (root `package.json`), never by
 a softer `--audit-level`. `pnpm audit` still prints it (« 1 ignored »), and this register says
@@ -851,7 +869,7 @@ VoxCPM permet le paquet corrigé ; l'alerte GitHub reste ouverte entre-temps.
 The GitHub default-branch review reports 43 open advisories against the GPU
 toolbox lock: 41 for Pillow, one for fsspec and the datasets advisory above.
 The existing Pillow decision covers an audio-only developer tool; this review
-records the remaining 19 global advisory references individually, with a
+records 19 additional global advisory references individually, with a
 31 October 2026 review date under the maintainer's responsibility in this
 document. Like the datasets advisory above, these additional references come
 from GitHub's global catalogue; the automated registry is reserved for findings
@@ -873,6 +891,19 @@ optional ModelScope denoiser. Our tool calls no image decoder, Gradio UI,
 ReferenceFileSystem or dataset folder builder. This is static reachability
 evidence; a new GPU runtime measurement was not performed. Adding image input,
 a UI service or those dataset paths requires resolving their advisories first.
+
+On 27 October, [GHSA-654x-cwwv-5j9c](https://github.com/python-pillow/Pillow/security/advisories/GHSA-654x-cwwv-5j9c)
+also became an individually scoped decision in
+[`dependency_watch_accepted.json`](../../scripts/audit/dependency_watch_accepted.json),
+owned by the maintainer and reviewed by 31 October. Thus 18 of the 19 references
+below remain global-only; the dated total of 43 alerts is unchanged.
+This advisory requires image-to-Arrow export with `PILLOW_ALIGNMENT>1`.
+The GPU lock includes pyarrow, but the supported audio path invokes no image
+export and configures no allocator override (Pillow's default is 1).
+This is a static reachability decision, not a new GPU runtime measurement.
+Reassess before adding either condition; remove it when the compatible
+VoxCPM/Gradio graph permits Pillow 13. Application/dev/sandbox locks already
+carry that fixed generation. The GitHub alert remains open.
 
 Additional Pillow references recorded by this review:
 

@@ -297,5 +297,13 @@
     "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there (FlashPix included) and it never reaches production, where Pillow 13.0.0 already carries the fix.",
     "owner": "maintainer",
     "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:pillow@12.3.0",
+    "ref": "GHSA-654x-cwwv-5j9c",
+    "reason": "GPU wake-word toolbox only (scripts/wake-word/requirements-gpu.lock.txt); application/dev/sandbox locks use Pillow 13.0.0. This advisory needs image-to-Arrow export with PILLOW_ALIGNMENT>1. The supported toolbox path loads a pinned local VoxCPM model with load_denoiser=False, consumes WAV/NumPy audio, and invokes neither PIL image operations nor image-to-Arrow export. Neither Dockerfile.gpu nor GPU task commands set PILLOW_ALIGNMENT (Pillow default: 1); pyarrow is installed transitively, not used for image export. VoxCPM 2.0.3 requires gradio>=6,<7; all 37 current stable Gradio 6 releases, including 6.30.0, still cap pillow<13. Static reachability review on 2026-10-27, not a new GPU runtime measurement. Reassess before adding image/Arrow export or allocator overrides; remove when a compatible dependency graph permits Pillow>=13.0.0. The toolbox is excluded from application images and both self-host bundle allowlists.",
+    "owner": "maintainer",
+    "review_by": "2026-10-31"
   }
 ]

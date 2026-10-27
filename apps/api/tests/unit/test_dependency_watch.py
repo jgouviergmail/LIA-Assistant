@@ -728,6 +728,8 @@ def test_the_inventory_reads_every_source_of_the_repository() -> None:
     inventory = watch.inventory(REPO_ROOT)
 
     assert len(inventory.python) > 150
+    task = watch.yaml.safe_load((REPO_ROOT / "Taskfile.yml").read_text(encoding="utf-8"))
+    assert inventory.python.get("uv") == {task["vars"]["UV_VERSION"]}
     assert len(inventory.npm) > 500
     assert inventory.npm.get("@anthropic-ai/claude-code"), "the API image's CLI is unread"
     assert len(inventory.images) > 15
@@ -754,3 +756,27 @@ def test_the_acceptance_file_is_well_formed() -> None:
         assert entry["kind"] in watch.KINDS, entry
         assert entry["reason"].strip() and entry["owner"].strip(), entry
         date.fromisoformat(entry["review_by"])
+
+
+@pytest.mark.parametrize(("version", "affected"), [("0.12.18", True), ("0.13.4", False)])
+def test_the_uv_ca_advisory_distinguishes_the_patched_compiler(
+    version: str, affected: bool
+) -> None:
+    # Official astral-sh/uv GHSA-hq85-5cpj-mr62, published 2026-10-20.
+    advisory = {
+        "ghsa_id": "GHSA-hq85-5cpj-mr62",
+        "state": "published",
+        "severity": "high",
+        "summary": "Removal of emSign root certificate",
+        "vulnerabilities": [
+            {
+                "package": {"ecosystem": "pip", "name": "uv"},
+                "vulnerable_version_range": "<0.13.4",
+                "patched_versions": ">=0.13.4",
+            }
+        ],
+    }
+    findings = watch.advisory_findings("pip", {"uv": {version}}, [advisory])
+    assert bool(findings) is affected
+    if affected:
+        assert [(f.subject, f.ref) for f in findings] == [("pip:uv@0.12.18", "GHSA-hq85-5cpj-mr62")]

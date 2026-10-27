@@ -122,7 +122,7 @@ RUN apt-get update && apt-get install -y \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian trixie stable" > /etc/apt/sources.list.d/docker.list \
     && apt-get update && apt-get install -y docker-ce-cli \
     && rm -rf /var/lib/apt/lists/* \
-    && pip install uv==0.12.18
+    && pip install uv==0.13.4
 
 # Install Node.js from the OFFICIAL nodejs.org distribution, on the 24 LTS line
 # — same line as the web image, CI and the `engines` lock. See Dockerfile.prod

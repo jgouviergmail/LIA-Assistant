@@ -81,7 +81,7 @@ jobs:
       # this uv version is held equal to UV_VERSION by
       # apps/api/tests/unit/test_one_value_one_owner_guard.py.
       - name: Install uv
-        run: pip install uv==0.12.18
+        run: pip install uv==0.13.4
 
       - name: pip-audit (the three Python lockfiles)
         run: task security:scan:backend
@@ -170,7 +170,7 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install uv
-        run: pip install uv==0.12.18
+        run: pip install uv==0.13.4
 
       # SBOM from the lockfile: exact versions actually shipped, transitives
       # included, at the cyclonedx-bom version the Taskfile pins.

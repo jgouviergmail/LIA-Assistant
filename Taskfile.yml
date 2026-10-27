@@ -10,10 +10,10 @@ vars:
   WEB_DIR: ./apps/web
   PYTHON: python
   # The lockfile writer. Pinned: another uv may resolve or format a lock
-  # differently, and 0.12.18 reproduces the committed locks byte for byte.
+  # differently; 0.13.4 removes compromised CA trust (GHSA-hq85-5cpj-mr62).
   # deps:lock and deps:upgrade* refuse to run on any other version.
   UV: uv
-  UV_VERSION: 0.12.18
+  UV_VERSION: 0.13.4
   # The supply-chain tools run isolated (`uv tool run`), never in the app's
   # venv: cyclonedx-bom 7.4 requires chardet<6 where the app locks chardet 7.
   # Pinned here and only here (dependency programme, lot 3).
@@ -102,7 +102,7 @@ tasks:
     internal: true
     desc: Refuse to write a lockfile with any uv but UV_VERSION
     preconditions:
-      - sh: '{{.UV}} --version | grep -qE "^uv {{.UV_VERSION}}( |$)"'
+      - sh: '"{{.PYTHON}}" "{{.ROOT_DIR}}/scripts/check_uv_version.py" --uv "{{.UV}}" --expected "{{.UV_VERSION}}"'
         msg: "The lockfiles are written by uv {{.UV_VERSION}}, which reproduces them byte for byte. Install it: pip install uv=={{.UV_VERSION}} (or uv self update {{.UV_VERSION}})"
 
   deps:lock:
@@ -348,9 +348,9 @@ tasks:
   # (ADR-331): Ruff, Black and strict MyPy, with the API's configuration (line
   # length, target, the third-party modules it reads without stubs).
   lint:deps:
-    desc: Ruff + Black + strict MyPy over the dependency tools (lock check, refresh, watch)
+    desc: Ruff + Black + strict MyPy over the dependency tools (lock/uv checks, refresh, watch)
     vars:
-      DEPS_TOOLS: scripts/check_requirements_lock.py scripts/refresh_requirements_lock.py scripts/audit/dependency_watch.py
+      DEPS_TOOLS: scripts/check_requirements_lock.py scripts/check_uv_version.py scripts/refresh_requirements_lock.py scripts/audit/dependency_watch.py
     cmds:
       - cmd: apps/api/.venv/Scripts/python -m ruff check {{.DEPS_TOOLS}}
         platforms: [windows]

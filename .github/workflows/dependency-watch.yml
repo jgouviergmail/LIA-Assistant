@@ -44,7 +44,7 @@ jobs:
 
       # Held equal to Taskfile.yml's UV_VERSION by test_one_value_one_owner_guard.py.
       - name: Install uv
-        run: pip install uv==0.12.18
+        run: pip install uv==0.13.4
 
       # The watch reads two wheels beyond the standard library; uv installs them
       # at the versions the dev lock holds, hashes included.

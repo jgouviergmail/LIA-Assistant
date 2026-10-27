@@ -102,12 +102,15 @@ anyio>=4.14.2  # via httpx, starlette, mcp and the LLM SDKs: CVE-2026-63374, CVE
 certifi>=2026.10.18  # via requests, httpx and the provider SDKs: GHSA-6q48-6c7w-9gw2 (critical, the distrusted emSign roots removed from the CA bundle)
 click>=8.4.2  # via uvicorn: PYSEC-2026-2132 (command injection through click.edit())
 dnspython>=2.9.0  # via caldav, email-validator: GHSA-45c3-73f7-pv4m (high, CPU exhaustion in dns.name.from_wire_parser)
+grpcio>=1.84.1  # via Google SDKs, grpcio-status and OTLP: GHSA-2xm2-c8xx-p9vh (bundled trust store)
 icalendar>=7.2.2  # via caldav, recurring-ical-events: GHSA-qjcq-q7h7-r74v (CVE-2026-77399)
 langgraph-sdk>=0.4.6  # via langgraph: GHSA-fvww-7h3r-vfhp (high), GHSA-3fx2-cqw9-xr3c (unencoded identifiers in streaming URLs)
 mako>=1.4.2  # via alembic, the migration template engine: GHSA-5639-2j2p-m4mx (CVE-2026-102991)
 maxminddb>=3.2.0  # via geoip2: GHSA-hj94-g986-h9r7
 multidict>=6.9.1  # via aiohttp, yarl: GHSA-54p9-h82j-f925
-pyasn1>=0.6.4  # via webauthn, pyasn1-modules: CVE-2026-59886
+# >=0.6.5 also clears quadratic ASN.1 decoding: GHSA-2qm8-x737-gmw5,
+# GHSA-fm9c-5rcf-2q5p, GHSA-mm57-4v3p-rchx and GHSA-9m75-vc3g-4x39.
+pyasn1>=0.6.5  # via webauthn, pyasn1-modules; retains the CVE-2026-59886 fix
 soupsieve>=2.9.2  # via beautifulsoup4: CVE-2026-85999, CVE-2026-86000
 truststore>=0.10.5; sys_platform != 'emscripten'  # via httpx2, httpcore2: GHSA-pmqj-r2x2-vx88 (high, shared SSLContext could skip certificate verification on Windows and macOS), GHSA-8v28-6h89-pmvr
 urllib3>=2.8.0  # via requests: CVE-2026-97687, CVE-2026-97688, CVE-2026-97689 (proxy TLS policy, Deflate with trailing bytes, unbounded chunk size)
