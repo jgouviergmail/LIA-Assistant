@@ -9,6 +9,8 @@
 > [GUIDE_DEPLOYMENT.md](./GUIDE_DEPLOYMENT.md) remains fully supported and is
 > the reference for anything this guide does not cover.
 
+**Last Updated**: 2026-10-27
+
 ---
 
 ## Quick reference
@@ -275,6 +277,19 @@ your private `.env` (mode `0600`):
 > `--reconfigure` the installer reloads the existing values and refuses to
 > continue if any is missing, duplicated, or still a placeholder.
 
+Enabling observability also configures Grafana: the initial user is `admin` and
+a strong password is generated in the private `.env` when its value is absent
+or empty. Existing non-empty `GRAFANA_ADMIN_USER` and `GRAFANA_ADMIN_PASSWORD`
+values are preserved on retries, `--resume` and `--reconfigure`, including when
+the profile is disabled and later enabled again. The password is hidden in
+the existing reconfiguration confirmation.
+
+`GRAFANA_ADMIN_PASSWORD` only bootstraps the admin password on
+[Grafana's first run](https://grafana.com/docs/grafana/latest/setup-grafana/configure-grafana/#admin_password).
+If its database is already initialized, changing `.env` does not reset the
+account: keep the existing login and use Grafana's password-change procedure
+when needed.
+
 ### 4.4 Values derived from your answers
 
 | Variable                | Value                                                     |
@@ -296,6 +311,10 @@ The two empty `NEXT_PUBLIC_*` values are intentional: the web image is
 host-neutral and same-origin, so the canonical address is resolved at request
 time from `APP_URL_SERVER` rather than baked into the JavaScript bundle. That
 is what lets one image serve any hostname.
+
+The optional `NEXT_PUBLIC_FIREBASE_*` browser settings are explicitly empty on
+a fresh installation. Empty values provision no Firebase project or push
+service; configure Firebase only when you intend to use that integration.
 
 ### 4.5 What is never in `.env`
 

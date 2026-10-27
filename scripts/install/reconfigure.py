@@ -244,8 +244,9 @@ def _stage_reconfiguration(
         files[target] = staged
 
     env_path = deps.root / ENV_FILE
+    current_env = env_path.read_text(encoding="utf-8")
     env_text = render_reconfigured_env(
-        env_path.read_text(encoding="utf-8"), derive_environment(candidate, generated)
+        current_env, derive_environment(candidate, generated, current_env=current_env)
     )
     if candidate.skill_sandbox and not state.public_answers.skill_sandbox:
         # Left unset, the overlay's fallback group is not every host's socket group.

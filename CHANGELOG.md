@@ -60,6 +60,13 @@ existing account, permission, approval and spending boundaries.
 
 ### Fixed
 
+- **Complete self-host configuration**: declare optional browser Firebase inputs
+  empty and generate a private Grafana password when observability is enabled.
+  Existing non-empty Grafana credentials survive retries and reconfiguration,
+  including profile disable/re-enable; the password stays hidden in the
+  existing confirmation. Generated environments cover the Compose interpolation
+  inputs without fabricated service values or warning suppression.
+
 - 🎮 **World continuity and resource bounds**: retain the visible ground working
   set instead of evicting on-screen chunks; preserve edits and focus through
   pending requests, conflicts and private panel lifetimes; keep palette-only

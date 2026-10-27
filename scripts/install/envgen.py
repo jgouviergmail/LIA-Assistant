@@ -51,13 +51,17 @@ ANSWER_DERIVED_KEYS: frozenset[str] = frozenset(
         "RADIO_ENABLED",
         "AVATAR_ENABLED",
         "WORLD_ENABLED",
+        "GRAFANA_ADMIN_USER",
+        "GRAFANA_ADMIN_PASSWORD",
         "DIAGNOSTICS_WEBHOOK_SECRET",
         "ALERTMANAGER_LIA_WEBHOOK_URL",
     }
 )
 
 #: Answer-derived values the console never prints: a confirmation names them.
-SECRET_ANSWER_DERIVED_KEYS: frozenset[str] = frozenset({"DIAGNOSTICS_WEBHOOK_SECRET"})
+SECRET_ANSWER_DERIVED_KEYS: frozenset[str] = frozenset(
+    {"DIAGNOSTICS_WEBHOOK_SECRET", "GRAFANA_ADMIN_PASSWORD"}
+)
 
 #: The host's Docker socket, whose group the sandbox overlay hands the API
 #: (``group_add: ${DOCKER_GID:-...}``).
@@ -157,7 +161,9 @@ def turnstile_environment(path: Path, provided: Mapping[str, str]) -> Mapping[st
     }
 
 
-def derive_environment(public: PublicAnswers, generated: Mapping[str, str]) -> Mapping[str, str]:
+def derive_environment(
+    public: PublicAnswers, generated: Mapping[str, str], *, current_env: str = ""
+) -> Mapping[str, str]:
     """Derive the complete non-provider-key environment for one install.
 
     ``NEXT_PUBLIC_*`` values stay EMPTY on purpose (B03): release images are
@@ -166,12 +172,27 @@ def derive_environment(public: PublicAnswers, generated: Mapping[str, str]) -> M
     """
     origin = _origin(public)
     secure = public.exposure is not Exposure.LAN
+    in_force = _parse_env_text(current_env)
+    grafana_user = in_force.get("GRAFANA_ADMIN_USER", "")
+    grafana_password = in_force.get("GRAFANA_ADMIN_PASSWORD", "")
+    if public.observability:
+        grafana_user = grafana_user or "admin"
+        grafana_password = grafana_password or secrets.token_urlsafe(32)
     return {
         "ENVIRONMENT": "production",
         "DEBUG": "false",
         "LOG_LEVEL": "INFO",
         "OPENAI_ORGANIZATION_ID": "",
         "FIREBASE_PROJECT_ID": "",
+        "NEXT_PUBLIC_FIREBASE_API_KEY": "",
+        "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN": "",
+        "NEXT_PUBLIC_FIREBASE_PROJECT_ID": "",
+        "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET": "",
+        "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "",
+        "NEXT_PUBLIC_FIREBASE_APP_ID": "",
+        "NEXT_PUBLIC_FIREBASE_VAPID_KEY": "",
+        "GRAFANA_ADMIN_USER": grafana_user,
+        "GRAFANA_ADMIN_PASSWORD": grafana_password,
         **{key: generated[key] for key in GENERATED_SECRET_KEYS},
         "POSTGRES_USER": "lia",
         "POSTGRES_DB": "lia",
@@ -274,6 +295,11 @@ def render_reconfigured_env(current_env: str, environment: Mapping[str, str]) ->
         for key, value in environment.items()
         if key in ANSWER_DERIVED_KEYS or key not in in_force
     }
+    # A configured credential survives both disabling and re-enabling the profile.
+    # Empty template values are unconfigured and may be filled on activation.
+    for key in ("GRAFANA_ADMIN_USER", "GRAFANA_ADMIN_PASSWORD"):
+        if in_force.get(key):
+            values[key] = in_force[key]
     secret_in_force = in_force.get("DIAGNOSTICS_WEBHOOK_SECRET", "")
     if values.get("DIAGNOSTICS_WEBHOOK_SECRET") and secret_in_force:
         values["DIAGNOSTICS_WEBHOOK_SECRET"] = secret_in_force

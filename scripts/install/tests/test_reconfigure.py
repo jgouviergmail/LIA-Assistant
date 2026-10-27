@@ -100,15 +100,19 @@ def test_reconfigure_before_the_bootstrap_points_at_resume(tmp_path: Path) -> No
     assert any("./install.sh --resume" in line for line in io.printed)
 
 
-def test_reconfigure_swaps_routing_without_seeds_bootstrap_or_build(tmp_path: Path) -> None:
+def test_reconfigure_swaps_routing_without_seeds_bootstrap_or_build(
+    tmp_path: Path,
+) -> None:
     root = _installed(tmp_path)
     before = _env_values(root)
     with (root / ".env").open("a", encoding="utf-8") as env:
         env.write("OPERATOR_TUNED_LIMIT=42\n")
-    io = _IO(public={"observability": "yes"})
+    io = _IO(public={**CONFIRM, "observability": "yes"})
     runner = _Runner()
     code = run_install(["--reconfigure"], _deps(root, io, runner))
     assert code == EXIT_OK, io.printed
+    assert any(prompt.startswith("[apply_env_changes]") for prompt in io.input_prompts)
+    assert any("GRAFANA_ADMIN_PASSWORD: (empty) -> (hidden)" in line for line in io.printed)
 
     joined = runner.joined()
     assert not any("bootstrap_install" in line for line in joined)
@@ -381,10 +385,15 @@ def test_a_missing_release_manifest_is_a_stable_code(tmp_path: Path) -> None:
     assert not (root / RECONFIGURE_DIR).exists()
 
 
-def test_a_resume_after_a_reconfiguration_finds_nothing_to_stop_on(tmp_path: Path) -> None:
+def test_a_resume_after_a_reconfiguration_finds_nothing_to_stop_on(
+    tmp_path: Path,
+) -> None:
     root = _installed(tmp_path)
     assert (
-        run_install(["--reconfigure"], _deps(root, _IO(public={"observability": "yes"}), _Runner()))
+        run_install(
+            ["--reconfigure"],
+            _deps(root, _IO(public={**CONFIRM, "observability": "yes"}), _Runner()),
+        )
         == EXIT_OK
     )
     io = _IO()
@@ -598,14 +607,13 @@ def test_turning_the_sandbox_on_writes_the_docker_socket_group(tmp_path: Path) -
     socket.write_text("", encoding="utf-8")
     io = _IO(public={"skill_sandbox": "yes"})
     assert (
-        run_install(["--reconfigure"], _deps(root, io, _Runner(), docker_socket=socket))
-        == EXIT_OK
+        run_install(["--reconfigure"], _deps(root, io, _Runner(), docker_socket=socket)) == EXIT_OK
     ), io.printed
     gid = str(os.stat(socket).st_gid)
     assert _env_values(root)["DOCKER_GID"] == gid
 
     # Not answer-derived: a later reconfiguration keeps it, socket or not.
-    io = _IO(public={"observability": "yes"})
+    io = _IO(public={**CONFIRM, "observability": "yes"})
     assert run_install(["--reconfigure"], _deps(root, io, _Runner())) == EXIT_OK, io.printed
     assert _env_values(root)["DOCKER_GID"] == gid
 
@@ -631,3 +639,30 @@ def test_a_docker_gid_in_force_is_kept_and_no_socket_writes_none(tmp_path: Path)
         == EXIT_OK
     ), io.printed
     assert "DOCKER_GID" not in _env_values(bare)
+
+
+def test_observability_credentials_survive_disable_and_reenable(tmp_path: Path) -> None:
+    root = _installed_with(tmp_path, observability="yes")
+    original = _env_values(root)
+    assert len(original.get("GRAFANA_ADMIN_PASSWORD", "")) >= 32
+    for choice in ("no", "yes"):
+        io = _IO(public={"observability": choice})
+        assert run_install(["--reconfigure"], _deps(root, io, _Runner())) == EXIT_OK
+        current = _env_values(root)
+        unchanged = all(
+            current[key] == original[key]
+            for key in ("GRAFANA_ADMIN_USER", "GRAFANA_ADMIN_PASSWORD")
+        )
+        assert unchanged
+        assert not any(prompt.startswith("[apply_env_changes]") for prompt in io.input_prompts)
+
+
+def test_new_observability_credentials_require_the_existing_env_change_consent(
+    tmp_path: Path,
+) -> None:
+    root = _installed(tmp_path)
+    before = (root / ".env").read_text(encoding="utf-8")
+    io = _IO(public={"observability": "yes"})
+    assert run_install(["--reconfigure"], _deps(root, io, _Runner())) == EXIT_USAGE
+    assert (root / ".env").read_text(encoding="utf-8") == before
+    assert any(line.startswith("reconfigure_declined") for line in io.printed)

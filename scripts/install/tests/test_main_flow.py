@@ -319,3 +319,37 @@ def test_a_resume_that_reran_nothing_claims_no_stale_list(tmp_path: Path) -> Non
     # Keys may have been added in the Admin UI since: it is the authority.
     assert "semantic_search (gemini)" not in report
     assert "the Admin UI (LLM Configuration) shows" in report
+
+
+def test_rerun_keeps_existing_grafana_password_before_acquire(tmp_path: Path) -> None:
+    root = _bundle(tmp_path)
+    answers = _answers_file(root, {**ANSWERS, "observability": "yes"})
+    arguments = ["--non-interactive", "--answers", str(answers)]
+    assert run_install(["--dry-run", *arguments], _deps(root, _IO())) == EXIT_OK
+
+    def password() -> str:
+        for line in (root / ".env").read_text(encoding="utf-8").splitlines():
+            if line.startswith("GRAFANA_ADMIN_PASSWORD="):
+                return line.partition("=")[2]
+        return ""
+
+    original = password()
+    assert original
+
+    class StopBeforeAcquire(_Runner):
+        acquired = False
+
+        def __call__(self, argv, *, stdin=None, env=None):
+            if list(argv[-3:]) == ["build", "api", "web"]:
+                self.acquired = True
+                unchanged = password() == original
+                assert unchanged
+                raise KeyboardInterrupt
+            return super().__call__(argv, stdin=stdin, env=env)
+
+    runner = StopBeforeAcquire()
+    deps = Deps(root=root, io=_IO().adapter(), runner=runner, opener=_Opener(), clock=_Clock())
+    assert run_install(arguments, deps) == EXIT_INTERRUPTED
+    assert runner.acquired
+    unchanged = password() == original
+    assert unchanged

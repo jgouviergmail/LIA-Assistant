@@ -160,8 +160,10 @@ def _generate_artifacts(
 ) -> str:
     """Render .env / override / image lock / Caddyfile, prepare host paths."""
     seed_digest = compute_seed_bundle_sha256(deps.root)
+    env_path = deps.root / ENV_FILE
+    current_env = env_path.read_text(encoding="utf-8") if env_path.is_file() else ""
     environment = {
-        **derive_environment(public, generated),
+        **derive_environment(public, generated, current_env=current_env),
         **maps_environment(deps.root / ENV_FILE, maps_settings or {}),
         **turnstile_environment(deps.root / ENV_FILE, turnstile_settings or {}),
     }

@@ -2,9 +2,10 @@
 
 > Complete guide to install, configure, and get started with LIA — Multi-Agent AI Assistant.
 > Start from the guided installer and the checked-in environment examples. Installer defaults are validated against the application's Settings; runtime model assignments and user preferences can differ between deployments. Review your instance's configuration before starting it.
+> The guided production installer leaves optional browser Firebase settings empty. Enabling observability generates Grafana credentials in the private root `.env`; existing non-empty credentials survive retries and reconfiguration. Manual observability setups must supply a strong private Grafana password before enabling the profile.
 
 **Version**: 4.0
-**Last Updated**: 2026-10-19
+**Last Updated**: 2026-10-27
 **Compatibility**: LIA v4.0.0
 
 ## Table of Contents

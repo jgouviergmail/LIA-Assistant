@@ -17,6 +17,7 @@ from __future__ import annotations
 import base64
 from dataclasses import replace
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -426,3 +427,85 @@ def test_two_backups_within_one_second_keep_both_copies(
     assert first != second
     assert first.read_text(encoding="utf-8") == "A=1\n"
     assert second.read_text(encoding="utf-8") == "A=2\n"
+
+
+@pytest.mark.parametrize("observability", (False, True))
+def test_fresh_environment_covers_compose_interpolations(observability: bool) -> None:
+    root = Path(__file__).resolve().parents[3]
+    public = replace(_public(), observability=observability)
+    values = _values(
+        render_env(
+            (root / ".env.min.prod.example").read_text(encoding="utf-8"),
+            derive_environment(public, generate_secrets()),
+        )
+    )
+    required = set(
+        re.findall(
+            r"(?<!\$)\$\{([A-Z][A-Z0-9_]*)\}",
+            (root / "docker-compose.prod.yml").read_text(encoding="utf-8"),
+        )
+    )
+    missing = required - values.keys()
+    assert not missing, sorted(missing)
+
+
+def test_optional_compose_credentials_remain_empty_when_not_enabled() -> None:
+    values = derive_environment(_public(), generate_secrets())
+    root = Path(__file__).resolve().parents[3]
+    firebase = set(
+        re.findall(
+            r"\$\{(NEXT_PUBLIC_FIREBASE_[A-Z_]+)\}",
+            (root / "docker-compose.prod.yml").read_text(encoding="utf-8"),
+        )
+    )
+    assert firebase <= values.keys()
+    assert all(values[key] == "" for key in firebase)
+    assert values.get("GRAFANA_ADMIN_USER") == ""
+    assert values.get("GRAFANA_ADMIN_PASSWORD") == ""
+
+
+def test_observability_generates_a_distinct_strong_grafana_password() -> None:
+    public = replace(_public(), observability=True)
+    first = derive_environment(public, generate_secrets())
+    second = derive_environment(public, generate_secrets())
+    assert first.get("GRAFANA_ADMIN_USER") == "admin"
+    assert len(first.get("GRAFANA_ADMIN_PASSWORD", "")) >= 32
+    different = first.get("GRAFANA_ADMIN_PASSWORD") != second.get("GRAFANA_ADMIN_PASSWORD")
+    assert different
+
+
+@pytest.mark.parametrize(
+    "current",
+    ("", "GRAFANA_ADMIN_USER=\nGRAFANA_ADMIN_PASSWORD=\n"),
+)
+def test_enabling_observability_fills_missing_or_empty_grafana_credentials(
+    current: str,
+) -> None:
+    public = replace(_public(), observability=True)
+    candidate = render_reconfigured_env(current, derive_environment(public, generate_secrets()))
+    values = _values(candidate)
+    assert values.get("GRAFANA_ADMIN_USER") == "admin"
+    assert len(values.get("GRAFANA_ADMIN_PASSWORD", "")) >= 32
+
+
+@pytest.mark.parametrize("observability", (False, True))
+def test_existing_grafana_credentials_survive_reconfiguration(
+    observability: bool,
+) -> None:
+    password = generate_secrets()["SECRET_KEY"]
+    current = "GRAFANA_ADMIN_USER=operator-grafana\nGRAFANA_ADMIN_PASSWORD=" + password + "\n"
+    public = replace(_public(), observability=observability)
+    values = _values(
+        render_reconfigured_env(current, derive_environment(public, generate_secrets()))
+    )
+    assert values["GRAFANA_ADMIN_USER"] == "operator-grafana"
+    unchanged = values["GRAFANA_ADMIN_PASSWORD"] == password
+    assert unchanged
+
+
+def test_grafana_password_is_hidden_in_reconfiguration_confirmation() -> None:
+    password = generate_secrets()["SECRET_KEY"]
+    line = describe_change(EnvChange("GRAFANA_ADMIN_PASSWORD", None, password))
+    leaked = password in line
+    assert not leaked
+    assert "(hidden)" in line
