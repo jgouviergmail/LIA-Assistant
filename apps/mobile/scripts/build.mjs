@@ -11,7 +11,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -56,34 +56,53 @@ function buildIos() {
     throw new Error('run `task mobile:prepare:ios` first (macOS)');
   }
 
-  // No .xcworkspace — Capacitor 8 uses Swift Package Manager. No shared scheme
-  // either: schemes appear under xcuserdata the first time Xcode opens the
-  // project, which never happens on a runner. Hence -project and -target.
-  execFileSync(
-    'xcodebuild',
-    [
-      '-project', project,
-      '-target', 'App',
-      '-sdk', 'iphonesimulator',
-      '-configuration', 'Debug',
-      'CODE_SIGNING_ALLOWED=NO',
-      'CODE_SIGNING_REQUIRED=NO',
-      'build',
-    ],
-    { cwd: ROOT, stdio: 'inherit' }
-  );
+  // prepare creates a shared App scheme, including the package dependencies.
+  execFileSync('xcodebuild', iosSimulatorBuildArguments(project), { cwd: ROOT, stdio: 'inherit' });
 
   return 'App';
 }
 
-const platform = process.argv.includes('--platform')
-  ? process.argv[process.argv.indexOf('--platform') + 1]
-  : null;
+/**
+ * Arguments for the unsigned generic simulator check, never a store archive.
+ *
+ * LM_SKIP_METADATA_EXTRACTION is an internal Swift Build 6.3 opt-out, not a
+ * publicly stable Xcode setting. The shell has no AppIntents feature; requalify
+ * the absence of that metadata phase when the SDK changes. Source:
+ * https://github.com/swiftlang/swift-build/blob/fc3609a1658bc5e119dc38906eb8049a9e8b24a1/Sources/SWBApplePlatform/AppIntentsMetadataTaskProducer.swift
+ *
+ * @param {string} project Generated App.xcodeproj directory.
+ * @returns {string[]} xcodebuild arguments.
+ */
+export function iosSimulatorBuildArguments(project) {
+  const inspect = directory => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) inspect(path);
+      else if (entry.name.endsWith('.swift') && /\b(?:AppIntents|AppIntent|AppShortcutsProvider)\b/.test(readFileSync(path, 'utf8'))) {
+        throw new Error('AppIntents source requires reviewing the simulator metadata opt-out');
+      }
+    }
+  };
+  inspect(join(dirname(project), 'App'));
+  return [
+    '-project', project,
+    '-scheme', 'App',
+    '-sdk', 'iphonesimulator',
+    '-destination', 'generic/platform=iOS Simulator',
+    '-configuration', 'Debug',
+    'ONLY_ACTIVE_ARCH=NO',
+    'CODE_SIGNING_ALLOWED=NO',
+    'CODE_SIGNING_REQUIRED=NO',
+    'LM_SKIP_METADATA_EXTRACTION=YES',
+    'build',
+  ];
+}
 
-if (platform === 'android') {
-  console.log(`built: ${buildAndroid()}`);
-} else if (platform === 'ios') {
-  console.log(`built: ${buildIos()}`);
-} else {
-  throw new Error('--platform must be "android" or "ios"');
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const platform = process.argv.includes('--platform')
+    ? process.argv[process.argv.indexOf('--platform') + 1]
+    : null;
+  if (platform === 'android') console.log(`built: ${buildAndroid()}`);
+  else if (platform === 'ios') console.log(`built: ${buildIos()}`);
+  else throw new Error('--platform must be "android" or "ios"');
 }

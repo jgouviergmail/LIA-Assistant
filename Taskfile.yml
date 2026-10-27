@@ -425,6 +425,11 @@ tasks:
     cmds:
       - pnpm test:coverage {{.CLI_ARGS}}
 
+  mobile:test:
+    desc: Hermetic Node tests for native project generation and simulator build arguments
+    cmds:
+      - node --test apps/mobile/scripts/__tests__/native-build.test.mjs
+
   mobile:prepare:android:
     desc: Regenerate the Android shell and lay our own sources on top
     dir: apps/mobile
@@ -2658,16 +2663,17 @@ tasks:
 
   ci:fast:
     # Everything CI checks that needs NO external service. This is the gate to
-    # run before a push: the pre-commit hook is deliberately ~5 min and skips
+    # run before a push: the pre-commit hook is deliberately narrower and skips
     # the ratchets, the deploy tests, the marker gate and the frontend coverage
     # thresholds — every one of which has redded a build after a green local run.
-    desc: CI gates that need no service (~10 min) — run this before pushing
+    desc: CI gates that need no service — run this before pushing
     cmds:
       - task: lint
       # The unit suite's coverage only: the floor and the diff gate need the
       # integration suite's data too (AC-030b), so they run in `task ci`.
       - task: test:backend:unit:coverage
       - task: test:markers
+      - task: mobile:test
       - task: test:frontend:coverage
       - task: test:deploy
       # The hermetic installer gate needs no service either, and CI runs it in

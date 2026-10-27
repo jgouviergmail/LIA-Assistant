@@ -118,18 +118,32 @@ incorrect" during dependency resolution.
 
 ---
 
-## 4. Creating the project *(planned)*
+## 4. Creating the project
 
-The native project is **generated, not vendored**. Committing an Android project
+The native project is **generated and gitignored**. Committing an Android project
 would add thousands of unreviewable files and freeze the very thing that must be
 re-measured; worse, `task deploy:prod` rsyncs the working tree — untracked files
 included — so a stray build could reach production.
 
 ```bash
-# planned: the shell lives in apps/mobile/, generated from the config it owns
-npx cap add android
-npx cap sync android
+task mobile:prepare:android
 ```
+
+[`prepare.mjs`](../../apps/mobile/scripts/prepare.mjs) owns generation, native
+overlays and generated Gradle adjustments. It removes only the known unused
+`flatDir` blocks in `android/app/build.gradle` and
+`android/capacitor-cordova-android-plugins/build.gradle`, after verifying that
+there are no Cordova plugins or local JAR/AAR artifacts. An unexpected block
+shape or artifact stops preparation for review rather than removing a repository
+that may be needed. The local artifact directories may contain `.gitkeep` files;
+other files and symbolic links are refused. Both Gradle files are validated
+before either is changed. Module wiring, Maven repositories, `fileTree`
+dependencies and Firebase declarations remain in place. Change the preparation
+sources, not the generated Gradle files.
+
+Run `task mobile:test` for the Node-based preparation and build contracts,
+including these refusal paths; it needs no Android SDK. Native compilation
+remains a separate check through `task mobile:build:android`.
 
 Two Capacitor plugins **must stay disabled**, and their defaults already are
 (`pluginConfig.getBoolean("enabled", false)`):

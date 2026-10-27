@@ -3157,6 +3157,8 @@ pnpm test:coverage       # avec couverture + application des seuils
 # Toujours utiliser le script dédié `pnpm test:coverage`.
 ```
 
+La taille du pool est bornée dans [`apps/web/vitest.config.mts`](../../apps/web/vitest.config.mts) pour limiter la contention jsdom et l’instrumentation, sans modifier les délais, les assertions ni les seuils de couverture.
+
 ### Seuils de couverture
 
 Les seuils vivent dans `apps/web/vitest.config.mts` (`coverage.thresholds`). Ils suivent la [doctrine des planchers de couverture](#doctrine-des-planchers-de-couverture-cliquet), commune au backend et au frontend, où le plancher global en vigueur est cité.
@@ -3257,6 +3259,19 @@ uniquement par une réponse fausse ou un widget absent.
 - **Une couverture faible en scope `tests/unit` seul ne signifie pas « non testé »** : les modules d'orchestration/nœuds sont couverts par `tests/agents`, invisible dans un instantané `--cov` limité à `tests/unit`. Avant d'investir sur un module « à 19 % », mesurer sa couverture *union* (unit + agents) — sinon on réécrit des tests qui existent. Contre-exemple utile : le `ReferenceResolver` du plan était réellement à 19 % même union (55 tests agents n'exerçaient que `ConditionEvaluator`, pas le moteur de résolution `$steps`/`context`/`items`/wildcards/filtres JSONPath).
 
 ---
+
+### Contrats des générateurs mobiles
+
+```bash
+task mobile:test
+```
+
+Les tests Node valident la préparation des projets natifs, les schémas partagés,
+les arguments de compilation et les refus des structures inattendues. Ils
+utilisent des fichiers temporaires, sans SDK Android ou iOS. La même tâche
+s’exécute dans `ci:fast`, dans la CI frontend et avant les compilations natives.
+Les builds Android et simulateur iOS vérifient ensuite les projets avec leurs
+outils de plateforme. Voir le [guide mobile](../../apps/mobile/README.md).
 
 ## Références
 

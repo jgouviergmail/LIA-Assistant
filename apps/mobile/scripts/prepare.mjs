@@ -23,8 +23,8 @@ import { cp, mkdir, readdir } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { declareGradleDependencies } from './android-gradle.mjs';
-import { declareSwiftSources } from './xcode-sources.mjs';
+import { declareGradleDependencies, removeUnusedFlatDirRepositories } from './android-gradle.mjs';
+import { declareSwiftSources, ensureSharedAppScheme } from './xcode-sources.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const WIN = process.platform === 'win32';
@@ -191,6 +191,8 @@ async function main() {
   await overlay(platform, Boolean(args['accept-drift']), freshlyGenerated);
 
   if (platform === 'android') {
+    const repositories = removeUnusedFlatDirRepositories(join(ROOT, 'android'));
+    console.log(`unused flatDir repositories removed: ${repositories.removed.length}`);
     // Copying a .java file into the tree compiles it, but calling Firebase from
     // it does not link until the artifact is declared. Same silent failure the
     // pbxproj transform below exists for, one build system over.
@@ -214,6 +216,8 @@ async function main() {
   }
 
   if (platform === 'ios') {
+    const scheme = ensureSharedAppScheme(join(ROOT, 'ios', 'App', 'App.xcodeproj', 'project.pbxproj'));
+    console.log(`shared App scheme: ${scheme.created ? 'created' : 'already present'}`);
     // Copying a .swift file into the folder compiles nothing: Xcode builds what
     // the project lists. Declaring it is the step whose absence fails silently.
     const report = declareSwiftSources(

@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { availableParallelism } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 import { LOGIC_FREE_PRIMITIVES } from './coverage-exclusions.mjs';
@@ -13,6 +14,8 @@ export default defineConfig({
     'process.env.NODE_ENV': '"test"',
   },
   test: {
+    // Bound jsdom and coverage instrumentation contention on shared hosts.
+    maxWorkers: Math.min(4, Math.max(1, availableParallelism() - 1)),
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/__tests__/setup.ts'],

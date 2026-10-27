@@ -101,7 +101,15 @@ existing account, permission, approval and spending boundaries.
 - 🧰 **Reproducible CI provisioning**: activate the root pnpm pin through Node 24’s
   Corepack with signature checks, isolated shims and cache-aware version checks.
   Installer argument vectors, release metadata output and Xcode selection pass
-  shell validation without masking diagnostics.
+  shell validation without masking diagnostics. Frontend coverage bounds its
+  fork pool to prevent CPU and heap contention during cold imports, with
+  unchanged test timeouts, assertions and coverage floors.
+
+- 📱 **Native shell build contracts**: derive the shared iOS App scheme from the
+  generated target, select a complete generic-simulator build and retain unsigned
+  verification. The simulator host skips unused AppIntents metadata extraction.
+  Android preparation validates native dependency metadata before removing unused
+  flat-directory repositories; Node contracts run locally and in CI.
 
 ### Fixed — API reliability and privacy
 

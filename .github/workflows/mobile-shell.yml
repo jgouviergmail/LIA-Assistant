@@ -51,6 +51,9 @@ jobs:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Test native build generators
+        run: task mobile:test
+
       - name: Set up JDK
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
@@ -75,6 +78,9 @@ jobs:
         with:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Test native build generators
+        run: task mobile:test
 
       # Proves the plugin, the view controller and the store compile — and that
       # the pbxproj transform actually declared them, which is the failure that

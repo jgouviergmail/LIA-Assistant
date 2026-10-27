@@ -75,7 +75,7 @@ hook pre-commit (~5 min)                 ci.yml — chaque etape appelle une `ta
     +-- completude .env.example              +-- Migration Replay ...... (CI-only, cf. tableau)
     +-- ESLint / TypeScript                  +-- Test Frontend ......... task test:frontend:coverage
                                              +-- E2E + a11y (Playwright) task test:e2e
-    task ci:fast (~10 min, sans service)     +-- Code Hygiene .......... task lint:hygiene / lint:i18n
+    task ci:fast (sans service)              +-- Code Hygiene .......... task lint:hygiene / lint:i18n
     task ci       (+ PG, Redis, Docker,      |                          task test:deploy / lint:docs
                    navigateur)               |                          task lint:cycles / lint:cc
                                              |                          task lint:lockfiles / lint:ci-parity
@@ -86,9 +86,10 @@ hook pre-commit (~5 min)                 ci.yml — chaque etape appelle une `ta
 ```
 
 **`task ci:fast`** est le gate d'avant-push : tout ce que la CI verifie sans
-service externe (~10 min mesure). Le hook pre-commit est volontairement plus
-etroit — il tient dans ~5 min et saute les ratchets, le gate de markers, les
-tests de deploiement et les seuils de couverture frontend.
+service externe. Sa durée dépend de la machine et de la taille des suites.
+Le hook pré-commit est volontairement plus étroit : il saute les ratchets,
+le gate de markers, les tests de déploiement et les seuils de couverture
+frontend.
 
 ---
 
@@ -448,6 +449,7 @@ et les garder dans le workflow faisait diverger le run local du job.
 
 | Step                | Commande                      |
 | ------------------- | ----------------------------- |
+| Contrats des générateurs natifs | `task mobile:test` |
 | Vitest + couverture | `task test:frontend:coverage` |
 
 La tache appelle le script dedie `pnpm test:coverage`, jamais
@@ -458,6 +460,11 @@ v1.21.26, ADR-116). Elle applique les **seuils de couverture ratchet** de
 hooks aux valeurs mesurees, plancher global) et archive
 `coverage/coverage-final.json` dans l’artifact
 GitHub Actions `frontend-coverage`.
+
+Le pool de workers est borné dans `apps/web/vitest.config.mts` pour limiter
+la contention CPU et mémoire pendant les imports instrumentés sur les hôtes
+à nombreux cœurs. Ce budget conserve le comportement des petits runners ;
+il ne modifie ni les assertions, ni les délais, ni les seuils de couverture.
 
 La tache **vide `NEXT_PUBLIC_API_URL`**. Ce Taskfile declare `dotenv: - .env`
 globalement, donc chaque tache herite de l'environnement du developpeur, que le
@@ -1025,10 +1032,10 @@ Elles ne sont pas « equivalentes » : ce sont **les memes commandes**. La CI le
 appelle (ADR-151).
 
 ```bash
-# Equivalent du pre-commit hook (~5 min)
+# Equivalent du pre-commit hook
 task pre-commit
 
-# Gate d'avant-push : tous les gates CI sans service externe (~10 min mesure)
+# Gate d'avant-push : tous les gates CI sans service externe
 task ci:fast
 
 # Le scan de secrets de la CI sur ce qu'un push enverrait (Docker ; le hook pre-push le lance)

@@ -98,16 +98,25 @@ There is **no CocoaPods step**: Capacitor 8 generates `App.xcodeproj` plus
 
 ---
 
-## 4. Creating the project *(planned)*
+## 4. Creating the project
 
-Generated, never vendored — the same reasoning as on Android, plus the fact that
-an Xcode project is unreviewable in a pull request.
+The native project is generated and gitignored. Run its source-owned preparation
+from the repository root:
 
 ```bash
-# planned: the shell lives in apps/mobile/, generated from the config it owns
-npx cap add ios
-npx cap sync ios
+task mobile:prepare:ios
 ```
+
+[`prepare.mjs`](../../apps/mobile/scripts/prepare.mjs) generates or synchronizes
+the Capacitor project, applies the native overlay, and creates
+`ios/App/App.xcodeproj/xcshareddata/xcschemes/App.xcscheme`. The shared `App`
+scheme derives its target UUID from the generated project and enables parallel
+dependency builds, so it exists on a runner without opening Xcode first.
+Preparation refuses a conflicting existing scheme. Review that collision and
+preserve your native customizations before proceeding; do not overwrite it.
+Changes belong in the preparation sources or `native/`, not the generated tree.
+Run `task mobile:test` to check these preparation and build contracts with
+Node's built-in test runner; Xcode compilation is a separate qualification.
 
 `CapacitorHttp` and `CapacitorCookies` stay disabled (their default). On iOS,
 `CapacitorCookies` does not leak the httpOnly cookie either — `getCookies()`
@@ -243,16 +252,39 @@ otherwise produces that screen on every launch forever.
 
 ---
 
-## 6. Building and signing *(planned)*
+## 6. Building and signing
+
+The unsigned simulator build is available on macOS:
+
+```bash
+task mobile:build:ios
+```
+
+[`build.mjs`](../../apps/mobile/scripts/build.mjs) uses `-project`, the shared
+`-scheme App`, and `-destination 'generic/platform=iOS Simulator'`. It sets
+`ONLY_ACTIVE_ARCH=NO` for that generic destination and retains
+`CODE_SIGNING_ALLOWED=NO` and `CODE_SIGNING_REQUIRED=NO`.
+
+The simulator command also sets `LM_SKIP_METADATA_EXTRACTION=YES`: this shell
+declares no AppIntents or AppShortcuts feature. This is an internal opt-out
+present in the
+[Swift 6.3 build-system source](https://github.com/swiftlang/swift-build/blob/fc3609a1658bc5e119dc38906eb8049a9e8b24a1/Sources/SWBApplePlatform/AppIntentsMetadataTaskProducer.swift#L55-L56),
+not a stable, publicly documented Xcode build setting. Keep it scoped to this
+simulator build and revisit it before introducing either feature. The builder
+conservatively refuses mentions of `AppIntents`, `AppIntent` or
+`AppShortcutsProvider` in the app's Swift sources so the opt-out must be reviewed
+when those sources change.
+
+**Qualification is pending:** a fresh `mobile-shell.yml` run on Xcode 26.6 must
+verify this revised scheme, architecture and metadata configuration. The warning
+changes have not yet been demonstrated on that Mac toolchain.
+
+A device archive remains a separate signing and publication procedure:
 
 ```bash
 xcodebuild -project apps/mobile/ios/App/App.xcodeproj \
            -scheme App -sdk iphoneos -configuration Release archive
 ```
-
-The generated project ships **no shared scheme** — schemes appear under
-`xcuserdata` the first time Xcode opens it, which never happens on a runner. Ask
-`xcodebuild -list` and fall back to `-target App`; the harness already does.
 
 Signing certificates and provisioning profiles live in the CI secret store.
 Apple certificates **expire yearly** — that renewal is the single most common
@@ -404,7 +436,7 @@ across locales).
 | `getUserMedia` undefined | Missing usage description | Declare the Info.plist keys |
 | Outbound WebSocket to the live provider under the production `connect-src` (ADR-299) | **to measure** — `task mobile:probe:*` now reports `external_websocket`: `open` or `error` (the provider refuses a handshake without a credential, which is fine); `blocked:*` would mean the policy or the engine refused the socket before it left the page |
 | A WebRTC offer with a data channel (the GPT-Live wire, ADR-300) and an AudioWorklet module from a `blob:` URL (the live PCM player) under the production CSP | `task mobile:probe:*` reports `webrtc_offer` (`offer` expected) and `audio_worklet_blob` (`loaded` expected) — **not measured yet on iOS** (the probe needs macOS) |
-| `scheme App not found` on a runner | No shared scheme in the generated project | `-target App`, or share the scheme |
+| `scheme App not found` on a runner | Preparation did not produce the shared scheme | Run `task mobile:prepare:ios`; review any reported scheme collision before proceeding |
 | Google sign-in shows `disallowed_useragent` | OAuth attempted inside the WebView | `SFSafariViewController` + Universal Link + session handoff |
 | No offline page | No Service Worker without app-bound domains | Native offline screen — the accepted trade-off |
 | Voice mode has no wake word | No model for the interface language, or the engine failed to load (`wake_runtime`) | The badge offers tap-to-speak; check the language and the probe's `wake_runtime` |

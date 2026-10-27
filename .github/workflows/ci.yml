@@ -550,6 +550,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Test native build generators
+        run: task mobile:test
+
       # The task runs the dedicated `test:coverage` script, NOT
       # `pnpm test -- --coverage`: pnpm forwards the literal `--` to vitest,
       # which silently ignores the flag (no coverage report is produced).

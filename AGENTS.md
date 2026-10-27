@@ -65,6 +65,14 @@ task test:e2e               # Playwright + axe journeys (hermetic, mocked API)
 
 Prefer the task over `pnpm test` directly: it blanks `NEXT_PUBLIC_API_URL`, which the Taskfile's global `dotenv: .env` would otherwise inject and which changes measured branch coverage.
 
+### Native shell generator tests (from the repository root)
+
+```bash
+task mobile:test            # Node built-in tests for native preparation/build contracts
+```
+
+Node 24 runs these filesystem and invocation tests without Android or iOS SDKs. The same task runs in CI before native compilation and in `ci:fast`.
+
 ### Linting & Formatting
 
 ```bash
@@ -127,14 +135,14 @@ Three rules follow, and they are not stylistic:
 ### CI & Pre-commit
 
 ```bash
-task pre-commit             # format + lint + fast unit tests (~5 min, what the git hook runs)
-task ci:fast                # every CI gate that needs no service (~10 min) — run this before pushing
+task pre-commit             # format + lint + fast unit tests (commit gate)
+task ci:fast                # every CI gate that needs no service — run this before pushing
 task ci                     # ci:fast + suites needing PostgreSQL, Redis, Docker, a browser
 ```
 
 **`.github/workflows/ci.yml` orchestrates, `Taskfile.yml` implements** (ADR-151): every CI step is a `task <name>` call, so the pipeline runs literally the command a developer runs. A gate added inline in the workflow is a gate nobody can run before pushing — `task lint:ci-parity` fails on any `run:` step that is neither a task call nor declared runner provisioning. Genuine CI-only steps live in `CI_ONLY` in `scripts/audit/check_ci_parity.py`, each with a written reason.
 
-`task pre-commit` is deliberately narrower than `ci:fast`: it skips the ratchets, the marker-coverage gate, the deploy tests and the frontend coverage thresholds to stay inside its ~5 min budget. Every one of those has redded a build after a green local run.
+`task pre-commit` is deliberately narrower than `ci:fast`: it skips the ratchets, the marker-coverage gate, the deploy tests and the frontend coverage thresholds to keep commit checks bounded. Every one of those has redded a build after a green local run.
 
 Git hooks are installed via `task setup:hooks` and live in `.github/hooks/` (configured via `git config core.hooksPath`). The pre-push hook runs the CI's secret scan on what the push sends (`task security:secrets`, gitleaks in Docker): a secret on the remote cannot be taken back.
 

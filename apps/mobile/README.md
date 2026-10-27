@@ -10,6 +10,7 @@ Full context, measurements and store procedures:
 [GUIDE_MOBILE_IOS.md](../../docs/guides/GUIDE_MOBILE_IOS.md).
 
 ```bash
+task mobile:test               # Node-only preparation and build contracts
 task mobile:prepare:android    # regenerate android/ and lay our sources on top
 task mobile:build:android      # → app-debug.apk
 task mobile:build:ios          # macOS only; compilation is the Swift's only check
@@ -40,6 +41,18 @@ whatever it replaces — **reports when upstream changes a file we shadow**.
 touches `MainActivity.java` or the storyboard says so instead of being silently
 overridden for years. Fold the new template into `native/`, then re-run with
 `--accept-drift`.
+
+Preparation also owns the generated build configuration. On iOS it creates a
+shared `App` scheme using the generated target's UUID, with parallel dependency
+builds. A conflicting existing scheme stops preparation for review. The
+simulator build uses that scheme, a generic iOS Simulator destination and
+`ONLY_ACTIVE_ARCH=NO`; its signing flags remain disabled.
+
+On Android, preparation removes the two known unused `flatDir` repository
+blocks only after checking that there are no Cordova plugins or local JAR/AAR
+artifacts. Unexpected repository structures or artifacts stop preparation;
+module wiring, Maven repositories, `fileTree` inputs and Firebase dependencies
+remain in place. Edit the preparation sources, not the generated projects.
 
 ## Why the setup screen is HTML
 
@@ -105,9 +118,16 @@ every launch forever, with reinstalling as the only remedy.
 
 ## Verification
 
-Android is verified end to end on an emulator; iOS compilation runs on a
-GitHub-hosted macOS runner (`mobile-webview-probe.yml`), which is the only check
-this repository can give Swift — there is no native test harness.
+`task mobile:test` runs the native preparation and build contracts with Node's
+built-in test runner and temporary fixtures. It checks shared-scheme ownership,
+Gradle repository guards and simulator arguments without an Android SDK or Mac.
+
+Android is verified end to end on an emulator; iOS compilation runs on
+GitHub-hosted macOS runners (`mobile-shell.yml`). There is no Swift test harness.
+The revised simulator build configuration still awaits qualification on Xcode
+26.6 through a fresh MobileShell run. Its AppIntents extraction opt-out and the
+limits of that internal setting are documented in the
+[iOS build section](../../docs/guides/GUIDE_MOBILE_IOS.md#6-building-and-signing).
 
 Platform behaviour itself — what a WebView can and cannot do under LIA's real
 production headers — is measured separately by
