@@ -21,14 +21,17 @@ from src.domains.user_mcp.router import oauth_callback
 
 
 @pytest.fixture
-def forbid_handler(monkeypatch):
+def forbid_handler(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
     """Fail the test if the OAuth flow handler is even constructed."""
 
     class _Boom:
+        _consume_state = AsyncMock(return_value=None)
+
         def __init__(self) -> None:
             raise AssertionError("MCPOAuthFlowHandler must not be constructed on this path")
 
     monkeypatch.setattr(router_module, "MCPOAuthFlowHandler", _Boom)
+    return _Boom._consume_state
 
 
 class TestCallbackErrorPaths:
@@ -59,6 +62,7 @@ class TestCallbackErrorPaths:
     async def test_missing_code_redirects_with_error(self, forbid_handler):
         response = await oauth_callback(state="some-state")
 
+        forbid_handler.assert_awaited_once_with("some-state")
         assert response.status_code == 302
         assert "mcp_oauth=error" in response.headers["location"]
 

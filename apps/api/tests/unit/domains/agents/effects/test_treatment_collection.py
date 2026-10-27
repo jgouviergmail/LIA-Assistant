@@ -20,19 +20,32 @@ batch is written at the end. Two traps this file pins, both measured:
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Iterator
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from src.domains.agents.effects import runtime as gate_runtime
+from src.domains.agents.effects.integrity import IntegrityKind
 from src.domains.agents.effects.treatments import (
     collected_treatments,
     treatment_collector,
 )
 
 pytestmark = [pytest.mark.unit]
+
+
+@pytest.fixture(autouse=True)
+def _integrity_sink() -> Iterator[AsyncMock]:
+    """Keep integrity emission real while doubling its external persistence sink."""
+    sink = AsyncMock()
+    with (
+        patch("src.domains.agents.effects.runtime.record_integrity_event", sink),
+        patch("src.domains.agents.effects.treatments.record_integrity_event", sink),
+    ):
+        yield sink
 
 
 @pytest.fixture(autouse=True)
@@ -185,7 +198,9 @@ class TestWhatIsObserved:
 
 
 class TestTheTwoRegistersStayApart:
-    async def test_an_ACTION_is_not_collected_as_a_treatment(self) -> None:
+    async def test_an_ACTION_is_not_collected_as_a_treatment(
+        self, _integrity_sink: AsyncMock
+    ) -> None:
         """No overlap: otherwise the two totals could be added by mistake."""
 
         class _Ledger:
@@ -211,6 +226,11 @@ class TestTheTwoRegistersStayApart:
             collected = list(collected_treatments())
 
         assert collected == [], "an action was also recorded as a consultation"
+        assert _integrity_sink.await_count == 1
+        assert all(
+            call.args[0] is IntegrityKind.EFFECT_UNRECORDED
+            for call in _integrity_sink.await_args_list
+        )
 
 
 class TestObservingNeverBreaksWhatItObserves:
@@ -291,7 +311,9 @@ class TestALostRegisterIsNeverSILENT:
                     total += float(sample.value)
         return total
 
-    async def test_a_turn_with_no_register_open_is_counted(self) -> None:
+    async def test_a_turn_with_no_register_open_is_counted(
+        self, _integrity_sink: AsyncMock
+    ) -> None:
         before = self._uncollected()
         gated = gate_runtime.gated("get_emails_tool", _read)
 
@@ -301,8 +323,13 @@ class TestALostRegisterIsNeverSILENT:
             await gated(query="x")
 
         assert self._uncollected() - before == 1
+        assert _integrity_sink.call_count == 1
+        assert all(
+            call.args[0] is IntegrityKind.TREATMENTS_UNCOLLECTED
+            for call in _integrity_sink.call_args_list
+        )
 
-    async def test_a_call_OUTSIDE_a_turn_is_not_counted(self) -> None:
+    async def test_a_call_OUTSIDE_a_turn_is_not_counted(self, _integrity_sink: AsyncMock) -> None:
         """A script or a probe is not a lost register."""
         before = self._uncollected()
         gated = gate_runtime.gated("get_emails_tool", _read)
@@ -317,8 +344,9 @@ class TestALostRegisterIsNeverSILENT:
             await gated(query="x")
 
         assert self._uncollected() == before
+        _integrity_sink.assert_not_called()
 
-    async def test_a_collected_turn_is_not_counted(self) -> None:
+    async def test_a_collected_turn_is_not_counted(self, _integrity_sink: AsyncMock) -> None:
         before = self._uncollected()
         gated = gate_runtime.gated("get_emails_tool", _read)
 
@@ -329,3 +357,4 @@ class TestALostRegisterIsNeverSILENT:
             await gated(query="x")
 
         assert self._uncollected() == before
+        _integrity_sink.assert_not_called()

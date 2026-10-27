@@ -225,6 +225,10 @@ async def _run_create_reminder() -> UnifiedToolOutput:
             AsyncMock(),
         ),
         patch("src.domains.agents.tools.application_reminder_tools.save_command", AsyncMock()),
+        patch(
+            "src.domains.agents.tools.runtime_helpers.get_user_preferences",
+            AsyncMock(return_value=("Europe/Paris", "fr", "fr-FR")),
+        ),
     ):
         return await _drive(
             reminder_tools.create_reminder_tool,

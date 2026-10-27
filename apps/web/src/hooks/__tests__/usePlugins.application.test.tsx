@@ -36,6 +36,10 @@ describe('personal plugin account and resource scope', () => {
     mocks.auth.mockReturnValue({ user: { id: 'other' } });
     rerender();
     expect(result.current.plugins).toEqual([]);
+    await waitFor(() => {
+      expect(mocks.get).toHaveBeenCalledTimes(2);
+      expect(result.current.loading).toBe(true);
+    });
   });
 
   it('refreshes the original plugin list on an owned plugin change only', async () => {

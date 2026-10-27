@@ -16,6 +16,8 @@ BFF Pattern changes:
 - Next.js reverse proxy for cross-port cookie compatibility
 """
 
+from collections.abc import Iterator
+from unittest.mock import MagicMock, patch
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -28,12 +30,19 @@ from src.domains.users.models import User
 from tests.conftest import assert_cookie_set, extract_cookie_value
 
 
+@pytest.fixture(autouse=True)
+def smtp_transport() -> Iterator[MagicMock]:
+    """Keep real mail builders; replace only the blocking SMTP relay."""
+    with patch("src.infrastructure.email.email_service.smtplib.SMTP", autospec=True) as smtp:
+        yield smtp.return_value.__enter__.return_value
+
+
 @pytest.mark.integration
 class TestUserRegistration:
     """Test user registration endpoint (BFF Pattern)."""
 
     @pytest.mark.asyncio
-    async def test_register_new_user(self, async_client: AsyncClient):
+    async def test_register_new_user(self, async_client: AsyncClient, smtp_transport: MagicMock):
         """Test registering a new user with valid credentials (BFF Pattern)."""
         response = await async_client.post(
             "/api/v1/auth/register",
@@ -61,9 +70,13 @@ class TestUserRegistration:
 
         # BFF Pattern: Session cookie should be set with correct attributes
         assert_cookie_set(response, "lia_session", httponly=True, samesite="lax")
+        smtp_transport.sendmail.assert_called_once()
+        assert smtp_transport.sendmail.call_args.args[1] == "newuser@example.com"
 
     @pytest.mark.asyncio
-    async def test_register_with_remember_me(self, async_client: AsyncClient):
+    async def test_register_with_remember_me(
+        self, async_client: AsyncClient, smtp_transport: MagicMock
+    ):
         """Test registering with remember_me=True (30 days session)."""
         response = await async_client.post(
             "/api/v1/auth/register",
@@ -81,9 +94,13 @@ class TestUserRegistration:
 
         # Verify cookie is set with extended TTL (30 days = 2592000 seconds)
         assert_cookie_set(response, "lia_session", httponly=True, samesite="lax", max_age=2592000)
+        smtp_transport.sendmail.assert_called_once()
+        assert smtp_transport.sendmail.call_args.args[1] == "rememberme@example.com"
 
     @pytest.mark.asyncio
-    async def test_register_without_remember_me(self, async_client: AsyncClient):
+    async def test_register_without_remember_me(
+        self, async_client: AsyncClient, smtp_transport: MagicMock
+    ):
         """Test registering without remember_me (default 7 days session)."""
         response = await async_client.post(
             "/api/v1/auth/register",
@@ -99,6 +116,8 @@ class TestUserRegistration:
 
         # Verify cookie is set with standard TTL (7 days = 604800 seconds)
         assert_cookie_set(response, "lia_session", httponly=True, samesite="lax", max_age=604800)
+        smtp_transport.sendmail.assert_called_once()
+        assert smtp_transport.sendmail.call_args.args[1] == "noremember@example.com"
 
     @pytest.mark.asyncio
     async def test_register_duplicate_email(self, async_client: AsyncClient, test_user: User):
@@ -366,7 +385,7 @@ class TestEmailVerification:
 
     @pytest.mark.asyncio
     async def test_verify_email_success(
-        self, async_client: AsyncClient, async_session: AsyncSession
+        self, async_client: AsyncClient, async_session: AsyncSession, smtp_transport: MagicMock
     ):
         """Test email verification with valid token."""
         from src.core.security import create_verification_token
@@ -396,6 +415,10 @@ class TestEmailVerification:
         # Account lifecycle (v1.13.7+): verifying the email does NOT activate
         # the account — it stays pending until an admin activates it.
         assert data["is_active"] is False
+        assert [call.args[1] for call in smtp_transport.sendmail.call_args_list] == [
+            "verify@example.com",
+            "verify@example.com",
+        ]
 
     @pytest.mark.asyncio
     async def test_verify_email_invalid_token(self, async_client: AsyncClient):
@@ -412,7 +435,9 @@ class TestPasswordReset:
     """Test password reset flow."""
 
     @pytest.mark.asyncio
-    async def test_request_password_reset(self, async_client: AsyncClient, test_user: User):
+    async def test_request_password_reset(
+        self, async_client: AsyncClient, test_user: User, smtp_transport: MagicMock
+    ):
         """Test requesting password reset."""
         response = await async_client.post(
             "/api/v1/auth/request-password-reset",
@@ -422,9 +447,13 @@ class TestPasswordReset:
         assert response.status_code == 200
         data = response.json()
         assert "message" in data
+        smtp_transport.sendmail.assert_called_once()
+        assert smtp_transport.sendmail.call_args.args[1] == test_user.email
 
     @pytest.mark.asyncio
-    async def test_request_password_reset_nonexistent_email(self, async_client: AsyncClient):
+    async def test_request_password_reset_nonexistent_email(
+        self, async_client: AsyncClient, smtp_transport: MagicMock
+    ):
         """Test requesting password reset for non-existent email."""
         response = await async_client.post(
             "/api/v1/auth/request-password-reset",
@@ -433,6 +462,7 @@ class TestPasswordReset:
 
         # Should still return 200 (don't reveal if email exists)
         assert response.status_code == 200
+        smtp_transport.sendmail.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_reset_password_success(self, async_client: AsyncClient, test_user: User):

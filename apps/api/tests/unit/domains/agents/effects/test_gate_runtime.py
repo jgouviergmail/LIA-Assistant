@@ -15,18 +15,31 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from collections.abc import Iterator
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from src.domains.agents.effects import runtime as gate_runtime
 from src.domains.agents.effects.gate import ERROR_CONFIRMATION_MISSING
+from src.domains.agents.effects.integrity import IntegrityKind
 from src.domains.agents.effects.scope import EffectScope, effect_scope
 from src.domains.agents.effects.treatments import collected_treatments, treatment_collector
 
 pytestmark = [pytest.mark.unit]
+
+
+@pytest.fixture(autouse=True)
+def _integrity_sink() -> Iterator[AsyncMock]:
+    """Keep integrity emission real while doubling its external persistence sink."""
+    sink = AsyncMock()
+    with (
+        patch("src.domains.agents.effects.runtime.record_integrity_event", sink),
+        patch("src.domains.agents.effects.treatments.record_integrity_event", sink),
+    ):
+        yield sink
 
 
 CALLS: list[dict[str, Any]] = []
@@ -407,7 +420,9 @@ class TestTheApprovalIsSpentOnce:
 
 
 class TestWhenTheLedgerItselfIsDown:
-    async def test_an_exempt_mutation_still_happens(self, ledger: Any) -> None:
+    async def test_an_exempt_mutation_still_happens(
+        self, _integrity_sink: AsyncMock, ledger: Any
+    ) -> None:
         """Our own bookkeeping must not be why a light stays on."""
         ledger.claim_result = "down"
         gated = gate_runtime.gated("control_hue_light_tool", _tool)
@@ -415,6 +430,11 @@ class TestWhenTheLedgerItselfIsDown:
             result = await gated(room="Salon")
         assert CALLS == [{"room": "Salon"}]
         assert result["success"] is True
+        assert _integrity_sink.await_count == 1
+        assert all(
+            call.args[0] is IntegrityKind.EFFECT_UNRECORDED
+            for call in _integrity_sink.await_args_list
+        )
 
     async def test_a_confirmed_effect_is_refused(self, ledger: Any) -> None:
         """What the user confirmed must be recorded, or not done at all."""
@@ -436,7 +456,9 @@ class TestWhenTheLedgerItselfIsDown:
 class TestWithoutARunContext:
     """No graph run means no user to attribute a row to — and no invented one."""
 
-    async def test_a_ledgered_effect_runs_unrecorded(self, ledger: Any) -> None:
+    async def test_a_ledgered_effect_runs_unrecorded(
+        self, _integrity_sink: AsyncMock, ledger: Any
+    ) -> None:
         gated = gate_runtime.gated("control_hue_light_tool", _tool)
         with (
             _install(ledger),
@@ -451,6 +473,11 @@ class TestWithoutARunContext:
         assert CALLS == [{"room": "Salon"}]
         assert ledger.claims == []
         assert result["success"] is True
+        assert _integrity_sink.await_count == 1
+        assert all(
+            call.args[0] is IntegrityKind.EFFECT_UNRECORDED
+            for call in _integrity_sink.await_args_list
+        )
 
     async def test_a_confirm_is_refused_without_a_row(self, ledger: Any) -> None:
         gated = gate_runtime.gated("mcp_x_delete", _tool)

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { renderWithProviders, screen, within } from '@/__tests__/test-utils';
+import { act, renderWithProviders, screen, within } from '@/__tests__/test-utils';
 import type { CardSection, SmsData } from '@/types/briefing';
 import { SmsCard } from '../SmsCard';
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
@@ -53,7 +53,7 @@ describe('SMS home card', () => {
     expect(screen.queryByText('dashboard.briefing.cards.sms.open')).not.toBeInTheDocument();
     expect(within(rows[0]).getByText(/09:59/)).toBeVisible();
     const target = within(rows[0]).getByRole('button');
-    target.focus();
+    act(() => target.focus());
     await user.keyboard('{Enter}');
     expect(push).toHaveBeenCalledWith(
       '/dashboard/settings?section=sms&message=10000000-0000-4000-8000-000000000001'

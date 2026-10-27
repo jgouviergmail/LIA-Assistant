@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -291,6 +292,11 @@ class TestUserRagDebugPayload:
 
         async def _fake_retrieve(**_kw: Any) -> Any:
             return result
+
+        monkeypatch.setattr(
+            "src.domains.relations.debrief.injection._directory",
+            AsyncMock(return_value=([], None)),
+        )
 
         monkeypatch.setattr(rc.settings, "rag_spaces_enabled", True, raising=False)
         monkeypatch.setattr(rc.settings, "rag_spaces_retrieval_min_score", 0.62, raising=False)

@@ -113,6 +113,7 @@ describe('SettingsPane', () => {
       <SettingsPane lng="en" availability={AVAILABLE} token="chat-shortcuts" onBack={() => {}} />
     );
     expect(screen.getByRole('button', { name: /settings\.shell\.back/ })).toBeInTheDocument();
+    await advance(0);
   });
 
   it('says so honestly when the section renders nothing, after the settling deadline', async () => {

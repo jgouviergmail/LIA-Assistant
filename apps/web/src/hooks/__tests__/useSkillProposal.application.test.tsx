@@ -33,6 +33,10 @@ describe('skill proposal account lifetime', () => {
     mocks.auth.mockReturnValue({ user: { id: 'other' } });
     rerender();
     expect(result.current.data).toBeUndefined();
+    await waitFor(() => {
+      expect(mocks.get).toHaveBeenCalledTimes(2);
+      expect(result.current.loading).toBe(true);
+    });
   });
 
   it('refuses a retained old-account install callback', async () => {

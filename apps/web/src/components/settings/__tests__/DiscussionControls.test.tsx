@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 
-import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import { act, renderWithProviders, screen } from '@/__tests__/test-utils';
 import { DiscussionControls } from '../DiscussionControls';
 import { discussionTopics, type DiscussionSettings } from '@/types/proactive-discussions';
 
@@ -35,8 +35,10 @@ const settings: DiscussionSettings = {
 function unfold(title: string) {
   const details = screen.getByText(title, { selector: 'summary span' }).closest('details');
   if (!details) throw new Error(`no fold ${title}`);
-  details.open = true;
-  details.dispatchEvent(new Event('toggle'));
+  act(() => {
+    details.open = true;
+    details.dispatchEvent(new Event('toggle'));
+  });
 }
 
 function panelOf(control: HTMLElement): HTMLElement {

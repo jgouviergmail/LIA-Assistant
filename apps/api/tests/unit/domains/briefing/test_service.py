@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
@@ -17,16 +19,54 @@ from src.domains.briefing.schemas import (
     AgendaEventItem,
     BriefingResponse,
     CardStatus,
+    DocumentsData,
+    ForYouData,
     LLMUsage,
     MailsData,
     RemindersData,
+    SmsData,
+    TasksData,
     WeatherData,
+    WorkboardData,
 )
 from src.domains.briefing.service import BriefingService, _has_content
 
 # =============================================================================
 # Test fixtures (lightweight stand-ins for User + DB)
 # =============================================================================
+
+
+@pytest.fixture(autouse=True)
+def _unit_database_boundary() -> Iterator[None]:
+    """Every persistence dependency in this orchestration unit is a test double."""
+    with (
+        patch(
+            "src.infrastructure.database.session.get_db_context",
+            side_effect=AssertionError("briefing unit test attempted database IO"),
+        ) as open_database,
+        patch("src.domains.agents.effects.decision_recorder._write", new_callable=AsyncMock),
+        patch("src.domains.agents.effects.treatment_recorder._flush", new_callable=AsyncMock),
+        patch.multiple(
+            "src.domains.briefing.service",
+            fetch_sms=AsyncMock(
+                return_value=SmsData(
+                    total=0,
+                    window_total=0,
+                    window_start=datetime(2026, 1, 1, tzinfo=UTC),
+                    as_of=datetime(2026, 1, 2, tzinfo=UTC),
+                    latest_at=None,
+                )
+            ),
+            fetch_for_you=AsyncMock(return_value=ForYouData(open_loops=[], recent_automations=[])),
+            fetch_tasks=AsyncMock(return_value=TasksData(items=[], overdue_count=0)),
+            fetch_documents=AsyncMock(return_value=DocumentsData(items=[])),
+            fetch_workboard=AsyncMock(
+                return_value=WorkboardData(needs_me=0, held_by_lia=0, overdue=0, open_total=0)
+            ),
+        ),
+    ):
+        yield
+        open_database.assert_not_called()
 
 
 def _make_user(*, language: str = "fr", timezone: str = "Europe/Paris") -> SimpleNamespace:
@@ -209,6 +249,11 @@ async def test_build_today_assembles_full_payload() -> None:
     assert response.cards.birthdays.status == CardStatus.NOT_CONFIGURED
     assert response.cards.reminders.status == CardStatus.EMPTY
     assert response.cards.health.status == CardStatus.NOT_CONFIGURED
+    assert response.cards.sms.status == CardStatus.EMPTY
+    assert response.cards.for_you.status == CardStatus.EMPTY
+    assert response.cards.tasks.status == CardStatus.EMPTY
+    assert response.cards.documents.status == CardStatus.EMPTY
+    assert response.cards.workboard.status == CardStatus.EMPTY
 
 
 @pytest.mark.unit

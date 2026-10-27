@@ -41,6 +41,13 @@ def _patch_prefs() -> Any:
 
 
 class TestFreeBusyPath:
+    @pytest.fixture(autouse=True)
+    def _primary_calendar(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            "src.domains.connectors.preferences.owner_defaults.resolve_owner_calendar_id",
+            AsyncMock(return_value="primary"),
+        )
+
     async def test_google_client_uses_freebusy_and_returns_exact_slots(self) -> None:
         client = MagicMock(spec=GoogleCalendarClient)
         client.query_freebusy = AsyncMock(
@@ -73,7 +80,8 @@ class TestFreeBusyPath:
         assert result["slots"][0]["end"] == "2026-08-27T10:00:00+00:00"
 
     async def test_provider_without_freebusy_falls_back_to_events_projection(self) -> None:
-        client = MagicMock(spec=["list_events"])
+        client = MagicMock(spec=["list_events", "connector_type"])
+        client.connector_type = "apple_calendar"
         client.list_events = AsyncMock(
             return_value={
                 "items": [

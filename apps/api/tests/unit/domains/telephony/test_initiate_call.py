@@ -26,11 +26,14 @@ from src.domains.telephony.service import TelephonyService
 
 
 @pytest.fixture(autouse=True)
-def _offline_journal_portrait(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Dial orchestration tests keep the new portrait reader offline."""
+def _offline_dial_readers(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Dial orchestration tests keep journal and personality reads offline."""
     monkeypatch.setattr(
         "src.domains.journals.portrait_builder.build_journal_user_model_block",
         AsyncMock(return_value=""),
+    )
+    monkeypatch.setattr(
+        svc.PersonalityService, "get_prompt_instruction_for_user", AsyncMock(return_value="")
     )
 
 

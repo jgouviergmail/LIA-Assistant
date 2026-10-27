@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mutate = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/useApiMutation', () => ({ useApiMutation: () => ({ mutate }) }));
@@ -94,7 +94,7 @@ it('wears the bubble row chips, a shade deeper, and keeps focus after an answer'
   expect(useful.className).toContain('rounded-md');
   expect(useful.className).toContain('border-border/30');
   expect(useful.className).toContain('color-mix');
-  useful.focus();
+  act(() => useful.focus());
   fireEvent.click(useful);
   await waitFor(() => expect(useful).toHaveAttribute('aria-pressed', 'true'));
   // Answered: announced as unavailable, never disabled under the focus it holds.

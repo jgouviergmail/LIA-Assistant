@@ -15,18 +15,31 @@ Six counters, and two properties that matter more than their existence:
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterator
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from src.domains.agents.effects import runtime as gate_runtime
+from src.domains.agents.effects.integrity import IntegrityKind
 from src.domains.agents.effects.runtime import ClaimTicket
 from src.domains.agents.effects.scope import EffectScope, effect_scope
 from src.infrastructure.observability import metrics_effects
 
 pytestmark = [pytest.mark.unit]
+
+
+@pytest.fixture(autouse=True)
+def _integrity_sink() -> Iterator[AsyncMock]:
+    """Keep integrity emission real while doubling its external persistence sink."""
+    sink = AsyncMock()
+    with (
+        patch("src.domains.agents.effects.runtime.record_integrity_event", sink),
+        patch("src.domains.agents.effects.treatments.record_integrity_event", sink),
+    ):
+        yield sink
 
 
 def _value(counter: Any, **labels: str) -> float:
@@ -168,7 +181,9 @@ class TestEachCounterFiresOnItsOwnPath:
             == 1
         )
 
-    async def test_an_unrecorded_effect_is_counted_not_silent(self) -> None:
+    async def test_an_unrecorded_effect_is_counted_not_silent(
+        self, _integrity_sink: AsyncMock
+    ) -> None:
         """The ledger is down and the policy lets the effect through anyway."""
         before = _value(
             metrics_effects.effect_unrecorded_total, policy="reversible", reason="no_claim"
@@ -187,6 +202,11 @@ class TestEachCounterFiresOnItsOwnPath:
             _value(metrics_effects.effect_unrecorded_total, policy="reversible", reason="no_claim")
             - before
             == 1
+        )
+        assert _integrity_sink.await_count == 1
+        assert all(
+            call.args[0] is IntegrityKind.EFFECT_UNRECORDED
+            for call in _integrity_sink.await_args_list
         )
 
     async def test_a_lost_claim_counts_whether_it_could_serve_a_record(self) -> None:

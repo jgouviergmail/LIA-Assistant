@@ -58,6 +58,7 @@ def _call(state, context, *, flag_on: bool = True):
             "src.domains.agents.nodes.post_response_extractions.settings",
             SimpleNamespace(
                 open_loops_enabled=flag_on,
+                habits_enabled=False,
                 journals_enabled=False,
                 psyche_enabled=False,
             ),

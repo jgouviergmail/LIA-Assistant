@@ -172,6 +172,10 @@ it('rereads the local detail after grouping and hides it on an account switch', 
   useAuth.mockReturnValue({ user: { id: 'account-two' } });
   rerender();
   expect(result.current.detail).toBeNull();
+  await waitFor(() => {
+    expect(get).toHaveBeenCalledTimes(3);
+    expect(result.current.loading).toBe(true);
+  });
 });
 
 it('rereads a confirmed relation preference and releases the prior manual override', async () => {

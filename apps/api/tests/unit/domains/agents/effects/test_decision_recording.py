@@ -18,6 +18,7 @@ import asyncio
 import contextlib
 import uuid
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -34,6 +35,11 @@ from src.domains.agents.effects.decisions import (
 from src.domains.agents.effects.models import DecisionOutcome
 
 pytestmark = [pytest.mark.unit]
+
+
+@dataclass
+class _Session:
+    commit: AsyncMock
 
 
 async def test_one_shot_record_survives_cancellation_without_starting_a_second_write() -> None:
@@ -171,12 +177,12 @@ class TestARunFiledOnce:
     """An out-of-turn act that cannot be resumed is filed ONCE (ADR-263 amendment 2026-09-27)."""
 
     @staticmethod
-    def _database() -> tuple[object, list[object]]:
-        sessions: list[object] = []
+    def _database() -> tuple[object, list[_Session]]:
+        sessions: list[_Session] = []
 
         @contextlib.asynccontextmanager
-        async def get_db_context() -> AsyncIterator[object]:
-            session = object()
+        async def get_db_context() -> AsyncIterator[_Session]:
+            session = _Session(commit=AsyncMock())
             sessions.append(session)
             yield session
 
@@ -201,11 +207,12 @@ class TestARunFiledOnce:
         repository.return_value.record_once.assert_awaited_once()
         assert repository.return_value.record_once.await_args.args == (decision,)
         repository.return_value.record.assert_not_awaited()
+        sessions[0].commit.assert_awaited_once()
 
     async def test_a_failed_write_is_logged_never_raised(self) -> None:
         from src.domains.agents.effects import decision_recorder as module
 
-        get_db_context, _sessions = self._database()
+        get_db_context, sessions = self._database()
         with (
             patch(
                 "src.domains.agents.effects.decision_repository.DecisionRepository"
@@ -216,6 +223,7 @@ class TestARunFiledOnce:
             await module.record_decision_once(_turn())
 
         repository.return_value.record_once.assert_awaited_once()
+        sessions[0].commit.assert_not_awaited()
 
     async def test_a_run_with_no_account_writes_nothing(self) -> None:
         from src.domains.agents.effects import decision_recorder as module

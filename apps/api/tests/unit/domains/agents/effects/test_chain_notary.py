@@ -13,6 +13,7 @@ nobody can re-read.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -21,8 +22,18 @@ import pytest
 from sqlalchemy.exc import OperationalError
 
 from src.domains.agents.effects.chain_link import ChainBreak, ChainLink, link_hash, walk
+from src.domains.agents.effects.integrity import IntegrityKind
 
 pytestmark = [pytest.mark.unit]
+
+
+@pytest.fixture(autouse=True)
+def _integrity_sink() -> Iterator[AsyncMock]:
+    """Keep integrity emission real while doubling its external persistence sink."""
+    sink = AsyncMock()
+    with (patch("src.domains.agents.effects.notary.record_integrity_event", sink),):
+        yield sink
+
 
 _WHEN = datetime(2026, 9, 4, 19, 0, tzinfo=UTC)
 
@@ -104,7 +115,9 @@ class TestAWalkResumesAcrossPages:
 
 
 class TestAPassCountsOnlyWhatItCommitted:
-    async def test_a_rolled_back_account_increments_no_entry_counter(self) -> None:
+    async def test_a_rolled_back_account_increments_no_entry_counter(
+        self, _integrity_sink: AsyncMock
+    ) -> None:
         """A metric incremented inside the transaction would count links that
         never existed — and this counter is read as evidence."""
         from src.domains.agents.effects import notary as module
@@ -131,6 +144,10 @@ class TestAPassCountsOnlyWhatItCommitted:
         entries.labels.assert_not_called()
         failures.inc.assert_called_once()
         db.rollback.assert_awaited_once()
+        assert _integrity_sink.await_count == 1
+        assert all(
+            call.args[0] is IntegrityKind.NOTARY_FAILED for call in _integrity_sink.await_args_list
+        )
 
     async def test_a_committed_account_counts_one_link_per_KIND(self) -> None:
         from src.domains.agents.effects import notary as module
@@ -167,7 +184,9 @@ class TestAPassCountsOnlyWhatItCommitted:
         ],
         ids=["sql", "not-sql"],
     )
-    async def test_ANY_failure_costs_one_account_and_no_other(self, failure: Exception) -> None:
+    async def test_ANY_failure_costs_one_account_and_no_other(
+        self, _integrity_sink: AsyncMock, failure: Exception
+    ) -> None:
         from src.domains.agents.effects import notary as module
 
         db = AsyncMock()
@@ -192,6 +211,10 @@ class TestAPassCountsOnlyWhatItCommitted:
         assert report.failed == 1
         assert report.accounts == 1, "the healthy account was not served"
         assert report.entries == 1
+        assert _integrity_sink.await_count == 1
+        assert all(
+            call.args[0] is IntegrityKind.NOTARY_FAILED for call in _integrity_sink.await_args_list
+        )
 
     async def test_an_account_with_nothing_pending_is_not_counted_as_served(self) -> None:
         from src.domains.agents.effects import notary as module

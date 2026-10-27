@@ -251,5 +251,9 @@ describe('native meeting changes and account ownership', () => {
     expect(result.current.meetings).toEqual([]);
     expect(result.current.total).toBe(0);
     expect(api.post).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(api.get).toHaveBeenCalledTimes(3);
+      expect(result.current.isLoading).toBe(true);
+    });
   });
 });

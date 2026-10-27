@@ -13,10 +13,13 @@ path runs unmodified) and assert strict per-user prompt isolation.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from langchain_core.messages import BaseMessage
+from langchain_core.runnables import RunnableConfig
 
 from src.domains.agents.analysis.query_intelligence import QueryIntelligence, UserGoal
 from src.domains.agents.services.planner.strategies.single_domain import (
@@ -96,6 +99,21 @@ class _PromptCaptureLLM:
 
     def __init__(self, captured: dict[str, list[str]]) -> None:
         self._captured = captured
+
+    async def astream_events(
+        self,
+        messages: list[BaseMessage],
+        *,
+        config: RunnableConfig | None = None,
+        version: str = "v2",
+    ) -> AsyncIterator[dict[str, object]]:
+        # Both public invocation paths deliberately abort after prompt capture.
+        output = await self.ainvoke(messages, config=config)
+        yield {
+            "event": "on_chat_model_end",
+            "parent_ids": [],
+            "data": {"output": output},
+        }
 
     async def ainvoke(self, messages: list[Any], config: Any = None) -> Any:
         query = str(messages[1].content).removeprefix("Query: ")

@@ -16,18 +16,31 @@ sequential node built like the ReAct loop.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Iterator
 from types import SimpleNamespace
 from typing import Annotated, Any
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from langgraph.graph import END, START, StateGraph
 from typing_extensions import TypedDict
 
 from src.domains.agents.effects import runtime as gate_runtime
+from src.domains.agents.effects.integrity import IntegrityKind
 from src.domains.agents.effects.treatments import collected_treatments, treatment_collector
 
 pytestmark = [pytest.mark.unit]
+
+
+@pytest.fixture(autouse=True)
+def _integrity_sink() -> Iterator[AsyncMock]:
+    """Keep integrity emission real while doubling its external persistence sink."""
+    sink = AsyncMock()
+    with (
+        patch("src.domains.agents.effects.runtime.record_integrity_event", sink),
+        patch("src.domains.agents.effects.treatments.record_integrity_event", sink),
+    ):
+        yield sink
 
 
 def _merge(left: list[str], right: list[str]) -> list[str]:
@@ -143,12 +156,20 @@ class TestTheRealGraph:
 
         assert len(collected) == 6, "a cancelled turn lost its consultations"
 
-    async def test_no_collector_published_runs_the_turn_unchanged(self) -> None:
+    async def test_no_collector_published_runs_the_turn_unchanged(
+        self, _integrity_sink: AsyncMock
+    ) -> None:
         graph = _build_graph()
         state = await graph.ainvoke({"seen": []})
 
         assert sorted(state["seen"]) == ["parallel", "sequential"]
         assert list(collected_treatments()) == []
+        # Three parallel consultations and three sequential consultations.
+        assert _integrity_sink.call_count == 6
+        assert all(
+            call.args[0] is IntegrityKind.TREATMENTS_UNCOLLECTED
+            for call in _integrity_sink.call_args_list
+        )
 
     async def test_two_concurrent_turns_do_not_mix_their_registers(self) -> None:
         """One process serves many users; a shared list would merge them."""

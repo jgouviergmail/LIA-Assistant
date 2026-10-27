@@ -22,18 +22,31 @@ from a safeguard into an outage or a lie:
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterator
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from langchain_core.tools import StructuredTool
 
 from src.domains.agents.effects import runtime as gate_runtime
+from src.domains.agents.effects.integrity import IntegrityKind
 from src.domains.agents.effects.runtime import ClaimTicket
 from src.domains.agents.effects.scope import EffectScope, effect_scope
 
 pytestmark = [pytest.mark.unit]
+
+
+@pytest.fixture(autouse=True)
+def _integrity_sink() -> Iterator[AsyncMock]:
+    """Keep integrity emission real while doubling its external persistence sink."""
+    sink = AsyncMock()
+    with (
+        patch("src.domains.agents.effects.runtime.record_integrity_event", sink),
+        patch("src.domains.agents.effects.treatments.record_integrity_event", sink),
+    ):
+        yield sink
 
 
 @pytest.fixture(autouse=True)
@@ -73,7 +86,9 @@ class TestAPositionalCallStillWorks:
 
         assert seen == [("le premier", "runtime-obj", "contact")]
 
-    async def test_a_mutation_records_positional_arguments_by_NAME(self) -> None:
+    async def test_a_mutation_records_positional_arguments_by_NAME(
+        self, _integrity_sink: AsyncMock
+    ) -> None:
         """The evidence must not depend on how the caller spelled the call."""
         claims: list[Any] = []
 
@@ -103,6 +118,11 @@ class TestAPositionalCallStillWorks:
             "control_hue_light_tool", {"room": "Salon", "brightness": 80}
         )
         assert claims[0].args_digest == keyword_digest
+        assert _integrity_sink.await_count == 1
+        assert all(
+            call.args[0] is IntegrityKind.EFFECT_UNRECORDED
+            for call in _integrity_sink.await_args_list
+        )
 
     async def test_a_confirmation_draft_replays_positional_arguments(self) -> None:
         """The replay calls ``coroutine(**tool_args)``: names or nothing."""
@@ -136,7 +156,7 @@ class TestAPositionalCallStillWorks:
 class TestTheEvidenceIsAboutTheCallNotThePlumbing:
     """A digest that changes on its own answers no question at all."""
 
-    async def test_two_identical_calls_digest_identically(self) -> None:
+    async def test_two_identical_calls_digest_identically(self, _integrity_sink: AsyncMock) -> None:
         """The executor injects a fresh ``ToolRuntime`` per call.
 
         It has no value identity, so ``str()`` of it carries its ADDRESS: kept
@@ -172,8 +192,15 @@ class TestTheEvidenceIsAboutTheCallNotThePlumbing:
             await gated(room="Salon", runtime=_Runtime())
 
         assert claims[0].args_digest == claims[1].args_digest
+        assert _integrity_sink.await_count == 2
+        assert all(
+            call.args[0] is IntegrityKind.EFFECT_UNRECORDED
+            for call in _integrity_sink.await_args_list
+        )
 
-    async def test_the_arguments_that_carry_intent_still_separate_calls(self) -> None:
+    async def test_the_arguments_that_carry_intent_still_separate_calls(
+        self, _integrity_sink: AsyncMock
+    ) -> None:
         """Anti-vacuity: the digest is not simply constant."""
         claims: list[Any] = []
 
@@ -201,6 +228,11 @@ class TestTheEvidenceIsAboutTheCallNotThePlumbing:
             await gated(room="Chambre", runtime=None)
 
         assert claims[0].args_digest != claims[1].args_digest
+        assert _integrity_sink.await_count == 2
+        assert all(
+            call.args[0] is IntegrityKind.EFFECT_UNRECORDED
+            for call in _integrity_sink.await_args_list
+        )
 
 
 class TestARenamedCopyIsGatedUnderItsOwnName:

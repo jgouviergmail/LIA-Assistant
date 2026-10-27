@@ -1,4 +1,4 @@
-import { fireEvent } from '@testing-library/react';
+import { act, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import { RefreshAllButton } from '../RefreshAllButton';
@@ -10,7 +10,7 @@ describe('RefreshAllButton', () => {
       <RefreshAllButton onClick={refresh} isRefreshing={false} />
     );
     const button = screen.getByRole('button', { name: 'dashboard.briefing.refresh_all' });
-    button.focus();
+    act(() => button.focus());
     fireEvent.click(button);
     expect(refresh).toHaveBeenCalledTimes(1);
     rerender(<RefreshAllButton onClick={refresh} isRefreshing />);

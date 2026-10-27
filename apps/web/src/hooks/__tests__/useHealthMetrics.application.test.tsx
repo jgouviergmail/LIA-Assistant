@@ -75,5 +75,9 @@ describe('health management follows the active account', () => {
     rerender();
     expect(result.current.aggregate).toBeUndefined();
     expect(result.current.tokens).toEqual([]);
+    await waitFor(() => {
+      expect(get).toHaveBeenCalledTimes(4);
+      expect(result.current.isLoading).toBe(true);
+    });
   });
 });

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders, screen, within } from '@/__tests__/test-utils';
+import { act, renderWithProviders, screen, within } from '@/__tests__/test-utils';
 import { AgendaCard } from '../AgendaCard';
 import type { AgendaData, CardSection } from '@/types/briefing';
 
@@ -125,7 +125,7 @@ describe('Agenda home day timeline', () => {
     const other = event('Another meeting', '2026-10-15T20:00:00Z', { id: 'other' });
     const view = show([original, other]);
     const target = screen.getByRole('button', { name: /intents.event Moved meeting/ });
-    target.focus();
+    act(() => target.focus());
     expect(target).toHaveFocus();
     view.rerender(
       <AgendaCard

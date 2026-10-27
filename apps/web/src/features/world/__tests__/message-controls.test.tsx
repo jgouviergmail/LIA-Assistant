@@ -223,6 +223,9 @@ it('keeps public drafts and translation permission separate from private convers
   expect(permission).toBeChecked();
   fireEvent.click(screen.getByRole('button', { name: 'Send' }));
   expect(mocks.sendPublic).toHaveBeenCalledWith('Hello everyone', true);
+  await act(async () => {
+    // Drain the send result after checking its synchronous transport invocation.
+  });
   act(() =>
     mocks.accepted?.({
       ...props.getScope(),

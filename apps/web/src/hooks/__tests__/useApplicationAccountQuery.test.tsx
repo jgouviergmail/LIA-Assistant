@@ -145,6 +145,10 @@ describe('application account queries', () => {
     useAuth.mockReturnValue({ user: { id: 'two' } });
     rerender();
     expect(result.current.error).toBeNull();
+    await waitFor(() => {
+      expect(get).toHaveBeenCalledTimes(2);
+      expect(result.current.loading).toBe(true);
+    });
   });
 
   it('accepts a current server success without letting an old account callback replace it', async () => {

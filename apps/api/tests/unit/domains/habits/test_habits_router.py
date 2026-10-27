@@ -10,6 +10,7 @@ What must hold:
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any
@@ -22,6 +23,7 @@ from fastapi.testclient import TestClient
 from src.core.dependencies import get_db
 from src.core.exceptions import ResourceNotFoundError
 from src.core.session_dependencies import get_current_active_session
+from src.domains.feature_switches.registry import CAPABILITY_SPECS, PlatformCapability
 from src.domains.habits.router import router
 
 
@@ -91,10 +93,24 @@ def candidates_mock(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
 
 
 @pytest.fixture
-def client(monkeypatch: pytest.MonkeyPatch, candidates_mock: AsyncMock) -> TestClient:
+def capability_settings_mock(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
+    """The real capability guard reads a stored switch without external I/O."""
+    stored_switch = AsyncMock(return_value=True)
+    monkeypatch.setattr("src.domains.feature_switches.registry.read_setting", stored_switch)
+    return stored_switch
+
+
+@pytest.fixture
+def client(
+    monkeypatch: pytest.MonkeyPatch,
+    candidates_mock: AsyncMock,
+    capability_settings_mock: AsyncMock,
+) -> Iterator[TestClient]:
     import src.domains.habits.service as service_module
 
     monkeypatch.setattr(service_module, "HabitsRepository", _StubRepo)
+    open_database = MagicMock(side_effect=AssertionError("habits unit requested standalone DB"))
+    monkeypatch.setattr("src.infrastructure.database.get_db_context", open_database)
 
     class EmptyRedis:
         async def get(self, key):
@@ -174,7 +190,9 @@ def client(monkeypatch: pytest.MonkeyPatch, candidates_mock: AsyncMock) -> TestC
 
     app.dependency_overrides[get_current_active_session] = lambda: user
     app.dependency_overrides[get_db] = lambda: db
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client
+    open_database.assert_not_called()
 
 
 def test_overview_renders_before_first_compute(client: TestClient) -> None:
@@ -406,15 +424,19 @@ def test_delete_all_also_drops_the_recurrence_ledger(client: TestClient) -> None
     from unittest.mock import patch
 
     deleter = AsyncMock(return_value=4)
+    forget_presence = AsyncMock(return_value=0)
     with (
         patch(
             "src.infrastructure.cache.redis.get_redis_cache", new=AsyncMock(return_value=object())
         ),
         patch("src.infrastructure.cache.recurrence_store.delete_user_ledger", new=deleter),
+        patch("src.domains.habits.presence.forget_user", new=forget_presence),
     ):
         resp = client.delete("/habits")
     assert resp.status_code == 200
     deleter.assert_awaited_once()
+    forget_presence.assert_awaited_once()
+    assert resp.json()["advisory_cleanup_confirmed"] is True
 
 
 def test_delete_all_survives_a_redis_outage(client: TestClient) -> None:
@@ -436,7 +458,9 @@ def test_settings_toggle_round_trips(client: TestClient) -> None:
     assert resp.json() == {"habits_enabled": False}
 
 
-def test_recompute_now_returns_fresh_profile(client: TestClient) -> None:
+def test_recompute_now_returns_fresh_profile(
+    client: TestClient, capability_settings_mock: AsyncMock
+) -> None:
     """Manual recompute (ADR-214 review follow-up): the nightly aggregation is
     retroactive by construction (56-day window), so a user activating the
     feature — or resetting it — must not wait a night to see their profile.
@@ -485,6 +509,9 @@ def test_recompute_now_returns_fresh_profile(client: TestClient) -> None:
 
     assert resp.status_code == 200
     assert recomputed == ["yes"]
+    capability_settings_mock.assert_awaited_once_with(
+        CAPABILITY_SPECS[PlatformCapability.HABITS].setting_key
+    )
     body = resp.json()
     assert body["profile"]["weekday"]["verdict"] == "windows"
     assert body["outcome"] == "computed"

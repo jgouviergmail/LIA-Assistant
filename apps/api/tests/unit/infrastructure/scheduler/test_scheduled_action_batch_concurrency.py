@@ -23,6 +23,7 @@ scheduling delay with a burst against the LLM provider and the connection pool.
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
@@ -73,6 +74,9 @@ def harness(monkeypatch: pytest.MonkeyPatch):  # noqa: ANN201 - pytest fixture
         class _Repo:
             def __init__(self, _db: Any) -> None: ...
 
+            async def close_finished(self) -> int:
+                return 0
+
             async def recover_stale_executing(self, **kwargs: Any) -> int:
                 h.recovery_kwargs = kwargs
                 return 0
@@ -82,6 +86,12 @@ def harness(monkeypatch: pytest.MonkeyPatch):  # noqa: ANN201 - pytest fixture
                     type("A", (), {"id": a, "user_id": u, "execution_token": t})()
                     for a, u, t in h.refs
                 ]
+
+        class _RunRepo:
+            def __init__(self, _db: Any) -> None: ...
+
+            async def purge_older_than(self, _cutoff: datetime) -> int:
+                return 0
 
         class _Db:
             async def commit(self) -> None: ...
@@ -94,9 +104,11 @@ def harness(monkeypatch: pytest.MonkeyPatch):  # noqa: ANN201 - pytest fixture
                 return False
 
         import src.domains.scheduled_actions.repository as repo_module
+        import src.domains.scheduled_actions.run_repository as run_repo_module
         import src.infrastructure.database.session as session_module
 
         monkeypatch.setattr(repo_module, "ScheduledActionRepository", _Repo)
+        monkeypatch.setattr(run_repo_module, "ScheduledActionRunRepository", _RunRepo)
         monkeypatch.setattr(session_module, "get_db_context", lambda: _Ctx())
         monkeypatch.setattr(executor_module, "execute_single_action", h.execute)
         return h

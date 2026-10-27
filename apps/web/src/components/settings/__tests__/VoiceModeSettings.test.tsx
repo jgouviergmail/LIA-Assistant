@@ -69,9 +69,12 @@ describe('VoiceModeSettings — enable switch', () => {
 });
 
 describe('VoiceModeSettings — LIA’s voices', () => {
-  it('holds the block where LIA’s voices are chosen', () => {
+  it('holds the block where LIA’s voices are chosen', async () => {
     renderWithProviders(<VoiceModeSettings lng="en" />);
     expect(screen.getByTestId('lia-voices')).toBeInTheDocument();
+    await act(async () => {
+      // The block is immediate; finish its independent availability probe afterward.
+    });
   });
 });
 

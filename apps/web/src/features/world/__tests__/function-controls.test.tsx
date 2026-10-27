@@ -57,19 +57,27 @@ describe('private native function controls', () => {
       fireEvent.click(await screen.findByRole('menuitem', { name: label }));
       expect(screen.getByRole('dialog')).toBeVisible();
       expect(onOpen).toHaveBeenLastCalledWith(true, false);
-      view.rerender(<WorldFunctionControls {...props} enabled={false} />);
+      await act(async () => {
+        view.rerender(<WorldFunctionControls {...props} enabled={false} />);
+      });
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
       view.rerender(<WorldFunctionControls {...props} />);
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       expect(onOpen).toHaveBeenLastCalledWith(false, false);
+      await act(async () => {
+        // Drain the remount read after checking synchronous closed-state behavior.
+      });
     }
   );
-  it('keeps every native operation unavailable when the world owner differs from the authenticated account', () => {
+  it('keeps every native operation unavailable when the world owner differs from the authenticated account', async () => {
     render(
       <WorldFunctionControls lng="en" ownerId="someone-else" enabled zone="home" onOpen={vi.fn()} />
     );
     for (const button of screen.getAllByRole('button')) expect(button).toBeDisabled();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await act(async () => {
+      // Drain configuration only after checking immediate owner isolation.
+    });
   });
 
   it('restores the private catalogue edit after a same-account verification', async () => {
@@ -142,7 +150,7 @@ it('separates application preferences from usable activities without hiding eith
   ).not.toBeInTheDocument();
 });
 
-it('rejects settings, administration and unavailable objects on the scene entry point', () => {
+it('rejects settings, administration and unavailable objects on the scene entry point', async () => {
   const ref = createRef<WorldFunctionHandle>();
   render(
     <WorldFunctionControls
@@ -163,9 +171,12 @@ it('rejects settings, administration and unavailable objects on the scene entry 
   expect(ref.current?.canOpen({ kind: 'command', id: 'weather' })).toBe(true);
   expect(ref.current?.canOpen({ kind: 'command', id: 'made-up' })).toBe(false);
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  await act(async () => {
+    // Drain configuration only after all immediate scene-entry refusal checks.
+  });
 });
 
-it('offers the radio object only under the native feature flag and never starts playback on discovery', () => {
+it('offers the radio object only under the native feature flag and never starts playback on discovery', async () => {
   const ref = createRef<WorldFunctionHandle>();
   const props = {
     lng: 'en' as const,
@@ -186,4 +197,7 @@ it('offers the radio object only under the native feature flag and never starts 
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   view.rerender(<WorldFunctionControls {...props} suspended />);
   expect(ref.current?.canOpen({ kind: 'widget', id: 'radio' })).toBe(false);
+  await act(async () => {
+    // Drain configuration after preserving every synchronous feature-flag check.
+  });
 });

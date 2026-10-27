@@ -15,6 +15,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+
+// Nested capability controls need a stable instance configuration; this
+// fixture tests the component, not useAppConfig's network/error lifecycle.
+vi.mock('@/hooks/useAppConfig', async importOriginal => {
+  const original = await importOriginal<typeof import('@/hooks/useAppConfig')>();
+  const { appConfigFixture } = await import('@/__tests__/fixtures/app-config');
+  const config = appConfigFixture();
+  const useAppConfig: typeof original.useAppConfig = (enabled = true) => ({
+    config: enabled ? config : null,
+    loading: false,
+    error: null,
+  });
+  return { ...original, useAppConfig };
+});
+
 import type { Bookmark } from '@/types/bookmarks';
 
 const list = vi.hoisted(() => ({

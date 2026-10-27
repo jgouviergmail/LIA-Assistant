@@ -51,4 +51,8 @@ it('preserves known cards when a reread fails and does not leak updates across a
   expect(result.current.data).toBeUndefined();
   act(() => obsolete(saved));
   expect(result.current.data).toBeUndefined();
+  await waitFor(() => {
+    expect(get).toHaveBeenCalledTimes(3);
+    expect(result.current.loading).toBe(true);
+  });
 });

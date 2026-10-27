@@ -11,6 +11,7 @@ Tests cover:
 NOTE: These tests require a real database (external via TEST_DATABASE_URL or Testcontainers).
 """
 
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -33,6 +34,13 @@ from tests.fixtures.factories import UserFactory
 pytestmark = pytest.mark.integration
 
 
+@pytest.fixture(autouse=True)
+def smtp_transport() -> Iterator[MagicMock]:
+    """Keep real mail builders; replace only the blocking SMTP relay."""
+    with patch("src.infrastructure.email.email_service.smtplib.SMTP", autospec=True) as smtp:
+        yield smtp.return_value.__enter__.return_value
+
+
 @pytest.fixture
 def mock_oauth_flow_handler():
     """Create mock OAuthFlowHandler."""
@@ -50,7 +58,9 @@ async def auth_service(async_session: AsyncSession) -> AuthService:
 class TestHandleGoogleCallbackRefactored:
     """Test AuthService.handle_google_callback() refactored method."""
 
-    async def test_full_oauth_flow_new_user(self, auth_service, async_session):
+    async def test_full_oauth_flow_new_user(
+        self, auth_service, async_session, smtp_transport: MagicMock
+    ):
         """Test complete OAuth flow creating a new user."""
         # Arrange
         code = "test-code"
@@ -84,6 +94,8 @@ class TestHandleGoogleCallbackRefactored:
 
         assert user_response.email == "newuser@example.com"
         assert user_response.full_name == "New User"
+        smtp_transport.sendmail.assert_called_once()
+        assert smtp_transport.sendmail.call_args.args[1] == "newuser@example.com"
 
     async def test_links_oauth_to_existing_email(self, auth_service, async_session, test_user):
         """Test OAuth flow links Google account to existing email user."""
@@ -388,7 +400,9 @@ class TestFindOrCreateGoogleUser:
         assert user.is_verified is True
         assert user.is_active is True
 
-    async def test_creates_new_user(self, auth_service, async_session, monkeypatch):
+    async def test_creates_new_user(
+        self, auth_service, async_session, monkeypatch, smtp_transport: MagicMock
+    ):
         """Test creating new user when no existing user found."""
         # Arrange
         # The weather card alone needs a deployment that serves the weather
@@ -422,8 +436,12 @@ class TestFindOrCreateGoogleUser:
         assert user.briefing_preferences is not None
         assert "weather" not in user.briefing_preferences["hidden"]
         assert len(user.briefing_preferences["hidden"]) == 10
+        smtp_transport.sendmail.assert_called_once()
+        assert smtp_transport.sendmail.call_args.args[1] == "brandnew@example.com"
 
-    async def test_handles_missing_name_in_userinfo(self, auth_service, async_session):
+    async def test_handles_missing_name_in_userinfo(
+        self, auth_service, async_session, smtp_transport: MagicMock
+    ):
         """Test creating user with missing 'name' field in userinfo."""
         # Arrange
         userinfo = {
@@ -439,8 +457,12 @@ class TestFindOrCreateGoogleUser:
         # Assert - User created with None full_name
         assert user.email == "noname@example.com"
         assert user.full_name is None
+        smtp_transport.sendmail.assert_called_once()
+        assert smtp_transport.sendmail.call_args.args[1] == "noname@example.com"
 
-    async def test_handles_missing_picture_in_userinfo(self, auth_service, async_session):
+    async def test_handles_missing_picture_in_userinfo(
+        self, auth_service, async_session, smtp_transport: MagicMock
+    ):
         """Test creating user with missing 'picture' field in userinfo."""
         # Arrange
         userinfo = {
@@ -456,8 +478,12 @@ class TestFindOrCreateGoogleUser:
 
         # Assert - User created with None picture_url
         assert user.picture_url is None
+        smtp_transport.sendmail.assert_called_once()
+        assert smtp_transport.sendmail.call_args.args[1] == "nopicture@example.com"
 
-    async def test_verifies_new_user_but_inactive(self, auth_service, async_session):
+    async def test_verifies_new_user_but_inactive(
+        self, auth_service, async_session, smtp_transport: MagicMock
+    ):
         """Test that new OAuth users are verified but inactive (requires admin approval)."""
         # Arrange
         userinfo = {
@@ -473,12 +499,16 @@ class TestFindOrCreateGoogleUser:
         # Assert - OAuth users are verified (Google verifies email) but inactive by default
         assert user.is_active is False  # Requires admin approval
         assert user.is_verified is True
+        smtp_transport.sendmail.assert_called_once()
+        assert smtp_transport.sendmail.call_args.args[1] == "verified@example.com"
 
 
 class TestIntegrationScenarios:
     """Test integration scenarios combining multiple methods."""
 
-    async def test_complete_new_user_registration_flow(self, auth_service, async_session):
+    async def test_complete_new_user_registration_flow(
+        self, auth_service, async_session, smtp_transport: MagicMock
+    ):
         """Test complete flow: new user registers via Google OAuth."""
         # Arrange
         code = "new-user-code"
@@ -511,6 +541,8 @@ class TestIntegrationScenarios:
         assert db_user is not None
         assert db_user.oauth_provider == "google"
         assert db_user.is_verified is True
+        smtp_transport.sendmail.assert_called_once()
+        assert smtp_transport.sendmail.call_args.args[1] == "completelynew@example.com"
 
     async def test_returning_oauth_user_flow(self, auth_service, async_session):
         """Test complete flow: existing OAuth user logs in again."""

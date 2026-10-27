@@ -360,6 +360,9 @@ describe('approved secure application continuation', () => {
     view.rerender(<ApplicationInteractionCards metadata={metadata} />);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(post).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      // Drain account reads only after the immediate A-B-A isolation checks.
+    });
   });
 
   it('refuses malformed references and never posts an expired confirmation', async () => {
