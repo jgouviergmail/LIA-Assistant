@@ -400,9 +400,18 @@ l'autre suite compte comme exécutables, contre ce même plancher
 
 #### E2E + a11y smoke (Playwright)
 
-| Step            | Commande        |
-| --------------- | --------------- |
-| Suite E2E + axe | `task test:e2e` |
+| Passe | Commande | Artifact HTML |
+| --- | --- | --- |
+| Suite E2E + axe | `task test:e2e` | `playwright-report-base` |
+| Showroom, télémétrie OFF | `task test:e2e:showroom` | `playwright-report-showroom-off` |
+| Showroom, télémétrie ON | `task test:e2e:showroom:telemetry` | `playwright-report-showroom-on` |
+
+Les trois tâches partagent `apps/web/e2e/playwright-report`. Le workflow archive
+chaque rapport immédiatement après sa tâche, avant la passe suivante, sous un
+nom distinct. L'archivage suit une tâche effectivement exécutée, y compris son
+échec ou son annulation ; une tâche ignorée ou non exécutée ne produit aucun
+artifact. Un rapport absent pour une tâche exécutée est une erreur. La rétention
+reste de sept jours.
 
 F031. Tourne dans l'image Playwright officielle (glibc) : le conteneur de dev
 Alpine ne peut pas executer les navigateurs embarques de Playwright, d'ou une

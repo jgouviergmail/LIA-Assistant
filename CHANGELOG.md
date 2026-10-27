@@ -60,6 +60,15 @@ existing account, permission, approval and spending boundaries.
 
 ### Fixed
 
+- ⌨️ **Attachment dialog focus**: opening knowledge documents, bookmarks,
+  generated files or meeting import from the composer menu retains the persistent
+  **+** button as the focus anchor. Escape or Close returns keyboard focus to
+  that button after the menu item disappears.
+- 🧪 **Separate E2E reports**: archive the base suite and both showroom telemetry
+  passes immediately after each executed task, before the next pass replaces
+  their shared HTML directory. Distinct artifacts retain failed or cancelled
+  passes; skipped tasks create none, and a missing report fails visibly.
+
 - **Complete self-host configuration**: declare optional browser Firebase inputs
   empty and generate a private Grafana password when observability is enabled.
   Existing non-empty Grafana credentials survive retries and reconfiguration,

@@ -6490,7 +6490,7 @@
         "v4_0_0": {
           "title": "v4.0.0 — 🌍 A world to explore, your assistant beside you",
           "date": "27 October 2026",
-          "count": "9",
+          "count": "10",
           "items": {
             "i1": "<b>🌍 Step into LIA World</b> — Explore a shared campus and garden with LIA, using keyboard or touch, a minimap and camera controls. The operator chooses whether this optional space is available.",
             "i2": "<b>🏠 Your own place</b> — Choose your avatar and your home's colour palette. Your home preferences and assistant data stay private, even when you meet other people in the shared world.",
@@ -6500,7 +6500,8 @@
             "i6": "<b>🌙 A place with atmosphere</b> — Day and night, optional cached weather, local sounds and separate volume controls accompany your visit. Decoration makes no model or weather-provider request.",
             "i7": "<b>🛠️ A controlled shared space</b> — Administrators can enable World and set its capacity. A waiting queue and explicit tab control keep admission predictable; losing the connection pauses interaction until reconnection.",
             "i8": "<b>🧠 More model choices</b> — Jev 1.14 and Gemini 4 Argon join the catalogue. Optional JEV assistance keeps its own controls, accounting and documented limits.",
-            "i9": "<b>🛡️ Smoother uploads and stronger privacy</b> — Large PDF and HEIC processing leave the main request loop available. Cancellation and transaction cleanup are more reliable, log addresses are better protected, and production startup allows more time for migrations."
+            "i9": "<b>🛡️ Smoother uploads and stronger privacy</b> — Large PDF and HEIC processing leave the main request loop available. Cancellation and transaction cleanup are more reliable, log addresses are better protected, and production startup allows more time for migrations.",
+            "i10": "<b>⌨️ Focus returns to “+”</b> — Dismiss a dialog opened from the attachment menu with Escape or Close, and keyboard focus returns to the “+” button."
           }
         },
         "v3_7_0": {

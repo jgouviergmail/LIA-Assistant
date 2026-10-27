@@ -137,30 +137,54 @@ jobs:
       # all, not a CI knob, and keeping it here made a local run behave
       # differently from this job.
       - name: Run E2E + a11y smoke
+        id: e2e_base
         env:
           CI: 'true'
         run: task test:e2e
+
+      # Each pass replaces the same HTML directory. Archive its diagnostics
+      # before the next task starts, including a failed or cancelled pass.
+      - name: Upload base Playwright report
+        if: ${{ always() && steps.e2e_base.outcome != '' && steps.e2e_base.outcome != 'skipped' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-report-base
+          path: apps/web/e2e/playwright-report
+          retention-days: 7
+          if-no-files-found: error
 
       # Guided showroom P0 (public-web-showroom program): two SEQUENTIAL clean
       # managed builds — NEXT_PUBLIC_* flags are baked at build time, so each
       # oracle needs its own fresh artifact (E2E_FORCE_FRESH in the tasks).
       - name: Showroom contract — telemetry OFF (zero-API + axe)
+        id: e2e_showroom_off
         env:
           CI: 'true'
         run: task test:e2e:showroom
 
+      - name: Upload showroom OFF Playwright report
+        if: ${{ always() && steps.e2e_showroom_off.outcome != '' && steps.e2e_showroom_off.outcome != 'skipped' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-report-showroom-off
+          path: apps/web/e2e/playwright-report
+          retention-days: 7
+          if-no-files-found: error
+
       - name: Showroom contract — telemetry ON (credential-less collector)
+        id: e2e_showroom_on
         env:
           CI: 'true'
         run: task test:e2e:showroom:telemetry
 
-      - name: Upload Playwright report
-        if: ${{ !cancelled() }}
+      - name: Upload showroom ON Playwright report
+        if: ${{ always() && steps.e2e_showroom_on.outcome != '' && steps.e2e_showroom_on.outcome != 'skipped' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: playwright-report
+          name: playwright-report-showroom-on
           path: apps/web/e2e/playwright-report
           retention-days: 7
+          if-no-files-found: error
 
   test-backend:
     name: Test Backend

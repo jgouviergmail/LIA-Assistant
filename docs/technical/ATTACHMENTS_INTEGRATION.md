@@ -5,6 +5,7 @@
 **Phase**: evolution Feature 4 — File Attachments & Vision Analysis
 **Cree**: 2026-03-09
 **Statut**: Implemente
+**Mise à jour**: 2026-10-27
 
 ---
 
@@ -526,11 +527,19 @@ Affiche les pieces jointes en attente d'envoi ou deja envoyees :
 
 ### Integration `ChatInput`
 
-- Bouton **Paperclip** (trombone) a gauche du champ de saisie
-- Ouvre un file picker natif (accept: images + PDF)
+- Le contrôle **+** est porté par [`ComposerAttachmentsControl`](../../apps/web/src/components/chat/ComposerAttachmentsControl.tsx), à gauche du champ de saisie.
+- Une seule action disponible ouvre directement le sélecteur natif (images + PDF) ; plusieurs actions ouvrent le menu des sources activées.
 - Drag & drop supporte sur la zone de chat
 - Paste d'image depuis le clipboard (Ctrl+V)
 - Les `attachment_ids` sont envoyes dans `ChatRequest.attachment_ids[]`
+
+### Clavier des fenêtres du menu de pièces jointes
+
+Le bouton **+** reste l'ancre de focus des fenêtres de documents de connaissances,
+de favoris, de fichiers générés et d'import de réunion. À leur fermeture par
+**Échap** ou **Fermer**, le focus revient à ce bouton persistant, même si l'entrée
+du menu qui a ouvert la fenêtre a déjà disparu. La navigation au clavier reprend
+ainsi depuis un contrôle visible du compositeur.
 
 ### Rendu `ChatMessage`
 

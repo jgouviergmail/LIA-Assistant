@@ -17,7 +17,7 @@
  * page then opens (owner request 2026-10-24).
  */
 
-import { useState, useSyncExternalStore } from 'react';
+import { useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Bookmark,
@@ -207,17 +207,15 @@ export function ComposerAttachmentsControl(props: ComposerAttachmentsControlProp
   const { t, attachmentsEnabled, disabled } = props;
   const inShell = useInAndroidShell();
   const [picker, setPicker] = useState<Picker | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   if (!attachmentsEnabled) return null;
 
-  // The menu closes and restores focus to the trigger; opening the file dialog
-  // in the same tick can be swallowed by that restoration. A task boundary is
-  // enough, and stays inside the transient user activation the picker needs.
-  const defer = (open: () => void) => () => setTimeout(open, 0);
   const entries = composerEntries(props, inShell, setPicker);
   const single = entries.length === 1;
 
   const trigger = (
     <Button
+      ref={triggerRef}
       type="button"
       variant="ghost"
       size="lg"
@@ -245,7 +243,19 @@ export function ComposerAttachmentsControl(props: ComposerAttachmentsControlProp
         <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           {entries.map(entry => (
-            <DropdownMenuItem key={entry.key} onSelect={defer(entry.open)}>
+            <DropdownMenuItem
+              key={entry.key}
+              onSelect={() => {
+                // Keep the task boundary the native file chooser needs. A
+                // manual picker must capture the lasting button, not this item.
+                setTimeout(() => {
+                  if (entry.key !== 'file' && entry.key !== 'photo') {
+                    triggerRef.current?.focus({ preventScroll: true });
+                  }
+                  entry.open();
+                }, 0);
+              }}
+            >
               {entry.icon}
               {entry.label}
             </DropdownMenuItem>

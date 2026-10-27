@@ -6481,7 +6481,7 @@
         "v4_0_0": {
           "title": "v4.0.0 — 🌍 Un mundo por explorar, LIA a tu lado",
           "date": "27 de octubre de 2026",
-          "count": "9",
+          "count": "10",
           "items": {
             "i1": "<b>🌍 Entra en el Mundo de LIA</b> — Explora un campus y su jardín con LIA mediante teclado o pantalla táctil, un minimapa y controles de cámara. El operador decide si este espacio opcional está disponible.",
             "i2": "<b>🏠 Un lugar propio</b> — Elige tu avatar y la paleta de colores de tu casa. Tus preferencias y los datos de tu asistente siguen siendo privados cuando te encuentras con otras personas en el mundo compartido.",
@@ -6491,7 +6491,8 @@
             "i6": "<b>🌙 Un lugar con ambiente</b> — Día y noche, meteorología ya en caché si está disponible, sonidos locales y volúmenes separados acompañan tu visita. La decoración no consulta modelos ni proveedores meteorológicos.",
             "i7": "<b>🛠️ Un espacio compartido controlado</b> — La administración puede activar el Mundo y fijar su capacidad. La cola y el control explícito de pestañas organizan el acceso; una desconexión pausa las interacciones hasta reconectar.",
             "i8": "<b>🧠 Más modelos disponibles</b> — Jev 1.14 y Gemini 4 Argon se incorporan al catálogo. La asistencia JEV opcional conserva sus controles, contabilidad y límites documentados.",
-            "i9": "<b>🛡️ Cargas más fluidas y mayor privacidad</b> — El procesamiento de PDF grandes e imágenes HEIC deja disponible el bucle principal de peticiones. Las cancelaciones y transacciones se cierran con más fiabilidad, las direcciones están mejor protegidas en los logs y el arranque deja más tiempo a las migraciones."
+            "i9": "<b>🛡️ Cargas más fluidas y mayor privacidad</b> — El procesamiento de PDF grandes e imágenes HEIC deja disponible el bucle principal de peticiones. Las cancelaciones y transacciones se cierran con más fiabilidad, las direcciones están mejor protegidas en los logs y el arranque deja más tiempo a las migraciones.",
+            "i10": "<b>⌨️ El foco vuelve a «+»</b> — Cierra con Esc o Cerrar una ventana abierta desde el menú de adjuntos y el foco vuelve al botón «+» para seguir usando el teclado."
           }
         },
         "v3_7_0": {

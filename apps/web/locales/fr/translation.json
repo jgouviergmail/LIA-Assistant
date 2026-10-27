@@ -6495,7 +6495,7 @@
         "v4_0_0": {
           "title": "v4.0.0 — 🌍 Un monde à explorer, ton assistante à tes côtés",
           "date": "27 octobre 2026",
-          "count": "9",
+          "count": "10",
           "items": {
             "i1": "<b>🌍 Entre dans le Monde de LIA</b> — Explore un campus et son jardin avec LIA, au clavier ou au toucher, avec une minicarte et des commandes de caméra. L'opérateur choisit si cet espace facultatif est disponible.",
             "i2": "<b>🏠 Un lieu à toi</b> — Choisis ton avatar et la palette de couleurs de ta maison. Tes préférences et les données de ton assistante restent privées lorsque tu rencontres d'autres personnes dans le monde partagé.",
@@ -6505,7 +6505,8 @@
             "i6": "<b>🌙 Un lieu vivant</b> — Jour et nuit, météo déjà en cache si disponible, sons locaux et volumes séparés accompagnent ta visite. Le décor ne sollicite ni modèle ni fournisseur météo.",
             "i7": "<b>🛠️ Un espace partagé maîtrisé</b> — L'administration peut activer le Monde et fixer sa capacité. File d'attente et contrôle explicite des onglets organisent l'accès ; une déconnexion suspend les interactions jusqu'à la reconnexion.",
             "i8": "<b>🧠 De nouveaux modèles au catalogue</b> — Jev 1.14 et Gemini 4 Argon rejoignent le catalogue. L'aide JEV facultative conserve ses commandes, son suivi de consommation et ses limites documentées.",
-            "i9": "<b>🛡️ Imports plus fluides, confidentialité renforcée</b> — Le traitement des gros PDF et des images HEIC laisse la boucle des requêtes disponible. Annulations et transactions sont mieux clôturées, les adresses mieux protégées dans les logs et le démarrage laisse davantage de temps aux migrations."
+            "i9": "<b>🛡️ Imports plus fluides, confidentialité renforcée</b> — Le traitement des gros PDF et des images HEIC laisse la boucle des requêtes disponible. Annulations et transactions sont mieux clôturées, les adresses mieux protégées dans les logs et le démarrage laisse davantage de temps aux migrations.",
+            "i10": "<b>⌨️ Le focus revient au « + »</b> — Ferme avec Échap ou Fermer une fenêtre ouverte depuis le menu des pièces jointes : le focus revient au bouton « + » pour continuer au clavier."
           }
         },
         "v3_7_0": {
