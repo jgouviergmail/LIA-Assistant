@@ -15,6 +15,7 @@ from src.domains.agents.application.command_service import CommandRejected
 from src.domains.agents.application.draft_execution import execute_application_action_draft
 from src.domains.agents.application.draft_models import ApplicationActionDraftContent
 from src.domains.agents.effects.models import AgentEffect
+from src.domains.agents.effects.treatments import treatment_collector
 from src.domains.agents.services import draft_executor
 from src.domains.agents.tools import application_gallery_tools
 from src.infrastructure.application_sessions import bind_browser_session
@@ -45,7 +46,7 @@ pytestmark = pytest.mark.integration
 )
 @pytest.mark.parametrize("mode", ["pipeline", "react"])
 async def test_original_confirmed_gallery_transfer_is_single_use_and_never_claims_saved_file(
-    async_session, test_user, monkeypatch, tmp_path, scenario, mode
+    async_session, test_user, monkeypatch, tmp_path, scenario, mode, agent_registry
 ):
     monkeypatch.setattr(settings, "application_tools_enabled", True)
     monkeypatch.setattr(settings, "attachments_storage_path", str(tmp_path))
@@ -80,8 +81,13 @@ async def test_original_confirmed_gallery_transfer_is_single_use_and_never_claim
         monkeypatch.setattr(f"src.domains.agents.application.{module}.get_db_context", database)
     monkeypatch.setattr(application_gallery_tools, "get_db_context", database)
     monkeypatch.setattr("src.infrastructure.database.session.get_db_context", database)
-    with installed_runtime_context(
-        user_id=owner, application_origin=origin, deps=object(), execution_mode=mode
+    assert agent_registry.get_tool_instance(tool.name) is tool
+    assert agent_registry.get_tool_manifest(tool.name).mutation_policy == "draft"
+    with (
+        treatment_collector(run_id="document-download-flow") as treatments,
+        installed_runtime_context(
+            user_id=owner, application_origin=origin, deps=object(), execution_mode=mode
+        ),
     ):
         proposal = await tool.coroutine(
             request=request_body,
@@ -92,6 +98,9 @@ async def test_original_confirmed_gallery_transfer_is_single_use_and_never_claim
         assert (
             proposal.success and proposal.metadata["requires_confirmation"]
         ), proposal.model_dump()
+        assert [(row.tool_name, row.run_id, row.outcome) for row in treatments] == [
+            ("download_lia_generated_asset_tool", "document-download-flow", "ok")
+        ]
         item = next(iter(proposal.registry_updates.values()))
         draft = ApplicationActionDraftContent.model_validate(item.payload["content"])
         if scenario in {"edit_refresh", "edit_retarget"}:

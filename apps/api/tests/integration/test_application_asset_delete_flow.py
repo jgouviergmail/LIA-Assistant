@@ -12,6 +12,7 @@ from src.core.config import settings
 from src.domains.agents.application.command_service import CommandRejected
 from src.domains.agents.application.draft_execution import execute_application_action_draft
 from src.domains.agents.application.draft_models import ApplicationActionDraftContent
+from src.domains.agents.effects.treatments import treatment_collector
 from src.domains.agents.services import draft_executor
 from src.domains.agents.tools import application_gallery_tools
 from src.domains.attachments.models import Attachment
@@ -24,7 +25,7 @@ pytestmark = pytest.mark.integration
 @pytest.mark.parametrize("mode", ["pipeline", "react"])
 @pytest.mark.parametrize("confirmed", [False, True])
 async def test_original_deletion_confirmation_and_addressed_gallery_refresh(
-    async_session, test_user, monkeypatch, tmp_path, mode, confirmed
+    async_session, test_user, monkeypatch, tmp_path, mode, confirmed, agent_registry
 ):
     monkeypatch.setattr(settings, "application_tools_enabled", True)
     monkeypatch.setattr(settings, "generated_assets_keep_max_files", 100)
@@ -50,8 +51,19 @@ async def test_original_deletion_confirmation_and_addressed_gallery_refresh(
     monkeypatch.setattr(application_gallery_tools, "get_db_context", database)
     monkeypatch.setattr("src.infrastructure.database.session.get_db_context", database)
     events = asyncio.Queue()
-    with installed_runtime_context(
-        user_id=owner, deps=object(), execution_mode=mode, side_channel_queue=events
+    assert (
+        agent_registry.get_tool_instance("delete_lia_generated_assets_tool")
+        is application_gallery_tools.delete_lia_generated_assets_tool
+    )
+    assert (
+        agent_registry.get_tool_manifest("delete_lia_generated_assets_tool").mutation_policy
+        == "draft"
+    )
+    with (
+        treatment_collector(run_id="asset-delete-flow") as treatments,
+        installed_runtime_context(
+            user_id=owner, deps=object(), execution_mode=mode, side_channel_queue=events
+        ),
     ):
         proposal = await application_gallery_tools.delete_lia_generated_assets_tool.coroutine(
             request={"ids": [asset_id]},
@@ -63,6 +75,9 @@ async def test_original_deletion_confirmation_and_addressed_gallery_refresh(
             ),
         )
         assert proposal.success and proposal.metadata["requires_confirmation"]
+        assert [(row.tool_name, row.run_id, row.outcome) for row in treatments] == [
+            ("delete_lia_generated_assets_tool", "asset-delete-flow", "ok")
+        ]
         item = next(iter(proposal.registry_updates.values()))
         draft = ApplicationActionDraftContent.model_validate(item.payload["content"])
         assert path.exists()
