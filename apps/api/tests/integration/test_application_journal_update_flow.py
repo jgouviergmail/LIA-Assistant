@@ -20,9 +20,10 @@ from src.domains.agents.tools import application_journal_tools
 from src.domains.journals import manual_embeddings
 from src.domains.journals.models import JournalEntry
 from src.domains.users.models import User
-from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
+from tests.helpers.runtime_context import make_tool_runtime
+from tests.integration.application_runtime_context import installed_runtime_context
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("agent_registry")]
 
 
 @pytest.mark.parametrize("scenario", ["confirmed", "no_confirmation", "edit"])

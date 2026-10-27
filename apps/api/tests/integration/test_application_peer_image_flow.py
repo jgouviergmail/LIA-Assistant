@@ -17,10 +17,11 @@ from src.domains.agents.application.draft_models import ApplicationActionDraftCo
 from src.domains.agents.services import draft_executor
 from src.domains.agents.tools import application_peer_tools
 from src.domains.peers.models import PeerConnectionStatus, PeerImageShare
-from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
+from tests.helpers.runtime_context import make_tool_runtime
+from tests.integration.application_runtime_context import installed_runtime_context
 from tests.integration.domains.peers.test_image_share_db import _connection, _image, _user
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("agent_registry")]
 
 
 @pytest.mark.parametrize("scenario", ["confirmed", "no_confirmation", "edit", "replay"])

@@ -25,9 +25,10 @@ from src.domains.agents.tools.application_interest_tools import (
 )
 from src.domains.interests.models import UserInterest
 from src.domains.users.models import User
-from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
+from tests.helpers.runtime_context import make_tool_runtime
+from tests.integration.application_runtime_context import installed_runtime_context
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("agent_registry")]
 
 
 @pytest.mark.parametrize("operation", ["update", "delete", "delete_all", "feedback", "reactivate"])

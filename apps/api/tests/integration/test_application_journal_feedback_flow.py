@@ -17,7 +17,8 @@ from src.domains.agents.services import draft_executor
 from src.domains.agents.tools.application_journal_tools import (
     submit_lia_journal_portrait_feedback_tool,
 )
-from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
+from tests.helpers.runtime_context import make_tool_runtime
+from tests.integration.application_runtime_context import installed_runtime_context
 from tests.integration.domains.journals.test_consolidation_integrity import (
     _answer,
     _entry,
@@ -27,7 +28,7 @@ from tests.integration.domains.journals.test_consolidation_integrity import (
     isolated_runtime as isolated_runtime,
 )
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("agent_registry")]
 
 
 @pytest.mark.parametrize("edited", [False, True])

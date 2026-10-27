@@ -16,9 +16,10 @@ from src.domains.agents.application.draft_models import ApplicationActionDraftCo
 from src.domains.agents.services import draft_executor
 from src.domains.agents.tools import workboard_tools
 from src.domains.workboard.models import WorkboardTicket
-from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
+from tests.helpers.runtime_context import make_tool_runtime
+from tests.integration.application_runtime_context import installed_runtime_context
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("agent_registry")]
 
 
 @pytest.mark.parametrize("scenario", ["confirmed", "no_confirmation", "edit", "replay", "legacy"])

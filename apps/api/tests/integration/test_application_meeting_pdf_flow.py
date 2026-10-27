@@ -25,9 +25,10 @@ from src.infrastructure.application_sessions import bind_browser_session
 from src.infrastructure.cache.redis import get_redis_session
 from src.infrastructure.cache.session_store import SessionStore
 from src.infrastructure.meeting_pdf import configure_meeting_pdf
-from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
+from tests.helpers.runtime_context import make_tool_runtime
+from tests.integration.application_runtime_context import installed_runtime_context
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("agent_registry")]
 PDF = b"%PDF-1.7\nControlled original minutes"
 
 

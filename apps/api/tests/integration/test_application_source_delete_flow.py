@@ -16,9 +16,10 @@ from src.domains.agents.services import draft_executor
 from src.domains.agents.tools import application_source_delete_tools
 from src.domains.rag_spaces.models import RAGDocument, RAGDriveSource, RAGMailSource, RAGSpace
 from src.domains.rag_spaces.storage_paths import stored_file_path
-from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
+from tests.helpers.runtime_context import make_tool_runtime
+from tests.integration.application_runtime_context import installed_runtime_context
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("agent_registry")]
 
 
 @pytest.mark.parametrize("mode", ["pipeline", "react"])

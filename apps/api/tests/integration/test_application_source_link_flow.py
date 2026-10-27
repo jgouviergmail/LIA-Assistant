@@ -18,9 +18,10 @@ from src.domains.agents.tools import application_source_link_tools
 from src.domains.rag_spaces.drive_sync import RAGDriveSyncService
 from src.domains.rag_spaces.mail_source_service import RAGMailSyncService
 from src.domains.rag_spaces.models import RAGDriveSource, RAGMailSource, RAGSpace
-from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
+from tests.helpers.runtime_context import make_tool_runtime
+from tests.integration.application_runtime_context import installed_runtime_context
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("agent_registry")]
 
 
 @pytest.mark.parametrize("mode", ["pipeline", "react"])

@@ -21,10 +21,11 @@ from src.domains.skills.cache import SkillsCache
 from src.infrastructure.application_sessions import bind_browser_session
 from src.infrastructure.cache.redis import get_redis_session
 from src.infrastructure.cache.session_store import SessionStore
-from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
+from tests.helpers.runtime_context import make_tool_runtime
+from tests.integration.application_runtime_context import installed_runtime_context
 from tests.integration.domains.skills.test_per_account_skill_names import _skill
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("agent_registry")]
 
 
 @pytest.mark.parametrize(

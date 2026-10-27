@@ -25,10 +25,11 @@ from src.domains.meetings.models import Meeting, MeetingAudioFormat, MeetingStat
 from src.domains.meetings.reformat_gateway import SavedMeetingReformat
 from src.domains.users.models import User
 from src.infrastructure.meeting_reformat import configure_meeting_reformat
-from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
+from tests.helpers.runtime_context import make_tool_runtime
+from tests.integration.application_runtime_context import installed_runtime_context
 from tests.integration.domains.skills.test_per_account_skill_names import _user
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("agent_registry")]
 
 
 @pytest.mark.parametrize("mode", ["pipeline", "react"])

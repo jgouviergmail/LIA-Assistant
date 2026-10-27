@@ -38,9 +38,10 @@ from src.domains.scheduled_actions.service import ScheduledActionService
 from src.domains.users.models import User
 from src.domains.users.preference_cas import PreferenceWriteReceipt
 from src.infrastructure.scheduler.out_of_turn_run import RunOutcome, RunResult
-from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
+from tests.helpers.runtime_context import make_tool_runtime
+from tests.integration.application_runtime_context import installed_runtime_context
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("agent_registry")]
 
 
 async def test_native_manual_proposal_neither_reserves_nor_starts_work_before_approval(

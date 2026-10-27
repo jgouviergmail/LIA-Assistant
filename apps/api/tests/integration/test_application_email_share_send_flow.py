@@ -17,10 +17,11 @@ from src.domains.agents.tools import application_email_share_tools
 from src.domains.bookmarks.models import MessageBookmark
 from src.domains.email_share.service import ShareRoute
 from src.domains.shared.action_sink import EMAIL_SHARE_CAPABILITY
-from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
+from tests.helpers.runtime_context import make_tool_runtime
+from tests.integration.application_runtime_context import installed_runtime_context
 from tests.integration.domains.bookmarks.test_bookmarks_db import _bookmark
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("agent_registry")]
 
 
 @pytest.mark.parametrize("mode", ["pipeline", "react"])

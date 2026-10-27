@@ -18,9 +18,10 @@ from src.domains.agents.tools import workboard_tools
 from src.domains.workboard.models import WorkboardComment
 from src.domains.workboard.schemas import TicketCreate
 from src.domains.workboard.service import WorkboardService
-from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
+from tests.helpers.runtime_context import make_tool_runtime
+from tests.integration.application_runtime_context import installed_runtime_context
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("agent_registry")]
 
 
 @pytest.mark.parametrize("scenario", ["confirmed", "no_confirmation", "edit", "replay"])

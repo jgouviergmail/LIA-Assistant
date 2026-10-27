@@ -19,9 +19,10 @@ from src.domains.agents.tools import application_layout_tools
 from src.domains.agents.tools.tool_registry import get_tool_strict, register_external_tool
 from src.domains.users.models import User
 from src.infrastructure.account_preferences import LayoutPreferencePatch, update_layout_preferences
-from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
+from tests.helpers.runtime_context import make_tool_runtime
+from tests.integration.application_runtime_context import installed_runtime_context
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("agent_registry")]
 
 
 @pytest.mark.parametrize("mode", ["pipeline", "react"])

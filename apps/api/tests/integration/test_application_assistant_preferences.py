@@ -26,9 +26,10 @@ from src.domains.auth.preference_commands import (
 from src.domains.users.models import User
 from src.domains.users.service import UserService
 from tests.helpers.draft_refusals import draft_refusal_code
-from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
+from tests.helpers.runtime_context import make_tool_runtime
+from tests.integration.application_runtime_context import installed_runtime_context
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("agent_registry")]
 
 
 async def test_turn_start_voice_snapshot_is_not_authority_after_a_saved_opt_out(
