@@ -198,6 +198,8 @@ jobs:
           scan-type: fs
           scan-ref: "pnpm-lock.yaml"
           format: cyclonedx
+          # Inventory-only CycloneDX does not create a vulnerability DB to cache.
+          cache: "false"
           output: sbom-frontend.json
 
       - name: Upload frontend SBOM
