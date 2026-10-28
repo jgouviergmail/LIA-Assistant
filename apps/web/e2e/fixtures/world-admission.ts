@@ -25,9 +25,21 @@ export async function enterWorld(page: Page): Promise<void> {
   await enter.click();
 }
 
+/**
+ * Whether the HUD folds its controls behind `.world-hud-toggle` (mobile-hud.css).
+ * The viewport decides it, never what has rendered yet.
+ */
+export async function compactWorld(page: Page): Promise<boolean> {
+  return page.evaluate(
+    () => matchMedia('(max-width: 767px), (max-height: 520px) and (orientation: landscape)').matches
+  );
+}
+
 /** Reveal the actual compact toolbar; never force-click a hidden control. */
 export async function revealWorldControls(page: Page): Promise<void> {
+  if (!(await compactWorld(page))) return;
   const toggle = page.locator('.world-hud-toggle');
-  if ((await toggle.isVisible()) && (await toggle.getAttribute('aria-expanded')) === 'false')
-    await toggle.click();
+  // Attached controls may still be hidden by the initial account verification.
+  await expect(toggle).toBeVisible();
+  if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
 }

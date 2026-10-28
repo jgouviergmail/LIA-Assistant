@@ -25,6 +25,8 @@ from src.domains.meetings.synthesis import SynthesisResult, SynthesisUsage
 from src.domains.meetings.template_ref import TemplateRef
 from src.domains.meetings.template_resolution import TemplateDecision
 from src.domains.meetings.transcription import TranscriptionError
+from src.domains.usage_limits.schemas import UsageLimitStatus
+from src.domains.usage_limits.service import UsageLimitCheckResult, UsageLimitService
 from src.infrastructure.llm.structured_output import (
     StructuredOutputError,
     StructuredOutputTruncatedError,
@@ -87,6 +89,8 @@ class TestProcessMeeting:
 
         meeting = _meeting()
         repo.get_by_id.return_value = meeting
+        # A transient failure on a first attempt requeues the row: it comes back STOPPED.
+        repo.fail_or_retry.return_value = MeetingStatus.STOPPED
         writer = AsyncMock()
         monkeypatch.setattr(processing, "finalize_native_meeting_run", writer)
 
@@ -277,6 +281,14 @@ def regenerate_world(
     monkeypatch.setattr(
         "src.domains.meetings.costs.get_cached_cost_usd_eur",
         lambda **kwargs: (0.002, 0.0017),
+    )
+    # The account is within its limits. A real check reads the operator's daily
+    # ceiling and the account's usage through Redis and PostgreSQL.
+    within_limits = UsageLimitCheckResult(
+        allowed=True, status=UsageLimitStatus.OK, blocked_reason=None, exceeded_limit=None
+    )
+    monkeypatch.setattr(
+        UsageLimitService, "check_user_allowed", AsyncMock(return_value=within_limits)
     )
     return {
         "repo": repo,

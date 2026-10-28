@@ -11,4 +11,4 @@ export const APP_VERSION: string = pkg.version;
  * Last update timestamp displayed on the landing page.
  * Updated manually with each release.
  */
-export const LAST_UPDATED = '2026-10-27T00:17:28';
+export const LAST_UPDATED = '2026-10-28T05:11:29';

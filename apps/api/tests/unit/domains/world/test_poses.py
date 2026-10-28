@@ -17,7 +17,7 @@ def setup():
     authority, state = Authority(Limits()), WorldState()
     for name in ("a", "b"):
         authority.join(state, Identity(name, name, "fr"), name, 100)
-    slot = next(s for s in SLOTS.values() if not private_home(s.position))
+    slot = next(s for s in SLOTS.values() if s.kind == "sit" and not private_home(s.position))
     for actor in state.actors.values():
         actor.position = slot.approach.copy()
     return authority, state, slot
@@ -38,13 +38,31 @@ def test_one_shared_slot_has_one_owner_and_standing_releases_it():
 
 def test_private_furniture_is_per_owner_and_never_projects_to_peers():
     authority, state, _ = setup()
-    slot = next(s for s in SLOTS.values() if s.kind == "lie")
+    slot = next(s for s in SLOTS.values() if s.kind == "lie" and private_home(s.position))
     for account in state.actors:
         state.actors[account].position = slot.approach.copy()
         assert apply_pose(state, account, account, 1, slot.id, 101)
     assert authority.project(state, "a", set(), 101).actors == []
     wire = authority.project(state, "a", set(), 101).model_dump_json()
     assert '"pose"' in wire and '"controller"' not in wire
+
+
+@pytest.mark.parametrize("slot_id", ["workout-1:0", "workout-2:0"])
+def test_shared_workout_pose_is_exclusive_public_and_releases_safely(slot_id: str):
+    authority, state, _ = setup()
+    slot = SLOTS[slot_id]
+    assert slot.kind == "lie" and not private_home(slot.position)
+    for actor in state.actors.values():
+        actor.position = slot.approach.copy()
+    assert apply_pose(state, "a", "a", 1, slot_id, 101)
+    assert not apply_pose(state, "b", "b", 1, slot_id, 101)
+    assert state.actors["b"].pose_result == "occupied"
+    public = authority.project(state, "b", set(), 101).actors
+    assert len(public) == 1 and public[0].pose == slot_id
+    state = WorldState.model_validate_json(state.model_dump_json())
+    assert apply_pose(state, "a", "a", 2, None, 102)
+    assert fits(**state.actors["a"].position)
+    assert apply_pose(state, "b", "b", 2, slot_id, 102)
 
 
 def test_pose_fences_replay_controller_distance_invalid_slot_and_expiry():
@@ -95,5 +113,5 @@ def test_every_authored_slot_has_a_finite_walkable_exit_in_its_privacy_scope():
 def test_pose_wire_refuses_client_position_coercion_and_unbounded_identifiers(extra):
     with pytest.raises(ValidationError):
         COMMAND_ADAPTER.validate_python(
-            {"type": "pose", "version": 1, "epoch": str(uuid4()), "seq": 1, "slot": None, **extra}
+            {"type": "pose", "version": 2, "epoch": str(uuid4()), "seq": 1, "slot": None, **extra}
         )

@@ -65,8 +65,8 @@ describe('ElevenLabsWebRtcTransport', () => {
     expect(events.onReady).toHaveBeenCalledOnce();
     sdkOptions.onConnect?.({ conversationId: 'conv_42' });
     expect(events.onProviderConversation).toHaveBeenCalledWith('conv_42');
-    sdkOptions.onMessage?.({ source: 'user', role: 'user', message: 'Hi' });
-    sdkOptions.onMessage?.({ source: 'ai', role: 'agent', message: 'Hello' });
+    sdkOptions.onMessage?.({ source: 'user', role: 'user', message: 'Hi', event_id: 1 });
+    sdkOptions.onMessage?.({ source: 'ai', role: 'agent', message: 'Hello', event_id: 2 });
     expect(events.onTranscript).toHaveBeenCalledWith('user', 'Hi');
     expect(events.onTranscript).toHaveBeenCalledWith('assistant', 'Hello');
     expect(events.onTurnComplete).toHaveBeenCalledOnce();

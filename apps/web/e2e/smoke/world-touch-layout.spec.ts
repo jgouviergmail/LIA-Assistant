@@ -4,6 +4,7 @@ import { installInertWorldAdmission } from '../fixtures/world-session';
 import { scanPage } from '../a11y/scan';
 import { appConfig } from '../fixtures/dashboard-shell';
 import { cssPixels } from '../native/layout';
+import en from '../../locales/en/translation.json';
 
 test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
 
@@ -70,9 +71,15 @@ for (const peersEnabled of [false, true]) {
     await page.locator('.world-admission input[type="checkbox"]').check();
     await page.locator('.world-admission button[type="submit"]').click();
     const scene = page.locator('.world-prototype');
-    // Phone, weather, independent world sound, radio and display mode.
-    // Voice remains available from the application menu.
-    await expect(page.locator('.world-device-controls button')).toHaveCount(5);
+    // Phone, weather, independent world sound, radio, display mode, the photo
+    // and the route widget. Phone gestures stay direct buttons outside this
+    // group; voice remains available from the application menu.
+    const devices = page.locator('.world-device-controls');
+    await expect(devices.locator('button')).toHaveCount(7);
+    for (const name of [en.world.photo.title, en.world.experience.route])
+      await expect(
+        devices.getByRole('button', { name, exact: true, includeHidden: true })
+      ).toHaveCount(1);
     await expect(scene).toBeVisible();
     const stick = page.locator('.world-joystick');
     const discussion = page.getByRole('button', { name: 'Chat with people', exact: true });

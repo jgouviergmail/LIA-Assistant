@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffectRequest } from '@/hooks/useEffectRequest';
+
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowDown, ArrowUp, Gauge, Search, Shield, ShieldOff } from 'lucide-react';
@@ -49,43 +51,46 @@ export function AdminUsageLimitsSection({ lng }: AdminUsageLimitsSectionProps) {
   const [editUser, setEditUser] = useState<AdminUserUsageLimitResponse | null>(null);
   const [featureDisabled, setFeatureDisabled] = useState(false);
 
-  // Fetch users
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params: Record<string, string | number> = {
-        page,
-        page_size: pageSize,
-        sort_by: sortBy,
-        sort_order: sortOrder,
-      };
-      if (search) params.search = search;
+  // Fetch users — a superseded or cleaned-up read aborts its transport too.
+  const fetchUsers = useCallback(
+    async (signal: AbortSignal) => {
+      setLoading(true);
+      try {
+        const params: Record<string, string | number> = {
+          page,
+          page_size: pageSize,
+          sort_by: sortBy,
+          sort_order: sortOrder,
+        };
+        if (search) params.search = search;
 
-      const response = await apiClient.get<AdminUsageLimitsListResponse>(
-        '/usage-limits/admin/users',
-        { params }
-      );
-      setUsers(response.users);
-      setTotal(response.total);
-      setTotalPages(response.total_pages);
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 404) {
-        // Feature disabled (router not registered) — hide section
-        setFeatureDisabled(true);
-        return;
+        const response = await apiClient.get<AdminUsageLimitsListResponse>(
+          '/usage-limits/admin/users',
+          { params, signal }
+        );
+        if (signal.aborted) return;
+        setUsers(response.users);
+        setTotal(response.total);
+        setTotalPages(response.total_pages);
+      } catch (err) {
+        if (signal.aborted) return;
+        if (err instanceof ApiError && err.status === 404) {
+          // Feature disabled (router not registered) — hide section
+          setFeatureDisabled(true);
+          return;
+        }
+        logger.error('Failed to fetch usage limits', err as Error, {
+          component: 'AdminUsageLimitsSection',
+        });
+        toast.error(t('usage_limits.error.loading'));
+      } finally {
+        if (!signal.aborted) setLoading(false);
       }
-      logger.error('Failed to fetch usage limits', err as Error, {
-        component: 'AdminUsageLimitsSection',
-      });
-      toast.error(t('usage_limits.error.loading'));
-    } finally {
-      setLoading(false);
-    }
-  }, [page, pageSize, search, sortBy, sortOrder, t]);
+    },
+    [page, pageSize, search, sortBy, sortOrder, t]
+  );
 
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+  useEffectRequest(fetchUsers);
 
   // Search debounce
   const [searchInput, setSearchInput] = useState('');

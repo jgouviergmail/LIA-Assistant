@@ -12,6 +12,14 @@ from starlette.websockets import WebSocketState
 
 from src.core.client_ip import resolve_client_ip
 from src.core.config import settings
+from src.core.constants import (
+    WORLD_SOCKET_CLOSE_INTERNAL,
+    WORLD_SOCKET_CLOSE_NORMAL,
+    WORLD_SOCKET_CLOSE_POLICY,
+    WORLD_SOCKET_CLOSE_TRY_AGAIN,
+    WORLD_SOCKET_CLOSE_UNAUTHORIZED,
+    WORLD_SOCKET_CLOSE_UPGRADE_REQUIRED,
+)
 from src.core.exceptions import (
     AuthenticationError,
     AuthorizationError,
@@ -30,6 +38,7 @@ from src.domains.world.avatar_router import router as avatar_router
 from src.domains.world.collision import SCENE
 from src.domains.world.configuration import configured_store
 from src.domains.world.environment import router as environment_router
+from src.domains.world.experience_router import router as experience_router
 from src.domains.world.home_router import router as home_router
 from src.domains.world.lifecycle import purge_world_account_best_effort
 from src.domains.world.message_router import router as message_router
@@ -41,7 +50,11 @@ from src.domains.world.schemas import (
     TicketResponse,
 )
 from src.domains.world.service import WorldService
-from src.domains.world.store import WorldUnavailable
+from src.domains.world.socket_models import (
+    ClientProtocolUpgradeRequired,
+    require_socket_generation,
+)
+from src.domains.world.store import WorldIntegrityError, WorldUnavailable
 from src.domains.world.tickets import WorldTicket, WorldTickets, cookie_binding
 from src.domains.world.transport import (
     origin_allowed,
@@ -61,6 +74,7 @@ router.include_router(home_router)
 router.include_router(avatar_router)
 router.include_router(message_router)
 router.include_router(environment_router)
+router.include_router(experience_router)
 _ticket_limit = create_user_rate_limiter(
     "world_ticket", max_calls=6, authenticate=get_current_active_session_for_stream
 )
@@ -111,9 +125,27 @@ async def create_ticket(
 async def authenticate(
     socket: WebSocket, service: WorldService
 ) -> tuple[str, Identity, str | None]:
-    """Authenticate the first bounded socket frame against the current scene, cookie and one-use ticket."""
+    """Authenticate the first bounded socket frame against the current scene, cookie and one-use ticket.
+
+    Args:
+        socket: The accepted World socket.
+        service: The scene-scoped World service whose Redis holds the tickets.
+
+    Returns:
+        The native cookie, the authenticated World identity and the resume token.
+
+    Raises:
+        ClientProtocolUpgradeRequired: The frame declares another socket generation.
+        ValueError: The frame is not a valid current authentication frame, or names
+            another scene.
+        AuthenticationError: The ticket or cookie does not authenticate.
+        AuthorizationError: The account cannot publish a World identity.
+        RedisError: The ticket store cannot be reached.
+        TimeoutError: The authentication deadline expires.
+    """
     async with asyncio.timeout(settings.world_auth_timeout):
         text = await receive_text(socket, min(1024, settings.world_frame_bytes))
+        require_socket_generation(text)
         frame = AuthFrame.model_validate_json(text)
         if frame.scene != SCENE:
             raise ValueError("world_scene_mismatch")
@@ -179,11 +211,7 @@ async def _serve(socket: WebSocket) -> None:
         except BaseAPIException:
             # Explicit revocation releases this controller only. A normal network
             # loss keeps the bounded reconnect grace; stale owners cannot evict successors.
-            await service.store.update(
-                lambda state, now: service.authority.leave(
-                    state, identity.account_id, connection.controller
-                )
-            )
+            await service.revoke(connection)
             raise
         finally:
             with suppress(RedisError, WorldUnavailable, TimeoutError):
@@ -198,22 +226,35 @@ async def _serve(socket: WebSocket) -> None:
 
 @router.websocket("/ws")
 async def world_socket(socket: WebSocket) -> None:
-    """Serve the native World socket and map bounded failures to protocol close codes."""
-    code = 1000
+    """Serve the native World socket and map bounded failures to protocol close codes.
+
+    Another socket generation closes 4426 so the client reloads instead of retrying;
+    any other invalid client frame, the frame-rate refusal included, closes 1008; a
+    record the server itself produced invalid closes 1011 (the store already logged
+    and counted it).
+
+    Args:
+        socket: The incoming World socket.
+    """
+    code = WORLD_SOCKET_CLOSE_NORMAL
     try:
         await _serve(socket)
     except WebSocketDisconnect:
         return
+    except ClientProtocolUpgradeRequired:
+        code = WORLD_SOCKET_CLOSE_UPGRADE_REQUIRED
+    except WorldIntegrityError:
+        code = WORLD_SOCKET_CLOSE_INTERNAL
     except RedisError, WorldUnavailable, ClaimLost, TimeoutError:
-        code = 1013
+        code = WORLD_SOCKET_CLOSE_TRY_AGAIN
     except BaseAPIException:
-        code = 4401
+        code = WORLD_SOCKET_CLOSE_UNAUTHORIZED
     except ValueError:
-        code = 1008
+        code = WORLD_SOCKET_CLOSE_POLICY
     except Exception as exc:
         # Never stringify a frame/model validation error: it can contain private text.
         logger.error("world_connection_failed", error_type=type(exc).__name__)
-        code = 1011
+        code = WORLD_SOCKET_CLOSE_INTERNAL
     finally:
         if socket.application_state != WebSocketState.DISCONNECTED:
             with suppress(RuntimeError, WebSocketDisconnect):

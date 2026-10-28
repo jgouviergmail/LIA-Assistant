@@ -2,6 +2,9 @@ import { nightStrength } from './lighting';
 import { paintPondLife } from './pond';
 import { paintRoomMotion } from './room-motion';
 import type { Atmosphere } from '../atmosphere';
+import type { CosmeticFrame } from '../cosmetic-effects';
+import { paintBilliardBall } from './reactive-decor';
+import type { Season } from '../season';
 import { paintGardenMotion, paintScreenMotion } from './garden-motion';
 /** Tiny local decorative loops. No timers, network, user data or per-frame textures. */
 import { project } from '../geometry';
@@ -11,13 +14,16 @@ export function paintObjectMotion(
   prop: WorldProp,
   time: number,
   reduced: boolean,
-  atmosphere?: Atmosphere
+  atmosphere?: Atmosphere,
+  reaction?: CosmeticFrame,
+  season: Season = 'neutral'
 ): void {
+  if (prop.kind === 'billiards') paintBilliardBall(c, prop, reaction, reduced);
   paintRoomMotion(c, prop, time, reduced, atmosphere);
   if (!reduced) {
     if (prop.kind === 'pond')
       paintPondLife(c, prop, time, atmosphere ? nightStrength(atmosphere.phase) : 0);
-    paintGardenMotion(c, prop, time);
+    paintGardenMotion(c, prop, time, season);
     paintScreenMotion(c, prop, time);
   }
   if (prop.kind !== 'fountain') return;

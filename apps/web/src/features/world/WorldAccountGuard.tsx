@@ -7,6 +7,7 @@ import {
   useEffect,
   useEffectEvent,
   useMemo,
+  useState,
   type ReactNode,
 } from 'react';
 import { Button } from '@/components/ui/button';
@@ -49,6 +50,12 @@ export function WorldPrivateActivity({
   );
 }
 
+/** The active account a read names, or null when the body confirms nobody. */
+function activeAccountId(me: unknown): string | null {
+  if (typeof me !== 'object' || me === null || !('id' in me) || !('is_active' in me)) return null;
+  return typeof me.id === 'string' && me.is_active === true ? me.id : null;
+}
+
 /** A socket retains its handshake identity; HTTP cookies can change in another tab. */
 export function WorldAccountGuard({
   ownerId,
@@ -60,14 +67,22 @@ export function WorldAccountGuard({
   children: ReactNode;
 }) {
   const { t } = useTranslation(lng);
+  // The account the LAST completed read confirmed. A later read of the same
+  // account runs in the background: hiding the private subtree for it would
+  // tear down its effects (a streamed answer, a Live voice session) on every
+  // return of the focus. Only a read that fails or names another account
+  // withdraws the subtree; until a read confirms the owner it stays hidden.
+  const [confirmedOwner, setConfirmedOwner] = useState<string | null>(null);
   const identity = useApiQuery<{ id: string; is_active: boolean }>('/auth/me', {
     componentName: 'WorldAccountIdentity',
     deps: [ownerId],
+    onSuccess: me => setConfirmedOwner(activeAccountId(me)),
+    onError: () => setConfirmedOwner(null),
   });
   const { refetch } = identity;
   const changed =
     identity.data !== undefined && (identity.data.id !== ownerId || !identity.data.is_active);
-  const hidden = identity.loading || !!identity.error || changed;
+  const hidden = changed || !!identity.error || confirmedOwner !== ownerId;
   const verifyIdentity = useWorldVerificationFocus(hidden, changed, refetch);
   useWorldIdentityNotice(ownerId, verifyIdentity);
   // Read the committed identity even between a render and passive-effect cleanup.
@@ -98,8 +113,8 @@ export function WorldAccountGuard({
           {children}
         </div>
       )}
-      {identity.loading && <p role="status">{t('world.session.connecting')}</p>}
-      {!identity.loading && (changed || identity.error) && (
+      {hidden && identity.loading && <p role="status">{t('world.session.connecting')}</p>}
+      {!identity.loading && hidden && (
         <div role="alert" className="space-y-3 rounded-xl border border-border bg-background p-4">
           <p>{t(changed ? 'world.session.account_changed' : 'world.session.unavailable')}</p>
           <Button

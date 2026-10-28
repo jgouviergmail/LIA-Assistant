@@ -9,7 +9,7 @@ const { patchAxeTransfer } = require('./patch-axe-transfer.cjs');
 
 const entry = require.resolve('@axe-core/playwright', { paths: [process.cwd()] });
 const installedDirectory = path.dirname(path.dirname(entry));
-// These two upstream 4.10.2 function fragments reconstruct pristine TEMPORARY
+// These two upstream 4.13.0 function fragments reconstruct pristine TEMPORARY
 // copies after npm ci has patched the installed package. The patch's original
 // SHA-256 checks also verify that reconstruction before it can be used.
 const upstreamReceiver = `function chunkResultString(chunk) {
@@ -26,6 +26,7 @@ const upstreamTransfer = `    const sizeLimit = 6e7;
       if (result.length > sizeLimit) {
         return await chunkResults(result.substr(sizeLimit));
       }
+      return;
     }
     await chunkResults(partialString);
     return await blankPage.evaluate(axeFinishRun, {

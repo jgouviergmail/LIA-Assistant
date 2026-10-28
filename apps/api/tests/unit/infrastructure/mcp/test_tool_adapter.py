@@ -363,9 +363,17 @@ class TestMCPToolAdapterArun:
 
     @pytest.fixture(autouse=True)
     def authenticated_access(self):
+        from src.domains.agents.effects.treatments import treatment_collector
         from tests.helpers.mcp_access import installed_shared_mcp_access
 
-        with installed_shared_mcp_access() as actor, installed_runtime_context(user_id=actor.id):
+        # A real turn publishes its consultation register. Without one, every
+        # call reports a lost register and schedules an integrity write to the
+        # database that this test's loop teardown cuts mid-connection.
+        with (
+            installed_shared_mcp_access() as actor,
+            installed_runtime_context(user_id=actor.id),
+            treatment_collector(run_id="mcp-adapter-arun"),
+        ):
             yield
 
     @pytest.fixture

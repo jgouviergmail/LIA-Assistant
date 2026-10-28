@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { DashboardLink as Link } from '../DashboardNavigation';
 import { useRef, useState } from 'react';
 import { CalendarClock, Check, CircleSlash, Handshake, Pencil, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -13,7 +13,7 @@ import { haptic } from '@/lib/haptics';
 import { useAppConfig } from '@/hooks/useAppConfig';
 import { useOpenLoops, type OpenLoopPatch } from '@/hooks/useOpenLoops';
 import { chatDraftHref } from '@/lib/briefing-utils';
-import { openChatDeepLink } from '@/lib/chat-deep-link';
+import { useDashboardChat } from '../DashboardNavigation';
 import { settingsSectionHref } from '@/lib/settings-sections';
 import type { Language } from '@/i18n/settings';
 import type { CardSection, ForYouData } from '@/types/briefing';
@@ -45,6 +45,7 @@ export function ForYouCard({
   staggerIndex,
 }: ForYouCardProps) {
   const { i18n } = useTranslation();
+  const openChat = useDashboardChat();
   const lng = (i18n.language || 'fr').split('-')[0];
   return (
     <BriefingCard<ForYouData>
@@ -58,7 +59,7 @@ export function ForYouCard({
       renderContent={data => (
         <ForYouContent
           data={data}
-          onOpenChat={draft => openChatDeepLink(chatDraftHref(lng, draft))}
+          onOpenChat={draft => openChat(chatDraftHref(lng, draft))}
           onChanged={onInvalidate ?? onRefresh}
         />
       )}

@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback, useOptimistic, useTransition } from 'react';
+import { useEffectRequest } from '@/hooks/useEffectRequest';
+
+import { useState, useCallback, useOptimistic, useTransition } from 'react';
 import { toast } from 'sonner';
 import { Receipt, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -115,8 +117,11 @@ export default function AdminImagePricingSection({ lng }: BaseSettingsProps) {
   const [sortBy, setSortBy] = useState<SortColumn>('model');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
+  // Every read of the grid — the automatic one and the re-read after a change —
+  // belongs to one generation (`useEffectRequest`): a newer read aborts an older
+  // one, which then neither replaces the newer rows nor ends its loading state.
   const fetchEntries = useCallback(
-    async (signal?: AbortSignal) => {
+    async (signal: AbortSignal) => {
       setLoading(true);
       try {
         const params = new URLSearchParams({
@@ -132,10 +137,12 @@ export default function AdminImagePricingSection({ lng }: BaseSettingsProps) {
           `/admin/image-pricing/pricing?${params.toString()}`,
           { signal }
         );
+        if (signal.aborted) return;
         setEntries(response.entries);
         setTotal(response.total);
         setTotalPages(response.total_pages);
       } catch (error) {
+        if (signal.aborted) return;
         const err = error as { name?: string };
         if (err.name === 'AbortError' || err.name === 'CanceledError') return;
         logger.error('Failed to fetch image pricing', error as Error, {
@@ -143,19 +150,13 @@ export default function AdminImagePricingSection({ lng }: BaseSettingsProps) {
         });
         toast.error(t('settings.admin.image_pricing.errors.loading'));
       } finally {
-        setLoading(false);
+        if (!signal.aborted) setLoading(false);
       }
     },
     [page, pageSize, sortBy, sortOrder, searchQuery, t]
   );
 
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchEntries(controller.signal);
-    return () => {
-      controller.abort();
-    };
-  }, [fetchEntries]);
+  const refreshEntries = useEffectRequest(fetchEntries);
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
@@ -206,7 +207,7 @@ export default function AdminImagePricingSection({ lng }: BaseSettingsProps) {
         });
         if (result.success) {
           setShowAddModal(false);
-          await fetchEntries();
+          await refreshEntries();
           invalidateCatalogue('image_generation_options');
           toast.success(result.message!);
         } else {
@@ -238,7 +239,7 @@ export default function AdminImagePricingSection({ lng }: BaseSettingsProps) {
         const result = await updateImagePricing(pricingId, updatePayload);
         if (result.success) {
           setEditingEntry(null);
-          await fetchEntries();
+          await refreshEntries();
           invalidateCatalogue('image_generation_options');
           toast.success(result.message!);
         } else {

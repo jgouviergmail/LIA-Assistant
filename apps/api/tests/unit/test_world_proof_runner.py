@@ -1,9 +1,10 @@
 """The disposable proof must neither capture secrets nor remove shared resources."""
 
+import ast
 import importlib.util
 import tarfile
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from urllib.error import HTTPError
 
 import pytest
@@ -18,6 +19,51 @@ def load_runner() -> ModuleType:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def test_parallel_proof_instance_never_targets_default_resources(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = load_runner()
+    runner.configure_instance("interactions-01a17aa3")
+    assert runner.NETWORK == "lia-world-qa-interactions-01a17aa3"
+    assert runner.NAMES["api"] == "lia-world-qa-interactions-01a17aa3-api"
+    calls: list[tuple[str, ...]] = []
+
+    def docker(*args: str) -> str:
+        calls.append(args)
+        return '[{"Config":{"Labels":{"lia.task":"world-proof","lia.instance":"other"}}}]'
+
+    monkeypatch.setattr(runner, "docker", docker)
+    with pytest.raises(RuntimeError, match="ownership"):
+        runner.remove_owned(runner.NAMES["api"])
+    assert not any("rm" in call for call in calls)
+    assert all("lia-world-qa-api" not in call for call in calls)
+
+
+@pytest.mark.parametrize(
+    "instance", ["../outside", "a:b", "UPPER", "", "a" * 33, "access", "api", "postgres"]
+)
+def test_proof_instance_rejects_ambiguous_or_escaping_names(instance: str) -> None:
+    runner = load_runner()
+    with pytest.raises(ValueError, match="instance"):
+        runner.configure_instance(instance)
+
+
+def test_the_default_proof_refuses_an_instance_resource(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = load_runner()
+    calls: list[tuple[str, ...]] = []
+
+    def docker(*args: str) -> str:
+        calls.append(args)
+        return '[{"Labels":{"lia.task":"world-proof","lia.instance":"interactions-01a17aa3"}}]'
+
+    monkeypatch.setattr(runner, "docker", docker)
+    with pytest.raises(RuntimeError, match="ownership"):
+        runner.remove_owned(runner.ACCESS_NETWORK, "network")
+    assert not any("rm" in call for call in calls)
 
 
 def test_snapshot_refuses_secrets_and_outside_source_paths(tmp_path: Path) -> None:
@@ -108,3 +154,39 @@ def test_web_readiness_has_a_bounded_deadline(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr(runner.time, "monotonic", lambda: next(times))
     with pytest.raises(RuntimeError, match="did not become ready"):
         runner.wait_web("http://127.0.0.1:3012")
+
+
+@pytest.mark.parametrize("database", [0, 2, 14])
+def test_integration_always_selects_disposable_redis_database(
+    monkeypatch: pytest.MonkeyPatch, database: int
+) -> None:
+    runner = load_runner()
+    captured: list[str] = []
+
+    def docker(*args: str) -> str:
+        captured.append(args[-1])
+        return ""
+
+    monkeypatch.setattr(runner, "require_owned", lambda _: None)
+    monkeypatch.setattr(runner, "docker", docker)
+    runner.integration()
+    tree = ast.parse(captured[0])
+    assignment = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and isinstance(node.targets[0], ast.Subscript)
+        and isinstance(node.targets[0].slice, ast.Constant)
+        and node.targets[0].slice.value == "TEST_REDIS_URL"
+    )
+    expression = ast.Expression(assignment.value)
+    selected = eval(
+        compile(expression, "proof-redis-selection", "eval"),
+        {
+            "__builtins__": {},
+            "os": SimpleNamespace(
+                environ={"REDIS_URL": f"redis://world-proof-redis:6379/{database}"}
+            ),
+        },
+    )
+    assert selected == "redis://world-proof-redis:6379/15"

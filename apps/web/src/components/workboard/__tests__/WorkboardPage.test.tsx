@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen, userEvent } from '@/__tests__/test-utils';
 import { WorkboardPage } from '@/components/workboard/WorkboardPage';
-import type { TicketRow } from '@/types/workboard';
+import type { BoardFilters, TicketRow } from '@/types/workboard';
 
 const board = vi.hoisted(() => ({
   tickets: [] as TicketRow[],
@@ -29,7 +29,13 @@ const board = vi.hoisted(() => ({
   runNow: vi.fn(),
   remove: vi.fn(),
 }));
-vi.mock('@/hooks/useWorkboard', () => ({ useWorkboard: () => board }));
+const readBoard = vi.hoisted(() => vi.fn());
+vi.mock('@/hooks/useWorkboard', () => ({
+  useWorkboard: (filters: BoardFilters) => {
+    readBoard(filters);
+    return board;
+  },
+}));
 vi.mock('@/hooks/usePeerRecipients', () => ({ usePeerRecipients: () => [] }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'me' } }) }));
 vi.mock('@/hooks/useMediaQuery', () => ({ useMediaQuery: () => true }));
@@ -59,6 +65,20 @@ beforeEach(() => {
 });
 
 describe('before anything has been read', () => {
+  it('keeps a dashboard card filter in the embedded reader without rewriting the host URL', () => {
+    const filters: BoardFilters = {
+      assignee: 'lia',
+      sort: 'due',
+      overdue: true,
+      q: 'Selected ticket',
+      status: ['todo'],
+    };
+    renderWithProviders(<WorkboardPage lng="fr" embedded initialFilters={filters} />);
+    expect(screen.getByLabelText('workboard.filters.search')).toHaveValue('Selected ticket');
+    expect(readBoard).toHaveBeenLastCalledWith(filters);
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+  });
   it('shows a skeleton of the real geometry and announces the load', () => {
     board.firstLoad = true;
     const { container } = render();

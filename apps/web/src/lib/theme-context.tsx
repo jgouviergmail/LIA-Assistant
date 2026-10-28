@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useHydrated } from '@/hooks/useHydrated';
 
 import {
   COLOR_THEME_STORAGE_KEY,
@@ -24,18 +25,19 @@ const ThemeContext = React.createContext<ThemeContextValue | undefined>(undefine
 const STORAGE_KEY = COLOR_THEME_STORAGE_KEY;
 const DEFAULT_THEME: ThemeName = DEFAULT_COLOR_THEME;
 
-export function ColorThemeProvider({ children }: { children: React.ReactNode }) {
-  const [colorTheme, setColorThemeState] = React.useState<ThemeName>(DEFAULT_THEME);
-  const [mounted, setMounted] = React.useState(false);
-
-  // Load theme from localStorage on mount
-  React.useEffect(() => {
+function readColorTheme(): ThemeName {
+  try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (isColorThemeName(stored)) {
-      setColorThemeState(stored);
-    }
-    setMounted(true);
-  }, []);
+    return isColorThemeName(stored) ? stored : DEFAULT_THEME;
+  } catch {
+    return DEFAULT_THEME;
+  }
+}
+
+export function ColorThemeProvider({ children }: { children: React.ReactNode }) {
+  const mounted = useHydrated();
+  const [chosenTheme, setColorThemeState] = React.useState<ThemeName | null>(null);
+  const colorTheme = chosenTheme ?? (mounted ? readColorTheme() : DEFAULT_THEME);
 
   // Apply data-theme to the html element
   React.useEffect(() => {

@@ -166,7 +166,7 @@ def record_hallucination(
     Args:
         tool_name: The hallucinated tool name.
         domain: The domain context when hallucination occurred.
-        query: The user query (will be truncated for privacy).
+        query: The user query; only its length is kept, never its words.
         auto_add: If True, add as new exact_tool if not matched by patterns.
     """
     registry = _load_registry()
@@ -179,7 +179,7 @@ def record_hallucination(
     history_entry = {
         "tool": tool_name,
         "domain": domain,
-        "query_preview": query[:80] if query else "",
+        "query_chars": len(query) if query else 0,
         "timestamp": datetime.now(UTC).isoformat(),
         "was_new": not is_covered,
     }

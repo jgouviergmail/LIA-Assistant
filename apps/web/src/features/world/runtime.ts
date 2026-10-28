@@ -18,7 +18,20 @@ import type { Point, Quality, WorldDefinition, WorldSnapshot } from './types';
 import type { WorldDriver } from './shared-simulation';
 import type { HomeSkin } from './home-projection';
 import type { Atmosphere } from './atmosphere';
+import type { PrivateSignalPresentation } from './private-signal-projection';
+import type { WorldActingSource } from './useWorldActingSource';
+import { NEUTRAL_WORLD_ACTING, type WorldActingState } from './world-acting';
+import { conversationFocusOffset } from './conversation-layout';
+import type { Season } from './season';
+import type { CosmeticActionId } from './cosmetic-interactions';
+import { CosmeticController } from './cosmetic-controller';
+import { EMOTE_SECONDS, type EmoteKind, type EmoteOutcome } from './emote-catalogue';
+import type { PhotoScene } from './photo-projection';
 export interface WorldRuntime {
+  photoScene(): PhotoScene | null;
+  /** A private local gesture, refused like the server would refuse a shared one. */
+  emote(kind: EmoteKind): EmoteOutcome;
+  setSeason(season: Season): void;
   input: WorldInput;
   interact(): void;
   zoom(factor: number): void;
@@ -30,10 +43,15 @@ export interface WorldRuntime {
   setPaused(paused: boolean): void;
   setHome(skin: HomeSkin | null): void;
   setAtmosphere(value: Atmosphere): void;
+  setRouteVisible(value: boolean): void;
+  setPrivateSignals(value: readonly PrivateSignalPresentation[]): void;
+  setActingSource(source: WorldActingSource | undefined): void;
+  setConversationOpen(open: boolean): void;
   snapshot(): WorldSnapshot;
   destroy(): void;
 }
 interface Options {
+  onCosmeticCue?(action: CosmeticActionId, current: () => boolean, targetId: string): void;
   speech?: WorldSpeech;
   onInteract?(): void;
   scene?: SceneHost;
@@ -78,17 +96,27 @@ function mountRuntime(
   cleanups: Cleanup[]
 ): WorldRuntime {
   const sim = createSimulation(world);
-  const interactions = new SceneInteractions(sim, options.scene);
   const camera = createCamera({ width: 1, height: 1 }, world.spawn);
   const meter = new FrameMeter();
   const cadence = new PaintCadence();
   const renderer = new WorldRenderer(canvas, world, 'balanced', options.labels, options.speech);
   cleanups.push(() => renderer.destroy());
+  const cosmetics = new CosmeticController(sim, {
+    parent: options.scene,
+    networked: !!options.driver,
+    target: id => renderer.cosmeticTarget(id),
+    activate: id => renderer.activateCosmetic(id, camera, sim),
+    cancel: id => renderer.cancelCosmetic(id),
+    cue: (action, current, targetId) => options.onCosmeticCue?.(action, current, targetId),
+  });
+  cleanups.push(() => cosmetics.cancel());
+  const interactions = new SceneInteractions(sim, cosmetics);
+  cleanups.push(() => interactions.cancel());
   const pointer = new ScenePointer(
     canvas,
     point => renderer.pick(point, sim),
     interactions,
-    options.scene
+    cosmetics
   );
   cleanups.push(() => pointer.clear());
   let quality: Quality = 'balanced',
@@ -100,8 +128,15 @@ function mountRuntime(
     accumulator = 0,
     notified = 0;
   let walkAfterStand: { point: Point; running: boolean } | null = null;
+  let actingSource: WorldActingSource | undefined;
+  let conversationOpen = false;
+  let actingState: WorldActingState = 'idle';
+  let actingReadAt = -Infinity;
+  let localEmoteSerial = 0;
+  let localEmoteAfter = -Infinity;
   const stopMovement = () => {
     pointer.clear();
+    cosmetics.cancel();
     walkAfterStand = null;
     interactions.cancel();
     sim.player.path = [];
@@ -111,6 +146,7 @@ function mountRuntime(
   function interact(): void {
     if (paused || disposed) return;
     input.clear();
+    cosmetics.cancel();
     const target = interactions.nearest();
     if (target) interactions.choose(target);
     else options.onInteract?.();
@@ -129,12 +165,13 @@ function mountRuntime(
     hover: point => pointer.move(point),
     walk: (point, running = false) => {
       if (paused) return;
+      cosmetics.cancel();
       interactions.cancel();
       sim.player.running = false;
-      const picked = options.scene ? renderer.pick(point, sim) : null;
+      const picked = renderer.pick(point, sim);
       const target = picked && picked !== 'self' ? interactions.resolve(picked) : picked;
       if (target === 'self') return;
-      if (target && options.scene?.canOpen(target)) {
+      if (target && cosmetics.canOpen(target)) {
         if (interactions.choose(target)) camera.following = true;
         return;
       }
@@ -168,6 +205,7 @@ function mountRuntime(
   }
   function snapshot(): WorldSnapshot {
     return {
+      acting: actingState,
       player: { ...sim.player.position },
       bip: { ...sim.bip.position },
       zone: currentZone(sim),
@@ -176,7 +214,10 @@ function mountRuntime(
       bipFollowing: sim.bipFollowing,
       hover: paused ? null : pointer.value,
       nearby: paused ? null : interactions.nearest(),
-      metrics: meter.read(renderer.drawCount, renderer.textureBytes),
+      metrics: {
+        ...meter.read(renderer.drawCount, renderer.textureBytes),
+        cosmeticEffects: renderer.activeCosmeticEffects,
+      },
     };
   }
   function notify(): void {
@@ -202,6 +243,7 @@ function mountRuntime(
       walkAfterStand = null;
     }
     interactions.update();
+    cosmetics.update();
     pointer.update(now, camera);
   }
   function tick(now: number): void {
@@ -219,6 +261,7 @@ function mountRuntime(
     options.speech?.advance(sim, now, paused);
     if (camera.following) {
       const target = project(sim.player.position);
+      target.x += conversationFocusOffset(camera.width, camera.zoom, conversationOpen);
       target.y -= 28;
       const blend = options.reducedMotion ? 1 : Math.min(1, elapsed * 8);
       camera.center.x += (target.x - camera.center.x) * blend;
@@ -230,6 +273,12 @@ function mountRuntime(
     if (!cadence.due(now, paused ? 30 : quality === 'low' ? 30 : 0)) return;
     const begin = performance.now();
     try {
+      if (now - actingReadAt >= 100) {
+        const acting = actingSource?.(Date.now()) ?? NEUTRAL_WORLD_ACTING;
+        renderer.setActing(acting);
+        actingState = acting.state;
+        actingReadAt = now;
+      }
       renderer.render(camera, sim, pointer.prop);
     } catch {
       fail();
@@ -265,6 +314,7 @@ function mountRuntime(
   function destroy(): void {
     if (disposed) return;
     disposed = true;
+    actingSource = undefined;
     if (releaseResources(cleanups).length) options.onFailure?.();
   }
   function fail(): void {
@@ -274,7 +324,32 @@ function mountRuntime(
   resize();
   frame = requestAnimationFrame(tick);
   return {
+    photoScene: () => (disposed ? null : renderer.photoScene(sim, camera)),
+    emote: kind => {
+      const now = performance.now() / 1000;
+      if (disposed || paused || document.hidden || (options.driver && currentZone(sim) !== 'home'))
+        return 'unavailable';
+      if (now < localEmoteAfter) return 'rate_limited';
+      localEmoteAfter = now + EMOTE_SECONDS;
+      sim.player.emote = { kind, serial: ++localEmoteSerial, started: now, until: localEmoteAfter };
+      notify();
+      return 'accepted';
+    },
+    setSeason: value => {
+      if (!disposed) renderer.setSeason(value);
+    },
     input,
+    setConversationOpen: value => {
+      if (!disposed) conversationOpen = value;
+    },
+    setActingSource: value => {
+      if (disposed) return;
+      actingSource = value;
+      actingReadAt = -Infinity;
+    },
+    setPrivateSignals: value => {
+      if (!disposed) renderer.setPrivateSignals(value);
+    },
     interact,
     snapshot,
     zoom: factor => {
@@ -297,6 +372,7 @@ function mountRuntime(
     },
     callBip: () => {
       if (disposed) return;
+      if (sim.bipInteractionHeld) stopMovement();
       callBip(sim);
       notify();
     },
@@ -322,6 +398,9 @@ function mountRuntime(
     },
     setAtmosphere: value => {
       if (!disposed) renderer.setAtmosphere(value);
+    },
+    setRouteVisible: value => {
+      if (!disposed) renderer.showRoute = value;
     },
     destroy,
   };

@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createInstance } from 'i18next';
 import { I18nextProvider } from 'react-i18next';
@@ -252,5 +252,39 @@ describe('BriefingCard recovery focus', () => {
     await user.click(screen.getByRole('button', { name: en.dashboard.briefing.actions.retry }));
     rerenderCard({ ...cardProps, section: section() });
     expect(screen.getByRole('button', { name: 'Refresh Agenda' })).toHaveFocus();
+  });
+});
+
+describe('BriefingCard « just updated » badge', () => {
+  it('says « updated » once a refresh completes, then dates the data again', async () => {
+    const cardProps = props();
+    const { rerenderCard } = await renderCard(cardProps);
+    const badge = en.dashboard.briefing.synthesis_updated_badge;
+    vi.useFakeTimers();
+    try {
+      rerenderCard({ ...cardProps, isRefreshing: true });
+      expect(screen.queryByText(badge)).not.toBeInTheDocument();
+
+      rerenderCard({ ...cardProps, isRefreshing: false });
+
+      expect(screen.getByText(badge)).toBeInTheDocument();
+      act(() => vi.advanceTimersByTime(1599));
+      expect(screen.getByText(badge)).toBeInTheDocument();
+      act(() => vi.advanceTimersByTime(1));
+      expect(screen.queryByText(badge)).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('never says « updated » for a card that was not refreshed', async () => {
+    const cardProps = props();
+    const { rerenderCard } = await renderCard(cardProps);
+
+    rerenderCard({ ...cardProps, section: section({ generated_at: '2026-10-15T06:05:00Z' }) });
+
+    expect(
+      screen.queryByText(en.dashboard.briefing.synthesis_updated_badge)
+    ).not.toBeInTheDocument();
   });
 });

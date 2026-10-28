@@ -113,7 +113,7 @@ test('standalone: native menu, five server clients and per-device rendering', as
       profile,
       browserName,
       viewport: page.viewportSize(),
-      zoom: await page.locator('[data-world-zoom]').innerText(),
+      zoom: (await page.locator('[data-world-zoom]').textContent())?.trim() ?? null,
       fps,
       textures: await page.locator('.world-metrics dd').nth(3).innerText(),
       frameP95: await page.locator('[data-world-frame]').innerText(),
@@ -149,6 +149,12 @@ test('standalone: native menu, five server clients and per-device rendering', as
     await page.setViewportSize({ width: 390, height: 844 });
     stage = 'phone controls';
     await revealWorldControls(page);
+    await page.getByRole('button', { name: t('world.help'), exact: true }).click();
+    await page.getByRole('combobox', { name: t('world.quality') }).selectOption('balanced');
+    await page.getByRole('button', { name: t('world.play'), exact: true }).click();
+    await page.getByRole('button', { name: t('world.metrics'), exact: true }).click();
+    await sample(page, 'phone viewport, balanced quality');
+    await page.getByRole('button', { name: t('world.close_metrics'), exact: true }).click();
     for (const button of await page.locator('.world-session-strip').getByRole('button').all()) {
       if (await button.isEnabled()) await button.click({ trial: true });
     }
@@ -169,7 +175,8 @@ test('standalone: native menu, five server clients and per-device rendering', as
           enabled: true,
           maxTouchPoints: 2,
         });
-        const zoom = await page.locator('[data-world-zoom]').innerText();
+        const zoom = (await page.locator('[data-world-zoom]').textContent())?.trim() ?? '';
+        expect(zoom).toMatch(/^\d+%$/);
         expect(
           await page
             .locator('canvas.world-canvas')
@@ -185,7 +192,8 @@ test('standalone: native menu, five server clients and per-device rendering', as
           touchPoints: [touch(110, 1), touch(260, 2)],
         });
         await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-        await expect(page.locator('[data-world-zoom]')).not.toHaveText(zoom);
+        const expectedZoom = Math.round((Number.parseInt(zoom, 10) * 150) / 90);
+        await expect(page.locator('[data-world-zoom]')).toHaveText(`${expectedZoom}%`);
         await revealWorldControls(page);
         await page.getByRole('button', { name: t('world.metrics'), exact: true }).click();
         await client.send('Emulation.setCPUThrottlingRate', { rate: 4 });

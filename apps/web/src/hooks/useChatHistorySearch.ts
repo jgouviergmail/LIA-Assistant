@@ -15,7 +15,7 @@
  *   wraps its send handler with `ensurePresent`.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 import { useDebounce } from '@/hooks/useDebounce';
 import type {
@@ -115,13 +115,15 @@ export function useChatHistorySearch(
 
   // A new (debounced) term invalidates any open results — the panel reruns on
   // demand rather than firing a request per keystroke.
-  useEffect(() => {
+  const [resultsTerm, setResultsTerm] = useState(debouncedQuery);
+  if (resultsTerm !== debouncedQuery) {
+    setResultsTerm(debouncedQuery);
     setPanelOpen(false);
     setServerResults([]);
     setServerHasMore(false);
     setServerCursor(null);
     setServerError(false);
-  }, [debouncedQuery]);
+  }
 
   const fetchServerPage = useCallback(
     async (before?: string) => {

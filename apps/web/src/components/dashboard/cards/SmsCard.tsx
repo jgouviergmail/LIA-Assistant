@@ -1,4 +1,5 @@
 'use client';
+import { useDashboardRoute } from '../DashboardNavigation';
 import { MessageSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
@@ -32,6 +33,7 @@ export function SmsCard({ section, isRefreshing, onRefresh, staggerIndex }: Prop
 function SmsContent({ data }: { data: SmsData }) {
   const { t, i18n } = useTranslation();
   const router = useLocalizedRouter();
+  const navigate = useDashboardRoute(router.push);
   const candidate = (i18n.language || fallbackLng).split('-')[0];
   const lng = isLanguage(candidate) ? candidate : fallbackLng;
   const dates = new Intl.DateTimeFormat(getIntlLocale(lng), {
@@ -63,9 +65,7 @@ function SmsContent({ data }: { data: SmsData }) {
               ariaLabel={`${t('sms.open_message')} · ${item.display_name} · ${date}`}
               tooltip={`${excerpt}\n${sender}`}
               onSelect={() =>
-                router.push(
-                  `/dashboard/settings?section=sms&message=${encodeURIComponent(item.id)}`
-                )
+                navigate(`/dashboard/settings?section=sms&message=${encodeURIComponent(item.id)}`)
               }
               contentClassName="flex flex-col gap-1.5 leading-snug"
             >

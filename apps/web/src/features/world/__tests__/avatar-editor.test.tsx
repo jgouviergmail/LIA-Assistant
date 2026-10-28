@@ -3,6 +3,7 @@ import { expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/api-client';
 import { WorldAvatarEditor } from '../WorldAvatarEditor';
 import { DEFAULT_AVATAR, type AvatarView, type AvatarWrite } from '../avatar-protocol';
+import { AVATAR_PRESETS } from '../avatar-presets';
 
 vi.mock('@/i18n/client', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('../WorldAvatarPreview', () => ({
@@ -16,6 +17,42 @@ const initial: AvatarView = {
   needs_reset: false,
   preferences: { version: 1, revision: 0, appearance: DEFAULT_AVATAR },
 };
+it('previews every preset without publishing, allows custom edits and saves through the existing revision contract', async () => {
+  const save = vi.fn(async (write: AvatarWrite) => ({
+    ...initial,
+    preferences: { ...initial.preferences, appearance: write.appearance },
+  }));
+  render(
+    <WorldAvatarEditor
+      lng="en"
+      initial={{ ...initial, needs_setup: false }}
+      saving={false}
+      save={save}
+      refresh={vi.fn()}
+      onSaved={vi.fn()}
+    />
+  );
+  const picker = screen.getByRole('combobox', { name: 'world.avatar.presets.label' });
+  for (const preset of AVATAR_PRESETS) {
+    fireEvent.change(picker, { target: { value: preset.id } });
+    expect(screen.getByRole('combobox', { name: 'world.avatar.hair' })).toHaveValue(
+      preset.appearance.hair
+    );
+    expect(save).not.toHaveBeenCalled();
+  }
+  fireEvent.change(screen.getByRole('combobox', { name: 'world.avatar.skin' }), {
+    target: { value: 'porcelain' },
+  });
+  expect(picker).toHaveValue('custom');
+  fireEvent.click(screen.getByRole('button', { name: 'world.home.save' }));
+  await waitFor(() => expect(save).toHaveBeenCalledOnce());
+  expect(save.mock.calls[0][0]).toMatchObject({
+    expected_revision: 0,
+    appearance: { ...AVATAR_PRESETS[9].appearance, skin: 'porcelain' },
+    consent: true,
+  });
+  expect(save.mock.calls[0][0]).not.toHaveProperty('preset');
+});
 it('keeps the focused save control reachable and freezes edits while saving', () => {
   const props = {
     lng: 'en' as const,

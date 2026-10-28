@@ -5,13 +5,16 @@ import { CloudFog, CloudRain, Moon, Snowflake, Sun } from 'lucide-react';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import type { Atmosphere } from './atmosphere';
+import { seasonAt, type Season } from './season';
 
 export const WorldSkyBadge = memo(function WorldSkyBadge({
   lng,
   atmosphere,
+  season = seasonAt(atmosphere.time, atmosphere.timezone, 'calendar', 'north'),
 }: {
   lng: Language;
   atmosphere: Atmosphere;
+  season?: Season;
 }) {
   const { t } = useTranslation(lng);
   const clock = useMemo(
@@ -55,6 +58,7 @@ export const WorldSkyBadge = memo(function WorldSkyBadge({
         </time>
       )}
       <span className="truncate">{t('world.atmosphere.' + atmosphere.phase)}</span>
+      {season !== 'neutral' && <span>· {t('world.seasons.' + season)}</span>}
     </div>
   );
 });

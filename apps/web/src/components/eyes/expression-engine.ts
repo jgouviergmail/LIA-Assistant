@@ -71,6 +71,16 @@ export interface ExpressionFrame {
   /** Directed gaze, or null to leave the gaze to the idle drift/parallax. */
   gaze: Gaze | null;
 }
+const SLEEP_EXPRESSIONS: ReadonlySet<EyeExpression> = new Set(['tired', 'sleepy', 'sleep']);
+/** Shared sleep policy for native DOM and Canvas hosts. */
+export function sleepPolicyFrame(
+  frame: ExpressionFrame,
+  allowSleep: boolean | undefined
+): ExpressionFrame {
+  return allowSleep === false && SLEEP_EXPRESSIONS.has(frame.expression)
+    ? { expression: 'neutral', gaze: null }
+    : frame;
+}
 
 /** 0 = active, 1 = drowsy, 2 = sleepy, 3 = asleep. */
 export type InactivityStage = 0 | 1 | 2 | 3;

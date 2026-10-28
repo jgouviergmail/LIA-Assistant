@@ -18,6 +18,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createStore } from 'zustand/vanilla';
+import { useStore } from 'zustand';
 import { useSmsNotificationSignals } from '@/hooks/useSmsNotificationSignals';
 import type { SmsReceivedSignal } from '@/lib/sms/notification';
 import { z } from '@/lib/zod';
@@ -322,8 +324,24 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
 
   const { receiveSms, refreshSms } = useSmsNotificationSignals(ownerId, onSmsReceived);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [isConnected, setIsConnected] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Connection status belongs to the external transport, per hook lifetime.
+  // Its store preserves immediate setup/closure without effect-driven React copies.
+  const [connection] = useState(() =>
+    createStore<{ isConnected: boolean; error: string | null }>(() => ({
+      isConnected: false,
+      error: null,
+    }))
+  );
+  const isConnected = useStore(connection, state => state.isConnected);
+  const error = useStore(connection, state => state.error);
+  const setIsConnected = useCallback(
+    (value: boolean) => connection.setState({ isConnected: value }),
+    [connection]
+  );
+  const setError = useCallback(
+    (value: string | null) => connection.setState({ error: value }),
+    [connection]
+  );
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -332,12 +350,14 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
   const clearNotifications = useCallback(() => {
     setNotifications(previous => (previous.length ? [] : previous));
   }, []);
+  const [authentication, setAuthentication] = useState(isAuthenticated);
+  if (authentication !== isAuthenticated) {
+    setAuthentication(isAuthenticated);
+    if (!isAuthenticated) setNotifications([]);
+  }
   useEffect(() => {
-    if (!isAuthenticated) {
-      sessionRevokedRef.current = false;
-      clearNotifications();
-    }
-  }, [isAuthenticated, clearNotifications]);
+    if (!isAuthenticated) sessionRevokedRef.current = false;
+  }, [isAuthenticated]);
   // Closed while hidden (evicted by a newer stream, or dropped): resume on
   // the next visibility rather than retry for a tab nobody looks at.
   const resumeWhenVisibleRef = useRef(false);
@@ -538,7 +558,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
       });
       setError('Failed to connect to notification server');
     }
-  }, [addNotification, receiveSms, refreshSms]);
+  }, [addNotification, receiveSms, refreshSms, setIsConnected, setError]);
 
   /**
    * Disconnect SSE.
@@ -558,22 +578,15 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     reconnectAttempts.current = 0;
     resumeWhenVisibleRef.current = false;
     droppedRef.current = false;
-  }, []);
+  }, [setIsConnected]);
 
   // Setup SSE connection (only when authenticated)
   useEffect(() => {
     if (!enableSSE) return;
-    if (!isAuthenticated) {
-      // Not authenticated yet - don't connect
-      disconnectSSE();
-      return;
-    }
-
+    // The previous effect's cleanup already closes a revoked transport.
+    if (!isAuthenticated) return;
     connectSSE();
-
-    return () => {
-      disconnectSSE();
-    };
+    return () => disconnectSSE();
   }, [enableSSE, isAuthenticated, connectSSE, disconnectSSE]);
 
   // Resume a stream closed while hidden when the tab returns to the

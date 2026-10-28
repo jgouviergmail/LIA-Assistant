@@ -927,6 +927,7 @@ class AccountDeletionService:
         user.sms_preferences = None
         user.world_preferences = None
         user.world_avatar_preferences = None
+        user.world_experience_preferences = None
         user.ingestion_key_encrypted = None
         user.deleted_at = datetime.now(UTC)
         user.deleted_reason = reason

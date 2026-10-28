@@ -119,7 +119,7 @@ describe('ScreenshotsSection', () => {
     expect(screen.getByRole('button', { name: 'common.expand_image' })).toHaveFocus();
   });
 
-  it('reaches the added application views by keyboard and keeps their campaign revision in full screen', async () => {
+  it('reaches the last application view by keyboard and keeps its campaign revision in full screen', async () => {
     const user = userEvent.setup();
     render(<ScreenshotsSection />);
 
@@ -127,13 +127,12 @@ describe('ScreenshotsSection', () => {
     carousel.focus();
     await user.keyboard('{End}');
 
-    const src = `/screenshots/proof/journal.png?v=${extendedProof.revision}`;
-    expect(screen.getByRole('img', { name: 'landing.screenshots.proof.journal' })).toHaveAttribute(
-      'src',
-      src
-    );
+    const src = `/screenshots/proof/administration.png?v=${applicationProof.revision}`;
     expect(
-      screen.getByRole('button', { name: 'landing.screenshots.proof.journal' })
+      screen.getByRole('img', { name: 'landing.screenshots.proof.administration' })
+    ).toHaveAttribute('src', src);
+    expect(
+      screen.getByRole('button', { name: 'landing.screenshots.proof.administration' })
     ).toHaveAttribute('aria-current', 'true');
     await user.click(screen.getByRole('button', { name: 'common.expand_image' }));
     expect(within(screen.getByRole('dialog')).getByRole('img')).toHaveAttribute('src', src);

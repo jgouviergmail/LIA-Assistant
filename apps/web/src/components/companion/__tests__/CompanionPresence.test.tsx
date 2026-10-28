@@ -16,6 +16,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderWithProviders, screen, act, waitFor } from '@/__tests__/test-utils';
 import { usePsycheStore } from '@/stores/psycheStore';
 import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
+import { useCompanionActivityStore } from '@/stores/companionActivityStore';
 import type { NotificationType } from '@/hooks/useNotifications';
 
 const { push, pathname } = vi.hoisted(() => ({
@@ -302,4 +303,27 @@ it('keeps owned SMS reception alive when its avatar is minimized', async () => {
   await screen.findByRole('button', { name: AVATAR });
   await user.click(screen.getByRole('button', { name: MINIMIZE }));
   expect(notifications.calls.at(-1)?.enableSSE).toBe(true);
+});
+
+it('publishes fresh owner samples from its existing single poll and rejects a late result after disposal', async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(1000);
+  useCompanionActivityStore.getState().bindOwner('owner');
+  fetchActiveRun.mockResolvedValue({ active: true });
+  const view = renderWithProviders(<CompanionPresence isAuthenticated ownerId="owner" />);
+  await act(async () => {});
+  expect(fetchActiveRun).toHaveBeenCalledTimes(1);
+  expect(useCompanionActivityStore.getState().sample).toEqual({ working: true, at: 1000 });
+  await act(async () => vi.advanceTimersByTimeAsync(6000));
+  expect(fetchActiveRun).toHaveBeenCalledTimes(2);
+  expect(useCompanionActivityStore.getState().sample).toEqual({ working: true, at: 7000 });
+  const pending = Promise.withResolvers<{ active: boolean }>();
+  fetchActiveRun.mockReturnValueOnce(pending.promise);
+  await act(async () => vi.advanceTimersByTimeAsync(6000));
+  expect(fetchActiveRun).toHaveBeenCalledTimes(3);
+  view.unmount();
+  expect(useCompanionActivityStore.getState().sample).toBeNull();
+  await act(async () => pending.resolve({ active: true }));
+  expect(useCompanionActivityStore.getState().sample).toBeNull();
+  useCompanionActivityStore.getState().bindOwner(null);
 });

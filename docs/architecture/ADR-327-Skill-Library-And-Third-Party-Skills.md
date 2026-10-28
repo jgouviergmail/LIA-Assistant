@@ -448,3 +448,12 @@ recreated during an open stream (the operator's own restart), not a defect.
 ## Amendment 2026-10-19: recipient-owned peer copies
 
 [ADR-350](ADR-350-Peer-Capability-Copies-Without-Credentials.md) records the explicitly accepted exception: a peer skill installed disabled, including a plugin child, follows the recipient-authored policy after activation. The grant derives only from server-written provenance; ordinary third-party imports retain the policy above.
+
+## Amendment: the sandbox's Node stage moves to Node 26 (2026-10-28)
+
+The pinned official stage now builds from `node:26.10.0-bookworm-slim` (version and digest),
+with `libatomic1` installed for the Node 26 binary; the API image ships the same version for
+its CLI tools, while the web image and CI keep their Node 24 line. The `NODE_USE_ENV_PROXY`
+and offline-npm measurements above were taken on Node 24; `task sandbox:libraries:check`
+re-runs every declared command against the built image, so the rule they support is proven
+on the version that ships rather than assumed.

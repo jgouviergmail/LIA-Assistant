@@ -19,6 +19,7 @@ from uuid import UUID, uuid4
 import pytest
 from langgraph.prebuilt.tool_node import ToolRuntime
 
+from src.domains.agents.effects.treatments import treatment_collector
 from src.domains.agents.tools import (
     get_contact_details_tool,
     list_contacts_tool,
@@ -39,8 +40,15 @@ def _run_context():
     reads the acting user from the run-context ContextVar. Without this, every
     tool call here logged `auto_save_failed_missing_user_id` and silently stopped
     saving anything — the assertions still passed, on half the work.
+
+    A turn also publishes its consultation register (ADR-263): without it every
+    call logged `treatment_register_not_open` and scheduled an integrity write to
+    the real database.
     """
-    with installed_runtime_context(user_id=UUID(TEST_USER_ID)) as context:
+    with (
+        installed_runtime_context(user_id=UUID(TEST_USER_ID)) as context,
+        treatment_collector(run_id="google-contacts-tools"),
+    ):
         yield context
 
 
@@ -162,6 +170,11 @@ def mock_registry():
         "address": "addresses",
         "addresses": "addresses",
     }
+    # The effect gate asks the same registry for the tool's mutation policy. These
+    # legacy readers have no catalogue manifest, so they declare none and pass
+    # through (``decide_effect``); left to the MagicMock, the policy read as
+    # unreadable (``effect_policy_unreadable``) once a registration had gated them.
+    mock_manifest.mutation_policy = None
     mock_registry_instance.get_tool_manifest.return_value = mock_manifest
 
     # Patch at source module since it's a local import inside normalize_field_names

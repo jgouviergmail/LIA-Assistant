@@ -13,6 +13,7 @@ from langgraph.store.memory import InMemoryStore
 from pydantic import ValidationError
 
 from src.domains.agents.application.interest_detail_schemas import InterestDetailRead
+from src.domains.agents.effects.treatments import treatment_collector
 from src.domains.agents.tools.application_interest_tools import get_lia_interest_details_tool
 from src.domains.interests.explainability import explain_interest
 from src.domains.interests.schemas import InterestExplanation
@@ -50,8 +51,11 @@ async def test_corrupt_stored_details_are_not_reported_as_bad_user_selection() -
     async def session() -> AsyncIterator[object]:
         yield object()
 
+    # A real turn publishes its consultation register; once a registration has
+    # gated this tool, a call without one schedules a real database write.
     with (
         installed_runtime_context(user_id=owner),
+        treatment_collector(run_id="interest-details-tool"),
         patch("src.domains.agents.tools.application_interest_tools.get_db_context", session),
         patch(
             "src.domains.agents.tools.application_interest_tools.read_interest_details",

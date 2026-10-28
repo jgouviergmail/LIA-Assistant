@@ -1,7 +1,8 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useCompanionActivityStore } from '@/stores/companionActivityStore';
 import { usePathname } from 'next/navigation';
 import { useEyesChatStore, RESTING_CHAT } from '@/stores/eyesChatStore';
 import { CompanionPresence, isChatRoute } from '@/components/companion/CompanionPresence';
@@ -22,6 +23,14 @@ export function ApplicationEyes({
   hidePresentation?: boolean;
 }) {
   useAvatarStyleRollout();
+  useEffect(() => {
+    const store = useCompanionActivityStore.getState();
+    store.bindOwner(ownerId ?? null);
+    return () => {
+      if (useCompanionActivityStore.getState().ownerId === ownerId)
+        useCompanionActivityStore.getState().bindOwner(null);
+    };
+  }, [ownerId]);
   const onChat = isChatRoute(usePathname());
   const state = useEyesChatStore(store => store.state);
   const [backgroundWorking, setBackgroundWorking] = useState(false);

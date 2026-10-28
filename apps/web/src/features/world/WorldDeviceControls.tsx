@@ -1,7 +1,15 @@
 'use client';
 import { WorldSoundWidget } from './WorldSoundWidget';
 import type { WorldSoundControl } from './useWorldSound';
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import {
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type Ref,
+  type RefObject,
+  type ReactNode,
+} from 'react';
 import dynamic from 'next/dynamic';
 import {
   Bell,
@@ -23,17 +31,19 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
-import { useNotifications, type Notification } from '@/hooks/useNotifications';
-import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
+import type { Notification } from '@/hooks/useNotifications';
 import { useSettingsAvailability } from '@/hooks/useSettingsAvailability';
-import { useAppConfig } from '@/hooks/useAppConfig';
 import { useRadioCommand } from '@/components/radio/RadioControl';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
-import type { SmsReceivedSignal } from '@/lib/sms/notification';
 import { WorldPrivateActivity } from './WorldAccountGuard';
-import { DeviceInbox, type DeviceNotice } from './device-inbox';
+import type { DeviceNotice } from './device-inbox';
 import type { SceneActivity } from './activity-catalogue';
+import { useWorldPrivateSignals, type WorldPrivateSignalsControl } from './useWorldPrivateSignals';
+import { WorldSignalActions } from './WorldSignalActions';
+export interface WorldDeviceHandle {
+  openNotice(key: string): boolean;
+}
 const WeatherPanel = dynamic(() => import('./WorldWeatherPanel').then(m => m.WorldWeatherPanel), {
   ssr: false,
 });
@@ -42,6 +52,10 @@ const FocusedSms = dynamic(
   { ssr: false }
 );
 interface Props {
+  extras?: ReactNode;
+  signals?: WorldPrivateSignalsControl;
+  deviceRef?: Ref<WorldDeviceHandle>;
+  onSignal?: (propId: string) => boolean;
   sound?: WorldSoundControl;
   lng: Language;
   ownerId: string;
@@ -52,7 +66,15 @@ interface Props {
   onProactive?(notice: Notification): void;
 }
 export function WorldDeviceControls(props: Props) {
-  return <OwnedWorldDeviceControls key={props.ownerId} {...props} />;
+  return props.signals ? (
+    <OwnedWorldDeviceControls key={props.ownerId} {...props} signals={props.signals} />
+  ) : (
+    <ConnectedDeviceControls key={props.ownerId} {...props} />
+  );
+}
+function ConnectedDeviceControls(props: Props) {
+  const signals = useWorldPrivateSignals(props.ownerId, props.enabled, props.onProactive);
+  return <OwnedWorldDeviceControls {...props} signals={signals} />;
 }
 function OwnedWorldDeviceControls({
   lng,
@@ -61,44 +83,37 @@ function OwnedWorldDeviceControls({
   interactive,
   onOpen,
   onActivity,
-  onProactive,
+  signals,
+  onSignal,
+  deviceRef,
   sound,
-}: Props) {
+  extras,
+}: Props & { signals: WorldPrivateSignalsControl }) {
   const { t } = useTranslation(lng),
-    { user } = useAuth(),
-    { config } = useAppConfig();
+    { user } = useAuth();
   const availability = useSettingsAvailability(),
-    authorized = enabled && user?.id === ownerId && user.is_active;
-  const { isCurrent } = useApplicationAccountLifetime(authorized ? ownerId : undefined);
-  const inbox = useMemo(() => new DeviceInbox(ownerId), [ownerId]);
-  const [entries, setEntries] = useState<readonly DeviceNotice[]>([]),
-    [open, setOpen] = useState(false);
+    authorized =
+      enabled &&
+      user?.id === ownerId &&
+      user.is_active &&
+      signals.authorized &&
+      signals.lifetime.ownerId === ownerId;
+  const { entries, smsEnabled } = signals;
+  const [open, setOpen] = useState(false);
   const [forecast, setForecast] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
-  const smsEnabled = config?.features.sms_enabled === true;
-  const receiveSms = useCallback(
-    (signal: SmsReceivedSignal) => {
-      if (isCurrent() && smsEnabled && inbox.receiveSms(signal)) setEntries(inbox.snapshot());
+  useImperativeHandle(deviceRef, () => ({
+    openNotice(key) {
+      if (!authorized || !interactive || !signals.read(key)) return false;
+      setSelected(key);
+      setExpanded(false);
+      setOpen(true);
+      return true;
     },
-    [isCurrent, smsEnabled, inbox]
-  );
-  const receiveReminder = useCallback(
-    (n: Notification) => {
-      if (!isCurrent()) return;
-      if (n.type.startsWith('proactive_')) onProactive?.(n);
-      if (inbox.receiveReminder(n, performance.now())) setEntries(inbox.snapshot());
-    },
-    [isCurrent, inbox, onProactive]
-  );
-  useNotifications({
-    ownerId: authorized ? ownerId : undefined,
-    isAuthenticated: authorized,
-    onSmsReceived: receiveSms,
-    onNotification: receiveReminder,
-  });
+  }));
   const radio = useRadioCommand(authorized && availability.radioEnabled);
-  const visible = authorized && [open, forecast, expanded].some(Boolean);
+  const visible = authorized && [open, forecast].some(Boolean);
   useEffect(() => {
     onOpen(visible);
     return () => onOpen(false);
@@ -116,6 +131,8 @@ function OwnedWorldDeviceControls({
   return (
     <>
       <DeviceToolbar
+        extras={extras}
+        connected={signals.connected}
         lng={lng}
         radio={radio}
         sound={sound}
@@ -172,11 +189,27 @@ function OwnedWorldDeviceControls({
               onBack={() => setSelected(null)}
               activate={activate}
               onRead={key => {
-                inbox.read(key);
-                setEntries(inbox.snapshot());
-                setSelected(key);
+                if (signals.read(key)) setSelected(key);
               }}
             />
+            <WorldSignalActions
+              lng={lng}
+              signals={signals.signals}
+              onSelect={
+                onSignal
+                  ? propId => {
+                      if (!onSignal(propId)) return false;
+                      setOpen(false);
+                      return true;
+                    }
+                  : undefined
+              }
+            />
+            {signals.remindersUncertain && (
+              <p role="status" className="text-sm text-muted-foreground">
+                {t('world.signals.reminders_gap')}
+              </p>
+            )}
           </DialogContent>
         </Dialog>
         <Dialog open={forecast} onOpenChange={setForecast}>
@@ -200,6 +233,8 @@ function OwnedWorldDeviceControls({
 }
 
 function DeviceToolbar({
+  extras,
+  connected,
   sound,
   lng,
   radio,
@@ -211,6 +246,8 @@ function DeviceToolbar({
   expanded,
   onExpanded,
 }: {
+  extras?: ReactNode;
+  connected: boolean;
   lng: Language;
   radio: ReturnType<typeof useRadioCommand>;
   sound?: WorldSoundControl;
@@ -242,6 +279,7 @@ function DeviceToolbar({
       </Button>
       <div
         className="world-device-controls rounded-xl border bg-background/95 p-1 shadow-lg"
+        data-notifications-connected={connected}
         role="group"
         aria-label={t('world.device.tools')}
       >
@@ -309,6 +347,7 @@ function DeviceToolbar({
           <span className="world-device-label">{t('world.device.weather_short')}</span>
         </Button>
         {sound && <WorldSoundWidget lng={lng} sound={sound} />}
+        {extras}
         <ThemeToggle />
       </div>
     </div>
@@ -323,7 +362,10 @@ function useToolDismissal(
   useEffect(() => {
     if (!expanded) return;
     const dismiss = (event: PointerEvent) => {
-      if (event.target instanceof Element && event.target.closest('[data-world-sound-panel]'))
+      if (
+        event.target instanceof Element &&
+        event.target.closest('[data-world-sound-panel], [data-world-native-panel]')
+      )
         return;
       if (event.target instanceof Node && !shell.current?.contains(event.target)) onExpanded(false);
     };

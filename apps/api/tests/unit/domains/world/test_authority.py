@@ -130,7 +130,7 @@ def test_motion_is_time_bounded_idempotent_and_cannot_cross_solids() -> None:
 def test_motion_rejects_nonfinite_coerced_and_extra_fields(payload: dict[str, object]) -> None:
     with pytest.raises(ValidationError):
         MoveCommand.model_validate(
-            {"type": "move", "version": 1, "seq": 1, "epoch": str(uuid4()), **payload}
+            {"type": "move", "version": 2, "seq": 1, "epoch": str(uuid4()), **payload}
         )
 
 
@@ -169,7 +169,7 @@ def test_run_intent_is_a_strict_boolean(invalid: object) -> None:
         MoveCommand.model_validate(
             {
                 "type": "move",
-                "version": 1,
+                "version": 2,
                 "seq": 1,
                 "dx": 0.0,
                 "dy": 1.0,
@@ -180,6 +180,6 @@ def test_run_intent_is_a_strict_boolean(invalid: object) -> None:
 
 
 def test_running_wire_intent_is_optional_and_accepted_when_explicit() -> None:
-    wire = {"type": "move", "version": 1, "seq": 1, "dx": 0.0, "dy": 1.0, "epoch": str(uuid4())}
+    wire = {"type": "move", "version": 2, "seq": 1, "dx": 0.0, "dy": 1.0, "epoch": str(uuid4())}
     assert not MoveCommand.model_validate(wire).running
     assert MoveCommand.model_validate({**wire, "running": True}).running

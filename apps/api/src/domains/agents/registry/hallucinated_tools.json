@@ -17,203 +17,174 @@
     {
       "tool": "get_context_list",
       "domain": "general",
-      "query_preview": "Comment aller chez mon frère",
       "timestamp": "2026-01-07T08:50:37.326919",
       "was_new": false
     },
     {
       "tool": "get_context_list",
       "domain": "general",
-      "query_preview": "recherche les contacts jean",
       "timestamp": "2026-01-07T09:38:31.279033",
       "was_new": false
     },
     {
       "tool": "get_context_list",
       "domain": "email",
-      "query_preview": "Envoie un email à tous mes contacts",
       "timestamp": "2026-01-18T00:29:46.672607",
       "was_new": false
     },
     {
       "tool": "resolve_reference",
       "domain": "event",
-      "query_preview": "modifie le premier, fais le terminer à 15h30",
       "timestamp": "2026-03-23T07:05:23.574782+00:00",
       "was_new": false
     },
     {
       "tool": "resolve_reference",
       "domain": "event",
-      "query_preview": "modifie le premier, fais le terminer à 15h",
       "timestamp": "2026-03-23T07:16:55.802309+00:00",
       "was_new": false
     },
     {
       "tool": "resolve_reference",
       "domain": "event",
-      "query_preview": "modifie le premier, fais le terminer à 15h",
       "timestamp": "2026-03-23T07:17:00.286243+00:00",
       "was_new": false
     },
     {
       "tool": "resolve_reference",
       "domain": "event",
-      "query_preview": "modifie le premier, fais le terminer à 15h",
       "timestamp": "2026-03-23T07:27:50.802622+00:00",
       "was_new": false
     },
     {
       "tool": "resolve_reference",
       "domain": "event",
-      "query_preview": "modifie le premier pour le faire terminer à 15h30",
       "timestamp": "2026-03-23T07:36:02.409295+00:00",
       "was_new": false
     },
     {
       "tool": "resolve_reference",
       "domain": "event",
-      "query_preview": "modifie le premier pour le faire terminer à 15h30",
       "timestamp": "2026-03-23T07:36:07.486016+00:00",
       "was_new": false
     },
     {
       "tool": "resolve_reference",
       "domain": "event",
-      "query_preview": "modifie le premier pour le faire terminer à 15h30",
       "timestamp": "2026-03-23T07:39:00.057485+00:00",
       "was_new": false
     },
     {
       "tool": "resolve_reference",
       "domain": "event",
-      "query_preview": "modifie le premier pour le faire terminer à 15h",
       "timestamp": "2026-03-23T08:05:39.288410+00:00",
       "was_new": false
     },
     {
       "tool": "resolve_reference",
       "domain": "event",
-      "query_preview": "recherche le dernier email recu",
       "timestamp": "2026-03-28T13:52:13.576625+00:00",
       "was_new": false
     },
     {
       "tool": "get_context_list",
       "domain": "event",
-      "query_preview": "recherche le dernier email recu",
       "timestamp": "2026-03-28T13:52:25.853594+00:00",
       "was_new": false
     },
     {
       "tool": "get_context_list",
       "domain": "route",
-      "query_preview": "comment aller chez mon frère ?",
       "timestamp": "2026-03-29T13:23:14.994800+00:00",
       "was_new": false
     },
     {
       "tool": "resolve_reference",
       "domain": "email",
-      "query_preview": "supprime ces mails",
       "timestamp": "2026-04-02T12:52:41.539624+00:00",
       "was_new": false
     },
     {
       "tool": "resolve_reference",
       "domain": "email",
-      "query_preview": "supprime ces emails",
       "timestamp": "2026-04-03T21:21:03.958250+00:00",
       "was_new": false
     },
     {
       "tool": "resolve_reference",
       "domain": "email",
-      "query_preview": "supprime ces emails",
       "timestamp": "2026-04-03T21:45:24.872645+00:00",
       "was_new": false
     },
     {
       "tool": "resolve_reference",
       "domain": "email",
-      "query_preview": "supprime ces emails",
       "timestamp": "2026-04-03T22:11:00.038419+00:00",
       "was_new": false
     },
     {
       "tool": "resolve_reference",
       "domain": "email",
-      "query_preview": "supprime ces emails",
       "timestamp": "2026-04-03T22:21:20.466637+00:00",
       "was_new": false
     },
     {
       "tool": "resolve_reference",
       "domain": "email",
-      "query_preview": "supprime ces emails",
       "timestamp": "2026-04-03T22:21:34.022388+00:00",
       "was_new": false
     },
     {
       "tool": "resolve_reference",
       "domain": "email",
-      "query_preview": "supprime ces emails",
       "timestamp": "2026-04-03T22:25:35.220246+00:00",
       "was_new": false
     },
     {
       "tool": "resolve_reference",
       "domain": "email",
-      "query_preview": "supprime ces emails",
       "timestamp": "2026-04-03T23:09:35.325081+00:00",
       "was_new": false
     },
     {
       "tool": "resolve_reference",
       "domain": "email",
-      "query_preview": "supprime ces mail",
       "timestamp": "2026-04-03T23:20:24.927345+00:00",
       "was_new": false
     },
     {
       "tool": "resolve_reference_tool",
       "domain": "email",
-      "query_preview": "supprime ces emails",
       "timestamp": "2026-04-07T15:01:45.962688+00:00",
       "was_new": false
     },
     {
       "tool": "resolve_reference_tool",
       "domain": "email",
-      "query_preview": "supprime ces emails",
       "timestamp": "2026-04-07T15:02:28.128600+00:00",
       "was_new": false
     },
     {
       "tool": "resolve_reference",
       "domain": "event",
-      "query_preview": "modifie le premier rdv, mets la localisation à Montpellier",
       "timestamp": "2026-04-07T21:56:21.872954+00:00",
       "was_new": false
     },
     {
       "tool": "resolve_reference",
       "domain": "event",
-      "query_preview": "cétait quoi le premier rdv renvoyé ?",
       "timestamp": "2026-04-18T09:31:08.169460+00:00",
       "was_new": false
     },
     {
       "tool": "resolve_reference",
       "domain": "event",
-      "query_preview": "c'était quoi le premier rdv renvoyé ?",
       "timestamp": "2026-04-18T10:56:34.235954+00:00",
       "was_new": false
     },
     {
       "tool": "get_context_state",
       "domain": "reminder",
-      "query_preview": "Oui, confirme.",
       "timestamp": "2026-07-10T04:03:42.970766+00:00",
       "was_new": false
     }

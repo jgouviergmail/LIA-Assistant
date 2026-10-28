@@ -2,6 +2,7 @@ import { project } from '../geometry';
 import type { WorldProp } from '../types';
 import { Painter, shade } from './painter';
 import { propStyleVariant } from './prop-style';
+import { seasonalPalette } from './seasonal-palette';
 
 /** Rounded, irregular foliage volumes. All facets are baked once into three reusable families. */
 function foliage(
@@ -117,7 +118,10 @@ function conifer(p: Painter): void {
     for (const { a, b, i } of faces) {
       p.polygon(
         [project(a, z), project(b, z), project({ x: 0.49, y: 0.48 }, z + 0.8)],
-        shade('#287957', [-12, -19, -20, -9, -3, 8, 13, 20, 12, 5, -4, -10][i] + tier * 3)
+        shade(
+          p.season === 'winter' ? '#6e9386' : '#287957',
+          [-12, -19, -20, -9, -3, 8, 13, 20, 12, 5, -4, -10][i] + tier * 3
+        )
       );
       p.polygon([project(a, z), project(b, z), project({ x: 0.5, y: 0.5 }, z - 0.12)], '#24553f');
     }
@@ -132,7 +136,17 @@ export function paintTree(p: Painter, o: WorldProp): void {
     conifer(p);
     return;
   }
-  const leaf = blossom ? '#df699c' : birch ? '#79ae47' : '#36844d';
+  const palette = seasonalPalette(p.season);
+  const leaf =
+    p.season === 'neutral'
+      ? blossom
+        ? '#df699c'
+        : birch
+          ? '#79ae47'
+          : '#36844d'
+      : blossom
+        ? palette.blossom
+        : palette.leaf;
   // Overlapping crowns, not a vertical stack of identical cones.
   const lobes = birch
     ? [

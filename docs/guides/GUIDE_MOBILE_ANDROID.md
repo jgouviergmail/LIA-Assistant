@@ -5,12 +5,11 @@
 > updated, what recurs every year, and the platform behaviours that were
 > **measured** rather than assumed.
 >
-> **Status (2026-08-24).** The decision and the measurements are final. Two
-> pieces already exist: the measurement harness
-> ([scripts/mobile-probe/README.md](../../scripts/mobile-probe/README.md)), which
-> asserts the invariants this guide relies on, and the **API-side session
-> handoff** that lets a shell complete a provider sign-in. The **app itself is
-> planned**, not built; sections marked *(planned)* describe what it still owes.
+> **Status (2026-10-27).** Authored shell sources and regeneration/build tasks
+> exist in `apps/mobile/`. Historical sections marked *(planned)* retain their
+> release-design scope; source or preparation success is not proof of store
+> publication or physical-device behavior. The World sharing qualification below
+> states which checks ran and which still require platform hosts and devices.
 >
 > iOS counterpart: [GUIDE_MOBILE_IOS.md](./GUIDE_MOBILE_IOS.md).
 
@@ -425,3 +424,15 @@ not supported by the QEMU2 emulator"). Install `system-images;android-NN;google_
 - [GUIDE_FCM_PUSH_NOTIFICATIONS.md](./GUIDE_FCM_PUSH_NOTIFICATIONS.md) — the existing push path this app reuses
 - [ADR-146](../architecture/ADR-146-Offline-PWA.md) — the offline shell the Service Worker provides
 - [ADR-210](../architecture/ADR-210-Un-Intent-Consomme-Ne-Se-Rejoue-Pas.md) — deep-link intents, which notifications reuse
+
+## World photo sharing
+
+The authored `LiaShell.shareImage` receives only an already-previewed bounded JPEG.
+Its positive capability is returned by `get`; older binaries retain the browser
+preview/download path. The dedicated `.worldshare` provider exposes only the
+private World photo cache with temporary read access. It preserves the existing
+camera/upload provider and adds no storage permission. Input and cache guards
+are exercised by authored JVM tests, now run by `mobile:build:android` before
+packaging. See [World qualification](../superpowers/qualification/2026-10-27-world-interactions-and-play.md)
+for actual commands, the installed-tool override used locally and physical-device
+checks still required. A chooser result means offered, never published.

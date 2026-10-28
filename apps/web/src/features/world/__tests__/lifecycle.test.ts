@@ -1,16 +1,35 @@
+import { cosmeticPropTarget } from '../cosmetic-interactions';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRuntime } from '../runtime';
 import { WORLD } from '../definition';
 import type { Camera, Quality, WorldDefinition } from '../types';
 import type { Simulation } from '../simulation';
 import type { WorldDriver } from '../shared-simulation';
+import { project, worldToScreen } from '../geometry';
+import type { WorldRenderer } from '../renderer';
+import type { SceneTarget } from '../scene-interactions';
 
-const graphics = vi.hoisted(() => ({ destroy: vi.fn(), render: vi.fn(), disconnect: vi.fn() }));
+const graphics = vi.hoisted(() => ({
+  destroy: vi.fn(),
+  render: vi.fn<(camera: Camera, sim: Simulation) => void>(),
+  disconnect: vi.fn(),
+  cosmetic: vi.fn(() => false),
+  pick: vi.fn<() => SceneTarget | 'self' | null>(() => null),
+}));
 vi.mock('../renderer', () => ({
-  WorldRenderer: class {
+  WorldRenderer: class implements Pick<WorldRenderer, keyof WorldRenderer> {
+    photoScene() {
+      return null;
+    }
+    preparePhoto() {
+      return Promise.resolve();
+    }
     drawCount = 0;
     textureBytes = 0;
+    activeCosmeticEffects = 0;
     reducedMotion = false;
+    showRoute = true;
+    setPrivateSignals() {}
     constructor(
       _canvas: HTMLCanvasElement,
       _world: WorldDefinition,
@@ -21,6 +40,19 @@ vi.mock('../renderer', () => ({
     setQuality(_quality: Quality) {}
     setHome() {}
     setAtmosphere() {}
+    setSeason() {}
+    cosmeticTarget(id: string) {
+      const prop = WORLD.props.find(item => item.id === id);
+      return prop ? cosmeticPropTarget(prop) : null;
+    }
+    cancelCosmetic() {}
+    activateCosmetic() {
+      return graphics.cosmetic();
+    }
+    pick() {
+      return graphics.pick();
+    }
+    setActing() {}
     render(camera: Camera, sim: Simulation) {
       graphics.render(camera, sim);
     }
@@ -33,6 +65,8 @@ const frames: FrameRequestCallback[] = [];
 beforeEach(() => {
   frames.length = 0;
   vi.clearAllMocks();
+  graphics.cosmetic.mockReturnValue(false);
+  graphics.pick.mockReturnValue(null);
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
     frames.push(callback);
     return frames.length;
@@ -55,6 +89,88 @@ afterEach(() => {
 });
 
 describe('world resource ownership', () => {
+  it('keeps local gestures private, contact-preserving and paused with the native input lifetime', () => {
+    let now = 10_000;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+    const { runtime } = mount();
+    const position = runtime.snapshot().player;
+    expect(runtime.emote('wave')).toBe('accepted');
+    expect(runtime.emote('laugh')).toBe('rate_limited');
+    expect(runtime.snapshot().player).toEqual(position);
+    // Past the gesture interval, only the pause refuses.
+    now += 2100;
+    runtime.setPaused(true);
+    expect(runtime.emote('thanks')).toBe('unavailable');
+    runtime.setPaused(false);
+    expect(runtime.emote('thanks')).toBe('accepted');
+    now += 2100;
+    runtime.destroy();
+    expect(runtime.emote('wave')).toBe('unavailable');
+    const shared = mount(vi.fn(), { step: () => {} });
+    expect(shared.runtime.emote('wave')).toBe('unavailable');
+    shared.runtime.destroy();
+  });
+  it('walks to a clicked decoration before playing its reaction and never resumes a paused approach', () => {
+    graphics.cosmetic.mockReturnValue(true);
+    const plant = WORLD.props
+      .filter(prop => cosmeticPropTarget(prop)?.action === 'plant')
+      .sort(
+        (a, b) =>
+          Math.hypot(a.x - WORLD.spawn.x, a.y - WORLD.spawn.y) -
+          Math.hypot(b.x - WORLD.spawn.x, b.y - WORLD.spawn.y)
+      )[0];
+    if (!plant) throw new Error('Missing authored plant');
+    graphics.pick.mockReturnValue({ kind: 'object', id: plant.id });
+    const { canvas, runtime } = mount();
+    let time = 100;
+    const click = () => {
+      for (const type of ['pointerdown', 'pointerup']) {
+        const event = new MouseEvent(type, { clientX: 300, clientY: 200, cancelable: true });
+        Object.defineProperties(event, { pointerId: { value: 1 }, timeStamp: { value: time } });
+        canvas.dispatchEvent(event);
+      }
+      time += 1000;
+    };
+    const walk = (seconds: number) => {
+      for (let i = 0; i < seconds * 60 && !graphics.cosmetic.mock.calls.length; i++)
+        frames.shift()?.((time += 1000 / 60));
+    };
+    click();
+    expect(graphics.cosmetic).not.toHaveBeenCalled();
+    runtime.setPaused(true);
+    walk(30);
+    expect(graphics.cosmetic).not.toHaveBeenCalled();
+    runtime.setPaused(false);
+    walk(30);
+    expect(graphics.cosmetic).not.toHaveBeenCalled();
+    click();
+    frames.shift()?.((time += 1000 / 60));
+    expect(graphics.render.mock.calls.at(-1)?.[0].following).toBe(true);
+    walk(60);
+    expect(graphics.cosmetic).toHaveBeenCalledTimes(1);
+    runtime.destroy();
+  });
+  it('frames a conversation without moving authority and preserves a deliberately panned camera', () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      new DOMRect(0, 0, 1280, 800)
+    );
+    const { runtime } = mount();
+    const player = runtime.snapshot().player;
+    runtime.setConversationOpen(true);
+    advance(61);
+    const camera = graphics.render.mock.lastCall?.[0];
+    if (!camera) throw new Error('No rendered camera');
+    expect(worldToScreen(player, camera).x).toBeCloseTo(352, 0);
+    expect(runtime.snapshot().player).toEqual(player);
+    runtime.explore({ x: 20, y: 20 });
+    runtime.setConversationOpen(false);
+    advance(10, 1200);
+    expect(camera.center).toEqual(project({ x: 20, y: 20 }));
+    runtime.recenter();
+    advance(61, 1400);
+    expect(worldToScreen(player, camera).x).toBeCloseTo(640, 0);
+    runtime.destroy();
+  });
   function mount(onFailure = vi.fn(), driver?: WorldDriver) {
     const canvas = document.createElement('canvas');
     canvas.tabIndex = 0;

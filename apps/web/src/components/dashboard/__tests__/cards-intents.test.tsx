@@ -12,6 +12,7 @@ import { AgendaCard } from '../cards/AgendaCard';
 import { BirthdaysCard } from '../cards/BirthdaysCard';
 import { RemindersCard } from '../cards/RemindersCard';
 import type { BriefingWindows, CardSection, SectionData } from '@/types/briefing';
+import { DashboardNavigationProvider, type DashboardDestination } from '../DashboardNavigation';
 
 const push = vi.fn();
 
@@ -66,6 +67,52 @@ const WINDOWS: BriefingWindows = {
 describe('briefing cards — actionable items (QW-9)', () => {
   beforeEach(() => {
     openChat.mockClear();
+  });
+  it('keeps successive people in local drafts and uses the original native intent for execution', async () => {
+    const navigate = vi.fn<(_destination: DashboardDestination) => boolean>(() => true);
+    const content = (sender: string) => (
+      <DashboardNavigationProvider onNavigate={navigate}>
+        <MailsCard
+          {...cardProps}
+          section={section({
+            total_unread_today: 1,
+            items: [
+              {
+                sender_name: sender,
+                sender_email: sender.toLowerCase() + '@example.test',
+                subject: 'Project for ' + sender,
+                received_local: '09:00',
+              },
+            ],
+          })}
+        />
+      </DashboardNavigationProvider>
+    );
+    const view = renderWithProviders(content('Alice'));
+    fireEvent.click(
+      screen.getByRole('button', { name: /intents\.mail\|subject=Project for Alice/ })
+    );
+    view.rerender(content('Bob'));
+    fireEvent.click(screen.getByRole('button', { name: /intents\.mail\|subject=Project for Bob/ }));
+    expect(navigate.mock.calls[0][0]).toMatchObject({
+      kind: 'draft',
+      draft: expect.stringContaining('sender=Alice'),
+    });
+    expect(navigate.mock.calls[1][0]).toMatchObject({
+      kind: 'draft',
+      draft: expect.stringContaining('sender=Bob'),
+    });
+    expect(openChat).not.toHaveBeenCalled();
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'dashboard.briefing.actions.more' }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    const actions = await screen.findAllByRole('menuitem', { name: /world.dashboard.open_chat/ });
+    fireEvent.click(actions[0]);
+    expect(openChat).toHaveBeenCalledOnce();
+    expect(openChat.mock.calls[0][0]).toContain('/fr/dashboard/chat?intent=');
+    expect(decodeURIComponent(openChat.mock.calls[0][0])).toContain('Bob');
+    expect(navigate).toHaveBeenCalledTimes(2);
   });
 
   it('mail item opens the chat prefilled with the summarize intent', () => {

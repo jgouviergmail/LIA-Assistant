@@ -1,5 +1,5 @@
 /** Room inventories carry public semantic bindings, never private account content. */
-import { furnish, type Furnishing } from './house-authoring';
+import { associateTables, furnish, type Furnishing } from './house-authoring';
 import { HOUSE_ZONES, HOUSE_WALLS } from './house-layout';
 import { mountWallArt } from './wall-mounts';
 import type { ZoneId, WorldProp } from './types';
@@ -8,7 +8,8 @@ const ROOMS: Record<ZoneId, Furnishing[]> = {
   garden: [],
   terrace: [],
   arrival: [
-    ['table', 13, 20, 2, 2, 0.8, 'cream'],
+    ['table', 13, 20, 2, 2, 0.8, 'cream', 'atrium-table'],
+    ['smartphone', 13.65, 20.6, 0.6, 0.45, 1.7, 'teal', 'sms-stand', 1, 'sms', 'table:36:38'],
     ['chair', 13.5, 18, 1, 1, 1.2, 'teal', 'atrium-n', 1],
     ['chair', 13.5, 23, 1, 1, 1.2, 'teal', 'atrium-s', 3],
     ['fountain', 7, 7, 3, 3, 1.1, 'teal'],
@@ -32,22 +33,22 @@ const ROOMS: Record<ZoneId, Furnishing[]> = {
     ['plant', 1, 12, 1, 1, 1.8, 'sage'],
     ['lamp', 1, 9, 0.4, 0.4, 2.2, 'amber'],
     ['sofa', 2, 14.5, 4, 1, 1.25, 'teal', 'meeting-lounge', 3],
-    ['table', 7.5, 14.5, 2, 1.5, 0.8, 'cream'],
+    ['table', 7.5, 14.5, 2, 1.5, 0.8, 'cream', 'meeting-lounge-table', 1, 'news'],
     ['plant', 12, 15.5, 1, 1, 1.6, 'sage'],
     ['rug', 1, 13, 10, 4.5, 0.05, 'teal'],
   ],
   multimedia: [
     ['billiards', 7, 4, 5, 3, 1.1, 'sage'],
-    ['arcade', 10, 1, 1.5, 1.5, 2.6, 'violet'],
-    ['arcade', 12, 1, 1.5, 1.5, 2.6, 'teal'],
-    ['arcade', 14, 1, 1.5, 1.5, 2.6, 'clay'],
+    ['arcade', 10, 1, 1.5, 1.5, 2.6, 'violet', 'arcade-tic-tac-toe'],
+    ['arcade', 12, 1, 1.5, 1.5, 2.6, 'teal', 'arcade-four-in-row'],
+    ['arcade', 14, 1, 1.5, 1.5, 2.6, 'clay', 'arcade-reversi'],
     ['poster', 1, 0.4, 2, 0.12, 2.7, 'violet'],
     ['poster', 7, 0.4, 2, 0.12, 2.7, 'clay'],
     ['plant', 16, 1, 1, 1, 1.7, 'sage'],
     ['plant', 16, 14, 1, 1, 1.7, 'sage'],
     ['sofa', 12, 8, 4, 1, 1.25, 'clay', 'media-sofa-n', 1],
     ['sofa', 12, 13, 4, 1, 1.25, 'violet', 'media-sofa-s', 3],
-    ['table', 13, 10, 2, 1.5, 0.8, 'violet'],
+    ['table', 13, 10, 2, 1.5, 0.8, 'violet', 'media-lounge-table'],
     ['rug', 11, 7, 6, 8, 0.06, 'violet'],
     ['drawingtable', 6, 11, 4, 2, 1.1, 'cream', 'generate-image', 1, 'generate-image'],
     ['chair', 7, 9, 1, 1, 1.2, 'clay', 'draw-n', 1, 'generate-image'],
@@ -69,7 +70,6 @@ const ROOMS: Record<ZoneId, Furnishing[]> = {
     ['lamp', 16, 9, 0.4, 0.4, 2.2, 'amber'],
   ],
   cafeteria: [
-    ['readingdesk', 2, 3, 2, 1, 1.1, 'amber', 'news', 1, 'news'],
     ['bar', 15, 2, 1.5, 8, 1.3, 'clay', undefined, 2],
     ['bottles', 17.5, 3, 0.35, 6, 2.8, 'clay', undefined, 2],
     ['jukebox', 8, 1.05, 1.5, 1, 2.5, 'clay', 'radio', 1, 'radio'],
@@ -78,10 +78,10 @@ const ROOMS: Record<ZoneId, Furnishing[]> = {
     ['poster', 17.6, 9.5, 0.15, 2, 2.5, 'clay', undefined, 2],
     ['sofa', 3, 5, 3, 1, 1.25, 'clay', 'booth-a-n', 1],
     ['sofa', 3, 10, 3, 1, 1.25, 'clay', 'booth-a-s', 3],
-    ['table', 3, 7, 3, 1.5, 0.8, 'cream'],
+    ['table', 3, 7, 3, 1.5, 0.8, 'cream', 'booth-table-a'],
     ['sofa', 10, 5, 3, 1, 1.25, 'clay', 'booth-b-n', 1],
     ['sofa', 10, 10, 3, 1, 1.25, 'clay', 'booth-b-s', 3],
-    ['table', 10, 7, 3, 1.5, 0.8, 'cream'],
+    ['table', 10, 7, 3, 1.5, 0.8, 'cream', 'booth-table-b'],
   ],
   engineering: [
     ['machine', 1, 1, 2, 2, 2.7, 'teal'],
@@ -94,13 +94,13 @@ const ROOMS: Record<ZoneId, Furnishing[]> = {
     ['noticeboard', 20, 3, 1.5, 1, 2.2, 'teal', 'habits', 1, 'habits'],
     ['mirror', 0.25, 2.2, 0.12, 5, 2.8, 'teal', undefined, 0],
     ['mirror', 0.25, 8, 0.12, 4, 2.8, 'teal', undefined, 0],
-    ['weightbench', 2, 3, 2, 4, 1.4, 'teal', 'health', 1, 'health'],
-    ['weightbench', 8, 3, 2, 4, 1.4, 'clay', 'health-2', 1, 'health'],
+    ['weightbench', 2, 3, 2, 4, 1.4, 'teal', 'workout-1', 3],
+    ['weightbench', 8, 3, 2, 4, 1.4, 'clay', 'workout-2', 3],
     ['dumbbells', 1, 9, 4, 1, 1.2, 'teal'],
     ['dumbbells', 7, 9, 3, 1, 1.2, 'teal'],
     ['plant', 20, 1, 1, 1, 1.8, 'sage'],
     ['plant', 20, 5, 1, 1, 1.8, 'sage'],
-    ['weightbench', 16, 3, 2, 4, 1.4, 'amber', 'health-3', 1, 'health'],
+    ['weightbench', 16, 3, 2, 4, 1.4, 'amber', 'health', 1, 'health'],
     ['rug', 15, 8, 4, 2, 0.05, 'teal'],
   ],
   divination: [
@@ -116,7 +116,7 @@ const ROOMS: Record<ZoneId, Furnishing[]> = {
     ['poster', 0.25, 15, 0.12, 2, 2.6, 'violet', undefined, 0],
     ['rug', 1, 11.5, 6, 8, 0.05, 'violet'],
     ['sofa', 1.4, 12.5, 4.5, 1, 1.25, 'violet', 'oracle-lounge', 1],
-    ['table', 2.5, 15, 2, 1.5, 0.8, 'violet'],
+    ['table', 2.5, 15, 2, 1.5, 0.8, 'violet', 'oracle-lounge-table'],
     ['lamp', 6, 16, 0.4, 0.4, 2.2, 'amber'],
     ['plant', 1, 20, 1, 1, 1.5, 'sage'],
     ['planter', 4, 20, 3, 0.7, 0.6, 'violet'],
@@ -247,8 +247,16 @@ function tableLamp(prop: WorldProp): WorldProp[] {
     },
   ];
 }
-export const HOUSE_FURNITURE = HOUSE_ZONES.flatMap(zone =>
-  furnish(zone, ROOMS[zone.id]).flatMap(tableLamp)
-)
-  .map(prop => mountWallArt(prop, HOUSE_WALLS))
-  .filter((prop): prop is WorldProp => prop !== null);
+export const HOUSE_FURNITURE = associateTables(
+  HOUSE_ZONES.flatMap(zone => furnish(zone, ROOMS[zone.id]).flatMap(tableLamp))
+    .map(prop => mountWallArt(prop, HOUSE_WALLS))
+    .filter((prop): prop is WorldProp => prop !== null),
+  {
+    'atrium-table': ['atrium-n', 'atrium-s'],
+    'meeting-lounge-table': ['meeting-lounge'],
+    'media-lounge-table': ['media-sofa-n', 'media-sofa-s'],
+    'booth-table-a': ['booth-a-n', 'booth-a-s'],
+    'booth-table-b': ['booth-b-n', 'booth-b-s'],
+    'oracle-lounge-table': ['oracle-lounge'],
+  }
+);

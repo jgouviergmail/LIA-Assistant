@@ -181,6 +181,48 @@ describe('AdminPersonalitiesSection — row actions', () => {
   });
 });
 
+describe('AdminPersonalitiesSection — read lifetime', () => {
+  it('hands the list read a signal that unmounting aborts', async () => {
+    fetchPersonalitiesAdmin.mockImplementation(() => new Promise(() => {}));
+    const { unmount } = render();
+    await waitFor(() => expect(fetchPersonalitiesAdmin).toHaveBeenCalledTimes(1));
+    const [signal] = fetchPersonalitiesAdmin.mock.calls[0] as [AbortSignal];
+    expect(signal.aborted).toBe(false);
+
+    unmount();
+
+    expect(signal.aborted).toBe(true);
+  });
+
+  it('keeps the newest re-read when an older one answers last', async () => {
+    const { user } = await renderLoaded();
+    const answers: ((list: PersonalityResponse[]) => void)[] = [];
+    fetchPersonalitiesAdmin.mockImplementation(
+      () => new Promise<PersonalityResponse[]>(resolve => answers.push(resolve))
+    );
+    const translate = screen.getByRole('button', { name: `${TIP}.generate_translations` });
+
+    await user.click(translate);
+    await waitFor(() => expect(answers).toHaveLength(1));
+    const [older] = fetchPersonalitiesAdmin.mock.calls[1] as [AbortSignal];
+    // A re-read is not a first load: the rows stay, the table says it is busy.
+    expect(screen.getAllByText('coach')).not.toHaveLength(0);
+    expect(screen.getByRole('table').parentElement).toHaveAttribute('aria-busy', 'true');
+    // The action's transition ends with the translation; its re-read does not.
+    await waitFor(() => expect(translate).toBeEnabled());
+    await user.click(translate);
+    await waitFor(() => expect(answers).toHaveLength(2));
+
+    expect(older.aborted).toBe(true);
+    answers[1]([personality({ code: 'fresh' })]);
+    expect(await screen.findAllByText('fresh')).not.toHaveLength(0);
+    answers[0]([personality({ code: 'stale' })]);
+    await waitFor(() => expect(translatePersonality).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText('stale')).not.toBeInTheDocument();
+    expect(screen.getAllByText('fresh')).not.toHaveLength(0);
+  });
+});
+
 describe('AdminPersonalitiesSection — the styles offered to users', () => {
   it('refreshes the shared catalogue after a mutation, not only its own list', async () => {
     // The header selector and the settings panel read one shared store, which

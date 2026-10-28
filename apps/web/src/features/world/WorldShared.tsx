@@ -4,11 +4,19 @@ import { WorldSpeech, privateSpeechDeliveries, publicSpeechDeliveries } from './
 import { WorldSpeechAnnouncements } from './WorldSpeechAnnouncements';
 import type { Notification } from '@/hooks/useNotifications';
 import type { WorldMailbox } from './message-protocol';
-import { WorldDeviceControls } from './WorldDeviceControls';
+import { WorldDeviceControls, type WorldDeviceHandle } from './WorldDeviceControls';
+import { useWorldPrivateSignals } from './useWorldPrivateSignals';
+import { useWorldSignalHost } from './useWorldSignalHost';
+import { useWorldActingSource } from './useWorldActingSource';
 import { WorldAdmission } from './WorldAdmission';
+import { useWorldExperiencePreferences } from './useWorldExperiencePreferences';
+import type { ConfirmedSeat } from './seat-activity-intent';
+import { SeatDashboardIntent, dashboardOfferOpen, type SeatScope } from './seat-dashboard-intent';
+import { WorldSeatedDashboard } from './WorldSeatedDashboard';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { LogOut } from 'lucide-react';
+import { seatContext } from './seat-context';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/client';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -26,12 +34,27 @@ import type { HomeSkin } from './home-projection';
 import './world.css';
 import { useWorldEnvironment } from './useWorldEnvironment';
 import { WorldAccountGuard, useWorldAccountIdentity } from './WorldAccountGuard';
+import type { WorldActingState } from './types';
+import { WorldEmoteAnnouncements } from './WorldEmoteAnnouncements';
+import { WorldEmoteFeedback } from './WorldEmoteFeedback';
 
 interface Props {
   lng: Language;
   ownerId: string;
 }
 type NativePanel = 'closed' | 'conversation' | 'activity';
+function openWorldObject(
+  target: Extract<SceneTarget, { kind: 'object' | 'lia' }>,
+  functions: WorldFunctionHandle | null,
+  openSignal: ReturnType<typeof useWorldSignalHost>
+): boolean {
+  if (target.kind === 'object') {
+    const signalled = openSignal(target.id);
+    if (signalled !== null) return signalled;
+  }
+  const activity = target.kind === 'lia' ? 'lia' : sceneActivity(target.id);
+  return activity ? (functions?.openScene(activity) ?? false) : false;
+}
 export function WorldShared({ lng, ownerId }: Props) {
   // Keep unsent appearance choices mounted while native account reads revalidate.
   return <OwnedWorldShared key={ownerId} lng={lng} ownerId={ownerId} />;
@@ -64,22 +87,56 @@ function ConnectedWorld({
     '(max-width: 767px), (max-height: 520px) and (orientation: landscape)'
   );
   const functions = useRef<WorldFunctionHandle>(null);
-  const openSeatActivity = useCallback((slot: string) => {
-    const selected = seatActivity(slot);
-    if (selected) functions.current?.openScene(selected);
-  }, []);
-  const { driver, presentation, active, recovering, control, activity, mailboxScope, pose } =
-    useWorldSession(ownerId, alias, openSeatActivity);
+  const dashboardIntent = useMemo(() => new SeatDashboardIntent(), []);
+  const dashboardOffer = useSyncExternalStore(
+    dashboardIntent.subscribe,
+    dashboardIntent.getSnapshot,
+    dashboardIntent.getSnapshot
+  );
+  const openSeatActivity = useCallback(
+    (receipt: ConfirmedSeat, scope: SeatScope) => {
+      const selected = seatActivity(receipt.slot);
+      if (selected) functions.current?.openScene(selected);
+      else dashboardIntent.confirm(receipt, scope);
+    },
+    [dashboardIntent]
+  );
+  const {
+    driver,
+    presentation,
+    active,
+    recovering,
+    control,
+    activity,
+    mailboxScope,
+    pose,
+    emote,
+    arcade,
+  } = useWorldSession(ownerId, alias, openSeatActivity);
   const { t } = useTranslation(lng);
   const retained = active || recovering;
+  const authorized = active && verified;
+  const retainedAuthorized = retained && verified;
+  const dashboardSeatKey = dashboardSeatLifetime(presentation.pose, presentation.epoch);
+  // The input pause and the consent dialog read one predicate: a stale offer pauses nothing.
+  const offerOpen = dashboardOfferOpen(
+    dashboardOffer,
+    presentation.pose,
+    dashboardSeatKey,
+    authorized
+  );
+  useEffect(() => {
+    if (!active || !dashboardSeatKey) dashboardIntent.cancel();
+  }, [active, dashboardSeatKey, dashboardIntent]);
+  const experience = useWorldExperiencePreferences(ownerId, retainedAuthorized);
   const atmosphere = useWorldEnvironment(ownerId, active);
-  const sound = useWorldSound(ownerId, active && verified, presentation.zone, atmosphere);
+  const sound = useWorldSound(ownerId, authorized, presentation.zone, atmosphere);
   const receiveSound = sound.receive;
   const speech = useMemo(() => new WorldSpeech(), []);
   useEffect(() => {
-    speech.setActive(active && verified);
+    speech.setActive(authorized);
     return () => speech.setActive(false);
-  }, [speech, active, verified]);
+  }, [speech, authorized]);
   const receiveSpeech = useCallback(
     (mailbox: WorldMailbox) => {
       receiveSound(mailbox);
@@ -94,14 +151,22 @@ function ConnectedWorld({
     (notice: Notification) => speech.proactive(notice),
     [speech]
   );
+  const privateSignals = useWorldPrivateSignals(ownerId, retainedAuthorized, receiveProactive);
+  const devices = useRef<WorldDeviceHandle>(null);
+  const openSignal = useWorldSignalHost(privateSignals, functions, devices);
+  const acting = useWorldActingSource(ownerId, authorized);
+  const [actingState, setActingState] = useState<WorldActingState>('idle');
   const [home, setHome] = useState<HomeSkin | null>(null);
   const [editingHome, setEditingHome] = useState(false);
   const [nativePanel, setNativePanel] = useState<NativePanel>('closed');
-  const nativeOpen = nativePanel !== 'closed';
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const nativeOpen = nativePanel !== 'closed' || photoOpen;
   const onNativeOpen = useCallback((open: boolean, conversation: boolean) => {
     setNativePanel(open ? (conversation ? 'conversation' : 'activity') : 'closed');
   }, []);
   const [socialOpen, setSocialOpen] = useState(false);
+  const [hudExpanded, setHudExpanded] = useState(false);
+  const [compactChatHost, setCompactChatHost] = useState<HTMLDivElement | null>(null);
   const [deviceOpen, setDeviceOpen] = useState(false);
   useEffect(() => {
     // Private panels own attention even when desktop movement and painting continue.
@@ -111,6 +176,9 @@ function ConnectedWorld({
   const conversations = useRef<WorldConversationHandle>(null);
   const scene = useMemo<SceneHost>(
     () => ({
+      // A snapshot gap freezes a pending approach; a reconnection pauses the
+      // scene, which withdraws it.
+      ready: () => pose.available(),
       canOpen(target) {
         if (target.kind === 'pose' || target.kind === 'stand') return pose.available();
         if (target.kind === 'peer') return conversations.current?.canOpen(target.id) ?? false;
@@ -121,11 +189,10 @@ function ConnectedWorld({
         if (target.kind === 'pose' || target.kind === 'stand')
           return pose.request(target.kind === 'stand' ? null : target.id);
         if (target.kind === 'peer') return conversations.current?.openFor(target.id) ?? false;
-        const activity = target.kind === 'lia' ? 'lia' : sceneActivity(target.id);
-        return activity ? (functions.current?.openScene(activity) ?? false) : false;
+        return openWorldObject(target, functions.current, openSignal);
       },
     }),
-    [pose]
+    [pose, openSignal]
   );
   function sceneLabel(target: SceneTarget): string {
     if (target.kind === 'stand') return t('world.poses.stand');
@@ -143,8 +210,7 @@ function ConnectedWorld({
         t('world.messages.short')
       );
     const activity = sceneActivity(target.id);
-    if (!activity) return '';
-    return activityTitle(activity, t);
+    return activity ? activityTitle(activity, t) : '';
   }
   return (
     <div
@@ -159,8 +225,18 @@ function ConnectedWorld({
       }}
     >
       <WorldSpeechAnnouncements speech={speech} />
+      <WorldEmoteAnnouncements lng={lng} gestures={presentation.gestures} />
       <PoseFeedback lng={lng} result={presentation.poseResult} />
+      <WorldEmoteFeedback lng={lng} feedback={presentation.emoteFeedback} />
       <WorldPrototype
+        hudExpanded={hudExpanded}
+        onHudExpandedChange={setHudExpanded}
+        onPhotoOpen={setPhotoOpen}
+        onEmote={emote}
+        onActingState={setActingState}
+        conversationOpen={nativePanel === 'conversation'}
+        acting={acting}
+        privateSignals={authorized ? privateSignals.presentation : undefined}
         lng={lng}
         ownerId={ownerId}
         driver={driver}
@@ -172,27 +248,46 @@ function ConnectedWorld({
         atmosphere={atmosphere}
         onInteract={interact}
         scene={scene}
+        onCosmeticCue={sound.effect}
         sceneLabel={sceneLabel}
-        widgets={
+        exploration={{
+          control: experience,
+          enabled: explorationAvailable(
+            active,
+            verified,
+            nativeOpen,
+            editingHome,
+            socialOpen,
+            deviceOpen,
+            offerOpen
+          ),
+        }}
+        widgets={extras => (
           <WorldDeviceControls
+            extras={extras}
+            signals={privateSignals}
+            deviceRef={devices}
+            onSignal={id => openSignal(id) === true}
             lng={lng}
             ownerId={ownerId}
             sound={sound}
-            enabled={retained && verified}
+            enabled={retainedAuthorized}
             interactive={deviceInteractionAllowed(active, editingHome, nativeOpen, socialOpen)}
             onOpen={setDeviceOpen}
             onProactive={receiveProactive}
             onActivity={selected => functions.current?.openScene(selected)}
           />
-        }
+        )}
         interactionPaused={[
           !verified,
           !active,
           nativeInteractionPaused(nativePanel, compact),
           socialOpen && compact,
           deviceOpen,
+          offerOpen,
         ].some(Boolean)}
       />
+      <div ref={setCompactChatHost} data-world-compact-chat-host />
       <div className="world-session-strip border border-border bg-background/95 shadow-lg">
         <span className="world-link-status text-xs" role="status">
           <span className={active ? 'bg-emerald-600' : 'bg-amber-600'} aria-hidden="true" />
@@ -203,22 +298,41 @@ function ConnectedWorld({
         <WorldHomeControls
           lng={lng}
           ownerId={ownerId}
-          enabled={retained && !nativeOpen && !socialOpen}
+          enabled={withoutOpenPanels(retained, nativeOpen, socialOpen)}
           onSkin={setHome}
           onEditing={setEditingHome}
         />
         <WorldFunctionControls
+          arcade={arcade}
+          actingState={actingState}
           functionRef={functions}
           lng={lng}
           ownerId={ownerId}
-          enabled={retained && !editingHome && !socialOpen}
+          enabled={withoutOpenPanels(retained, editingHome, socialOpen)}
           suspended={recovering}
           zone={presentation.zone}
           onOpen={onNativeOpen}
           getScope={mailboxScope}
           presenceKey={presentation.participants.map(person => person.id).join(',')}
+          dashboardSeatKey={dashboardSeatKey}
+        />
+        <WorldSeatedDashboard
+          lng={lng}
+          active={authorized}
+          seatKey={dashboardSeatKey}
+          pose={presentation.pose}
+          offer={dashboardOffer}
+          intent={dashboardIntent}
+          onAccept={() => {
+            functions.current?.openScene({ kind: 'workspace', id: 'dashboard' });
+          }}
         />
         <WorldMessageControls
+          onCompactOpen={() => setHudExpanded(false)}
+          compactOnDemand={compact}
+          compactHost={compactChatHost}
+          compactEnabled={compactConversationAvailable(deviceOpen, offerOpen, compact, hudExpanded)}
+          nearbyParticipants={presentation.nearbyParticipants}
           conversationRef={conversations}
           lng={lng}
           ownerId={ownerId}
@@ -256,6 +370,19 @@ function ConnectedWorld({
   );
 }
 
+function dashboardSeatLifetime(pose: string | null, epoch: string | null): string | null {
+  if (!pose || !epoch) return null;
+  const context = seatContext(pose);
+  return context?.dashboardEligible ? epoch + ':' + pose : null;
+}
+
+function explorationAvailable(active: boolean, verified: boolean, ...panels: boolean[]): boolean {
+  return withoutOpenPanels(active && verified, ...panels);
+}
+function withoutOpenPanels(ready: boolean, ...panels: boolean[]): boolean {
+  return ready && !panels.some(Boolean);
+}
+
 function PoseFeedback({
   lng,
   result,
@@ -283,4 +410,13 @@ function deviceInteractionAllowed(
 
 function nativeInteractionPaused(panel: NativePanel, compact: boolean): boolean {
   return panel === 'activity' || (panel === 'conversation' && compact);
+}
+
+function compactConversationAvailable(
+  device: boolean,
+  dashboard: boolean,
+  compact: boolean,
+  expanded: boolean
+): boolean {
+  return !device && !dashboard && !(compact && expanded);
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 import { Info, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -31,6 +31,8 @@ export function WorldMessageForm({
   onDraft,
   onConsent,
   onSubmit,
+  compact = false,
+  onRequestConsent,
 }: {
   lng: Language;
   publicMode?: boolean;
@@ -44,13 +46,20 @@ export function WorldMessageForm({
   onDraft(value: string): void;
   onConsent(value: boolean): void;
   onSubmit(): void;
+  compact?: boolean;
+  onRequestConsent?(): void;
 }) {
   const { t } = useTranslation(lng);
-  const field = useId();
-  const known = publicMode || participants.some(person => person.id === recipient);
-  const valid = publicMode ? publicMessageText(draft) : messageText(draft);
-  const maximum = publicMode ? PUBLIC_MESSAGE_CHARS : 1000;
-  const canSubmit = enabled && !busy && known && consent && valid !== null;
+  const { known, valid, maximum, canSubmit } = messageComposerState(
+    publicMode,
+    participants,
+    recipient,
+    draft,
+    enabled,
+    busy,
+    consent,
+    !!onRequestConsent
+  );
   return (
     <form
       className="world-message-composer flex min-h-0 shrink-0 flex-col gap-2 overflow-y-auto"
@@ -60,7 +69,10 @@ export function WorldMessageForm({
       }
       onSubmit={event => {
         event.preventDefault();
-        if (canSubmit) onSubmit();
+        if (canSubmit) {
+          if (consent) onSubmit();
+          else onRequestConsent?.();
+        }
       }}
     >
       {recipient && !known && (
@@ -73,7 +85,9 @@ export function WorldMessageForm({
           <Textarea
             name="world-message"
             aria-label={t('world.messages.message')}
-            className="h-16 max-h-28 min-h-16 resize-none"
+            className={
+              compact ? 'h-11 max-h-11 min-h-11 resize-none' : 'h-16 max-h-28 min-h-16 resize-none'
+            }
             value={draft}
             onChange={event => {
               if (!busy) onDraft(event.target.value);
@@ -107,53 +121,115 @@ export function WorldMessageForm({
           <Send className="size-4" aria-hidden="true" />
         </Button>
       </div>
-      <div className="flex items-center gap-1">
-        <label
-          htmlFor={field + '-consent'}
-          className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-xs"
+      {!compact && (
+        <WorldMessageConsent
+          lng={lng}
+          publicMode={publicMode}
+          consent={consent}
+          busy={busy}
+          onConsent={onConsent}
         >
-          <input
-            id={field + '-consent'}
-            aria-label={t('world.messages.consent')}
-            type="checkbox"
-            name="world-translation-consent"
-            className="size-5 shrink-0 accent-primary"
-            checked={consent}
-            onChange={event => {
-              if (!busy) onConsent(event.target.checked);
-            }}
-            aria-disabled={busy}
-          />
-          {t('world.messages.translation_consent_short')}
-        </label>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="min-h-11 min-w-11"
-              aria-label={t('world.messages.translation_details')}
-            >
-              <Info className="size-4" aria-hidden="true" />
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Info className="size-5 text-primary" aria-hidden="true" />
-                {t('world.messages.translation_details')}
-              </DialogTitle>
-              <DialogDescription>
-                {t(publicMode ? 'world.public.translation_details' : 'world.messages.consent')}
-              </DialogDescription>
-            </DialogHeader>
-          </DialogContent>
-        </Dialog>
-        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
-          {Array.from(draft).length}/{maximum}
-        </span>
-      </div>
+          <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+            {Array.from(draft).length}/{maximum}
+          </span>
+        </WorldMessageConsent>
+      )}
     </form>
+  );
+}
+
+function messageComposerState(
+  publicMode: boolean,
+  participants: readonly WorldParticipant[],
+  recipient: string,
+  draft: string,
+  enabled: boolean,
+  busy: boolean,
+  consent: boolean,
+  canRequestConsent: boolean
+) {
+  const known = publicMode || participants.some(person => person.id === recipient);
+  const valid = publicMode ? publicMessageText(draft) : messageText(draft);
+  return {
+    known,
+    valid,
+    maximum: publicMode ? PUBLIC_MESSAGE_CHARS : 1000,
+    canSubmit: enabled && !busy && known && (consent || canRequestConsent) && valid !== null,
+  };
+}
+
+/** The consent checkbox; `details` adds its explanation dialog, omitted where that
+ *  explanation is already the surrounding dialog's own description. */
+export function WorldMessageConsent({
+  lng,
+  publicMode,
+  consent,
+  busy,
+  onConsent,
+  details = true,
+  children,
+}: {
+  lng: Language;
+  publicMode: boolean;
+  consent: boolean;
+  busy: boolean;
+  onConsent(value: boolean): void;
+  details?: boolean;
+  children?: ReactNode;
+}) {
+  const { t } = useTranslation(lng);
+  const field = useId();
+  return (
+    <div className="flex items-center gap-1">
+      <label
+        htmlFor={field + '-consent'}
+        className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-xs"
+      >
+        <input
+          id={field + '-consent'}
+          aria-label={t('world.messages.consent')}
+          type="checkbox"
+          name="world-translation-consent"
+          className="size-5 shrink-0 accent-primary"
+          checked={consent}
+          onChange={event => {
+            if (!busy) onConsent(event.target.checked);
+          }}
+          aria-disabled={busy}
+        />
+        {t('world.messages.translation_consent_short')}
+      </label>
+      {details && <ConsentDetails lng={lng} publicMode={publicMode} />}
+      {children}
+    </div>
+  );
+}
+function ConsentDetails({ lng, publicMode }: { lng: Language; publicMode: boolean }) {
+  const { t } = useTranslation(lng);
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="min-h-11 min-w-11"
+          aria-label={t('world.messages.translation_details')}
+        >
+          <Info className="size-4" aria-hidden="true" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Info className="size-5 text-primary" aria-hidden="true" />
+            {t('world.messages.translation_details')}
+          </DialogTitle>
+          <DialogDescription>
+            {t(publicMode ? 'world.public.translation_details' : 'world.messages.consent')}
+          </DialogDescription>
+        </DialogHeader>
+      </DialogContent>
+    </Dialog>
   );
 }

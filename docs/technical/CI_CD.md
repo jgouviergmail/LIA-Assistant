@@ -871,20 +871,28 @@ du catalogue global de Dependabot, et n'est pas une exception du registre
 automatisé des avis publiés par les dépôts que lit `deps:watch`.
 Tout ajout de ces parcours exige de résoudre
 l'alerte avant usage. Retirer l'exception dès qu'une version compatible de
-VoxCPM permet le paquet corrigé ; l'alerte GitHub reste ouverte entre-temps.
+VoxCPM permet le paquet corrigé. Le mainteneur a demandé le 26 octobre 2026
+de fermer l'alerte GitHub avec un commentaire d'exclusion du périmètre
+production : apprentissage du mot d'éveil et développement uniquement.
+Ce classement ne signifie pas que le paquet a été corrigé.
 
 ### GPU toolbox advisory review: 26 October 2026
 
-The GitHub default-branch review reports 43 open advisories against the GPU
+The GitHub default-branch review initially reported 43 open advisories against the GPU
 toolbox lock: 41 for Pillow, one for fsspec and the datasets advisory above.
 The existing Pillow decision covers an audio-only developer tool; this review
 records 19 additional global advisory references individually, with a
 31 October 2026 review date under the maintainer's responsibility in this
 document. Like the datasets advisory above, these additional references come
 from GitHub's global catalogue; the automated registry is reserved for findings
-its repository sources actually report and rejects unmatched entries. GitHub
-alerts remain open, and these decisions do not establish a vulnerability-free
-toolbox.
+its repository sources actually report and rejects unmatched entries.
+At the maintainer's explicit request on 26 October 2026, all 43 GitHub alerts
+were dismissed with individual comments identifying the development/training-only
+scope and absence from production application images and self-host bundles.
+Their recorded reason is `tolerable_risk`, not a claim that the packages were
+fixed or the advisories inaccurate. Reassess before any production use. These
+decisions do not establish a vulnerability-free toolbox, and the existing
+repository-advisory watch remains enabled.
 
 [VoxCPM metadata](https://pypi.org/pypi/voxcpm/2.0.3/json) requires
 `gradio>=6,<7` and `datasets>=3,<4`. All 37 published stable Gradio 6 versions

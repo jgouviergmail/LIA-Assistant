@@ -140,6 +140,7 @@ async def test_invalid_model_copy_is_refused_by_the_actual_tool_before_database_
 ) -> None:
     from langgraph.store.memory import InMemoryStore
 
+    from src.domains.agents.effects.treatments import treatment_collector
     from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
     module = import_module("src.domains.agents.tools.application_phone_tools")
@@ -148,7 +149,12 @@ async def test_invalid_model_copy_is_refused_by_the_actual_tool_before_database_
     door = AsyncMock()
     monkeypatch.setattr(module, "get_db_context", door)
     actor_id = uuid4()
-    with installed_runtime_context(user_id=actor_id):
+    # A real turn publishes its consultation register; once a registration has
+    # gated this tool, a call without one schedules a real database write.
+    with (
+        installed_runtime_context(user_id=actor_id),
+        treatment_collector(run_id="phone-number-tool"),
+    ):
         output = await module.update_lia_phone_number_tool.coroutine(
             change=changed,
             runtime=make_tool_runtime(user_id=actor_id, store=InMemoryStore()),

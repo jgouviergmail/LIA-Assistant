@@ -833,6 +833,166 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
             ("zh", rf"个测试，{_COUNT} 份架构决策记录"),
         )
     ),
+    # Grafana: the dashboard and panel counts the documents quote. Before they were
+    # derived (2026-10-28), one repository said 29, 31 and 32 dashboards and 847 and
+    # 851 panels at the same time, against a real 33 and 860.
+    CountSurface(
+        "README.md",
+        re.compile(rf"\*\*Grafana\*\*: {_COUNT} dashboards,"),
+        "grafana_dashboards",
+        "README.md observability section (dashboard count)",
+    ),
+    CountSurface(
+        "docs/INDEX.md",
+        re.compile(rf"\| {_COUNT} dashboards Grafana \|"),
+        "grafana_dashboards",
+        "INDEX.md technical documents row (dashboard count)",
+    ),
+    CountSurface(
+        "docs/INDEX.md",
+        re.compile(rf"\| Grafana \| {_COUNT} dashboards \|"),
+        "grafana_dashboards",
+        "INDEX.md key-figures row (dashboard count)",
+    ),
+    CountSurface(
+        "docs/GETTING_STARTED.md",
+        re.compile(rf"^\| Grafana dashboards \| {_COUNT} \|", re.MULTILINE),
+        "grafana_dashboards",
+        "GETTING_STARTED key-figures table (dashboard count)",
+    ),
+    CountSurface(
+        "docs/GETTING_STARTED.md",
+        re.compile(rf"— {_COUNT} dashboards load"),
+        "grafana_dashboards",
+        "GETTING_STARTED verification checklist (dashboard count)",
+    ),
+    CountSurface(
+        "docs/GETTING_STARTED.md",
+        re.compile(rf"^\| Built-in FAQ knowledge base \| {_COUNT} questions", re.MULTILINE),
+        "faq_questions",
+        "GETTING_STARTED key-figures table (FAQ question count)",
+    ),
+    *(
+        CountSurface(
+            "docs/technical/GRAFANA_DASHBOARDS.md",
+            re.compile(pattern),
+            source,
+            f"GRAFANA_DASHBOARDS.md {label}",
+        )
+        for pattern, source, label in (
+            (rf"\| {_COUNT} dashboards, \d+ panels", "grafana_dashboards", "header (dashboards)"),
+            (rf"dashboards, {_COUNT} panels \(rows excluded\)", "grafana_panels", "header (panels)"),
+            (rf"Les \*\*{_COUNT} dashboards Grafana\*\*", "grafana_dashboards", "overview"),
+            (rf"memes {_COUNT} dashboards —", "grafana_dashboards", "audience reading"),
+            (rf"Production \({_COUNT} dashboards ;", "grafana_dashboards", "status line"),
+        )
+    ),
+    CountSurface(
+        "docs/technical/METRICS_REFERENCE.md",
+        re.compile(rf"{_COUNT} dashboards Grafana détaillés"),
+        "grafana_dashboards",
+        "METRICS_REFERENCE.md see-also (dashboard count)",
+    ),
+    CountSurface(
+        "docs/technical/METRICS_REFERENCE.md",
+        re.compile(rf"{_COUNT} dashboards JSON"),
+        "grafana_dashboards",
+        "METRICS_REFERENCE.md source tree (dashboard count)",
+    ),
+    CountSurface(
+        "docs/technical/OBSERVABILITY_AGENTS.md",
+        re.compile(rf"grafana/dashboards/` - {_COUNT} dashboards Grafana"),
+        "grafana_dashboards",
+        "OBSERVABILITY_AGENTS.md source tree (dashboard count)",
+    ),
+    *(
+        CountSurface(
+            f"{GUIDES_DIR}/how.{locale}.md",
+            re.compile(pattern),
+            source,
+            f"how.{locale}.md observability pillars ({source})",
+        )
+        for locale, dashboards, panels in (
+            ("en", rf"\({_COUNT} dashboards / ", rf" / {_COUNT} panels covering"),
+            ("fr", rf"\({_COUNT} dashboards / ", rf" / {_COUNT} panels couvrant"),
+            ("de", rf"\({_COUNT} Dashboards / ", rf" / {_COUNT} Panels"),
+            ("es", rf"\({_COUNT} dashboards / ", rf" / {_COUNT} paneles"),
+            ("it", rf"\({_COUNT} dashboard / ", rf" / {_COUNT} pannelli"),
+            ("zh", rf"（{_COUNT} 个仪表盘 / ", rf" / {_COUNT} 面板"),
+        )
+        for pattern, source in ((dashboards, "grafana_dashboards"), (panels, "grafana_panels"))
+    ),
+    *(
+        CountSurface(
+            f"{GUIDES_DIR}/how.{locale}.md",
+            re.compile(pattern),
+            "grafana_dashboards",
+            f"how.{locale}.md stack table (dashboard count)",
+        )
+        for locale, pattern in (
+            ("fr", rf"\| Grafana \| {_COUNT} dashboards production-ready \|"),
+            ("es", rf"\| Grafana \| {_COUNT} dashboards production-ready \|"),
+            ("it", rf"\| Grafana \| {_COUNT} dashboard production-ready \|"),
+            ("zh", rf"\| Grafana \| {_COUNT} 个生产就绪仪表板 \|"),
+        )
+    ),
+    # The observability blog article names the dashboards and counts them FIVE
+    # times per locale: the title, the heading, the opening sentence, and the
+    # numbered range ("31 of them numbered 01 to 31"), whose two ends follow the
+    # dashboards that carry a two-digit prefix.
+    *(
+        CountSurface(
+            f"apps/web/locales/{locale}/translation.json",
+            re.compile(pattern),
+            source,
+            f"observability blog article ({locale}, {label})",
+        )
+        for locale, shapes in (
+            ("en", (
+                (rf"{_COUNT} Grafana Dashboards, and", "grafana_dashboards", "title"),
+                (rf"<h2>{_COUNT} Grafana dashboards</h2>", "grafana_dashboards", "heading"),
+                (rf"LIA provides {_COUNT} Grafana dashboards,", "grafana_dashboards", "sentence"),
+                (rf", {_COUNT} of them numbered 01 to", "grafana_numbered_dashboards", "numbered"),
+                (rf"numbered 01 to {_COUNT}:", "grafana_numbered_dashboards", "range end"),
+            )),
+            ("fr", (
+                (rf"{_COUNT} dashboards Grafana et tracing", "grafana_dashboards", "title"),
+                (rf"<h2>{_COUNT} dashboards Grafana</h2>", "grafana_dashboards", "heading"),
+                (rf"LIA fournit {_COUNT} tableaux de bord Grafana", "grafana_dashboards", "sentence"),
+                (rf"dont {_COUNT} numérotés de 01 à", "grafana_numbered_dashboards", "numbered"),
+                (rf"numérotés de 01 à {_COUNT} :", "grafana_numbered_dashboards", "range end"),
+            )),
+            ("de", (
+                (rf"{_COUNT} Grafana-Dashboards und", "grafana_dashboards", "title"),
+                (rf"<h2>{_COUNT} Grafana-Dashboards</h2>", "grafana_dashboards", "heading"),
+                (rf"LIA liefert {_COUNT} Grafana-Dashboards,", "grafana_dashboards", "sentence"),
+                (rf"davon {_COUNT} nummeriert von 01 bis", "grafana_numbered_dashboards", "numbered"),
+                (rf"nummeriert von 01 bis {_COUNT}:", "grafana_numbered_dashboards", "range end"),
+            )),
+            ("es", (
+                (rf"{_COUNT} dashboards Grafana y tracing", "grafana_dashboards", "title"),
+                (rf"<h2>{_COUNT} dashboards Grafana</h2>", "grafana_dashboards", "heading"),
+                (rf"LIA proporciona {_COUNT} paneles de control Grafana", "grafana_dashboards", "sentence"),
+                (rf", {_COUNT} de ellos numerados del 01 al", "grafana_numbered_dashboards", "numbered"),
+                (rf"numerados del 01 al {_COUNT}:", "grafana_numbered_dashboards", "range end"),
+            )),
+            ("it", (
+                (rf"{_COUNT} dashboard Grafana e tracing", "grafana_dashboards", "title"),
+                (rf"<h2>{_COUNT} dashboard Grafana</h2>", "grafana_dashboards", "heading"),
+                (rf"LIA fornisce {_COUNT} dashboard Grafana,", "grafana_dashboards", "sentence"),
+                (rf"di cui {_COUNT} numerati da 01 a", "grafana_numbered_dashboards", "numbered"),
+                (rf"numerati da 01 a {_COUNT}:", "grafana_numbered_dashboards", "range end"),
+            )),
+            ("zh", (
+                (rf"{_COUNT}个Grafana仪表板和", "grafana_dashboards", "title"),
+                (rf"<h2>{_COUNT}个Grafana仪表板</h2>", "grafana_dashboards", "heading"),
+                (rf"LIA提供{_COUNT}个Grafana仪表板", "grafana_dashboards", "sentence"),
+                (rf"其中{_COUNT}个编号为01至", "grafana_numbered_dashboards", "numbered"),
+                (rf"编号为01至{_COUNT}：", "grafana_numbered_dashboards", "range end"),
+            )),
+        )
+        for pattern, source, label in shapes
+    ),
 )
 
 
@@ -1104,6 +1264,48 @@ def _faq_question_count(root: Path) -> int:
     return count
 
 
+GRAFANA_DASHBOARDS_DIR = "infrastructure/observability/grafana/dashboards"
+
+
+def _panel_count(items: object) -> int:
+    """Panels of one dashboard level, rows excluded but their nested panels counted."""
+    if not isinstance(items, list):
+        return 0
+    total = 0
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        total += _panel_count(item.get("panels")) if item.get("type") == "row" else 1
+    return total
+
+
+def _grafana_counts(root: Path) -> tuple[int, int, int]:
+    """Dashboards, dashboards with a two-digit number, and their panels.
+
+    Args:
+        root: Repository root holding the provisioned dashboards.
+
+    Returns:
+        ``(dashboards, numbered dashboards, panels with rows excluded)``.
+
+    Raises:
+        SurfaceError: If the directory holds no dashboard or an unreadable one —
+            an absent source is never counted as zero.
+    """
+    files = sorted((root / GRAFANA_DASHBOARDS_DIR).glob("*.json"))
+    if not files:
+        raise SurfaceError(f"No Grafana dashboard found under {GRAFANA_DASHBOARDS_DIR}")
+    panels = 0
+    for path in files:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            raise SurfaceError(f"Cannot read the dashboard {path.name}: {error}") from error
+        panels += _panel_count(data.get("panels") if isinstance(data, dict) else None)
+    numbered = sum(1 for path in files if re.match(r"\d{2}-", path.name))
+    return len(files), numbered, panels
+
+
 def derived_counts(root: Path) -> dict[str, int]:
     """Recompute the counts quoted by public surfaces from their sources.
 
@@ -1114,8 +1316,10 @@ def derived_counts(root: Path) -> dict[str, int]:
         ``adr_files`` (ADR markdown files), ``adr_latest`` (highest ADR number
         — ADR-008 has no file, so it runs one above the count),
         ``changelog_releases`` (``## [x]`` headings, excluding ``Unreleased``),
-        ``prometheus_metrics`` (metrics defined in the backend) and
-        ``faq_questions`` (questions of the in-app FAQ).
+        ``prometheus_metrics`` (metrics defined in the backend),
+        ``faq_questions`` (questions of the in-app FAQ), and
+        ``grafana_dashboards`` / ``grafana_numbered_dashboards`` /
+        ``grafana_panels`` (the provisioned dashboards and their panels).
 
     Raises:
         SurfaceError: If a source directory or file is missing or empty.
@@ -1136,12 +1340,16 @@ def derived_counts(root: Path) -> dict[str, int]:
     if not releases:
         raise SurfaceError("No release headings found in CHANGELOG.md — wrong root?")
 
+    dashboards, numbered, panels = _grafana_counts(root)
     return {
         "adr_files": len(adr_files),
         "adr_latest": max(numbers),
         "changelog_releases": len(releases),
         "prometheus_metrics": _prometheus_metric_count(root),
         "faq_questions": _faq_question_count(root),
+        "grafana_dashboards": dashboards,
+        "grafana_numbered_dashboards": numbered,
+        "grafana_panels": panels,
     }
 
 

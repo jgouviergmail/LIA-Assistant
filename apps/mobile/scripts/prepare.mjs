@@ -225,6 +225,7 @@ async function main() {
       [
         'ServerUrlStore.swift',
         'LiaShellPlugin.swift',
+        'WorldImageShare.swift',
         'MainViewController.swift',
         'PushRegistrar.swift',
       ]

@@ -23,6 +23,7 @@ from src.domains.agents.effects.gate import (
     ERROR_CONFIRMATION_IMPOSSIBLE,
     UNATTENDED_REFUSAL_MESSAGE,
 )
+from src.domains.agents.effects.treatments import treatment_collector
 from src.domains.agents.nodes import react_nodes
 from src.domains.agents.utils.loop_guard import compute_call_digest
 from src.domains.agents.utils.message_filters import TOOL_CALL_NOT_RUN, tool_call_ran
@@ -158,7 +159,12 @@ async def test_a_ticket_still_asks_its_confirmation(monkeypatch: pytest.MonkeyPa
         RunOrigin(kind="workboard", ticket_id="t1", run_id="r1", can_carry_draft=True)
     )
     try:
-        with installed_runtime_context(is_automated_source=True):
+        # The confirmed call RUNS, so it is consulted: a real turn publishes the
+        # register; without one the gate schedules a real database write.
+        with (
+            installed_runtime_context(is_automated_source=True),
+            treatment_collector(run_id="react-ticket-confirmation"),
+        ):
             answer = _only_answer(
                 await react_nodes.react_execute_tools_node(
                     _state("not_run_probe_mutation", mutation=True), {}

@@ -7,8 +7,27 @@ import { DOMAIN_CHIP_TONE, DOMAIN_ICON_TONE, type DomainTone } from '@/lib/domai
 import { cn } from '@/lib/utils';
 import { resolveErrorCtaKey, timeAgoLabel } from '@/lib/briefing-utils';
 import type { CardSection, SectionData } from '@/types/briefing';
+import { useFlashOnChange } from '@/hooks/useFlashOnChange';
 import { DASHBOARD_TILE_FRAME, TILE_ICON_BADGE, TileAmbience } from './DashboardTile';
 import { UpdatedAtBadge } from './UpdatedAtBadge';
+
+/** How long a card says « just updated » after its refresh completes. */
+const JUST_REFRESHED_VISIBLE_MS = 1600;
+
+/**
+ * How many refreshes completed (true → false) since mount — counted during
+ * render from the refresh state it follows, never by an effect setting state.
+ */
+function useCompletedRefreshes(isRefreshing: boolean): number {
+  const [refresh, setRefresh] = useState({ refreshing: isRefreshing, completed: 0 });
+  if (refresh.refreshing !== isRefreshing) {
+    setRefresh({
+      refreshing: isRefreshing,
+      completed: refresh.completed + (refresh.refreshing ? 1 : 0),
+    });
+  }
+  return refresh.completed;
+}
 
 /**
  * The domain colour code shared with notification chips. A restrained icon
@@ -159,7 +178,8 @@ export function BriefingCard<T extends SectionData>({
   // F5: light up the dormant "just updated ✨" badge on a completed refresh
   // (isRefreshing true → false), for ~1.6 s. Hooks run before the early return
   // below to respect the Rules of Hooks.
-  const [justRefreshed, setJustRefreshed] = useState(false);
+  const completedRefreshes = useCompletedRefreshes(isRefreshing);
+  const justRefreshed = useFlashOnChange(completedRefreshes, JUST_REFRESHED_VISIBLE_MS);
   const recoveryTrigger = useRef<HTMLButtonElement | null>(null);
   const refreshControl = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
@@ -169,16 +189,6 @@ export function BriefingCard<T extends SectionData>({
     }
     recoveryTrigger.current = null;
   }, [section.status]);
-  const prevRefreshingRef = useRef(isRefreshing);
-  useEffect(() => {
-    const wasRefreshing = prevRefreshingRef.current;
-    prevRefreshingRef.current = isRefreshing;
-    if (wasRefreshing && !isRefreshing) {
-      setJustRefreshed(true);
-      const id = setTimeout(() => setJustRefreshed(false), 1600);
-      return () => clearTimeout(id);
-    }
-  }, [isRefreshing]);
 
   if (section.status === 'not_configured') return null;
 

@@ -14,6 +14,7 @@ from uuid import uuid4
 
 import pytest
 
+from src.domains.agents.effects.treatments import treatment_collector
 from src.domains.agents.services.smart_planner_service import SmartPlannerService
 from tests.helpers.runtime_context import installed_runtime_context, no_runtime_context
 
@@ -25,7 +26,12 @@ _CONFIG: dict = {"configurable": {}}
 @pytest.fixture(autouse=True)
 def _run_context():
     """Install a run context so the discovery sees an acting user."""
-    with installed_runtime_context(user_id=uuid4()):
+    # A real turn publishes its consultation register; without one each bridge
+    # read schedules an integrity write the loop teardown cuts short.
+    with (
+        installed_runtime_context(user_id=uuid4()),
+        treatment_collector(run_id="planner-iot-discovery"),
+    ):
         yield
 
 

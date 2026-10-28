@@ -484,6 +484,7 @@ async def test_process_scheduled_actions_uses_no_redis_lock():
     repo = MagicMock()
     repo.recover_stale_executing = AsyncMock(return_value=0)
     repo.get_and_lock_due_actions = AsyncMock(return_value=[action])
+    repo.close_finished = AsyncMock(return_value=0)  # nothing to close this tick
 
     redis_factory = AsyncMock()  # must never be called by the executor
 
@@ -657,6 +658,7 @@ class TestRetentionPurge:
         repo = MagicMock()
         repo.recover_stale_executing = AsyncMock(return_value=0)
         repo.get_and_lock_due_actions = AsyncMock(return_value=[])
+        repo.close_finished = AsyncMock(return_value=0)  # nothing to close this tick
         run_repo = MagicMock()
         run_repo.purge_older_than = AsyncMock(return_value=3)
 
@@ -690,6 +692,7 @@ class TestRetentionPurge:
         repo = MagicMock()
         repo.recover_stale_executing = AsyncMock(return_value=0)
         repo.get_and_lock_due_actions = AsyncMock(return_value=[])
+        repo.close_finished = AsyncMock(return_value=0)  # nothing to close this tick
         run_repo = MagicMock()
         run_repo.purge_older_than = AsyncMock(side_effect=RuntimeError("locked"))
 

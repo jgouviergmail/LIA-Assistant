@@ -29,6 +29,7 @@ from src.domains.agents.data_registry.models import (
     RegistryItemMeta,
     RegistryItemType,
 )
+from src.domains.agents.effects.treatments import treatment_collector
 from src.domains.agents.models import MessagesState, create_initial_state
 from src.domains.agents.nodes import react_egress_question as mod
 from src.domains.agents.nodes import react_nodes
@@ -722,6 +723,9 @@ class TestNobodyToAskIsNeverAsked:
         with (
             patch(f"{mod.__name__}.interrupt", side_effect=AssertionError("asked")),
             installed_runtime_context(is_automated_source=True),
+            # A real turn publishes its consultation register; without one the
+            # gate schedules an integrity write the loop teardown cuts short.
+            treatment_collector(run_id="egress-routine"),
         ):
             result = await react_nodes.react_execute_tools_node(
                 _loop_state(("egress_unattended_probe_tool", "c-unattended")), {}
@@ -746,6 +750,8 @@ class TestNobodyToAskIsNeverAsked:
                 patch(f"{mod.__name__}.record_decision", AsyncMock()),
                 patch(f"{mod.__name__}.python_sandbox_egress_grants_total"),
                 installed_runtime_context(is_automated_source=True),
+                # The turn's consultation register, published as in the test above.
+                treatment_collector(run_id="egress-ticket"),
             ):
                 await react_nodes.react_execute_tools_node(
                     _loop_state(("egress_ticket_probe_tool", "c-ticket")), {}

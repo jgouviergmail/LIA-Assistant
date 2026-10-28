@@ -10,7 +10,9 @@
 
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useHydrated } from '@/hooks/useHydrated';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 import { useApplicationAccountState } from '@/hooks/useApplicationAccountState';
@@ -109,7 +111,8 @@ export function useFCMToken(): UseFCMTokenReturn {
   const ownerId = user?.id;
   const { isCurrent } = useApplicationAccountLifetime(ownerId);
   const [token, setToken] = useApplicationAccountState<string | null>(ownerId, null);
-  const [permissionStatus, setPermissionStatus] = useState<FCMPermissionStatus>('default');
+  const [reportedPermission, setPermissionStatus] = useState<FCMPermissionStatus | null>(null);
+  const hydrated = useHydrated();
   const [isLoading, setIsLoading] = useApplicationAccountState(ownerId, false);
   const [error, setError] = useApplicationAccountState<string | null>(ownerId, null);
   const [registeredTokens, setRegisteredTokens] = useApplicationAccountState<RegisteredToken[]>(
@@ -130,30 +133,16 @@ export function useFCMToken(): UseFCMTokenReturn {
   const isConfigured = typeof window !== 'undefined' && (isFirebaseConfigured() || inShell);
   const isiOSPWA = typeof window !== 'undefined' && isIOSPWA();
 
-  // Initialize permission status on mount
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    if (!isSupported) {
-      setPermissionStatus('unsupported');
-      return;
-    }
-
-    if (!isConfigured) {
-      setPermissionStatus('not-configured');
-      return;
-    }
-
-    if (inShell) {
-      // The host owns the permission, and asking is the only way to learn its
-      // state — there is no `Notification.permission` to read.
-      setPermissionStatus('default');
-      return;
-    }
-
-    const currentPermission = getNotificationPermission();
-    setPermissionStatus(currentPermission);
-  }, [isSupported, isConfigured, inShell]);
+  const browserPermission: FCMPermissionStatus = !hydrated
+    ? 'default'
+    : !isSupported
+      ? 'unsupported'
+      : !isConfigured
+        ? 'not-configured'
+        : inShell
+          ? 'default'
+          : getNotificationPermission();
+  const permissionStatus = reportedPermission ?? browserPermission;
 
   /**
    * Fetch registered tokens from backend.

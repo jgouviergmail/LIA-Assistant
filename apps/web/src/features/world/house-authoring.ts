@@ -72,6 +72,23 @@ export type Furnishing = readonly [
   activity?: WorldProp['activity'],
   support?: string,
 ];
+/** Associate stable authored seat keys with stable table keys, never by proximity. */
+export function associateTables(
+  props: readonly WorldProp[],
+  tables: Readonly<Record<string, readonly string[]>>
+): WorldProp[] {
+  const seats = new Map<string, string>();
+  for (const [table, keys] of Object.entries(tables))
+    for (const key of keys) {
+      if (seats.has(key)) throw new Error('duplicate_seat_table');
+      seats.set(key, table);
+    }
+  for (const key of seats.keys())
+    if (!props.some(prop => prop.key === key)) throw new Error('missing_table_seat');
+  return props.map(prop =>
+    prop.key && seats.has(prop.key) ? { ...prop, tableKey: seats.get(prop.key) } : prop
+  );
+}
 export function furnish(
   room: Pick<WorldZone, 'x' | 'y'>,
   items: readonly Furnishing[]
@@ -109,6 +126,7 @@ export function furnish(
         'reeds',
         'promiseboard',
         'wallphone',
+        'smartphone',
         'waterlily',
       ].includes(kind),
     };

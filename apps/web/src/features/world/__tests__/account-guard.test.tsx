@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import apiClient from '@/lib/api-client';
 import { WorldAccountGuard, WorldPrivateActivity } from '../WorldAccountGuard';
@@ -27,6 +27,13 @@ function PrivateDraft() {
       onChange={event => setDraft(event.target.value)}
     />
   );
+}
+function EffectProbe({ mounted, cleaned }: { mounted: () => void; cleaned: () => void }) {
+  useEffect(() => {
+    mounted();
+    return cleaned;
+  }, [mounted, cleaned]);
+  return <p>Live private effect</p>;
 }
 function PrivatePortal() {
   return (
@@ -62,7 +69,8 @@ it('revalidates the real cookie on focus and removes the previous account subtre
       })
   );
   fireEvent(window, new Event('focus'));
-  expect(screen.getByLabelText('Private draft')).not.toBeVisible();
+  // A revalidation of the confirmed owner runs in the background.
+  expect(screen.getByLabelText('Private draft')).toBeVisible();
   await act(async () => resolve({ id: 'second', is_active: true }));
   expect(screen.queryByLabelText('Private draft')).not.toBeInTheDocument();
   expect(screen.getByRole('alert')).toHaveTextContent('world.session.account_changed');
@@ -84,34 +92,50 @@ it('retains the same account draft through verification and a recoverable read f
   fireEvent(window, new Event('focus'));
   await screen.findByRole('alert');
   expect(screen.getByLabelText('Private draft')).not.toBeVisible();
-  get.mockResolvedValueOnce({ id: 'first', is_active: true });
+  const retried = Promise.withResolvers<unknown>();
+  get.mockImplementationOnce(() => retried.promise);
   fireEvent.click(screen.getByRole('button', { name: 'common.retry' }));
+  // After a failed read, only a read that confirms the owner reveals it again.
+  expect(screen.getByLabelText('Private draft')).not.toBeVisible();
+  await act(async () => retried.resolve({ id: 'first', is_active: true }));
   await waitFor(() => expect(screen.getByLabelText('Private draft')).toBeVisible());
   expect(screen.getByLabelText('Private draft')).toHaveValue('Kept');
 });
 
-it('hides nested portals while preserving same-owner edits, then destroys them on a confirmed mismatch', async () => {
+it('keeps nested portals, same-owner edits and their effects alive through a revalidation, then destroys them on a confirmed mismatch', async () => {
+  // A hidden Activity tears its effects down: a streamed answer or a Live
+  // session inside a private panel would end on every return of the focus.
+  const mounted = vi.fn();
+  const cleaned = vi.fn();
   get.mockResolvedValueOnce({ id: 'first', is_active: true });
   render(
     <WorldAccountGuard lng="en" ownerId="first">
       <PrivatePortal />
+      <WorldPrivateActivity>
+        <EffectProbe mounted={mounted} cleaned={cleaned} />
+      </WorldPrivateActivity>
     </WorldAccountGuard>
   );
   await screen.findByText('Private portal content');
+  await waitFor(() => expect(mounted).toHaveBeenCalledTimes(1));
   fireEvent.change(screen.getByLabelText('Private draft'), { target: { value: 'Portal edit' } });
   const next = Promise.withResolvers<unknown>();
   get.mockImplementationOnce(() => next.promise);
   fireEvent(window, new Event('focus'));
-  expect(screen.getByText('Private portal content')).not.toBeVisible();
-  expect(screen.getByLabelText('Private draft')).not.toBeVisible();
+  expect(screen.getByText('Private portal content')).toBeVisible();
+  expect(screen.getByLabelText('Private draft')).toBeVisible();
+  expect(screen.queryByRole('status')).not.toBeInTheDocument();
   await act(async () => next.resolve({ id: 'first', is_active: true }));
   expect(screen.getByText('Private portal content')).toBeVisible();
   expect(screen.getByLabelText('Private draft')).toHaveValue('Portal edit');
+  expect(mounted).toHaveBeenCalledTimes(1);
+  expect(cleaned).not.toHaveBeenCalled();
   get.mockResolvedValueOnce({ id: 'second', is_active: true });
   fireEvent(window, new Event('focus'));
   await screen.findByRole('alert');
   expect(screen.queryByText('Private portal content')).not.toBeInTheDocument();
   expect(screen.queryByLabelText('Private draft')).not.toBeInTheDocument();
+  expect(cleaned).toHaveBeenCalledTimes(1);
 });
 
 it.each(['editor', 'outside', 'background'] as const)(
@@ -120,11 +144,12 @@ it.each(['editor', 'outside', 'background'] as const)(
     let restore: FrameRequestCallback = () => {
       throw new Error('Expected focus restoration to be scheduled');
     };
-    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+    // The hook calls the global RAF binding: capture that actual dependency.
+    vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(callback => {
       restore = callback;
       return 11;
     });
-    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+    vi.spyOn(globalThis, 'cancelAnimationFrame').mockImplementation(() => {});
     vi.spyOn(document, 'hasFocus').mockImplementation(() => destination !== 'background');
     get.mockResolvedValueOnce({ id: 'first', is_active: true });
     render(
@@ -141,7 +166,11 @@ it.each(['editor', 'outside', 'background'] as const)(
       </>
     );
     const draft = await screen.findByLabelText('Private draft');
+    // Activity retains hidden DOM during the first identity read. Only a
+    // verified, visible editor can own the focus this scenario exercises.
+    await waitFor(() => expect(draft).toBeVisible());
     draft.focus();
+    expect(draft).toHaveFocus();
     const next = Promise.withResolvers<unknown>();
     get.mockImplementationOnce(() => next.promise);
     fireEvent(window, new Event('focus'));

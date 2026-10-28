@@ -18,7 +18,7 @@
  * `unconfiguredCards`, which only ever sees the visible ones.
  */
 
-import Link from 'next/link';
+import { DashboardLink as Link } from './DashboardNavigation';
 import { Settings2 } from 'lucide-react';
 
 import { useTranslation } from 'react-i18next';

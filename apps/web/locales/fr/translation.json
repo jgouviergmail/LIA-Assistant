@@ -455,7 +455,8 @@
       "synthesis_title": "Le point de LIA",
       "synthesis_expand": "Déplier le point de LIA",
       "synthesis_collapse": "Replier le point de LIA",
-      "refresh_error": "Certaines informations n’ont pas pu être actualisées. Les dernières données reçues restent disponibles."
+      "refresh_error": "Certaines informations n’ont pas pu être actualisées. Les dernières données reçues restent disponibles.",
+      "text_unavailable": "La synthèse est indisponible. Relance-la quand tu souhaites la générer."
     },
     "portrait_hint": {
       "text": "J'ai affiné ma compréhension de toi.",
@@ -5488,7 +5489,9 @@
       },
       "already_linked": "Ce dossier est déjà lié à cet espace.",
       "sync_in_progress": "Synchronisation déjà en cours.",
-      "feature_disabled": "La synchronisation Drive est désactivée."
+      "feature_disabled": "La synchronisation Drive est désactivée.",
+      "picker_root": "Mon Drive",
+      "picker_error": "Impossible de charger les dossiers."
     },
     "mail": {
       "title": "Libellés Gmail",
@@ -6183,7 +6186,7 @@
       "features": {
         "world": {
           "title": "🗺️ LIA World",
-          "description": "Parcours une maison et un jardin isométriques avec d’autres personnes, dans le personnage de ton choix. Les lieux ouvrent les outils habituels de LIA : conversation, connaissances, réunions, fichiers… avec leurs confirmations et budgets. Ton chez-toi et tes panneaux restent privés. Échange des textes temporaires, traduits avec ton accord ; jour, météo et sons facultatifs animent le décor. La voix entre personnes n’est pas disponible."
+          "description": "Parcours une maison et un jardin isométriques avec d’autres personnes, dans le personnage de ton choix. Les lieux ouvrent les outils habituels de LIA — conversation, connaissances, réunions, fichiers… — avec leurs confirmations et budgets ; ton chez-toi et tes panneaux restent privés. Échange des textes temporaires, traduits avec ton accord, salue d’un geste, joue à l’arcade et garde une photo privée ; jour, saisons, météo et sons facultatifs animent le décor."
         },
         "architecture": {
           "title": "🏗️ Architecture LangGraph Multi-Agents",
@@ -6492,6 +6495,25 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v4_1_0": {
+          "title": "v4.1.0 — 🕹️ Un monde plus vivant : jouer, saluer, garder le moment",
+          "date": "28 octobre 2026",
+          "count": "12",
+          "items": {
+            "i1": "<b>🕹️ Joue à l’arcade</b> — Trois bornes du Monde de LIA proposent le morpion, Quatre à la suite et Reversi, avec une autre personne ou contre l’ordinateur. Le serveur confirme chaque coup, et jouer n’appelle aucun modèle d’IA.",
+            "i2": "<b>👋 Dis-le d’un geste</b> — Saluer, remercier, applaudir, rire, questionner ou fêter : six gestes s’affichent au-dessus de ton avatar. Si l’un est refusé, tu sais pourquoi.",
+            "i3": "<b>📸 Garde le moment</b> — Prends une photo privée de ton avatar, de LIA et du décor, jamais des autres visiteurs. Télécharge-la, ou partage-la quand ton appareil le propose.",
+            "i4": "<b>🪑 Ton dashboard à table</b> — Assieds-toi à une table et choisis d’ouvrir ou non ton dashboard complet. Dire non te laisse assis et ne coûte rien.",
+            "i5": "<b>💬 Une barre de discussion rapide</b> — Écris à la personne la plus proche, ou à tout le monde quand personne n’est près de toi. Le destinataire est affiché et ne change pas pendant que tu écris.",
+            "i6": "<b>🌿 Un monde qui répond</b> — Les objets familiers montrent tes rappels déclenchés, tes messages et tes tickets, le visage de LIA suit ce qu’elle fait vraiment, et les saisons, l’étang, la fontaine, les lampes et les machines réagissent. Dix apparences de départ sont prêtes à modifier.",
+            "i7": "<b>🛡️ Moins d’interruptions</b> — Revenir sur la fenêtre ou une brève reconnexion ne coupe plus la réponse de LIA et ne termine plus une session Live, et accepter un joueur après une revanche en solo ne te déconnecte plus.",
+            "i8": "<b>🏳️ Des drapeaux à côté des langues</b> — Le sélecteur de langue et les réglages de langue affichent un petit drapeau à côté de chaque langue.",
+            "i9": "<b>🔧 Des écrans du quotidien plus sûrs</b> — Réessayer dans le sélecteur de dossiers Drive recharge vraiment, le rouvrir affiche de nouveau tes dossiers, et les tables de tarifs ne mélangent plus une ancienne actualisation à une recherche plus récente.",
+            "i10": "<b>🍎 Le partage de photos sur iPhone</b> — Enregistrer une photo du Monde partagée dans ta photothèque est correctement déclaré au système.",
+            "i11": "<b>🔒 Tes mots restent à toi</b> — Le registre interne des outils de LIA ne garde plus que la longueur d’une demande, jamais un extrait.",
+            "i12": "<b>🛠️ Pour les administrateurs</b> — L’arcade peut être désactivée et ses attentes et délais réglés, et chaque alerte indique désormais l’hôte d’où elle vient."
+          }
+        },
         "v4_0_0": {
           "title": "v4.0.0 — 🌍 Un monde à explorer, ton assistante à tes côtés",
           "date": "27 octobre 2026",
@@ -11631,7 +11653,7 @@
       "world": {
         "title": "Le monde de LIA",
         "description": "Un lieu partagé pour se retrouver, avec ta propre LIA à portée de main.",
-        "count": "11",
+        "count": "16",
         "questions": {
           "q1": {
             "question": "Qu’est-ce que LIA World et comment y entrer ?",
@@ -11647,7 +11669,7 @@
           },
           "q4": {
             "question": "Que puis-je personnaliser chez moi et sur mon personnage ?",
-            "answer": "Choisis teint, coiffure, vêtements, couleurs et accessoires à l’entrée ou via <strong>Mon personnage</strong>. Ton apparence enregistrée est visible dans les lieux communs. Ton chez-toi est privé : prévisualise puis enregistre sa palette, ou suis le thème de l’application. Tu retrouves ces choix à la visite suivante ; une modification concurrente demande de recharger avant d’enregistrer. Cette version propose des palettes bornées ; les visites et l’édition de mobilier partagé ne sont pas disponibles."
+            "answer": "Choisis teint, coiffure, vêtements, couleurs et accessoires à l’entrée ou via <strong>Mon personnage</strong>, ou pars de l’une des dix apparences modifiables. Ton apparence enregistrée est visible dans les lieux communs. Ton chez-toi est privé : prévisualise puis enregistre sa palette, ou suis le thème de l’application. Tu retrouves ces choix à la visite suivante ; une modification concurrente demande de recharger avant d’enregistrer. Cette version propose des palettes bornées ; les visites et l’édition de mobilier partagé ne sont pas disponibles."
           },
           "q5": {
             "question": "Puis-je utiliser les fonctions habituelles de LIA sans quitter le monde ?",
@@ -11659,7 +11681,7 @@
           },
           "q7": {
             "question": "Comment fonctionnent les messages privés et publics ?",
-            "answer": "Ouvre <strong>Conversations</strong> puis choisis une personne visible dans un lieu partagé pour un message direct, ou la conversation publique pour son public admissible présent à l’envoi. Le message public reste réservé à ce public : les arrivants suivants n’en reçoivent pas l’historique. Reviens dans un espace commun avant d’envoyer depuis chez toi. Original et traduction sont consultables ; attente, échec ou résultat incertain sont indiqués. Ces messages temporaires expirent après la durée affichée et ne rejoignent pas la mémoire de LIA."
+            "answer": "Ouvre <strong>Conversations</strong> puis choisis une personne visible dans un lieu partagé pour un message direct, ou la conversation publique pour son public admissible présent à l’envoi. Le message public reste réservé à ce public : les arrivants suivants n’en reçoivent pas l’historique. Reviens dans un espace commun avant d’envoyer depuis chez toi. Une barre rapide écrit aussi à la personne joignable la plus proche, sinon à toutes les personnes présentes : elle affiche le destinataire, te laisse le changer et le garde pendant que tu écris ou qu’un message part. Sur téléphone, <strong>Discuter</strong> l’ouvre. Original et traduction sont consultables ; attente, échec ou résultat incertain sont indiqués. Ces messages temporaires expirent après la durée affichée et ne rejoignent pas la mémoire de LIA."
           },
           "q8": {
             "question": "Qui paie la traduction des messages ?",
@@ -11676,6 +11698,26 @@
           "q11": {
             "question": "Comment un administrateur rend-il World disponible ?",
             "answer": "L’opérateur active World dans la configuration serveur, puis l’administrateur l’autorise dans <strong>Paramètres › Administration › Capacités de la plateforme</strong>. L’opérateur règle aussi capacité et limites serveur ; le commutateur ne peut pas contourner une désactivation au déploiement. World réutilise les sessions natives, la présence gérée par Redis et les préférences du compte. Les panneaux privés gardent leurs contrôles de capacité ; la traduction utilise son rôle de modèle dédié et les limites de consommation existantes. Aucun panneau d’administration n’est exposé dans la scène partagée."
+          },
+          "q12": {
+            "question": "Comment découvrir les lieux et animer la scène ?",
+            "answer": "Le menu Fonctions recense les lieux et les outils accessibles à ton compte, dont les SMS dans l’atrium. Parcours, Gestes et Photo sont regroupés avec les widgets. Le parcours est activé par défaut et reste désactivable. Clique sur un décor interactif : ton personnage s’approche avant la réaction et le son, si l’audio est activé. Les lampes se commutent et les écrans proposent cinq affichages. Les interactions, les saisons et les effets locaux ne sollicitent aucun modèle d’IA. Tes outils privés restent privés."
+          },
+          "q13": {
+            "question": "Comment fonctionnent les bornes de jeux ?",
+            "answer": "Chaque borne propose son jeu : morpion, Quatre à la suite ou Reversi. Choisis l’ordinateur si tu es seul, ou attends une autre personne et accepte explicitement sa demande. Une nouvelle partie entre personnes commence sur un plateau vierge. Le serveur confirme les coups autorisés et les résultats. Après une interruption de connexion, reprends explicitement la partie ; quitter retire ta participation. Jouer ne sollicite aucun modèle de langage."
+          },
+          "q14": {
+            "question": "Comment prendre et partager une photo privée ?",
+            "answer": "Photo prépare un JPEG local en paysage ou portrait avec ton personnage, LIA et le décor. Le cadrage respecte le zoom choisi ; le format peut recadrer les bords. La signature LIA World - https://lia.jeyswork.com est toujours présente. Les autres visiteurs, les noms, les bulles et les panneaux privés sont exclus. Vérifie l’aperçu, puis enregistre-le ou choisis Partager lorsque c’est proposé. L’aperçu ne téléverse rien. L’ouverture du sélecteur système ne confirme pas une publication par une autre application."
+          },
+          "q15": {
+            "question": "Comment fonctionnent les gestes ?",
+            "answer": "Ouvre <strong>Gestes</strong> parmi les widgets, ou utilise les boutons à côté du joystick sur téléphone. Saluer, remercier, applaudir, rire, questionner ou fêter : le serveur confirme le geste et l’affiche quelques secondes au-dessus de ton avatar, pour les personnes qui te voient. Les gestes suivent un rythme calme ; quand l’un est refusé, un court message t’explique pourquoi. Ils ne s’affichent pas dans ta maison privée et n’appellent aucun modèle d’IA."
+          },
+          "q16": {
+            "question": "Que se passe-t-il quand je m’assieds à une table ?",
+            "answer": "Quand tu t’assieds à une table ordinaire, LIA te demande si tu veux ouvrir ton dashboard complet : briefing, radio, résultats et consommation. Choisis <strong>Rester assis</strong> pour refuser ; rien n’est chargé ni facturé. Si tu acceptes, le dashboard s’ouvre en privé avec ses coûts et confirmations habituels ; tu peux te le proposer de nouveau sans te lever. Les objets familiers montrent aussi tes propres signaux — un rappel déclenché, un nouveau message, un ticket qui t’attend —, visibles par toi seul."
           }
         }
       }
@@ -12535,6 +12577,8 @@
       "privacy_body": "Une pièce ouvre tes outils privés habituels. Envoi, suppression et changements sensibles conservent leurs confirmations ; le contexte de ton assistante reste le tien.",
       "messages_title": "Choisis les mots que tu partages.",
       "messages_body": "Garde une conversation privée, ou adresse-toi volontairement à Tout le monde dans l’espace partagé. La traduction est un choix payant explicite, avec ton coût visible et aucune relance automatique après un échec.",
+      "play_title": "Jouer, saluer, garder le moment.",
+      "play_body": "Salue d’un geste, invite quelqu’un à une partie ou affronte l’ordinateur, et garde une photo privée du décor. Chaque action est confirmée par le serveur ou dessinée sur ton appareil, et aucune n’appelle de modèle d’IA.",
       "link": "Découvrir le monde de LIA"
     }
   },
@@ -13407,7 +13451,7 @@
       "title_line2_highlight": "LIA",
       "title_line2_after": " garde le fil.",
       "title_line3": "Tu gardes la main.",
-      "subtitle_top": "Ton assistant personnel, à la demande et proactif.",
+      "subtitle_top": "L'assistant personnel pour tous.",
       "subtitle_line1": "Prépare tes échanges. Écoute ta journée. Coordonne tes proches.",
       "subtitle_line2": "Tes sources, ta mémoire et tes engagements se rejoignent pour t’aider à avancer.",
       "subtitle_line3": "Dans une application web, avec les actions sensibles à valider.",
@@ -13427,7 +13471,7 @@
       "proof_control": "Actions sensibles à valider",
       "home_cta_primary": "Créer mon compte",
       "home_access_note": "Inscription BETA limitée, par e-mail : vérification de l’adresse, puis activation par l’administrateur, automatique sur une instance de démonstration.",
-      "home_value": "Tes échanges, ta mémoire, ton agenda : LIA relie le contexte pour préparer la suite et te proposer la bonne action.",
+      "home_value": "Accessible, ouvert, transparent, complet, proactif, utile, pertinent.",
       "home_code_link": "Le code et le guide d’installation",
       "home_cta_demo": "Voir LIA en action",
       "home_cta_presentation": "Présentation"
@@ -13837,6 +13881,22 @@
       "world_audio": {
         "title": "Un monde qui s’écoute aussi",
         "description": "Active les ambiances sonores facultatives des pièces et du jardin, avec un volume séparé. Ces sons originaux statiques n’appellent aucun fournisseur à la lecture. La bibliothèque reste silencieuse ; les sons du monde cèdent la place à la voix de LIA, au micro, au Live et à la Radio, et s’arrêtent quand tu pars."
+      },
+      "world_gestures": {
+        "title": "Un geste pour dire bonjour",
+        "description": "Saluer, remercier, applaudir, rire, questionner ou fêter : six gestes s’affichent au-dessus de ton avatar pour les personnes qui te voient. Le serveur confirme chacun à un rythme calme et te dit quand l’un est refusé. Les gestes restent hors de ta maison privée et n’appellent aucun modèle d’IA."
+      },
+      "world_arcade": {
+        "title": "Jouer ensemble à l’arcade",
+        "description": "Trois bornes proposent le morpion, Quatre à la suite et Reversi, avec une autre personne ou contre l’ordinateur. L’hôte accepte qui le rejoint, le serveur confirme chaque coup et chaque résultat, et une revanche alterne les couleurs. L’ordinateur est une recherche bornée, pas un modèle d’IA ; tes parties ne laissent aucun historique."
+      },
+      "world_photo": {
+        "title": "Garder le moment",
+        "description": "Photo dessine une image privée de ton avatar, de LIA et du décor — jamais les autres visiteurs, les noms, les bulles ou les panneaux privés. Prévisualise-la, télécharge un JPEG borné signé LIA World, ou partage-la quand ton appareil le propose. Rien n’est téléversé et aucun modèle n’est appelé."
+      },
+      "world_table": {
+        "title": "Ton dashboard à table",
+        "description": "Assieds-toi à une table ordinaire et LIA te propose ton dashboard complet : briefing, radio, résultats et consommation. Reste assis pour refuser, sans rien charger ni facturer ; accepte pour l’ouvrir en privé avec ses coûts habituels. Les objets familiers montrent aussi tes rappels déclenchés, tes messages et tes tickets, pour toi seul."
       },
       "world_companion": {
         "title": "LIA reste tout près",
@@ -15000,6 +15060,22 @@
           "request": "J’active les sons des pièces et règle leur volume.",
           "result": "Des sons originaux locaux suivent ta pièce, cèdent la place à la voix et à la Radio, sans appel fournisseur pendant la lecture."
         },
+        "world_gestures": {
+          "request": "Je salue la personne à côté de moi.",
+          "result": "Le geste s’affiche quelques secondes au-dessus de mon avatar ; s’il est refusé, je sais pourquoi."
+        },
+        "world_arcade": {
+          "request": "Je défie l’ordinateur à une partie de Reversi.",
+          "result": "Le plateau vient du serveur, chaque coup est confirmé, et l’ordinateur répond sans aucun modèle d’IA."
+        },
+        "world_photo": {
+          "request": "Je prends une photo de mon avatar près de la fontaine.",
+          "result": "Un JPEG privé avec seulement mon avatar, LIA et le décor, prêt à télécharger ou à partager."
+        },
+        "world_table": {
+          "request": "Je m’assieds à la table du café.",
+          "result": "LIA me demande s’il faut ouvrir mon dashboard ; je peux rester assis et rien n’est chargé."
+        },
         "world_companion": {
           "request": "J’appelle LIA, puis j’ouvre notre conversation.",
           "result": "Ta conversation personnelle, son journal, sa psyché et tes alertes restent à portée de main."
@@ -15142,15 +15218,6 @@
     },
     "home_product_demo": {
       "meta_description": "Six situations du même quotidien : le dossier de Claire, ta Radio, un engagement envers Marc, un appel, une réunion et un dîner avec Sarah.",
-      "choose_scene": "Choisir une situation",
-      "steps": "Les étapes de la démonstration",
-      "steps_request": "Ta demande",
-      "steps_context": "Le contexte",
-      "steps_result": "Le résultat",
-      "play": "Lire la démonstration",
-      "pause": "Mettre en pause",
-      "replay": "Rejouer la démonstration",
-      "difference": "Ce que ce parcours t’apporte",
       "example": "Exemple fictif",
       "context": "LIA rapproche le contexte utile",
       "illustrative": "Scénario illustratif · personnes, données et résultats fictifs.",
@@ -15186,8 +15253,7 @@
           "result_3": "Deux questions prêtes pour Claire : « Quel tarif s’applique à Atlas, 240 € ou 270 € ? La remise évoquée en réunion est-elle confirmée ? »",
           "evidence_1": "Fiche du projet",
           "evidence_2": "Dernier mail de Claire",
-          "guardrail": "Une divergence reste à vérifier ; aucun prix n’est choisi et aucun message n’est envoyé.",
-          "difference": "Tu retrouves le fil de ton dossier sans recopier chaque pièce. LIA rapproche les sources accessibles et rend la contradiction visible, au lieu de présenter un tarif incertain comme une réponse acquise."
+          "guardrail": "Une divergence reste à vérifier ; aucun prix n’est choisi et aucun message n’est envoyé."
         },
         "day": {
           "title": "Ma Radio",
@@ -15202,8 +15268,7 @@
           "result_3": "Puis : les nouvelles mobilité et culture, avec leurs articles sources",
           "evidence_1": "",
           "evidence_2": "",
-          "guardrail": "Programme fictif, sans diffusion audio ici. Dans l’application, seules les sources personnelles autorisées sont lues.",
-          "difference": "Ton quotidien et tes centres d’intérêt trouvent leur place dans la même émission. Dans l’application, le lecteur, la transcription et les articles sources te permettent d’écouter puis de retrouver ce qui mérite ton attention."
+          "guardrail": "Programme fictif, sans diffusion audio ici. Dans l’application, seules les sources personnelles autorisées sont lues."
         },
         "watch": {
           "title": "Mon engagement",
@@ -15218,8 +15283,7 @@
           "result_3": "Brouillon non envoyé : « Bonjour Marc, j’ai noté le comité à 14 h. Mon engagement initial était à 15 h. Quels éléments te faut-il pour ce point ? »",
           "evidence_1": "",
           "evidence_2": "",
-          "guardrail": "Veille opt-in, selon la cadence de l’instance ; le signal ne décide pas à ta place.",
-          "difference": "Le nouvel échange arrive avec ce qu’il change pour ton engagement et un brouillon à reprendre. Tu n’as pas à reconstruire seul le contexte avant de répondre."
+          "guardrail": "Veille opt-in, selon la cadence de l’instance ; le signal ne décide pas à ta place."
         },
         "call": {
           "title": "Un appel",
@@ -15235,7 +15299,6 @@
           "evidence_1": "",
           "evidence_2": "",
           "guardrail": "L’appel démarre après confirmation, avec la téléphonie configurée.",
-          "difference": "LIA prépare un mandat d’appel : destinataire, numéro et objectif. Tu peux le modifier ou le refuser avant de confirmer. L’appel commence alors, puis son résultat revient dans la conversation.",
           "arg_when": "Quand",
           "arg_party": "Personnes",
           "arg_goal": "Objectif",
@@ -15256,8 +15319,7 @@
           "result_3": "Le passage sur la remise reste incertain : relire la transcription et corriger le compte rendu.",
           "evidence_1": "Sources consultées",
           "evidence_2": "Contraintes du projet",
-          "guardrail": "Synthèse fictive à relire ; aucune tâche, indexation ni pièce jointe n’est créée ici.",
-          "difference": "La réunion devient un document de travail, avec les actions et les incertitudes sous les yeux. Dans l’application, tu corriges le compte rendu et peux l’exporter en PDF ; sa recherche ultérieure dépend de l’indexation activée et terminée."
+          "guardrail": "Synthèse fictive à relire ; aucune tâche, indexation ni pièce jointe n’est créée ici."
         },
         "relay": {
           "title": "Un dîner avec Sarah",
@@ -15272,11 +15334,9 @@
           "result_3": "Brouillon non envoyé : « Bonjour Sarah, demain à 19 h 30 aux Jardins, est-ce que ça te convient ? » Aucune table ni aucun agenda n’est réservé.",
           "evidence_1": "Créneau commun",
           "evidence_2": "Disponibilités partagées",
-          "guardrail": "Connexion acceptée sur la même instance ; aucun accès général aux données de Sarah.",
-          "difference": "Dans cet exemple, le dernier échange sur Les Jardins passe avant l’ancienne préférence pour Verdi. Vos assistants rapprochent les disponibilités autorisées, chacun avec son compte et ses données ; tu décides de l’invitation."
+          "guardrail": "Connexion acceptée sur la même instance ; aucun accès général aux données de Sarah."
         }
       },
-      "result_label": "Le résultat à examiner",
       "card_details": "Ouvrir les éléments du dossier",
       "document_name": "Compte rendu · projet Atlas",
       "document_format": "Proposition à relire et corriger · exemple fictif",
@@ -15285,7 +15345,6 @@
       "approval_cancelled": "Refus illustré. Aucun appel n’a été déclenché.",
       "approval_reset": "Revoir la proposition",
       "approval_edited": "Instruction de modification illustrée. Dans l’application, LIA prépare un nouveau brouillon ; ici, l’aperçu reste fictif et aucun appel n’est lancé.",
-      "explore_hint": "Choisis une situation, puis explore sa demande, son contexte et son résultat.",
       "meeting_decisions": "Décision à poursuivre",
       "meeting_actions": "Action consignée",
       "meeting_uncertainty": "Passage à vérifier"
@@ -15842,9 +15901,9 @@
         "body": "<h2>Privacy by design</h2><p>LIA est conçu dès l'origine avec la protection des données comme principe fondateur, pas comme un ajout après coup.</p><h2>Chiffrement symétrique Fernet</h2><p><strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256), via <code>encrypt_data()</code>, protège les tokens OAuth, les identifiants des connecteurs et serveurs MCP et certains champs stockés. Les services déchiffrent ces valeurs lorsque nécessaire. Ce chiffrement ciblé ne couvre pas tous les champs personnels : les messages sont conservés en texte dans la base. L'opérateur de l'instance contrôle les clés et les accès à la base.</p><h2>Minimisation de la collecte</h2><p>LIA ne collecte que les données strictement nécessaires à son fonctionnement :</p><ul><li>Informations de profil (nom, email, préférences)</li><li>Historique des conversations conservé sur ton instance</li><li>Tokens de connexion aux services (chiffrés)</li><li>Métriques d’usage avec identifiants pseudonymes</li></ul><h2>Opérateur et fournisseurs configurés</h2><p>L'opérateur peut disposer d'un accès technique aux données stockées. Le modèle configuré reçoit la question et le contexte utile, dont des mémoires choisies ou des extraits de documents ; les services de voix, d'image et autres services connectés reçoivent les données nécessaires à leurs fonctions. Leurs politiques de confidentialité, de conservation et d'éventuel entraînement s'appliquent. Stockage local et accès contrôlés ne remplacent pas les contrats et réglages des fournisseurs.</p><h2>Suppression et cascading</h2><p>Le parcours de suppression purge les contenus personnels des conversations, mémoires, connecteurs, documents et stockages associés. Les relevés comptables restent ; la suppression peut garder nom et e-mail pour le contact comptable, puis l’effacement final supprime la ligne du compte. Des journaux d’audit ou de diagnostic peuvent conserver des éléments d’identité selon leurs politiques ; les sauvegardes suivent la conservation définie par l’opérateur. Réactiver ne restaure pas les contenus purgés.</p><h2>Sessions et cookies sécurisés</h2><p>Les cookies de session sont configurés avec les attributs <code>HttpOnly</code>, <code>Secure</code> (en production) et <code>SameSite=lax</code>. La durée de session est de 7 jours par défaut, extensible à 30 jours avec l'option \"Se souvenir de moi\". Les tokens à usage unique sont invalidés après première utilisation via un blacklist Redis.</p><h2>Protection des contenus externes</h2><p>Les contenus récupérés depuis des sources externes (emails, pages web, documents) sont tagués comme <code>UNTRUSTED</code> avec un wrapping configurable avant injection dans les prompts. L'outil web_fetch est rate limité à 10 appels par fenêtre de 60 secondes par utilisateur pour prévenir les abus.</p><h2>Des journaux techniques filtrés</h2><p>Dans la ligne de l'<strong>OWASP Logging Cheat Sheet</strong>, une ligne de journal au-dessus du niveau debug porte des <strong>faits</strong> — nombres, longueurs, identifiants, codes d'erreur, l'hôte d'une URL — et jamais le texte qu'une personne a écrit, ou qu'un modèle a écrit à son sujet : ni recherche, ni centre d'intérêt, ni nom de fichier, de libellé ou d'espace, ni page consultée.</p><p>La règle est vérifiée <strong>par la valeur</strong>, pas par le nom du champ : un test lit chaque appel de journal du code et refuse un aperçu ou une valeur dérivée d'un contenu, quel que soit son nom. Ce qu'un message d'erreur <strong>cite</strong> — une valeur refusée par PostgreSQL, l'entrée d'une validation — est retiré avant l'écriture de la ligne, et une erreur de base est décrite par ses faits : code, contrainte, table. Les clés des fournisseurs sont masquées dans toute adresse journalisée. Les métriques et les traces suivent la même règle : elles nomment la route empruntée par son modèle, jamais le nom ou la recherche qu'une adresse contient. Deux limites sont dites telles quelles : l'erreur d'un service externe dans un format inconnu peut encore citer une donnée, et le niveau debug — coupé en production — garde davantage.</p><h2>Tes SMS, sous deux consentements</h2><p>Les SMS que ton téléphone relaie par une automatisation Raccourcis de l'iPhone arrivent dans LIA avec un jeton en écriture seule qui leur est propre et rejoignent une archive personnelle chiffrée. Les codes d'accès reconnus sont écartés avant tout stockage, la notification qui annonce un nouveau message ne porte aucun contenu, et l'assistant ne lit l'archive qu'une fois que tu lui en donnes l'accès — un consentement distinct de leur réception. Ton export comprend les messages lisibles, et les effacer invalide les exports encore hébergés.</p><p>La même prudence gouverne les discussions proactives : une ouverture touchant un sujet sensible n'est jamais envoyée vers un canal externe, et sa notification est masquée.</p><h2>Portabilité des données (v1.9.1)</h2><p>LIA permet à chaque utilisateur d'<strong>exporter ses propres données de consommation</strong> au format CSV depuis Réglages > Fonctionnalités. Trois types d'export : consommation LLM (tokens et coûts par appel), consommation API Google, et résumé agrégé. Sécurité : le <code>user_id</code> est forcé côté serveur — aucun paramètre n'est exposé, empêchant tout accès aux données d'autres utilisateurs (protection IDOR).</p><h2>Des sauvegardes dont la restauration est prouvée</h2><p>Le déploiement de production fournit des outils de sauvegarde nocturne et de contrôle de restauration, avec une conservation par défaut de 7 jours, 4 semaines et 6 mois. L'opérateur les active et les surveille. Le contrôle restaure le dernier dump dans une base jetable et compare sa révision de schéma et ses nombres de lignes avec la source. La récupération dépend toujours des sauvegardes réussies et de la politique choisie.</p><h2>Un dossier complet, pas un échantillon</h2><p>Trois registres tenus automatiquement disent ce que LIA a <strong>fait</strong> pour toi, ce qu'elle a <strong>consulté</strong> pour te répondre et ce qu'elle a entrepris <strong>de sa propre initiative</strong>. Ils ne portent aucun contenu : une consultation retient la capacité — « ton agenda » — et jamais ce qui a été cherché, parce que l'écrire reviendrait à recopier la donnée même que le registre existe pour rendre redevable.</p><p>Le dossier que tu télécharges depuis la page <strong>Registres</strong> est <strong>complet</strong>. Il portait auparavant un plafond de lignes : une protection réelle, puisque le document entier était assemblé en mémoire sur un Raspberry Pi, mais appliquée à la mauvaise variable. Ce qui était rare, c'était la mémoire ; ce qui était borné, c'était la vérité. Un curseur côté serveur borne désormais le tampon : quel que soit le volume, le fichier porte tout ce que tes filtres désignent, le compte exact est annoncé en tête avec l'instant de génération, et le téléchargement est compressé à la volée quand ton navigateur l'accepte.</p><h2>Commandes et continuations privées</h2><p>Les clés, choix de fichier, connexions de compte et consentements du navigateur passent par l’interface sécurisée prévue pour l’opération, pas par des paramètres que le modèle invente. La commande est liée au compte et à son contexte autorisé ; les droits et la version de la ressource sont revérifiés avant l’écriture. Le chiffrement des contenus de commande ne rend pas tout le service invisible à son opérateur : les messages et les données nécessaires au fonctionnement gardent les limites décrites ici.</p><p>La confirmation porte sur l’opération et le contenu présentés. Une connexion OAuth, un fichier à choisir, une clé ou une permission du périphérique se poursuivent dans ton navigateur authentifié : ne colle pas ces secrets dans le chat. LIA peut préparer la demande puis attendre cette étape. L’activation de l’écoute mains libres et les permissions sensibles gardent leurs protections ; une commande ne les contourne pas.</p><h2>Un lieu partagé conserve ses frontières privées</h2><p>Le monde de LIA offre aux participants non bloqués de l’instance un lieu où se retrouver avec leurs avatars, tandis que les outils personnels restent propres au compte. L’entrée demande l’autorisation de publier un nom et une apparence choisie ; les connexions acceptées voient aussi une présence générale et si tu es dans ta maison. Le serveur filtre les comptes bloqués et exclut des vues partagées le contenu des maisons privées et le contexte des assistantes. Les pièces ouvrent les outils existants avec leurs droits et confirmations habituels.</p><p>Le texte échangé entre personnes est temporaire et séparé de l’historique et de la mémoire des assistantes. Une traduction payante démarre uniquement sur un choix explicite, conserve l’original et enregistre son coût pour la personne qui la paie. Une tentative échouée ou incertaine n’est pas rejouée automatiquement. Dessin et déplacements n’appellent aucun modèle ; la traduction facultative utilise le fournisseur configuré et les contrôles de consommation habituels.</p><p>Le texte privé vise un participant disponible ; le canal Tout le monde s’adresse volontairement aux personnes éligibles déjà présentes dans les espaces partagés, hors blocages et maisons privées. Les ambiances originales facultatives des pièces et du jardin sont des fichiers statiques avec un volume indépendant. Elles démarrent sur choix et cèdent la place au micro, à la voix de l’assistante, au Live et à la Radio, sans nouvel appel fournisseur.</p>"
       },
       "observability": {
-        "title": "635 métriques Prometheus, 32 dashboards Grafana et tracing Langfuse",
-        "excerpt": "LIA offre une observabilité de niveau entreprise avec 635 métriques, des dashboards Grafana dédiés, du tracing LLM via Langfuse et des alertes e-mail avec runbooks.",
-        "body": "<h2>Les trois piliers de l'observabilité</h2><p>LIA implémente les trois piliers de l'observabilité moderne :</p><ul><li><strong>Métriques</strong> — 635 métriques Prometheus couvrant HTTP, agents, tokens, coûts, OAuth et performance, étiquetées par gabarit de route : jamais un nom ni une recherche</li><li><strong>Logs</strong> — Journalisation structurée JSON via structlog, collectée par Grafana Alloy et centralisée dans Loki : filtrage des contenus personnels dans les journaux techniques, avec davantage de détails possibles en mode debug</li><li><strong>Traces</strong> — Tracing distribué via OpenTelemetry (Tempo), nommé d'après le gabarit de la route et jamais d'après l'adresse concrète, et tracing LLM via Langfuse</li></ul><h2>43 fichiers de métriques spécialisés</h2><p>Chaque domaine possède son propre fichier de métriques déclaratif. Les 43 modules couvrent notamment : HTTP, agents (SSE/router/LLM/HITL/planner), base de données, LangGraph, Langfuse, voice, mode live, radio, RAG spaces, OAuth, MCP, channels, erreurs, sous-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, métriques santé, journaux, téléphonie, réunions, workboard, registres d'effets et limites d'usage. Chaque fichier définit des Counter, Histogram et Gauge Prometheus adaptés au domaine.</p><h2>Définition des métriques Prometheus</h2><p>Chaque domaine définit ses métriques de manière déclarative :</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>32 dashboards Grafana</h2><p>LIA fournit 32 tableaux de bord Grafana, dont 31 numérotés de 01 à 31 : app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard, live, radio et phone-ingestion-sms. Chaque dashboard offre des vues filtrables par utilisateur, par période et par environnement. Le 26e est un cockpit produit : résultats validés (👍 explicite ou action restée non corrigée), funnel d'activation, rétention et coût par résultat utile — le comptage exact vit dans PostgreSQL et Grafana le lit via un rôle en lecture seule restreint aux vues agrégées.</p><h2>KPIs cibles extraits du code</h2><p>LIA surveille des indicateurs précis définis dans le code source : TTFT (Time To First Token) du streaming, latence du routeur entre 0.1 et 2 secondes, durée d'exécution des outils agents entre 0.1 et 10 secondes, confiance routeur p50 &gt; 0.8, coût LLM par requête &lt; 0.05€, taux d'erreur HTTP 5xx &lt; 1%.</p><h2>Alertes e-mail avec runbooks</h2><p>La supervision ne s'arrête pas aux tableaux de bord : un noyau d'alertes vitales — parmi elles API, PostgreSQL ou Redis indisponibles, disque, mémoire des conteneurs, taux d'erreurs 5xx, latence de streaming, échec de la sauvegarde quotidienne, URL publique injoignable, certificat TLS proche de l'expiration, limitation de débit hors service — est évalué en continu par Prometheus et notifié par e-mail via Alertmanager. Chaque alerte référence son runbook (procédure de résolution pas à pas), les seuils sont paramétrés par environnement dans des fichiers .env, et des tests unitaires promtool garantissent que les seuils affichés dans les notifications correspondent exactement aux expressions de déclenchement. Une sonde blackbox teste même la chaîne complète de bout en bout, du edge Cloudflare au frontend, exactement comme un utilisateur. L'alerte de latence de streaming n'observe que les tours qu'une personne attend — une routine passe par le même code, mais personne ne l'attend — et ne se déclenche que sur assez de tours pour qu'un 95e centile ait un sens ; un incident dont l'avis de résolution s'est perdu est rapproché d'Alertmanager et refermé.</p><h2>Langfuse : tracing LLM dédié</h2><p>L'intégration Langfuse trace chaque appel LLM — tokens consommés (entrée/sortie/cache), temps de réponse, modèle utilisé, coût estimé et contexte de la requête —, et sept métriques Prometheus qui lui sont propres suivent les versions de prompts, les scores d'évaluation, les variantes A/B, la profondeur des traces et les passages de relais entre agents. Cela permet d'identifier les prompts inefficaces, de comparer les modèles LLM entre eux et d'optimiser la consommation de tokens sur la durée.</p><h2>DevOps Claude CLI : diagnostic en langage naturel (v1.13.0)</h2><p>Dernière évolution de la stack observabilité : les administrateurs peuvent désormais diagnostiquer les serveurs directement depuis la conversation LIA. En demandant simplement « Regarde les logs pour voir si tout fonctionne », Claude Code CLI — installé dans le container API Docker — inspecte de manière autonome les logs, vérifie la santé des containers, analyse l'utilisation des ressources et rapporte ses conclusions. Sessions persistantes pour les investigations multi-tours, permissions configurables par environnement (prod en lecture seule, dev en accès complet), et streaming temps réel des étapes d'investigation via SSE.</p><h2>Et depuis la v1.34 : l'assistante lit sa propre télémétrie</h2><p>Tout ce qui précède existait pour les humains ; l'assistante elle-même n'en lisait rien. L'ADR-247 a fermé cette boucle : un auto-contrôle périodique transforme les signaux dorés et des sondes directes en instantanés de santé aux valeurs exactes ; alertes et verdicts critiques convergent vers un incident unique par panne, diagnostiqué par un LLM plafonné par budget et ancré sur les runbooks d'exploitation ; les administrateurs disposent d'un panneau Santé de la plateforme, de notifications proactives et d'outils de chat en lecture seule. Et une panne connue façonne désormais les réponses — les capacités dégradées sont contournées dès la planification, et les étapes en échec expliquées depuis des codes d'erreur typés, jamais des logs bruts. Depuis, le diagnostic n'est plus écrit à partir d'un nombre seul : une recette déclarée par type d'incident dit quelles ventilations et quels événements de journal lire, le dossier est collecté au moment du diagnostic, données personnelles retirées, une source injoignable est déclarée indisponible plutôt que lue comme du silence, et ce que le modèle a lu est montré sous son verdict.</p><h2>Compter les issues, pas les tentatives</h2><p>Un compteur a dû être repensé en v1.38.3. Compter les appels qui atteignent un fournisseur, c'est la vérité sur le fournisseur — et le mauvais dénominateur dès lors qu'on réessaie ces appels, puisqu'un échec rattrapé gonfle le taux d'erreur alors que rien n'a été perdu. Un second compteur enregistre désormais une ligne par opération logique, réessais repliés, et répond à la seule question sur laquelle un exploitant agit : l'appelant a-t-il eu son résultat ? Un troisième dit ce que le lisseur de débit a fait de chaque tentative, parce que « le budget est trop petit » et « Redis est tombé » sont indiscernables dans un booléen et appellent des actions opposées.</p><p>La leçon la plus récente porte sur le choix de ce que l'on mesure. La boucle autonome comptait ses itérations et sa durée — et rien pour ce qui grossit réellement : le prompt délivré au modèle à chaque étape. Mesuré sur le code de production, cela fait 2,3 k tokens à la première itération et 112 k à la quatre-vingt-dixième, parce que chaque résultat d'outil reste dans la conversation que le modèle relit. Deux histogrammes enregistrent désormais la taille délivrée et sa part de la fenêtre de contexte du modèle, alimentés par le compteur mémoïsé que le réducteur d'état maintient déjà, si bien que la mesure ne coûte rien sur le chemin chaud. Aucune politique de compression n'est partie avec eux, délibérément : un système qui agit sur une grandeur qu'il n'a jamais observée optimise une supposition.</p><p>Le même principe a rattrapé le taux de succès des outils. Un outil échoue en <em>renvoyant</em> un échec, jamais en levant une exception, et le compteur ne regardait que les exceptions : le taux valait 1,0 par construction, et les deux alertes qui le lisent ne pouvaient pas se déclencher. Un seul prédicat décide désormais ce qu'est un succès, pour le registre, les métriques et la boucle ReAct — le taux affiché baisse, parce qu'il dit enfin la vérité.</p><h2>Des signaux qui se répondent</h2><p>Une métrique, un journal et une trace racontent la même requête : encore faut-il passer de l’un à l’autre. Dans LIA, une ligne de journal ouvre la trace de sa requête, une trace ouvre ses journaux et ses métriques, et un point de latence ouvre l’exemple précis qui l’a produit. Chaque lien a été mesuré sur la production avant d’être réparé. La chaîne qui transporte ces signaux est elle-même surveillée — une alerte prévient si des journaux se perdent en route —, et tous les tableaux de bord suivent une même convention : une semaine d’historique, un menu commun.</p>"
+        "title": "640 métriques Prometheus, 33 dashboards Grafana et tracing Langfuse",
+        "excerpt": "LIA offre une observabilité de niveau entreprise avec 640 métriques, des dashboards Grafana dédiés, du tracing LLM via Langfuse et des alertes e-mail avec runbooks.",
+        "body": "<h2>Les trois piliers de l'observabilité</h2><p>LIA implémente les trois piliers de l'observabilité moderne :</p><ul><li><strong>Métriques</strong> — 640 métriques Prometheus couvrant HTTP, agents, tokens, coûts, OAuth et performance, étiquetées par gabarit de route : jamais un nom ni une recherche</li><li><strong>Logs</strong> — Journalisation structurée JSON via structlog, collectée par Grafana Alloy et centralisée dans Loki : filtrage des contenus personnels dans les journaux techniques, avec davantage de détails possibles en mode debug</li><li><strong>Traces</strong> — Tracing distribué via OpenTelemetry (Tempo), nommé d'après le gabarit de la route et jamais d'après l'adresse concrète, et tracing LLM via Langfuse</li></ul><h2>43 fichiers de métriques spécialisés</h2><p>Chaque domaine possède son propre fichier de métriques déclaratif. Les 43 modules couvrent notamment : HTTP, agents (SSE/router/LLM/HITL/planner), base de données, LangGraph, Langfuse, voice, mode live, radio, RAG spaces, OAuth, MCP, channels, erreurs, sous-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, métriques santé, journaux, téléphonie, réunions, workboard, registres d'effets et limites d'usage. Chaque fichier définit des Counter, Histogram et Gauge Prometheus adaptés au domaine.</p><h2>Définition des métriques Prometheus</h2><p>Chaque domaine définit ses métriques de manière déclarative :</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>33 dashboards Grafana</h2><p>LIA fournit 33 tableaux de bord Grafana, dont 32 numérotés de 01 à 32 : app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard, live, radio, world-arcade et phone-ingestion-sms. Chaque dashboard offre des vues filtrables par utilisateur, par période et par environnement. Le 26e est un cockpit produit : résultats validés (👍 explicite ou action restée non corrigée), funnel d'activation, rétention et coût par résultat utile — le comptage exact vit dans PostgreSQL et Grafana le lit via un rôle en lecture seule restreint aux vues agrégées.</p><h2>KPIs cibles extraits du code</h2><p>LIA surveille des indicateurs précis définis dans le code source : TTFT (Time To First Token) du streaming, latence du routeur entre 0.1 et 2 secondes, durée d'exécution des outils agents entre 0.1 et 10 secondes, confiance routeur p50 &gt; 0.8, coût LLM par requête &lt; 0.05€, taux d'erreur HTTP 5xx &lt; 1%.</p><h2>Alertes e-mail avec runbooks</h2><p>La supervision ne s'arrête pas aux tableaux de bord : un noyau d'alertes vitales — parmi elles API, PostgreSQL ou Redis indisponibles, disque, mémoire des conteneurs, taux d'erreurs 5xx, latence de streaming, échec de la sauvegarde quotidienne, URL publique injoignable, certificat TLS proche de l'expiration, limitation de débit hors service — est évalué en continu par Prometheus et notifié par e-mail via Alertmanager. Chaque alerte référence son runbook (procédure de résolution pas à pas), les seuils sont paramétrés par environnement dans des fichiers .env, et des tests unitaires promtool garantissent que les seuils affichés dans les notifications correspondent exactement aux expressions de déclenchement. Une sonde blackbox teste même la chaîne complète de bout en bout, du edge Cloudflare au frontend, exactement comme un utilisateur. L'alerte de latence de streaming n'observe que les tours qu'une personne attend — une routine passe par le même code, mais personne ne l'attend — et ne se déclenche que sur assez de tours pour qu'un 95e centile ait un sens ; un incident dont l'avis de résolution s'est perdu est rapproché d'Alertmanager et refermé.</p><h2>Langfuse : tracing LLM dédié</h2><p>L'intégration Langfuse trace chaque appel LLM — tokens consommés (entrée/sortie/cache), temps de réponse, modèle utilisé, coût estimé et contexte de la requête —, et sept métriques Prometheus qui lui sont propres suivent les versions de prompts, les scores d'évaluation, les variantes A/B, la profondeur des traces et les passages de relais entre agents. Cela permet d'identifier les prompts inefficaces, de comparer les modèles LLM entre eux et d'optimiser la consommation de tokens sur la durée.</p><h2>DevOps Claude CLI : diagnostic en langage naturel (v1.13.0)</h2><p>Dernière évolution de la stack observabilité : les administrateurs peuvent désormais diagnostiquer les serveurs directement depuis la conversation LIA. En demandant simplement « Regarde les logs pour voir si tout fonctionne », Claude Code CLI — installé dans le container API Docker — inspecte de manière autonome les logs, vérifie la santé des containers, analyse l'utilisation des ressources et rapporte ses conclusions. Sessions persistantes pour les investigations multi-tours, permissions configurables par environnement (prod en lecture seule, dev en accès complet), et streaming temps réel des étapes d'investigation via SSE.</p><h2>Et depuis la v1.34 : l'assistante lit sa propre télémétrie</h2><p>Tout ce qui précède existait pour les humains ; l'assistante elle-même n'en lisait rien. L'ADR-247 a fermé cette boucle : un auto-contrôle périodique transforme les signaux dorés et des sondes directes en instantanés de santé aux valeurs exactes ; alertes et verdicts critiques convergent vers un incident unique par panne, diagnostiqué par un LLM plafonné par budget et ancré sur les runbooks d'exploitation ; les administrateurs disposent d'un panneau Santé de la plateforme, de notifications proactives et d'outils de chat en lecture seule. Et une panne connue façonne désormais les réponses — les capacités dégradées sont contournées dès la planification, et les étapes en échec expliquées depuis des codes d'erreur typés, jamais des logs bruts. Depuis, le diagnostic n'est plus écrit à partir d'un nombre seul : une recette déclarée par type d'incident dit quelles ventilations et quels événements de journal lire, le dossier est collecté au moment du diagnostic, données personnelles retirées, une source injoignable est déclarée indisponible plutôt que lue comme du silence, et ce que le modèle a lu est montré sous son verdict.</p><h2>Compter les issues, pas les tentatives</h2><p>Un compteur a dû être repensé en v1.38.3. Compter les appels qui atteignent un fournisseur, c'est la vérité sur le fournisseur — et le mauvais dénominateur dès lors qu'on réessaie ces appels, puisqu'un échec rattrapé gonfle le taux d'erreur alors que rien n'a été perdu. Un second compteur enregistre désormais une ligne par opération logique, réessais repliés, et répond à la seule question sur laquelle un exploitant agit : l'appelant a-t-il eu son résultat ? Un troisième dit ce que le lisseur de débit a fait de chaque tentative, parce que « le budget est trop petit » et « Redis est tombé » sont indiscernables dans un booléen et appellent des actions opposées.</p><p>La leçon la plus récente porte sur le choix de ce que l'on mesure. La boucle autonome comptait ses itérations et sa durée — et rien pour ce qui grossit réellement : le prompt délivré au modèle à chaque étape. Mesuré sur le code de production, cela fait 2,3 k tokens à la première itération et 112 k à la quatre-vingt-dixième, parce que chaque résultat d'outil reste dans la conversation que le modèle relit. Deux histogrammes enregistrent désormais la taille délivrée et sa part de la fenêtre de contexte du modèle, alimentés par le compteur mémoïsé que le réducteur d'état maintient déjà, si bien que la mesure ne coûte rien sur le chemin chaud. Aucune politique de compression n'est partie avec eux, délibérément : un système qui agit sur une grandeur qu'il n'a jamais observée optimise une supposition.</p><p>Le même principe a rattrapé le taux de succès des outils. Un outil échoue en <em>renvoyant</em> un échec, jamais en levant une exception, et le compteur ne regardait que les exceptions : le taux valait 1,0 par construction, et les deux alertes qui le lisent ne pouvaient pas se déclencher. Un seul prédicat décide désormais ce qu'est un succès, pour le registre, les métriques et la boucle ReAct — le taux affiché baisse, parce qu'il dit enfin la vérité.</p><h2>Des signaux qui se répondent</h2><p>Une métrique, un journal et une trace racontent la même requête : encore faut-il passer de l’un à l’autre. Dans LIA, une ligne de journal ouvre la trace de sa requête, une trace ouvre ses journaux et ses métriques, et un point de latence ouvre l’exemple précis qui l’a produit. Chaque lien a été mesuré sur la production avant d’être réparé. La chaîne qui transporte ces signaux est elle-même surveillée — une alerte prévient si des journaux se perdent en route —, et tous les tableaux de bord suivent une même convention : une semaine d’historique, un menu commun.</p>"
       },
       "prompt-engineering": {
         "title": "Système de prompts versionnés : 202 prompts gérés comme du code",
@@ -15859,7 +15918,7 @@
       "multilingual": {
         "title": "6 langues, une architecture i18n complète",
         "excerpt": "LIA parle français, anglais, allemand, espagnol, italien et chinois. L'internationalisation couvre l'interface, les réponses IA et la documentation.",
-        "body": "<h2>6 langues nativement supportées</h2><p>LIA est entièrement disponible en <strong>français, anglais, allemand, espagnol, italien et chinois</strong>. L'internationalisation ne se limite pas à l'interface : elle couvre les réponses de l'assistant, les notifications, la FAQ et la documentation.</p><h2>Architecture i18n frontend</h2><p>Le frontend utilise <strong>react-i18next</strong> avec des fichiers JSON par langue et persistance du choix via un cookie <code>NEXT_LOCALE</code> (TTL 1 an). Le routing Next.js utilise un segment dynamique <code>[lng]</code> pour servir chaque langue à son URL dédiée. Les drapeaux de langue sont affichés comme emojis Unicode. Le mapping de locale associe chaque code court à sa variante complète (fr-FR, en-US, de-DE, es-ES, it-IT, zh-CN). Les pages sont pré-générées statiquement pour chaque langue au build.</p><h2>Hreflang et SEO multilingue</h2><p>Chaque page publique déclare des balises <code>hreflang</code> alternatives pour les 6 langues, avec une valeur <code>x-default</code> pointant vers le français. Le sitemap XML inclut les alternates multilingues pour chaque URL.</p><h2>Réponses IA multilingues</h2><p>L'assistant répond dans la langue configurée par l'utilisateur. Les langues supportées sont configurables côté backend via la variable d'environnement <code>SUPPORTED_LANGUAGES</code>. Les prompts système sont rédigés en anglais pour maximiser la qualité du raisonnement du LLM, mais une instruction de langue explicite guide la génération de réponses dans la langue cible. Trois prompts sont spécifiquement adaptés par langue : <code>journal_introspection_personality_addon</code>, <code>memory_extraction_personality_addon</code> et <code>broadcast_translation_prompt</code>.</p><h2>Reconnaissance vocale multilingue</h2><p>Le modèle Whisper utilisé pour la transcription vocale supporte nativement 99+ langues en mode offline, permettant de parler à LIA dans pratiquement toutes les langues du monde sans configuration supplémentaire ni dépendance à un service cloud.</p><h2>Rechercher dans sa propre langue</h2><p>Traduire une interface ne suffit pas à la rendre navigable : encore faut-il retrouver un réglage avec les mots que l'on emploie. Chaque section des réglages porte donc, en plus de son titre et de sa description traduits, une liste de <strong>synonymes rédigée langue par langue</strong> — « sombre » atteint l'apparence, « DSGVO » l'export des données, « cron » les actions planifiées. Le rapprochement passe par un normaliseur commun à toutes les surfaces de recherche du produit : casse, diacritiques, apostrophes typographiques et espaces insécables sont repliés vers la forme que produit un clavier, de sorte que « theme » trouve « Thème ». Ce repli obéit à une contrainte stricte — un point de code pour un point de code — sans quoi les surligneurs qui reconstituent les positions dans le texte d'origine se décaleraient d'autant.</p><h2>Un lieu partagé conserve ses frontières privées</h2><p>Le monde de LIA offre aux participants non bloqués de l’instance un lieu où se retrouver avec leurs avatars, tandis que les outils personnels restent propres au compte. L’entrée demande l’autorisation de publier un nom et une apparence choisie ; les connexions acceptées voient aussi une présence générale et si tu es dans ta maison. Le serveur filtre les comptes bloqués et exclut des vues partagées le contenu des maisons privées et le contexte des assistantes. Les pièces ouvrent les outils existants avec leurs droits et confirmations habituels.</p><p>Le texte échangé entre personnes est temporaire et séparé de l’historique et de la mémoire des assistantes. Une traduction payante démarre uniquement sur un choix explicite, conserve l’original et enregistre son coût pour la personne qui la paie. Une tentative échouée ou incertaine n’est pas rejouée automatiquement. Dessin et déplacements n’appellent aucun modèle ; la traduction facultative utilise le fournisseur configuré et les contrôles de consommation habituels.</p><p>Le texte privé vise un participant disponible ; le canal Tout le monde s’adresse volontairement aux personnes éligibles déjà présentes dans les espaces partagés, hors blocages et maisons privées. Les ambiances originales facultatives des pièces et du jardin sont des fichiers statiques avec un volume indépendant. Elles démarrent sur choix et cèdent la place au micro, à la voix de l’assistante, au Live et à la Radio, sans nouvel appel fournisseur.</p>"
+        "body": "<h2>6 langues nativement supportées</h2><p>LIA est entièrement disponible en <strong>français, anglais, allemand, espagnol, italien et chinois</strong>. L'internationalisation ne se limite pas à l'interface : elle couvre les réponses de l'assistant, les notifications, la FAQ et la documentation.</p><h2>Architecture i18n frontend</h2><p>Le frontend utilise <strong>react-i18next</strong> avec des fichiers JSON par langue et persistance du choix via un cookie <code>NEXT_LOCALE</code> (TTL 1 an). Le routing Next.js utilise un segment dynamique <code>[lng]</code> pour servir chaque langue à son URL dédiée. Les drapeaux de langue sont affichés comme emojis Unicode. Le mapping de locale associe chaque code court à sa variante complète (fr-FR, en-US, de-DE, es-ES, it-IT, zh-CN). Les pages sont pré-générées statiquement pour chaque langue au build.</p><h2>Hreflang et SEO multilingue</h2><p>Chaque page publique déclare des balises <code>hreflang</code> alternatives pour les 6 langues, avec une valeur <code>x-default</code> pointant vers le français. Le sitemap XML inclut les alternates multilingues pour chaque URL.</p><h2>Réponses IA multilingues</h2><p>L'assistant répond dans la langue configurée par l'utilisateur. Les langues supportées sont configurables côté backend via la variable d'environnement <code>SUPPORTED_LANGUAGES</code>. Les prompts système sont rédigés en anglais pour maximiser la qualité du raisonnement du LLM, mais une instruction de langue explicite guide la génération de réponses dans la langue cible. Trois prompts sont spécifiquement adaptés par langue : <code>journal_introspection_personality_addon</code>, <code>memory_extraction_personality_addon</code> et <code>broadcast_translation_prompt</code>.</p><h2>Reconnaissance vocale multilingue</h2><p>Le modèle Whisper utilisé pour la transcription vocale supporte nativement 99+ langues en mode offline, permettant de parler à LIA dans pratiquement toutes les langues du monde sans configuration supplémentaire ni dépendance à un service cloud.</p><h2>Rechercher dans sa propre langue</h2><p>Traduire une interface ne suffit pas à la rendre navigable : encore faut-il retrouver un réglage avec les mots que l'on emploie. Chaque section des réglages porte donc, en plus de son titre et de sa description traduits, une liste de <strong>synonymes rédigée langue par langue</strong> — « sombre » atteint l'apparence, « DSGVO » l'export des données, « cron » les actions planifiées. Le rapprochement passe par un normaliseur commun à toutes les surfaces de recherche du produit : casse, diacritiques, apostrophes typographiques et espaces insécables sont repliés vers la forme que produit un clavier, de sorte que « theme » trouve « Thème ». Ce repli obéit à une contrainte stricte — un point de code pour un point de code — sans quoi les surligneurs qui reconstituent les positions dans le texte d'origine se décaleraient d'autant.</p><h2>Un lieu partagé conserve ses frontières privées</h2><p>Le monde de LIA offre aux participants non bloqués de l’instance un lieu où se retrouver avec leurs avatars, tandis que les outils personnels restent propres au compte. L’entrée demande l’autorisation de publier un nom et une apparence choisie ; les connexions acceptées voient aussi une présence générale et si tu es dans ta maison. Le serveur filtre les comptes bloqués et exclut des vues partagées le contenu des maisons privées et le contexte des assistantes. Les pièces ouvrent les outils existants avec leurs droits et confirmations habituels.</p><p>Le texte échangé entre personnes est temporaire et séparé de l’historique et de la mémoire des assistantes. Une traduction payante démarre uniquement sur un choix explicite, conserve l’original et enregistre son coût pour la personne qui la paie. Une tentative échouée ou incertaine n’est pas rejouée automatiquement. Dessin et déplacements n’appellent aucun modèle ; la traduction facultative utilise le fournisseur configuré et les contrôles de consommation habituels.</p><p>Le texte privé vise un participant disponible ; le canal Tout le monde s’adresse volontairement aux personnes éligibles déjà présentes dans les espaces partagés, hors blocages et maisons privées. Les ambiances originales facultatives des pièces et du jardin sont des fichiers statiques avec un volume indépendant. Elles démarrent sur choix et cèdent la place au micro, à la voix de l’assistante, au Live et à la Radio, sans nouvel appel fournisseur.</p><p>Le jeu parle aussi la langue de chacun. Les six gestes sont annoncés aux technologies d’assistance dans cette langue, un geste refusé y dit pourquoi, et les bornes d’arcade y nomment leurs jeux, sans appel à un modèle.</p>"
       },
       "react-execution-mode": {
         "title": "Pipeline vs ReAct : quand l'ingénierie structurée surpasse le laisser-faire",
@@ -15884,7 +15943,7 @@
       "account-lifecycle": {
         "title": "Cycle de vie des comptes : 4 états pour les accès, la suppression et la conservation comptable",
         "excerpt": "LIA gère les comptes utilisateurs selon un modèle à 4 états — Actif, Désactivé, Supprimé, Effacé — avec purge automatique de plus de 50 tables et préservation de l'historique de facturation.",
-        "body": "<h2>Un modèle à 4 états</h2><p>Quatre états organisent les accès et la suppression, avec une conservation comptable explicite. Ces mécanismes techniques contribuent aux obligations de confidentialité ; ils ne certifient pas la conformité RGPD d'un déploiement.</p><ol><li><strong>Actif</strong> — Accès au compte autorisé</li><li><strong>Désactivé</strong> — Accès bloqué, données conservées</li><li><strong>Supprimé</strong> — Contenus personnels purgés ; facturation et identité de contact comptable conservées</li><li><strong>Effacé</strong> — Ligne du compte supprimée ; relevés comptables sans lien au compte, conservation des audits toujours applicable</li></ol><p>La désactivation peut être annulée. Réactiver un compte ne récupère pas les contenus purgés, et l'effacement final est irréversible.</p><p>Aucune connexion fédérée ne fait passer un compte d'un état à l'autre : se connecter avec Google prouve une adresse, jamais une approbation, si bien qu'une inscription en attente ou un compte bloqué le restent — et même un compte inactif peut toujours se déconnecter.</p><h2>Purge de plus de 50 tables</h2><p>L'<code>AccountDeletionService</code> orchestre la suppression des données à travers <strong>plus de 50 tables</strong> de la base de données, incluant les conversations, messages, mémoires, journaux, connecteurs, rappels, skills et fichiers. Les checkpoints et le store LangGraph sont également purgés, ainsi que les caches Redis et les fichiers sur disque.</p><h2>Préservation de la facturation</h2><p>Les tables de facturation (<code>token_usage_logs</code>, <code>message_token_summary</code>, <code>user_statistics</code>, <code>google_api_usage_logs</code>) sont <strong>conservées</strong>. La suppression peut garder nom et e-mail pour le contact comptable. L’effacement final supprime la ligne du compte ; les clés étrangères en <code>SET NULL</code> préservent les relevés sans ce lien. Des journaux d’audit ou de diagnostic existants peuvent conserver des éléments d’identité selon leur politique de conservation.</p><h2>Protection des tâches de fond</h2><p>Sept tâches de fond vérifient l'état du compte avant exécution : le runner proactif, l'exécuteur d'actions planifiées, les notifications de rappels, la consolidation de journaux, le rafraîchissement de tokens OAuth, la vérification de santé OAuth et les dépendances de session. Un utilisateur désactivé ou supprimé est <strong>silencieusement ignoré</strong> par toutes ces tâches.</p><h2>Invalidation du cache</h2><p>À la désactivation d'un compte, le cache d'autorisation est <strong>immédiatement invalidé</strong>. Cela empêche un utilisateur désactivé de continuer à accéder au service pendant la durée de vie du cache (TTL).</p><h2>Interface administrateur</h2><p>Le panneau admin distingue la désactivation de <strong>Supprimer</strong>, qui purge irréversiblement les contenus personnels, et d'<strong>Effacer</strong>, qui retire l'identité restante du compte. Les badges indiquent le statut actuel.</p><h2>Un lieu partagé conserve ses frontières privées</h2><p>Le monde de LIA offre aux participants non bloqués de l’instance un lieu où se retrouver avec leurs avatars, tandis que les outils personnels restent propres au compte. L’entrée demande l’autorisation de publier un nom et une apparence choisie ; les connexions acceptées voient aussi une présence générale et si tu es dans ta maison. Le serveur filtre les comptes bloqués et exclut des vues partagées le contenu des maisons privées et le contexte des assistantes. Les pièces ouvrent les outils existants avec leurs droits et confirmations habituels.</p><p>Le texte échangé entre personnes est temporaire et séparé de l’historique et de la mémoire des assistantes. Une traduction payante démarre uniquement sur un choix explicite, conserve l’original et enregistre son coût pour la personne qui la paie. Une tentative échouée ou incertaine n’est pas rejouée automatiquement. Dessin et déplacements n’appellent aucun modèle ; la traduction facultative utilise le fournisseur configuré et les contrôles de consommation habituels.</p><p>Le texte privé vise un participant disponible ; le canal Tout le monde s’adresse volontairement aux personnes éligibles déjà présentes dans les espaces partagés, hors blocages et maisons privées. Les ambiances originales facultatives des pièces et du jardin sont des fichiers statiques avec un volume indépendant. Elles démarrent sur choix et cèdent la place au micro, à la voix de l’assistante, au Live et à la Radio, sans nouvel appel fournisseur.</p>"
+        "body": "<h2>Un modèle à 4 états</h2><p>Quatre états organisent les accès et la suppression, avec une conservation comptable explicite. Ces mécanismes techniques contribuent aux obligations de confidentialité ; ils ne certifient pas la conformité RGPD d'un déploiement.</p><ol><li><strong>Actif</strong> — Accès au compte autorisé</li><li><strong>Désactivé</strong> — Accès bloqué, données conservées</li><li><strong>Supprimé</strong> — Contenus personnels purgés ; facturation et identité de contact comptable conservées</li><li><strong>Effacé</strong> — Ligne du compte supprimée ; relevés comptables sans lien au compte, conservation des audits toujours applicable</li></ol><p>La désactivation peut être annulée. Réactiver un compte ne récupère pas les contenus purgés, et l'effacement final est irréversible.</p><p>Aucune connexion fédérée ne fait passer un compte d'un état à l'autre : se connecter avec Google prouve une adresse, jamais une approbation, si bien qu'une inscription en attente ou un compte bloqué le restent — et même un compte inactif peut toujours se déconnecter.</p><h2>Purge de plus de 50 tables</h2><p>L'<code>AccountDeletionService</code> orchestre la suppression des données à travers <strong>plus de 50 tables</strong> de la base de données, incluant les conversations, messages, mémoires, journaux, connecteurs, rappels, skills et fichiers. Les checkpoints et le store LangGraph sont également purgés, ainsi que les caches Redis et les fichiers sur disque.</p><h2>Préservation de la facturation</h2><p>Les tables de facturation (<code>token_usage_logs</code>, <code>message_token_summary</code>, <code>user_statistics</code>, <code>google_api_usage_logs</code>) sont <strong>conservées</strong>. La suppression peut garder nom et e-mail pour le contact comptable. L’effacement final supprime la ligne du compte ; les clés étrangères en <code>SET NULL</code> préservent les relevés sans ce lien. Des journaux d’audit ou de diagnostic existants peuvent conserver des éléments d’identité selon leur politique de conservation.</p><h2>Protection des tâches de fond</h2><p>Sept tâches de fond vérifient l'état du compte avant exécution : le runner proactif, l'exécuteur d'actions planifiées, les notifications de rappels, la consolidation de journaux, le rafraîchissement de tokens OAuth, la vérification de santé OAuth et les dépendances de session. Un utilisateur désactivé ou supprimé est <strong>silencieusement ignoré</strong> par toutes ces tâches.</p><h2>Invalidation du cache</h2><p>À la désactivation d'un compte, le cache d'autorisation est <strong>immédiatement invalidé</strong>. Cela empêche un utilisateur désactivé de continuer à accéder au service pendant la durée de vie du cache (TTL).</p><h2>Interface administrateur</h2><p>Le panneau admin distingue la désactivation de <strong>Supprimer</strong>, qui purge irréversiblement les contenus personnels, et d'<strong>Effacer</strong>, qui retire l'identité restante du compte. Les badges indiquent le statut actuel.</p><h2>Un lieu partagé conserve ses frontières privées</h2><p>Le monde de LIA offre aux participants non bloqués de l’instance un lieu où se retrouver avec leurs avatars, tandis que les outils personnels restent propres au compte. L’entrée demande l’autorisation de publier un nom et une apparence choisie ; les connexions acceptées voient aussi une présence générale et si tu es dans ta maison. Le serveur filtre les comptes bloqués et exclut des vues partagées le contenu des maisons privées et le contexte des assistantes. Les pièces ouvrent les outils existants avec leurs droits et confirmations habituels.</p><p>Le texte échangé entre personnes est temporaire et séparé de l’historique et de la mémoire des assistantes. Une traduction payante démarre uniquement sur un choix explicite, conserve l’original et enregistre son coût pour la personne qui la paie. Une tentative échouée ou incertaine n’est pas rejouée automatiquement. Dessin et déplacements n’appellent aucun modèle ; la traduction facultative utilise le fournisseur configuré et les contrôles de consommation habituels.</p><p>Le texte privé vise un participant disponible ; le canal Tout le monde s’adresse volontairement aux personnes éligibles déjà présentes dans les espaces partagés, hors blocages et maisons privées. Les ambiances originales facultatives des pièces et du jardin sont des fichiers statiques avec un volume indépendant. Elles démarrent sur choix et cèdent la place au micro, à la voix de l’assistante, au Live et à la Radio, sans nouvel appel fournisseur.</p><p>Le jeu suit les mêmes règles. Une partie d’arcade n’existe dans l’autorité partagée que le temps d’être jouée : le consentement, les coups et les résultats n’atteignent jamais l’assistant, sa mémoire ni un modèle, et l’effacement du compte en retire toute trace. Les préférences de parcours et de saisons sont exportées avec le compte et effacées avec lui, et une photo est composée sur l’appareil puis enregistrée seulement là où la personne le choisit.</p>"
       },
       "hallucination-defense": {
         "title": "Défense contre les hallucinations : quand le LLM invente des paramètres",
@@ -16511,7 +16570,7 @@
   "story": {
     "meta": {
       "title": "Story — Diriger une IA qui code | LIA",
-      "description": "Comment LIA a été construite : ~100 % de code écrit par une IA sous direction humaine, 68 000+ tests, 363 ADRs, un audit technique à 7,9/10. Le retour d'expérience complet."
+      "description": "Comment LIA a été construite : ~100 % de code écrit par une IA sous direction humaine, 69 000+ tests, 363 ADRs, un audit technique à 7,9/10. Le retour d'expérience complet."
     },
     "breadcrumb": "Retour d'expérience",
     "hero": {
@@ -19139,6 +19198,129 @@
     "history_more": "Discussions suivantes"
   },
   "world": {
+    "compact": {
+      "close": "Fermer la discussion rapide",
+      "title": "Discussion rapide",
+      "destination": "Destinataire de la discussion",
+      "auto": "Auto",
+      "private": "Privé",
+      "public": "Public",
+      "expand": "Ouvrir la discussion complète",
+      "show": "Afficher les derniers messages",
+      "hide": "Masquer les derniers messages"
+    },
+    "photo": {
+      "title": "Photo",
+      "privacy": "Seuls le décor, ton avatar et LIA apparaissent. Noms, autres personnes, messages et activités privées sont exclus. Aucun envoi vers un serveur.",
+      "preview": "Aperçu privé de ta photo",
+      "format": "Format de la photo",
+      "landscape": "Paysage",
+      "portrait": "Portrait",
+      "preparing": "Préparation de ta photo…",
+      "error": "Impossible de créer cette photo. Réessaie.",
+      "previous": "L’aperçu précédent reste disponible.",
+      "retry": "Réessayer",
+      "share": "Partager",
+      "download": "Télécharger",
+      "offered": "La fenêtre de partage du système a été proposée.",
+      "cancelled": "Partage annulé. Ton aperçu reste disponible.",
+      "unsupported": "Le partage de fichiers est indisponible ici. Tu peux télécharger la photo.",
+      "share_error": "Le partage a échoué. Tu peux réessayer ou télécharger la photo."
+    },
+    "arcade": {
+      "shared": "Le plateau est partagé uniquement avec ton adversaire.",
+      "computer": "Jouer contre l’ordinateur",
+      "computer_name": "Ordinateur",
+      "wait": "Attendre un joueur",
+      "join": "Demander à rejoindre",
+      "join_hint": "Un joueur peut t’accueillir. Sa partie actuelle sera remplacée uniquement s’il accepte.",
+      "occupied": "Deux joueurs occupent déjà cette borne.",
+      "unavailable": "Cette partie est indisponible pour le moment.",
+      "elsewhere": "Tu joues ou attends déjà sur une autre borne.",
+      "leave_other_cabinet": "Quitter l’autre borne",
+      "leave": "Quitter la partie",
+      "requested": "Ta demande attend d’être acceptée.",
+      "cancel_request": "Retirer ma demande",
+      "approach": "Approche-toi de l’avant de cette borne pour jouer.",
+      "pending": "Confirmation en cours…",
+      "uncertain": "La confirmation tarde. Vérifie l’état actuel de la partie avant de réessayer.",
+      "resynchronize": "Vérifier la partie",
+      "changed": "La partie a changé. Consulte-la avant de choisir à nouveau.",
+      "you": "Toi",
+      "other_player": "Ton adversaire",
+      "invitation": "{{player}} souhaite te rejoindre.",
+      "fresh_board": "Accepter lance une nouvelle partie à deux et remplace le plateau actuel.",
+      "accept": "Jouer avec {{player}}",
+      "decline": "Refuser",
+      "resume": "Reprendre cette partie",
+      "resume_hint": "Choisis Reprendre pour revenir dans cette partie.",
+      "paused": "En pause pendant la reconnexion de ton adversaire.",
+      "waiting": "En attente d’un autre joueur.",
+      "your_turn": "À toi de jouer",
+      "other_turn": "À {{player}} de jouer",
+      "computer_turn": "À l’ordinateur de jouer",
+      "won": "Tu as gagné !",
+      "other_won": "{{player}} a gagné.",
+      "computer_won": "L’ordinateur a gagné.",
+      "rematch": "Rejouer",
+      "rematch_requested": "Prêt à rejouer",
+      "pass": "Passer mon tour",
+      "rules": "Règles et commandes",
+      "keyboard": "Utilise les flèches pour parcourir, Début/Fin pour les extrémités de ligne, Entrée ou Espace pour jouer.",
+      "progress_one": "{{count}} case occupée.",
+      "progress_other": "{{count}} cases occupées.",
+      "time_left": "{{time}} restantes",
+      "board": "Plateau de jeu",
+      "cell": "Ligne {{row}}, colonne {{column}} : {{piece}}",
+      "column": "Colonne {{column}}",
+      "choose_column": "Choisir une colonne",
+      "empty": "Vide",
+      "ended": {
+        "draw": "Match nul !",
+        "unavailable": "La partie est terminée.",
+        "abandoned": "La partie s’est terminée après un départ ou l’expiration du délai.",
+        "resigned": "Un joueur a quitté la partie.",
+        "win": "La partie est terminée."
+      },
+      "feedback": {
+        "rate_limited": "Patiente un instant avant de choisir à nouveau.",
+        "conflict": "La partie a changé. Choisis à nouveau sur le plateau actuel.",
+        "wrong_turn": "Attends ton tour.",
+        "illegal_move": "Choisis un coup disponible.",
+        "full": "Cette borne est désormais complète.",
+        "occupied": "Quitte d’abord ton autre partie.",
+        "not_participant": "Tu ne participes plus à cette partie.",
+        "action_reused": "Vérifie la partie actuelle et choisis à nouveau.",
+        "suspended": "Reprends cette partie avant de jouer.",
+        "out_of_reach": "Rapproche-toi de la borne.",
+        "unavailable": "Cette partie est indisponible pour le moment."
+      },
+      "games": {
+        "tic_tac_toe": {
+          "title": "Morpion",
+          "rules": "Placez un symbole à tour de rôle. Alignez-en trois horizontalement, verticalement ou en diagonale pour gagner.",
+          "one": "Croix",
+          "two": "Rond"
+        },
+        "four_in_row": {
+          "title": "Quatre à la suite",
+          "rules": "Choisis une colonne : ton pion tombe dans sa case libre la plus basse. Aligne-en quatre dans une direction pour gagner.",
+          "one": "Pion plein",
+          "two": "Pion cerclé"
+        },
+        "reversi": {
+          "title": "Reversi",
+          "rules": "Pose un disque pour encadrer ceux de l’adversaire en ligne droite et les retourner. Passe uniquement si aucun coup n’est possible. Le plus de disques à la fin gagne.",
+          "one": "Disque noir",
+          "two": "Disque blanc"
+        }
+      }
+    },
+    "experience": {
+      "route": "Parcours",
+      "failed": "Ces préférences n’ont pas pu être enregistrées. Tes derniers choix enregistrés sont conservés.",
+      "repair": "Réinitialiser les préférences d’exploration"
+    },
     "explore_places": "Explorer les lieux",
     "session": {
       "proof": "Choisis un compte de démonstration isolé. Pour tester plusieurs personnes, utilise des profils de navigateur distincts. Aucun service payant n’est appelé.",
@@ -19173,7 +19355,10 @@
       "proof_guide": "Démonstration · données fictives",
       "expired": "Ta présence a expiré",
       "expired_hint": "Ta place a été libérée pendant ton absence. Tu peux rejoindre le monde à nouveau.",
-      "rejoin": "Revenir dans le monde"
+      "rejoin": "Revenir dans le monde",
+      "outdated": "Mise à jour nécessaire",
+      "outdated_hint": "Le monde a évolué. Recharge la page pour rejoindre la nouvelle version.",
+      "reload": "Recharger"
     },
     "title": "Le monde de LIA",
     "prototype": "Prototype",
@@ -19367,7 +19552,8 @@
       "workboard": "Workboard",
       "alerts": "Alertes",
       "journal": "Journal de LIA",
-      "sms": "Mes SMS"
+      "sms": "Mes SMS",
+      "dashboard": "Mon dashboard"
     },
     "lia_menu": {
       "title": "Avec LIA",
@@ -19461,6 +19647,23 @@
         "violet": "Violet",
         "cream": "Ivoire",
         "orange": "Orange"
+      },
+      "presets": {
+        "label": "Idées d’avatar",
+        "custom": "Personnalisé",
+        "masculine": "Allures masculines",
+        "feminine": "Allures féminines",
+        "hint": "Choisis librement un modèle puis modifie-le. Seul Enregistrer publie tes changements.",
+        "M01": "M01 · Décontracté",
+        "M02": "M02 · Lecteur",
+        "M03": "M03 · Professionnel",
+        "M04": "M04 · Créatif",
+        "M05": "M05 · Soirée",
+        "F01": "F01 · Décontracté",
+        "F02": "F02 · Lecteur",
+        "F03": "F03 · Professionnel",
+        "F04": "F04 · Créatif",
+        "F05": "F05 · Soirée"
       }
     },
     "public": {
@@ -19488,6 +19691,68 @@
       "settings": "Sons du monde",
       "volume": "Volume des sons du monde",
       "independent": "Indépendant des commentaires vocaux de LIA et de la radio."
+    },
+    "dashboard": {
+      "title": "Mon dashboard",
+      "offer": "Veux-tu consulter ton dashboard en restant assis ?",
+      "stay": "Rester assis",
+      "open": "Consulter mon dashboard",
+      "leaves_world": "Quitte le monde de LIA",
+      "open_chat": "Ouvrir dans le chat"
+    },
+    "signals": {
+      "workboard": "Tickets qui ont besoin de toi",
+      "images": "Images disponibles",
+      "documents": "Documents disponibles",
+      "screenshots": "Captures disponibles",
+      "unavailable": "Information indisponible",
+      "reminders_gap": "La connexion a été interrompue. Certains rappels reçus peuvent manquer dans cette boîte."
+    },
+    "acting": {
+      "idle": "LIA est là",
+      "thinking": "LIA réfléchit",
+      "reading": "LIA consulte des informations",
+      "creating": "LIA prépare un contenu",
+      "responding": "LIA rédige sa réponse",
+      "listening": "LIA t’écoute",
+      "speaking": "LIA parle",
+      "waiting": "Ta confirmation est attendue",
+      "error": "LIA a rencontré une difficulté",
+      "success": "Action réalisée",
+      "prepared": "Préparation terminée"
+    },
+    "seasons": {
+      "title": "Décor saisonnier",
+      "hint": "Décoration uniquement. Le calendrier utilise le fuseau horaire du compte.",
+      "mode": "Mode",
+      "hemisphere": "Hémisphère",
+      "off": "Désactivé",
+      "calendar": "Calendrier",
+      "spring": "Printemps",
+      "summer": "Été",
+      "autumn": "Automne",
+      "winter": "Hiver",
+      "north": "Nord",
+      "south": "Sud"
+    },
+    "emotes": {
+      "title": "Gestes",
+      "wave": "Saluer",
+      "thanks": "Remercier",
+      "applause": "Applaudir",
+      "laugh": "Rire",
+      "question": "Poser une question",
+      "celebrate": "Célébrer",
+      "rate_limited": "Patiente un instant avant un autre geste.",
+      "unavailable": "Les gestes sont indisponibles ici pour le moment.",
+      "announcements": {
+        "wave": "{{alias}} salue",
+        "thanks": "{{alias}} remercie",
+        "applause": "{{alias}} applaudit",
+        "laugh": "{{alias}} rit",
+        "question": "{{alias}} a une question",
+        "celebrate": "{{alias}} fait la fête"
+      }
     }
   }
 }

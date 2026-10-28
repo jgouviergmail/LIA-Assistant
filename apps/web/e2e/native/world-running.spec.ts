@@ -5,6 +5,7 @@ import en from '../../locales/en/translation.json';
 import { MOVEMENT } from '../../src/features/world/movement';
 import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { worldProofUrl } from './world-route';
+import { signIn } from './world-arcade-helpers';
 
 test('a double click runs through authoritative collision-safe movement at a bounded speed', async ({
   browser,
@@ -42,14 +43,7 @@ test('a double click runs through authoritative collision-safe movement at a bou
     });
   });
   try {
-    expect(
-      (
-        await context.request.post('/api/v1/world-proof/session', {
-          headers: { Origin: new URL(baseURL).origin },
-          data: { index: 8 },
-        })
-      ).status()
-    ).toBe(200);
+    await signIn(context, baseURL, 8);
     await installOfflineFonts(page);
     await openNativeWorld(page, 'Running visitor', worldProofUrl(baseURL, 'en'));
     if (await page.locator('input[name="world-presence-consent"]').isVisible())

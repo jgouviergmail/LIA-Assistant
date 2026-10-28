@@ -109,6 +109,27 @@ cases:
       warning: [email, slack]
       security-team: [email, slack]
       ml-team: [email]
+    # Every subject/title, body and PagerDuty source detail renders through
+    # amtool for both firing and resolved alerts, without sending anything.
+    notification_identities:
+      - name: development
+        labels: {environment: development, host: dev-workstation}
+        expected: {environment: development, host: dev-workstation}
+      - name: production
+        labels: {environment: production, host: prod-server}
+        expected: {environment: production, host: prod-server}
+      - name: missing-labels
+        labels: {}
+        expected: {environment: unknown, host: unknown}
+      - name: empty-labels
+        labels: {environment: '', host: ''}
+        expected: {environment: unknown, host: unknown}
+      - name: missing-host
+        labels: {environment: development}
+        expected: {environment: development, host: unknown}
+      - name: missing-environment
+        labels: {host: prod-server}
+        expected: {environment: unknown, host: prod-server}
 
   # Each optional channel alone: nothing empty is ever rendered.
   - name: slack-critical-only

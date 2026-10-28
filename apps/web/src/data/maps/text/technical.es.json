@@ -450,9 +450,9 @@
     },
     "t.world": {
       "name": "Mundo isométrico y autoridad nativa",
-      "role": "El navegador dibuja una escena Canvas acotada; Redis arbitra la entrada, la cola y los movimientos, y su caída suspende las órdenes. Los paneles nativos conservan permisos y aprobaciones. Los textos efímeros quedan en Redis; PostgreSQL delimita los intentos facturables sin guardar su contenido.",
+      "role": "El navegador dibuja una escena Canvas acotada; Redis arbitra la entrada, la cola, los movimientos, los gestos y las partidas de arcade, y su caída suspende las órdenes. Los paneles nativos conservan permisos y aprobaciones. Los textos efímeros quedan en Redis; PostgreSQL delimita los intentos facturables sin guardar su contenido. Una foto es una proyección autorizada, nunca una captura de pantalla.",
       "stack": ["Canvas 2D", "WebSocket", "Redis CAS", "PostgreSQL", "LIA"],
-      "src": "1c146d5b9f21"
+      "src": "b2d40a86066c"
     }
   },
   "flows": {

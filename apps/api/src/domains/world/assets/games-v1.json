@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "cabinets": [
+    {
+      "id": "arcade-tic-tac-toe",
+      "prop": "arcade:51:19",
+      "game": "tic_tac_toe",
+      "approach": {
+        "x": 57.75,
+        "y": 21.5
+      }
+    },
+    {
+      "id": "arcade-four-in-row",
+      "prop": "arcade:53:19",
+      "game": "four_in_row",
+      "approach": {
+        "x": 59.75,
+        "y": 21.5
+      }
+    },
+    {
+      "id": "arcade-reversi",
+      "prop": "arcade:55:19",
+      "game": "reversi",
+      "approach": {
+        "x": 61.75,
+        "y": 21.5
+      }
+    }
+  ]
+}

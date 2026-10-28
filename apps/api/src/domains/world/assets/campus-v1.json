@@ -1,7 +1,7 @@
 {
   "world": {
     "id": "lia-campus",
-    "version": 13,
+    "version": 17,
     "movement": {
       "walk": 3.4,
       "run": 5.1
@@ -6672,9 +6672,8 @@
         "depth": 4,
         "height": 1.4,
         "tone": "teal",
-        "key": "health",
-        "activity": "health",
-        "facing": 1,
+        "key": "workout-1",
+        "facing": 3,
         "blocking": true
       },
       {
@@ -6686,9 +6685,8 @@
         "depth": 4,
         "height": 1.4,
         "tone": "clay",
-        "key": "health-2",
-        "activity": "health",
-        "facing": 1,
+        "key": "workout-2",
+        "facing": 3,
         "blocking": true
       },
       {
@@ -6748,7 +6746,7 @@
         "depth": 4,
         "height": 1.4,
         "tone": "amber",
-        "key": "health-3",
+        "key": "health",
         "activity": "health",
         "facing": 1,
         "blocking": true
@@ -7421,8 +7419,24 @@
         "depth": 2,
         "height": 0.8,
         "tone": "cream",
+        "key": "atrium-table",
         "facing": 1,
         "blocking": true
+      },
+      {
+        "id": "smartphone:36.65:38.6",
+        "kind": "smartphone",
+        "x": 42.65,
+        "y": 38.6,
+        "width": 0.6,
+        "depth": 0.45,
+        "height": 1.7,
+        "tone": "teal",
+        "key": "sms-stand",
+        "activity": "sms",
+        "support": "table:36:38",
+        "facing": 1,
+        "blocking": false
       },
       {
         "id": "chair:36.5:36",
@@ -7435,7 +7449,8 @@
         "tone": "teal",
         "key": "atrium-n",
         "facing": 1,
-        "blocking": true
+        "blocking": true,
+        "tableKey": "atrium-table"
       },
       {
         "id": "chair:36.5:41",
@@ -7448,7 +7463,8 @@
         "tone": "teal",
         "key": "atrium-s",
         "facing": 3,
-        "blocking": true
+        "blocking": true,
+        "tableKey": "atrium-table"
       },
       {
         "id": "fountain:30:25",
@@ -7646,6 +7662,7 @@
         "depth": 1.5,
         "height": 2.6,
         "tone": "violet",
+        "key": "arcade-tic-tac-toe",
         "facing": 1,
         "blocking": true
       },
@@ -7658,6 +7675,7 @@
         "depth": 1.5,
         "height": 2.6,
         "tone": "teal",
+        "key": "arcade-four-in-row",
         "facing": 1,
         "blocking": true
       },
@@ -7670,6 +7688,7 @@
         "depth": 1.5,
         "height": 2.6,
         "tone": "clay",
+        "key": "arcade-reversi",
         "facing": 1,
         "blocking": true
       },
@@ -7708,7 +7727,8 @@
         "tone": "clay",
         "key": "media-sofa-n",
         "facing": 1,
-        "blocking": true
+        "blocking": true,
+        "tableKey": "media-lounge-table"
       },
       {
         "id": "sofa:53:31",
@@ -7721,7 +7741,8 @@
         "tone": "violet",
         "key": "media-sofa-s",
         "facing": 3,
-        "blocking": true
+        "blocking": true,
+        "tableKey": "media-lounge-table"
       },
       {
         "id": "table:54:28",
@@ -7732,6 +7753,7 @@
         "depth": 1.5,
         "height": 0.8,
         "tone": "violet",
+        "key": "media-lounge-table",
         "facing": 1,
         "blocking": true
       },
@@ -8027,7 +8049,8 @@
         "tone": "teal",
         "key": "meeting-lounge",
         "facing": 3,
-        "blocking": true
+        "blocking": true,
+        "tableKey": "meeting-lounge-table"
       },
       {
         "id": "table:15.5:44.5",
@@ -8038,6 +8061,8 @@
         "depth": 1.5,
         "height": 0.8,
         "tone": "cream",
+        "key": "meeting-lounge-table",
+        "activity": "news",
         "facing": 1,
         "blocking": true
       },
@@ -8150,20 +8175,6 @@
         "blocking": true
       },
       {
-        "id": "readingdesk:43:38",
-        "kind": "readingdesk",
-        "x": 49,
-        "y": 38,
-        "width": 2,
-        "depth": 1,
-        "height": 1.1,
-        "tone": "amber",
-        "key": "news",
-        "activity": "news",
-        "facing": 1,
-        "blocking": true
-      },
-      {
         "id": "bar:56:37",
         "kind": "bar",
         "x": 62,
@@ -8236,7 +8247,8 @@
         "tone": "clay",
         "key": "booth-a-n",
         "facing": 1,
-        "blocking": true
+        "blocking": true,
+        "tableKey": "booth-table-a"
       },
       {
         "id": "sofa:44:45",
@@ -8249,7 +8261,8 @@
         "tone": "clay",
         "key": "booth-a-s",
         "facing": 3,
-        "blocking": true
+        "blocking": true,
+        "tableKey": "booth-table-a"
       },
       {
         "id": "table:44:42",
@@ -8260,6 +8273,7 @@
         "depth": 1.5,
         "height": 0.8,
         "tone": "cream",
+        "key": "booth-table-a",
         "facing": 1,
         "blocking": true
       },
@@ -8274,7 +8288,8 @@
         "tone": "clay",
         "key": "booth-b-n",
         "facing": 1,
-        "blocking": true
+        "blocking": true,
+        "tableKey": "booth-table-b"
       },
       {
         "id": "sofa:51:45",
@@ -8287,7 +8302,8 @@
         "tone": "clay",
         "key": "booth-b-s",
         "facing": 3,
-        "blocking": true
+        "blocking": true,
+        "tableKey": "booth-table-b"
       },
       {
         "id": "table:51:42",
@@ -8298,6 +8314,7 @@
         "depth": 1.5,
         "height": 0.8,
         "tone": "cream",
+        "key": "booth-table-b",
         "facing": 1,
         "blocking": true
       },
@@ -8525,7 +8542,8 @@
         "tone": "violet",
         "key": "oracle-lounge",
         "facing": 1,
-        "blocking": true
+        "blocking": true,
+        "tableKey": "oracle-lounge-table"
       },
       {
         "id": "table:2.5:41",
@@ -8536,6 +8554,7 @@
         "depth": 1.5,
         "height": 0.8,
         "tone": "violet",
+        "key": "oracle-lounge-table",
         "facing": 1,
         "blocking": true
       },
@@ -8847,6 +8866,7 @@
         "depth": 1.5,
         "height": 0.8,
         "tone": "clay",
+        "key": "terrace-table-c",
         "facing": 1,
         "blocking": true
       },
@@ -8861,7 +8881,8 @@
         "tone": "clay",
         "key": "terrace-chair-c-n",
         "facing": 1,
-        "blocking": true
+        "blocking": true,
+        "tableKey": "terrace-table-c"
       },
       {
         "id": "chair:2.5:54",
@@ -8874,7 +8895,8 @@
         "tone": "clay",
         "key": "terrace-chair-c-s",
         "facing": 3,
-        "blocking": true
+        "blocking": true,
+        "tableKey": "terrace-table-c"
       },
       {
         "id": "parasol:5.3:50",
@@ -8909,6 +8931,7 @@
         "depth": 1.5,
         "height": 0.8,
         "tone": "teal",
+        "key": "terrace-table-a",
         "facing": 1,
         "blocking": true
       },
@@ -8921,6 +8944,7 @@
         "depth": 1.5,
         "height": 0.8,
         "tone": "teal",
+        "key": "terrace-table-b",
         "facing": 1,
         "blocking": true
       },
@@ -8935,7 +8959,8 @@
         "tone": "teal",
         "key": "terrace-chair-a-n",
         "facing": 1,
-        "blocking": true
+        "blocking": true,
+        "tableKey": "terrace-table-a"
       },
       {
         "id": "chair:20.5:54",
@@ -8948,7 +8973,8 @@
         "tone": "teal",
         "key": "terrace-chair-a-s",
         "facing": 3,
-        "blocking": true
+        "blocking": true,
+        "tableKey": "terrace-table-a"
       },
       {
         "id": "chair:26.5:49",
@@ -8961,7 +8987,8 @@
         "tone": "teal",
         "key": "terrace-chair-b-n",
         "facing": 1,
-        "blocking": true
+        "blocking": true,
+        "tableKey": "terrace-table-b"
       },
       {
         "id": "chair:26.5:54",
@@ -8974,7 +9001,8 @@
         "tone": "teal",
         "key": "terrace-chair-b-s",
         "facing": 3,
-        "blocking": true
+        "blocking": true,
+        "tableKey": "terrace-table-b"
       },
       {
         "id": "parasol:22.5:49.5",
@@ -13539,8 +13567,8 @@
     0,
     1,
     0,
-    1,
-    1,
+    0,
+    0,
     0,
     0,
     0,
@@ -16896,6 +16924,36 @@
     0
   ],
   "poses": [
+    {
+      "id": "workout-1:0",
+      "prop": "weightbench:2:9",
+      "kind": "lie",
+      "position": {
+        "x": 9,
+        "y": 11.55
+      },
+      "approach": {
+        "x": 9,
+        "y": 8.5
+      },
+      "facing": 3,
+      "elevation": 0.87
+    },
+    {
+      "id": "workout-2:0",
+      "prop": "weightbench:8:9",
+      "kind": "lie",
+      "position": {
+        "x": 15,
+        "y": 11.55
+      },
+      "approach": {
+        "x": 15,
+        "y": 8.5
+      },
+      "facing": 3,
+      "elevation": 0.87
+    },
     {
       "id": "memory-seat-0-0:0",
       "prop": "chair:26:12",

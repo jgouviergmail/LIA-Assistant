@@ -6,52 +6,52 @@
  * overpromise: the link must be absent from the DOM, not merely hidden.
  */
 
-import { render } from '@testing-library/react';
+import { render, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { BrickMapView } from '@/lib/maps/types';
 
 vi.mock('@/i18n', () => ({
   initI18next: async () => ({ t: (key: string) => key }),
 }));
-vi.mock('../Planetarium', () => ({
-  Planetarium: () => <div data-testid="planetarium" />,
-}));
 vi.mock('../../InteractiveChatMockup', () => ({
   InteractiveChatMockup: () => <div data-testid="chat-mockup" />,
 }));
-vi.mock('../TrustStat', () => ({
-  TrustStat: ({ label }: { label: string }) => <span>{label}</span>,
+vi.mock('../LandingConstellation', () => ({
+  LandingConstellation: ({ map }: { map: BrickMapView }) => (
+    <div data-testid="functional-constellation">
+      {map.bricks.map(brick => (
+        <span key={brick.id}>{brick.name}</span>
+      ))}
+    </div>
+  ),
 }));
 vi.mock('@/lib/showroom-config', () => ({
   getPublicShowroomVariant: vi.fn(() => 'legacy'),
 }));
 
 import { getPublicShowroomVariant } from '@/lib/showroom-config';
-import { LANDING_PLANETARIUM_ENABLED } from '../../constants';
+import { mapsData } from '@/lib/maps/data';
+import { buildBrickMap } from '@/lib/maps/model';
 import { CosmosHero } from '../CosmosHero';
 
 const variantMock = vi.mocked(getPublicShowroomVariant);
 
-describe('CosmosHero — the planetarium switch', () => {
-  it('mounts no planetarium while the switch is off, and reserves no orbit zone for it', async () => {
-    const { queryByTestId, getByTestId, container } = render(
-      await CosmosHero({ lng: 'fr', planetarium: false })
-    );
-    expect(queryByTestId('planetarium')).not.toBeInTheDocument();
-    expect(getByTestId('chat-mockup')).toBeInTheDocument();
-    expect(container.querySelector('.cosmos-orbit-zone')).not.toBeInTheDocument();
-  });
-
-  it('mounts the planetarium around the mockup while the switch is on', async () => {
-    const { getByTestId, container } = render(await CosmosHero({ lng: 'fr', planetarium: true }));
-    expect(getByTestId('planetarium')).toBeInTheDocument();
-    expect(getByTestId('chat-mockup')).toBeInTheDocument();
-    expect(container.querySelector('.cosmos-orbit-zone')).toBeInTheDocument();
-  });
-
-  it('follows the landing switch by default', async () => {
-    const { queryByTestId } = render(await CosmosHero({ lng: 'fr' }));
-    expect(queryByTestId('planetarium') !== null).toBe(LANDING_PLANETARIUM_ENABLED);
-  });
+describe('CosmosHero — functional overview', () => {
+  it.each(['fr', 'en'] as const)(
+    'shows the %s functional bricks after the promise and actions',
+    async lng => {
+      const { queryByTestId, getByTestId, container } = render(await CosmosHero({ lng }));
+      expect(queryByTestId('chat-mockup')).not.toBeInTheDocument();
+      expect(container.querySelector('.cosmos-orbit-zone')).not.toBeInTheDocument();
+      const overview = getByTestId('functional-constellation');
+      for (const brick of buildBrickMap(mapsData(lng), 'functional').bricks) {
+        expect(within(overview).getByText(brick.name)).toBeInTheDocument();
+      }
+      expect(getByTestId('hero-cta-presentation').compareDocumentPosition(overview)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING
+      );
+    }
+  );
 });
 
 describe('CosmosHero — guided demo CTA', () => {

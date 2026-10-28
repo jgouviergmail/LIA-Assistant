@@ -338,9 +338,16 @@ class TestLifetimeMetricsUpdateTask:
         mock_db = AsyncMock()
         mock_db.execute.return_value = mock_result
 
-        with patch(
-            "src.infrastructure.observability.lifetime_metrics.get_db_context"
-        ) as mock_context:
+        # This double answers every statement with one token-aggregation row. The
+        # table readers below read rows of their own shape (a channel count, a
+        # table volume), so they stand aside rather than fail on it.
+        module = "src.infrastructure.observability.lifetime_metrics"
+        with (
+            patch(f"{module}._sync_channel_bindings_from_db", AsyncMock()),
+            patch(f"{module}._sync_ledger_volume_from_db", AsyncMock()),
+            patch(f"{module}._sync_discussion_volume_from_db", AsyncMock()),
+            patch(f"{module}.get_db_context") as mock_context,
+        ):
             mock_context.return_value.__aenter__.return_value = mock_db
 
             # Override update interval to 0.1s for testing

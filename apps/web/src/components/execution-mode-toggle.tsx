@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useHydrated } from '@/hooks/useHydrated';
+
+import { useState } from 'react';
 import { Workflow, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -18,13 +20,10 @@ interface ExecutionModeToggleProps {
 export function ExecutionModeToggle({ lng = 'fr' }: ExecutionModeToggleProps) {
   const { user, refreshUser } = useAuth();
   const { t } = useTranslation(lng);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [isLoading, setIsLoading] = useState(false);
 
   // Avoid hydration mismatch
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const handleToggle = async () => {
     if (!user || isLoading) return;

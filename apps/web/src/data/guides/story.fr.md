@@ -4,7 +4,7 @@
 
 **Version** : 2.6
 **Date** : 2026-10-23
-**Application** : LIA v4.0.0
+**Application** : LIA v4.1.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Indicateur | Valeur |
 | --- | --- |
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
-| Lignes de source (hors tests) — 60 paquets de domaines backend | **1 038 000+** |
-| Tests automatisés inventoriés ; suites adaptées au commit et à la livraison | **68 000+** |
+| Lignes de source (hors tests) — 60 paquets de domaines backend | **1 051 000+** |
+| Tests automatisés inventoriés ; suites adaptées au commit et à la livraison | **69 000+** |
 | Décisions d'architecture documentées (ADR) | **363** |
-| Versions livrées à rythme régulier | **290** |
+| Versions livrées à rythme régulier | **291** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **7,9/10** |
 
@@ -72,6 +72,8 @@ Le projet est désormais conduit avec plusieurs agents de développement en para
 Un monde partagé donne à l’assistante un vocabulaire de lieux : une bibliothèque pour les connaissances, une salle multimédia pour créer, un jardin à explorer à plusieurs. La décision d’ingénierie utile porte sur ce qui franchit chaque frontière. Un avatar public exprime le choix d’une personne ; il n’expose ni le contexte de son assistante ni sa maison privée. Une pièce ouvre un outil existant sans accorder une permission nouvelle.
 
 La conversation suit la même logique. Les messages humains ont une durée de vie temporaire et séparée. La traduction se choisit et se comptabilise ; les déplacements et le dessin n’appellent aucun modèle. Une interface plus riche reste gouvernable lorsque ses coûts, sa propriété et ses confirmations gardent le même sens.
+
+Le jeu suit la même règle. Les coups d’une partie sont confirmés par le serveur et l’adversaire ordinateur est une recherche bornée, pas un modèle ; une photo est dessinée à partir de ce que la personne a choisi de montrer, jamais copiée depuis l’écran.
 
 ---
 

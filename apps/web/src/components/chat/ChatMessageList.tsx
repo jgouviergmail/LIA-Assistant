@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
+import { useHydrated } from '@/hooks/useHydrated';
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Message, BrowserScreenshotData } from '@/types/chat';
 import type { StreamPhase } from '@/types/chat-state';
@@ -425,8 +426,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   // this 'use client' page in UTC while the browser hydrates in the user's
   // local timezone — computing the hour before mount would risk a hydration
   // mismatch. Render the neutral day glyph until mounted, then the real hour.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useHydrated();
 
   // Populate the Zustand store from server on mount (GET /psyche/state + /psyche/settings).
   // ChatMessage reads the store directly for fallback avatar data.

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WORLD } from '../definition';
 import { createSimulation, walkTo } from '../simulation';
 import { MOVEMENT } from '../movement';
+import { ACTOR_RADIUS, isWalkable } from '../navigation';
 import { WorldSynchronizer } from '../shared-simulation';
 import type { WorldView } from '../protocol';
 import type { Point } from '../types';
@@ -10,8 +11,10 @@ import type { Point } from '../types';
 const epoch = '4010c2c2-4bd0-4d21-9c08-b4502db25d72';
 function snapshot(): WorldView {
   return {
+    server_time: 100,
+    receipts: [],
     type: 'snapshot',
-    version: 1,
+    version: 2,
     epoch,
     revision: 1,
     status: 'active',
@@ -35,6 +38,49 @@ function setup() {
   return { link, sync: new WorldSynchronizer(link), sim: createSimulation(WORLD) };
 }
 describe('bounded prediction and public visitors', () => {
+  it('keeps a clear route stable across an ordinary server snapshot', () => {
+    const { link, sync, sim } = setup();
+    sync.step(sim, 1 / 60, { x: 0, y: 0 });
+    const goal = { x: WORLD.spawn.x + 1, y: WORLD.spawn.y };
+    expect(walkTo(sim, goal)).toBe(true);
+    const route = sim.player.path;
+    link.view = { ...link.view, revision: 2 };
+    sync.step(sim, 1 / 60, { x: 0, y: 0 });
+    expect(sim.player.path).toBe(route);
+    expect(sim.player.path.at(-1)).toEqual(goal);
+    expect(link.motion).not.toHaveBeenCalled();
+  });
+  it('rebases a remaining route when authoritative correction would cut a chair corner', () => {
+    const { link, sync, sim } = setup();
+    sync.step(sim, 1 / 60, { x: 0, y: 0 });
+    const goal = { x: 44.5, y: 40.5 };
+    sim.player.path = [goal];
+    link.view = {
+      ...link.view,
+      you: { ...link.view.you!, position: { x: 44.19468665023537, y: 42.234835147140835 } },
+    };
+    sync.step(sim, 1 / 60, { x: 0, y: 0 });
+    for (const dx of [-ACTOR_RADIUS, ACTOR_RADIUS])
+      for (const dy of [-ACTOR_RADIUS, ACTOR_RADIUS])
+        expect(
+          isWalkable(sim.navigation, {
+            x: sim.player.position.x + dx,
+            y: sim.player.position.y + dy,
+          })
+        ).toBe(true);
+    expect(sim.player.path.at(-1)).toEqual(goal);
+    expect(sim.player.position.y).toBeGreaterThan(link.view.you!.position.y);
+  });
+  it('does not carry a walking destination into a new authoritative epoch', () => {
+    const { link, sync, sim } = setup();
+    sync.step(sim, 1 / 60, { x: 0, y: 0 });
+    expect(walkTo(sim, { x: WORLD.spawn.x + 1, y: WORLD.spawn.y })).toBe(true);
+    link.view = { ...link.view, epoch: '6010c2c2-4bd0-4d21-9c08-b4502db25d72' };
+    sync.step(sim, 1 / 60, { x: 0, y: 0 });
+    expect(sim.player.path).toEqual([]);
+    expect(sim.player.position).toEqual(WORLD.spawn);
+    expect(link.motion).not.toHaveBeenCalled();
+  });
   it('predicts locally, sends intent at ten hertz and reconciles only unacknowledged movement', () => {
     const { link, sync, sim } = setup();
     for (let n = 0; n < 6; n++) sync.step(sim, 1 / 60, { x: 1, y: 0 });

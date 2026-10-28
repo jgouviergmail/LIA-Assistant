@@ -4,14 +4,50 @@ import type { User } from '@/lib/auth';
 import { makeUser } from '@/__tests__/factories';
 import en from '../../../../locales/en/translation.json';
 import fr from '../../../../locales/fr/translation.json';
-import { createRef } from 'react';
+import { createRef, useEffect, useState } from 'react';
 import { WorldFunctionControls, type WorldFunctionHandle } from '../WorldFunctionControls';
 import { WorldAccountGuard } from '../WorldAccountGuard';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
+import type { DashboardNavigate } from '@/components/dashboard/DashboardNavigation';
+
+vi.mock('@/components/dashboard/DashboardWorkspace', () => ({
+  DashboardWorkspace: ({ onNavigate }: { onNavigate?: DashboardNavigate }) => {
+    const [draft, setDraft] = useState('');
+    return (
+      <>
+        <input
+          aria-label="Retained dashboard choice"
+          value={draft}
+          onChange={event => setDraft(event.target.value)}
+        />
+        <button onClick={() => onNavigate?.({ kind: 'draft', draft: 'Hello Alice' })}>
+          Open local draft
+        </button>
+      </>
+    );
+  },
+}));
+const chat = vi.hoisted(() => ({
+  props: [] as Record<string, unknown>[],
+  mounted: vi.fn(),
+  cleaned: vi.fn(),
+}));
+vi.mock('@/components/chat/ChatWorkspace', () => ({
+  ChatWorkspace: (props: { embedded?: boolean; openingDraft?: string }) => {
+    chat.props.push({ ...props });
+    // Stands in for the streaming chat: its effect owns the answer's transport.
+    useEffect(() => {
+      chat.mounted();
+      return chat.cleaned;
+    }, []);
+    return <input aria-label="Native chat draft" defaultValue={props.openingDraft} />;
+  },
+}));
 
 vi.mock('@/lib/api-client', async importOriginal => ({
   ...(await importOriginal<typeof import('@/lib/api-client')>()),
-  default: { get: vi.fn() },
+  default: { get: vi.fn(), post: vi.fn() },
 }));
 
 const auth = vi.hoisted(() => ({ user: null as User | null }));
@@ -38,8 +74,188 @@ beforeEach(() => {
   features.radioEnabled = false;
   auth.user = makeUser({ id: 'owner', is_active: true });
   vi.mocked(apiClient.get).mockReset();
+  vi.mocked(apiClient.post).mockReset();
+  chat.props = [];
+  chat.mounted.mockClear();
+  chat.cleaned.mockClear();
 });
 describe('private native function controls', () => {
+  it.each(['disabled', 'body'])(
+    'returns to the scene when the retained opener is %s while the activity closes',
+    async mode => {
+      const ref = createRef<WorldFunctionHandle>();
+      const canvas = document.createElement('canvas');
+      canvas.className = 'world-canvas';
+      canvas.tabIndex = 0;
+      const opener = document.createElement('button');
+      document.body.append(canvas, opener);
+      try {
+        render(
+          <WorldFunctionControls
+            lng="en"
+            ownerId="owner"
+            enabled
+            zone="arrival"
+            onOpen={vi.fn()}
+            functionRef={ref}
+          />
+        );
+        opener.focus();
+        if (mode === 'body') opener.blur();
+        act(() => {
+          expect(ref.current?.openDestination({ kind: 'draft', draft: 'Local only' })).toBe(true);
+        });
+        const input = await screen.findByRole('textbox', { name: 'Native chat draft' });
+        if (mode === 'disabled') opener.disabled = true;
+        fireEvent.keyDown(input, { key: 'Escape', code: 'Escape' });
+        await waitFor(() => expect(canvas).toHaveFocus());
+      } finally {
+        opener.remove();
+        canvas.remove();
+      }
+    }
+  );
+  it('keeps the current acting state readable inside the conversation panel', async () => {
+    const ref = createRef<WorldFunctionHandle>();
+    render(
+      <WorldFunctionControls
+        lng="en"
+        ownerId="owner"
+        enabled
+        zone="arrival"
+        onOpen={vi.fn()}
+        functionRef={ref}
+        actingState="waiting"
+      />
+    );
+    act(() => {
+      ref.current?.openDestination({ kind: 'draft', draft: 'Local only' });
+    });
+    expect(await screen.findByRole('status')).toHaveTextContent(en.world.acting.waiting);
+  });
+  it('returns to the scene when the phone action that opened a native panel has unmounted', async () => {
+    const ref = createRef<WorldFunctionHandle>();
+    const canvas = document.createElement('canvas');
+    canvas.className = 'world-canvas';
+    canvas.tabIndex = 0;
+    const phoneAction = document.createElement('button');
+    document.body.append(canvas, phoneAction);
+    try {
+      render(
+        <WorldFunctionControls
+          lng="en"
+          ownerId="owner"
+          enabled
+          zone="arrival"
+          onOpen={vi.fn()}
+          functionRef={ref}
+        />
+      );
+      phoneAction.focus();
+      act(() => {
+        expect(ref.current?.openDestination({ kind: 'draft', draft: 'Local only' })).toBe(true);
+      });
+      phoneAction.remove();
+      const input = await screen.findByRole('textbox', { name: 'Native chat draft' });
+      fireEvent.keyDown(input, { key: 'Escape', code: 'Escape' });
+      await waitFor(() => expect(canvas).toHaveFocus());
+    } finally {
+      canvas.remove();
+      phoneAction.remove();
+    }
+  });
+  it('retains the accepted dashboard through the non-modal chat and native back navigation', async () => {
+    const ref = createRef<WorldFunctionHandle>();
+    render(
+      <WorldFunctionControls
+        lng="en"
+        ownerId="owner"
+        enabled
+        zone="arrival"
+        onOpen={vi.fn()}
+        functionRef={ref}
+        dashboardSeatKey="confirmed-seat"
+      />
+    );
+    act(() => {
+      ref.current?.openScene({ kind: 'workspace', id: 'dashboard' });
+    });
+    const choice = await screen.findByRole('textbox', { name: 'Retained dashboard choice' });
+    fireEvent.change(choice, { target: { value: 'Preserved through chat' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open local draft' }));
+    // The dashboard hands the chat an unsent draft: prefilled, never sent or streamed.
+    expect(await screen.findByRole('textbox', { name: 'Native chat draft' })).toHaveValue(
+      'Hello Alice'
+    );
+    expect(chat.props.at(-1)).toEqual({ embedded: true, openingDraft: 'Hello Alice' });
+    expect(apiClient.post).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: en.common.back }));
+    expect(await screen.findByRole('textbox', { name: 'Retained dashboard choice' })).toHaveValue(
+      'Preserved through chat'
+    );
+  });
+  it('retains an accepted dashboard across closing, another activity and reopening', async () => {
+    const ref = createRef<WorldFunctionHandle>();
+    render(
+      <WorldFunctionControls
+        lng="en"
+        ownerId="owner"
+        enabled
+        zone="arrival"
+        onOpen={vi.fn()}
+        functionRef={ref}
+        dashboardSeatKey="confirmed-seat"
+      />
+    );
+    act(() => {
+      expect(ref.current?.openScene({ kind: 'workspace', id: 'dashboard' })).toBe(true);
+    });
+    const choice = await screen.findByRole('textbox', { name: 'Retained dashboard choice' });
+    fireEvent.change(choice, { target: { value: 'Preserved owner choice' } });
+    fireEvent.keyDown(choice, { key: 'Escape', code: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(document.body.style.pointerEvents).not.toBe('none');
+    fireEvent.click(screen.getByRole('button', { name: 'LIA settings' }));
+    await screen.findByRole('searchbox');
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape', code: 'Escape' });
+    act(() => {
+      ref.current?.openScene({ kind: 'workspace', id: 'dashboard' });
+    });
+    expect(await screen.findByRole('textbox', { name: 'Retained dashboard choice' })).toHaveValue(
+      'Preserved owner choice'
+    );
+  });
+  it('disposes the dashboard when standing and starts a fresh workspace for a later seating', async () => {
+    const ref = createRef<WorldFunctionHandle>();
+    const props = {
+      lng: 'en' as const,
+      ownerId: 'owner',
+      enabled: true,
+      zone: 'arrival' as const,
+      onOpen: vi.fn(),
+      functionRef: ref,
+    };
+    const view = render(<WorldFunctionControls {...props} dashboardSeatKey="confirmed-seat" />);
+    act(() => {
+      ref.current?.openScene({ kind: 'workspace', id: 'dashboard' });
+    });
+    const choice = await screen.findByRole('textbox', { name: 'Retained dashboard choice' });
+    fireEvent.change(choice, { target: { value: 'Old seating' } });
+    view.rerender(<WorldFunctionControls {...props} dashboardSeatKey={null} />);
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('textbox', { name: 'Retained dashboard choice', hidden: true })
+      ).not.toBeInTheDocument()
+    );
+    expect(ref.current?.canOpen({ kind: 'workspace', id: 'dashboard' })).toBe(false);
+    view.rerender(<WorldFunctionControls {...props} dashboardSeatKey="confirmed-seat" />);
+    act(() => {
+      ref.current?.openScene({ kind: 'workspace', id: 'dashboard' });
+    });
+    expect(await screen.findByRole('textbox', { name: 'Retained dashboard choice' })).toHaveValue(
+      ''
+    );
+  });
   it.each([
     ['en', 'LIA functions', 'Talk to LIA'],
     ['fr', 'Fonctions LIA', 'Parler à LIA'],
@@ -81,7 +297,10 @@ describe('private native function controls', () => {
   });
 
   it('restores the private catalogue edit after a same-account verification', async () => {
-    vi.mocked(apiClient.get).mockResolvedValueOnce({ id: 'owner', is_active: true });
+    // Children read before their guard: answer the identity by its endpoint.
+    vi.mocked(apiClient.get).mockImplementation(async (endpoint: string) =>
+      endpoint === '/auth/me' ? { id: 'owner', is_active: true } : undefined
+    );
     render(
       <WorldAccountGuard ownerId="owner" lng="en">
         <WorldFunctionControls lng="en" ownerId="owner" enabled zone="arrival" onOpen={vi.fn()} />
@@ -96,7 +315,8 @@ describe('private native function controls', () => {
     const next = Promise.withResolvers<unknown>();
     vi.mocked(apiClient.get).mockImplementationOnce(() => next.promise);
     fireEvent(window, new Event('focus'));
-    expect(query).not.toBeVisible();
+    // A revalidation of the confirmed owner runs in the background.
+    expect(query).toBeVisible();
     await act(async () => next.resolve({ id: 'owner', is_active: true }));
     expect(await screen.findByRole('searchbox', { name: en.world.functions.search })).toHaveValue(
       'Remember this query'
@@ -119,12 +339,135 @@ describe('private native function controls', () => {
     const query = screen.getByRole('searchbox', { name: en.world.functions.search });
     fireEvent.change(query, { target: { value: 'Retained on reconnect' } });
     view.rerender(<WorldFunctionControls {...props} suspended />);
-    expect(query).not.toBeVisible();
-    expect(screen.getByRole('button', { name: 'LIA functions' })).toBeDisabled();
+    // A reconnect keeps the panel mounted, readable and busy; the session dialog says why.
+    expect(query).toBeVisible();
+    expect(query).toHaveValue('Retained on reconnect');
+    expect(query.closest('[aria-busy]')).toHaveAttribute('aria-busy', 'true');
+    // New actions wait for the World; the open modal keeps the toolbar out of the tree.
+    expect(screen.getByRole('button', { name: 'LIA functions', hidden: true })).toBeDisabled();
     view.rerender(<WorldFunctionControls {...props} />);
+    expect(query.closest('[aria-busy]')).toHaveAttribute('aria-busy', 'false');
     expect(await screen.findByRole('searchbox', { name: en.world.functions.search })).toHaveValue(
       'Retained on reconnect'
     );
+  });
+  it('keeps a streaming LIA conversation alive through a World reconnect', async () => {
+    const ref = createRef<WorldFunctionHandle>();
+    const props = {
+      lng: 'en' as const,
+      ownerId: 'owner',
+      enabled: true,
+      zone: 'arrival' as const,
+      onOpen: vi.fn(),
+      functionRef: ref,
+    };
+    const view = render(<WorldFunctionControls {...props} />);
+    act(() => {
+      ref.current?.openDestination({ kind: 'draft', draft: 'Hello' });
+    });
+    const input = await screen.findByRole('textbox', { name: 'Native chat draft' });
+    expect(chat.mounted).toHaveBeenCalledTimes(1);
+    view.rerender(<WorldFunctionControls {...props} suspended />);
+    expect(input).toBeVisible();
+    view.rerender(<WorldFunctionControls {...props} />);
+    expect(screen.getByRole('textbox', { name: 'Native chat draft' })).toBe(input);
+    expect(chat.mounted).toHaveBeenCalledTimes(1);
+    expect(chat.cleaned).not.toHaveBeenCalled();
+  });
+  it('keeps the retained seated dashboard across Discuter, so its paid synthesis is asked once', async () => {
+    const ref = createRef<WorldFunctionHandle>();
+    const props = {
+      lng: 'en' as const,
+      ownerId: 'owner',
+      zone: 'arrival' as const,
+      onOpen: vi.fn(),
+      functionRef: ref,
+      dashboardSeatKey: 'confirmed-seat',
+    };
+    const synthesis = () =>
+      vi.mocked(apiClient.get).mock.calls.filter(([endpoint]) => endpoint === '/briefing/synthesis')
+        .length;
+    const view = render(<WorldFunctionControls {...props} enabled />);
+    act(() => {
+      expect(ref.current?.openScene({ kind: 'workspace', id: 'dashboard' })).toBe(true);
+    });
+    const choice = await screen.findByRole('textbox', { name: 'Retained dashboard choice' });
+    await waitFor(() => expect(synthesis()).toBe(1));
+    fireEvent.change(choice, { target: { value: 'Seated choice' } });
+    fireEvent.keyDown(choice, { key: 'Escape', code: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    // Discuter opens then closes: `enabled` toggles without remounting the host.
+    view.rerender(<WorldFunctionControls {...props} enabled={false} />);
+    view.rerender(<WorldFunctionControls {...props} enabled />);
+    act(() => {
+      expect(ref.current?.openScene({ kind: 'workspace', id: 'dashboard' })).toBe(true);
+    });
+    expect(await screen.findByRole('textbox', { name: 'Retained dashboard choice' })).toHaveValue(
+      'Seated choice'
+    );
+    await act(async () => {
+      // Drain any read a remount would have issued.
+    });
+    expect(synthesis()).toBe(1);
+  });
+  it('asks the dashboard synthesis once when a failed identity read hides and reveals it', async () => {
+    const identity = { fails: false };
+    vi.mocked(apiClient.get).mockImplementation(async (endpoint: string) => {
+      if (endpoint !== '/auth/me') return undefined;
+      if (identity.fails) throw new Error('offline');
+      return { id: 'owner', is_active: true };
+    });
+    const logged = vi.spyOn(logger, 'error').mockImplementation(() => {});
+    const synthesis = () =>
+      vi.mocked(apiClient.get).mock.calls.filter(([endpoint]) => endpoint === '/briefing/synthesis')
+        .length;
+    const ref = createRef<WorldFunctionHandle>();
+    try {
+      render(
+        <WorldAccountGuard ownerId="owner" lng="en">
+          <WorldFunctionControls
+            lng="en"
+            ownerId="owner"
+            enabled
+            zone="arrival"
+            onOpen={vi.fn()}
+            functionRef={ref}
+            dashboardSeatKey="confirmed-seat"
+          />
+        </WorldAccountGuard>
+      );
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'LIA functions', hidden: true })).toBeEnabled()
+      );
+      act(() => {
+        expect(ref.current?.openScene({ kind: 'workspace', id: 'dashboard' })).toBe(true);
+      });
+      const choice = await screen.findByRole('textbox', { name: 'Retained dashboard choice' });
+      await waitFor(() => expect(synthesis()).toBe(1));
+      fireEvent.change(choice, { target: { value: 'Kept while hidden' } });
+      identity.fails = true;
+      await act(async () => {
+        fireEvent(window, new Event('focus'));
+      });
+      // The failed read withdraws the private subtree (its effects pause) …
+      const retry = await screen.findByRole('button', { name: en.common.retry });
+      expect(choice).not.toBeVisible();
+      expect(logged).toHaveBeenCalled();
+      identity.fails = false;
+      await act(async () => {
+        fireEvent.click(retry);
+      });
+      // … and the confirmed owner's return reveals it with its state and no second purchase.
+      expect(await screen.findByRole('textbox', { name: 'Retained dashboard choice' })).toHaveValue(
+        'Kept while hidden'
+      );
+      await act(async () => {
+        // Drain any read the revealed effects would have issued.
+      });
+      expect(synthesis()).toBe(1);
+    } finally {
+      logged.mockRestore();
+    }
   });
 });
 

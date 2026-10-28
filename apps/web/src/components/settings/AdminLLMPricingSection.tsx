@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffectRequest } from '@/hooks/useEffectRequest';
+
 import { useState, useEffect, useCallback, useOptimistic, useTransition } from 'react';
 import { toast } from 'sonner';
 import { Clock, DollarSign, Download, Plus, RefreshCw, Trash2, Upload } from 'lucide-react';
@@ -271,8 +273,11 @@ export default function AdminLLMPricingSection({ lng }: BaseSettingsProps) {
     setCatalogueRevision(revision => revision + 1);
   });
 
+  // Every read of the grid — the automatic one and the re-read after a change —
+  // belongs to one generation (`useEffectRequest`): a newer read aborts an older
+  // one, which then neither replaces the newer rows nor ends its loading state.
   const fetchModels = useCallback(
-    async (signal?: AbortSignal) => {
+    async (signal: AbortSignal) => {
       setLoading(true);
       try {
         const params = new URLSearchParams({
@@ -290,10 +295,12 @@ export default function AdminLLMPricingSection({ lng }: BaseSettingsProps) {
           `/admin/llm/pricing?${params.toString()}`,
           { signal }
         );
+        if (signal.aborted) return;
         setModels(response.models);
         setTotal(response.total);
         setTotalPages(response.total_pages);
       } catch (error) {
+        if (signal.aborted) return;
         const err = error as { name?: string };
         if (err.name === 'AbortError' || err.name === 'CanceledError') {
           return;
@@ -307,19 +314,13 @@ export default function AdminLLMPricingSection({ lng }: BaseSettingsProps) {
         });
         toast.error(t('settings.admin.llm.errors.loading'));
       } finally {
-        setLoading(false);
+        if (!signal.aborted) setLoading(false);
       }
     },
     [page, pageSize, sortBy, sortOrder, searchQuery, t]
   );
 
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchModels(controller.signal);
-    return () => {
-      controller.abort();
-    };
-  }, [fetchModels]);
+  const refreshModels = useEffectRequest(fetchModels);
 
   // The registry verdict is a diagnostic ABOUT the catalogue, not part of it:
   // it follows successful catalogue mutations, never blocks the table, and a
@@ -374,7 +375,7 @@ export default function AdminLLMPricingSection({ lng }: BaseSettingsProps) {
     startTransition(async () => {
       const audioPayload = buildAudioPricesPayload(formData, 'create');
       // Optimistic placeholder — the real reasoning + sampling block lands
-      // when fetchModels() refreshes. Default to neutral values here.
+      // when refreshModels() re-reads the grid. Default to neutral values here.
       const tempModel: LLMModelPricing = {
         id: `temp-${Date.now()}`,
         provider: formData.provider,
@@ -437,7 +438,7 @@ export default function AdminLLMPricingSection({ lng }: BaseSettingsProps) {
         });
         if (result.success) {
           setShowAddModal(false);
-          await fetchModels();
+          await refreshModels();
           invalidateCatalogue('model_capabilities');
           toast.success(result.message!);
         } else {
@@ -512,7 +513,7 @@ export default function AdminLLMPricingSection({ lng }: BaseSettingsProps) {
         const result = await updateLLMPricing(originalModelName, updatePayload);
         if (result.success) {
           setEditingModel(null);
-          await fetchModels();
+          await refreshModels();
           invalidateCatalogue('model_capabilities');
           toast.success(result.message!);
         } else {
@@ -796,7 +797,7 @@ export default function AdminLLMPricingSection({ lng }: BaseSettingsProps) {
           // catalogue that just moved, and the runtime caches were rebuilt
           // server-side. Re-reading is the only honest thing to show.
           if (!open) {
-            void fetchModels();
+            void refreshModels();
             invalidateCatalogue('model_capabilities');
           }
         }}

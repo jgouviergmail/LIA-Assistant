@@ -8,11 +8,11 @@ import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLife
 interface OwnedSchema<T> {
   safeParse(value: unknown): { success: true; data: T } | { success: false };
 }
-/** Native query/mutation boundary shared by the two account-owned world preferences. */
+/** Native query/mutation boundary shared by account-owned World preferences. */
 export function useWorldOwnerPreferences<T extends { owner_id: string }, W>(
   ownerId: string,
   enabled: boolean,
-  resource: 'home' | 'avatar',
+  resource: 'home' | 'avatar' | 'experience',
   schema: OwnedSchema<T>
 ) {
   const { isCurrent } = useApplicationAccountLifetime(ownerId);
@@ -43,14 +43,24 @@ export function useWorldOwnerPreferences<T extends { owner_id: string }, W>(
   );
   useEffect(() => {
     if (!enabled) return;
-    const refresh = () => {
-      if (!document.hidden && isCurrent()) void refetch();
+    // A return to the tab fires both `visibilitychange` and `focus`: read once per return.
+    let away = document.hidden || !document.hasFocus();
+    const leave = () => {
+      away = true;
     };
-    window.addEventListener('focus', refresh);
-    document.addEventListener('visibilitychange', refresh);
+    const back = () => {
+      if (!away || document.hidden || !isCurrent()) return;
+      away = false;
+      void refetch();
+    };
+    const visibility = () => (document.hidden ? leave() : back());
+    window.addEventListener('blur', leave);
+    window.addEventListener('focus', back);
+    document.addEventListener('visibilitychange', visibility);
     return () => {
-      window.removeEventListener('focus', refresh);
-      document.removeEventListener('visibilitychange', refresh);
+      window.removeEventListener('blur', leave);
+      window.removeEventListener('focus', back);
+      document.removeEventListener('visibilitychange', visibility);
     };
   }, [enabled, isCurrent, refetch]);
   async function save(payload: W): Promise<T | null> {

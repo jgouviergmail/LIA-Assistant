@@ -143,7 +143,7 @@ global:
   resolve_timeout: 5m
 route:
   receiver: 'default-log'
-  group_by: ['alertname', 'component', 'severity']
+  group_by: ['alertname', 'component', 'severity', 'environment', 'host']
   group_wait: 30s
   group_interval: 5m
   repeat_interval: 4h
@@ -153,7 +153,7 @@ inhibit_rules:
       severity: 'critical'
     target_match:
       severity: 'warning'
-    equal: ['alertname', 'component']
+    equal: ['alertname', 'component', 'environment', 'host']
 receivers:
   - name: 'default-log'
 EOF

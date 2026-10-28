@@ -107,7 +107,10 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Measured for v4.0.0: backend 53,682 collected in 3,605 files (Windows, 2026-10-27)
+ *   Measured for v4.1.0: backend 54,033 collected in 3,636 files (Windows, 2026-10-28)
+ *   (pytest tests --collect-only -q --no-cov); frontend 15,161 tests in 1,317
+ *   files (vitest list, 2026-10-28). Combined inventory: 69,194 -> 69000.
+ *   Re-measured 2026-10-27 (v4.0.0): backend 53,682 collected in 3,605 files
  *   (pytest tests --collect-only -q --no-cov); frontend 14,674 tests in 1,238
  *   files (vitest list, 2026-10-26). Combined inventory: 68,356 -> 68000.
  *   Re-measured 2026-10-24 (v3.6.0): backend 53,014 collected in 3,542 files
@@ -434,20 +437,19 @@ export const LANDING_STATS = {
   tools: 327,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 635,
+  metrics: 640,
   uiLanguages: 6,
-  tests: 68000,
+  tests: 69000,
   adrs: 363,
-  releases: 290,
+  releases: 291,
   auditScore: '7.9/10',
   auditAreas: 24,
 } as const;
 
 /**
- * Whether the hero (and the legacy /demo) draws the planetarium — LIA's
- * features orbiting the chat mockup. Off since 2026-10-01 (owner decision: the
- * mockup stands alone, the video carries the motion); the component, its
- * styles and its tests stay so one flip of this constant brings it back.
+ * Whether the legacy /demo draws the planetarium — LIA's features orbiting
+ * the chat mockup. Off since 2026-10-01; the landing hero now uses the living
+ * functional map. The demo's component, styles and tests retain this switch.
  */
 export const LANDING_PLANETARIUM_ENABLED = false;
 

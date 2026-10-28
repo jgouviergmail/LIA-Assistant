@@ -397,9 +397,9 @@
     },
     "f.world": {
       "name": "Il mondo LIA",
-      "role": "Un campus isometrico condiviso con movimento, mappa, LIA e scambi scritti pubblici o diretti. Il nome dell'account e l'aspetto sono visibili con il tuo consenso; funzioni e casa restano private, le traduzioni autorizzate seguono le quote abituali.",
+      "role": "Un campus isometrico condiviso con movimento, mappa, LIA, scambi scritti pubblici o diretti, gesti, cabinati arcade e foto private. Il nome dell'account e l'aspetto sono visibili con il tuo consenso; funzioni e casa restano private, le traduzioni autorizzate seguono le quote abituali.",
       "goal": "Incontrare altre persone e usare il proprio LIA in un luogo piacevole senza condividere dati personali.",
-      "src": "ab920566adb0"
+      "src": "96725650a718"
     }
   },
   "flows": {

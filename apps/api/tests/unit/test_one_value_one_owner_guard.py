@@ -191,3 +191,24 @@ def test_the_ci_containers_carry_the_browsers_the_e2e_package_drives() -> None:
         f"the e2e package drives Playwright {owner}; the CI containers carry {copies}: "
         f"set both to mcr.microsoft.com/playwright:v{owner}-noble"
     )
+
+
+def test_the_documented_local_runs_carry_the_browsers_the_e2e_package_drives() -> None:
+    """The README's local proofs and the public-screenshot script start the official
+    image by hand. On another version the package launches no browser, so whoever
+    follows the documented recipe is the first to find a Playwright bump: those
+    copies are held to the package exactly like the CI's containers."""
+    manifest = json.loads(_read("apps/web/e2e/package.json"))
+    owner = manifest["devDependencies"]["@playwright/test"]
+    copies = {
+        name: re.findall(r"mcr\.microsoft\.com/playwright:v(\d+\.\d+\.\d+)-", _read(name))
+        for name in ("apps/web/e2e/README.md", "scripts/capture_public_screenshots.ps1")
+    }
+
+    assert all(
+        copies.values()
+    ), f"a documented Playwright container is no longer where this guard reads it: {copies}"
+    assert {v for found in copies.values() for v in found} == {owner}, (
+        f"the e2e package drives Playwright {owner}; the documented local runs start {copies}: "
+        f"set them to mcr.microsoft.com/playwright:v{owner}-noble"
+    )

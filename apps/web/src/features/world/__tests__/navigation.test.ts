@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findRoute, nearbyWalkable } from '../navigation';
+import { ACTOR_RADIUS, findRoute, isWalkable, nearbyWalkable } from '../navigation';
 import { directionFromScreen } from '../simulation';
 import type { Point } from '../types';
 
@@ -17,6 +17,33 @@ function grid() {
 }
 
 describe('natural, collision-safe click navigation', () => {
+  it('can leave an authority-valid position touching the outer edge of a solid cell', () => {
+    const nav = grid();
+    nav.blocked[3 * nav.width + 4] = 1;
+    const from = { x: 5.22, y: 3.5 };
+    const goal = { x: 7.5, y: 3.5 };
+    for (const dx of [-ACTOR_RADIUS, ACTOR_RADIUS])
+      for (const dy of [-ACTOR_RADIUS, ACTOR_RADIUS])
+        expect(isWalkable(nav, { x: from.x + dx, y: from.y + dy })).toBe(true);
+    expect(findRoute(nav, from, goal).at(-1)).toEqual(goal);
+  });
+  it('escapes a valid off-center position beside an obstacle corner without cutting through it', () => {
+    const nav = grid();
+    nav.blocked[3 * nav.width + 3] = 1;
+    const from = { x: 4.19, y: 4.23 },
+      to = { x: 4.5, y: 1.5 };
+    const route = findRoute(nav, from, to);
+    expect(route.at(-1)).toEqual(to);
+    let previous = from;
+    for (const point of route) {
+      for (let n = 0; n <= 500; n++) {
+        const x = previous.x + ((point.x - previous.x) * n) / 500;
+        const y = previous.y + ((point.y - previous.y) * n) / 500;
+        expect(x < 2.78 || x > 4.22 || y < 2.78 || y > 4.22).toBe(true);
+      }
+      previous = point;
+    }
+  });
   it('crosses open ground directly instead of making a stair-shaped detour', () => {
     const from = { x: 1.3, y: 1.7 };
     const to = { x: 9.2, y: 7.4 };

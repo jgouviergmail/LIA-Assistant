@@ -3,7 +3,7 @@
   {"service": "postgres-backup", "reference": "prodrigestivill/postgres-backup-local:16-alpine-d257e5d@sha256:08e7b70879af45a89305b91f4600cfbc88da2419a65948df870cddb082b8cf83"},
   {"service": "redis", "reference": "redis:7.4.11-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499"},
   {"service": "tempo", "reference": "grafana/tempo:2.10.8@sha256:f0561deb1c68ec44d6e6e7e4487f30106c4e5e768642077695b37958b105812a"},
-  {"service": "prometheus", "reference": "prom/prometheus:v3.13.3@sha256:6976aa8a60fec930796ce5772b8d12da7a318a5daa8d40d69c5c7819a05eeed7"},
+  {"service": "prometheus", "reference": "prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e"},
   {"service": "alertmanager", "reference": "prom/alertmanager:v0.34.1@sha256:e9733bafb1bdef9b00e25a21f8f99dc26a22224bf16641ad754d1649f4c3357a"},
   {"service": "blackbox-exporter", "reference": "prom/blackbox-exporter:v0.28.0@sha256:e753ff9f3fc458d02cca5eddab5a77e1c175eee484a8925ac7d524f04366c2fc"},
   {"service": "grafana", "reference": "grafana/grafana:12.4.11@sha256:3ea272e5cab64a4a62240c682e2c62433b25614d956d44c299a10cb6994f6f2e"},

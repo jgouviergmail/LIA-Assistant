@@ -160,6 +160,30 @@ describe('AdminUsageLimitsSection — querying', () => {
     );
   });
 
+  it('aborts the transport of a read it no longer needs', async () => {
+    // The first page never answers: re-sorting supersedes it, unmounting the
+    // section ends the second — both must stop at the transport, not only in
+    // the component's state.
+    get.mockImplementation(() => new Promise(() => {}));
+    const { user, unmount } = render();
+    const listSignals = () =>
+      get.mock.calls
+        .filter(([url]) => String(url).includes('/usage-limits/admin/users'))
+        .map(([, config]) => (config as { signal?: AbortSignal }).signal);
+    await waitFor(() => expect(listSignals()).toHaveLength(1));
+    const [first] = listSignals();
+    expect(first?.aborted).toBe(false);
+
+    await user.click(screen.getByRole('columnheader', { name: /table\.email/ }));
+    await waitFor(() => expect(listSignals()).toHaveLength(2));
+
+    expect(first?.aborted).toBe(true);
+    const second = listSignals()[1];
+    expect(second?.aborted).toBe(false);
+    unmount();
+    expect(second?.aborted).toBe(true);
+  });
+
   it('refetches with the debounced search term', async () => {
     const { user } = render();
     await screen.findByText('a@b.co');

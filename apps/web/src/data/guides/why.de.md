@@ -4,7 +4,7 @@
 
 **Version**: 6.6
 **Datum**: 2026-10-23
-**Anwendung**: LIA v4.0.0
+**Anwendung**: LIA v4.1.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -298,6 +298,8 @@ LIAs Welt gibt deiner Instanz ein gemeinsames Haus mit Garten. Du bewegst dich m
 
 Ein geteilter Ort teilt nicht deine Assistentin. Beim Eintritt erlaubst du ausdrücklich, Name und Avatar in der Welt zu zeigen; bestätigte Kontakte sehen außerdem grobe Anwesenheit und ob du zu Hause bist. Dein Zuhause, seine Farben, Dokumente und Assistentenansichten bleiben privat. Ein Raum öffnet dieselben nativen Funktionen mit denselben Rechten, Kosten und Bestätigungen; sein Betreten führt keine vorbereitete Aktion aus.
 
+Die Welt ist auch ein Ort, um gemeinsam Zeit zu verbringen. Drei Arcade-Automaten — Tic-Tac-Toe, Vier in einer Reihe und Reversi — laden zu einer Partie mit einer anderen Person oder gegen den Computer ein, und sechs Gesten sagen ohne ein Wort Hallo, Danke oder Bravo. Setz dich an einen Tisch, und LIA bietet dir dein vollständiges Dashboard an; du kannst ablehnen und einfach sitzen bleiben. Vertraute Gegenstände zeigen deine eigenen Signale — eine ausgelöste Erinnerung, eine Nachricht, ein Ticket, das auf dich wartet — und ein privates Foto hält den Moment fest: dein Avatar, LIA und die Kulisse, nie die anderen Besucher.
+
 Mit einem verfügbaren, nicht blockierten Teilnehmer kannst du privat schreiben oder bewusst den Kanal Alle für Menschen in gemeinsamen Bereichen wählen. Das Original bleibt verfügbar. Eine Übersetzung ist eine ausdrückliche kostenpflichtige Wahl und zählt zum Verbrauch; ein fehlgeschlagener oder ungewisser Versuch wird nicht automatisch wiederholt. Diese vorübergehenden menschlichen Nachrichten bleiben von LIAs Verlauf und Gedächtnis getrennt. Die Verfügbarkeit richtet sich nach den aktivierten Funktionen deiner Instanz; menschliche Sprache zwischen Avataren gehört nicht zu dieser Version.
 
 ---
@@ -410,7 +412,7 @@ Dieselbe Anforderung gilt für das, was LIA aus deinen Vorgaben behält: Jede da
 
 ### 6.8. Eine Oberfläche, die das Produkt beschreibt, wird daran gemessen
 
-Transparenz hat einen Ausfallmodus, den niemand bemerkt: einen Bildschirm, der leise aufhört, die Wahrheit zu sagen. Nichts geht kaputt, kein Test wird rot, und die Seite, die es gab, um aktuell zu sein, wird zur unaktuellsten der Anwendung. Die Fähigkeitskarte — die Seite, die beantwortet, _was kann mein Assistent für mich tun?_ — wird deshalb nicht mehr von Hand gepflegt: Jede Fähigkeit, die die Plattform ein- oder ausschalten kann, muss dort ihren deklarierten Platz haben, und eine Fähigkeit, die ohne diese Entscheidung ausgeliefert wird, verhindert den Start der Anwendung. Dieselbe Überzeugung, eine Stufe weiter: Was ein Bildschirm über deine Daten behauptet, muss **exakt oder abwesend** sein. Eine Zählung ist die Zahl, die die Datenbank liefert, nie eine Länge, die gerade zur Hand war; und solange eine Antwort unterwegs ist oder wenn sie fehlgeschlagen ist, sagt die Karte lieber nichts, als zu raten. „Nichts eingerichtet“ ist eine Aussage über dein Konto — eine, bei der man sich besser sicher ist, bevor man sie ausspricht. Die FAQ folgt demselben Anspruch: Jede Funktion, die eine Person nutzen kann, hat dort ihren Abschnitt — 518 Fragen in sechs Sprachen —, und ein übersetzter Abschnitt, den die Anzeigereihenfolge vergäße, lässt die Tests scheitern, statt unsichtbar zu bleiben.
+Transparenz hat einen Ausfallmodus, den niemand bemerkt: einen Bildschirm, der leise aufhört, die Wahrheit zu sagen. Nichts geht kaputt, kein Test wird rot, und die Seite, die es gab, um aktuell zu sein, wird zur unaktuellsten der Anwendung. Die Fähigkeitskarte — die Seite, die beantwortet, _was kann mein Assistent für mich tun?_ — wird deshalb nicht mehr von Hand gepflegt: Jede Fähigkeit, die die Plattform ein- oder ausschalten kann, muss dort ihren deklarierten Platz haben, und eine Fähigkeit, die ohne diese Entscheidung ausgeliefert wird, verhindert den Start der Anwendung. Dieselbe Überzeugung, eine Stufe weiter: Was ein Bildschirm über deine Daten behauptet, muss **exakt oder abwesend** sein. Eine Zählung ist die Zahl, die die Datenbank liefert, nie eine Länge, die gerade zur Hand war; und solange eine Antwort unterwegs ist oder wenn sie fehlgeschlagen ist, sagt die Karte lieber nichts, als zu raten. „Nichts eingerichtet“ ist eine Aussage über dein Konto — eine, bei der man sich besser sicher ist, bevor man sie ausspricht. Die FAQ folgt demselben Anspruch: Jede Funktion, die eine Person nutzen kann, hat dort ihren Abschnitt — 523 Fragen in sechs Sprachen —, und ein übersetzter Abschnitt, den die Anzeigereihenfolge vergäße, lässt die Tests scheitern, statt unsichtbar zu bleiben.
 
 Transparenz gilt auch für die inneren Regeln des Assistenten. Eine Grenze, die das System durchsetzt, muss dem veröffentlicht werden, den sie betrifft: Erkennt das Gewohnheitslernen nichts, zeigen die Einstellungen die tatsächlich verlangte Schwelle — strenger am Wochenende, wo weniger Tage beobachtet werden — statt eines unerklärten Schweigens. Und wenn sich eine Einstellung selbst justiert, wie die Schwelle, die entscheidet, ob eine Journalnotiz in eine Antwort einfließt, dann innerhalb strikter Grenzen, ein kleiner Schritt pro Tag, mit Notausschalter und gezählten Anpassungen: Ein lernendes System ist nur akzeptabel, wenn es beobachtbar und abschaltbar bleibt.
 

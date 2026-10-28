@@ -174,7 +174,7 @@ describe('InteractiveChatMockup', () => {
 
   it('shows static complete scenes with reduced motion and never schedules an animation', () => {
     motion = true;
-    render(<InteractiveChatMockup lng="fr" withCta={false} />);
+    render(<InteractiveChatMockup lng="fr" />);
     for (const scene of PRODUCT_SCENES) {
       fireEvent.click(screen.getByRole('button', { name: scene.titleKey }));
       expect(screen.getByText(scene.outcomeKey)).toBeVisible();
@@ -183,7 +183,6 @@ describe('InteractiveChatMockup', () => {
     expect(screen.queryByRole('button', { name: `${KEY}.pause` })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: `${KEY}.replay` })).not.toBeInTheDocument();
     expect(vi.getTimerCount()).toBe(0);
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
   it('preserves the register CTA and opt-in explanations outside the homepage', () => {
@@ -195,73 +194,6 @@ describe('InteractiveChatMockup', () => {
     expect(screen.getByText(`${KEY}.scenes.decision.difference`)).not.toBeVisible();
     fireEvent.click(screen.getByText(`${KEY}.difference`));
     expect(screen.getByText(`${KEY}.scenes.decision.difference`)).toBeVisible();
-  });
-
-  it('keeps the homepage workflow benefit visible and resets a fictional approval when changing scenes', () => {
-    motion = true;
-    render(<InteractiveChatMockup lng="fr" home withCta={false} />);
-    expect(screen.getByText(`${HOME_KEY}.scenes.decision.difference`)).toBeVisible();
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: `${HOME_KEY}.scenes.call.title` }));
-    expect(screen.getByText(`${HOME_KEY}.scenes.call.difference`)).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: 'chat.hitl.actions.confirm' }));
-    expect(screen.getByRole('status')).toHaveTextContent(`${HOME_KEY}.approval_confirmed`);
-
-    fireEvent.click(screen.getByRole('button', { name: `${HOME_KEY}.scenes.decision.title` }));
-    expect(screen.getByText(`${HOME_KEY}.scenes.decision.difference`)).toBeVisible();
-    expect(screen.queryByText(`${HOME_KEY}.approval_confirmed`)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: `${HOME_KEY}.scenes.call.title` }));
-    expect(screen.getByRole('button', { name: 'chat.hitl.actions.confirm' })).toBeVisible();
-    expect(screen.getByRole('status')).toBeEmptyDOMElement();
-  });
-
-  it.each([false, true])(
-    'lets the homepage reader explore every step without automatic changes (reduced motion: %s)',
-    reduced => {
-      motion = reduced;
-      render(<InteractiveChatMockup lng="fr" home withCta={false} />);
-      expect(screen.getByText(`${HOME_KEY}.scenes.decision.result_title`)).toBeVisible();
-      const request = screen.getByRole('button', { name: `${HOME_KEY}.steps_request` });
-      request.focus();
-      fireEvent.click(request);
-      advance(60000);
-      expect(request).toHaveFocus();
-      expect(request).toHaveAttribute('aria-pressed', 'true');
-      expect(screen.getByText(`${HOME_KEY}.context`)).not.toBeVisible();
-      expect(screen.getByText(`${HOME_KEY}.scenes.decision.result_title`)).not.toBeVisible();
-
-      const context = screen.getByRole('button', { name: `${HOME_KEY}.steps_context` });
-      context.focus();
-      fireEvent.click(context);
-      expect(context).toHaveFocus();
-      expect(screen.getByText(`${HOME_KEY}.context`)).toBeVisible();
-      expect(screen.getByText(`${HOME_KEY}.scenes.decision.result_title`)).not.toBeVisible();
-
-      const result = screen.getByRole('button', { name: `${HOME_KEY}.steps_result` });
-      result.focus();
-      fireEvent.click(result);
-      expect(result).toHaveFocus();
-      expect(result).toHaveAttribute('aria-pressed', 'true');
-      expect(screen.getByText(`${HOME_KEY}.scenes.decision.result_title`)).toBeVisible();
-      expect(screen.queryByRole('button', { name: `${HOME_KEY}.play` })).not.toBeInTheDocument();
-      advance(60000);
-      expect(result).toHaveFocus();
-      expect(screen.getByText(`${HOME_KEY}.scenes.decision.result_title`)).toBeVisible();
-    }
-  );
-
-  it('keeps the locally reviewed call available when the reader revisits another step', () => {
-    render(<InteractiveChatMockup lng="fr" home withCta={false} />);
-    fireEvent.click(screen.getByRole('button', { name: `${HOME_KEY}.scenes.call.title` }));
-    fireEvent.click(screen.getByRole('button', { name: 'chat.hitl.actions.confirm' }));
-    fireEvent.click(screen.getByRole('button', { name: `${HOME_KEY}.steps_request` }));
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: `${HOME_KEY}.steps_result` }));
-    expect(screen.getByRole('status')).toHaveTextContent(`${HOME_KEY}.approval_confirmed`);
-    expect(
-      screen.queryByRole('button', { name: 'chat.hitl.actions.confirm' })
-    ).not.toBeInTheDocument();
   });
 
   it.each([

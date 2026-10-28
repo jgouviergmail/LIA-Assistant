@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -78,3 +79,21 @@ def _closing_archive_door(monkeypatch: pytest.MonkeyPatch) -> None:
         return await mock(db, **kwargs)
 
     monkeypatch.setattr(closing, "archive_row", _door)
+
+
+# ---------------------------------------------------------------------------
+# The setup's ambient portrait
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _offline_portrait_reader(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every session start renders the setup with no portrait compiled yet.
+
+    The real reader asks the operator's journals switch and opens a database
+    session; ``test_journal_portrait.py`` installs its own reader to pin how a
+    portrait joins the setup.
+    """
+    from src.domains.live import setup_render
+
+    monkeypatch.setattr(setup_render, "build_journal_user_model_block", AsyncMock(return_value=""))

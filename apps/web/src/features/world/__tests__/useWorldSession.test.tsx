@@ -59,9 +59,76 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe('world account lifetime at the API boundary', () => {
+  it('updates nearby conversations only when their identities change and clears unavailable targets', async () => {
+    const { result, unmount } = renderHook(() => useWorldSession(owner, 'Owner'));
+    await flushSetup();
+    await act(async () => pending[0].resolve(ticket(owner)));
+    const socket = Socket.instances[0];
+    socket.readyState = 1;
+    const frame = (value: unknown) =>
+      socket.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(value) }));
+    const snapshot = {
+      server_time: 100,
+      receipts: [],
+      type: 'snapshot',
+      version: 2,
+      epoch: owner,
+      revision: 1,
+      status: 'active',
+      actors: [{ id: peer, alias: 'Peer', facing: 1, walking: false, position: WORLD.bipSpawn }],
+      you: { id: owner, alias: 'Owner', facing: 1, walking: false, position: WORLD.spawn },
+      ack: 0,
+      position: null,
+      offer_until: null,
+      idle_until: 1000,
+      controlling: true,
+    };
+    act(() => {
+      frame({
+        type: 'ready',
+        version: 2,
+        scene: `${WORLD.id}:${WORLD.version}`,
+        resume: 'c'.repeat(43),
+      });
+      frame(snapshot);
+    });
+    expect(result.current.presentation.nearbyParticipants).toEqual([{ id: peer, alias: 'Peer' }]);
+    const presentation = result.current.presentation;
+    act(() =>
+      frame({
+        ...snapshot,
+        revision: 2,
+        actors: [
+          { ...snapshot.actors[0], position: { ...WORLD.bipSpawn, x: WORLD.bipSpawn.x - 0.1 } },
+        ],
+      })
+    );
+    expect(result.current.presentation).toBe(presentation);
+    act(() => frame({ ...snapshot, revision: 3, actors: [] }));
+    expect(result.current.presentation.nearbyParticipants).toEqual([]);
+    act(() => frame({ ...snapshot, revision: 4 }));
+    expect(result.current.presentation.nearbyParticipants).toEqual([{ id: peer, alias: 'Peer' }]);
+    act(() => frame({ ...snapshot, revision: 5, controlling: false }));
+    expect(result.current.presentation.nearbyParticipants).toEqual([]);
+    act(() => frame({ ...snapshot, revision: 6 }));
+    expect(result.current.presentation.nearbyParticipants).toEqual([{ id: peer, alias: 'Peer' }]);
+    const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    expect(result.current.presentation.nearbyParticipants).toEqual([]);
+    act(() => frame({ ...snapshot, revision: 7 }));
+    expect(result.current.presentation.nearbyParticipants).toEqual([]);
+    hidden.mockReturnValue(false);
+    act(() => frame({ ...snapshot, revision: 8 }));
+    expect(result.current.presentation.nearbyParticipants).toEqual([{ id: peer, alias: 'Peer' }]);
+    hidden.mockRestore();
+    act(() => socket.dispatchEvent(new CloseEvent('close', { code: 1013 })));
+    expect(result.current.presentation.nearbyParticipants).toEqual([]);
+    unmount();
+  });
   it('publishes social identities without rerendering for movement-only frames', async () => {
     const { result, unmount } = renderHook(() => useWorldSession(owner, 'Owner'));
     expect(result.current.active).toBe(false);
@@ -73,8 +140,10 @@ describe('world account lifetime at the API boundary', () => {
     const frame = (value: unknown) =>
       socket.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(value) }));
     const snapshot = {
+      server_time: 100,
+      receipts: [],
       type: 'snapshot',
-      version: 1,
+      version: 2,
       epoch: owner,
       revision: 1,
       status: 'active',
@@ -89,7 +158,7 @@ describe('world account lifetime at the API boundary', () => {
     act(() => {
       frame({
         type: 'ready',
-        version: 1,
+        version: 2,
         scene: `${WORLD.id}:${WORLD.version}`,
         resume: 'c'.repeat(43),
       });
@@ -194,8 +263,10 @@ it('opens a linked seat only after its own server acknowledgment and never on re
   const frame = (v: unknown) =>
     socket.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(v) }));
   const view = {
+    server_time: 100,
+    receipts: [],
     type: 'snapshot',
-    version: 1,
+    version: 2,
     epoch: owner,
     revision: 1,
     status: 'active',
@@ -217,7 +288,7 @@ it('opens a linked seat only after its own server acknowledgment and never on re
   act(() => {
     frame({
       type: 'ready',
-      version: 1,
+      version: 2,
       scene: WORLD.id + ':' + WORLD.version,
       resume: 'c'.repeat(43),
     });
@@ -231,19 +302,128 @@ it('opens a linked seat only after its own server acknowledgment and never on re
       revision: 2,
       ack: 1,
       pose_result: 'accepted',
+      receipts: [{ seq: 1, kind: 'pose', result: 'accepted' }],
       you: { ...view.you, position: slot.position, pose: slot.id },
     })
   );
-  expect(opened).toHaveBeenCalledExactlyOnceWith(slot.id);
+  // The scope is read from the live link, never copied from the receipt it confirms.
+  expect(opened).toHaveBeenCalledExactlyOnceWith(
+    { slot: slot.id, seq: 1, stream: 1, epoch: owner },
+    { stream: 1, epoch: owner }
+  );
   act(() =>
     frame({
       ...view,
       revision: 3,
       ack: 1,
       pose_result: 'accepted',
+      receipts: [{ seq: 1, kind: 'pose', result: 'accepted' }],
       you: { ...view.you, position: slot.position, pose: slot.id },
     })
   );
   expect(opened).toHaveBeenCalledTimes(1);
+  unmount();
+});
+
+it('announces a refused gesture from its own receipt and refuses a burst locally', async () => {
+  const { result, unmount } = renderHook(() => useWorldSession(owner, 'Owner'));
+  await flushSetup();
+  await act(async () => pending[0].resolve(ticket(owner)));
+  const socket = Socket.instances[0];
+  socket.readyState = 1;
+  const frame = (v: unknown) =>
+    socket.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(v) }));
+  const view = {
+    server_time: 100,
+    receipts: [],
+    type: 'snapshot',
+    version: 2,
+    epoch: owner,
+    revision: 1,
+    status: 'active',
+    actors: [],
+    you: { id: owner, alias: 'Owner', facing: 1, walking: false, position: WORLD.spawn },
+    ack: 0,
+    position: null,
+    offer_until: null,
+    idle_until: 1000,
+    controlling: true,
+  };
+  act(() => {
+    frame({
+      type: 'ready',
+      version: 2,
+      scene: WORLD.id + ':' + WORLD.version,
+      resume: 'c'.repeat(43),
+    });
+    frame(view);
+  });
+  const emotes = () => socket.sent.filter(sent => JSON.parse(sent).type === 'emote');
+  let sent = false;
+  act(() => {
+    sent = result.current.emote('wave');
+  });
+  expect(sent).toBe(true);
+  expect(result.current.presentation.emoteFeedback).toBeNull();
+  // A burst inside the gesture interval never reaches the socket and is said locally.
+  act(() => {
+    sent = result.current.emote('laugh');
+  });
+  expect(sent).toBe(false);
+  expect(emotes()).toHaveLength(1);
+  const local = result.current.presentation.emoteFeedback;
+  expect(local).toMatchObject({ result: 'rate_limited' });
+  // A receipt for another sequence, or for another kind, answers nothing.
+  act(() =>
+    frame({
+      ...view,
+      revision: 2,
+      ack: 1,
+      receipts: [
+        { seq: 2, kind: 'emote', result: 'unavailable' },
+        { seq: 1, kind: 'move', result: 'accepted' },
+      ],
+    })
+  );
+  expect(result.current.presentation.emoteFeedback).toBe(local);
+  act(() =>
+    frame({
+      ...view,
+      revision: 3,
+      ack: 1,
+      receipts: [{ seq: 1, kind: 'emote', result: 'unavailable' }],
+    })
+  );
+  const refused = result.current.presentation.emoteFeedback;
+  expect(refused).toMatchObject({ result: 'unavailable' });
+  expect(refused?.serial).toBeGreaterThan(local?.serial ?? 0);
+  // The same receipt replayed in a later snapshot is not announced twice.
+  act(() =>
+    frame({
+      ...view,
+      revision: 4,
+      ack: 1,
+      receipts: [{ seq: 1, kind: 'emote', result: 'unavailable' }],
+    })
+  );
+  expect(result.current.presentation.emoteFeedback).toBe(refused);
+  act(() => vi.advanceTimersByTime(2100));
+  act(() => frame({ ...view, revision: 5, ack: 1 }));
+  act(() => {
+    sent = result.current.emote('thanks');
+  });
+  expect(sent).toBe(true);
+  expect(result.current.presentation.emoteFeedback).toBeNull();
+  act(() =>
+    frame({
+      ...view,
+      revision: 6,
+      ack: 2,
+      receipts: [{ seq: 2, kind: 'emote', result: 'accepted' }],
+    })
+  );
+  expect(result.current.presentation.emoteFeedback).toBeNull();
+  act(() => socket.dispatchEvent(new CloseEvent('close', { code: 1013 })));
+  expect(result.current.presentation.emoteFeedback).toBeNull();
   unmount();
 });

@@ -31,6 +31,7 @@ from langchain_core.tools import StructuredTool
 
 from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.effects import runtime as gate_runtime
+from src.domains.agents.effects.treatments import treatment_collector
 from src.domains.agents.orchestration.parallel_executor import PendingDraftInfo
 
 pytestmark = [pytest.mark.unit]
@@ -53,14 +54,19 @@ class _SilentLedger:
 def _attended_user() -> Any:
     """A live turn with a user who can answer — otherwise the gate refuses."""
     gate_runtime.reset_policy_cache()
-    with patch(
-        "src.domains.agents.context.runtime_context.runtime_context_if_running",
-        return_value=SimpleNamespace(
-            user_id=uuid.uuid4(),
-            thread_id="thread-pipeline",
-            execution_mode="pipeline",
-            is_automated_source=False,
+    with (
+        patch(
+            "src.domains.agents.context.runtime_context.runtime_context_if_running",
+            return_value=SimpleNamespace(
+                user_id=uuid.uuid4(),
+                thread_id="thread-pipeline",
+                execution_mode="pipeline",
+                is_automated_source=False,
+            ),
         ),
+        # A real turn publishes its consultation register; without one a read
+        # schedules an integrity write the loop teardown cuts short.
+        treatment_collector(run_id="pipeline-confirmation-plumbing"),
     ):
         yield
 

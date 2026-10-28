@@ -32,8 +32,9 @@ const catalogues = {
   'avatar-v1.json': { version: 1, defaults: avatar.DEFAULT_AVATAR, hair: avatar.AVATAR_HAIR,
     colors: avatar.AVATAR_COLOR_IDS, skins: avatar.AVATAR_SKIN_IDS,
     outfits: avatar.AVATAR_OUTFITS, headwear: avatar.AVATAR_HEADWEAR },
-  'campus-v1.json': { world, blocked: Array.from(nav.blocked), poses: authored('pose-slots.ts').compilePoseSlots(world) },
+  'campus-v1.json': { world, blocked: Array.from(nav.blocked), poses: authored('pose-slots.ts', { './activity-catalogue': authored('activity-catalogue.ts'), './decor-presentation': authored('decor-presentation.ts') }).compilePoseSlots(world) },
   'home-v1.json': { version: 1, palettes: home.HOME_PALETTES },
+  'games-v1.json': { version: 1, cabinets: authored('game-catalogue.ts').compileGameCabinets(world) },
 };
 for (const [name, catalogue] of Object.entries(catalogues)) {
   const value = JSON.stringify(catalogue, null, 2) + '\n';

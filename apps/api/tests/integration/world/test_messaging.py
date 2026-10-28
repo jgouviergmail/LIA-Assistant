@@ -2,6 +2,7 @@
 
 import asyncio
 from collections.abc import AsyncIterator
+from contextlib import nullcontext
 from dataclasses import dataclass
 from uuid import UUID, uuid4
 
@@ -347,7 +348,7 @@ async def test_native_token_callback_records_the_exact_owner_once_even_when_outp
     monkeypatch.setattr(translation, "get_llm", lambda *args, **kwargs: client)
     # The separate real-SDK test proves transport retry fencing. This probe owns
     # the native callback/SQL seam and has no provider transport at all.
-    monkeypatch.setattr(translation, "single_async_attempt", lambda model: model)
+    monkeypatch.setattr(translation, "single_async_attempt", nullcontext)
     user_id = messaging_fixture.people[0].id
     if reply_language == "en":
         result = await translation.translate_message(

@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { DashboardLink as Link } from '../DashboardNavigation';
 import { CalendarClock, CircleHelp, LayoutGrid } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 

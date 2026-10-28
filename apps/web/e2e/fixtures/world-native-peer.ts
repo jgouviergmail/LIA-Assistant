@@ -40,7 +40,7 @@ export async function enterNativeTransportPeer(page: Page, alias: string): Promi
               JSON.stringify({
                 type,
                 epoch,
-                version: 1,
+                version: 2,
                 ...(type === 'heartbeat' ? { visible: !document.hidden, active: false } : {}),
               })
             );
@@ -51,7 +51,7 @@ export async function enterNativeTransportPeer(page: Page, alias: string): Promi
             socket.send(
               JSON.stringify({
                 type: 'authenticate',
-                version: 1,
+                version: 2,
                 scene,
                 ticket: token,
                 resume: null,

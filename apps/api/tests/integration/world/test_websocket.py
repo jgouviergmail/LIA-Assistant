@@ -51,7 +51,7 @@ class Harness:
         socket.send_json(
             {
                 "type": "authenticate",
-                "version": 1,
+                "version": 2,
                 "scene": SCENE,
                 "ticket": token,
                 "resume": resume,
@@ -147,7 +147,7 @@ def test_five_accounts_share_one_world_and_sixth_waits_without_a_participant_str
         for account in accounts:
             assert account not in str(waiting)
         first, _, view = sessions[0]
-        first.send_json({"type": "leave", "version": 1, "epoch": view.epoch})
+        first.send_json({"type": "leave", "version": 2, "epoch": view.epoch})
         sixth = sessions[5][0]
         offer = WorldView.model_validate(sixth.receive_json())
         for _ in range(30):
@@ -155,7 +155,7 @@ def test_five_accounts_share_one_world_and_sixth_waits_without_a_participant_str
                 break
             offer = WorldView.model_validate(sixth.receive_json())
         assert offer.offer_until is not None
-        sixth.send_json({"type": "accept", "version": 1, "epoch": offer.epoch})
+        sixth.send_json({"type": "accept", "version": 2, "epoch": offer.epoch})
         for _ in range(30):
             view = WorldView.model_validate(sixth.receive_json())
             if view.status == "active":
@@ -177,7 +177,7 @@ def test_reconnect_rotates_control_without_moving_or_duplicating_the_avatar(
         assert after.you.position == before.you.position
         assert after.controlling
         socket.send_json(
-            {"type": "move", "version": 1, "epoch": after.epoch, "seq": 1, "dx": 1, "dy": 0}
+            {"type": "move", "version": 2, "epoch": after.epoch, "seq": 1, "dx": 1, "dy": 0}
         )
         for _ in range(30):
             moved = WorldView.model_validate(socket.receive_json())
@@ -186,11 +186,48 @@ def test_reconnect_rotates_control_without_moving_or_duplicating_the_avatar(
         assert moved.ack == 1
 
 
+def test_real_socket_projects_a_finite_gesture_without_exposing_owner_receipts(
+    world_client: Harness,
+) -> None:
+    with ExitStack() as stack:
+        sender, _, own = world_client.connect(stack, str(uuid4()))
+        receiver, _, _ = world_client.connect(stack, str(uuid4()))
+        assert own.you is not None
+        sender.send_json(
+            {"type": "emote", "version": 2, "epoch": own.epoch, "seq": 1, "emote": "wave"}
+        )
+        for _ in range(30):
+            peer = WorldView.model_validate(receiver.receive_json())
+            if any(actor.emote is not None for actor in peer.actors):
+                break
+        assert peer.receipts == []
+        visible = next(actor for actor in peer.actors if actor.id == own.you.id)
+        assert visible.emote is not None and visible.emote.emote == "wave"
+        sender.send_json(
+            {"type": "emote", "version": 2, "epoch": own.epoch, "seq": 2, "emote": "laugh"}
+        )
+        for _ in range(30):
+            result = WorldView.model_validate(sender.receive_json())
+            if result.ack == 2:
+                break
+        assert [(receipt.kind, receipt.result) for receipt in result.receipts] == [
+            ("emote", "accepted"),
+            ("emote", "rate_limited"),
+        ]
+        sender.send_json({"type": "heartbeat", "version": 2, "epoch": own.epoch, "visible": False})
+        for _ in range(30):
+            peer = WorldView.model_validate(receiver.receive_json())
+            visible = next(actor for actor in peer.actors if actor.id == own.you.id)
+            if visible.emote is None:
+                break
+        assert visible.emote is None
+
+
 def test_unauthenticated_or_wrong_purpose_ticket_never_receives_a_ready_frame(
     world_client: Harness,
 ) -> None:
     with world_client.client.websocket_connect("/world/ws", headers={"origin": ORIGIN}) as socket:
-        socket.send_json({"type": "authenticate", "version": 1, "scene": SCENE, "ticket": "v" * 43})
+        socket.send_json({"type": "authenticate", "version": 2, "scene": SCENE, "ticket": "v" * 43})
         with pytest.raises(WebSocketDisconnect) as error:
             socket.receive_json()
         assert error.value.code == 4401
@@ -204,7 +241,7 @@ def test_forged_coordinate_frame_is_rejected_without_a_business_dispatch(
         socket.send_json(
             {
                 "type": "move",
-                "version": 1,
+                "version": 2,
                 "epoch": view.epoch,
                 "seq": 1,
                 "dx": 1,
@@ -218,6 +255,33 @@ def test_forged_coordinate_frame_is_rejected_without_a_business_dispatch(
         assert error.value.code == 1008
 
 
+def test_a_client_of_another_socket_generation_is_asked_to_reload(world_client: Harness) -> None:
+    from src.core.constants import WORLD_SOCKET_CLOSE_UPGRADE_REQUIRED
+
+    account = str(uuid4())
+    token = world_client.client.post(f"/proof-ticket/{account}").json()["ticket"]
+    with world_client.client.websocket_connect(
+        "/world/ws", headers={"origin": ORIGIN, "cookie": f"lia_session=proof-{account}"}
+    ) as socket:
+        socket.send_json({"type": "authenticate", "version": 1, "scene": SCENE, "ticket": token})
+        with pytest.raises(WebSocketDisconnect) as error:
+            socket.receive_json()
+        assert error.value.code == WORLD_SOCKET_CLOSE_UPGRADE_REQUIRED
+    # The outdated frame consumed nothing: the same ticket still authenticates.
+    with world_client.client.websocket_connect(
+        "/world/ws", headers={"origin": ORIGIN, "cookie": f"lia_session=proof-{account}"}
+    ) as socket:
+        socket.send_json({"type": "authenticate", "version": 2, "scene": SCENE, "ticket": token})
+        assert ReadyFrame.model_validate(socket.receive_json()).scene == SCENE
+    with ExitStack() as stack:
+        socket, _, view = world_client.connect(stack, str(uuid4()))
+        socket.send_json({"type": "heartbeat", "version": 3, "epoch": view.epoch, "visible": True})
+        with pytest.raises(WebSocketDisconnect) as error:
+            while True:
+                socket.receive_json()
+        assert error.value.code == WORLD_SOCKET_CLOSE_UPGRADE_REQUIRED
+
+
 def test_stale_scene_cannot_admit_an_invisible_occupant(world_client: Harness) -> None:
     account = str(uuid4())
     token = world_client.client.post(f"/proof-ticket/{account}").json()["ticket"]
@@ -225,7 +289,7 @@ def test_stale_scene_cannot_admit_an_invisible_occupant(world_client: Harness) -
         "/world/ws", headers={"origin": ORIGIN, "cookie": f"lia_session=proof-{account}"}
     ) as socket:
         socket.send_json(
-            {"type": "authenticate", "version": 1, "scene": "lia-campus:obsolete", "ticket": token}
+            {"type": "authenticate", "version": 2, "scene": "lia-campus:obsolete", "ticket": token}
         )
         with pytest.raises(WebSocketDisconnect) as error:
             socket.receive_json()
@@ -272,14 +336,14 @@ def test_idle_socket_retains_only_coarse_presence_and_rejoins_through_admission(
         socket.send_json(
             {
                 "type": "heartbeat",
-                "version": 1,
+                "version": 2,
                 "epoch": initial.epoch,
                 "visible": True,
                 "active": False,
             }
         )
         assert WorldView.model_validate(socket.receive_json()).status == "absent"
-        socket.send_json({"type": "accept", "version": 1, "epoch": initial.epoch})
+        socket.send_json({"type": "accept", "version": 2, "epoch": initial.epoch})
         for _ in range(30):
             rejoined = WorldView.model_validate(socket.receive_json())
             if rejoined.status == "active":

@@ -1,8 +1,24 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, renderHook, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEyesChatStore, RESTING_CHAT } from '@/stores/eyesChatStore';
 import { useEyesChatState } from '../useEyesChatState';
 import type { EyesWidgetProps } from '../EyesWidget';
+
+it('an obsolete chat cleanup cannot erase the new account publication', () => {
+  const first = renderHook(() =>
+    useEyesChatState({ ...RESTING_CHAT, chatStatus: 'streaming' }, 'first')
+  );
+  const second = renderHook(() =>
+    useEyesChatState({ ...RESTING_CHAT, chatStatus: 'streaming' }, 'second')
+  );
+  first.unmount();
+  expect(useEyesChatStore.getState()).toMatchObject({
+    ownerId: 'second',
+    state: { chatStatus: 'streaming' },
+  });
+  second.unmount();
+  expect(useEyesChatStore.getState().state).toEqual(RESTING_CHAT);
+});
 
 const route = vi.hoisted(() => ({ pathname: '/fr/dashboard/chat' }));
 vi.mock('next/navigation', () => ({ usePathname: () => route.pathname }));

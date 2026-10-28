@@ -170,6 +170,10 @@ _WHY_FAQ_LINES = {
 }
 
 
+#: The fixture dashboards: (dashboards, numbered dashboards, panels with rows excluded).
+GRAFANA_FIXTURE = (3, 2, 5)
+
+
 def _fake_counts(
     root: Path,
     *,
@@ -181,6 +185,15 @@ def _fake_counts(
 ) -> None:
     """Populate the count sources and the surfaces that quote them."""
     _write_metric_source(root, metrics)
+    dashboards_dir = root / "infrastructure" / "observability" / "grafana" / "dashboards"
+    _write(
+        dashboards_dir / "01-alpha.json",
+        '{"panels": [{"type": "timeseries"}, {"type": "row", "panels": '
+        '[{"type": "stat"}, {"type": "table"}]}]}\n',
+    )
+    _write(dashboards_dir / "02-beta.json", '{"panels": [{"type": "gauge"}]}\n')
+    _write(dashboards_dir / "phone-ingestion-sms.json", '{"panels": [{"type": "stat"}]}\n')
+    dashboards, numbered, panels = GRAFANA_FIXTURE
     adr_dir = root / "docs" / "architecture"
     for index in range(1, adr_files + 1):
         number = adr_latest if index == adr_files else index
@@ -225,7 +238,8 @@ def _fake_counts(
         "Prose that must survive. — 22 August 2026.\n</p>\n\n"
         f"| **43** functional domains | **{adr_files}** ADRs |\n"
         f"| **{releases}** versions shipped | **{metrics}** Prometheus metrics |\n\n"
-        f"- **Prometheus**: {metrics} custom metrics (agents, LLM, infrastructure)\n\n"
+        f"- **Prometheus**: {metrics} custom metrics (agents, LLM, infrastructure)\n"
+        f"- **Grafana**: {dashboards} dashboards, including product-value cockpits\n\n"
         "### Architecture Decision Records (ADR)\n\n"
         f"{adr_files} ADR files (ADR-001 through ADR-{adr_latest} — ADR-008 has no "
         "separate file) documenting major architectural decisions:\n\n"
@@ -235,7 +249,10 @@ def _fake_counts(
         root / "docs" / "INDEX.md",
         f"| ADRs | {adr_files} ADR files (ADR-{adr_latest} latest) |\n"
         f"| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision "
-        f"Records ({adr_files} ADR files) |\n",
+        f"Records ({adr_files} ADR files) |\n"
+        f"| [GRAFANA_DASHBOARDS.md](./technical/GRAFANA_DASHBOARDS.md) | "
+        f"{dashboards} dashboards Grafana | ✅ |\n"
+        f"| Grafana | {dashboards} dashboards |\n",
     )
 
     guides = root / "apps" / "web" / "src" / "data" / "guides"
@@ -326,8 +343,44 @@ def _fake_counts(
     _write(
         getting_started,
         getting_started.read_text(encoding="utf-8")
-        + f"\n| Grafana dashboards | 31 |\n| Prometheus metrics | {metrics} |\n",
+        + f"\n| Grafana dashboards | {dashboards} |\n| Prometheus metrics | {metrics} |\n"
+        f"| Built-in FAQ knowledge base | {faq_questions} questions in six languages |\n\n"
+        f"- [ ] Grafana up (http://localhost:3001) — {dashboards} dashboards load\n",
     )
+    _write(
+        root / "docs" / "technical" / "GRAFANA_DASHBOARDS.md",
+        f"> **Version 5.0** | 2026-10-22 | {dashboards} dashboards, {panels} panels "
+        "(rows excluded)\n\n"
+        f"Les **{dashboards} dashboards Grafana** fournissent une observabilite complete.\n\n"
+        f"Les deux vues portent sur les memes {dashboards} dashboards — elles vivent ici.\n\n"
+        f"**Statut** : Production ({dashboards} dashboards ; panels comptés dans l'en-tête)\n",
+    )
+    _write(
+        root / "docs" / "technical" / "METRICS_REFERENCE.md",
+        f"- **[GRAFANA_DASHBOARDS.md](GRAFANA_DASHBOARDS.md)**: {dashboards} dashboards "
+        "Grafana détaillés\n"
+        f"- **infrastructure/observability/grafana/dashboards/**: {dashboards} dashboards JSON\n",
+    )
+    _write(
+        root / "docs" / "technical" / "OBSERVABILITY_AGENTS.md",
+        f"- `infrastructure/observability/grafana/dashboards/` - {dashboards} dashboards Grafana\n",
+    )
+    for locale, pillar in (
+        ("en", "(%d dashboards / %d panels covering app, infra)"),
+        ("fr", "(%d dashboards / %d panels couvrant app, infra)"),
+        ("de", "(%d Dashboards / %d Panels, die App abdecken)"),
+        ("es", "(%d dashboards / %d paneles que cubren app)"),
+        ("it", "(%d dashboard / %d pannelli che coprono app)"),
+        ("zh", "（%d 个仪表盘 / %d 面板，覆盖应用）"),
+    ):
+        _append(f"how.{locale}.md", "\nPillars: " + pillar % (dashboards, panels) + "\n")
+    for locale, row in (
+        ("fr", "| Grafana | %d dashboards production-ready |"),
+        ("es", "| Grafana | %d dashboards production-ready |"),
+        ("it", "| Grafana | %d dashboard production-ready |"),
+        ("zh", "| Grafana | %d 个生产就绪仪表板 |"),
+    ):
+        _append(f"how.{locale}.md", "\n" + row % dashboards + "\n")
     _write(
         root / "docs" / "guides" / "GUIDE_OBSERVABILITY.md",
         "# Observability\n\n"
@@ -351,31 +404,54 @@ def _fake_counts(
         "it": "67.000+ test, %d ADR, un audit tecnico da 7,8/10.",
         "zh": "67,000+ 个测试，%d 份架构决策记录，一次 7.8/10 的技术审计。",
     }
+    blog_dashboards = {
+        "en": "%d Grafana Dashboards, and Langfuse Tracing",
+        "fr": "%d dashboards Grafana et tracing Langfuse",
+        "de": "%d Grafana-Dashboards und Langfuse-Tracing",
+        "es": "%d dashboards Grafana y tracing Langfuse",
+        "it": "%d dashboard Grafana e tracing Langfuse",
+        "zh": "%d个Grafana仪表板和Langfuse追踪",
+    }
+    blog_paragraphs = {
+        "en": "<h2>%(d)d Grafana dashboards</h2><p>LIA provides %(d)d Grafana dashboards, "
+        "%(n)d of them numbered 01 to %(n)d: alpha, beta.</p>",
+        "fr": "<h2>%(d)d dashboards Grafana</h2><p>LIA fournit %(d)d tableaux de bord Grafana, "
+        "dont %(n)d numérotés de 01 à %(n)d : alpha, beta.</p>",
+        "de": "<h2>%(d)d Grafana-Dashboards</h2><p>LIA liefert %(d)d Grafana-Dashboards, "
+        "davon %(n)d nummeriert von 01 bis %(n)d: alpha, beta.</p>",
+        "es": "<h2>%(d)d dashboards Grafana</h2><p>LIA proporciona %(d)d paneles de control "
+        "Grafana, %(n)d de ellos numerados del 01 al %(n)d: alpha, beta.</p>",
+        "it": "<h2>%(d)d dashboard Grafana</h2><p>LIA fornisce %(d)d dashboard Grafana, "
+        "di cui %(n)d numerati da 01 a %(n)d: alpha, beta.</p>",
+        "zh": "<h2>%(d)d个Grafana仪表板</h2><p>LIA提供%(d)d个Grafana仪表板，"
+        "其中%(n)d个编号为01至%(n)d：alpha、beta。</p>",
+    }
     for locale, title, body_text, excerpt in (
-        ("en", "%d Prometheus Metrics, 26 Grafana Dashboards",
+        ("en", "%d Prometheus Metrics, ",
          "%d Prometheus metrics covering HTTP, agents, tokens",
          "LIA offers enterprise-grade observability with %d metrics, dedicated dashboards."),
-        ("fr", "%d métriques Prometheus, 26 dashboards Grafana",
+        ("fr", "%d métriques Prometheus, ",
          "%d métriques Prometheus couvrant HTTP, agents, tokens",
          "LIA offre une observabilité de niveau entreprise avec %d métriques, des dashboards."),
-        ("de", "%d Prometheus-Metriken, 26 Grafana-Dashboards",
+        ("de", "%d Prometheus-Metriken, ",
          "%d Prometheus-Metriken für HTTP, Agenten, Token",
          "LIA bietet Enterprise-Observability mit %d Metriken, dedizierten Grafana-Dashboards."),
-        ("es", "%d métricas Prometheus, 26 dashboards Grafana",
+        ("es", "%d métricas Prometheus, ",
          "%d métricas Prometheus que cubren HTTP, agentes, tokens",
          "LIA ofrece observabilidad empresarial con %d métricas, dashboards Grafana."),
-        ("it", "%d metriche Prometheus, 26 dashboard Grafana",
+        ("it", "%d metriche Prometheus, ",
          "%d metriche Prometheus che coprono HTTP, agenti, token",
          "LIA offre osservabilità enterprise con %d metriche, dashboard Grafana."),
-        ("zh", "%d个Prometheus指标、26个Grafana仪表板",
+        ("zh", "%d个Prometheus指标、",
          "%d个Prometheus指标，覆盖HTTP、智能体、Token",
          "LIA提供企业级可观测性：%d个指标、专用Grafana仪表板。"),
     ):
+        paragraph = blog_paragraphs[locale] % {"d": dashboards, "n": numbered}
         _write(
             root / "apps" / "web" / "locales" / locale / "translation.json",
             '{\n  "blog": {\n    "articles": {\n      "observability": {\n'
-            f'        "title": "{title % metrics}",\n'
-            f'        "body": "<p>{body_text % metrics}</p>",\n'
+            f'        "title": "{title % metrics}{blog_dashboards[locale] % dashboards}",\n'
+            f'        "body": "<p>{body_text % metrics}</p>{paragraph}",\n'
             f'        "excerpt": "{excerpt % metrics}",\n'
             '        "decoy": "5 métriques Prometheus ailleurs, sans rapport"\n'
             "      }\n    }\n  },\n"
@@ -567,6 +643,12 @@ class TestDerivedCounts:
         assert counts["prometheus_metrics"] == 3
         # Read from the English locale, the parity reference of the six.
         assert counts["faq_questions"] == 4
+        # Read from the provisioned dashboards: a row is no panel, its children are.
+        assert (
+            counts["grafana_dashboards"],
+            counts["grafana_numbered_dashboards"],
+            counts["grafana_panels"],
+        ) == GRAFANA_FIXTURE
 
     def test_a_faq_without_questions_fails_loudly(self, tmp_path: Path) -> None:
         root = _fake_repo(tmp_path)
@@ -614,6 +696,9 @@ class TestDerivedCounts:
             "how.zh.md metric count (transparency row + Prometheus row)": 2,
             "how.zh.md metric count (coverage sentence)": 1,
             "how.zh.md codebase-metrics row (metric count)": 1,
+            "how.zh.md observability pillars (grafana_dashboards)": 1,
+            "how.zh.md observability pillars (grafana_panels)": 1,
+            "how.zh.md stack table (dashboard count)": 1,
         }
         # Two sources read the same file, so the ADR assertion has to name the
         # source it means — otherwise adding a surface would silently weaken it.
@@ -790,6 +875,9 @@ class TestSyncDerivedCounts:
             "changelog_releases": 223,
             "prometheus_metrics": 3,
             "faq_questions": 4,
+            "grafana_dashboards": 3,
+            "grafana_numbered_dashboards": 2,
+            "grafana_panels": 5,
         }
         assert all(item.value == counts[item.source] for item in count_occurrences(root))
         assert "CLAUDE.md" in changed

@@ -4,7 +4,7 @@
 
 **Version**: 2.6
 **Date**: 2026-10-23
-**Application**: LIA v4.0.0
+**Application**: LIA v4.1.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
-| Source lines (excluding tests) — 60 backend domain packages | **1,038,000+** |
-| Inventoried automated tests; suites selected for commits and releases | **68,000+** |
+| Source lines (excluding tests) — 60 backend domain packages | **1,051,000+** |
+| Inventoried automated tests; suites selected for commits and releases | **69,000+** |
 | Documented architecture decisions (ADR) | **363** |
-| Versions shipped at a steady pace | **290** |
+| Versions shipped at a steady pace | **291** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **7.9/10** |
 
@@ -72,6 +72,8 @@ The project is now run with several development agents in parallel — each on i
 A shared world gives the assistant a physical vocabulary: a library for knowledge, a multimedia studio for creation, a garden to explore with someone. The useful engineering decision is what crosses each boundary. A public avatar expresses a person’s choice; it exposes neither their assistant’s context nor their private home. A room opens an existing tool without granting a new permission.
 
 This applies to conversation too. Human messages have a separate, temporary lifetime. Translation is chosen and accounted for, while walking and drawing call no model. A richer interface remains governable when its costs, ownership and confirmations keep the same meaning.
+
+Play follows the same rule. A game’s moves are confirmed by the server and its computer opponent is a bounded search, not a model; a photo is drawn from what the person chose to show, never copied from the screen.
 
 ---
 

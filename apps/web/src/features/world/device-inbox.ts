@@ -10,6 +10,16 @@ export class DeviceInbox {
   private entries: DeviceNotice[] = [];
   private readonly reminders = new Map<string, number>();
   private serial = 0;
+  private readonly listeners = new Set<() => void>();
+  subscribe = (listener: () => void): (() => void) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
+  private changed(): void {
+    for (const listener of this.listeners) listener();
+  }
   constructor(ownerId: string) {
     this.sms = new SmsSignalInbox(ownerId);
   }
@@ -41,11 +51,19 @@ export class DeviceInbox {
   }
   private push(n: DeviceNotice): void {
     this.entries = [n, ...this.entries].slice(0, 32);
+    this.changed();
   }
   read(key: string): void {
+    if (!this.entries.some(notice => notice.key === key && !notice.read)) return;
     this.entries = this.entries.map(n => (n.key === key ? { ...n, read: true } : n));
+    this.changed();
   }
-  snapshot(): readonly DeviceNotice[] {
+  clearSms(): void {
+    if (!this.entries.some(notice => notice.kind === 'sms')) return;
+    this.entries = this.entries.filter(notice => notice.kind !== 'sms');
+    this.changed();
+  }
+  snapshot = (): readonly DeviceNotice[] => {
     return this.entries;
-  }
+  };
 }

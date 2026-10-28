@@ -446,9 +446,9 @@
     },
     "t.world": {
       "name": "Isometric world and native authority",
-      "role": "The browser draws a bounded Canvas scene; Redis arbitrates admission, queue and movement, and its failure suspends commands. Native panels retain permissions and approvals. Ephemeral text stays in Redis; PostgreSQL fences billable attempts without retaining their content.",
+      "role": "The browser draws a bounded Canvas scene; Redis arbitrates admission, queue, movement, gestures and arcade games, and its failure suspends commands. Native panels retain permissions and approvals. Ephemeral text stays in Redis; PostgreSQL fences billable attempts without retaining their content. A photo is an authorized projection, never a screenshot.",
       "stack": ["Canvas 2D", "WebSocket", "Redis CAS", "PostgreSQL", "LIA"],
-      "src": "1c146d5b9f21"
+      "src": "b2d40a86066c"
     }
   },
   "flows": {

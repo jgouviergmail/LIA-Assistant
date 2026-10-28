@@ -30,6 +30,18 @@ from src.domains.habits.ambient import (
 from src.domains.habits.rhythm import ClaimedWindow, ClassRhythm, RhythmProfile
 
 
+@pytest.fixture(autouse=True)
+def _habits_switch_on(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The operator's habits switch reads as its declared default (on).
+
+    Its OFF side is pinned in ``test_capability_at_the_act.py``; a real read
+    here would reach the settings store (Redis, then PostgreSQL).
+    """
+    monkeypatch.setattr(
+        "src.domains.habits.capability.is_capability_enabled", AsyncMock(return_value=True)
+    )
+
+
 def _profile(
     weekday_windows: tuple[ClaimedWindow, ...] = (),
     active_fraction: float = 0.8,

@@ -6,7 +6,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-10-27
-**Compatibility**: LIA v4.0.0
+**Compatibility**: LIA v4.1.0
 
 ## Table of Contents
 
@@ -76,19 +76,19 @@ For ElevenLabs and Fish Audio speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` and `FISH
 | Voice providers | ElevenLabs (STT/TTS), Fish Audio (STT/TTS), Edge TTS (free), OpenAI (STT/TTS), Gemini TTS + local Whisper STT |
 | Configurable model and decision slots | 89, including 23 native JEV usages (admin registry, measured 2026-10-19) |
 | UI languages | 6 — fr, en, es, de, it, zh |
-| Prometheus metrics | 635 |
-| Grafana dashboards | 31 |
-| Built-in FAQ knowledge base | 496 questions in six languages; the English help corpus is indexed at startup |
+| Prometheus metrics | 640 |
+| Grafana dashboards | 33 |
+| Built-in FAQ knowledge base | 523 questions in six languages; the English help corpus is indexed at startup |
 
 ### Technical Architecture
 
 | Layer | Technologies | Versions |
 |-------|--------------|----------|
 | **Backend** | FastAPI + LangGraph + SQLAlchemy | FastAPI 0.141.1, LangGraph 1.2.14, LangChain 1.3.15, SQLAlchemy 2.0.54, Python 3.14 |
-| **Frontend** | Next.js + React + TailwindCSS | Next.js 16.4.1, React 19.3.0 |
+| **Frontend** | Next.js + React + TailwindCSS | Next.js 16.4.2, React 19.3.1 |
 | **Database** | PostgreSQL + pgvector | PostgreSQL 16 (`pgvector/pgvector`, pinned by version and digest) |
 | **Cache/Sessions** | Redis | Redis 7.4 |
-| **Observability** | Prometheus + Grafana + Loki + Tempo (+ Langfuse in dev) | Prometheus 3.13.3, Grafana 12.4.11, Loki 3.7.8, Tempo 2.10.8 |
+| **Observability** | Prometheus + Grafana + Loki + Tempo (+ Langfuse in dev) | Prometheus 3.15.0, Grafana 12.4.11, Loki 3.7.8, Tempo 2.10.8 |
 | **Backups** | pg_dump sidecar with 3-tier rotation | `postgres-backup-local` (its `16-alpine` build, pinned) |
 
 ### Capabilities & Integrations
@@ -1750,7 +1750,7 @@ In development the equivalent is `task db:seed:sql` (or `task db:reset`), which 
 
 ### Observability
 
-- [ ] Grafana up (http://localhost:3001) — 32 dashboards load
+- [ ] Grafana up (http://localhost:3001) — 33 dashboards load
 - [ ] Prometheus up (http://localhost:9090)
 - [ ] Langfuse up in dev (http://localhost:3002) if started via `task dev:langfuse` with `LANGFUSE_ENABLED=true`
 

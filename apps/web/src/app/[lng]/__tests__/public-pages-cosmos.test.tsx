@@ -137,7 +137,7 @@ describe('public pages — cosmos identity', () => {
     const { container, getByTestId, queryByTestId } = render(await DemoPage(PARAMS));
     expect(container.querySelector('.landing-page.cosmos')).toBeInTheDocument();
     expect(getByTestId('chat-mockup')).toBeInTheDocument();
-    // One switch for the hero and the legacy demo: the two never disagree.
+    // The legacy demo keeps its optional planetarium around the mockup.
     expect(queryByTestId('planetarium') !== null).toBe(LANDING_PLANETARIUM_ENABLED);
     expect(getByTestId('track-view')).toHaveAttribute('data-event', 'demo_started');
   });

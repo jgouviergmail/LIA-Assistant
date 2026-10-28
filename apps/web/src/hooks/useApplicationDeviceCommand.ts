@@ -17,14 +17,15 @@ export function useApplicationDeviceCommand(
   observation: ReturnType<typeof useApplicationCommandStatus>
 ) {
   const { user } = useAuth();
-  const scope = user?.id ? `${user.id}:${commandId}` : undefined;
+  const userId = user?.id;
+  const scope = userId ? `${userId}:${commandId}` : undefined;
   const { lifetime, isCurrent } = useApplicationAccountLifetime(scope);
   const [mode, setMode] = useApplicationAccountState<'idle' | 'busy' | 'uncertain'>(scope, 'idle');
   const inFlight = useRef<object | null>(null);
   const { status, refresh, observe } = observation;
   const execute = useCallback(async () => {
     if (
-      !user?.id ||
+      !userId ||
       !isCurrent() ||
       mode !== 'idle' ||
       inFlight.current === lifetime ||
@@ -38,7 +39,7 @@ export function useApplicationDeviceCommand(
     inFlight.current = lifetime;
     setMode('busy');
     try {
-      const result = await continueRecordingDeviceCommand(user.id, commandId, isCurrent);
+      const result = await continueRecordingDeviceCommand(userId, commandId, isCurrent);
       if (!isCurrent()) return;
       if (result === null) {
         await refresh();
@@ -46,7 +47,7 @@ export function useApplicationDeviceCommand(
         return isCurrent();
       }
       observe(result);
-      publishApplicationResources(user.id, new Set(['meetings']));
+      publishApplicationResources(userId, new Set(['meetings']));
       setMode('idle');
     } catch {
       if (isCurrent()) setMode('uncertain');
@@ -54,6 +55,6 @@ export function useApplicationDeviceCommand(
       if (inFlight.current === lifetime) inFlight.current = null;
     }
     return isCurrent();
-  }, [user?.id, isCurrent, mode, lifetime, status, refresh, setMode, commandId, observe]);
+  }, [userId, isCurrent, mode, lifetime, status, refresh, setMode, commandId, observe]);
   return { ...observation, mode, execute, checkResult: refresh };
 }

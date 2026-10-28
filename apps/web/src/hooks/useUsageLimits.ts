@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffectRequest } from '@/hooks/useEffectRequest';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { apiClient, ApiError } from '@/lib/api-client';
@@ -36,51 +38,63 @@ export function useUsageLimits(): UseUsageLimitsReturn {
   // Staleness guard (audit F037): a slow poll response must never win over a
   // newer one, nor commit state after unmount — shared, tested helper.
   const guard = useStaleGuard();
+  const polling = useRef<AbortController | null>(null);
 
-  const fetchLimits = useCallback(async () => {
-    if (featureDisabledRef.current) return;
+  const fetchLimits = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!guard.isMounted() || signal?.aborted) return;
+      if (featureDisabledRef.current) return;
 
-    const isStale = guard.begin();
+      const superseded = guard.begin();
+      const isStale = () => signal?.aborted || superseded();
 
-    try {
-      const response = await apiClient.get<UserUsageLimitResponse>('/usage-limits/me');
-      if (isStale()) return;
-      setLimits(response);
-    } catch (err) {
-      if (isStale()) return;
-      if (err instanceof ApiError && err.status === 404) {
-        // Feature disabled (router not registered) — stop polling
-        featureDisabledRef.current = true;
-        setLimits(null);
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
+      try {
+        const response = await apiClient.get<UserUsageLimitResponse>('/usage-limits/me', {
+          signal,
+        });
+        if (isStale()) return;
+        setLimits(response);
+      } catch (err) {
+        if (isStale()) return;
+        if (err instanceof ApiError && err.status === 404) {
+          // Feature disabled (router not registered) — stop polling
+          featureDisabledRef.current = true;
+          setLimits(null);
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          return;
         }
-        return;
+        // Network errors (backend unreachable) are expected during startup — don't spam console
+        if (err instanceof TypeError) {
+          return;
+        }
+        logger.error('Failed to fetch usage limits', err as Error, {
+          component: 'useUsageLimits',
+        });
+      } finally {
+        // Only the current request may clear loading — an older poll finishing
+        // first must not cut a newer one's loading state (audit F037).
+        if (!isStale()) {
+          setIsLoading(false);
+        }
       }
-      // Network errors (backend unreachable) are expected during startup — don't spam console
-      if (err instanceof TypeError) {
-        return;
-      }
-      logger.error('Failed to fetch usage limits', err as Error, {
-        component: 'useUsageLimits',
-      });
-    } finally {
-      // Only the current request may clear loading — an older poll finishing
-      // first must not cut a newer one's loading state (audit F037).
-      if (!isStale()) {
-        setIsLoading(false);
-      }
-    }
-  }, [guard]);
+    },
+    [guard]
+  );
 
-  // Initial fetch + polling
+  useEffectRequest(fetchLimits);
+
+  // Polling has its own lifetime.
   useEffect(() => {
-    fetchLimits();
-
-    intervalRef.current = setInterval(fetchLimits, POLLING_INTERVAL_MS);
+    const lifetime = new AbortController();
+    polling.current = lifetime;
+    intervalRef.current = setInterval(() => void fetchLimits(lifetime.signal), POLLING_INTERVAL_MS);
 
     return () => {
+      lifetime.abort();
+      if (polling.current === lifetime) polling.current = null;
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -88,11 +102,13 @@ export function useUsageLimits(): UseUsageLimitsReturn {
     };
   }, [fetchLimits]);
 
+  const refetch = useCallback(() => fetchLimits(polling.current?.signal), [fetchLimits]);
+
   return {
     limits,
     isBlocked: limits?.is_blocked ?? false,
     blockReason: limits?.blocked_reason ?? null,
     isLoading,
-    refetch: fetchLimits,
+    refetch,
   };
 }

@@ -124,6 +124,9 @@ def wired(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     monkeypatch.setattr(diag_module, "DiagnosticsRepository", _Repo)
     monkeypatch.setattr(diag_module, "get_cached_cost_usd_eur", lambda *a, **k: (0.01, 0.009))
     monkeypatch.setattr(diag_module.settings, "diagnostics_diagnosis_daily_cost_cap_usd", 1.0)
+    # No instance ceiling is configured (the operator setting's declared
+    # default): the pump's own USD cap is the bound under test here.
+    monkeypatch.setattr(diag_module, "is_instance_spend_blocked", AsyncMock(return_value=False))
     state["redis"] = redis
     return state
 
@@ -193,8 +196,13 @@ class TestBudget:
             "distinct_admin_languages",
             AsyncMock(return_value=["en", "fr"]),
         )
-        days = iter(["day-before", "day-before", "day-before", "day-after"])
-        monkeypatch.setattr(diag_module, "_budget_key", lambda: next(days, "day-after"))
+        # Midnight follows the first model call, not an incidental number of
+        # clock reads in the implementation.
+        monkeypatch.setattr(
+            diag_module,
+            "_budget_key",
+            lambda: "day-after" if wired["llm_calls"] else "day-before",
+        )
         balances = AsyncMock(side_effect=lambda key: 1.0 if key == "day-after" else 0.0)
         monkeypatch.setattr(diag_module, "_spent_today", balances)
         assert (

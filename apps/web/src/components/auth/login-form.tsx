@@ -1,5 +1,7 @@
 'use client';
 
+import { useHydrated } from '@/hooks/useHydrated';
+
 import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
@@ -44,14 +46,16 @@ export function LoginForm() {
    * every visitor lands on. A single boolean read at mount costs nothing and
    * keeps the form in the document.
    */
+  const hydrated = useHydrated();
+  const [initialQueryRead, setInitialQueryRead] = useState(false);
+  if (hydrated && !initialQueryRead) {
+    setInitialQueryRead(true);
+    if (new URLSearchParams(window.location.search).get('mfa') === '1') setMfaStep({ token: null });
+  }
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('mfa') !== '1') return;
-    setMfaStep({ token: null });
-    // The flag is consumed here, so it stops describing the page: leaving it
-    // would reopen the code step on a refresh, against a pending cookie that
-    // may already be spent (ADR-210 — a consumed intent does not replay).
-    window.history.replaceState(null, '', window.location.pathname);
-  }, []);
+    if (hydrated && new URLSearchParams(window.location.search).get('mfa') === '1')
+      window.history.replaceState(null, '', window.location.pathname);
+  }, [hydrated]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();

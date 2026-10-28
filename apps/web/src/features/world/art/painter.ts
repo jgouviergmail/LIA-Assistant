@@ -1,5 +1,7 @@
 import { project } from '../geometry';
 import type { Point } from '../types';
+import type { Season } from '../season';
+import { NO_DECOR, type DecorPresentation } from '../decor-presentation';
 export interface Sprite {
   canvas: HTMLCanvasElement;
   anchorX: number;
@@ -32,7 +34,15 @@ export class Painter {
   readonly anchorY: number;
   readonly width: number;
   readonly height: number;
-  constructor(w: number, d: number, h: number, ratio = 1.5) {
+  constructor(
+    w: number,
+    d: number,
+    h: number,
+    ratio = 1.5,
+    readonly season: Season = 'neutral',
+    readonly reaction = 0,
+    readonly decor: DecorPresentation = NO_DECOR
+  ) {
     const frame = spriteFrame(w, d, h);
     this.width = frame.width;
     this.height = frame.height;

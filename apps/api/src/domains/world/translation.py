@@ -124,13 +124,15 @@ async def accounted_translation[T](
     prompt_bound = sum(len(str(message.content).encode("utf-8")) for message in messages) * 2 + 512
     if prompt_bound + config.max_tokens > get_effective_context_window_for_slot(SLOT):
         raise ValueError("world_translation_context_limit")
-    llm = single_async_attempt(get_llm(SLOT, config_override=config))
     run_id = "world_message_" + request_id.hex
     started_at = datetime.now(UTC)
     called = False
     outcome = DecisionOutcome.INTERRUPTED
     try:
-        async with TrackingContext(run_id, user_id, run_id, None) as tracker:
+        async with (
+            single_async_attempt(get_llm(SLOT, config_override=config)) as llm,
+            TrackingContext(run_id, user_id, run_id, None) as tracker,
+        ):
             # No content tracer, including an implicitly environment-enabled
             # LangSmith tracer. The native usage callback alone records spend.
             with tracing_context(enabled=False):

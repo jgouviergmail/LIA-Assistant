@@ -13,11 +13,13 @@ that shaped it are explained in
 The optional GPU dependency graph also holds an older Pillow and fsspec through
 VoxCPM's Gradio and datasets constraints. The toolbox uses text and local WAV
 input, with no image decoding or UI server, and is absent from application
-images and self-host bundles. Open advisories, dependency constraints, static
+images and self-host bundles. Advisories, dependency constraints, static
 evidence and dated decisions are tracked in the
 [security review](../../docs/technical/CI_CD.md#gpu-toolbox-advisory-review-26-october-2026).
 Check that review before changing its input formats, serving a UI or enabling
 dataset builders. Compatible upstream fixes must replace these decisions.
+The maintainer dismissed the GitHub alerts on 26 October 2026 as
+development/training-only, with comments; this does not mean the packages were fixed.
 
 ## Security boundary of the GPU toolbox
 

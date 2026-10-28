@@ -186,13 +186,19 @@ export default function AdminRAGSpacesSection({ lng }: BaseSettingsProps) {
 
   // Check initial reindex status and system spaces on mount
   useEffect(() => {
-    fetchReindexStatus().then(status => {
-      if (status?.in_progress) {
-        startPolling();
-      }
+    const lifetime = new AbortController();
+    // Like useApiQuery: an unmounted/Strict Mode setup sends no external read.
+    queueMicrotask(() => {
+      if (lifetime.signal.aborted) return;
+      void fetchReindexStatus().then(status => {
+        if (!lifetime.signal.aborted && status?.in_progress) startPolling();
+      });
+      void fetchSystemSpaces();
     });
-    fetchSystemSpaces();
-    return () => stopPolling();
+    return () => {
+      lifetime.abort();
+      stopPolling();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

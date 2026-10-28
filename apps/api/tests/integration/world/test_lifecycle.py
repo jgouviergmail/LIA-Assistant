@@ -1,6 +1,8 @@
 """A deleted/deactivated account cannot re-enter through a stale world controller."""
 
 import fnmatch
+import json
+from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
@@ -38,7 +40,7 @@ async def test_ticket_keys_participate_in_the_native_account_purge(redis_world: 
         await redis_world.delete(tickets.key(token))
 
 
-@pytest.mark.parametrize("scene", [None, "lia-campus:1", SCENE])
+@pytest.mark.parametrize("scene", [SCENE])
 async def test_selective_purge_keeps_peers_and_refuses_stale_reentry(
     scene: str | None,
     redis_world: Redis,
@@ -88,11 +90,42 @@ async def test_selective_purge_keeps_peers_and_refuses_stale_reentry(
         assert after.epoch == before.epoch and set(after.actors) == {peer.account_id}
         with pytest.raises(BaseAPIException):
             await service.command(
-                connection, ControlCommand(type="accept", version=1, epoch=after.epoch)
+                connection, ControlCommand(type="accept", version=2, epoch=after.epoch)
             )
         with pytest.raises(BaseAPIException):
             await service.enter(owner, connection.controller)
         assert set((await store.read())[0].actors) == {peer.account_id}
+    finally:
+        await redis_world.delete(store.key)
+
+
+@pytest.mark.parametrize(
+    "scene,fixture_name",
+    [
+        (None, "authority-v1.json"),
+        ("lia-campus:1", "authority-v1.json"),
+        ("lia-campus:16", "authority-v2.json"),
+    ],
+)
+async def test_legacy_erasure_preserves_a_real_blob_and_its_old_reader_shape(
+    redis_world: Redis, scene: str | None, fixture_name: str
+) -> None:
+    fixture = Path(__file__).parents[2] / "fixtures" / "world" / fixture_name
+    original = json.loads(fixture.read_text(encoding="utf-8"))
+    owner, peer = tuple(original["actors"])
+    store = WorldStore(redis_world, namespace=uuid4().hex, ttl=1800, scene=scene)
+    try:
+        await redis_world.set(store.key, json.dumps(original), ex=1800)
+        await world_lifecycle.purge_world_account(redis_world, owner)
+        raw = await redis_world.get(store.key)
+        assert raw is not None
+        after = json.loads(raw)
+        assert after["version"] == original["version"] and after["epoch"] == original["epoch"]
+        assert "games" not in after
+        assert after["actors"] == {peer: original["actors"][peer]}
+        assert after["presences"] == {peer: original["presences"][peer]}
+        assert after["queue"] == original["queue"]
+        assert after["revision"] == original["revision"] + 1
     finally:
         await redis_world.delete(store.key)
 

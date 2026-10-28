@@ -28,6 +28,17 @@ def _user() -> MagicMock:
 
 
 class TestSubmitHeartbeatFeedback:
+    @pytest.fixture(autouse=True)
+    def _presence_banked(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A thumb banks a presence hour; ``TestThumbIsPresence`` pins that call.
+
+        Run for real, it would read the operator's habits switch and write
+        presence keys to Redis.
+        """
+        monkeypatch.setattr(
+            "src.domains.habits.presence.record_presence", AsyncMock(return_value="banked")
+        )
+
     async def test_the_verdict_reaches_the_notification(self) -> None:
         user = _user()
         notification_id = uuid.uuid4()

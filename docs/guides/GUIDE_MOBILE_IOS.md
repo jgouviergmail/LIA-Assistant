@@ -5,13 +5,11 @@
 > updated, what recurs every year, and the WKWebView behaviours that were
 > **measured** rather than assumed.
 >
-> **Status (2026-08-24).** The decision and the measurements are final. Two
-> pieces already exist: the measurement harness
-> ([scripts/mobile-probe/README.md](../../scripts/mobile-probe/README.md)), whose
-> iOS leg runs on a GitHub-hosted macOS runner — the only way to reach WKWebView
-> without a Mac — and the **API-side session handoff** that lets a shell complete
-> a provider sign-in. The **app itself is planned**, not built; sections marked
-> *(planned)* describe what it still owes.
+> **Status (2026-10-27).** Authored shell sources and regeneration/build tasks
+> exist in `apps/mobile/`. Historical sections marked *(planned)* retain their
+> release-design scope; source or preparation success is not proof of store
+> publication or physical-device behavior. The World sharing qualification below
+> states which checks ran and which still require platform hosts and devices.
 >
 > Android counterpart: [GUIDE_MOBILE_ANDROID.md](./GUIDE_MOBILE_ANDROID.md).
 
@@ -451,3 +449,15 @@ across locales).
 - [GUIDE_FCM_PUSH_NOTIFICATIONS.md](./GUIDE_FCM_PUSH_NOTIFICATIONS.md) — the existing push path this app reuses
 - [ADR-146](../architecture/ADR-146-Offline-PWA.md) — the offline shell, replaced natively here
 - [ADR-136](../architecture/ADR-136-COEP-Posture-And-Widget-Failure-States.md) — why WebKit gets no cross-origin isolation
+
+## World photo sharing
+
+The authored `LiaShell.shareImage` receives only an already-previewed bounded JPEG.
+Its positive capability is returned by `get`; older binaries retain the browser
+preview/download path. The native helper validates image metadata before writing
+a bounded expiring private cache file and presents one system activity controller
+with an iPad anchor. Cancellation is preserved; an offered sheet is not proof of
+publication. The helper must be declared in the generated Xcode project, which
+`mobile:prepare:ios` performs. See [World qualification](../superpowers/qualification/2026-10-27-world-interactions-and-play.md)
+for source/preparation evidence and the Xcode and physical-device checks still
+required. Windows preparation does not qualify Swift compilation or UIKit behavior.

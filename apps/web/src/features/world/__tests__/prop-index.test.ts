@@ -5,6 +5,13 @@ import { WORLD } from '../definition';
 import { project } from '../geometry';
 import { sortProps } from '../prop-sort';
 import type { Rect, WorldProp } from '../types';
+it('includes an interactive low pond surface but excludes a passive flat floor decoration', () => {
+  const pond = WORLD.props.find(prop => prop.kind === 'pond');
+  if (!pond) throw new Error('Missing authored pond');
+  const passive = { ...pond, id: 'flat-rug', kind: 'rug' as const };
+  const index = new WorldPropIndex([pond, passive]);
+  expect(index.query({ x: -10000, y: -10000, width: 20000, height: 20000 })).toEqual([pond]);
+});
 
 it('keeps every full-scan occluder, in the same draw order, across the campus', () => {
   const props = sortProps(WORLD.props),

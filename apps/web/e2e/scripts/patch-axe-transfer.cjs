@@ -1,21 +1,21 @@
-// Lossless transport patch for @axe-core/playwright 4.10.2. npm ci applies
+// Lossless transport patch for @axe-core/playwright 4.13.0. npm ci applies
 // exactly these changes to both exports, or rejects unfamiliar source first.
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const PACKAGE_VERSION = '4.10.2';
+const PACKAGE_VERSION = '4.13.0';
 const SOURCES = [
   {
     name: 'index.js',
-    original: '324cddfa2a4a61d7db0f85c38be009adf53612afb7377e6f262988e0b933a604',
-    patched: '253532213de1e2d40093d899d10e7c40b50cc2822e578dc3a812ae741fcc7b9e',
+    original: '9a4f63fad34eb93fe99dc3dde41dc21d0614e5956d524f288b029634cbd6b39d',
+    patched: '91b92e5c9a280bd8406bcbf445abbd654a9e941dbae350dfb24b517f048a926b',
   },
   {
     name: 'index.mjs',
-    original: '882da2974fd96503b75a612f14dbe9267c3147294230e2b46da88fc3ac703393',
-    patched: '2d20c05c057c2f9131667663fa9b0d0438614d86e77da4d2e4d00ba757a37000',
+    original: '2aa36f4a8f726f9a50f159ccf18babf5a80f505b2a73770053cf132ed9724922',
+    patched: 'cba31c2f9054bed3b79e53ad38b6e34a4f7193622afb65dc23695ac671376c37',
   },
 ];
 const REPLACEMENTS = [

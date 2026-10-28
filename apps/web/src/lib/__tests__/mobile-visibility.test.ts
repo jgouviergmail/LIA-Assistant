@@ -118,8 +118,16 @@ describe('the table describes the real code', () => {
       // entirely. Its threshold therefore lives in a media QUERY, not a class.
       const files = resolveLocations(surface.location);
       const sources = files.map(file => readFileSync(file, 'utf8'));
+      const usesSharedQuery = sources.some(
+        source =>
+          source.includes("from '@/hooks/useMediaQuery'") && source.includes('useMediaQuery(')
+      );
+      const sharedQuery = usesSharedQuery
+        ? readFileSync(join(SRC, 'hooks/useMediaQuery.ts'), 'utf8')
+        : '';
       expect(
-        sources.some(source => source.includes('matchMedia')),
+        sources.some(source => source.includes('matchMedia(')) ||
+          (usesSharedQuery && sharedQuery.includes('window.matchMedia(query)')),
         `${surface.id} is declared mountedOnly but no matchMedia gate was found`
       ).toBe(true);
       expect(

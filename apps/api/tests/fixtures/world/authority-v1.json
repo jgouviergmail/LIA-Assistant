@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "epoch": "90000000-0000-4000-8000-000000000001",
+  "revision": 0,
+  "actors": {
+    "00000000-0000-4000-8000-000000000001": {
+      "appearance": {
+        "version": 1,
+        "skin": "caramel",
+        "hair": "short",
+        "hair_color": "brown",
+        "outfit": "casual",
+        "outfit_color": "green",
+        "headwear": "none",
+        "headwear_color": "blue",
+        "glasses": false
+      },
+      "appearance_revision": 0,
+      "pose": null,
+      "pose_result": null,
+      "account_id": "00000000-0000-4000-8000-000000000001",
+      "public_id": "10000000-0000-4000-8000-000000000001",
+      "alias": "Legacy 1",
+      "language": "en",
+      "controller": "controller-1",
+      "binding": "browser-1",
+      "position": {
+        "x": 37.5,
+        "y": 33.5
+      },
+      "facing": 1,
+      "seq": 0,
+      "moved_at": 100.0,
+      "expires_at": 145.0,
+      "activity_at": 100.0,
+      "walking": false
+    },
+    "00000000-0000-4000-8000-000000000002": {
+      "appearance": {
+        "version": 1,
+        "skin": "caramel",
+        "hair": "short",
+        "hair_color": "brown",
+        "outfit": "casual",
+        "outfit_color": "green",
+        "headwear": "none",
+        "headwear_color": "blue",
+        "glasses": false
+      },
+      "appearance_revision": 0,
+      "pose": null,
+      "pose_result": null,
+      "account_id": "00000000-0000-4000-8000-000000000002",
+      "public_id": "10000000-0000-4000-8000-000000000002",
+      "alias": "Legacy 2",
+      "language": "en",
+      "controller": "controller-2",
+      "binding": "browser-2",
+      "position": {
+        "x": 35.5,
+        "y": 33.5
+      },
+      "facing": 1,
+      "seq": 0,
+      "moved_at": 100.0,
+      "expires_at": 145.0,
+      "activity_at": 100.0,
+      "walking": false
+    }
+  },
+  "queue": [
+    {
+      "account_id": "00000000-0000-4000-8000-000000000003",
+      "controller": "controller-3",
+      "binding": "browser-3",
+      "expires_at": 160.0,
+      "offered_until": null
+    }
+  ],
+  "presences": {
+    "00000000-0000-4000-8000-000000000001": {
+      "controller": "controller-1",
+      "binding": "browser-1",
+      "expires_at": 190.0,
+      "activity_at": 100.0,
+      "at_home": false
+    },
+    "00000000-0000-4000-8000-000000000002": {
+      "controller": "controller-2",
+      "binding": "browser-2",
+      "expires_at": 190.0,
+      "activity_at": 100.0,
+      "at_home": false
+    }
+  }
+}

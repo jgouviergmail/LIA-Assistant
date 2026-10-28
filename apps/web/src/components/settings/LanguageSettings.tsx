@@ -1,19 +1,16 @@
 'use client';
 
+import { useHydrated } from '@/hooks/useHydrated';
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { Check, Languages, Info } from 'lucide-react';
 import { InfoBox } from '@/components/ui/info-box';
 import { Label } from '@/components/ui/label';
+import { LanguageFlag } from '@/components/icons/LanguageFlag';
 import { useTranslation } from '@/i18n/client';
-import {
-  type Language,
-  languages,
-  languageNames,
-  languageFlags,
-  setLocaleCookie,
-} from '@/i18n/settings';
+import { type Language, languages, languageNames, setLocaleCookie } from '@/i18n/settings';
 import { switchLanguageInPath } from '@/utils/i18n-path-utils';
 import { toast } from 'sonner';
 import { logger } from '@/lib/logger';
@@ -27,20 +24,30 @@ import {
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import type { BaseSettingsProps } from '@/types/settings';
 
+function useSelectedLanguage(lng: Language, language: string | null | undefined) {
+  const [selected, setSelected] = useState<Language>(() =>
+    language ? backendToFrontendLocale(language) : lng
+  );
+  const [source, setSource] = useState({ lng, language });
+  if (source.lng !== lng || source.language !== language) {
+    setSource({ lng, language });
+    if (source.language !== language && language) setSelected(backendToFrontendLocale(language));
+    else if (source.lng !== lng) setSelected(lng);
+  }
+  return [selected, setSelected] as const;
+}
+
 export function LanguageSettings({ lng }: BaseSettingsProps) {
   const { user, refreshUser } = useAuth();
   const { t } = useTranslation(lng);
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
-  const [browserLanguage, setBrowserLanguage] = useState<string | null>(null);
-  // Initialize with lng from URL to avoid default FR
-  const [selectedLanguage, setSelectedLanguage] = useState<Language>(lng);
+  const mounted = useHydrated();
+  const browserLanguage = mounted ? getBrowserLanguageForBackend() : null;
+  const [selectedLanguage, setSelectedLanguage] = useSelectedLanguage(lng, user?.language);
 
   // Detect browser language on mount (once)
   useEffect(() => {
-    setMounted(true);
     const detected = getBrowserLanguageForBackend();
-    setBrowserLanguage(detected);
 
     logger.info('LanguageSettings mounted', {
       component: 'LanguageSettings',
@@ -51,36 +58,6 @@ export function LanguageSettings({ lng }: BaseSettingsProps) {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Intentionally run only on mount - user/lng captured in closure for logging only
-
-  // Sync selectedLanguage with lng prop (URL) when it changes
-  useEffect(() => {
-    if (lng !== selectedLanguage) {
-      logger.info('Syncing language from URL', {
-        component: 'LanguageSettings',
-        currentSelected: selectedLanguage,
-        urlLanguage: lng,
-      });
-      setSelectedLanguage(lng);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lng]); // Only react to lng changes, not selectedLanguage (to avoid infinite loop)
-
-  // Sync selectedLanguage with user.language from database, but only if different
-  useEffect(() => {
-    if (user?.language) {
-      const frontendLocale = backendToFrontendLocale(user.language);
-      // Only update if it's different from current selection to avoid infinite loop
-      if (frontendLocale !== selectedLanguage) {
-        logger.info('Syncing language from database', {
-          component: 'LanguageSettings',
-          currentSelected: selectedLanguage,
-          dbLanguage: frontendLocale,
-        });
-        setSelectedLanguage(frontendLocale);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.language]); // Only depend on user.language, not selectedLanguage (to avoid loop)
 
   // Mutation hook for updating language
   const { mutate: updateLanguage, loading: updating } = useApiMutation<{ language: string }, User>({
@@ -180,7 +157,7 @@ export function LanguageSettings({ lng }: BaseSettingsProps) {
                 <div className="flex-1 space-y-1">
                   <Label className="text-sm font-medium">{t('settings.language.current')}</Label>
                   <p className="text-base font-semibold text-primary flex items-center gap-2">
-                    <span>{languageFlags[currentLanguage]}</span>
+                    <LanguageFlag language={currentLanguage} />
                     <span>{languageNames[currentLanguage].native}</span>
                   </p>
                   <p className="text-xs text-muted-foreground">
@@ -211,10 +188,12 @@ export function LanguageSettings({ lng }: BaseSettingsProps) {
                       if (!updating) void handleLanguageChange(browserLanguageFrontend);
                     }}
                     aria-disabled={updating}
-                    className="text-sm font-medium text-blue-700 dark:text-blue-300 hover:underline disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 dark:text-blue-300 hover:underline disabled:opacity-50"
                   >
-                    {t('settings.language.use_browser')} ({languageFlags[browserLanguageFrontend]}{' '}
-                    {languageNames[browserLanguageFrontend].native})
+                    {/* The spaces join the name; the flag is decorative and out of it. */}
+                    {t('settings.language.use_browser')}{' '}
+                    <LanguageFlag language={browserLanguageFrontend} />{' '}
+                    <span>({languageNames[browserLanguageFrontend].native})</span>
                   </button>
                 </div>
               </div>
@@ -228,7 +207,6 @@ export function LanguageSettings({ lng }: BaseSettingsProps) {
               {languages.map(language => {
                 const isSelected = language === currentLanguage;
                 const { native, english } = languageNames[language];
-                const flag = languageFlags[language];
 
                 return (
                   <button
@@ -278,7 +256,7 @@ export function LanguageSettings({ lng }: BaseSettingsProps) {
                           isSelected ? 'text-primary' : 'text-foreground'
                         }`}
                       >
-                        <span className="text-base">{flag}</span>
+                        <LanguageFlag language={language} />
                         <span>{native}</span>
                       </Label>
                       <p className="text-xs text-muted-foreground">{english}</p>

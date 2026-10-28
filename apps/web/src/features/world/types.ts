@@ -56,6 +56,7 @@ export type PropKind =
   | 'poster'
   | 'drawingtable'
   | 'wallphone'
+  | 'smartphone'
   | 'callbook'
   | 'archive'
   | 'readingdesk'
@@ -121,6 +122,8 @@ export interface WorldProp extends Point {
   key?: string;
   /** Optional linked activity, including a chair whose confirmed pose opens it. */
   activity?: ActivityKey;
+  /** Explicit generic table association, independent of coordinates and room proximity. */
+  tableKey?: string;
   facing?: Facing;
   id: string;
   kind: PropKind;
@@ -152,6 +155,7 @@ export interface WorldDefinition extends Size {
   props: readonly WorldProp[];
 }
 export interface Actor {
+  emote?: import('./emote-timeline').VisualEmote | null;
   publicId?: string;
   appearance?: import('./avatar-catalogue').AvatarAppearance;
   label?: string;
@@ -178,7 +182,21 @@ export interface Camera extends Size {
   following: boolean;
 }
 export type Quality = 'low' | 'balanced' | 'high';
+/** A local presentation label, independent from assistant state and transport. */
+export type WorldActingState =
+  | 'idle'
+  | 'thinking'
+  | 'reading'
+  | 'creating'
+  | 'responding'
+  | 'listening'
+  | 'speaking'
+  | 'waiting'
+  | 'error'
+  | 'success'
+  | 'prepared';
 export interface WorldMetrics {
+  cosmeticEffects?: number;
   fps: number;
   frameP95: number;
   renderP95: number;
@@ -186,6 +204,7 @@ export interface WorldMetrics {
   textureBytes: number;
 }
 export interface WorldSnapshot {
+  acting?: WorldActingState;
   hover?: import('./scene-pointer').SceneHover | null;
   nearby?: SceneTarget | null;
   player: Point;

@@ -1,7 +1,7 @@
 /**
- * The homepage promise and concrete personal-assistant examples, within
- * the existing cosmic identity. The optional planetarium and guided-demo
- * link retain their deployment switches; the copy is specific to this page.
+ * The centered homepage promise, followed by the functional constellation.
+ * The map uses the same localized data as the living documentation; the
+ * guided-demo link retains its deployment switch.
  */
 
 import Link from 'next/link';
@@ -13,10 +13,10 @@ import { GithubIcon } from '@/components/icons/GithubIcon';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import { getPublicShowroomVariant } from '@/lib/showroom-config';
 import type { Language } from '@/i18n/settings';
-import { InteractiveChatMockup } from '../InteractiveChatMockup';
-import { LANDING_PLANETARIUM_ENABLED } from '../constants';
+import { mapsData } from '@/lib/maps/data';
+import { buildBrickMap } from '@/lib/maps/model';
 import { APP_VERSION, LAST_UPDATED } from '@/lib/version';
-import { Planetarium } from './Planetarium';
+import { LandingConstellation } from './LandingConstellation';
 import { PresentationButton } from '../video/PresentationButton';
 
 const HERO_DATE_LOCALES: Record<string, string> = {
@@ -38,7 +38,6 @@ const RISE_DELAYS = {
   sub: 550,
   cta: 650,
   trust: 780,
-  mockup: 400,
 } as const;
 
 /** Inline entrance delay — pair with the `cosmos-rise` class. */
@@ -47,21 +46,17 @@ function rise(delayMs: number): { style: React.CSSProperties } {
 }
 
 interface CosmosHeroProps {
-  lng: string;
-  /** Draw the planetarium around the mockup — the landing switch by default. */
-  planetarium?: boolean;
+  lng: Language;
 }
 
-export async function CosmosHero({
-  lng,
-  planetarium = LANDING_PLANETARIUM_ENABLED,
-}: CosmosHeroProps) {
+export async function CosmosHero({ lng }: CosmosHeroProps) {
   const { t } = await initI18next(lng);
+  const map = buildBrickMap(mapsData(lng), 'functional');
   // The demo CTA exists ONLY when the guided mission is the /demo experience:
   // under `legacy` that page is a passive mockup, so advertising it as a demo
   // would overpromise. Build-time value — no runtime branch on the public page.
   const showsGuidedDemo = getPublicShowroomVariant() === 'guided';
-  const demoHref = buildLocalizedPath('/demo', lng as Language);
+  const demoHref = buildLocalizedPath('/demo', lng);
 
   // LAST_UPDATED is an editorial Paris wall-clock stamp, not a UTC instant.
   // Pin the formatter to UTC so SSR and hydration render the same date and hour.
@@ -85,14 +80,12 @@ export async function CosmosHero({
 
   return (
     <section className="relative min-h-screen flex items-center overflow-clip">
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 lg:pt-28 pb-24">
-        <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:grid-rows-[max-content_1fr] lg:gap-x-16 lg:gap-y-6 items-center">
-          {/* Copy column — min-w-0 so no child's intrinsic width can widen the
-              grid track past the viewport on mobile */}
-          <div className="min-w-0 text-center lg:col-start-1 lg:row-start-1 lg:text-left">
+      <div className="lm-functional-frame relative z-10 pt-24 lg:pt-28 pb-24">
+        <div className="flex min-w-0 flex-col items-center gap-6">
+          <div className="w-full min-w-0 max-w-4xl text-center">
             <div
               {...rise(RISE_DELAYS.badges)}
-              className="cosmos-rise flex flex-wrap items-center gap-3 justify-center lg:justify-start mb-3 sm:mb-6"
+              className="cosmos-rise flex flex-wrap items-center gap-3 justify-center mb-3 sm:mb-6"
             >
               {/* dark:text-red-300: the badge base variant paints an OPAQUE
                   dark:bg-red-900 pill — red-400 on it is 3.48:1 (fails AA),
@@ -135,41 +128,22 @@ export async function CosmosHero({
 
             <p
               {...rise(RISE_DELAYS.lede)}
-              className="cosmos-rise text-base mobile:text-lg font-semibold text-foreground/90 max-w-2xl mx-auto lg:mx-0 leading-relaxed mb-3"
+              className="cosmos-rise text-base mobile:text-lg font-semibold text-foreground/90 max-w-2xl mx-auto leading-relaxed mb-3"
             >
               {t('landing.hero.subtitle_top')}
             </p>
             <p
               {...rise(RISE_DELAYS.sub)}
-              className="cosmos-rise mt-6 border-b border-border/60 pb-6 pt-2 text-sm mobile:text-base text-foreground/80 max-w-2xl mx-auto lg:mx-0 leading-relaxed sm:mt-0 sm:border-b-0 sm:pb-0 sm:pt-0"
+              className="cosmos-rise text-sm mobile:text-base text-foreground/80 max-w-2xl mx-auto leading-relaxed"
             >
               {t('landing.hero.home_value')}
             </p>
           </div>
 
-          {/* On phones, show the usable result before asking the visitor to join. */}
-          <div
-            {...rise(RISE_DELAYS.mockup)}
-            className="cosmos-rise w-full min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2"
-          >
-            <div className={planetarium ? 'cosmos-orbit-zone' : 'grid place-items-center'}>
-              {planetarium && <Planetarium />}
-              <div
-                className={
-                  planetarium
-                    ? 'cosmos-hero-demo relative z-10 w-full min-w-0'
-                    : 'relative z-10 w-full min-w-0'
-                }
-              >
-                <InteractiveChatMockup lng={lng} withCta={false} home />
-              </div>
-            </div>
-          </div>
-
-          <div className="min-w-0 text-center lg:col-start-1 lg:row-start-2 lg:self-start lg:text-left">
+          <div className="w-full min-w-0 max-w-3xl text-center">
             <div
               {...rise(RISE_DELAYS.cta)}
-              className="cosmos-rise flex flex-col sm:flex-row sm:flex-wrap gap-3 justify-center lg:justify-start mb-3"
+              className="cosmos-rise flex flex-col sm:flex-row sm:flex-wrap gap-3 justify-center mb-3"
             >
               <PresentationButton label={t('landing.hero.home_cta_presentation')} />
               {showsGuidedDemo && (
@@ -198,12 +172,12 @@ export async function CosmosHero({
 
             <div
               {...rise(RISE_DELAYS.trust)}
-              className="cosmos-rise flex flex-col items-center justify-center gap-3 border-y border-border/60 py-5 text-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:gap-x-4 sm:gap-y-2 sm:border-y-0 sm:py-0 lg:justify-start"
+              className="cosmos-rise flex flex-col items-center justify-center gap-3 text-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:gap-x-4 sm:gap-y-2"
             >
               {trustItems.map(({ icon: Icon, label }) => (
                 <span
                   key={label}
-                  className="flex max-w-full items-center justify-center gap-1.5 text-center leading-relaxed sm:justify-start sm:text-left"
+                  className="flex max-w-full items-center justify-center gap-1.5 text-center leading-relaxed"
                 >
                   <Icon className="w-4 h-4 shrink-0 text-primary" aria-hidden="true" />
                   {label}
@@ -211,6 +185,8 @@ export async function CosmosHero({
               ))}
             </div>
           </div>
+
+          <LandingConstellation map={map} lng={lng} />
         </div>
       </div>
 

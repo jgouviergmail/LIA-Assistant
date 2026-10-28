@@ -1,16 +1,16 @@
-import { furnish, type Furnishing } from './house-authoring';
+import { associateTables, furnish, type Furnishing } from './house-authoring';
 import { POND } from './house-layout';
 const garden: Furnishing[] = [
   ['pond', POND.x, POND.y, POND.width, POND.height, 0.05, 'teal'],
   ['waterlily', 19.5, 69, 1, 0.8, 0.25, 'clay'],
   ['waterlily', 22, 71, 1, 0.8, 0.25, 'cream'],
-  ['table', 2, 51, 2, 1.5, 0.8, 'clay'],
+  ['table', 2, 51, 2, 1.5, 0.8, 'clay', 'terrace-table-c'],
   ['chair', 2.5, 49, 1, 1, 1.2, 'clay', 'terrace-chair-c-n', 1],
   ['chair', 2.5, 54, 1, 1, 1.2, 'clay', 'terrace-chair-c-s', 3],
   ['parasol', 5.3, 50, 3, 3, 3.9, 'teal'],
   ['bar', 10, 50, 7, 1.5, 1.3, 'clay'],
-  ['table', 20, 51, 2, 1.5, 0.8, 'teal'],
-  ['table', 26, 51, 2, 1.5, 0.8, 'teal'],
+  ['table', 20, 51, 2, 1.5, 0.8, 'teal', 'terrace-table-a'],
+  ['table', 26, 51, 2, 1.5, 0.8, 'teal', 'terrace-table-b'],
   ['chair', 20.5, 49, 1, 1, 1.2, 'teal', 'terrace-chair-a-n', 1],
   ['chair', 20.5, 54, 1, 1, 1.2, 'teal', 'terrace-chair-a-s', 3],
   ['chair', 26.5, 49, 1, 1, 1.2, 'teal', 'terrace-chair-b-n', 1],
@@ -147,4 +147,8 @@ for (const [x, y] of [
   garden.push(['flowers', x, y, 1, 1, 0.4, 'clay']);
   garden.push(['flowers', x + 1, y + 0.3, 1, 1, 0.4, 'sage']);
 }
-export const HOUSE_GARDEN = furnish({ x: 0, y: 0 }, garden);
+export const HOUSE_GARDEN = associateTables(furnish({ x: 0, y: 0 }, garden), {
+  'terrace-table-a': ['terrace-chair-a-n', 'terrace-chair-a-s'],
+  'terrace-table-b': ['terrace-chair-b-n', 'terrace-chair-b-s'],
+  'terrace-table-c': ['terrace-chair-c-n', 'terrace-chair-c-s'],
+});

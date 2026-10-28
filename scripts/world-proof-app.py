@@ -7,14 +7,18 @@ Created by scripts/world-proof.py as /app/world_proof.py after native migrations
 """
 
 import asyncio
+import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from typing import Literal
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from fastapi import Depends, FastAPI, Request, Response
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.api.v1.routes import api_router
 from src.core.config import settings
 from src.core.constants import SESSION_COOKIE_NAME
@@ -23,10 +27,10 @@ from src.core.middleware import SecurityHeadersMiddleware
 from src.core.session_dependencies import get_current_active_session_for_stream
 from src.domains.memories.models import Memory
 from src.domains.users.models import User
-from src.domains.world.router import router
 from src.domains.world.configuration import configured_store
+from src.domains.world.router import router
 from src.domains.world.transport import origin_allowed
-from src.infrastructure.cache.redis import close_redis, get_redis_session, get_redis_cache
+from src.infrastructure.cache.redis import close_redis, get_redis_cache, get_redis_session
 from src.infrastructure.cache.session_store import SessionStore
 from src.infrastructure.cache.user_channel import publish_to_user, user_notifications_channel
 from src.infrastructure.database.registry import import_all_models
@@ -242,8 +246,8 @@ if settings.world_namespace in TRANSLATION_PROOFS:
     from src.core.i18n_types import Language
     from src.domains.chat.schemas import TokenSummaryDTO
     from src.domains.world.message_router import get_messaging
-    from src.domains.world.public_translation import TranslatedBatch
     from src.domains.world.messaging import WorldMessaging
+    from src.domains.world.public_translation import TranslatedBatch
     from src.domains.world.store import WorldStore
     from src.domains.world.translation import TranslatedMessage, TranslationText
 
@@ -312,7 +316,9 @@ async def proof_identity(
 async def reset_world_fixture(request: Request) -> Response:
     """Start a fresh authority epoch between tests on this exact inert proof host.
 
-    Native SQL preferences and weather fixtures remain available. Old controller
+    Native SQL preferences and weather fixtures remain available. Admission's
+    exact inert-account budgets reset too; the real route still enforces them
+    within each journey. Old controller
     scopes and message epochs cannot enter the new authority; real application
     entry points never mount this fixture-only route.
     """
@@ -320,16 +326,20 @@ async def reset_world_fixture(request: Request) -> Response:
         raise AuthorizationError(detail={"error_code": "PROOF_ORIGIN"})
     async with asyncio.timeout(settings.world_authority_timeout):
         redis = await get_redis_cache()
-        await redis.delete(configured_store(redis).key)
+        await redis.delete(
+            configured_store(redis).key,
+            *(f"auth:world_ticket:user:{account(index)}" for index in range(1, len(LANGUAGES) + 1)),
+        )
     return Response(status_code=204)
 
 
 @app.post("/api/v1/world-proof/proactive", status_code=204)
+@app.post("/api/v1/world-proof/reminder", status_code=204)
 async def publish_proof_opening(
     request: Request,
     user: User = Depends(get_current_active_session_for_stream),
 ) -> Response:
-    """Publish one fixed opening to the authenticated inert account, without Docker access."""
+    """Publish one fixed notice to the authenticated inert account, without providers."""
     if not origin_allowed(request.headers.get("origin"), settings.cors_origins):
         raise AuthorizationError(detail={"error_code": "PROOF_ORIGIN"})
     if str(user.id) not in {account(index) for index in range(1, len(LANGUAGES) + 1)}:
@@ -341,18 +351,66 @@ async def publish_proof_opening(
         subscribers = await redis.pubsub_numsub(user_notifications_channel(user.id))
         if sum(count for _, count in subscribers) < 1:
             raise RuntimeError("proof_notification_subscriber_required")
-        published = await publish_to_user(
-            user.id,
-            {
+        notice = (
+            {"type": "reminder", "content": "PRIVATE_WORLD_REMINDER", "reminder_id": str(user.id)}
+            if request.url.path.endswith("/reminder")
+            else {
                 "type": "proactive_discussion",
                 "content": "Une idée pour ta promenade dans le jardin.",
                 "target_id": str(uuid4()),
                 "metadata": {"message_id": str(uuid4())},
-            },
+            }
         )
+        published = await publish_to_user(user.id, notice)
         if not published:
             raise RuntimeError("proof_notification_not_published")
     return Response(status_code=204)
+
+
+class ProofActing(BaseModel):
+    """Only four fixed UI qualification messages; no model or executable input."""
+
+    message: Literal["WORLD_PREPARED", "WORLD_SUCCEEDED", "WORLD_FAILED", "WORLD_WAITING"]
+
+
+@app.post("/api/v1/world-proof/acting")
+async def proof_acting(
+    choice: ProofActing,
+    request: Request,
+    user: User = Depends(get_current_active_session_for_stream),
+) -> StreamingResponse:
+    if not origin_allowed(request.headers.get("origin"), settings.cors_origins):
+        raise AuthorizationError(detail={"error_code": "PROOF_ORIGIN"})
+    if str(user.id) not in {account(index) for index in range(1, len(LANGUAGES) + 1)}:
+        raise AuthorizationError(detail={"error_code": "PROOF_ACCOUNT"})
+
+    async def chunks() -> AsyncIterator[str]:
+        def event(kind: str, metadata: dict[str, object] | None = None) -> str:
+            return (
+                "data: " + json.dumps({"type": kind, "content": "", "metadata": metadata}) + "\n\n"
+            )
+
+        yield event("execution_step", {"step_type": "reasoning", "delta": ""})
+        activity: dict[str, object] = {
+            "version": 1,
+            "run_id": str(uuid4()),
+            "invocation_id": "fixture",
+            "family": "creating",
+            "intent": "act",
+            "phase": "started",
+            "outcome": None,
+        }
+        yield event("execution_step", {"step_type": "activity", "activity": activity})
+        await asyncio.sleep(2)
+        activity.update(phase="finished", outcome=choice.message.removeprefix("WORLD_").lower())
+        yield event("execution_step", {"step_type": "activity", "activity": activity})
+        yield event("done")
+
+    return StreamingResponse(
+        chunks(),
+        media_type="text/event-stream",
+        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-store"},
+    )
 
 
 class ProofChoice(BaseModel):

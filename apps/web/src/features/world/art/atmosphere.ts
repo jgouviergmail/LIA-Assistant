@@ -101,13 +101,17 @@ export function paintGroundLights(
   world: WorldDefinition,
   camera: Camera,
   atmosphere: Atmosphere,
-  glow: Sprite | null
+  glow: Sprite | null,
+  light?: (id: string) => boolean | undefined
 ): void {
-  if (!glow || !nightStrength(atmosphere.phase)) return;
+  if (!glow) return;
   c.save();
   c.globalCompositeOperation = 'screen';
-  c.globalAlpha = (nightStrength(atmosphere.phase) / 0.6) * 0.88;
-  for (const prop of world.props) if (prop.kind === 'lamp') drawGlow(c, prop, camera, glow, true);
+  for (const prop of world.props) {
+    if (prop.kind !== 'lamp') continue;
+    c.globalAlpha = lightStrength(prop.id, atmosphere, light) * 0.88;
+    if (c.globalAlpha > 0) drawGlow(c, prop, camera, glow, true);
+  }
   c.restore();
 }
 function paintNight(
@@ -115,22 +119,34 @@ function paintNight(
   world: WorldDefinition,
   camera: Camera,
   atmosphere: Atmosphere,
-  glow: Sprite | null
+  glow: Sprite | null,
+  light?: (id: string) => boolean | undefined
 ): void {
-  if (!glow || !nightStrength(atmosphere.phase)) return;
+  if (!glow) return;
   c.save();
   c.globalCompositeOperation = 'screen';
-  c.globalAlpha = nightStrength(atmosphere.phase) / 0.6;
   for (const prop of world.props) {
     if (prop.kind !== 'lamp' && prop.kind !== 'tablelamp') continue;
+    c.globalAlpha = lightStrength(prop.id, atmosphere, light);
+    if (c.globalAlpha <= 0) continue;
     drawGlow(c, prop, camera, glow, false);
     if (prop.kind === 'tablelamp') {
       c.globalAlpha *= 0.55;
       drawGlow(c, prop, camera, glow, true);
-      c.globalAlpha = nightStrength(atmosphere.phase) / 0.6;
     }
   }
   c.restore();
+}
+function lightStrength(
+  id: string,
+  atmosphere: Atmosphere,
+  light?: (id: string) => boolean | undefined
+): number {
+  const state = light?.(id);
+  if (state === false) return 0;
+  return state === true
+    ? Math.max(0.4, nightStrength(atmosphere.phase) / 0.6)
+    : nightStrength(atmosphere.phase) / 0.6;
 }
 
 /** Cosmetic only, bounded particles, no flashes and no layout/authority mutations. */
@@ -142,9 +158,10 @@ export function paintAtmosphere(
   time: number,
   quality: Quality,
   reduced: boolean,
-  glow: Sprite | null
+  glow: Sprite | null,
+  light?: (id: string) => boolean | undefined
 ): void {
-  paintNight(c, world, camera, atmosphere, glow);
+  paintNight(c, world, camera, atmosphere, glow, light);
   if (atmosphere.weather === 'fog') {
     c.save();
     clipOutdoors(c, world, camera);

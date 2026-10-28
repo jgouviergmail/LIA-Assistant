@@ -36,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { useDashboardNavigation } from '../DashboardNavigation';
 
 export interface CardItemAction {
   icon: LucideIcon;
@@ -61,6 +62,8 @@ export interface CardItemAction {
    * says so.
    */
   busy?: boolean;
+  /** This action leaves the embedded dashboard through the native chat replay guard. */
+  opensChat?: boolean;
 }
 
 /** Shared chip classes — kept for callers that style a matching control. */
@@ -73,6 +76,7 @@ export interface CardItemActionsProps {
 
 export function CardItemActions({ actions }: CardItemActionsProps) {
   const { t } = useTranslation();
+  const embedded = useDashboardNavigation() !== undefined;
   /**
    * Whether the menu is closing BECAUSE an action was chosen.
    *
@@ -146,7 +150,7 @@ export function CardItemActions({ actions }: CardItemActionsProps) {
             ) : (
               <>
                 <action.icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                <span className="min-w-0 flex-1 truncate">{action.label}</span>
+                <span className="min-w-0 flex-1 truncate">{actionLabel(action, embedded, t)}</span>
               </>
             )}
           </DropdownMenuItem>
@@ -154,4 +158,14 @@ export function CardItemActions({ actions }: CardItemActionsProps) {
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+function actionLabel(
+  action: CardItemAction,
+  embedded: boolean,
+  t: (key: string) => string
+): string {
+  return embedded && action.opensChat
+    ? t('world.dashboard.open_chat') + ' · ' + action.label
+    : action.label;
 }

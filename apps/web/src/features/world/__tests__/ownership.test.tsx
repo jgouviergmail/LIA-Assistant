@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WORLD } from '../definition';
 import { useWorldRuntime } from '../useWorldRuntime';
 import type { createRuntime, WorldRuntime } from '../runtime';
-import type { WorldSnapshot } from '../types';
+import type { WorldActingState, WorldSnapshot } from '../types';
+import type { SceneHost } from '../scene-interactions';
 
 const factory = vi.hoisted(() => vi.fn<typeof createRuntime>());
 vi.mock('../runtime', () => ({ createRuntime: factory }));
@@ -21,6 +22,7 @@ const options: Parameters<typeof createRuntime>[2][] = [];
 const instances: WorldRuntime[] = [];
 function instance(): WorldRuntime {
   return {
+    photoScene: () => null,
     input: {
       direction: () => ({ x: 0, y: 0 }),
       hold: vi.fn(),
@@ -28,6 +30,7 @@ function instance(): WorldRuntime {
       clear: vi.fn(),
       dispose: vi.fn(),
     },
+    emote: vi.fn(() => 'accepted' as const),
     interact: vi.fn(),
     zoom: vi.fn(),
     recenter: vi.fn(),
@@ -36,13 +39,26 @@ function instance(): WorldRuntime {
     setQuality: vi.fn(),
     setHome: vi.fn(),
     setAtmosphere: vi.fn(),
+    setRouteVisible: vi.fn(),
+    setPrivateSignals: vi.fn(),
+    setActingSource: vi.fn(),
+    setConversationOpen: vi.fn(),
+    setSeason: vi.fn(),
     setReducedMotion: vi.fn(),
     setPaused: vi.fn(),
     snapshot: () => INITIAL,
     destroy: vi.fn(),
   };
 }
-function Harness({ ownerId }: { ownerId: string }) {
+function Harness({
+  ownerId,
+  scene,
+  onActingState,
+}: {
+  ownerId: string;
+  scene?: SceneHost;
+  onActingState?: (state: WorldActingState) => void;
+}) {
   const { canvasRef, snapshot, failed, retry } = useWorldRuntime({
     ownerId,
     player: 'You',
@@ -50,6 +66,9 @@ function Harness({ ownerId }: { ownerId: string }) {
     quality: 'high',
     paused: false,
     reducedMotion: true,
+    conversationOpen: true,
+    scene,
+    onActingState,
   });
   return (
     <>
@@ -72,6 +91,34 @@ beforeEach(() => {
   });
 });
 describe('world owner lifetime', () => {
+  it('publishes only current acting evidence to the latest observer without replacing its clock', () => {
+    const first = vi.fn();
+    const latest = vi.fn();
+    const { rerender } = render(<Harness ownerId="first" onActingState={first} />);
+    rerender(<Harness ownerId="first" onActingState={latest} />);
+    expect(instances).toHaveLength(1);
+    act(() => options[0].onSnapshot({ ...INITIAL, acting: 'waiting' }));
+    expect(first).not.toHaveBeenCalled();
+    expect(latest).toHaveBeenLastCalledWith('waiting');
+    rerender(<Harness ownerId="second" onActingState={latest} />);
+    latest.mockClear();
+    act(() => options[0].onSnapshot({ ...INITIAL, acting: 'success' }));
+    expect(latest).not.toHaveBeenCalled();
+    act(() => options[1].onSnapshot({ ...INITIAL, acting: 'idle' }));
+    expect(latest).toHaveBeenLastCalledWith('idle');
+  });
+  it('reapplies current visual preferences and framing when scene ports replace the runtime', () => {
+    const first: SceneHost = { canOpen: () => true, open: () => true };
+    const second: SceneHost = { canOpen: () => true, open: () => true };
+    const { rerender } = render(<Harness ownerId="owner" scene={first} />);
+    expect(instances[0].setConversationOpen).toHaveBeenLastCalledWith(true);
+    rerender(<Harness ownerId="owner" scene={second} />);
+    expect(instances).toHaveLength(2);
+    expect(instances[0].destroy).toHaveBeenCalledOnce();
+    expect(instances[1].setConversationOpen).toHaveBeenLastCalledWith(true);
+    expect(instances[1].setReducedMotion).toHaveBeenLastCalledWith(true);
+    expect(instances[1].setQuality).toHaveBeenLastCalledWith('high');
+  });
   it('releases an old owner, reapplies preferences and refuses its late snapshots', () => {
     const { rerender, unmount } = render(<Harness ownerId="first" />);
     expect(instances[0].setQuality).toHaveBeenLastCalledWith('high');

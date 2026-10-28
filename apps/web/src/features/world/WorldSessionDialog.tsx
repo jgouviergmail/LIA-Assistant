@@ -53,6 +53,9 @@ export function WorldSessionDialog({
           </DialogDescription>
         </DialogHeader>
         {state.offered && <p className="text-sm">{t('world.session.offer')}</p>}
+        {presentation.connection === 'outdated' && (
+          <Button onClick={() => window.location.reload()}>{t('world.session.reload')}</Button>
+        )}
         {state.action && (
           <Button onClick={actions[state.action]}>{t('world.session.' + state.action)}</Button>
         )}

@@ -114,8 +114,8 @@ export function MoreContent({ lng }: { lng: string }) {
             {t('more.world.title')}
           </h2>
           <p className="mt-2 max-w-[60ch] text-muted-foreground">{t('more.world.intro')}</p>
-          <dl className="mt-8 grid gap-6 sm:grid-cols-3">
-            {(['navigation', 'privacy', 'messages'] as const).map(part => (
+          <dl className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {(['navigation', 'privacy', 'messages', 'play'] as const).map(part => (
               <div key={part} className="border-t border-border pt-4">
                 <dt className="font-semibold">{t(`more.world.${part}_title`)}</dt>
                 <dd className="mt-2 text-sm leading-relaxed text-muted-foreground">

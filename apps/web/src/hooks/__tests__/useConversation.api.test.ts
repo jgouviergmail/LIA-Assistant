@@ -137,6 +137,51 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('useConversation — metadata load on mount', () => {
+  it.each(['success', 'failure'] as const)(
+    'discards a former account metadata %s after a new account replies',
+    async outcome => {
+      let resolveOld: (value: typeof META) => void = () => {};
+      let rejectOld: (error: Error) => void = () => {};
+      const oldRead = new Promise<typeof META>((resolve, reject) => {
+        resolveOld = resolve;
+        rejectOld = reject;
+      });
+      const current = { ...META, id: 'conv-2', user_id: 'user-2' };
+      h.get.mockReturnValueOnce(oldRead).mockResolvedValueOnce(current);
+      const { result, rerender } = renderHook(() => useConversation());
+      await act(async () => {});
+      const oldRequest: { signal: AbortSignal } = h.get.mock.calls[0][1];
+      expect(oldRequest.signal.aborted).toBe(false);
+      h.user = { id: 'user-2', email: 'second@test.local', picture_url: null };
+      rerender();
+      expect(oldRequest.signal.aborted).toBe(true);
+      await act(async () => {});
+      expect(result.current.conversation).toEqual(current);
+      await act(async () => {
+        if (outcome === 'success') resolveOld(META);
+        else rejectOld(new Error('former account read failed'));
+      });
+      expect(result.current.conversation).toEqual(current);
+      expect(logger.error).not.toHaveBeenCalled();
+      expect(h.get).toHaveBeenCalledTimes(2);
+    }
+  );
+
+  it('does not start metadata reads after immediate unmount', async () => {
+    const { unmount } = renderHook(() => useConversation());
+    unmount();
+    await act(async () => {});
+    expect(h.get).not.toHaveBeenCalled();
+  });
+
+  it('returns no metadata or HTTP work without an authenticated user', async () => {
+    h.user = null;
+    const { result } = renderHook(() => useConversation());
+    await act(async () => {});
+    expect(result.current.conversation).toBeNull();
+    expect(h.get).not.toHaveBeenCalled();
+  });
+
   it('exposes the conversation metadata fetched at mount', async () => {
     const { result } = renderHook(() => useConversation());
 

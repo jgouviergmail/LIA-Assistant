@@ -450,9 +450,9 @@
     },
     "t.world": {
       "name": "Mondo isometrico e autorità nativa",
-      "role": "Il browser disegna una scena Canvas limitata; Redis gestisce accesso, coda e movimenti, e un suo guasto sospende i comandi. I pannelli nativi mantengono permessi e approvazioni. I testi effimeri restano in Redis; PostgreSQL delimita i tentativi fatturabili senza conservarne il contenuto.",
+      "role": "Il browser disegna una scena Canvas limitata; Redis gestisce accesso, coda, movimenti, gesti e partite arcade, e un suo guasto sospende i comandi. I pannelli nativi mantengono permessi e approvazioni. I testi effimeri restano in Redis; PostgreSQL delimita i tentativi fatturabili senza conservarne il contenuto. Una foto è una proiezione autorizzata, mai una schermata.",
       "stack": ["Canvas 2D", "WebSocket", "Redis CAS", "PostgreSQL", "LIA"],
-      "src": "1c146d5b9f21"
+      "src": "b2d40a86066c"
     }
   },
   "flows": {

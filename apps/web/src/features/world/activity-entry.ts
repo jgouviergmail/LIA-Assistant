@@ -4,8 +4,12 @@ import type { SceneActivity, WorldWorkspace } from './activity-catalogue';
 import type { AppConfig } from '@/hooks/useAppConfig';
 import { SETTINGS_SEARCH_META } from '@/lib/settings-search';
 import { worldActions } from './functions';
+import type { BoardFilters } from '@/types/workboard';
+import type { DashboardDestination } from '@/components/dashboard/DashboardNavigation';
+import { CABINET_GAMES, type CabinetId } from './game-catalogue';
 
 export const WORKSPACE_SELECTION = {
+  dashboard: 'world-dashboard',
   registers: 'world-registers',
   relations: 'world-relations',
   meetings: 'world-meetings',
@@ -24,11 +28,39 @@ export type WorldSelection =
   | 'world-peers'
   | 'configuration'
   | 'world-radio'
+  | 'world-arcade'
   | 'world-avatar';
 export interface ActivityEntry {
+  cabinet?: CabinetId;
   selection: WorldSelection;
   draft?: string;
   tab?: GeneratedAssetTab;
+  meetingId?: string;
+  workboardFilters?: BoardFilters;
+  ticketId?: string;
+  smsMessageId?: string;
+}
+export function dashboardEntry(destination: DashboardDestination): ActivityEntry {
+  switch (destination.kind) {
+    case 'settings':
+      return { selection: destination.token ?? 'configuration' };
+    case 'draft':
+      return { selection: 'lia', draft: destination.draft };
+    case 'workboard':
+      return {
+        selection: WORKSPACE_SELECTION.workboard,
+        workboardFilters: destination.filters,
+        ticketId: destination.ticketId,
+      };
+    case 'meeting':
+      return { selection: WORKSPACE_SELECTION.meetings, meetingId: destination.id };
+    case 'gallery':
+      return { selection: 'generated-assets', tab: destination.tab };
+    case 'registers':
+      return { selection: WORKSPACE_SELECTION.registers };
+    case 'sms':
+      return { selection: WORKSPACE_SELECTION.sms, smsMessageId: destination.messageId };
+  }
 }
 type Translate = (key: string, values?: Record<string, unknown>) => string;
 export function workspaceFromSelection(selection: WorldSelection): WorldWorkspace | null {
@@ -36,9 +68,24 @@ export function workspaceFromSelection(selection: WorldSelection): WorldWorkspac
     if (WORKSPACE_SELECTION[id] === selection) return id;
   return null;
 }
+/** Project one authorized activity identity into its stable modal/non-modal hosts. */
+export function activityPresentation(selection: WorldSelection | null, authorized: boolean) {
+  const open = authorized && selection !== null;
+  const conversation = selection === 'lia';
+  const dashboardOpen = open && selection === WORKSPACE_SELECTION.dashboard;
+  return {
+    open,
+    conversation,
+    dashboardOpen,
+    nativeOpen: open && !dashboardOpen,
+    dockActive: open && conversation,
+  };
+}
 export function activityEntry(activity: SceneActivity | 'lia', t: Translate): ActivityEntry {
   if (activity === 'lia') return { selection: 'lia-menu' };
   switch (activity.kind) {
+    case 'arcade':
+      return { selection: 'world-arcade', cabinet: activity.id };
     case 'world':
       return { selection: 'world-avatar' };
     case 'native':
@@ -60,6 +107,8 @@ export function activityEntry(activity: SceneActivity | 'lia', t: Translate): Ac
 }
 export function activityTitle(activity: SceneActivity, t: Translate): string {
   switch (activity.kind) {
+    case 'arcade':
+      return t('world.arcade.games.' + CABINET_GAMES[activity.id] + '.title');
     case 'world':
       return t('world.avatar.change');
     case 'native':
@@ -98,6 +147,8 @@ export function activityAvailable(
 ): boolean {
   if (activity === 'lia') return true;
   switch (activity.kind) {
+    case 'arcade':
+      return policy.config?.features.world_arcade_enabled === true;
     case 'world':
       return true;
     case 'native':

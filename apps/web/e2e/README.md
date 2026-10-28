@@ -67,6 +67,13 @@ including teardown, while an unexpected request still receives the explicit 501.
 - `fixtures/index.ts` — extended `test` with `mockApi` and `authenticate` (mocks
   `/auth/me` + shell endpoints + seeds a session cookie, so protected pages
   render signed-in).
+- `fixtures/world-session.ts` — inert World admission over a routed socket:
+  movement is a kinematic echo, and an optional `commands` authority answers
+  games, poses and gestures. Its receipts join the bounded rolling window the
+  server keeps and its `you`/`game`/`cabinets` fields persist into every later
+  snapshot; without it, those commands stay unanswered as before.
+  The returned `afterSnapshots` waits on snapshots the socket sent, so a
+  negative assertion covers frames the page was given, never a guessed delay.
 
 ## Layout
 
@@ -178,9 +185,14 @@ docker exec -d -u node -e NODE_ENV=production -e LANDING_MEDIA_BASE_URL= lia-web
 
 docker run --rm --network container:lia-web-dev -e E2E_BASE_URL=http://127.0.0.1:3100 \
   -v "//d/Developpement/LIA:/repo" -w /repo/apps/web/e2e \
-  mcr.microsoft.com/playwright:v1.63.0-noble \
+  mcr.microsoft.com/playwright:v1.64.0-noble \
   sh -c "npm ci --no-audit --no-fund && npx playwright test --reporter=list"
 ```
+
+A subset runs by naming its files after `npx playwright test`, as the showroom
+recipe below does. To keep the host's own install (Windows `.cmd` shims and
+all) out of the container's `npm ci`, mount a named volume over the package's
+`node_modules`, for example `-v lia-e2e-nm:/repo/apps/web/e2e/node_modules`.
 
 `127.0.0.1`, not `localhost`: the standalone server binds IPv4-only
 (`HOSTNAME=0.0.0.0`), and `localhost` may resolve to `::1` first (connection
@@ -269,7 +281,7 @@ docker exec -u node -e NODE_ENV=production -e NEXT_DIST_DIR=.next-e2e \
 MSYS_NO_PATHCONV=1 docker run --rm --network container:lia-web-dev \
   -e E2E_BASE_URL=http://127.0.0.1:3100 -e E2E_SHOWROOM=1 \
   -v "//d/Developpement/LIA:/repo" -w /repo/apps/web/e2e \
-  mcr.microsoft.com/playwright:v1.63.0-noble \
+  mcr.microsoft.com/playwright:v1.64.0-noble \
   sh -c "npm ci --no-audit --no-fund && npx playwright test \
     smoke/public-demo-showroom.spec.ts a11y/axe-public-demo-showroom.spec.ts --reporter=list"
 ```
@@ -357,6 +369,19 @@ as `Dockerfile.prod`), then `PORT=3000 HOSTNAME=0.0.0.0 node
 | `E2E_MANAGED_SERVER` | unset                   | `1` → Playwright builds + serves the app (CI).  |
 | `CI`                 | unset                   | Enables retries, GitHub reporter, `forbidOnly`. |
 
+
+## World journeys
+
+The World smoke specs drive the shipped UI by role and translated name, with
+the World socket routed by `fixtures/world-session.ts`. The arcade, gesture and
+seated-dashboard journeys (`smoke/world-arcade.spec.ts`, `world-emotes.spec.ts`,
+`world-seated-dashboard.spec.ts`) answer their commands with a small
+deterministic authority; the photo journey (`world-photo.spec.ts`) proves its
+preview, download and share never leave the page unasked. Each runs on a
+desktop and a phone viewport and scans the surface it opens with axe. Real
+SQL/Redis authority, two independent browsers and native accounts stay in
+`native/`, which runs only against an explicit disposable proof host
+(`task test:e2e:world-native`).
 
 ## World artwork regression
 

@@ -576,6 +576,11 @@ class User(
     # Explicit finite avatar choices; only their public projection enters world snapshots.
     world_avatar_preferences: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
 
+    # Private route, introduction and season choices; never part of a public actor.
+    world_experience_preferences: Mapped[dict[str, object] | None] = mapped_column(
+        JSONB, nullable=True
+    )
+
     # Briefing grid preferences (UXR Lot 5, B4): {hidden: [...], order: [...]}.
     # NULL = all cards visible in canonical order (an account created before
     # 2026-10-22 whose grid was never saved); a new account starts with the

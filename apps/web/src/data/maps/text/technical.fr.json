@@ -381,7 +381,7 @@
     },
     "t.world": {
       "name": "Monde isométrique et autorité native",
-      "role": "Le navigateur dessine une scène Canvas bornée ; Redis arbitre admission, file et mouvements, et sa panne suspend les commandes. Les panneaux natifs gardent permissions et approbations. Les textes éphémères restent dans Redis ; PostgreSQL clôt les tentatives facturables sans conserver leur contenu.",
+      "role": "Le navigateur dessine une scène Canvas bornée ; Redis arbitre admission, file, mouvements, gestes et parties d’arcade, et sa panne suspend les commandes. Les panneaux natifs gardent permissions et approbations. Les textes éphémères restent dans Redis ; PostgreSQL clôt les tentatives facturables sans conserver leur contenu. Une photo est une projection autorisée, jamais une capture d’écran.",
       "stack": ["Canvas 2D", "WebSocket", "Redis CAS", "PostgreSQL", "LIA"]
     }
   },

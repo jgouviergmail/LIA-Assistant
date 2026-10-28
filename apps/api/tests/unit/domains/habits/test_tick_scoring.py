@@ -36,6 +36,19 @@ pytestmark = pytest.mark.unit
 PARIS = ZoneInfo("Europe/Paris")
 
 
+@pytest.fixture(autouse=True)
+def _habits_switch_on(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The operator's habits switch reads as its declared default (on).
+
+    Its OFF side is pinned in ``test_capability_at_the_act.py``; a real read
+    here would reach Redis, then fail on the session double ``_patch_profile``
+    installs.
+    """
+    monkeypatch.setattr(
+        "src.domains.habits.capability.is_capability_enabled", AsyncMock(return_value=True)
+    )
+
+
 def _local(hour: int, minute: int = 0, *, day: int = 3) -> datetime:
     """2026-08-03 is a Monday; day=1 (Saturday 2026-08-01) for weekend cases."""
     return datetime(2026, 8, day, hour, minute, tzinfo=PARIS)

@@ -2,16 +2,9 @@
 
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
-import { useAppConfig } from '@/hooks/useAppConfig';
 import { useLanguageParam } from '@/hooks/useLanguageParam';
-import { FeatureErrorBoundary } from '@/components/errors';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { TodayBriefing } from '@/components/dashboard/TodayBriefing';
-import { ResultsSummary } from '@/components/dashboard/ResultsSummary';
-import { UsageStatistics } from '@/components/dashboard/UsageStatistics';
-import { RadioDashboardCard } from '@/components/radio/RadioDashboardCard';
-import { usePersonalResults } from '@/hooks/usePersonalResults';
-import { radioAvailable } from '@/lib/radio/availability';
+import { DashboardWorkspace } from '@/components/dashboard/DashboardWorkspace';
 
 /**
  * Today dashboard — the daily ritual home page.
@@ -26,9 +19,12 @@ import { radioAvailable } from '@/lib/radio/availability';
  * Results lead and consumption follows: messages, tokens, Google requests and
  * cost are what an administrator needs, not what a reader can act on.
  *
- * The configuration is read from the first render, without waiting for the
- * session: `/config` is public, and read after the session the radio's card
- * appeared one round trip after the dashboard and pushed « My dashboard » down.
+ * The page starts no configuration read of its own. The dashboard layout reads
+ * `/config` from its first render, without waiting for the session (the
+ * endpoint is public), and seeds every page under it with that answer
+ * (`AppConfigSeedContext`): read after the session, the radio's card appeared
+ * one round trip after the dashboard and pushed « My dashboard » down. The
+ * dashboard body then reads its own (`useAppConfig`), starting from the seed.
  */
 interface DashboardPageProps {
   params: Promise<{ lng: string }>;
@@ -37,9 +33,7 @@ interface DashboardPageProps {
 export default function DashboardPage({ params }: DashboardPageProps) {
   const lng = useLanguageParam(params);
   const { user, isLoading } = useAuth();
-  const { t, i18n } = useTranslation();
-  const { results, firstLoad, error: resultsError } = usePersonalResults();
-  const { config } = useAppConfig();
+  const { t } = useTranslation();
 
   if (isLoading) {
     return (
@@ -54,21 +48,5 @@ export default function DashboardPage({ params }: DashboardPageProps) {
 
   if (!user?.is_active) return null;
 
-  return (
-    <FeatureErrorBoundary feature="dashboard">
-      <div className="dashboard-home space-y-10 sm:space-y-12">
-        <TodayBriefing
-          aboveBriefing={<RadioDashboardCard lng={lng} enabled={radioAvailable(config)} />}
-        />
-        <ResultsSummary
-          results={results}
-          firstLoad={firstLoad}
-          error={resultsError}
-          locale={i18n.language || 'fr'}
-        />
-        {/* Each account owns its statistics and in-flight limit reads. */}
-        <UsageStatistics key={user.id} />
-      </div>
-    </FeatureErrorBoundary>
-  );
+  return <DashboardWorkspace lng={lng} ownerId={user.id} />;
 }

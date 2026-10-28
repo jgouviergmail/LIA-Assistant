@@ -11,7 +11,7 @@ extraction (ADR-122) — formerly ``AgentService._should_start_voice``.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -33,6 +33,19 @@ def saved_voice_consent(monkeypatch: pytest.MonkeyPatch) -> None:
         return _SAVED_CONSENT[user_id]
 
     monkeypatch.setattr("src.domains.users.voice_consent.current_voice_consent", read)
+
+
+@pytest.fixture(autouse=True)
+def tts_switch_on(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The operator's speech switch reads as its declared default (on).
+
+    These tests are about consent and listeners; the real read of the switch
+    would reach the settings store (Redis, then PostgreSQL).
+    """
+    monkeypatch.setattr(
+        "src.domains.feature_switches.registry.is_capability_enabled",
+        AsyncMock(return_value=True),
+    )
 
 
 def _user(voice_enabled: bool = True) -> MagicMock:

@@ -17,6 +17,7 @@ public class LiaShellPlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "LiaShell"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "get", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "shareImage", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "probe", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "set", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "openExternal", returnType: CAPPluginReturnPromise),
@@ -27,10 +28,15 @@ public class LiaShellPlugin: CAPPlugin, CAPBridgedPlugin {
 
     /// Long enough for a home server behind a tunnel, short enough to fail visibly.
     private static let probeTimeout: TimeInterval = 8
+    private let imageShare = WorldImageShare()
 
     /// Report the configured origin, if any.
     @objc func get(_ call: CAPPluginCall) {
-        call.resolve(["url": ServerUrlStore.read() as Any])
+        call.resolve(["url": ServerUrlStore.read() as Any, "capabilities": ["shareImage": 1]])
+    }
+
+    @objc func shareImage(_ call: CAPPluginCall) {
+        imageShare.share(call, presenter: bridge?.viewController, page: bridge?.webView)
     }
 
     /// Ask an origin whether a LIA lives there — from the NATIVE side.

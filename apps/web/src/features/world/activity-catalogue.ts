@@ -1,8 +1,10 @@
 /** Closed, public action vocabulary. These are identities, never executable user content. */
 import type { SettingsSectionToken } from '@/lib/settings-sections';
 import type { GeneratedAssetTab } from '@/types/generated-assets';
+import type { CabinetId } from './game-catalogue';
 
 export type WorldWorkspace =
+  | 'dashboard'
   | 'relations'
   | 'meetings'
   | 'workboard'
@@ -10,6 +12,7 @@ export type WorldWorkspace =
   | 'sms'
   | 'registers';
 export type SceneActivity =
+  | { kind: 'arcade'; id: CabinetId }
   | { kind: 'world'; id: 'appearance' }
   | { kind: 'native'; token: SettingsSectionToken }
   | { kind: 'command'; id: string }
@@ -18,6 +21,9 @@ export type SceneActivity =
   | { kind: 'workspace'; id: WorldWorkspace }
   | { kind: 'widget'; id: 'radio' };
 export const ACTIVITY_CATALOGUE = {
+  'arcade-tic-tac-toe': { kind: 'arcade', id: 'arcade-tic-tac-toe' },
+  'arcade-four-in-row': { kind: 'arcade', id: 'arcade-four-in-row' },
+  'arcade-reversi': { kind: 'arcade', id: 'arcade-reversi' },
   appearance: { kind: 'world', id: 'appearance' },
   knowledge: { kind: 'native', token: 'rag-spaces' },
   'open-loops': { kind: 'native', token: 'open-loops' },

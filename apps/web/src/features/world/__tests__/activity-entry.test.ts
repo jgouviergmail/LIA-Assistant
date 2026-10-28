@@ -11,7 +11,9 @@ import {
   activityEntry,
   workspaceAvailable,
   catalogueSelection,
+  activityTitle,
 } from '../activity-entry';
+import { ACTIVITY_CATALOGUE } from '../activity-catalogue';
 
 function config(features: Partial<AppConfig['features']> = {}): AppConfig {
   return {
@@ -93,4 +95,57 @@ it('opens full activity workspaces from discovery while preserving native config
     expect(catalogueSelection(token, true)).toBe(token);
   }
   expect(catalogueSelection('memories', false)).toBe('memories');
+});
+it('routes every authored activity family into its real host with a readable title and an unsent draft', () => {
+  const t = (key: string) => key;
+  const expected = {
+    'arcade-tic-tac-toe': 'world-arcade',
+    appearance: 'world-avatar',
+    health: 'health-metrics',
+    assets: 'generated-assets',
+    sms: 'world-sms',
+    radio: 'world-radio',
+    'generate-image': 'lia',
+    weather: 'lia',
+  } as const;
+  for (const key of Object.keys(expected) as (keyof typeof expected)[]) {
+    const activity = ACTIVITY_CATALOGUE[key];
+    expect(activityEntry(activity, t).selection).toBe(expected[key]);
+    expect(activityTitle(activity, t).length).toBeGreaterThan(0);
+  }
+  expect(activityEntry('lia', t)).toEqual({ selection: 'lia-menu' });
+  expect(activityEntry(ACTIVITY_CATALOGUE.weather, t).draft).toBe('chat.slash.weather_intent');
+  expect(activityEntry({ kind: 'command', id: 'unknown' }, t).draft).toBeUndefined();
+  expect(activityTitle({ kind: 'command', id: 'unknown' }, t)).toBe('');
+  expect(activityTitle({ kind: 'workspace', id: 'registers' }, t)).toBe('registers.title');
+});
+it('applies current instance and native permissions to each activity family without hiding public composition', () => {
+  const policy = {
+    native: new Set(['health-metrics'] as const),
+    commands: new Set(['weather']),
+    radio: false,
+    config: null,
+  };
+  for (const key of ['appearance', 'health', 'generate-image', 'weather'] as const)
+    expect(activityAvailable(ACTIVITY_CATALOGUE[key], policy)).toBe(true);
+  // An unconfirmed instance (no configuration yet) never offers the arcade.
+  expect(activityAvailable(ACTIVITY_CATALOGUE['arcade-tic-tac-toe'], policy)).toBe(false);
+  expect(
+    activityAvailable(ACTIVITY_CATALOGUE['arcade-tic-tac-toe'], {
+      ...policy,
+      config: config({ world_arcade_enabled: true }),
+    })
+  ).toBe(true);
+  expect(activityAvailable('lia', policy)).toBe(true);
+  expect(activityAvailable(ACTIVITY_CATALOGUE.sms, policy)).toBe(false);
+  expect(activityAvailable(ACTIVITY_CATALOGUE.memories, policy)).toBe(false);
+  expect(activityAvailable(ACTIVITY_CATALOGUE.news, policy)).toBe(false);
+  expect(activityAvailable(ACTIVITY_CATALOGUE.radio, policy)).toBe(false);
+  expect(activityAvailable(ACTIVITY_CATALOGUE.radio, { ...policy, radio: true })).toBe(true);
+  expect(
+    activityAvailable(ACTIVITY_CATALOGUE['arcade-tic-tac-toe'], {
+      ...policy,
+      config: config({ world_arcade_enabled: false }),
+    })
+  ).toBe(false);
 });

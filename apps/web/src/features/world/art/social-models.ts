@@ -53,7 +53,8 @@ function billiards(m: Model, w: number, d: number): void {
   m.surface(0.25, 0.25, 1.125, w - 0.5, d - 0.5, '#15845d');
   for (const x of [0.25, w / 2, w - 0.25])
     for (const y of [0.25, d - 0.25]) m.surface(x - 0.1, y - 0.1, 1.13, 0.2, 0.2, DARK);
-  for (let i = 0; i < 8; i++)
+  // The first cue ball is painted by the bounded local motion layer.
+  for (let i = 1; i < 8; i++)
     m.box(
       w / 2 + (i % 3) * 0.18,
       1 + Math.floor(i / 3) * 0.2,

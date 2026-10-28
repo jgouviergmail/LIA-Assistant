@@ -492,6 +492,7 @@ class PeersService:
         """
         if blocker_id == blocked_id:
             raise_invalid_input("peers_self_block")
+        await lock_peer_pair(self.db, blocker_id, blocked_id)
         await self.repo.create_block(blocker_id, blocked_id)
         connection = await self.repo.get_pair(blocker_id, blocked_id)
         # Read BEFORE the transition below rewrites it: only a pair that was
@@ -539,6 +540,7 @@ class PeersService:
         Returns:
             True if a block existed and was removed.
         """
+        await lock_peer_pair(self.db, blocker_id, blocked_id)
         removed = await self.repo.delete_block(blocker_id, blocked_id)
         logger.info("peers_block_lifted", blocker_id=str(blocker_id), removed=removed)
         return removed

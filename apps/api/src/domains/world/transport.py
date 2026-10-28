@@ -10,8 +10,11 @@ from redis.asyncio import Redis
 
 from src.core.config import settings
 from src.core.constants import REDIS_KEY_WORLD_RUNTIME_PREFIX
+from src.domains.world.game_commands import GameCommand
+from src.domains.world.game_service import game_command
 from src.domains.world.schemas import COMMAND_ADAPTER, WorldCommand
 from src.domains.world.service import WorldConnection, WorldService
+from src.domains.world.socket_models import EmoteCommand, require_socket_generation
 from src.domains.world.store import WorldUnavailable
 from src.infrastructure.locks.redis_claim import held_claim, try_claim
 
@@ -23,9 +26,23 @@ def origin_allowed(origin: str | None, origins: str | list[str]) -> bool:
 
 
 def decode_command(text: str, limit: int) -> WorldCommand:
-    """Enforce the UTF-8 byte limit before strict discriminated command validation."""
-    if len(text.encode("utf-8")) > limit:
+    """Enforce the byte limit and the socket generation before strict command validation.
+
+    Args:
+        text: One received client frame.
+        limit: Maximum UTF-8 size of the frame, in bytes.
+
+    Returns:
+        The validated discriminated command.
+
+    Raises:
+        ValueError: The frame exceeds the byte limit, or is not a valid command
+            (Pydantic's ``ValidationError``).
+        ClientProtocolUpgradeRequired: The frame declares another socket generation.
+    """
+    if len(text) > limit or len(text.encode("utf-8")) > limit:
         raise ValueError("frame_limit")
+    require_socket_generation(text)
     return COMMAND_ADAPTER.validate_json(text)
 
 
@@ -35,7 +52,7 @@ async def receive_text(socket: WebSocket, limit: int) -> str:
     if event["type"] == "websocket.disconnect":
         raise WebSocketDisconnect(event.get("code", 1000))
     text = event.get("text")
-    if not isinstance(text, str) or len(text.encode("utf-8")) > limit:
+    if not isinstance(text, str) or len(text) > limit or len(text.encode("utf-8")) > limit:
         raise ValueError("frame_limit")
     return text
 
@@ -102,9 +119,21 @@ async def _receive(
         if count > settings.world_input_rate:
             raise ValueError("frame_rate")
         command = decode_command(text, settings.world_frame_bytes)
-        if command.type in {"accept", "takeover"}:
-            await service.policy(cookie, connection)
-        await service.command(connection, command)
+        if isinstance(command, GameCommand):
+            await game_command(
+                service.store,
+                cookie,
+                connection.identity.account_id,
+                connection.controller,
+                command,
+            )
+        elif isinstance(command, EmoteCommand) and await service.refuse_emote(connection, command):
+            # A cooldown or visibility refusal publishes nothing: no native policy read.
+            pass
+        else:
+            if command.type in {"accept", "takeover", "emote"}:
+                await service.policy(cookie, connection)
+            await service.command(connection, command)
         if command.type == "leave":
             return
 

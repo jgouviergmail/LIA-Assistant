@@ -17,7 +17,7 @@
   },
   {
     "kind": "advisory",
-    "subject": "npm:next@16.4.1",
+    "subject": "npm:next@16.4.2",
     "ref": "GHSA-39w2-rjm5-chcv",
     "reason": "The MCP endpoint of `next dev` only; production deployments do not serve it. The advisory still names no patched version (‘16.3.?’); re-read it when it does.",
     "owner": "maintainer",
@@ -25,7 +25,7 @@
   },
   {
     "kind": "advisory",
-    "subject": "npm:next@16.4.1",
+    "subject": "npm:next@16.4.2",
     "ref": "GHSA-4jqv-mc3x-m676",
     "reason": "Needs the Pages Router; apps/web is App Router only (no src/pages). The advisory still names no patched version (‘16.3.?’); re-read it when it does.",
     "owner": "maintainer",
@@ -33,7 +33,7 @@
   },
   {
     "kind": "advisory",
-    "subject": "npm:next@16.4.1",
+    "subject": "npm:next@16.4.2",
     "ref": "GHSA-f87g-xv8r-7p7x",
     "reason": "Needs metadata image routes (opengraph-image, twitter-image); apps/web has none. The advisory still names no patched version (‘16.3.?’); re-read it when it does.",
     "owner": "maintainer",
@@ -41,7 +41,7 @@
   },
   {
     "kind": "advisory",
-    "subject": "npm:next@16.4.1",
+    "subject": "npm:next@16.4.2",
     "ref": "GHSA-mcj8-r9mp-w47p",
     "reason": "Needs a root-level catch-all page; apps/web has no catch-all route and no ISR (no revalidate, no 'use cache'). The advisory still names no patched version (‘16.3.?’); re-read it when it does.",
     "owner": "maintainer",
@@ -305,5 +305,13 @@
     "reason": "GPU wake-word toolbox only (scripts/wake-word/requirements-gpu.lock.txt); application/dev/sandbox locks use Pillow 13.0.0. This advisory needs image-to-Arrow export with PILLOW_ALIGNMENT>1. The supported toolbox path loads a pinned local VoxCPM model with load_denoiser=False, consumes WAV/NumPy audio, and invokes neither PIL image operations nor image-to-Arrow export. Neither Dockerfile.gpu nor GPU task commands set PILLOW_ALIGNMENT (Pillow default: 1); pyarrow is installed transitively, not used for image export. VoxCPM 2.0.3 requires gradio>=6,<7; all 37 current stable Gradio 6 releases, including 6.30.0, still cap pillow<13. Static reachability review on 2026-10-27, not a new GPU runtime measurement. Reassess before adding image/Arrow export or allocator overrides; remove when a compatible dependency graph permits Pillow>=13.0.0. The toolbox is excluded from application images and both self-host bundle allowlists.",
     "owner": "maintainer",
     "review_by": "2026-10-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "npm:glob@13.0.6",
+    "ref": "GHSA-3g3m-2fjr-6pw4",
+    "reason": "Reached only through @capacitor/cli 8.5.3 -> rimraf 6.1.3, the mobile shells' build tooling run on a developer machine or a CI runner; no web, API, sandbox image or self-host bundle ships it. The flaw needs a caller that aborts a glob walk with an AbortSignal and keeps acting on its later results; rimraf passes no signal there and the CLI walks the repository's own build output. Lifted when Capacitor's rimraf accepts glob >=14.0.2.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
   }
 ]

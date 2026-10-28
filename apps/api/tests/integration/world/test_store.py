@@ -137,3 +137,54 @@ async def test_geometry_upgrade_cannot_restore_positions_or_seats_from_another_s
         assert await redis_world.ttl(previous.key) > 0
     finally:
         await redis_world.delete(previous.key)
+
+
+async def test_an_invalid_post_transition_record_is_never_published(redis_world: Redis) -> None:
+    from prometheus_client import REGISTRY
+    from pydantic import ValidationError
+
+    from src.domains.world.game_context import GameLimits, GameScope
+    from src.domains.world.game_rounds import create_table, make_member
+    from src.domains.world.schemas import WorldState
+    from src.domains.world.store import WorldIntegrityError
+
+    store = WorldStore(redis_world, namespace=uuid4().hex, ttl=1800)
+    authority = Authority(Limits())
+    host, guest = (Identity(str(uuid4()), f"Player {n}", "fr") for n in range(2))
+
+    def failures() -> float:
+        sample = REGISTRY.get_sample_value(
+            "world_authority_integrity_failures_total", {"area": "games"}
+        )
+        return sample or 0.0
+
+    def two_members_one_color(state: WorldState, now: float) -> None:
+        # The shape of the accepted-join defect: two humans holding one color.
+        scope = GameScope(host.account_id, "host", frozenset({host.account_id}))
+        table = create_table(state, scope, "arcade-tic-tac-toe", False, now, GameLimits())
+        joiner = GameScope(guest.account_id, "guest", frozenset({guest.account_id}))
+        table.members.append(make_member(state, joiner, 1))
+        state.games["arcade-tic-tac-toe"] = table
+
+    try:
+        for identity in (host, guest):
+
+            def admit(state: WorldState, now: float, identity: Identity = identity) -> None:
+                authority.join(state, identity, identity.account_id[:8], now)
+
+            await store.update(admit)
+        published = await redis_world.get(store.key)
+        before = failures()
+        with pytest.raises(WorldIntegrityError) as failure:
+            await store.update(two_members_one_color)
+        assert (failure.value.code, failure.value.area) == ("game_members", "games")
+        # The refusal quotes the record's values: it is never chained for display.
+        assert failure.value.__suppress_context__
+        assert await redis_world.get(store.key) == published
+        assert failures() == before + 1
+        # A STORED record of another shape keeps the reader's own refusal.
+        await redis_world.set(store.key, '{"version": 2}', ex=30)
+        with pytest.raises(ValidationError):
+            await store.update(lambda state, now: None)
+    finally:
+        await redis_world.delete(store.key)

@@ -465,6 +465,8 @@ class TestThePumpGeneratesOneVariantPerAdminLanguage:
         monkeypatch.setattr(diag_module, "DiagnosticsRepository", _Repo)
         monkeypatch.setattr(diag_module, "get_cached_cost_usd_eur", lambda *a, **k: (0.01, 0.009))
         monkeypatch.setattr(diag_module.settings, "diagnostics_diagnosis_daily_cost_cap_usd", 1.0)
+        # No instance ceiling is configured (the operator setting's declared default).
+        monkeypatch.setattr(diag_module, "is_instance_spend_blocked", AsyncMock(return_value=False))
         # A unit test never reaches Prometheus or Loki: canned evidence pack.
         monkeypatch.setattr(
             diag_module, "collect_diagnosis_context", AsyncMock(return_value=_CANNED_PACK)
@@ -628,6 +630,8 @@ class TestTheDailyCapGatesEveryCallNotEveryIncident:
         monkeypatch.setattr(diag_module, "get_cached_cost_usd_eur", lambda *a, **k: (0.25, 0.22))
         monkeypatch.setattr(diag_module.settings, "diagnostics_diagnosis_daily_cost_cap_usd", 0.5)
         monkeypatch.setattr(diag_module, "get_redis_cache", AsyncMock())
+        # No instance ceiling is configured: the daily cap above is the one under test.
+        monkeypatch.setattr(diag_module, "is_instance_spend_blocked", AsyncMock(return_value=False))
         monkeypatch.setattr(
             diag_module, "collect_diagnosis_context", AsyncMock(return_value=_CANNED_PACK)
         )

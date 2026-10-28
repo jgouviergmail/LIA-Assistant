@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { DashboardLink as Link } from './DashboardNavigation';
 import {
   ChevronRight,
   ClipboardList,
@@ -29,10 +29,9 @@ import { cn } from '@/lib/utils';
  * need a tile: two doors make the bar longer without making anything more
  * reachable.
  *
- * Layout is decided by MEASUREMENT: the segments STACK below `sm` (full-width
- * rows, every locale legible) and sit side by side above it. Four quarters at
- * `sm` (640 px) leave ~160 px each; the tight two-up-at-320 px case never
- * occurs because 320 px is below `sm`, where they stack.
+ * Container width determines the columns: a modal can be narrower than its
+ * desktop viewport. Rows remain full width on a phone, then two columns,
+ * then five only when the actual bar has room for labels and departure icons.
  *
  * Links, not buttons: these are navigations. `<Link>` gives middle-click,
  * open-in-new-tab, the URL on hover and the "link" role — matching the rest of
@@ -47,7 +46,7 @@ export function QuickAccessCompact({ lng }: QuickAccessCompactProps) {
   const { t } = useTranslation();
 
   return (
-    <nav aria-labelledby="dashboard-shortcuts-heading" className="space-y-3">
+    <nav aria-labelledby="dashboard-shortcuts-heading" className="@container space-y-3">
       <h2
         id="dashboard-shortcuts-heading"
         className="flex items-center gap-2 text-base sm:text-lg font-semibold tracking-tight text-foreground"
@@ -57,7 +56,7 @@ export function QuickAccessCompact({ lng }: QuickAccessCompactProps) {
         {/* The rubrique hairline every screen draws (owner request 2026-10-21). */}
         <HeadingRule />
       </h2>
-      <div className="grid grid-cols-1 overflow-hidden rounded-xl border bg-card shadow-sm sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-1 overflow-hidden rounded-xl border bg-card shadow-sm @[36rem]:grid-cols-2 @[70rem]:grid-cols-5">
         <QuickAccessAction
           href={`/${lng}/dashboard/faq`}
           icon={HelpCircle}

@@ -105,6 +105,48 @@ describe('useAPIHealth', () => {
     expect(value).toBe(true);
   });
 
+  it('hands the probe a signal that unmounting aborts', async () => {
+    const fetchMock = stubFetch(() => new Promise(() => {}));
+    const { unmount } = renderHook(() => useAPIHealth({ user: USER }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.signal?.aborted).toBe(false);
+
+    unmount();
+
+    expect(init.signal?.aborted).toBe(true);
+  });
+
+  it('lets a manual check supersede the probe in flight at its transport', async () => {
+    const fetchMock = stubFetch(() => new Promise(() => {}));
+    const { result } = renderHook(() => useAPIHealth({ user: USER }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      void result.current.checkHealth();
+    });
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const [, first] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [, second] = fetchMock.mock.calls[1] as [string, RequestInit];
+    expect(first.signal?.aborted).toBe(true);
+    expect(second.signal?.aborted).toBe(false);
+  });
+
+  it('sends nothing from a manual check once the component is gone', async () => {
+    const fetchMock = stubFetch(() =>
+      Promise.resolve(okResponse({ status: 'healthy', graph_compiled: true }))
+    );
+    const { result, unmount } = renderHook(() => useAPIHealth({ user: USER }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const retained = result.current.checkHealth;
+    unmount();
+
+    await expect(retained()).resolves.toBe(false);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('re-checks when the user identity changes', async () => {
     const fetchMock = stubFetch(() =>
       Promise.resolve(okResponse({ status: 'healthy', graph_compiled: true }))

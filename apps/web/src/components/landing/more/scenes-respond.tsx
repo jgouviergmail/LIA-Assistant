@@ -482,8 +482,8 @@ function DraftSequenceScene({ active, labels }: SceneProps) {
       <MiniBubble
         side="assistant"
         className={cn(
-          'w-3/4 space-y-1 transition-opacity duration-300',
-          phase === 'summary' ? 'opacity-100' : 'opacity-40'
+          'w-3/4 space-y-1 transition-colors duration-300',
+          phase === 'summary' ? 'text-foreground' : 'text-muted-foreground'
         )}
       >
         <span className="font-medium">{labels.summary}</span>
@@ -542,8 +542,8 @@ function NetworkQuestionScene({ active, labels }: SceneProps) {
     <div className={cn(STAGE, 'items-stretch justify-center gap-1.5')}>
       <div
         className={cn(
-          'w-4/5 self-start overflow-hidden rounded-lg border border-border bg-background text-px-10 transition-opacity duration-300',
-          resumed ? 'opacity-50' : 'opacity-100'
+          'w-4/5 self-start overflow-hidden rounded-lg border bg-background text-px-10 transition-colors duration-300',
+          resumed ? 'border-border/50' : 'border-border'
         )}
       >
         <div className="flex items-center gap-1.5 border-b border-border bg-muted/60 px-2 py-1 text-muted-foreground">
@@ -1176,7 +1176,10 @@ function FullWidthPhoneScene({ active }: SceneProps) {
             {Array.from({ length: 9 }, (_, i) => (
               <span
                 key={i}
-                className={cn('h-1.5 rounded-sm', i < 3 ? 'bg-primary/40' : 'bg-muted-foreground/20')}
+                className={cn(
+                  'h-1.5 rounded-sm',
+                  i < 3 ? 'bg-primary/40' : 'bg-muted-foreground/20'
+                )}
               />
             ))}
           </div>

@@ -464,6 +464,30 @@ def test_optional_compose_credentials_remain_empty_when_not_enabled() -> None:
     assert values.get("GRAFANA_ADMIN_PASSWORD") == ""
 
 
+def test_observability_names_this_host_on_every_alert(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(envgen.socket, "gethostname", lambda: "lia-host")
+    public = replace(_public(), observability=True)
+    named = derive_environment(public, generate_secrets())
+    assert named["OBSERVABILITY_HOST"] == "lia-host"
+    unnamed = derive_environment(_public(), generate_secrets())
+    assert unnamed["OBSERVABILITY_HOST"] == ""
+
+
+@pytest.mark.parametrize("observability", (False, True))
+def test_an_operators_alert_host_survives_reconfiguration(
+    observability: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(envgen.socket, "gethostname", lambda: "lia-host")
+    public = replace(_public(), observability=observability)
+    current = "OBSERVABILITY_HOST=edge-01\n"
+    values = _values(
+        render_reconfigured_env(current, derive_environment(public, generate_secrets()))
+    )
+    assert values["OBSERVABILITY_HOST"] == "edge-01"
+
+
 def test_observability_generates_a_distinct_strong_grafana_password() -> None:
     public = replace(_public(), observability=True)
     first = derive_environment(public, generate_secrets())

@@ -58,8 +58,10 @@ export async function updateCurrentPersonality(
 /**
  * Fetch all personalities with full details (admin only)
  */
-export async function fetchPersonalitiesAdmin(): Promise<PersonalityResponse[]> {
-  return apiClient.get<PersonalityResponse[]>('/personalities/admin');
+export async function fetchPersonalitiesAdmin(
+  signal?: AbortSignal
+): Promise<PersonalityResponse[]> {
+  return apiClient.get<PersonalityResponse[]>('/personalities/admin', { signal });
 }
 
 /**

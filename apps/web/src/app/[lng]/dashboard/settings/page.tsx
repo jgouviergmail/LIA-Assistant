@@ -176,25 +176,15 @@ export default function SettingsPage({ params }: SettingsPageProps) {
   // `?section=` arrivals — a deep link, the starter checklist, a briefing
   // card, an OAuth return. One firing per router navigation: our own
   // `history.replaceState` writes do not touch the router's search params.
+  const [navigation, setNavigation] = React.useState<typeof searchParams | null>(null);
+  if (navigation !== searchParams) {
+    setNavigation(searchParams);
+    const section = searchParams.get('section');
+    setActive(section && isSettingsSectionToken(section) ? section : null);
+  }
   React.useEffect(() => {
     const section = searchParams.get('section');
-    if (!section) {
-      // A router navigation to the BARE settings URL — the dashboard nav
-      // entry, clicked while a pane is open — must land on the overview.
-      // (Our own `replaceState` cleanup never reaches here: it does not touch
-      // the router's search params.)
-      setActive(null);
-      return;
-    }
-    if (isSettingsSectionToken(section)) {
-      // No focus move: the reader arrived from a link, they did not ask for
-      // the caret to jump the moment the page settled.
-      setActive(section);
-      return;
-    }
-    // Unknown token: land on the overview and drop it from the URL so a
-    // reload does not replay the dead end.
-    writeSectionParam(null);
+    if (section && !isSettingsSectionToken(section)) writeSectionParam(null);
   }, [searchParams]);
 
   // OAuth callback toasts (connectors + MCP), verbatim behaviour of the

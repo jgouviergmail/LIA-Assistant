@@ -1,7 +1,17 @@
 'use client';
 import type { WorldSpeech } from './speech';
+import type { PrivateSignalPresentation } from './private-signal-projection';
+import type { WorldActingSource } from './useWorldActingSource';
 
-import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { CircleHelp, TriangleAlert, MousePointer2 } from 'lucide-react';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
@@ -22,7 +32,7 @@ import {
   type JoystickPreference,
 } from './useJoystickPreference';
 import { WorldHud } from './WorldHud';
-import type { Quality } from './types';
+import type { Quality, WorldActingState } from './types';
 import type { WorldDriver } from './shared-simulation';
 import type { HomeSkin } from './home-projection';
 import type { SceneHost, SceneTarget } from './scene-interactions';
@@ -31,6 +41,15 @@ import './world.css';
 import './mobile-hud.css';
 import './avatar.css';
 import { NEUTRAL_ATMOSPHERE, type Atmosphere } from './atmosphere';
+import { WorldExplorationControls, type WorldExploration } from './WorldExplorationControls';
+import { WorldSeasonControls } from './WorldSeasonControls';
+import { seasonAt } from './season';
+import { WorldEmoteControls } from './WorldEmoteControls';
+import type { EmoteKind, EmoteOutcome } from './emote-catalogue';
+import { WorldEmoteFeedback } from './WorldEmoteFeedback';
+import type { EmoteFeedback } from './useWorldSession';
+import { cosmeticActionForId, type CosmeticActionId } from './cosmetic-interactions';
+import { WorldPhotoControls } from './WorldPhotoControls';
 
 function preferredQuality(): Quality {
   return typeof window !== 'undefined' &&
@@ -39,7 +58,29 @@ function preferredQuality(): Quality {
     : 'balanced';
 }
 
+function useWorldHudState(
+  controlled: boolean | undefined,
+  onChange: ((expanded: boolean) => void) | undefined
+) {
+  const [localExpanded, setLocalExpanded] = useState(false);
+  const changeExpanded = useCallback(
+    (value: boolean) => {
+      setLocalExpanded(value);
+      onChange?.(value);
+    },
+    [onChange]
+  );
+  return [controlled ?? localExpanded, changeExpanded] as const;
+}
+
 export function WorldPrototype({
+  hudExpanded: controlledHudExpanded,
+  onHudExpandedChange,
+  onPhotoOpen,
+  onActingState,
+  conversationOpen = false,
+  acting,
+  privateSignals,
   lng,
   ownerId,
   driver,
@@ -54,9 +95,22 @@ export function WorldPrototype({
   sceneLabel,
   widgets,
   speech,
+  exploration,
+  onEmote,
+  onCosmeticCue,
 }: {
-  widgets?: ReactNode;
+  hudExpanded?: boolean;
+  onHudExpandedChange?(expanded: boolean): void;
+  onPhotoOpen?(open: boolean): void;
+  onEmote?(kind: EmoteKind): boolean;
+  onCosmeticCue?(action: CosmeticActionId, current: () => boolean, targetId: string): void;
+  onActingState?(state: WorldActingState): void;
+  conversationOpen?: boolean;
+  acting?: WorldActingSource;
+  privateSignals?: readonly PrivateSignalPresentation[];
+  widgets?: ReactNode | ((controls: ReactNode) => ReactNode);
   speech?: WorldSpeech;
+  exploration?: WorldExploration;
   lng: Language;
   ownerId: string;
   driver?: WorldDriver;
@@ -73,14 +127,34 @@ export function WorldPrototype({
   const { t } = useTranslation(lng);
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   const [quality, setQuality] = useState<Quality>(preferredQuality);
-  const [hudExpanded, setHudExpanded] = useState(false);
+  const [hudExpanded, changeHudExpanded] = useWorldHudState(
+    controlledHudExpanded,
+    onHudExpandedChange
+  );
   const [joystick, setJoystick] = useJoystickPreference();
   const touch = useMediaQuery('(pointer: coarse), (max-width: 767px)');
+  const compact = useMediaQuery(
+    '(max-width: 767px), (max-height: 520px) and (orientation: landscape)'
+  );
   const [help, setHelp] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const photoVisibility = useCallback(
+    (open: boolean) => {
+      setPhotoOpen(open);
+      onPhotoOpen?.(open);
+    },
+    [onPhotoOpen]
+  );
   const [metrics, setMetrics] = useState(false);
-  const inputPaused = help || editingHome || interactionPaused;
+  const inputPaused = [help, photoOpen, editingHome, interactionPaused].some(Boolean);
   const descriptionId = useId();
-  const { canvasRef, snapshot, failed, retry, command } = useWorldRuntime({
+  const { canvasRef, snapshot, failed, retry, command, focusScene } = useWorldRuntime({
+    onCosmeticCue,
+    season: explorationSeason(atmosphere, exploration),
+    onActingState,
+    conversationOpen,
+    acting,
+    privateSignals,
     ownerId,
     player: playerAlias ?? t('world.you'),
     driver,
@@ -93,7 +167,29 @@ export function WorldPrototype({
     atmosphere,
     onInteract,
     scene,
+    showRoute: routeVisible(exploration),
   });
+  const localSerial = useRef(0);
+  const [localFeedback, setLocalFeedback] = useState<EmoteFeedback | null>(null);
+  /** A private gesture: refused like a shared one, and said when it is refused. */
+  function localGesture(kind: EmoteKind): boolean {
+    const result: { outcome: EmoteOutcome } = { outcome: 'unavailable' };
+    command(runtime => {
+      result.outcome = runtime.emote(kind);
+    });
+    setLocalFeedback(
+      result.outcome === 'accepted'
+        ? null
+        : { result: result.outcome, serial: ++localSerial.current }
+    );
+    return result.outcome === 'accepted';
+  }
+  function gesture(kind: EmoteKind): void {
+    const sent =
+      snapshot.zone === 'home' || !connected ? localGesture(kind) : onEmote?.(kind) === true;
+    // A refused gesture keeps the controls where they are, beside its announcement.
+    if (sent && touch) changeHudExpanded(false);
+  }
   const previouslyEditing = useRef(false);
   useEffect(() => {
     if (editingHome) {
@@ -105,6 +201,17 @@ export function WorldPrototype({
     } else if (previouslyEditing.current) command(runtime => runtime.recenter());
     previouslyEditing.current = editingHome;
   }, [editingHome, command]);
+  const directGestures = compact && !hudExpanded;
+  const gestures = (
+    <WorldEmoteControls
+      lng={lng}
+      canvasRef={canvasRef}
+      disabled={inputPaused}
+      presentation={directGestures ? 'direct' : 'menu'}
+      onReturnFocus={focusScene}
+      onSelect={gesture}
+    />
+  );
   return (
     <section
       className="world-prototype border border-border"
@@ -114,7 +221,82 @@ export function WorldPrototype({
       data-world-editing={editingHome}
       data-world-phase={atmosphere.phase}
       data-world-weather={atmosphere.weather}
+      data-world-cosmetic-effects={snapshot.metrics.cosmeticEffects ?? 0}
     >
+      <WorldSceneSurface
+        lng={lng}
+        failed={failed}
+        retry={retry}
+        canvasRef={canvasRef}
+        descriptionId={descriptionId}
+      />
+      {!failed && (
+        <WorldHud
+          conversationOpen={conversationOpen}
+          lng={lng}
+          expanded={hudExpanded}
+          onExpand={() => changeHudExpanded(!hudExpanded)}
+          joystick={shouldShowJoystick(joystick, touch, inputPaused)}
+          gestures={directGestures ? gestures : undefined}
+          widgets={
+            <WorldInteractionWidgets
+              lng={lng}
+              ownerId={ownerId}
+              disabled={inputPaused}
+              command={command}
+              onPhotoOpen={photoVisibility}
+              directGestures={directGestures}
+              gestures={gestures}
+              exploration={exploration}
+              widgets={widgets}
+            />
+          }
+          snapshot={snapshot}
+          metrics={metrics}
+          command={command}
+          onMetrics={() => setMetrics(value => !value)}
+          onHelp={() => setHelp(true)}
+          atmosphere={atmosphere}
+          season={explorationSeason(atmosphere, exploration)}
+          prototype={!connected}
+          nearbyLabel={targetLabel(snapshot.nearby, sceneLabel)}
+        />
+      )}
+      <WorldObjectHint hover={failed ? null : snapshot.hover} label={sceneLabel} />
+      <WorldEmoteFeedback lng={lng} feedback={localFeedback} />
+      <WorldHelp
+        exploration={exploration}
+        lng={lng}
+        open={help}
+        onOpenChange={setHelp}
+        joystick={joystick}
+        setJoystick={setJoystick}
+        quality={quality}
+        setQuality={setQuality}
+        canvasRef={canvasRef}
+        connected={connected}
+      />
+    </section>
+  );
+}
+
+function WorldSceneSurface({
+  lng,
+  failed,
+  retry,
+  canvasRef,
+  descriptionId,
+}: {
+  lng: Language;
+  failed: boolean;
+  retry(): void;
+  canvasRef: RefObject<HTMLCanvasElement | null>;
+  descriptionId: string;
+}) {
+  const { t } = useTranslation(lng);
+  return (
+    <>
+      {!failed && <h1 className="sr-only">{t('world.title')}</h1>}
       {failed ? (
         <div className="world-fallback bg-background" role="alert">
           <TriangleAlert className="size-9 text-primary" aria-hidden="true" />
@@ -136,40 +318,79 @@ export function WorldPrototype({
       <p id={descriptionId} className="sr-only">
         {t('world.keyboard_hint')}
       </p>
-      {!failed && (
-        <WorldHud
+    </>
+  );
+}
+
+function WorldInteractionWidgets({
+  lng,
+  ownerId,
+  disabled,
+  command,
+  onPhotoOpen,
+  directGestures,
+  gestures,
+  exploration,
+  widgets,
+}: {
+  lng: Language;
+  ownerId: string;
+  disabled: boolean;
+  command: ReturnType<typeof useWorldRuntime>['command'];
+  onPhotoOpen(open: boolean): void;
+  directGestures: boolean;
+  gestures: ReactNode;
+  exploration?: WorldExploration;
+  widgets?: ReactNode | ((controls: ReactNode) => ReactNode);
+}) {
+  const controls = (
+    <>
+      <div className="pointer-events-auto w-fit">
+        <WorldPhotoControls
+          key={ownerId}
           lng={lng}
-          expanded={hudExpanded}
-          onExpand={() => setHudExpanded(value => !value)}
-          joystick={shouldShowJoystick(joystick, touch, inputPaused)}
-          widgets={widgets}
-          snapshot={snapshot}
-          metrics={metrics}
+          ownerId={ownerId}
+          disabled={disabled}
           command={command}
-          onMetrics={() => setMetrics(value => !value)}
-          onHelp={() => setHelp(true)}
-          atmosphere={atmosphere}
-          prototype={!connected}
-          nearbyLabel={snapshot.nearby ? sceneLabel?.(snapshot.nearby) : undefined}
+          onOpen={onPhotoOpen}
         />
-      )}
-      <WorldObjectHint hover={failed ? null : snapshot.hover} label={sceneLabel} />
-      <WorldHelp
-        lng={lng}
-        open={help}
-        onOpenChange={setHelp}
-        joystick={joystick}
-        setJoystick={setJoystick}
-        quality={quality}
-        setQuality={setQuality}
-        canvasRef={canvasRef}
-        connected={connected}
-      />
-    </section>
+      </div>
+      {!directGestures && <div className="pointer-events-auto w-fit">{gestures}</div>}
+      {exploration && <WorldExplorationControls lng={lng} exploration={exploration} />}
+    </>
+  );
+  return typeof widgets === 'function' ? (
+    widgets(controls)
+  ) : (
+    <div className="world-device-controls">
+      {widgets}
+      {controls}
+    </div>
+  );
+}
+
+function routeVisible(exploration: WorldExploration | undefined): boolean {
+  return exploration?.control.experience?.preferences.show_route ?? true;
+}
+function targetLabel(
+  target: SceneTarget | null | undefined,
+  label: ((target: SceneTarget) => string) | undefined
+): string | undefined {
+  if (!target || (target.kind === 'object' && cosmeticActionForId(WORLD, target.id)))
+    return undefined;
+  return label?.(target);
+}
+function explorationSeason(atmosphere: Atmosphere, exploration: WorldExploration | undefined) {
+  return seasonAt(
+    atmosphere.time,
+    atmosphere.timezone,
+    exploration?.control.experience?.preferences.season_mode ?? 'calendar',
+    exploration?.control.experience?.preferences.hemisphere ?? 'north'
   );
 }
 
 function WorldHelp({
+  exploration,
   lng,
   open,
   onOpenChange,
@@ -180,6 +401,7 @@ function WorldHelp({
   joystick,
   setJoystick,
 }: {
+  exploration?: WorldExploration;
   joystick: JoystickPreference;
   setJoystick(value: JoystickPreference): void;
   lng: Language;
@@ -250,6 +472,13 @@ function WorldHelp({
         <p className="text-xs text-muted-foreground">
           {t(connected ? 'world.session.private' : 'world.local')}
         </p>
+        {exploration && (
+          <WorldSeasonControls
+            lng={lng}
+            control={exploration.control}
+            enabled={exploration.enabled}
+          />
+        )}
         <Button onClick={() => onOpenChange(false)}>{t('world.play')}</Button>
       </DialogContent>
     </Dialog>
@@ -263,7 +492,8 @@ function WorldObjectHint({
   hover: import('./types').WorldSnapshot['hover'];
   label?: (target: SceneTarget) => string;
 }) {
-  if (!hover || !label) return null;
+  const text = targetLabel(hover?.target, label);
+  if (!hover || !text) return null;
   return (
     <div
       className="world-object-hint"
@@ -274,7 +504,7 @@ function WorldObjectHint({
       }}
     >
       <MousePointer2 size={16} aria-hidden="true" />
-      <span>{label(hover.target)}</span>
+      <span>{text}</span>
     </div>
   );
 }

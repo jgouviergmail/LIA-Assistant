@@ -3,6 +3,7 @@ import { Model } from './model';
 import { shade } from './painter';
 import { propStyleVariant } from './prop-style';
 import type { WorldProp } from '../types';
+import { NO_DECOR, type DecorPresentation } from '../decor-presentation';
 const BOOKS = ['#a24c40', '#37675d', '#c19b57', '#415c80', '#72516a', '#d3c5a0'];
 function bookshelf(m: Model, o: WorldProp, w: number, d: number): void {
   const wood = '#79553d',
@@ -191,9 +192,18 @@ const MODELS: Partial<Record<WorldProp['kind'], Factory>> = {
   reeds: m => reeds(m),
   vegetable: vegetables,
 };
-export function refinedModel(m: Model, o: WorldProp, w: number, d: number): boolean {
+export function refinedModel(
+  m: Model,
+  o: WorldProp,
+  w: number,
+  d: number,
+  decor: DecorPresentation = NO_DECOR
+): boolean {
   const draw = MODELS[o.kind];
   if (!draw) return false;
   draw(m, o, w, d);
+  if (o.kind === 'tablelamp' && decor.light !== undefined) {
+    m.panel(0.13, 0.489, 1.22, 0.34, 0.19, decor.light ? '#ffe6a0' : '#73877b');
+  }
   return true;
 }

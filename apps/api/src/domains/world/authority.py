@@ -13,6 +13,7 @@ from src.core.constants import (
 )
 from src.domains.world.avatar import AvatarAppearance
 from src.domains.world.collision import WORLD, arrival, move, private_home
+from src.domains.world.emotes import record_receipt
 from src.domains.world.poses import stand
 from src.domains.world.presence import drop_presence, prune_presences, track_actor_presence
 from src.domains.world.schemas import (
@@ -22,6 +23,7 @@ from src.domains.world.schemas import (
     WorldState,
     WorldView,
 )
+from src.domains.world.socket_models import MoveReceipt
 
 
 @dataclass(frozen=True)
@@ -118,6 +120,9 @@ class Authority:
         actor = state.actors.get(account)
         if actor is not None:
             actor.controller, actor.seq, actor.moved_at = controller, 0, now
+            actor.receipts = []
+            actor.pose_result = None
+            actor.visible = True
             actor.expires_at = now + self.limits.lease_seconds
             actor.activity_at = now
             track_actor_presence(state, account, controller, now)
@@ -176,6 +181,9 @@ class Authority:
         actor = state.actors.get(account)
         if actor is None or actor.controller != controller:
             return
+        actor.visible = visible
+        if not visible:
+            actor.emote = None
         if visible:
             actor.expires_at = now + self.limits.lease_seconds
         if active:
@@ -220,12 +228,21 @@ class Authority:
             )
             actor.activity_at = now
         actor.seq, actor.moved_at = seq, now
+        record_receipt(actor, MoveReceipt(seq=seq))
         return True
 
     @staticmethod
     def public_actor(actor: ActorState, now: float) -> PublicActor:
         """Project public appearance and stop stale walking animation without exposing account fences."""
         return PublicActor(
+            emote=(
+                actor.emote
+                if actor.visible
+                and actor.emote is not None
+                and actor.emote.expires_at > now
+                and not private_home(actor.position)
+                else None
+            ),
             appearance=actor.appearance,
             pose=actor.pose,
             id=actor.public_id,
@@ -244,7 +261,9 @@ class Authority:
         controller: str = "",
     ) -> WorldView:
         """Build the requesting account's snapshot, omitting blocked people and private-home occupants."""
-        view = WorldView(epoch=state.epoch, revision=state.revision, status="absent")
+        view = WorldView(
+            epoch=state.epoch, revision=state.revision, status="absent", server_time=now
+        )
         own = state.actors.get(account)
         if own is None:
             for index, waiter in enumerate(state.queue):
@@ -259,6 +278,7 @@ class Authority:
         view.status, view.you, view.ack = "active", self.public_actor(own, now), own.seq
         view.pose_result = own.pose_result
         view.controlling = own.controller == controller
+        view.receipts = own.receipts.copy() if view.controlling else []
         view.idle_until = own.activity_at + self.limits.idle_seconds
         view.actors = [
             self.public_actor(a, now)

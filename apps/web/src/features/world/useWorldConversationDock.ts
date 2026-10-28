@@ -1,8 +1,13 @@
 import { useCallback } from 'react';
 import { selectionViewport } from '@/lib/selection-position';
+import { WORLD_CONVERSATION_WIDTH } from './conversation-layout';
 
 /** Keep the conversation inside the visible viewport, including a phone keyboard. */
-export function useWorldConversationDock(active: boolean, maximumWidth = 576, maximumHeight = 760) {
+export function useWorldConversationDock(
+  active: boolean,
+  maximumWidth = WORLD_CONVERSATION_WIDTH,
+  maximumHeight = 760
+) {
   return useCallback(
     (element: HTMLDivElement | null) => {
       if (!active || !element) return;

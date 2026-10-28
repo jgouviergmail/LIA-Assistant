@@ -27,11 +27,13 @@ test('world districts: named objects, contextual cursor and keyboard/mobile map 
   });
   const summary = page.locator('[data-world-place-menu]');
   await expect(summary).toHaveText(en.world.explore_places);
-  for (const [key, label] of [
+  for (const [activity, label] of [
     ['news', en.chat.slash.news_label],
     ['phone', en.world.activities.call],
   ] as const) {
-    const prop = WORLD.props.find(p => p.key === key);
+    // An object is found by the activity it carries, never by where it stands:
+    // the news moved from a reading desk to the meeting lounge's table.
+    const prop = WORLD.props.find(p => (p.activity ?? p.key) === activity);
     if (!prop) throw Error('Missing functional object');
     const point = await frameWorldProp(
       page,
@@ -41,7 +43,7 @@ test('world districts: named objects, contextual cursor and keyboard/mobile map 
     await page.mouse.move(point.x, point.y);
     await expect(page.getByRole('tooltip')).toHaveText(label);
     await expect(canvas).toHaveCSS('cursor', 'pointer');
-    await page.screenshot({ path: info.outputPath(key + '-affordance.png') });
+    await page.screenshot({ path: info.outputPath(activity + '-affordance.png') });
     await page.mouse.move(0, 0);
     await expect(page.getByRole('tooltip')).toHaveCount(0);
   }

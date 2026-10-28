@@ -27,9 +27,14 @@ import type { WorldRuntime } from './runtime';
 import type { WorldSnapshot } from './types';
 import { NEUTRAL_ATMOSPHERE, type Atmosphere } from './atmosphere';
 import { WorldSkyBadge } from './WorldSkyBadge';
+import { WorldActingStatus } from './WorldActingStatus';
+import type { Season } from './season';
 
 interface Props {
+  season?: Season;
+  conversationOpen?: boolean;
   widgets?: ReactNode;
+  gestures?: ReactNode;
   expanded: boolean;
   onExpand(): void;
   joystick: boolean;
@@ -50,14 +55,6 @@ export function WorldHud(props: Props) {
   const compact = useMediaQuery(
     '(max-width: 767px), (max-height: 520px) and (orientation: landscape)'
   );
-  const hold = useCallback(
-    (source: string, point: Point) => command(runtime => runtime.input.hold(source, point)),
-    [command]
-  );
-  const release = useCallback(
-    (source: string) => command(runtime => runtime.input.release(source)),
-    [command]
-  );
   const ToggleIcon = props.expanded ? PanelTopClose : PanelTopOpen;
   return (
     <>
@@ -71,16 +68,6 @@ export function WorldHud(props: Props) {
       >
         <ToggleIcon aria-hidden="true" className="size-5" />
       </Button>
-      {snapshot.nearby && (
-        <Button
-          className="world-nearby-action"
-          variant="outline"
-          onClick={() => command(runtime => runtime.interact())}
-        >
-          <MousePointerClick className="size-4" aria-hidden="true" />
-          <span className="truncate">{props.nearbyLabel ?? t('world.zones.' + snapshot.zone)}</span>
-        </Button>
-      )}
       <div
         className="world-top"
         role="region"
@@ -91,7 +78,7 @@ export function WorldHud(props: Props) {
           <div className="world-heading border border-border bg-background/95 shadow-lg">
             <div className="flex items-center gap-2">
               <MapIcon className="size-5 shrink-0 text-primary" aria-hidden="true" />
-              <h1 className="min-w-0 text-sm font-semibold">{t('world.title')}</h1>
+              <p className="min-w-0 text-sm font-semibold">{t('world.title')}</p>
               {props.prototype !== false && (
                 <Badge variant="default" className="ml-auto shrink-0">
                   <FlaskConical className="mr-1 size-3" aria-hidden="true" />
@@ -99,7 +86,12 @@ export function WorldHud(props: Props) {
                 </Badge>
               )}
             </div>
-            <WorldSkyBadge lng={lng} atmosphere={props.atmosphere ?? NEUTRAL_ATMOSPHERE} />
+            <WorldSkyBadge
+              lng={lng}
+              atmosphere={props.atmosphere ?? NEUTRAL_ATMOSPHERE}
+              season={props.season}
+            />
+            <WorldActingStatus lng={lng} state={snapshot.acting} hidden={props.conversationOpen} />
             <div className="world-place-controls flex items-center gap-1">
               <Button
                 size="sm"
@@ -150,13 +142,43 @@ export function WorldHud(props: Props) {
         />
       </div>
       {metrics && <WorldMetrics lng={lng} snapshot={snapshot} onClose={onMetrics} />}
-      <div className="world-bottom">
-        {props.joystick && (!compact || !props.expanded) && (
-          <WorldJoystick label={t('world.joystick.move')} onHold={hold} onRelease={release} />
-        )}
-        {!compact && <WorldTools {...props} />}
-      </div>
+      <WorldBottomControls {...props} compact={compact} />
     </>
+  );
+}
+
+function WorldBottomControls(props: Props & { compact: boolean }) {
+  const { lng, command, snapshot, compact } = props;
+  const { t } = useTranslation(lng);
+  const hold = useCallback(
+    (source: string, point: Point) => command(runtime => runtime.input.hold(source, point)),
+    [command]
+  );
+  const release = useCallback(
+    (source: string) => command(runtime => runtime.input.release(source)),
+    [command]
+  );
+  return (
+    <div className="world-bottom">
+      {props.joystick && (!compact || !props.expanded) && (
+        <WorldJoystick label={t('world.joystick.move')} onHold={hold} onRelease={release} />
+      )}
+      {props.gestures}
+      {compact && !props.expanded && snapshot.nearby && (
+        <Button
+          className="world-nearby-action"
+          variant="outline"
+          aria-label={t('world.interaction_action', {
+            activity: props.nearbyLabel ?? t('world.zones.' + snapshot.zone),
+          })}
+          title={props.nearbyLabel ?? t('world.zones.' + snapshot.zone)}
+          onClick={() => command(runtime => runtime.interact())}
+        >
+          <MousePointerClick className="size-4" aria-hidden="true" />
+        </Button>
+      )}
+      {!compact && <WorldTools {...props} />}
+    </div>
   );
 }
 

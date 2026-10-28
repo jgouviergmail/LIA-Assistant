@@ -14,11 +14,13 @@ from src.core.constants import (
     REDIS_KEY_WORLD_RUNTIME_PREFIX,
 )
 from src.domains.world.collision import SCENE
-from src.domains.world.configuration import configured_authority
+from src.domains.world.configuration import configured_authority, configured_game_limits
+from src.domains.world.game_erasure import has_game_account, purge_game_account
+from src.domains.world.legacy_state import LegacyWorldStore, LegacyWorldStoreV2
 from src.domains.world.mailbox import WorldMailbox
 from src.domains.world.public_mailbox import PublicMailbox
-from src.domains.world.schemas import WorldState
-from src.domains.world.store import WorldStore, WorldUnavailable
+from src.domains.world.schemas import WorldState, WorldStateShape
+from src.domains.world.store import AuthorityStore, WorldStore, WorldUnavailable
 from src.infrastructure.cache.redis import get_redis_cache
 
 logger = structlog.get_logger(__name__)
@@ -49,6 +51,7 @@ async def purge_world_account(redis: Redis, account: str) -> None:
         state.actors.pop(account, None)
         state.presences.pop(account, None)
         state.queue = [waiter for waiter in state.queue if waiter.account_id != account]
+        purge_game_account(state, account, now, configured_game_limits())
         authority.prune(state, now)
 
     async with asyncio.timeout(settings.world_policy_timeout + settings.world_authority_timeout):
@@ -66,16 +69,82 @@ async def purge_world_account(redis: Redis, account: str) -> None:
             )
             try:
                 state, _ = await store.read()
-            except WorldUnavailable, ValidationError:
-                logger.warning("world_cleanup_corrupt_authority")
+            except ValidationError:
+                await _purge_legacy(redis, namespace, scene, account)
                 continue
-            if (
-                account in state.actors
-                or account in state.presences
-                or any(w.account_id == account for w in state.queue)
-            ):
+            except WorldUnavailable as unavailable:
+                # Read-side, only the byte ceiling raises it: the record is oversized.
+                logger.warning("world_cleanup_authority_unreadable", error_code=unavailable.code)
+                continue
+            if _has_account(state, account):
                 await store.update(remove)
         await _purge_messages(redis, account)
+        await _purge_game_rate(redis, account)
+
+
+async def _purge_game_rate(redis: Redis, account: str) -> None:
+    """Erase the owner's short-lived distributed command counters without touching peers."""
+    async for raw in redis.scan_iter(
+        match=f"{REDIS_KEY_WORLD_RUNTIME_PREFIX}*:game-rate:{account}", count=100
+    ):
+        key = raw.decode() if isinstance(raw, bytes) else raw
+        await redis.delete(key)
+
+
+def _has_account(state: WorldStateShape, account: str) -> bool:
+    """Share the complete bounded actor/presence/queue erasure predicate across generations."""
+    if isinstance(state, WorldState) and has_game_account(state, account):
+        return True
+    return (
+        account in state.actors
+        or account in state.presences
+        or any(waiter.account_id == account for waiter in state.queue)
+    )
+
+
+async def _purge_legacy(redis: Redis, namespace: str, scene: str, account: str) -> None:
+    """Try only declared older generations, preserving each original nested field set.
+
+    Each outcome is logged as what it is: an oversized record or a contended commit
+    is unavailable, and only a record no declared generation reads is corrupt.
+    """
+    try:
+        if await _erase_legacy(
+            LegacyWorldStore(
+                redis, namespace=namespace, ttl=settings.world_state_seconds, scene=scene or None
+            ),
+            account,
+        ):
+            return
+        if await _erase_legacy(
+            LegacyWorldStoreV2(
+                redis, namespace=namespace, ttl=settings.world_state_seconds, scene=scene or None
+            ),
+            account,
+        ):
+            return
+    except WorldUnavailable as unavailable:
+        logger.warning("world_cleanup_authority_unavailable", error_code=unavailable.code)
+        return
+    logger.warning("world_cleanup_corrupt_authority")
+
+
+async def _erase_legacy[State: WorldStateShape](store: AuthorityStore[State], account: str) -> bool:
+    """Perform generation-typed erasure without invoking current actor/game pruning."""
+
+    def remove(state: State, _now: float) -> None:
+        """Remove only the requested account without applying newer scene transitions."""
+        state.actors.pop(account, None)
+        state.presences.pop(account, None)
+        state.queue = [waiter for waiter in state.queue if waiter.account_id != account]
+
+    try:
+        state, _ = await store.read()
+        if _has_account(state, account):
+            await store.update(remove)
+        return True
+    except ValidationError:
+        return False
 
 
 async def _purge_messages(redis: Redis, account: str) -> None:

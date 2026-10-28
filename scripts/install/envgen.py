@@ -12,6 +12,7 @@ from __future__ import annotations
 import base64
 import os
 import secrets
+import socket
 import stat
 import time
 from collections.abc import Collection, Mapping
@@ -53,6 +54,7 @@ ANSWER_DERIVED_KEYS: frozenset[str] = frozenset(
         "WORLD_ENABLED",
         "GRAFANA_ADMIN_USER",
         "GRAFANA_ADMIN_PASSWORD",
+        "OBSERVABILITY_HOST",
         "DIAGNOSTICS_WEBHOOK_SECRET",
         "ALERTMANAGER_LIA_WEBHOOK_URL",
     }
@@ -180,11 +182,17 @@ def derive_environment(
     in_force = _parse_env_text(current_env)
     grafana_user = in_force.get("GRAFANA_ADMIN_USER", "")
     grafana_password = in_force.get("GRAFANA_ADMIN_PASSWORD", "")
+    # Compose falls back to COMPUTERNAME, then HOSTNAME, which a Linux shell
+    # does not export: without a name every alert of this install reads
+    # "unknown". An operator's own value always survives.
+    observability_host = in_force.get("OBSERVABILITY_HOST", "")
     if public.observability:
         if not _grafana_credential_is_configured(grafana_user):
             grafana_user = "admin"
         if not _grafana_credential_is_configured(grafana_password):
             grafana_password = secrets.token_urlsafe(32)
+        if not observability_host:
+            observability_host = socket.gethostname()
     return {
         "ENVIRONMENT": "production",
         "DEBUG": "false",
@@ -200,6 +208,7 @@ def derive_environment(
         "NEXT_PUBLIC_FIREBASE_VAPID_KEY": "",
         "GRAFANA_ADMIN_USER": grafana_user,
         "GRAFANA_ADMIN_PASSWORD": grafana_password,
+        "OBSERVABILITY_HOST": observability_host,
         **{key: generated[key] for key in GENERATED_SECRET_KEYS},
         "POSTGRES_USER": "lia",
         "POSTGRES_DB": "lia",
@@ -307,6 +316,9 @@ def render_reconfigured_env(current_env: str, environment: Mapping[str, str]) ->
     for key in ("GRAFANA_ADMIN_USER", "GRAFANA_ADMIN_PASSWORD"):
         if _grafana_credential_is_configured(in_force.get(key, "")):
             values[key] = in_force[key]
+    # An operator's own alert host name survives every reconfiguration.
+    if in_force.get("OBSERVABILITY_HOST"):
+        values["OBSERVABILITY_HOST"] = in_force["OBSERVABILITY_HOST"]
     secret_in_force = in_force.get("DIAGNOSTICS_WEBHOOK_SECRET", "")
     if values.get("DIAGNOSTICS_WEBHOOK_SECRET") and secret_in_force:
         values["DIAGNOSTICS_WEBHOOK_SECRET"] = secret_in_force

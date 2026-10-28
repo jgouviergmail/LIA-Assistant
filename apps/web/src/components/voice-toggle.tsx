@@ -1,5 +1,7 @@
 'use client';
 
+import { useHydrated } from '@/hooks/useHydrated';
+
 /**
  * The voice icon of the header: the spoken-replies toggle — and, when the
  * live mode is offered to this account (ADR-299, wave 2 spec A1), a menu
@@ -246,12 +248,9 @@ export function VoiceToggle({
   const { t } = useTranslation(lng);
   const state = useSpokenRepliesToggle(lng);
   const live = useLiveAvailability();
-  const [mounted, setMounted] = React.useState(false);
+  const mounted = useHydrated();
 
   // Avoid hydration mismatch
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Show placeholder during SSR
   if (!mounted) {

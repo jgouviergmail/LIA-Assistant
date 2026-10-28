@@ -7,6 +7,8 @@ export interface SessionDialogState {
 }
 /** An absent actor needs admission; takeover can only act on a present actor or queue entry. */
 export function sessionDialogState(p: SessionPresentation): SessionDialogState {
+  if (p.connection === 'outdated')
+    return { title: 'outdated', hint: 'outdated_hint', offered: false, action: null };
   if (p.connection !== 'online')
     return { title: p.connection, hint: 'connection_hint', offered: false, action: null };
   if (p.admission === 'absent')

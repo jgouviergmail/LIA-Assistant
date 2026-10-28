@@ -419,9 +419,9 @@
     },
     "t.world": {
       "name": "等距世界与原生控制",
-      "role": "浏览器绘制有界 Canvas 场景；Redis 仲裁准入、排队和移动，故障时暂停指令。原生面板保留权限与审批。临时文字留在 Redis 中；PostgreSQL 为计费尝试设置持久边界，不保存其内容。",
+      "role": "浏览器绘制有界 Canvas 场景；Redis 仲裁准入、排队、移动、动作和街机对局，故障时暂停指令。原生面板保留权限与审批。临时文字留在 Redis 中；PostgreSQL 为计费尝试设置持久边界，不保存其内容。照片是经过许可的投影，绝不是屏幕截图。",
       "stack": ["Canvas 2D", "WebSocket", "Redis CAS", "PostgreSQL", "LIA"],
-      "src": "1c146d5b9f21"
+      "src": "b2d40a86066c"
     }
   },
   "flows": {

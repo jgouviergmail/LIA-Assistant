@@ -1,15 +1,19 @@
 import { project } from '../geometry';
 import type { WorldProp } from '../types';
+import type { Season } from '../season';
+import { seasonalPalette } from './seasonal-palette';
+import { hasDecorScreen } from '../decor-presentation';
 
 /** Two falling petals per visible blossom tree. No emitter, retained particles or timers. */
 export function paintGardenMotion(
   c: CanvasRenderingContext2D,
   prop: WorldProp,
-  time: number
+  time: number,
+  season: Season = 'neutral'
 ): void {
-  if (prop.kind !== 'tree' || prop.tone !== 'clay') return;
+  if (prop.kind !== 'tree' || prop.tone !== 'clay' || season === 'winter') return;
   c.save();
-  c.fillStyle = '#f4b0ce';
+  c.fillStyle = season === 'neutral' ? '#f4b0ce' : seasonalPalette(season).blossom;
   for (let i = 0; i < 2; i++) {
     const phase = (time * 0.13 + prop.x * 0.17 + prop.y * 0.11 + i * 0.5) % 1;
     const at = project(
@@ -28,7 +32,7 @@ export function paintScreenMotion(
   prop: WorldProp,
   time: number
 ): void {
-  if (prop.kind !== 'desk' || prop.tone === 'sage') return;
+  if (prop.kind !== 'desk' || !hasDecorScreen(prop)) return;
   const at = project({ x: prop.x + 0.77 + (prop.width - 1.2) / 2, y: prop.y + 0.24 }, 1.2);
   c.save();
   c.globalAlpha = 0.35 + Math.sin(time * 1.5) * 0.15;

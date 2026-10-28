@@ -4,24 +4,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import type { UseBriefingResult } from '@/hooks/useBriefing';
 
-const briefing = vi.hoisted(() => ({
-  failed: false,
-  text: undefined as UseBriefingResult['text'],
-}));
-vi.mock('@/hooks/useBriefing', () => ({
-  useBriefing: () => ({
-    cards: null,
-    windows: null,
-    text: briefing.text,
-    cardsLoading: !briefing.failed,
-    textLoading: !briefing.failed,
-    error: briefing.failed ? new Error('down') : null,
-    refetchAll: vi.fn(),
-    refetchSection: vi.fn(),
-    invalidateSection: vi.fn(),
-    refreshingSections: new Set(),
-  }),
-}));
 vi.mock('@/hooks/useBriefingPreferences', () => ({
   useBriefingPreferences: () => ({ preferences: null }),
 }));
@@ -48,6 +30,32 @@ import { TodayBriefing } from '../TodayBriefing';
 
 const LEAD_IN = <section aria-label="radio" />;
 
+const TEXT: UseBriefingResult['text'] = {
+  greeting: { text: 'Hello', generated_at: '2026-10-15T08:00:00Z', usage: null },
+  synthesis: { text: 'The daily point', generated_at: '2026-10-15T08:00:00Z', usage: null },
+};
+
+/** The controller the dashboard hands down: still loading, or failed with nothing to show. */
+function briefing({
+  failed = false,
+  text,
+}: { failed?: boolean; text?: UseBriefingResult['text'] } = {}): UseBriefingResult {
+  return {
+    cards: undefined,
+    windows: undefined,
+    text,
+    loading: !failed,
+    cardsLoading: !failed,
+    textLoading: !failed,
+    textUnavailable: false,
+    error: failed ? new Error('down') : null,
+    refetchAll: async () => {},
+    refetchSection: async () => {},
+    invalidateSection: async () => {},
+    refreshingSections: new Set(),
+  };
+}
+
 /** Whether `later` comes after `earlier` in the document. */
 function follows(earlier: Element, later: Element): boolean {
   return Boolean(earlier.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING);
@@ -55,8 +63,7 @@ function follows(earlier: Element, later: Element): boolean {
 
 describe('TodayBriefing lead-in', () => {
   it('sits once immediately below the welcome, before shortcuts', () => {
-    briefing.failed = false;
-    renderWithProviders(<TodayBriefing aboveBriefing={LEAD_IN} />);
+    renderWithProviders(<TodayBriefing briefing={briefing()} aboveBriefing={LEAD_IN} />);
     const hero = screen.getByRole('region', { name: 'hero' });
     const quickAccess = screen.getByRole('navigation', { name: 'quick access' });
     const radio = screen.getByRole('region', { name: 'radio' });
@@ -70,8 +77,9 @@ describe('TodayBriefing lead-in', () => {
   });
 
   it('stays once below the date when the briefing fails', () => {
-    briefing.failed = true;
-    renderWithProviders(<TodayBriefing aboveBriefing={LEAD_IN} />);
+    renderWithProviders(
+      <TodayBriefing briefing={briefing({ failed: true })} aboveBriefing={LEAD_IN} />
+    );
     const quickAccess = screen.getByRole('navigation', { name: 'quick access' });
     const radio = screen.getByRole('region', { name: 'radio' });
     const failure = screen.getByRole('region', { name: 'briefing error' });
@@ -82,20 +90,19 @@ describe('TodayBriefing lead-in', () => {
   });
 
   it('preserves the radio node and focus through total failure and recovery', () => {
-    briefing.failed = false;
-    briefing.text = undefined;
     const leadIn = (
       <section aria-label="radio">
         <button type="button">Listen</button>
       </section>
     );
-    const { rerender } = renderWithProviders(<TodayBriefing aboveBriefing={leadIn} />);
+    const { rerender } = renderWithProviders(
+      <TodayBriefing briefing={briefing()} aboveBriefing={leadIn} />
+    );
     const radio = screen.getByRole('region', { name: 'radio' });
     const listen = screen.getByRole('button', { name: 'Listen' });
     listen.focus();
     for (const failed of [true, false]) {
-      briefing.failed = failed;
-      rerender(<TodayBriefing aboveBriefing={leadIn} />);
+      rerender(<TodayBriefing briefing={briefing({ failed })} aboveBriefing={leadIn} />);
       expect(screen.getAllByRole('region', { name: 'radio' })).toHaveLength(1);
       expect(screen.getByRole('region', { name: 'radio' })).toBe(radio);
       expect(follows(screen.getByRole('heading', { level: 1 }), radio)).toBe(true);
@@ -104,17 +111,14 @@ describe('TodayBriefing lead-in', () => {
   });
 
   it('renders nothing extra when the page gives no lead-in', () => {
-    briefing.failed = false;
-    renderWithProviders(<TodayBriefing />);
+    renderWithProviders(<TodayBriefing briefing={briefing()} />);
     expect(screen.queryByRole('region', { name: 'radio' })).not.toBeInTheDocument();
   });
 
   it('keeps a single synthesis below the dashboard heading even on a refresh error', () => {
-    briefing.text = {
-      greeting: { text: 'Hello', generated_at: '2026-10-15T08:00:00Z', usage: null },
-      synthesis: { text: 'The daily point', generated_at: '2026-10-15T08:00:00Z', usage: null },
-    };
-    const { rerender } = renderWithProviders(<TodayBriefing aboveBriefing={LEAD_IN} />);
+    const { rerender } = renderWithProviders(
+      <TodayBriefing briefing={briefing({ text: TEXT })} aboveBriefing={LEAD_IN} />
+    );
     const point = screen.getByRole('region', { name: 'synthesis' });
     const hero = screen.getByRole('region', { name: 'hero' });
     expect(hero).not.toContainElement(point);
@@ -122,11 +126,11 @@ describe('TodayBriefing lead-in', () => {
     expect(
       follows(screen.getByRole('heading', { name: 'dashboard.briefing.section_title' }), point)
     ).toBe(true);
-    briefing.failed = true;
-    rerender(<TodayBriefing aboveBriefing={LEAD_IN} />);
+    rerender(
+      <TodayBriefing briefing={briefing({ failed: true, text: TEXT })} aboveBriefing={LEAD_IN} />
+    );
     expect(screen.getAllByRole('region', { name: 'synthesis' })).toHaveLength(1);
     expect(screen.getByRole('region', { name: 'synthesis' })).toBe(point);
     expect(screen.getByRole('region', { name: 'radio' })).toBeInTheDocument();
-    briefing.text = undefined;
   });
 });

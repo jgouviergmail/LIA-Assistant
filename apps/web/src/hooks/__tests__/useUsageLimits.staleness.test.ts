@@ -42,6 +42,15 @@ const makeLimits = (reason: string) => ({
 });
 
 describe('useUsageLimits staleness guard (F037)', () => {
+  it('cannot restart a hidden or unmounted reader through a retained refresh callback', async () => {
+    h.get.mockResolvedValue(makeLimits('A'));
+    const { result, unmount } = renderHook(() => useUsageLimits());
+    await waitFor(() => expect(h.get).toHaveBeenCalledOnce());
+    const refresh = result.current.refetch;
+    unmount();
+    await refresh();
+    expect(h.get).toHaveBeenCalledOnce();
+  });
   beforeEach(() => {
     h.get.mockReset();
   });

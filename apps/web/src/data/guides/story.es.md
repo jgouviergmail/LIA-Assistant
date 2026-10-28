@@ -4,7 +4,7 @@
 
 **Versión**: 2.6
 **Fecha**: 2026-10-23
-**Aplicación**: LIA v4.0.0
+**Aplicación**: LIA v4.1.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | Indicador | Valor |
 | --- | --- |
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
-| Líneas de código fuente (sin tests) — 60 paquetes de dominio backend | **1.038.000+** |
-| Pruebas automatizadas inventariadas; suites adecuadas para cada commit y entrega | **68.000+** |
+| Líneas de código fuente (sin tests) — 60 paquetes de dominio backend | **1.051.000+** |
+| Pruebas automatizadas inventariadas; suites adecuadas para cada commit y entrega | **69.000+** |
 | Decisiones de arquitectura documentadas (ADR) | **363** |
-| Versiones entregadas a ritmo regular | **290** |
+| Versiones entregadas a ritmo regular | **291** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **7,9/10** |
 
@@ -72,6 +72,8 @@ El proyecto se conduce ahora con varios agentes de desarrollo en paralelo — ca
 Un mundo compartido da a la asistente un vocabulario de lugares: biblioteca para el conocimiento, sala multimedia para crear, jardín para explorar juntos. La decisión de ingeniería útil es qué atraviesa cada límite. Un avatar público expresa una elección; no expone el contexto de la asistente ni la casa privada. Una sala abre una herramienta existente sin conceder otro permiso.
 
 La conversación sigue la misma lógica. Los mensajes humanos tienen una vida temporal y separada. La traducción se elige y contabiliza; movimiento y dibujo no llaman a ningún modelo. Una interfaz más rica sigue siendo gobernable si sus costes, propiedad y confirmaciones conservan el mismo significado.
+
+El juego sigue la misma regla. El servidor confirma las jugadas de una partida y el ordenador rival es una búsqueda acotada, no un modelo; una foto se dibuja a partir de lo que la persona eligió mostrar, nunca se copia de la pantalla.
 
 ---
 

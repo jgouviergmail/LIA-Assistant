@@ -6,7 +6,7 @@
 
 **Version**: 5.6
 **Date**: 2026-10-23
-**Application**: LIA v4.0.0
+**Application**: LIA v4.1.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -73,8 +73,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), credentials encrypted with Fernet, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 635 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 363 ADRs, 68,000+ automated backend and frontend tests, native observability, 6-level HITL |
+| Full transparency | 640 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 363 ADRs, 69,000+ automated backend and frontend tests, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -92,11 +92,11 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 68,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
+| Tests | 69,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 1,391, 58 of them shared through conftest |
 | Documentation documents | 835 |
 | ADRs (Architecture Decision Records) | 363 |
-| Prometheus metrics | 635 definitions |
+| Prometheus metrics | 640 definitions |
 | Grafana dashboards | 32 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -125,8 +125,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Technology | Version | Role |
 |------------|---------|------|
-| Next.js | 16.4.1 | App Router, SSR, ISR |
-| React | 19.3.0 | UI with Server Components |
+| Next.js | 16.4.2 | App Router, SSR, ISR |
+| React | 19.3.1 | UI with Server Components |
 | TypeScript | 6.0.3 | Strict typing |
 | TailwindCSS | 4.3.3 | Utility-first CSS |
 | TanStack Query | 5.x | Server state management, cache, mutations |
@@ -1166,7 +1166,7 @@ Third-party content travels in an envelope the model knows not to obey; its tag 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 635 custom metrics (RED pattern) |
+| Prometheus | 640 custom metrics (RED pattern) |
 | Grafana | 32 production-ready dashboards |
 | Loki | Aggregated structured JSON logs, collected by Grafana Alloy (the same redaction at collection) |
 | Tempo | Cross-service distributed traces (OTLP gRPC), named by the route template |
@@ -1174,7 +1174,7 @@ Third-party content travels in an envelope the model knows not to obey; its tag 
 | Alertmanager | Vital alert core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 635 defined; the ones that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. Without that guard, a heartbeat source failing open can drop part of the health signals for days with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 640 defined; the ones that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. Without that guard, a heartbeat source failing open can drop part of the health signals for days with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1482,7 +1482,7 @@ The full application to weather (`gettext.gettext(text, language)` propagated ex
 
 ### 23.11. Observability architecture
 
-Observability rests on three pillars: **defensive emission** on the critical path, pre-wired **Grafana dashboards** (32 dashboards / 847 panels covering app, infra and every business sub-system), and **DB-backed gauges** maintained by a periodic updater.
+Observability rests on three pillars: **defensive emission** on the critical path, pre-wired **Grafana dashboards** (33 dashboards / 861 panels covering app, infra and every business sub-system), and **DB-backed gauges** maintained by a periodic updater.
 
 A 26th dashboard turns this telemetry into a product cockpit (ADR-178): outcomes are validated E1 (explicit user confirmation) or E2 (an action left uncorrected through a full behavioral window), the exact deduplicated counting lives in PostgreSQL — mutable states can never be derived from Prometheus counters — and Grafana reads it through a read-only role restricted to aggregate views with a pinned statement timeout.
 
@@ -2028,6 +2028,12 @@ The world offers another interface to the existing assistant: an authored isomet
 
 **Human text has its own lifetime.** Temporary private Redis bodies and content-free SQL attempt fences separate direct messages from assistant history and learning. The dedicated `world_message_translator` slot follows native model resolution, spend controls and private usage receipts. Only an explicit choice starts a paid translation; the original is preserved, and a failed or uncertain attempt is never retried automatically. The server validates strict versioned messages and bounded sizes. Browser tests and automated accessibility checks support the WCAG AA target; they do not certify physical-device performance or a supplier’s linguistic fidelity. Peer voice and federation remain outside this implementation.
 
+**Games have an authority too.** Each cabinet binds one deterministic rule engine — tic-tac-toe, four-in-a-row or Reversi — and the Redis authority that arbitrates movement also owns consent, moves, results, deadlines and rematches. A joining player is admitted only by the host’s explicit acceptance. Every command carries its round, revision, controller and operation identity, so an uncertain acknowledgement is retried exactly and never replays a move on a new board. The computer is a bounded local search with a legal fallback, prepared before any lock is taken; it calls no model. Only current participants receive the board, and account erasure removes memberships, requests and receipts.
+
+**A photo is a projection, not a screenshot.** Copying the live Canvas would capture visitors and overlays, so an allowlisted still — the owner’s appearance and pose, LIA, the camera and public scenery — is drawn by an independent renderer and exported as a bounded JPEG with a fixed signature. The mobile shells advertise a native share capability, validate the bytes and keep them in a private expiring cache; nothing is uploaded.
+
+**Gestures and signals stay finite.** Six gestures are confirmed by the server and rate-limited. Objects show bounded counts of the owner’s own reminders, messages, tickets and generated files, read through the native endpoints. Seasons, decor reactions and LIA’s expression are local presentation: they persist nothing and call no provider.
+
 The **Everyone channel** freezes eligible live recipients when a message is accepted, excluding blocked accounts and private homes. Late arrivals do not receive old broadcasts. Translation batches the required languages through the same dedicated slot, with sender-paid accounting and no automatic paid replay. Public and private threads retain separate drafts, consent and read positions.
 
 **Optional local sound** uses static original room and garden assets with a separate account-scoped volume. Playback starts by choice, makes no provider call and yields to microphone, assistant voice, Live and Radio. Leaving, backgrounding or losing authority suspends the sound lifecycle.
@@ -2038,8 +2044,8 @@ The **Everyone channel** freezes eligible live recipients when a message is acce
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 363 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 68,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 363 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 69,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (800+ documents), 363 ADRs, and the changelog (v1.0 to v4.0.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (800+ documents), 363 ADRs, and the changelog (v1.0 to v4.1.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

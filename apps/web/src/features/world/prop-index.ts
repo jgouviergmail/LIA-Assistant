@@ -1,6 +1,11 @@
 import { project } from './geometry';
 import { spriteFrame } from './art/painter';
 import type { Rect, WorldProp } from './types';
+import { cosmeticPropTarget } from './cosmetic-interactions';
+
+export function hasPickSurface(prop: WorldProp): boolean {
+  return prop.height >= 0.1 || cosmeticPropTarget(prop) !== null;
+}
 
 interface Entry {
   prop: WorldProp;
@@ -33,7 +38,7 @@ export class WorldPropIndex {
   private buckets = new Map<string, Entry[]>();
   constructor(props: readonly WorldProp[]) {
     for (const [order, prop] of props.entries()) {
-      if (prop.height < 0.1) continue;
+      if (!hasPickSurface(prop)) continue;
       const at = project(prop),
         frame = spriteFrame(prop.width, prop.depth, Math.max(prop.height, 2.5));
       const bounds = {

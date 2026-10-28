@@ -9,6 +9,7 @@ reached from the internal Docker network.
 import argparse
 import base64
 import json
+import re
 import secrets
 import subprocess
 import sys
@@ -23,6 +24,27 @@ LABEL = "world-proof"
 NETWORK = "lia-world-qa"
 ACCESS_NETWORK = "lia-world-qa-access"
 NAMES = {part: f"lia-world-qa-{part}" for part in ("web", "api", "redis", "postgres")}
+INSTANCE = ""
+
+
+def configure_instance(instance: str) -> None:
+    """Select a bounded independent proof resource set without touching the default proof."""
+    global INSTANCE, NETWORK, ACCESS_NETWORK, NAMES
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,31}", instance):
+        raise ValueError("invalid proof instance")
+    # `access` and the part names would rebuild a DEFAULT resource name
+    # (`lia-world-qa-access`, `lia-world-qa-api`…) for this instance.
+    if instance in {"access", *NAMES}:
+        raise ValueError("reserved proof instance")
+    INSTANCE = instance
+    NETWORK = f"lia-world-qa-{instance}"
+    ACCESS_NETWORK = f"{NETWORK}-access"
+    NAMES = {part: f"{NETWORK}-{part}" for part in ("web", "api", "redis", "postgres")}
+
+
+def ownership_labels() -> list[str]:
+    """Label new resources with both proof purpose and the selected independent lifetime."""
+    return ["--label", f"lia.task={LABEL}", "--label", f"lia.instance={INSTANCE}"]
 
 
 def docker(*args: str) -> str:
@@ -57,7 +79,11 @@ def require_owned(name: str, kind: str = "container") -> None:
         if kind == "container"
         else metadata.get("Labels", {})
     )
-    if (labels or {}).get("lia.task") != LABEL:
+    # The default proof owns only unlabelled-instance resources: an instance
+    # resource never answers to the default proof, nor the reverse.
+    if (labels or {}).get("lia.task") != LABEL or (labels or {}).get(
+        "lia.instance", ""
+    ) != INSTANCE:
         raise RuntimeError(f"Refusing {name}: ownership label differs")
 
 
@@ -174,6 +200,8 @@ def start(mode: str, port: int, api_image: str, web_image: str) -> None:
         )
     )["services"]
     work = ROOT / ".tmp/world-proof"
+    if INSTANCE:
+        work = work / INSTANCE
     work.mkdir(parents=True, exist_ok=True)
     environment = proof_environment()
     origin = f"http://127.0.0.1:{port}"
@@ -187,14 +215,13 @@ def start(mode: str, port: int, api_image: str, web_image: str) -> None:
     common = [
         "--network",
         NETWORK,
-        "--label",
-        f"lia.task={LABEL}",
+        *ownership_labels(),
         "--security-opt",
         "no-new-privileges:true",
     ]
     try:
-        docker("network", "create", "--internal", "--label", f"lia.task={LABEL}", NETWORK)
-        docker("network", "create", "--label", f"lia.task={LABEL}", ACCESS_NETWORK)
+        docker("network", "create", "--internal", *ownership_labels(), NETWORK)
+        docker("network", "create", *ownership_labels(), ACCESS_NETWORK)
         docker(
             "run",
             "-d",
@@ -299,8 +326,7 @@ def start(mode: str, port: int, api_image: str, web_image: str) -> None:
             NAMES["web"],
             "--network",
             ACCESS_NETWORK,
-            "--label",
-            f"lia.task={LABEL}",
+            *ownership_labels(),
             "--security-opt",
             "no-new-privileges:true",
             "-p",
@@ -382,7 +408,7 @@ def integration() -> None:
     code = (
         "import os,subprocess,sys; "
         "os.environ['TEST_DATABASE_URL']=os.environ['DATABASE_URL'].replace('/world_qualification','/world_test'); "
-        "os.environ['TEST_REDIS_URL']=os.environ['REDIS_URL'].removesuffix('/0')+'/15'; "
+        "os.environ['TEST_REDIS_URL']=os.environ['REDIS_URL'].rsplit('/',1)[0]+'/15'; "
         "os.environ['LIA_REQUIRE_DB']='1'; "
         "sys.exit(subprocess.call([sys.executable,'-m','pytest','tests/integration/world','--no-cov','-q','-o','addopts=']))"
     )
@@ -397,7 +423,13 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=3012)
     parser.add_argument("--api-image", default="lia-api-dev:latest")
     parser.add_argument("--web-image", default="lia-web-dev:latest")
+    parser.add_argument("--instance-id", help="Independent lowercase proof lifetime (1–32 chars).")
     args = parser.parse_args()
+    if args.instance_id is not None:
+        try:
+            configure_instance(args.instance_id)
+        except ValueError as exc:
+            parser.error(str(exc))
     if not 1024 <= args.port <= 65535:
         parser.error("port must be between 1024 and 65535")
     if args.action == "start":

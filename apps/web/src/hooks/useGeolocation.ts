@@ -160,6 +160,7 @@ export const useGeolocation = () => {
           };
 
           saveCachedCoordinates(coords);
+          setRetryCount(0);
 
           setState(prev => ({
             ...prev,
@@ -444,15 +445,6 @@ export const useGeolocation = () => {
     retryCount,
     requestGeolocation,
   ]);
-
-  /**
-   * Reset retry count when coordinates are successfully obtained.
-   */
-  useEffect(() => {
-    if (state.coordinates) {
-      setRetryCount(0);
-    }
-  }, [state.coordinates]);
 
   return {
     ...state,

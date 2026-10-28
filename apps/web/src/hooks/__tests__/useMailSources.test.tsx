@@ -68,7 +68,9 @@ describe('useGmailLabels', () => {
     get.mockResolvedValue([{ id: 'Label_1', name: 'Projects' }]);
     const { result } = renderHook(() => useGmailLabels('space-1', true));
     await waitFor(() => expect(result.current.labels).toHaveLength(1));
-    expect(get).toHaveBeenCalledWith('/rag-spaces/space-1/mail-labels');
+    expect(get).toHaveBeenCalledWith('/rag-spaces/space-1/mail-labels', {
+      signal: expect.any(AbortSignal),
+    });
     expect(result.current.error).toBeNull();
   });
 
@@ -78,5 +80,46 @@ describe('useGmailLabels', () => {
     await waitFor(() => expect(result.current.error).toBe('failed'));
     expect(result.current.labels).toEqual([]);
     expect(result.current.loading).toBe(false);
+  });
+
+  it('stops asking Gmail at the transport when the picker closes', async () => {
+    get.mockImplementation(() => new Promise(() => {}));
+    const { rerender } = renderHook(({ open }) => useGmailLabels('space-1', open), {
+      initialProps: { open: true },
+    });
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(1));
+    const [, { signal }] = get.mock.calls[0] as [string, { signal: AbortSignal }];
+    expect(signal.aborted).toBe(false);
+
+    rerender({ open: false });
+
+    expect(signal.aborted).toBe(true);
+  });
+
+  it('lets the retry supersede the read in flight, whose late answer is dropped', async () => {
+    const answers: ((labels: { id: string; name: string }[]) => void)[] = [];
+    get.mockImplementation(() => new Promise(resolve => answers.push(resolve)));
+    const { result } = renderHook(() => useGmailLabels('space-1', true));
+    await waitFor(() => expect(answers).toHaveLength(1));
+
+    act(() => result.current.refetch());
+
+    await waitFor(() => expect(answers).toHaveLength(2));
+    const [, { signal: first }] = get.mock.calls[0] as [string, { signal: AbortSignal }];
+    expect(first.aborted).toBe(true);
+    await act(async () => answers[1]([{ id: 'Label_2', name: 'Invoices' }]));
+    await act(async () => answers[0]([{ id: 'Label_1', name: 'Stale' }]));
+    expect(result.current.labels).toEqual([{ id: 'Label_2', name: 'Invoices' }]);
+    expect(result.current.loading).toBe(false);
+  });
+
+  it('sends nothing when the picker is closed and its retry is pressed', async () => {
+    const { result } = renderHook(() => useGmailLabels('space-1', false));
+    await act(async () => {});
+
+    act(() => result.current.refetch());
+    await act(async () => {});
+
+    expect(get).not.toHaveBeenCalled();
   });
 });

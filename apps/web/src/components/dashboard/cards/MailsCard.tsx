@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
 import { CardItemRow } from './CardItemRow';
 import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
-import { openChatDeepLink } from '@/lib/chat-deep-link';
+import { useDashboardChat, useDashboardRoute } from '../DashboardNavigation';
 import { canWatch } from '@/lib/mail-watch';
 import { useMailWatch } from '@/hooks/useMailWatch';
 import { ClassificationBadges } from '@/components/chat/ClassificationBadges';
@@ -21,7 +21,9 @@ interface MailsCardProps {
 
 export function MailsCard({ section, isRefreshing, onRefresh, staggerIndex }: MailsCardProps) {
   const router = useRouter();
+  const navigate = useDashboardRoute(router.push);
   const { i18n } = useTranslation();
+  const openChat = useDashboardChat();
   const lng = (i18n.language || 'fr').split('-')[0];
   return (
     <BriefingCard<MailsData>
@@ -32,12 +34,12 @@ export function MailsCard({ section, isRefreshing, onRefresh, staggerIndex }: Ma
       isRefreshing={isRefreshing}
       onRefresh={onRefresh}
       emptyStateKey="dashboard.briefing.cards.mails.empty"
-      onErrorCta={() => router.push(`/${lng}/dashboard/settings?section=connectors`)}
+      onErrorCta={() => navigate(`/${lng}/dashboard/settings?section=connectors`)}
       renderContent={data => (
         <MailsContent
           data={data}
-          onOpenChat={draft => openChatDeepLink(chatDraftHref(lng, draft))}
-          onExecute={intent => openChatDeepLink(chatIntentHref(lng, intent))}
+          onOpenChat={draft => openChat(chatDraftHref(lng, draft))}
+          onExecute={intent => openChat(chatIntentHref(lng, intent))}
         />
       )}
       staggerIndex={staggerIndex}
@@ -105,9 +107,15 @@ function MailsContent({
                 {
                   icon: Sparkles,
                   label: summarizeIntent,
+                  opensChat: true,
                   onSelect: () => onExecute(summarizeIntent),
                 },
-                { icon: Reply, label: replyIntent, onSelect: () => onExecute(replyIntent) },
+                {
+                  icon: Reply,
+                  label: replyIntent,
+                  opensChat: true,
+                  onSelect: () => onExecute(replyIntent),
+                },
                 // Offered only when a sender came through: a mail with neither
                 // an address nor a name gives nothing to watch FOR, and a chip
                 // whose only outcome is an error is worse than no chip.

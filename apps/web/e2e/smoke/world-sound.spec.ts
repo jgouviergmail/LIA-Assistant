@@ -1,5 +1,22 @@
 import { test, expect } from '../fixtures';
 import { installSoundOracle, installAudioProbe } from '../fixtures/world-sound';
+import { SOUND_FILES } from '../../src/features/world/audio/catalogue';
+import { cosmeticCue } from '../../src/features/world/audio/cosmetic-cues';
+import { COSMETIC_ACTIONS } from '../../src/features/world/cosmetic-interactions';
+import { WORLD } from '../../src/features/world/definition';
+
+/** The short cues are exactly what a cosmetic interaction can play, read from its own table. */
+const EFFECTS: ReadonlySet<string> = new Set(
+  [...COSMETIC_ACTIONS, 'bird' as const]
+    .flatMap(action =>
+      action === 'machine'
+        ? WORLD.props
+            .filter(prop => prop.kind === 'machine')
+            .map(prop => cosmeticCue(action, prop.id))
+        : [cosmeticCue(action)]
+    )
+    .filter(id => id !== null)
+);
 
 test('qualify actual sound decoding or explicit unsupported browser audio', async ({
   page,
@@ -57,16 +74,20 @@ test('qualify actual sound decoding or explicit unsupported browser audio', asyn
     await context.close();
     return clips;
   });
-  expect(result).toHaveLength(15);
+  // Every catalogued clip decoded, and every cue a scene can play is one of them.
+  expect(result.map(clip => clip.id).sort()).toEqual(Object.keys(SOUND_FILES).sort());
+  expect(EFFECTS.size).toBeGreaterThan(0);
+  expect([...EFFECTS].filter(id => !Object.hasOwn(SOUND_FILES, id))).toEqual([]);
   for (const clip of result) {
     expect(clip.channels, clip.id).toBe(1);
     expect(clip.encoded, clip.id).toBeLessThan(512 * 1024);
     expect(clip.decoded, clip.id).toBeLessThan(8 * 1024 * 1024);
+    const effect = EFFECTS.has(clip.id);
     expect(clip.duration, clip.id).toBeGreaterThan(
-      clip.id === 'message' ? 0.8 : clip.id === 'phone' ? 4.8 : 29.8
+      effect ? 0.45 : clip.id === 'message' ? 0.8 : clip.id === 'phone' ? 4.8 : 29.8
     );
     expect(clip.duration, clip.id).toBeLessThan(
-      clip.id === 'message' ? 1.3 : clip.id === 'phone' ? 5.3 : 30.3
+      effect ? 2.6 : clip.id === 'message' ? 1.3 : clip.id === 'phone' ? 5.3 : 30.3
     );
     expect(clip.rms, clip.id).toBeGreaterThan(0.0001);
     expect(clip.peak, clip.id).toBeLessThan(0.9);

@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent } from '@testing-library/react';
 
 const { useBriefingAudio } = vi.hoisted(() => ({ useBriefingAudio: vi.fn() }));
 vi.mock('@/hooks/useBriefingAudio', () => ({ useBriefingAudio }));
@@ -108,5 +108,26 @@ describe('BriefingSynthesis — reading and listening remain independent', () =>
     expect(listen).not.toBeDisabled();
     fireEvent.click(listen);
     expect(toggle).not.toHaveBeenCalled();
+  });
+});
+
+describe('BriefingSynthesis — « just updated » after a new synthesis', () => {
+  it('says it for a moment when a newer synthesis replaces the one shown, never at first', () => {
+    audioState();
+    vi.useFakeTimers();
+    try {
+      const { rerender } = render(<BriefingSynthesis synthesis={synthesis()} />);
+      expect(screen.queryByText('dashboard.briefing.synthesis_updated_badge')).toBeNull();
+
+      rerender(
+        <BriefingSynthesis synthesis={{ ...synthesis(), generated_at: '2026-08-20T09:00:00Z' }} />
+      );
+
+      expect(screen.getByText('dashboard.briefing.synthesis_updated_badge')).toBeInTheDocument();
+      act(() => vi.advanceTimersByTime(1500));
+      expect(screen.queryByText('dashboard.briefing.synthesis_updated_badge')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

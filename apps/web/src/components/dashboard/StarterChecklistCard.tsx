@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
+import { DashboardLink as Link } from './DashboardNavigation';
 import { CheckCircle2, Circle, ListChecks, PartyPopper, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 

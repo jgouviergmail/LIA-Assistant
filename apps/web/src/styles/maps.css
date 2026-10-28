@@ -6,7 +6,7 @@
    with a text-safe value per theme. Everything is scoped under `.lia-maps` and
    prefixed `lm-`: the app uses `data-tone` and generic class names elsewhere.
    The detail drawer is portaled out of the page, so it carries `.lia-maps`
-   itself. Imported by `components/maps/MapsShell.tsx` — only these pages load it.
+   itself. Loaded by the maps pages and the landing's functional overview.
    ============================================================================= */
 
 .lia-maps {
@@ -160,6 +160,13 @@ html:not(.dark) .lia-maps {
   color: var(--lm-ink);
   font-size: calc(15px * var(--lia-text-scale, 1));
   line-height: 1.55;
+}
+/* The shared functional overview has room for both panels and a larger diagram. */
+.lm-functional-frame {
+  width: 100%;
+  max-width: 1800px;
+  margin-inline: auto;
+  padding-inline: clamp(16px, 2vw, 40px);
 }
 .lm-tabs {
   display: flex;
@@ -363,6 +370,19 @@ html:not(.dark) .lia-maps {
 }
 
 /* ---------- overview (diagram + side panel) ---------- */
+.landing-constellation {
+  width: 100%;
+  min-width: 0;
+  margin-top: clamp(16px, 3vw, 40px);
+  color: var(--lm-ink);
+  font-size: calc(15px * var(--lia-text-scale, 1));
+  line-height: 1.55;
+  text-align: left;
+}
+.landing-constellation :focus-visible {
+  outline: 2px solid var(--lm-accent);
+  outline-offset: 2px;
+}
 .lm-overview {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 380px;
@@ -447,6 +467,26 @@ html:not(.dark) .lia-maps {
 @media (max-width: 1080px) {
   .lm-side {
     position: static;
+  }
+}
+/* Keep the functional map between its filters and journeys on both pages. */
+.lm-overview--functional {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+.lm-overview--functional > .lm-side {
+  position: static;
+  min-width: 0;
+}
+@media (min-width: 1280px) {
+  .lm-overview--functional {
+    grid-template-columns:
+      clamp(240px, calc(12.5vw + 80px), 300px)
+      minmax(0, 1fr)
+      clamp(280px, calc(25vw - 40px), 400px);
+  }
+  .lm-overview--functional > .lm-side {
+    position: sticky;
   }
 }
 .lm-card {

@@ -21,7 +21,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version Requise | Notes |
 |-------------|-----------------|-------|
-| **Node.js** | >=22.0.0 | LTS recommande |
+| **Node.js** | >=24.0.0 (web, CI) · 26.10.0 dans les images API et bac à sable | Version épinglée par empreinte dans chaque Dockerfile |
 | **pnpm** | 10.x | Workspace monorepo |
 | **Python** | 3.14 (`>=3.14,<3.15`) | async/await natif |
 
@@ -33,8 +33,8 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **Next.js** | 16.4.1 | Framework React SSR/SSG |
-| **React** | 19.3.0 | UI Library |
+| **Next.js** | 16.4.2 | Framework React SSR/SSG |
+| **React** | 19.3.1 | UI Library |
 | **TypeScript** | 6.0.3 | Type safety |
 | **Tailwind CSS** | 4.3.3 | Utility-first CSS |
 

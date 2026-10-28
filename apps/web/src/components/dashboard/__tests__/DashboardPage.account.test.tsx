@@ -187,6 +187,8 @@ afterEach(() => {
 describe('DashboardPage consumption ownership', () => {
   it('removes the previous account counters and limits before the new account replies', async () => {
     const { rerender } = renderWithProviders(page(account('A')), { advanceTimers: true });
+    // Start the cancellable setup reads; no response is released by this flush.
+    await act(async () => {});
     await respond(reads(STATISTICS)[0], statistics(101, 1001));
     await respond(reads(LIMITS)[0], limits(13));
     expectMessages('101', '1 001');
@@ -197,6 +199,7 @@ describe('DashboardPage consumption ownership', () => {
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
     expect(screen.getByRole('status', { name: 'common.loading' })).toBeVisible();
+    await act(async () => {});
     expect(reads(STATISTICS)).toHaveLength(2);
     expect(reads(LIMITS)).toHaveLength(2);
     await respond(reads(STATISTICS)[1], statistics(202, 2002));
@@ -207,10 +210,13 @@ describe('DashboardPage consumption ownership', () => {
 
   it('ignores both former account replies when they arrive after the new account data', async () => {
     const { rerender } = renderWithProviders(page(account('A')), { advanceTimers: true });
+    // Start the cancellable setup reads; no response is released by this flush.
+    await act(async () => {});
     const oldStatistics = reads(STATISTICS)[0];
     const oldLimits = reads(LIMITS)[0];
 
     rerender(page(account('B')));
+    await act(async () => {});
 
     expect(reads(STATISTICS)).toHaveLength(2);
     expect(reads(LIMITS)).toHaveLength(2);
@@ -226,6 +232,7 @@ describe('DashboardPage consumption ownership', () => {
   it('keeps consumption and radio mounted across same-account rerenders and polling', async () => {
     const owner = account('A');
     const { rerender } = renderWithProviders(page(owner), { advanceTimers: true });
+    await act(async () => {});
     await respond(reads(STATISTICS)[0], statistics(101, 1001));
     await respond(reads(LIMITS)[0], limits(13));
     const table = screen.getByRole('table');

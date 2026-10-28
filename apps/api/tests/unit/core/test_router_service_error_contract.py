@@ -640,6 +640,12 @@ class TestAgentsRunLockContract:
                 "src.infrastructure.streaming.run_stream_broker.get_active_run",
                 new=AsyncMock(return_value=active),
             ),
+            # The operator's daily ceiling is unset (its declared default): the
+            # instance check never reaches the settings store.
+            patch(
+                "src.domains.system_settings.service.get_instance_daily_budget_eur",
+                new=AsyncMock(return_value=None),
+            ),
         ):
             with pytest.raises(ResourceConflictError) as exc_info:
                 await stream_chat(
@@ -720,6 +726,11 @@ class TestHitlRateLimitContract:
             patch(
                 "src.infrastructure.cache.redis.get_redis_cache",
                 new=AsyncMock(return_value=redis),
+            ),
+            # The operator's daily ceiling is unset (its declared default).
+            patch(
+                "src.domains.system_settings.service.get_instance_daily_budget_eur",
+                new=AsyncMock(return_value=None),
             ),
         ):
             response = await stream_chat(

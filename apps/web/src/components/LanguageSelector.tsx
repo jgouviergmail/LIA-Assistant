@@ -16,13 +16,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import {
-  languages,
-  languageNames,
-  languageFlags,
-  setLocaleCookie,
-  type Language,
-} from '@/i18n/settings';
+import { LanguageFlag } from '@/components/icons/LanguageFlag';
+import { languages, languageNames, setLocaleCookie, type Language } from '@/i18n/settings';
 import { switchLanguageInPath } from '@/utils/i18n-path-utils';
 import { useAuth } from '@/hooks/useAuth';
 import { frontendToBackendLocale } from '@/utils/locale-mapping';
@@ -90,20 +85,20 @@ export function LanguageSelector({ currentLocale }: LanguageSelectorProps) {
         <Button
           variant="ghost"
           size="sm"
-          // `min-w-11` because the trigger is a single flag glyph: the height
+          // `min-w-11` because the trigger is a single flag: the height
           // was already 44 px, the WIDTH fell to 39 and the target failed on a
           // phone (measured 2026-08-01 at 390 px).
           className="gap-2 h-11 min-w-11 px-3 max-[380px]:gap-1 max-[380px]:h-9 max-[380px]:min-w-9 max-[380px]:px-2"
           // The flag alone renders at EVERY width (owner arbitration 2026-09-03,
           // when a seventh destination joined the nav: the language name was
           // the label the row could spare — the popup names every language),
-          // and a flag emoji is not an accessible name — carry it explicitly,
+          // and a decorative flag is not an accessible name — carry it explicitly,
           // with the current value.
           aria-label={t('settings.language.selector_label', {
             name: languageNames[currentLocale].native,
           })}
         >
-          <span aria-hidden="true">{languageFlags[currentLocale]}</span>
+          <LanguageFlag language={currentLocale} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -113,7 +108,9 @@ export function LanguageSelector({ currentLocale }: LanguageSelectorProps) {
             onClick={() => handleLanguageChange(lang)}
             className={currentLocale === lang ? 'bg-accent' : ''}
           >
-            <span className="mr-2">{languageFlags[lang]}</span>
+            <span className="mr-2">
+              <LanguageFlag language={lang} />
+            </span>
             <span className="flex-1">{languageNames[lang].native}</span>
             {currentLocale === lang && (
               <span className="ml-2 text-xs text-muted-foreground">✓</span>

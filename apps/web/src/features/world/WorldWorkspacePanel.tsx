@@ -8,6 +8,7 @@ import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import type { WorldWorkspace } from './activity-catalogue';
 import { workspaceAvailable } from './activity-entry';
+import type { BoardFilters } from '@/types/workboard';
 
 function WorkspaceSkeleton() {
   return <Skeleton className="h-48 w-full" />;
@@ -39,6 +40,10 @@ const Registers = dynamic(
 const Sms = dynamic(() => import('@/components/sms/SmsArchive').then(m => m.SmsArchive), {
   loading: WorkspaceSkeleton,
 });
+const FocusedSms = dynamic(
+  () => import('@/components/sms/SmsFocusedMessage').then(m => m.SmsFocusedMessage),
+  { loading: WorkspaceSkeleton }
+);
 
 export function WorldWorkspacePanel({
   lng,
@@ -47,11 +52,17 @@ export function WorldWorkspacePanel({
   onNavigate,
   onCompose,
   initialMeetingId,
+  initialFilters,
+  initialTicketId,
+  initialMessageId,
 }: {
   lng: Language;
   ownerId: string;
-  workspace: WorldWorkspace;
+  workspace: Exclude<WorldWorkspace, 'dashboard'>;
   initialMeetingId?: string;
+  initialFilters?: BoardFilters;
+  initialTicketId?: string;
+  initialMessageId?: string;
   onNavigate: (workspace: WorldWorkspace) => void;
   onCompose: () => void;
 }) {
@@ -78,7 +89,15 @@ export function WorldWorkspacePanel({
       content = <Relations lng={lng} scrollPort={scrollPort} />;
       break;
     case 'workboard':
-      content = <Workboard lng={lng} embedded />;
+      content = (
+        <Workboard
+          key={JSON.stringify([initialFilters, initialTicketId])}
+          lng={lng}
+          embedded
+          initialFilters={initialFilters}
+          initialTicketId={initialTicketId}
+        />
+      );
       break;
     case 'meetings':
       content = (
@@ -97,7 +116,11 @@ export function WorldWorkspacePanel({
       content = <Registers lng={lng} />;
       break;
     case 'sms':
-      content = <Sms lng={lng} />;
+      content = initialMessageId ? (
+        <FocusedSms key={initialMessageId} lng={lng} messageId={initialMessageId} />
+      ) : (
+        <Sms lng={lng} />
+      );
       break;
   }
   return (

@@ -1,3 +1,4 @@
+import { cosmeticPropTarget } from '../cosmetic-interactions';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ComponentProps, ReactNode } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -7,8 +8,11 @@ import { WORLD } from '../definition';
 import { stepSimulation, type Simulation } from '../simulation';
 import type { WorldSpeech } from '../speech';
 import type { Camera } from '../types';
+import type { WorldRenderer } from '../renderer';
+import type { WorldExperienceControl } from '../useWorldExperiencePreferences';
 import type { useWorldSession } from '../useWorldSession';
 import type { useWorldSound } from '../useWorldSound';
+import { WorldGameClient } from '../game-client';
 
 const state = vi.hoisted(() => ({
   verified: true,
@@ -32,6 +36,20 @@ vi.mock('../useWorldSession', () => ({
   useWorldSession: () => ({ ...session, active: state.active, recovering: !state.active }),
 }));
 vi.mock('../useWorldEnvironment', () => ({ useWorldEnvironment: () => undefined }));
+vi.mock('../useWorldPrivateSignals', () => ({
+  useWorldPrivateSignals: (
+    ownerId: string,
+    _enabled: boolean,
+    onProactive: (notice: Notification) => void
+  ) => {
+    state.receive.set(ownerId, onProactive);
+    return { signals: [], presentation: [] };
+  },
+}));
+vi.mock('../useWorldActingSource', () => ({ useWorldActingSource: () => undefined }));
+vi.mock('../useWorldExperiencePreferences', () => ({
+  useWorldExperiencePreferences: () => experience,
+}));
 vi.mock('../useWorldSound', () => ({ useWorldSound: () => sound }));
 vi.mock('../WorldSessionDialog', () => ({ WorldSessionDialog: () => null }));
 vi.mock('../WorldHelp', () => ({ WorldHelp: () => null }));
@@ -46,6 +64,16 @@ vi.mock('../WorldHomeControls', () => ({
     <>
       <button onClick={() => onEditing(true)}>home-open</button>
       <button onClick={() => onEditing(false)}>home-close</button>
+    </>
+  ),
+}));
+vi.mock('../WorldPhotoControls', () => ({
+  WorldPhotoControls: ({
+    onOpen,
+  }: ComponentProps<typeof import('../WorldPhotoControls').WorldPhotoControls>) => (
+    <>
+      <button onClick={() => onOpen?.(true)}>photo-open</button>
+      <button onClick={() => onOpen?.(false)}>photo-close</button>
     </>
   ),
 }));
@@ -74,10 +102,12 @@ vi.mock('../WorldDeviceControls', () => ({
     ownerId,
     onOpen,
     onProactive,
+    extras,
   }: ComponentProps<typeof import('../WorldDeviceControls').WorldDeviceControls>) => {
     if (onProactive) state.receive.set(ownerId, onProactive);
     return (
       <>
+        {extras}
         <button onClick={() => onOpen(true)}>device-open</button>
         <button onClick={() => onOpen(false)}>device-close</button>
       </>
@@ -96,14 +126,36 @@ vi.mock('../WorldSpeechAnnouncements', async original => {
   };
 });
 vi.mock('../renderer', () => ({
-  WorldRenderer: class {
+  WorldRenderer: class implements Pick<WorldRenderer, keyof WorldRenderer> {
+    photoScene() {
+      return null;
+    }
+    preparePhoto() {
+      return Promise.resolve();
+    }
     drawCount = 0;
     textureBytes = 0;
+    activeCosmeticEffects = 0;
     reducedMotion = false;
+    showRoute = true;
     resize() {}
     setQuality() {}
     setHome() {}
     setAtmosphere() {}
+    setSeason() {}
+    cosmeticTarget(id: string) {
+      const prop = WORLD.props.find(item => item.id === id);
+      return prop ? cosmeticPropTarget(prop) : null;
+    }
+    cancelCosmetic() {}
+    activateCosmetic() {
+      return false;
+    }
+    pick() {
+      return null;
+    }
+    setActing() {}
+    setPrivateSignals() {}
     destroy() {}
     render(camera: Camera, sim: Simulation) {
       state.render(camera, sim);
@@ -111,6 +163,15 @@ vi.mock('../renderer', () => ({
   },
 }));
 
+const experience: WorldExperienceControl = {
+  experience: null,
+  loading: false,
+  failed: false,
+  saving: false,
+  save: async () => false,
+  refresh: async () => {},
+  reload: async () => true,
+};
 const sound: ReturnType<typeof useWorldSound> = {
   enabled: false,
   failed: false,
@@ -119,8 +180,11 @@ const sound: ReturnType<typeof useWorldSound> = {
   toggle: () => {},
   wake: () => {},
   receive: () => {},
+  effect: () => {},
 };
 const session: ReturnType<typeof useWorldSession> = {
+  arcade: new WorldGameClient(),
+  emote: () => true,
   active: true,
   recovering: false,
   driver: {
@@ -137,6 +201,9 @@ const session: ReturnType<typeof useWorldSession> = {
     offer: null,
     zone: 'arrival',
     participants: [],
+    nearbyParticipants: [],
+    pose: null,
+    epoch: null,
   },
   mailboxScope: () => null,
   pose: { available: () => true, request: () => true },
@@ -200,7 +267,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it.each(['social', 'native', 'home', 'device'])(
+it.each(['social', 'native', 'home', 'device', 'photo'])(
   'queues proactive speech while the %s panel owns attention',
   name => {
     render(<WorldShared lng="en" ownerId="owner" />);

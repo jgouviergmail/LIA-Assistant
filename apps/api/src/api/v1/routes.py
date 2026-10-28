@@ -74,6 +74,7 @@ from src.domains.voice.lia_voices_router import router as lia_voices_router
 from src.domains.voice.library_router import router as voice_library_router
 from src.domains.voice.router import router as voice_router
 from src.domains.voice.slot_selection import LibrarySpeechGuard
+from src.domains.world.configuration import configured_arcade_enabled
 from src.domains.world.router import router as world_router
 
 # The composition root wires the typed port without a llm_config -> voice import.
@@ -468,6 +469,7 @@ async def get_client_config() -> dict:
         },
         "features": {
             "world_enabled": settings.world_enabled,
+            "world_arcade_enabled": configured_arcade_enabled(),
             "interactive_route_maps_enabled": maps_config["enabled"],
             "tool_approval_enabled": True,  # NOTE: Tool approval is always enabled
             "attachments_enabled": getattr(settings, "attachments_enabled", False),

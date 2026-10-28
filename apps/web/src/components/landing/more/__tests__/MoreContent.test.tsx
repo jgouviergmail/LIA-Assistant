@@ -79,5 +79,6 @@ describe('MoreContent', () => {
     expect(screen.getByRole('link', { name: 'more.world.link' })).toHaveAttribute('href', href);
     expect(screen.getByText('more.world.privacy_body')).toBeVisible();
     expect(screen.getByText('more.world.messages_body')).toBeVisible();
+    expect(screen.getByText('more.world.play_body')).toBeVisible();
   });
 });

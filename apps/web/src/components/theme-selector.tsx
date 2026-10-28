@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useHydrated } from '@/hooks/useHydrated';
+
+import { useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { useColorTheme } from '@/lib/theme-context';
 import { Check, Palette } from 'lucide-react';
@@ -56,7 +58,7 @@ interface ThemeSelectorProps {
 export function ThemeSelector({ lng }: ThemeSelectorProps) {
   const { resolvedTheme } = useTheme();
   const { colorTheme, setColorTheme } = useColorTheme();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const { t } = useTranslation(lng);
   const { user, refreshUser } = useAuth();
 
@@ -80,9 +82,6 @@ export function ThemeSelector({ lng }: ThemeSelectorProps) {
   }, [user?.color_theme]);
 
   // Avoid flash during loading
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const isDarkMode = resolvedTheme === 'dark';
 

@@ -36,6 +36,7 @@ import {
   URGENT_ARRIVALS,
   WINK_DURATION_MS,
   deriveExpression,
+  sleepPolicyFrame,
   accessoryForExpression,
   emoteForExpression,
   gazeHoldMs,
@@ -139,18 +140,6 @@ export interface EyesBehavior {
 
 function sameFrame(a: ExpressionFrame, b: ExpressionFrame): boolean {
   return a.expression === b.expression && a.gaze?.x === b.gaze?.x && a.gaze?.y === b.gaze?.y;
-}
-
-const SLEEP_EXPRESSIONS: ReadonlySet<EyeExpression> = new Set(['tired', 'sleepy', 'sleep']);
-
-/** Apply the surface's sleep policy before mood, wake clocks and emotes see the frame. */
-function sleepPolicyFrame(
-  frame: ExpressionFrame,
-  allowSleep: boolean | undefined
-): ExpressionFrame {
-  return allowSleep === false && SLEEP_EXPRESSIONS.has(frame.expression)
-    ? { expression: 'neutral', gaze: null }
-    : frame;
 }
 
 /**

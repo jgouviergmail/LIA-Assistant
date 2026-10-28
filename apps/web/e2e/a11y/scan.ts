@@ -20,7 +20,17 @@ const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 const BLOCKING_IMPACTS = new Set(['critical', 'serious']);
 const CONTRAST_RULE = 'color-contrast';
 
-export async function scanPage(page: Page, testInfo: TestInfo, label: string) {
+/**
+ * `include` scopes the analysis to an opened surface (a dialog, a menu): a
+ * scene behind a modal is not what the journey opened, and a canvas game
+ * behind it has no DOM colours to judge. Absent, the whole document is read.
+ */
+export async function scanPage(
+  page: Page,
+  testInfo: TestInfo,
+  label: string,
+  include?: string
+) {
   // `next dev` compiles style chunks on demand: a page can be interactive
   // BEFORE the app stylesheet is applied. Scanning that unstyled window
   // yields phantom contrast violations — every <a> renders with Chromium's
@@ -47,9 +57,8 @@ export async function scanPage(page: Page, testInfo: TestInfo, label: string) {
       );
     });
 
-  const results = await new AxeBuilder({ page: page as unknown as AxePage })
-    .withTags(WCAG_TAGS)
-    .analyze();
+  const builder = new AxeBuilder({ page: page as unknown as AxePage }).withTags(WCAG_TAGS);
+  const results = await (include ? builder.include(include) : builder).analyze();
   const blocking = results.violations.filter(v => BLOCKING_IMPACTS.has(v.impact ?? ''));
 
   const report = blocking.map(v => ({
@@ -64,7 +73,12 @@ export async function scanPage(page: Page, testInfo: TestInfo, label: string) {
   }));
   await testInfo.attach(`axe-${label.replace(/\W+/g, '-')}.json`, {
     body: JSON.stringify(
-      { page: label, violations: report, passes: results.passes.length },
+      {
+        page: label,
+        scope: include ?? 'document',
+        violations: report,
+        passes: results.passes.length,
+      },
       null,
       2
     ),

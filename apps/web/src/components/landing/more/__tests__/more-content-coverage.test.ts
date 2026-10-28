@@ -63,6 +63,8 @@ const STATIC_KEYS = [
     'privacy_body',
     'messages_title',
     'messages_body',
+    'play_title',
+    'play_body',
     'link',
   ].map(key => `more.world.${key}`),
 ] as const;

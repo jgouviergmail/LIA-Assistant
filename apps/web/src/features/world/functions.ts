@@ -42,7 +42,7 @@ const PLACEMENTS: Partial<Record<SettingsSectionToken, FunctionPlace>> = {
   'scheduled-actions': 'divination',
   reminders: 'home',
   'telephony-calls': 'phone',
-  sms: 'restroom',
+  sms: 'arrival',
   meetings: 'meeting',
   'peer-connections': 'arrival',
   'user-consumption-export': 'transverse',
@@ -91,7 +91,7 @@ const ACTION_PLACES: Readonly<Record<string, FunctionPlace>> = {
   'new-routine': 'divination',
   weather: 'divination',
   'weather-weekend': 'divination',
-  news: 'cafeteria',
+  news: 'meeting',
   resume: 'transverse',
 };
 export function worldActions(t: (key: string) => string) {

@@ -3,9 +3,19 @@
 import math
 
 from src.domains.world.collision import POSE_SLOTS, fits, private_home
+from src.domains.world.emotes import record_receipt
 from src.domains.world.schemas import ActorState, WorldState
+from src.domains.world.socket_models import PoseReceipt
+from src.domains.world.wire_models import PoseResult
 
 SLOTS = POSE_SLOTS
+
+
+def _outcome(actor: ActorState, seq: int, result: PoseResult) -> bool:
+    """Publish the legacy summary and the correlated outcome from one decision."""
+    actor.pose_result = result
+    record_receipt(actor, PoseReceipt(seq=seq, result=result))
+    return result == "accepted"
 
 
 def stand(actor: ActorState) -> bool:
@@ -43,15 +53,12 @@ def apply_pose(
     actor.walking = False
     if slot_id is None:
         accepted = stand(actor)
-        actor.pose_result = "accepted" if accepted else "invalid"
-        return accepted
+        return _outcome(actor, seq, "accepted" if accepted else "invalid")
     slot = SLOTS.get(slot_id)
     if slot is None:
-        actor.pose_result = "invalid"
-        return False
+        return _outcome(actor, seq, "invalid")
     if actor.pose == slot_id:
-        actor.pose_result = "accepted"
-        return True
+        return _outcome(actor, seq, "accepted")
     if (
         actor.pose is not None
         or math.hypot(
@@ -60,19 +67,16 @@ def apply_pose(
         )
         > 0.6
     ):
-        actor.pose_result = "out_of_reach"
-        return False
+        return _outcome(actor, seq, "out_of_reach")
     if _occupied(state, slot_id, now):
-        actor.pose_result = "occupied"
-        return False
+        return _outcome(actor, seq, "occupied")
     actor.pose, actor.position, actor.facing = (
         slot.id,
         slot.position.copy(),
         slot.facing,
     )
     actor.activity_at = now
-    actor.pose_result = "accepted"
-    return True
+    return _outcome(actor, seq, "accepted")
 
 
 def _occupied(state: WorldState, slot_id: str, now: float) -> bool:

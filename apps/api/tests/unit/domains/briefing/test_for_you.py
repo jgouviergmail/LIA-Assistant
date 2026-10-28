@@ -309,6 +309,11 @@ class TestForYouInSynthesis:
                 "src.domains.journals.portrait_builder.build_journal_user_model_block",
                 AsyncMock(return_value="PORTRAIT_BRIEF_BLOCK"),
             ),
+            # Nothing learned yet: the rhythm block that rides with the portrait is empty.
+            patch(
+                "src.domains.habits.ambient.build_habits_rhythm_block",
+                AsyncMock(return_value=""),
+            ),
         ):
             text, _ = await briefing_llm.generate_synthesis(
                 user=user,

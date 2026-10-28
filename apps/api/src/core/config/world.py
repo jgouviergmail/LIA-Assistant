@@ -4,6 +4,15 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
+    WORLD_ARCADE_BOT_SECONDS_DEFAULT,
+    WORLD_ARCADE_ENABLED_DEFAULT,
+    WORLD_ARCADE_INPUT_RATE_DEFAULT,
+    WORLD_ARCADE_RECONNECT_SECONDS_DEFAULT,
+    WORLD_ARCADE_REQUEST_SECONDS_DEFAULT,
+    WORLD_ARCADE_RESULT_SECONDS_DEFAULT,
+    WORLD_ARCADE_ROUND_SECONDS_DEFAULT,
+    WORLD_ARCADE_TURN_SECONDS_DEFAULT,
+    WORLD_ARCADE_WAIT_SECONDS_DEFAULT,
     WORLD_AUTH_TIMEOUT_DEFAULT,
     WORLD_AUTHORITY_TIMEOUT_DEFAULT,
     WORLD_CAPACITY_DEFAULT,
@@ -25,6 +34,58 @@ from src.core.constants import (
 
 
 class WorldSettings(BaseSettings):
+    world_arcade_enabled: bool = Field(
+        default=WORLD_ARCADE_ENABLED_DEFAULT,
+        description="Subordinate arcade deployment ceiling; World and its native operator capability must also be enabled.",
+    )
+    world_arcade_input_rate: int = Field(
+        default=WORLD_ARCADE_INPUT_RATE_DEFAULT,
+        ge=1,
+        le=10,
+        description="Maximum game commands per second/account, in addition to the transport ceiling.",
+    )
+    world_arcade_wait_seconds: int = Field(
+        default=WORLD_ARCADE_WAIT_SECONDS_DEFAULT,
+        ge=20,
+        le=180,
+        description="Absolute empty-lobby lifetime, unaffected by hidden-tab or reconnect pauses.",
+    )
+    world_arcade_request_seconds: int = Field(
+        default=WORLD_ARCADE_REQUEST_SECONDS_DEFAULT,
+        ge=10,
+        le=60,
+        description="Deadline for the current host's explicit join consent.",
+    )
+    world_arcade_reconnect_seconds: int = Field(
+        default=WORLD_ARCADE_RECONNECT_SECONDS_DEFAULT,
+        ge=10,
+        le=60,
+        description="Non-renewable transport-loss/rejoin grace for an existing game member.",
+    )
+    world_arcade_turn_seconds: int = Field(
+        default=WORLD_ARCADE_TURN_SECONDS_DEFAULT,
+        ge=30,
+        le=600,
+        description="Seconds without a legal human move before abandonment; saved/restored on transport suspension.",
+    )
+    world_arcade_round_seconds: int = Field(
+        default=WORLD_ARCADE_ROUND_SECONDS_DEFAULT,
+        ge=300,
+        le=1800,
+        description="Absolute round lifetime, including suspended intervals.",
+    )
+    world_arcade_result_seconds: int = Field(
+        default=WORLD_ARCADE_RESULT_SECONDS_DEFAULT,
+        ge=10,
+        le=60,
+        description="Maximum terminal result/idempotency tombstone display lifetime.",
+    )
+    world_arcade_bot_seconds: float = Field(
+        default=WORLD_ARCADE_BOT_SECONDS_DEFAULT,
+        ge=0.1,
+        le=3,
+        description="Bounded off-thread computer preparation deadline; CPU work never runs inside CAS/SQL locks.",
+    )
     world_enabled: bool = Field(
         default=WORLD_ENABLED_DEFAULT,
         description="Enable native authoritative World; operator capability policy still applies.",

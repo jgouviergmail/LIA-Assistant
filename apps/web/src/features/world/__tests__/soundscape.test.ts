@@ -57,6 +57,60 @@ function setup(now: () => number = () => 5000) {
   return { sound, backend, playing, requests, clip };
 }
 afterEach(() => vi.useRealTimers());
+it('plays object cues only while enabled and still owned; a message preempts an effect', async () => {
+  let now = 5000;
+  const s = setup(() => now);
+  let current = true;
+  await s.sound.effect('leaves', () => current);
+  expect(s.requests).toHaveLength(0);
+  await s.sound.enable();
+  const effect = s.sound.effect('leaves', () => current);
+  current = false;
+  s.requests[0].response.resolve(s.clip('leaves'));
+  await effect;
+  expect(s.playing).toHaveLength(0);
+  now += 2000;
+  current = true;
+  const next = s.sound.effect('cat-meow', () => current);
+  const notice = s.sound.notify();
+  expect(s.requests[1].signal.aborted).toBe(true);
+  s.requests[1].response.resolve(s.clip('cat-meow'));
+  s.requests[2].response.resolve(s.clip('message'));
+  await Promise.all([next, notice]);
+  expect(s.playing.map(p => p.id)).toEqual(['message']);
+  await s.sound.effect('machine-start', () => true);
+  expect(s.requests).toHaveLength(3);
+  s.sound.pause(true);
+  expect(s.playing.every(p => p.stopped)).toBe(true);
+  s.sound.destroy();
+});
+it('never lets a decor cue abort a loading message or cut a playing one', async () => {
+  let now = 5000;
+  const s = setup(() => now);
+  await s.sound.enable();
+  const notice = s.sound.notify();
+  now += 1500;
+  await s.sound.effect('leaves', () => true);
+  expect(s.requests).toHaveLength(1);
+  expect(s.requests[0].signal.aborted).toBe(false);
+  s.requests[0].response.resolve({ ...s.clip('message'), duration: 3 });
+  await notice;
+  expect(s.playing.map(p => p.id)).toEqual(['message']);
+  now += 1000;
+  await s.sound.effect('leaves', () => true);
+  expect(s.requests).toHaveLength(1);
+  expect(s.playing[0].stopped).toBe(false);
+  now += 3000;
+  const later = s.sound.effect('leaves', () => true);
+  expect(s.requests).toHaveLength(2);
+  s.requests[1].response.resolve(s.clip('leaves'));
+  await later;
+  expect(s.playing.map(p => [p.id, p.stopped])).toEqual([
+    ['message', true],
+    ['leaves', false],
+  ]);
+  s.sound.destroy();
+});
 it('loads nothing before a deliberate enable, and refuses stale room completions', async () => {
   const s = setup();
   await s.sound.select('birds');

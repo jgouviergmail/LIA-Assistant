@@ -3,12 +3,15 @@ import { MOVEMENT } from './movement';
 import { WORLD } from './definition';
 import { compilePoseSlots } from './pose-slots';
 import { headingFromMotion } from './art/actor-direction';
-import { moveActor } from './navigation';
-import { stepSimulation, type Simulation } from './simulation';
+import { ACTOR_RADIUS, findRoute, moveActor } from './navigation';
+import { clearSegment } from './route-smoothing';
+import { stepSimulation, zoneAt, type Simulation } from './simulation';
 import type { PublicActor, WorldView } from './protocol';
 import type { Point, Visitor } from './types';
+import { EmoteTimeline } from './emote-timeline';
 
 export interface SpatialLink {
+  readonly serverTime?: number | null;
   readonly view: WorldView | null;
   readonly stream: number;
   readonly canMove: boolean;
@@ -25,6 +28,7 @@ const ZERO = { x: 0, y: 0 };
 const SPEED = MOVEMENT.walk;
 const SLOTS = new Map(compilePoseSlots(WORLD).map(slot => [slot.id, slot]));
 export class WorldSynchronizer implements WorldDriver {
+  private emotes = new EmoteTimeline();
   private observed: WorldView | null = null;
   private stream = 0;
   private epoch = '';
@@ -45,13 +49,19 @@ export class WorldSynchronizer implements WorldDriver {
     this.running = false;
   }
   private receive(sim: Simulation, view: WorldView): void {
-    if (this.stream !== this.link.stream || this.epoch !== view.epoch || !view.controlling)
-      this.reset();
+    this.resetForView(sim, view);
     this.stream = this.link.stream;
     this.epoch = view.epoch;
     this.observed = view;
     this.pending = this.pending.filter(input => input.seq > view.ack);
     if (view.you) {
+      if (zoneAt(WORLD, view.you.position) !== 'home')
+        sim.player.emote = this.emotes.receive(
+          view.you.id,
+          view.you.emote,
+          this.link.serverTime ?? view.server_time,
+          performance.now() / 1000
+        );
       sim.player.publicId = view.you.id;
       sim.player.appearance = view.you.appearance;
       sim.player.label = view.you.alias;
@@ -68,6 +78,7 @@ export class WorldSynchronizer implements WorldDriver {
       let position = { ...view.you.position };
       for (const input of this.pending) position = moveActor(sim.navigation, position, input.delta);
       sim.player.position = moveActor(sim.navigation, position, this.delta);
+      this.rebaseRoute(sim);
       if (!this.link.canMove) {
         sim.player.facing = view.you.facing;
         sim.player.walking = false;
@@ -77,6 +88,12 @@ export class WorldSynchronizer implements WorldDriver {
     sim.visitors = view.actors.map(actor => {
       const old = previous.get(actor.id);
       return {
+        emote: this.emotes.receive(
+          actor.id,
+          actor.emote,
+          this.link.serverTime ?? view.server_time,
+          performance.now() / 1000
+        ),
         pose: actor.pose ? (SLOTS.get(actor.pose) ?? null) : null,
         id: actor.id,
         label: actor.alias,
@@ -92,6 +109,21 @@ export class WorldSynchronizer implements WorldDriver {
         path: [],
       } satisfies Visitor;
     });
+  }
+  /** Initial projection may own a new local path; replacement authority cannot inherit it. */
+  private resetForView(sim: Simulation, view: WorldView): void {
+    if (this.epoch && this.epoch !== view.epoch) this.emotes.clear();
+    if (this.stream === this.link.stream && this.epoch === view.epoch && view.controlling) return;
+    this.reset();
+    if (this.observed) sim.player.path = [];
+  }
+  /** A correction changes the route's origin; an old segment may now cross a corner. */
+  private rebaseRoute(sim: Simulation): void {
+    const next = sim.player.path[0];
+    const goal = sim.player.path.at(-1);
+    if (!next || !goal || clearSegment(sim.navigation, sim.player.position, next, ACTOR_RADIUS))
+      return;
+    sim.player.path = findRoute(sim.navigation, sim.player.position, goal);
   }
   step(sim: Simulation, dt: number, direction: Point): void {
     const view = this.link.view;

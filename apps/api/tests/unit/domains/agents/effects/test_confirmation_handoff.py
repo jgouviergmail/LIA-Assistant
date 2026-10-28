@@ -32,6 +32,7 @@ from src.core.i18n import language_scope
 from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.effects import runtime as gate_runtime
 from src.domains.agents.effects.scope import EffectScope, effect_scope
+from src.domains.agents.effects.treatments import treatment_collector
 
 pytestmark = [pytest.mark.unit]
 
@@ -58,6 +59,9 @@ def _reset() -> Any:
             ),
         ),
         language_scope("en"),
+        # A real turn publishes its consultation register; without one a replay
+        # schedules an integrity write the loop teardown cuts short.
+        treatment_collector(run_id="confirmation-handoff"),
     ):
         yield
 

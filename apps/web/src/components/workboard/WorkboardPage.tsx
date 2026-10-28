@@ -33,7 +33,7 @@ import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { hasFilters } from '@/lib/workboard/active-filters';
 import { toastWorkboardError } from '@/lib/workboard/errors';
-import { filtersFromParams, writeFilters } from '@/lib/workboard/filters-url';
+import { DEFAULT_FILTERS, filtersFromParams, writeFilters } from '@/lib/workboard/filters-url';
 import type { BoardFilters as Filters, TicketRow } from '@/types/workboard';
 
 export interface WorkboardPageProps {
@@ -42,9 +42,15 @@ export interface WorkboardPageProps {
   initialTicketId?: string;
   /** Keep filters and ticket selection local when hosted inside another interface. */
   embedded?: boolean;
+  initialFilters?: Filters;
 }
 
-export function WorkboardPage({ lng, initialTicketId, embedded = false }: WorkboardPageProps) {
+export function WorkboardPage({
+  lng,
+  initialTicketId,
+  embedded = false,
+  initialFilters,
+}: WorkboardPageProps) {
   const { t } = useTranslation(lng);
   const router = useRouter();
   const params = useSearchParams();
@@ -61,7 +67,9 @@ export function WorkboardPage({ lng, initialTicketId, embedded = false }: Workbo
   // dropped every second keystroke.
   const [filters, setFilters] = useState<Filters>(() =>
     filtersFromParams(
-      embedded ? new URLSearchParams() : new URLSearchParams(Array.from(params.entries()))
+      embedded
+        ? writeFilters(new URLSearchParams(), initialFilters ?? DEFAULT_FILTERS)
+        : new URLSearchParams(Array.from(params.entries()))
     )
   );
   const [embeddedTicket, setEmbeddedTicket] = useState<string | null>(initialTicketId ?? null);

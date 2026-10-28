@@ -1,3 +1,4 @@
+import { useEffectRequest } from '@/hooks/useEffectRequest';
 /**
  * API Health Check Hook
  *
@@ -7,7 +8,7 @@
  * Extracted from useChat.ts for better separation of concerns.
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { logger } from '@/lib/logger';
 import { useLoggingContext } from '@/lib/logging-context';
 import { API_ENDPOINTS } from '@/lib/api-config';
@@ -56,97 +57,104 @@ export const useAPIHealth = ({ user, onStatusChange }: UseAPIHealthOptions): Use
    *
    * Staleness guard (audit F037): only the latest check, while mounted, may
    * commit state — a slow/out-of-order response never clobbers a fresher one and
-   * nothing is set after unmount.
+   * nothing is set after unmount. The signal reaches the transport: a check
+   * superseded by a newer one, or outlived by the component, stops there.
    */
-  const checkHealth = useCallback(async (): Promise<boolean> => {
-    const isStale = guard.begin();
+  const checkHealth = useCallback(
+    async (signal: AbortSignal): Promise<boolean> => {
+      const superseded = guard.begin();
+      const isStale = () => signal.aborted || superseded();
 
-    if (!user) {
-      if (!isStale()) {
-        setApiAvailable(false);
-        onStatusChange?.(false);
+      if (!user) {
+        if (!isStale()) {
+          setApiAvailable(false);
+          onStatusChange?.(false);
+        }
+        return false;
       }
-      return false;
-    }
 
-    if (!isStale()) setIsChecking(true);
+      if (!isStale()) setIsChecking(true);
 
-    try {
-      const response = await fetch(API_ENDPOINTS.AGENTS.HEALTH, {
-        method: 'GET',
-        credentials: 'include', // Send session cookie
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      try {
+        const response = await fetch(API_ENDPOINTS.AGENTS.HEALTH, {
+          method: 'GET',
+          credentials: 'include', // Send session cookie
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          signal,
+        });
 
-      if (response.ok) {
-        const data = await response.json();
-        // Verify that the graph is compiled and service is healthy
-        const isHealthy = data.status === 'healthy' && data.graph_compiled === true;
+        if (response.ok) {
+          const data = await response.json();
+          // Verify that the graph is compiled and service is healthy
+          const isHealthy = data.status === 'healthy' && data.graph_compiled === true;
 
-        if (isStale()) return isHealthy;
-        setApiAvailable(isHealthy);
-        onStatusChange?.(isHealthy);
+          if (isStale()) return isHealthy;
+          setApiAvailable(isHealthy);
+          onStatusChange?.(isHealthy);
 
-        logger.info(
-          'api_health_check',
-          withContext({
-            component: 'useAPIHealth',
-            available: isHealthy,
-            status: data.status,
-            graphCompiled: data.graph_compiled,
-          })
-        );
+          logger.info(
+            'api_health_check',
+            withContext({
+              component: 'useAPIHealth',
+              available: isHealthy,
+              status: data.status,
+              graphCompiled: data.graph_compiled,
+            })
+          );
 
-        return isHealthy;
-      } else {
+          return isHealthy;
+        } else {
+          if (isStale()) return false;
+          setApiAvailable(false);
+          onStatusChange?.(false);
+
+          logger.warn(
+            'api_health_check_failed',
+            withContext({
+              component: 'useAPIHealth',
+              status: response.status,
+              statusText: response.statusText,
+            })
+          );
+
+          return false;
+        }
+      } catch (error) {
         if (isStale()) return false;
         setApiAvailable(false);
         onStatusChange?.(false);
 
-        logger.warn(
-          'api_health_check_failed',
+        logger.error(
+          'api_health_check_error',
+          error as Error,
           withContext({
             component: 'useAPIHealth',
-            status: response.status,
-            statusText: response.statusText,
           })
         );
 
         return false;
+      } finally {
+        // Only the current check may clear the in-progress flag — an older,
+        // superseded check finishing first must not do it (audit F037).
+        if (!isStale()) setIsChecking(false);
       }
-    } catch (error) {
-      if (isStale()) return false;
-      setApiAvailable(false);
-      onStatusChange?.(false);
-
-      logger.error(
-        'api_health_check_error',
-        error as Error,
-        withContext({
-          component: 'useAPIHealth',
-        })
-      );
-
-      return false;
-    } finally {
-      // Only the current check may clear the in-progress flag — an older,
-      // superseded check finishing first must not do it (audit F037).
-      if (!isStale()) setIsChecking(false);
-    }
-  }, [user, withContext, onStatusChange, guard]);
+    },
+    [user, withContext, onStatusChange, guard]
+  );
 
   /**
-   * Check API health on mount and when user changes.
+   * Check API health on mount and when user changes. A manual check runs in
+   * the same generation; once the component is gone it sends nothing.
    */
-  useEffect(() => {
-    checkHealth();
-  }, [checkHealth]);
+  const rerun = useEffectRequest(checkHealth);
+
+  const checkNow = useCallback(async () => (await rerun()) ?? false, [rerun]);
 
   return {
     apiAvailable,
-    checkHealth,
+    checkHealth: checkNow,
     isChecking,
   };
 };

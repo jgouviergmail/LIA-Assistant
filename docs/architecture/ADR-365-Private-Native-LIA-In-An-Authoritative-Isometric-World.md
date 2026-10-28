@@ -97,3 +97,120 @@ three browser engines. The
 [qualification ledger](../superpowers/qualification/2026-10-23-world-v1-ledger.md)
 record measured evidence and remaining release limits. Browser emulation cannot
 certify a physical Pi, phone thermals/battery or supplier linguistic fidelity.
+
+## Amendment: interactions, arcade and private photos (2026-10-27)
+
+Private exploration preferences use revision-checked owner persistence. Discovery
+is derived from the current function/scene catalogue; the optional route and
+introduction do not execute assistant actions. A generic table offers the normal
+dashboard only after confirmed seating and explicit acceptance; declining keeps
+the pose. Signals and LIA's acting state consume bounded native presentation
+sources. Ten editable starting appearances, deterministic seasons, finite scenery
+interactions and finite public emotes introduce no model call or learning input.
+
+Arcade commands share the existing authoritative socket sequence. Participant-only
+projection, current round/revision/controller/epoch fences, fresh canonical account
+policy locks and bounded idempotency receipts protect human consent and legal
+moves. The computer uses bounded deterministic search rather than an LLM. No
+winner, move or board is inferred optimistically by the browser. Explicit rejoin,
+limited reconnect grace, expiry and complete selective account erasure are part
+of the game lifecycle. See the [World technical guide](../technical/WORLD_PROTOTYPE.md)
+for contracts and the native UI host.
+
+Photos use an independent allowlisted still and renderer; copying the live Canvas
+would leak visitors or overlays. A bounded local JPEG preview precedes any explicit
+share. Native shells advertise the capability positively and validate bytes before
+private expiring-cache storage. A separate Android provider exposes only those
+files; iOS uses an anchored system activity sheet. Browser and native outcomes do
+not assert downstream publication. No server upload, photo persistence, memory
+extraction, prompt or new token cost is introduced by these presentation features.
+
+The [implementation qualification ledger](../superpowers/qualification/2026-10-27-world-interactions-and-play.md)
+separates source/tests/browser evidence from physical-device and performance
+qualification. iOS compilation and actual native chooser behavior remain release
+gates until performed on appropriate hosts and devices.
+
+The [feedback refinement](../superpowers/qualification/2026-10-27-world-feedback-refinement.md)
+keeps these boundaries: zoom-aware cover cropping and compulsory photo signature,
+finite public lamp/screen appearance, shared device widgets and approached local
+decor reactions. Workout furniture uses the same authoritative lying/standing
+contract and shared occupancy rules; private furniture remains scoped by its
+home geometry. Expanding a toolbar is not opening a private panel and does not
+disable sibling widgets. No new provider, memory, quota or persistence surface is
+introduced.
+
+## Amendment: protocol generations, integrity failures and the policy fence (2026-10-28)
+
+A client is told what kind of failure ended its socket. A frame whose envelope
+declares another socket protocol generation closes 4426 so the client reloads
+instead of retrying; the generation is read before strict validation, and an
+outdated authentication frame consumes no ticket. Any other invalid frame, and
+the frame-rate refusal, closes 1008. A record a transition produced that the
+strict reader refuses is a server defect: it raises a dedicated integrity error,
+is never published, is logged by its rule code alone and counted on the
+[World arcade dashboard](../../infrastructure/observability/grafana/dashboards/32-world-arcade.json),
+and closes 1011. A stored record of another generation keeps the reader's own
+error, which account erasure uses to try the declared older generations.
+
+Game commands hold the canonical account fence through the one Redis commit,
+a deliberate and bounded exception to
+[ADR-304](ADR-304-No-Transaction-Across-A-Network-Call.md). Contact policy is
+written in SQL (block and unblock, deactivation, deletion, the World capability)
+while the game is committed in Redis, and only a serialization point spanning both
+keeps a block committed after the policy read from being overtaken by a move it
+should have refused. Releasing the fence before the commit reopens exactly that
+window. A Redis-side marker would have to be written by every policy writer before
+its own commit, moving the network call into more transactions — the peers pair
+fence, the account lifecycle, operator switches — and making those domains depend
+on World. The fence therefore stays, and is held to what it needs: lock
+acquisition and policy reads within `WORLD_POLICY_TIMEOUT`, the commit within
+`WORLD_AUTHORITY_TIMEOUT`, the outer deadline their sum, with the server's lock and
+idle-in-transaction bounds as backstops; `FOR NO KEY UPDATE`, so it orders policy
+writers and every UPDATE or DELETE of those accounts but never an insert merely
+referencing them; and a command refused before the commit (input cap, disabled
+arcade) takes no fence, no cookie revalidation and no computer search. The
+[peers pair fence](../../apps/api/src/domains/peers/pair_fence.py) uses the same
+strength: as `FOR UPDATE`, a share write holding the pair row and a block holding
+the fence waited on each other and PostgreSQL aborted one (40P01), reproduced on a
+real server before the change.
+
+A policy-hidden cabinet now reads as full, like any full table, and only a
+joinable cabinet carries the round fence a join needs: a distinct state disclosed
+the block. An accepted join is a new pairing on the canonical fresh board (host on
+the first color), never a continuation of a solo rematch's alternation. A
+finished table can be explicitly rejoined while its result is displayed.
+
+The introduction was retired with discovery and the decorative-actions menu. The
+private experience document is exactly `{version, revision, show_route,
+season_mode, hemisphere}`; a stored document still carrying the introduction's
+fields is unsupported and reads as needing the existing explicit repair. The
+contract was never released, so no migration accompanies the change.
+
+## Amendment: private activities outlive a revalidation, a reconnection and a copy (2026-10-28)
+
+A private native activity keeps its effects for as long as its account does. A
+revalidation of the identity — on focus, on visibility, on another World tab's
+notice — runs in the background for an owner a read has already confirmed: the
+private subtree stays visible and mounted, and only a read that fails, or that
+names another or an inactive account, withdraws it. Hiding it on every return of
+the focus placed it under a hidden `Activity`, whose effect cleanups cancelled a
+streamed answer and ended a Live session. A transport reconnection keeps the
+private panels mounted for the same reason, marked busy under the reconnection
+dialog; the retained seated dashboard is keyed by its owner alone, so opening the
+conversation panel no longer remounts it and never buys a second synthesis. Until
+a read confirms the owner, the subtree stays hidden, as before.
+
+A refused gesture is said, never dropped: the receipt is read like a pose's, a
+gesture within its own duration is refused in the browser before any frame is sent,
+and both outcomes reach one status region in the person's language.
+
+The translator's one-attempt copy of a factory-cached model is lent for exactly
+one call (`infrastructure/llm/single_attempt.py`). On Gemini the copy shares the
+cached instance's client, and the adapter closes `self.client` when an instance is
+collected: the copy's reference is released when the call ends, so concurrent
+callers keep an open client and an interrupted request is never sent twice.
+
+The photo's mandatory signature names the project's website through one declared
+attribution module (`apps/web/src/lib/project-attribution.ts`). The host-neutral
+release guard of [ADR-215](ADR-215-Self-Host-Installer.md) holds that module to its
+single reader, so the project's address can never become a deployment origin.

@@ -1,6 +1,8 @@
 import { createEyeRig } from '@/components/eyes/rig/runtime';
 import { mouthPath } from '@/components/eyes/rig/face-geometry';
 import type { Actor, Point } from '../types';
+import { WORLD_ACTING_ACCENT_MS, type WorldActingFrame } from '../world-acting';
+import { relative } from '@/components/eyes/rig/choreo';
 
 import layout from '../../../../public/world/bip/v2/layout.json';
 
@@ -16,6 +18,63 @@ export class LiaAtlas {
   private rig = createEyeRig({ characterId: 'bip', allowSleep: false });
   private mouth = '';
   private mouthShape: Path2D | null = null;
+  private poseKey = '';
+  private contextKey = '';
+  private gazeKey = '';
+  private eventKey: string | null = null;
+  private visible = true;
+  private hasBeat = false;
+
+  setVisible(value: boolean): void {
+    if (this.disposed || value === this.visible) return;
+    this.visible = value;
+    if (!value) this.cancelBeat();
+  }
+  private cancelBeat(): void {
+    this.rig.settle();
+    this.hasBeat = false;
+  }
+
+  setActing(frame: WorldActingFrame): void {
+    if (this.disposed) return;
+    const key = JSON.stringify(frame.pose);
+    if (key !== this.poseKey) {
+      this.poseKey = key;
+      this.rig.setPose(frame.pose);
+    }
+    const context = JSON.stringify(frame.context);
+    if (context !== this.contextKey) {
+      this.contextKey = context;
+      this.rig.setContext(frame.context);
+    }
+    const gaze = JSON.stringify(frame.gaze);
+    if (gaze !== this.gazeKey) {
+      this.gazeKey = gaze;
+      this.rig.setGaze(frame.gaze);
+    }
+    this.syncAccent(frame);
+    if (!this.visible) this.cancelBeat();
+  }
+  private syncAccent(frame: WorldActingFrame): void {
+    if (!frame.accentAlive && this.hasBeat) this.cancelBeat();
+    if (!frame.eventKey || frame.eventKey === this.eventKey) return;
+    this.eventKey = frame.eventKey;
+    if (!this.visible || !frame.accentAlive) return;
+    this.hasBeat = true;
+    this.rig.play(
+      relative(
+        'bodyY',
+        [
+          [0, 0],
+          [95, 0.018],
+          [320, -0.07],
+          [650, 0],
+        ],
+        WORLD_ACTING_ACCENT_MS,
+        { frequency: 5.5, damping: 1 }
+      )
+    );
+  }
 
   constructor() {
     const image = new Image();
@@ -36,6 +95,22 @@ export class LiaAtlas {
     return this.ready ? layout.width * layout.height * 4 : 0;
   }
 
+  /** Prepare this independent atlas for a still; do not step the rig. */
+  async prepareImage(): Promise<void> {
+    const image = this.image;
+    if (this.ready || !image || this.disposed || typeof image.decode !== 'function') return;
+    try {
+      await image.decode();
+    } catch {
+      return;
+    }
+    this.ready =
+      !this.disposed &&
+      image === this.image &&
+      image.naturalWidth === layout.width &&
+      image.naturalHeight === layout.height;
+  }
+
   draw(
     c: CanvasRenderingContext2D,
     at: Point,
@@ -49,9 +124,12 @@ export class LiaAtlas {
     this.rig.setReducedMotion(reduced);
     this.rig.step(Math.max(0, Math.min(64, (time - this.time) * 1000)));
     this.time = time;
+    const values = this.rig.values();
     const bob = actor.walking && !reduced ? Math.sin(actor.phase * 2) * 0.8 : 0;
     c.save();
-    c.translate(at.x - (frame.width * scale) / 2, at.y - 70 + bob);
+    c.translate(at.x, at.y + bob + (reduced ? 0 : values.bodyY * 12));
+    c.rotate((Math.max(-2.2, Math.min(2.2, values.bodyRoll + values.tilt * 0.12)) * Math.PI) / 180);
+    c.translate(-(frame.width * scale) / 2, -70);
     c.scale(scale, scale);
     c.drawImage(
       this.image,

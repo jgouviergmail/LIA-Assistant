@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
 import { DeviceInbox } from '../device-inbox';
+import { vi } from 'vitest';
 import type { Notification } from '@/hooks/useNotifications';
 const owner = 'ef910df4-a74c-4007-a41c-88dc9a43655d';
 const sms = {
@@ -16,6 +17,26 @@ const reminder: Notification = {
   timestamp: new Date(),
   read: false,
 };
+it('publishes stable bounded snapshots once per actual inbox change and releases subscribers', () => {
+  const box = new DeviceInbox(owner);
+  const changed = vi.fn();
+  const unsubscribe = box.subscribe(changed);
+  const initial = box.snapshot();
+  box.read('missing');
+  box.clearSms();
+  expect(box.snapshot()).toBe(initial);
+  box.receiveSms(sms);
+  box.receiveSms(sms);
+  box.read(box.snapshot()[0].key);
+  box.read(box.snapshot()[0].key);
+  box.clearSms();
+  box.clearSms();
+  expect(changed).toHaveBeenCalledTimes(3);
+  expect(box.snapshot()).toEqual([]);
+  unsubscribe();
+  box.receiveReminder(reminder, 1);
+  expect(changed).toHaveBeenCalledTimes(3);
+});
 it('rejects foreign-account signals and deduplicates SMS delivery without reading private text', () => {
   const box = new DeviceInbox(owner);
   expect(box.receiveSms({ ...sms, user_id: '3fa13afc-e569-4f66-9e1c-8913e601da15' })).toBe(false);

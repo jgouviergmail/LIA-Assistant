@@ -75,15 +75,18 @@ export function AdminUserAutocomplete({
   const listboxId = `${idPrefix}-user-listbox`;
   const optionId = (index: number) => `${idPrefix}-user-option-${index}`;
 
+  const [suggestionsQuery, setSuggestionsQuery] = useState(debouncedQuery);
+  if (suggestionsQuery !== debouncedQuery) {
+    setSuggestionsQuery(debouncedQuery);
+    setUserSuggestions([]);
+    setActiveIndex(-1);
+    setLoadingUsers(debouncedQuery.length >= 2);
+  }
+
   useEffect(() => {
-    if (debouncedQuery.length < 2) {
-      setUserSuggestions([]);
-      setActiveIndex(-1);
-      return;
-    }
+    if (debouncedQuery.length < 2) return;
 
     const controller = new AbortController();
-    setLoadingUsers(true);
 
     const fetchUsers = async () => {
       try {

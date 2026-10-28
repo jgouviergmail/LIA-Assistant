@@ -2,7 +2,7 @@
 
 **Document de reference technique - Observabilite Production avec Grafana**
 
-> **Version 5.0** | 2026-10-22 (panel counts re-measured 2026-10-23) | 32 dashboards, 851 panels (rows excluded)
+> **Version 5.0** | 2026-10-22 (panel counts re-measured 2026-10-23) | 33 dashboards, 861 panels (rows excluded)
 
 ---
 
@@ -23,7 +23,7 @@
 
 ### Objectifs
 
-Les **32 dashboards Grafana** fournissent une observabilite complete pour :
+Les **33 dashboards Grafana** fournissent une observabilite complete pour :
 
 1. **Monitoring production** : Sante applicative, SLOs, performance HTTP, ressources infrastructure
 2. **Agent debugging** : Pipeline d'orchestration LangGraph, router, planner, outils, HITL
@@ -165,6 +165,7 @@ Dans le fichier de provisioning, un `$` litteral s'ecrit `$$` (sinon `$__tags` e
 | 29 | Workboard | `29-workboard` | lia, workboard, adr-276 | 13 | Ce que LIA fait du tableau (tickets aboutis, rendus, echecs, runs ecartes faute de quota ou conversation occupee, duree et issues des runs), notifications du tableau dans le chat, poids des transcriptions cachees (ADR-276) |
 | 30 | Live | `30-live` | lia, live, voice | 16 | Sessions Live par issue, sessions actives, cles frappees et refusees, duree des sessions, echanges vocaux archives, prolongations, echantillons de voix, echanges d'offre WebRTC, consultations et relais des sessions directes (ADR-299, ADR-300, ADR-301) |
 | 31 | Radio | `31-radio` | lia, radio, voice | 18 | Radio personnelle : departs et refus par code, fins de session par raison, segments par format et par issue, dialogue takes by outcome (ADR-345), livraison que la voix n'a pas pu rendre par dimension (decision 45), duree de production (p50/p95), boucles cassees, redaction (tics par issue, age du dernier tic, flux lus, sujets classes et purges, textes integraux), recherches de sites, audio orphelin balaye (ADR-324) |
+| 32 | World arcade | `32-world-arcade` | lia, world | 5 | Bornes d'arcade du Monde de LIA (ADR-365) : commandes de jeu par jeu et par issue (refus compris), preparation du coup de l'ordinateur (p95), replis legaux, enfants explores par la recherche (p95), echecs d'integrite de l'autorite par zone (attendu 0) |
 | — | Phone ingestion - SMS | `phone-ingestion-sms` | lia, ingestion, sms | 2 | Issues de livraison validées par destination et ancienneté du dernier balayage terminé de la file d'envoi du téléphone (ADR-357) |
 
 ---
@@ -172,7 +173,7 @@ Dans le fichier de provisioning, un `$` litteral s'ecrit `$$` (sinon `$__tags` e
 ## Lecture par tiers (audience)
 
 Le catalogue ci-dessus est ordonne par numero ; celui-ci l'est par **qui ouvre
-quoi**. Les deux vues portent sur les memes 32 dashboards — elles vivent dans ce
+quoi**. Les deux vues portent sur les memes 33 dashboards — elles vivent dans ce
 document, et non dans un second fichier, parce que la version enveloppe qui les
 separait a derive quatre fois du catalogue qu'elle resumait (elle annoncait
 encore 25 dashboards apres l'ajout du 26).
@@ -181,7 +182,7 @@ encore 25 dashboards apres l'ajout du 26).
 |------|----------|------------|----------|
 | 1 — Vue d'ensemble | Tous | 01, 02 | Sante globale, SLOs, budget d'erreurs |
 | 2 — Plateforme | Ops / Dev | 03, 04, 05, 06 | Infra, HTTP, couts LLM, logs/traces |
-| 3 — Fonctionnalites | Feature Dev | 07-13, 18-25, 27, 29-31, SMS | Agents, HITL, conversations, OAuth/MCP, voix, canaux, proactif, RAG, sub-agents, ReAct/browser, sante, compaction, journaux, telephonie, briefing, reunions, tableau de tickets, mode Live, radio |
+| 3 — Fonctionnalites | Feature Dev | 07-13, 18-25, 27, 29-32, SMS | Agents, HITL, conversations, OAuth/MCP, voix, canaux, proactif, RAG, sub-agents, ReAct/browser, sante, compaction, journaux, telephonie, briefing, reunions, tableau de tickets, mode Live, radio |
 | 4 — Avance | SRE | 14, 15, 16, 28 | Registry/checkpoints, LangGraph deep (latence par etage TTFT), sante des recording rules et du registre d'outils, registres de transparence et scellement |
 | 5 — Analytics / Produit | Product | 17, 26 | Engagement et geolocalisation ; cockpit produit ADR-178 (North Star, activation, retention) |
 
@@ -350,6 +351,12 @@ Le mode Live (ADR-299, ADR-300, ADR-301) : sessions terminees par issue, session
 ### 31 - Radio (18 panels)
 
 La radio personnelle (ADR-324), en trois lignes. **Sessions** : departs qui ont pris leur place et departs refuses par code (`radio_session_starts_total{outcome}` — `radio_instance_full`, `radio_no_voice`, `radio_voice_unavailable`), fins de session par raison (`radio_sessions_ended_total{reason}` : un worker qui s'arrete ne termine rien), boucles cassees par un defaut (`radio_loop_failures_total`, attendu 0). **Production** : segments par issue et par format (`radio_segments_total{format, outcome}` — `produced`, `nothing_to_say`, les refus du redacteur et du verificateur, `voice_failed`, `mix_failed`, `error`) et duree de production d'un segment diffuse (p50/p95, `radio_segment_production_seconds`) : un p95 tres au-dessus des reglages `RADIO_STAGE_*` veut dire qu'un auditeur attend. Prises de dialogue par issue (`radio_dialogue_takes_total{outcome}` — `voiced`, `unplaced`, `failed`, ADR-345) : une prise que le flux horodate n'a pas su placer, ou qui a echoue, est redite ligne par ligne. Livraison que la voix n'a pas pu rendre, par dimension (`radio_delivery_unrendered_total{dimension}` — `energy`, `pace`, `tone`, `reaction`, ADR-324 decision 45) : un compteur regulier nomme ce que le moteur configure ne sait pas faire (Edge n'a pas de ton, OpenAI qu'une vitesse, ElevenLabs pas de rythme), pas une panne ; une reaction n'est proposee qu'a une voix qui la joue. **Redaction** : tics par issue (`completed`, `cut`, `failed`, `off`), age du dernier tic mene a son terme (`radio_newsroom_last_run_timestamp_seconds`, que lit l'alerte noyau `RadioNewsroomStalled`), flux lus ou en echec, sujets classes et purges, textes integraux, recherches de sites par issue, repertoires audio orphelins balayes (attendu 0). Tous les compteurs lisent `or vector(0)` : un compteur qui n'a jamais tire n'expose aucune serie.
+
+**Datasource** : Prometheus.
+
+### 32 - World arcade (5 panels)
+
+Les bornes d'arcade du Monde de LIA (ADR-365), sans identite de personne ni de partie dans les etiquettes. **Commandes** : commandes de jeu par jeu et par issue (`world_game_commands_total{game, outcome}` — acceptees, et chaque refus nomme : debit, conflit, mauvais tour, coup illegal, table pleine, suspendue, hors de portee). **Ordinateur** : duree de preparation du coup (p95, `world_game_compute_seconds`, a comparer a `WORLD_ARCADE_BOT_SECONDS`), enfants explores par la recherche bornee (p95, `world_game_compute_nodes`) et replis vers un coup legal peu couteux par raison (`world_game_compute_fallback_total{reason}`) : un repli frequent veut dire que la recherche manque de temps, pas qu'un coup illegal est joue. **Autorite** : echecs d'integrite par zone (`world_authority_integrity_failures_total{area}`, attendu 0) — un etat produit par une transition que le lecteur strict refuse n'est jamais publie et ferme la connexion en 1011. Les compteurs rares lisent `or vector(0)` : un compteur qui n'a jamais tire n'expose aucune serie.
 
 **Datasource** : Prometheus.
 
@@ -570,4 +577,4 @@ docker compose restart grafana
 **Version** : 5.0
 **Date** : 2026-10-22
 **Auteur** : Equipe LIA
-**Statut** : Production (32 dashboards ; panels comptés dans l'en-tête)
+**Statut** : Production (33 dashboards ; panels comptés dans l'en-tête)

@@ -1,4 +1,5 @@
 import { worldProofUrl } from './world-route';
+import { signIn } from './world-arcade-helpers';
 import { enterWorld } from '../fixtures/world-admission';
 /** Native admission and rendering; no socket/API mocks or provider calls. */
 import { test, expect } from './fixtures';
@@ -57,14 +58,7 @@ test('mobile HUD unfolds, joystick releases and private panels retain the same s
   });
   page.on('pageerror', error => errors.push(error.message));
   try {
-    expect(
-      (
-        await context.request.post('/api/v1/world-proof/session', {
-          headers: { Origin: new URL(baseURL).origin },
-          data: { index: 1 },
-        })
-      ).status()
-    ).toBe(200);
+    await signIn(context, baseURL, 1);
     await installOfflineFonts(page);
     await page.goto(worldProofUrl(baseURL, 'fr').href);
     await enterWorld(page);
@@ -116,6 +110,7 @@ test('mobile HUD unfolds, joystick releases and private panels retain the same s
     );
     expect(baselineFps).toBeGreaterThan(0);
     await page.getByRole('button', { name: fr.world.messages.action, exact: true }).click();
+    await page.getByRole('button', { name: fr.world.compact.expand, exact: true }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     // Let the bounded frame meter replace its pre-panel samples.
     await page.waitForTimeout(6500);

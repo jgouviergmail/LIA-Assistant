@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useEffectRequest } from '@/hooks/useEffectRequest';
+import { useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiClient } from '@/lib/api-client';
 import { Message, type GeneratedDocument, type GeneratedImage } from '@/types/chat';
@@ -154,27 +155,32 @@ export const useConversation = (): UseConversationReturn => {
   /**
    * Load current conversation metadata
    */
-  const loadConversation = useCallback(async () => {
-    if (!user) {
-      return null;
-    }
+  const loadConversation = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!user) {
+        return null;
+      }
 
-    try {
-      const response = await apiClient.get<Conversation>('/conversations/me');
-      setConversation(response || null);
-      return response;
-    } catch (error) {
-      logger.error(
-        'conversation_load_failed',
-        error as Error,
-        withContext({
-          component: 'useConversation',
-          userId: user.id,
-        })
-      );
-      return null;
-    }
-  }, [user, withContext]);
+      try {
+        const response = await apiClient.get<Conversation>('/conversations/me', { signal });
+        if (signal?.aborted) return null;
+        setConversation(response || null);
+        return response;
+      } catch (error) {
+        if (signal?.aborted) return null;
+        logger.error(
+          'conversation_load_failed',
+          error as Error,
+          withContext({
+            component: 'useConversation',
+            userId: user.id,
+          })
+        );
+        return null;
+      }
+    },
+    [user, withContext]
+  );
 
   /**
    * Map an API message row to the UI ``Message`` shape.
@@ -486,11 +492,7 @@ export const useConversation = (): UseConversationReturn => {
   /**
    * Load conversation metadata on mount
    */
-  useEffect(() => {
-    if (user) {
-      loadConversation();
-    }
-  }, [user, loadConversation]);
+  useEffectRequest(loadConversation);
 
   return {
     conversation,

@@ -1,10 +1,12 @@
 /** A panel is a consequence of an acknowledged local seat request, never prediction. */
 import type { WorldView } from './protocol';
-interface Request {
+export interface ConfirmedSeat {
   slot: string;
   seq: number;
   epoch: string;
   stream: number;
+}
+interface Request extends ConfirmedSeat {
   now: number;
 }
 export class SeatActivityIntent {
@@ -15,7 +17,7 @@ export class SeatActivityIntent {
   cancel(): void {
     this.pending = null;
   }
-  accept(view: WorldView, stream: number, now: number): string | null {
+  accept(view: WorldView, stream: number, now: number): ConfirmedSeat | null {
     const pending = this.pending;
     if (!pending) return null;
     if (
@@ -29,7 +31,11 @@ export class SeatActivityIntent {
       return null;
     }
     if (view.ack < pending.seq) return null;
+    const receipt = view.receipts.find(item => item.seq === pending.seq && item.kind === 'pose');
+    if (!receipt || receipt.kind !== 'pose') return null;
     this.cancel();
-    return view.pose_result === 'accepted' && view.you?.pose === pending.slot ? pending.slot : null;
+    return receipt.result === 'accepted' && view.you?.pose === pending.slot
+      ? { slot: pending.slot, seq: pending.seq, epoch: pending.epoch, stream: pending.stream }
+      : null;
   }
 }

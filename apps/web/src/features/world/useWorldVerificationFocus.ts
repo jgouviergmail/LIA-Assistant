@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 /** A private dialog's resumed focus scope must not discard the person's place. */
 export function useWorldVerificationFocus(
@@ -9,6 +9,7 @@ export function useWorldVerificationFocus(
   refetch: () => Promise<void>
 ) {
   const bookmark = useRef<HTMLElement | null>(null);
+  const [completed, setCompleted] = useState(0);
   const verify = useCallback(async () => {
     // A confirmed foreign owner stays withdrawn until explicit document reload.
     // Further focus checks must not remove the focused recovery action.
@@ -16,7 +17,13 @@ export function useWorldVerificationFocus(
     const active = document.activeElement;
     if (!bookmark.current && active instanceof HTMLElement && active !== document.body)
       bookmark.current = active;
-    await refetch();
+    try {
+      await refetch();
+    } finally {
+      // A fast request may batch loading=true/false into one render. Its
+      // bookmark must still settle instead of leaking into a later verification.
+      setCompleted(value => (value + 1) % (2 ** 31 - 1));
+    }
   }, [changed, refetch]);
   useEffect(() => {
     if (changed) bookmark.current = null;
@@ -32,6 +39,6 @@ export function useWorldVerificationFocus(
       target.focus({ preventScroll: true });
     });
     return () => cancelAnimationFrame(frame);
-  }, [changed, hidden]);
+  }, [changed, hidden, completed]);
   return verify;
 }

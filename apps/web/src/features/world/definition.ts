@@ -14,7 +14,7 @@ export function onSite<T extends Point>(point: T): T {
 /** One social house and nearby outdoor activities. Private data is never authored here. */
 export const WORLD: WorldDefinition = {
   id: 'lia-campus',
-  version: 13,
+  version: 17,
   movement: MOVEMENT,
   width: 74,
   height: 84,

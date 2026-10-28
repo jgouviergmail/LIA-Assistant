@@ -2886,14 +2886,14 @@ curl -G http://localhost:9090/api/v1/query \
 ### LIA Internal Docs
 
 - **[OBSERVABILITY_AGENTS.md](OBSERVABILITY_AGENTS.md)**: Architecture observabilité complète
-- **[GRAFANA_DASHBOARDS.md](GRAFANA_DASHBOARDS.md)**: 29 dashboards Grafana détaillés
+- **[GRAFANA_DASHBOARDS.md](GRAFANA_DASHBOARDS.md)**: 33 dashboards Grafana détaillés
 - **[TOKEN_TRACKING_AND_COUNTING.md](TOKEN_TRACKING_AND_COUNTING.md)**: Token tracking architecture
 
 ### Code References
 
 - **apps/api/src/infrastructure/observability/metrics_agents.py**: Métriques principales (110+ définitions)
 - **infrastructure/observability/prometheus/recording_rules.yml**: Recording rules (40+ règles)
-- **infrastructure/observability/grafana/dashboards/**: 29 dashboards JSON
+- **infrastructure/observability/grafana/dashboards/**: 33 dashboards JSON
 
 ---
 

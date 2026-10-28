@@ -63,11 +63,12 @@ vi.mock('@/hooks/useDriveSources', () => ({
     files: [],
     loading: false,
     error: null,
-    breadcrumb: [{ id: 'root', name: 'Drive' }],
+    breadcrumb: [{ id: 'root', name: null }],
     currentFolderId: 'root',
     navigateToFolder: vi.fn(),
     navigateBack: vi.fn(),
     reset: vi.fn(),
+    refetch: vi.fn(),
   }),
 }));
 vi.mock('@/hooks/useApiMutation', () => ({

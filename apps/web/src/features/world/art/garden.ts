@@ -3,6 +3,7 @@ import { project } from '../geometry';
 import type { WorldProp } from '../types';
 import { Painter, shade } from './painter';
 import { propStyleVariant } from './prop-style';
+import { seasonalPalette } from './seasonal-palette';
 
 function crown(
   p: Painter,
@@ -56,6 +57,8 @@ export function paintGardenPlant(p: Painter, o: WorldProp): void {
     p.panel(0.28 + i * 0.12, 0.781, 0.06, 0.025, 0.25, shade(ceramic, 18));
   p.box(0.16, 0.16, 0.35, 0.68, 0.68, 0.12, shade(ceramic, 22));
   p.surface(0.23, 0.23, 0.48, 0.54, 0.54, '#66533d');
+  p.ctx.save();
+  p.ctx.translate(p.reaction * 2.2, 0);
   p.box(0.47, 0.47, 0.46, 0.07, 0.07, 0.6, '#71825c');
   if (variant === 1) {
     for (let i = 0; i < 7; i++) {
@@ -69,7 +72,11 @@ export function paintGardenPlant(p: Painter, o: WorldProp): void {
           project({ x, y: y + 0.07 }, z + 0.1),
           project({ x: x + 0.08, y }, z - 0.1),
         ],
-        i % 2 ? '#65a85b' : '#3b8552'
+        p.season === 'neutral'
+          ? i % 2
+            ? '#65a85b'
+            : '#3b8552'
+          : shade(seasonalPalette(p.season).leaf, i % 2 ? 12 : -8)
       );
     }
   } else if (variant === 2) {
@@ -90,7 +97,11 @@ export function paintGardenPlant(p: Painter, o: WorldProp): void {
           project(tip, z + 0.17),
           project({ x: mid.x - side.x, y: mid.y - side.y }, z + 0.18),
         ],
-        i % 2 ? '#4b985b' : '#29754c'
+        p.season === 'neutral'
+          ? i % 2
+            ? '#4b985b'
+            : '#29754c'
+          : shade(seasonalPalette(p.season).leaf, i % 2 ? 5 : -12)
       );
       const from = project({ x: 0.5, y: 0.5 }, z),
         to = project(tip, z + 0.17);
@@ -102,9 +113,10 @@ export function paintGardenPlant(p: Painter, o: WorldProp): void {
       p.ctx.stroke();
     }
   } else {
-    crown(p, 0.12, 0.13, 0.88, 0.73, '#438951', variant);
+    crown(p, 0.12, 0.13, 0.88, 0.73, seasonalPalette(p.season).leaf, variant);
     p.box(0.52, 0.45, 1.32, 0.12, 0.12, 0.18, '#85b957');
   }
+  p.ctx.restore();
 }
 export function paintGardenPlanter(p: Painter, o: WorldProp): void {
   const variant = propStyleVariant(o);
@@ -112,21 +124,36 @@ export function paintGardenPlanter(p: Painter, o: WorldProp): void {
   p.box(0, 0, 0.34, o.width, o.depth, 0.1, '#d8cbb3');
   p.surface(0.09, 0.09, 0.445, o.width - 0.18, o.depth - 0.18, '#675841');
   for (let x = 0.16; x < o.width - 0.4; x += 0.55)
-    crown(p, x, 0.15, 0.47, 0.54, variant === 2 ? '#779467' : '#60825d', variant);
+    crown(
+      p,
+      x + p.reaction * 0.04,
+      0.15,
+      0.47,
+      0.54,
+      p.season === 'neutral'
+        ? variant === 2
+          ? '#779467'
+          : '#60825d'
+        : seasonalPalette(p.season).leaf,
+      variant
+    );
   for (let x = 0.25; x < o.width - 0.1; x += 0.45)
     p.panel(x, o.depth + 0.001, 0.11, 0.015, 0.2, '#8f826f');
 }
 export function paintGardenFlowers(p: Painter, o: WorldProp): void {
   const variant = propStyleVariant(o);
   const petals = ['#e86b67', '#f2c14a', '#a782d8'];
-  for (let i = 0; i < 3 + variant; i++) {
+  const palette = seasonalPalette(p.season);
+  for (let i = 0; i < Math.max(1, 3 + variant + palette.flowers); i++) {
     const x = 0.12 + ((i * 7 + variant * 3) % 11) * 0.056,
       y = 0.12 + ((i * 3 + variant) % 10) * 0.065;
     const z = 0.1 + (i % 3) * 0.055;
     p.surface(x - 0.05, y - 0.04, 0.015, 0.24, 0.16, '#6c895c');
     p.box(x + 0.055, y + 0.055, 0.02, 0.035, 0.035, z, '#739261');
-    p.surface(x - 0.04, y + 0.02, z, 0.25, 0.11, petals[variant]);
-    p.surface(x + 0.03, y - 0.05, z + 0.005, 0.11, 0.25, petals[variant]);
+    const petal = p.season === 'neutral' ? petals[variant] : palette.petal;
+    const bloom = 1 + Math.max(0, p.reaction) * 0.25;
+    p.surface(x - 0.04, y + 0.02, z, 0.25 * bloom, 0.11, petal);
+    p.surface(x + 0.03, y - 0.05, z + 0.005, 0.11, 0.25 * bloom, petal);
     p.box(x + 0.05, y + 0.05, z + 0.01, 0.065, 0.065, 0.045, '#f0d793');
   }
 }

@@ -1520,10 +1520,18 @@ class TestProviderClientLifecycle:
         await self._run("_fetch_tasks", client)
 
     async def test_emails_client_closed_even_on_error(self):
-        from unittest.mock import AsyncMock
+        from unittest.mock import AsyncMock, patch
 
         client = self._client(search_emails=AsyncMock(side_effect=RuntimeError("gmail down")))
-        with pytest.raises(RuntimeError):
+        # No history anchor yet: the delta sends the fetch down the query path
+        # (its own contract is pinned in test_gmail_delta.py), without Redis.
+        with (
+            patch(
+                "src.domains.heartbeat.gmail_delta.delta_messages_or_none",
+                AsyncMock(return_value=None),
+            ),
+            pytest.raises(RuntimeError),
+        ):
             await self._run("_fetch_emails", client)
         client.close.assert_awaited_once()
 

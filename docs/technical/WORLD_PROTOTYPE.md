@@ -28,6 +28,12 @@ as requested by the owner, pending a separate implementation decision.
 
 ## Try it
 
+The [interactions and play design](../superpowers/specs/2026-10-27-world-interactions-and-play.md),
+[sequenced plan](../superpowers/plans/2026-10-27-world-interactions-and-play.md) and
+[qualification record](../superpowers/qualification/2026-10-27-world-interactions-and-play.md)
+track the current extension. Their accepted-lot status distinguishes verified
+server authority from subsequent interface and native-sharing work.
+
 When the deployment flag and native operator capability permit it, the
 authenticated application exposes **LIA World** through its shared desktop
 and mobile navigation, at the localized `dashboard/world` route. Its scene is
@@ -97,7 +103,13 @@ Stop it with `-Action Stop -Container lia-world-prototype-mobile` after testing.
 The shared foundation now has native HTTP-only session authentication, explicit
 consent to display the native account name, bounded server admission and FIFO waiting, controller
 takeover, authoritative collisions and filtered snapshots. Redis is the only
-authority; an outage freezes input and enters bounded reconnection. Browser
+authority; an outage freezes input and enters bounded reconnection. A shorter
+silence (no snapshot within `FRESH_SNAPSHOT_MS`, declared in
+[movement.ts](../../apps/web/src/features/world/movement.ts) and read by the
+[link](../../apps/web/src/features/world/shared-link.ts)) freezes a pending
+approach to an object, a seat or a person instead of withdrawing it: the avatar
+holds still, the walk resumes from the authoritative position, and the
+approach's own deadline still bounds the wait (`SceneHost.ready`). Browser
 tickets and controller tokens stay in memory and never travel in a URL.
 Private home occupants and blocked accounts are omitted from other viewers'
 projections. Account deletion selectively removes presence without clearing
@@ -231,11 +243,13 @@ registry. The ordinary settings page uses the same registry and pane frame; the
 world supplies a compact icon instead of loading the entire icon catalogue.
 Account, world authority or capability loss unmounts the selected activity.
 World account verification also rereads the real HttpOnly cookie on foreground
-return and when the mailbox rejects its authority. During verification, private
-portals withdraw along with the scene; a mismatched identity destroys the old
-world subtree and offers a full reload. Same-account verification retains the
-composer draft, and an unavailable verification can be retried without publishing
-the old account's panels. Socket handshake identity is never mistaken for the
+return and when the mailbox rejects its authority. Until a read confirms the owner,
+private portals stay withdrawn along with the scene; a later verification of that
+confirmed owner runs in the background, so the private subtree stays visible and its
+effects alive (a streamed answer, a Live session). A read that fails withdraws it, and
+a mismatched or inactive identity destroys the old world subtree and offers a full
+reload. Same-account verification retains the composer draft, and an unavailable
+verification can be retried without publishing the old account's panels. Socket handshake identity is never mistaken for the
 identity currently attached to HTTP requests.
 
 The searchable function catalogue reuses native settings search and static slash
@@ -270,7 +284,8 @@ claim. Its relay button prepares a normal LIA draft with native confirmation and
 
 On desktop, LIA and human conversation docks leave the focused scene movable.
 Keyboard movement remains canvas-scoped: writing a draft never moves an avatar.
-Modal activities and compact conversation layouts retain their pause behavior.
+Modal activities and full conversation docks on compact screens retain their
+pause behavior. The quick social bar leaves scene navigation active.
 The camera/follow/zoom controls share the action bar's bottom row on desktop.
 The redundant in-game voice toggle is removed; the application menu retains its
 ordinary voice behavior and navigation.
@@ -338,8 +353,9 @@ background-tab presence expiry and the native per-account write limit remain
 enforced during qualification.
 
 Native identity is rechecked on focus/visibility and after a private 401/403.
-Pending verification hides private portals; a confirmed foreign account destroys
-the old owner subtree. Same-owner panels retain local edits through React's
+A first or failed verification hides private portals; a background revalidation of
+the confirmed owner keeps them visible and mounted; a confirmed foreign account
+destroys the old owner subtree. Same-owner panels retain local edits through React's
 [Activity lifecycle](https://react.dev/reference/react/Activity), without pausing
 the world transport. The owner-scoped, in-memory reading position survives that
 private panel lifecycle and is cleared on explicit close. Hidden zero-height
@@ -404,13 +420,42 @@ Functions menu; settings stay separate. Widgets follow the heading's actual heig
 instead of a fixed portrait offset. Short landscape folds the quick tools into
 one labelled action, preserving touch targets and keyboard dismissal.
 
+Route (footprints), Gestures (open hand) and Photo (camera) share the device widget
+group. Folded controls expose the authored [gesture catalogue](../../apps/web/src/features/world/emote-catalogue.ts)
+directly beside the joystick, with one keyboard controller shared by both
+presentations. The separate Discover, introduction/replay and decorative-actions controls
+are retired. The Functions catalogue includes SMS in the atrium. News belongs to
+the small table beside the meeting-room sofa; the cafeteria news desk is removed.
+The civil clock/phase badge appends the effective localized season. Sheltered
+plants keep their neutral green palette independently of outdoor foliage.
+
 Private social messages use a person directory and one selected thread. Each
 person has their own unread count, draft and reading position; leaving the world
 does not merge identities or expose a hidden original in previews. Opening the
-directory reads no thread. Departed people remain available through retained
+directory reads no unselected thread. Departed people remain available through retained
 mailbox history or an addressed draft, while sending still requires native
-availability. Phones use a list/detail flow; desktop keeps the directory beside
-the conversation.
+availability. The expanded panel uses a list/detail flow on phones; desktop keeps
+the directory beside the conversation.
+
+The quick social bar shares that mailbox, addressed drafts and translation
+consent. It starts hidden on phone and short landscape layouts: Chat folds any
+expanded world controls and opens the bar. Its header can hide recent history,
+open the full panel or close the bar without discarding the draft. On desktop,
+the bar starts visible and Chat retains access to the full panel.
+
+The [nearby recipient projection](../../apps/web/src/features/world/nearby-conversations.ts)
+orders authoritative, reachable participants by distance; otherwise the bar
+addresses the existing public channel. A focused composer, non-empty draft or
+pending delivery keeps its destination. Explicit selection can override the
+automatic choice, and ambiguous names retain their identifier suffix. Proximity
+creates no send or translation operation and changes no server permission.
+Hidden history is never marked read. The viewport dock handles the keyboard and
+the scene boundary; short landscape reserves separate spaces for the joystick,
+gestures, contextual action and conversation.
+
+The [compact social plan](../superpowers/plans/2026-10-28-world-compact-social.md)
+and its [qualification](../superpowers/qualification/2026-10-28-world-compact-social.md)
+record the regression and browser evidence.
 
 Home customization exposes colour swatches with immediate preview, explicit save,
 cancel and revision-conflict recovery. Its contract contains only palette and
@@ -432,6 +477,13 @@ A running container can contain only its idle shell after Docker restarts. Start
 that container does not by itself restore the Next or API process. Reuse the
 complete retained runtime configuration when resuming them; do not reconstruct
 only a subset of environment variables.
+
+The compiled World JSON catalogue is read at API process startup. Development
+entry points watch JSON under the source directory as well as Python, so new pose
+slots reach the server. A reloader started before that option was added must be
+recreated once. An older worker with a newer client can refuse a newly authored
+slot as unavailable; keep both source generations synchronized rather than
+inventing a local shared pose.
 
 The browser-facing loopback hostname belongs in NEXT_PUBLIC_ALLOWED_DEV_ORIGINS.
 The normal scripts/world-prototype.ps1 launcher derives it from BindAddress.
@@ -648,3 +700,174 @@ Verification includes owner-isolated storage, mute/volume independence, final-ou
 audio measurement at zero and nonzero gain, desktop/mobile controls, keyboard focus
 return and native geometry/pose checks. Browser viewport emulation is not physical
 phone audio-routing qualification.
+
+### Authoritative cabinet games
+
+Each authored cabinet binds to one original deterministic rule engine: tic-tac-toe,
+four-in-row or Reversi. Shared Redis authority owns moves, outcomes, consent,
+round revisions and deadlines. The computer uses bounded local search with a
+legal low-cost fallback; this path calls no LLM, provider, prompt, memory or token
+accounting service. There is no durable game-history table or per-match worker.
+
+The host can wait or play the computer. A joining human requests contact; only
+the host's explicit acceptance creates a fresh two-human board. An unclaimed
+waiting host can deliberately start a fresh computer round. Rematches require
+each human's consent and alternate colors. An accepted request is a new pairing,
+not a rematch: its board is the canonical fresh one, the host on the first color
+and the joiner on the second, whatever color an earlier solo rematch had moved the
+host to. A new World controller must explicitly rejoin, a finished table included
+while its result is displayed, so a reconnect on the result screen can still
+rematch or leave; a new admission identity cannot inherit an earlier admission's game.
+
+The game command boundary bounds distributed account input first: a command the
+input cap or the disabled arcade refuses changes no table, so it only consumes
+its sequence and records its receipt, without the cookie revalidation, the SQL
+policy fence or any computer search. Every other command authenticates the native
+cookie and prepares the computer response before acquiring SQL locks. Canonical
+account fences serialize fresh eligibility and bidirectional blocks with the
+existing contact block/unblock service; they are `FOR NO KEY UPDATE`, like the
+[peers pair fence](../../apps/api/src/domains/peers/pair_fence.py), so they order
+policy writers and never an insert merely referencing those accounts. The fence
+is held through the one bounded Redis commit, a deliberate exception recorded in
+[ADR-365](../architecture/ADR-365-Private-Native-LIA-In-An-Authoritative-Isometric-World.md).
+The Redis callback performs only pure transitions. Match revision, scene epoch, controller, operation identity
+and a hash of the complete command fence duplicate or obsolete delivery. An
+uncertain acknowledgment can be retried exactly; it cannot silently replay a
+move against a new board. Ordinary movement elsewhere does not revise a match.
+Explicit departure remains account/controller/round-fenced while allowing a
+newer revision of that same round, so an opponent's concurrent move cannot trap
+the player. Departing also clears that player's outstanding rematch consent.
+
+Only current visible participants receive a board. Others receive coarse cabinet
+availability — empty, joinable or full — and only a joinable cabinet carries the
+round fence a join needs; pending requesters receive no board. A table holding
+someone blocked by, blocking or ineligible to the viewer reads exactly like any
+other full table, so the hint discloses neither a block nor a revocation. Public
+payloads carry opaque World actor identities and their existing public aliases.
+Account identifiers, controller secrets, operation receipts belonging to peers and
+block reasons are excluded. Policy-hidden refusal payloads also omit the round
+identifier/revision.
+Projection withdrawal follows the existing bounded socket-policy refresh in
+[transport](../../apps/api/src/domains/world/transport.py); mutations consult
+fresh SQL policy for every command.
+
+Disconnect suspension and remaining turn time are committed once, with bounded
+reconnect and absolute match lifetimes. Inactivity, revocation and outages never
+invent a winner. Account erasure includes membership, requests, consent and
+receipt-only ownership, plus short-lived input counters. Strict legacy readers
+preserve each older authority generation during erasure. Corrupt records fail
+closed at both read and pre-commit validation boundaries. They fail differently:
+a stored record the reader refuses keeps the reader's own error, which erasure
+uses to try the older generations; a record a transition produced invalid is a
+server defect — never published, logged by its rule code alone (no value),
+counted by `world_authority_integrity_failures_total` and closing the socket 1011.
+
+The socket tells three kinds of failure apart. A frame whose envelope declares
+another socket protocol generation closes 4426, asking the client to reload
+rather than retry; any other invalid frame, and the frame-rate refusal, closes
+1008; a server defect closes 1011. The codes are the `WORLD_SOCKET_CLOSE_*`
+constants of [core constants](../../apps/api/src/core/constants.py). A refused
+gesture (cooldown or visibility) publishes nothing, so it settles under its
+sequence without a native policy read; a gesture that may be published still
+reads fresh policy first. Computer searches that outlive their caller's deadline
+are awaited by the shutdown sequence before the event loop closes.
+
+The optional child deployment limit is declared with the other
+[World settings](../../apps/api/src/core/config/world.py); native World capability
+must also permit every command. Disabled startup withdraws stored games, and
+disabled projections retain ordinary World admission. Environment changes take
+effect through the established restart lifecycle. Bounded, identity-free metrics
+are wired to the [World arcade dashboard](../../infrastructure/observability/grafana/dashboards/32-world-arcade.json).
+
+The native activity host opens the [arcade panel](../../apps/web/src/features/world/WorldArcadePanel.tsx)
+from the authored cabinet binding and its canonical front approach. Keyboard
+grids expose coordinates and piece names, four-in-row exposes gravity columns,
+and a Reversi pass is an explicit server-authorized choice. Piece transitions
+respect reduced motion. Countdown text follows server time and does not announce
+every second to assistive technology.
+
+The [game client](../../apps/web/src/features/world/game-client.ts) retains one
+pending command and the exact rendered round, revision and transport generation.
+It never changes a board speculatively. A newer unseen invitation cannot inherit
+an earlier click's consent. Uncertain commands are not replayed; the owner can
+explicitly inspect the current state. Closing queues one departure after any
+in-flight acceptance is authoritatively processed. A refused departure permits
+a deliberate fresh attempt. Leaving a policy-hidden blocked game releases both
+memberships so neither player retains an invisible cabinet reservation.
+
+Activity/account teardown withdraws the interaction, while transport reconnection
+requires explicit game rejoin. The dashboard and its native navigation retain
+their existing independent lifecycle. Deploy matching API/client images together;
+older API workers do not participate in the new contact-policy locking boundary.
+
+## Safe local photos
+
+The [photo projection](../../apps/web/src/features/world/photo-projection.ts) explicitly
+selects the owner's appearance and frozen pose, LIA, camera and public decor state.
+It excludes other visitors, aliases, notices, speech, device data and game state.
+The independent [photo renderer](../../apps/web/src/features/world/photo-renderer.ts)
+uses existing painters in a photo purpose that suppresses labels and interaction
+markers. It never copies the interactive Canvas or advances its simulation.
+The selected camera center and zoom are preserved using a cover crop for the
+chosen aspect ratio. Every exported image carries the fixed, mandatory signature
+`LIA World - https://lia.jeyswork.com`, the project's website read from the one
+[attribution module](../../apps/web/src/lib/project-attribution.ts) the host-neutral
+release guard allows (ADR-215). Only authored lamp switches and finite
+public screen variants join the still; animation, private screen content and
+arbitrary runtime maps are excluded by the [decor projection](../../apps/web/src/features/world/photo-decor.ts).
+
+The [exporter](../../apps/web/src/features/world/photo-export.ts) bounds JPEG size,
+physical dimensions, attempts and encoder lifetime. A timeout keeps the single
+encoding lease until the browser's actual callback settles. The owner-bound preview
+revokes Blob URLs on replacement and teardown; a failed refresh retains the clearly
+identified previous preview. Share is a fresh explicit action on the completed
+file; opening the panel never invokes a chooser. Download uses a generic filename.
+No upload, server photo persistence, assistant message or LLM call is involved.
+
+Native sharing uses a separate capability advertised by the installed binary.
+Older shells keep the web preview and supported download. The native bridge
+accepts only bounded JPEG bytes with a generic name; no path or URL can be read.
+A distinct Android provider grants temporary read access only to the World photo
+cache. iOS anchors one activity controller for iPad and preserves cancellation.
+Each app limits its private cache; expiry timers run while its process lives and
+expired entries are removed on reuse. Killing the process is not a guarantee of
+background deletion at an exact wall-clock deadline. Files remain private app
+cache and cannot be browsed from World. Native validation and qualification are
+recorded in the [ledger](../superpowers/qualification/2026-10-27-world-interactions-and-play.md).
+
+## Approached decorative interactions
+
+The [cosmetic controller](../../apps/web/src/features/world/cosmetic-controller.ts)
+reuses native scene navigation: a click selects a reachable approach, and arrival
+precedes reaction and sound. Moving fauna can update the bounded approach intent.
+Manual input, pause, ownership withdrawal and disposal fence pending sounds.
+Pure decor shows a pointer/footprint without action text; native features retain
+their labels and binding priority. Flowers and birds have no click interaction;
+birds remain part of ambient artwork.
+
+Lamps toggle locally and screens cycle finite authored illustrations. Three
+machines have distinct moving mechanisms. The fountain has one avatar toss,
+ballistic coin, impact splash and subsequent rings. Only the rightmost gym bench
+opens Health. The other two request native authoritative lying poses, wait for
+confirmation, animate three bar presses and request standing through the same
+host. No shared pose is fabricated by the cosmetic controller. Occupied or
+rejected poses produce no exercise; expired confirmations produce no late effect.
+The active bar is composed over the owner's body, inside the existing actor
+layer and before external foreground masks. Its thin octagonal plates, hand
+reach and lift share finite authored geometry; the supporting bench stays static.
+The pond plays a finite fishing sequence: the owner takes out a rod, casts a
+float, waits and reels it back. The water cue follows the cast impact; movement
+cancels the rod and line. Each authored machine has its own electric, pneumatic
+gantry or paper-roller sound, selected by its fixed object identity.
+
+Presentation stays local to the current World runtime; it is not persistent or a
+new public protocol. Existing bounded sprite caches hold quantized animation
+frames. Reduced motion keeps state changes and uses restrained/static responses.
+Per-object audio uses the existing sound preference, volume, visibility and voice
+priority: two ambience voices plus one transient cue, with message notifications
+taking priority. No provider or LLM call occurs on these interaction paths.
+The [audio provenance](../../apps/web/public/world/audio/v1/provenance.json) records
+the one-time ElevenLabs generations and measured charges. Superseded local/CC0
+receipts remain historical; every active decor cue is a generated ElevenLabs asset. Physical
+platform limits and the refinement evidence are in the
+[refinement ledger](../superpowers/qualification/2026-10-27-world-feedback-refinement.md).

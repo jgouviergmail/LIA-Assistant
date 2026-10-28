@@ -32,6 +32,27 @@ async def init_redis() -> None:
         logger.error("redis_initialization_failed", error=str(exc), exc_info=True)
 
 
+async def withdraw_disabled_world_games() -> None:
+    """A disabled arcade cannot revive old ephemeral matches on a later restart."""
+    from pydantic import ValidationError
+    from redis.exceptions import RedisError
+
+    from src.domains.world.configuration import configured_arcade_enabled, configured_store
+    from src.domains.world.store import WorldUnavailable
+
+    if configured_arcade_enabled():
+        return
+    try:
+        store = configured_store(await get_redis_cache())
+        state, _ = await store.read()
+        if state.games:
+            await store.update(lambda current, now: current.games.clear())
+    except (RedisError, OSError, TimeoutError, ValidationError, WorldUnavailable) as exc:
+        # Admission/commands remain fail-closed, and the stored TTL still bounds
+        # stale state when Redis is unavailable during startup.
+        logger.warning("world_disabled_games_cleanup_failed", error_type=type(exc).__name__)
+
+
 async def init_pricing_caches() -> None:
     """Initialize the pricing caches and register them for invalidation.
 

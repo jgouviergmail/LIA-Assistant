@@ -169,5 +169,6 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "sms_preferences": _SCRUBBED_PREFERENCE,
     "world_preferences": _SCRUBBED_PREFERENCE,
     "world_avatar_preferences": _SCRUBBED_PREFERENCE,
+    "world_experience_preferences": _SCRUBBED_PREFERENCE,
     "ingestion_key_encrypted": _SCRUBBED,
 }

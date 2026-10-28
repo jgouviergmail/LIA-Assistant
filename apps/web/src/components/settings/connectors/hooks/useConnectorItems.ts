@@ -1,9 +1,10 @@
+import { useEffectRequest } from '@/hooks/useEffectRequest';
 /**
  * Hook for fetching available calendars or task lists from a connected provider.
  * Used by PreferenceDropdown to populate the selection dropdown.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
 import { PREFERENCE_FIELDS } from '../constants';
@@ -47,48 +48,56 @@ export function useConnectorItems(
 
   const isCalendar = isCalendarConnector(connectorType);
 
-  const fetchItems = useCallback(async () => {
-    setLoading(true);
-    setError(false);
+  // The automatic read and the retry share one generation (`useEffectRequest`):
+  // a newer read, or the unmount, aborts the one in flight at its transport.
+  const fetchItems = useCallback(
+    async (signal: AbortSignal) => {
+      setLoading(true);
+      setError(false);
 
-    try {
-      if (isCalendar) {
-        const response = await apiClient.get<{ items: CalendarApiItem[] }>(
-          `/connectors/${connectorId}/calendars`
-        );
-        setItems(
-          (response.items || []).map(item => ({
-            name: item.name,
-            isDefault: item.is_default,
-            accessRole: item.access_role,
-          }))
-        );
-      } else {
-        const response = await apiClient.get<{ items: TaskListApiItem[] }>(
-          `/connectors/${connectorId}/task-lists`
-        );
-        setItems(
-          (response.items || []).map(item => ({
-            name: item.name,
-            isDefault: item.is_default,
-          }))
-        );
+      try {
+        if (isCalendar) {
+          const response = await apiClient.get<{ items: CalendarApiItem[] }>(
+            `/connectors/${connectorId}/calendars`,
+            { signal }
+          );
+          if (signal.aborted) return;
+          setItems(
+            (response.items || []).map(item => ({
+              name: item.name,
+              isDefault: item.is_default,
+              accessRole: item.access_role,
+            }))
+          );
+        } else {
+          const response = await apiClient.get<{ items: TaskListApiItem[] }>(
+            `/connectors/${connectorId}/task-lists`,
+            { signal }
+          );
+          if (signal.aborted) return;
+          setItems(
+            (response.items || []).map(item => ({
+              name: item.name,
+              isDefault: item.is_default,
+            }))
+          );
+        }
+      } catch (err) {
+        if (signal.aborted) return;
+        logger.error('Failed to fetch connector items', err as Error, {
+          component: 'useConnectorItems',
+          connectorId,
+          connectorType,
+        });
+        setError(true);
+      } finally {
+        if (!signal.aborted) setLoading(false);
       }
-    } catch (err) {
-      logger.error('Failed to fetch connector items', err as Error, {
-        component: 'useConnectorItems',
-        connectorId,
-        connectorType,
-      });
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [connectorId, connectorType, isCalendar]);
+    },
+    [connectorId, connectorType, isCalendar]
+  );
 
-  useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
-
-  return { items, loading, error, refetch: fetchItems };
+  const rerun = useEffectRequest(fetchItems);
+  const refetch = useCallback(() => void rerun(), [rerun]);
+  return { items, loading, error, refetch };
 }

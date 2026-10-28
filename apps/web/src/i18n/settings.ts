@@ -38,19 +38,6 @@ export const languageNames: Record<Language, { native: string; english: string }
 };
 
 /**
- * Language flag emojis
- * Centralized to avoid duplication across components
- */
-export const languageFlags: Record<Language, string> = {
-  fr: '🇫🇷',
-  en: '🇬🇧',
-  es: '🇪🇸',
-  de: '🇩🇪',
-  it: '🇮🇹',
-  zh: '🇨🇳',
-};
-
-/**
  * Set the locale cookie for i18n routing
  * Used by LanguageSelector and LanguageSettings to persist user's language choice
  *

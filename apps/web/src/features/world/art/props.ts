@@ -1,5 +1,9 @@
 import type { AvatarAppearance } from '../avatar-catalogue';
+import type { Season } from '../season';
+import { NO_DECOR, type DecorPresentation, type PersonInteraction } from '../decor-presentation';
+import { paintScreenContent } from './screen-content';
 import { paintPond } from './pond';
+import { paintSmartphone } from './smartphone';
 import { paintRoomModel } from './room-models';
 import { paintJoinedWall, paintParasol } from './joined-walls';
 import {
@@ -29,6 +33,7 @@ import { paintTelescope } from './creative';
 import { paintRug, paintDesk, paintBed, paintFountain, paintTable } from './interiors';
 type Draw = (p: Painter, o: WorldProp) => void;
 const DRAW: Record<PropKind, Draw> = {
+  smartphone: paintSmartphone,
   pond: paintPond,
   sidetable: paintRoomModel,
   waterlily: paintRoomModel,
@@ -119,7 +124,15 @@ const DRAW: Record<PropKind, Draw> = {
   lamp: p => {
     p.box(0.04, 0.04, 0, 0.35, 0.35, 0.09, DARK);
     p.box(0.18, 0.18, 0.09, 0.07, 0.07, 1.7, DARK);
-    p.box(0.01, 0.01, 1.7, 0.4, 0.4, 0.42, '#e8d9a6');
+    p.box(
+      0.01,
+      0.01,
+      1.7,
+      0.4,
+      0.4,
+      0.42,
+      p.decor.light === false ? '#76857b' : p.decor.light ? '#ffe9a4' : '#e8d9a6'
+    );
     for (const x of [0, 0.37]) for (const y of [0, 0.37]) p.box(x, y, 1.7, 0.04, 0.04, 0.42, DARK);
     p.box(-0.03, -0.03, 2.1, 0.48, 0.48, 0.07, DARK);
     p.box(0.05, 0.05, 2.17, 0.32, 0.32, 0.06, '#4c6265');
@@ -137,9 +150,25 @@ const DRAW: Record<PropKind, Draw> = {
   bed: paintBed,
   flowers: paintGardenFlowers,
 };
-export function paintProp(prop: WorldProp, ratio: number, shadow = true): Sprite {
-  const painter = new Painter(prop.width, prop.depth, Math.max(prop.height, 2.5), ratio);
+export function paintProp(
+  prop: WorldProp,
+  ratio: number,
+  shadow = true,
+  season: Season = 'neutral',
+  reaction = 0,
+  decor: DecorPresentation = NO_DECOR
+): Sprite {
+  const painter = new Painter(
+    prop.width,
+    prop.depth,
+    Math.max(prop.height, 2.5),
+    ratio,
+    season,
+    reaction,
+    decor
+  );
   DRAW[prop.kind](painter, prop);
+  paintScreenContent(painter, prop);
   if (
     shadow &&
     prop.height > 0.1 &&
@@ -198,9 +227,10 @@ export function paintActor(
   tone: Tone = 'violet',
   heading?: number,
   pose?: import('../pose-slots').PoseSlot | null,
-  appearance?: AvatarAppearance
+  appearance?: AvatarAppearance,
+  interaction?: PersonInteraction
 ): Sprite {
-  if (!bip) return paintPerson(facing, phase, ratio, tone, heading, pose, appearance);
+  if (!bip) return paintPerson(facing, phase, ratio, tone, heading, pose, appearance, interaction);
   const p = new Painter(1, 1, 2.6, ratio);
   const stride = Math.sin((phase * Math.PI) / 4) * 0.12;
   const cloth = '#e7e9df',

@@ -6,7 +6,9 @@ const epoch = '11111111-1111-4111-8111-111111111111';
 const actor = '22222222-2222-4222-8222-222222222222';
 function snapshot(patch: Partial<WorldView> = {}): WorldView {
   return {
-    version: 1,
+    version: 2,
+    server_time: 100,
+    receipts: [{ seq: 4, kind: 'pose', result: 'accepted' }],
     type: 'snapshot',
     epoch,
     revision: 1,
@@ -40,7 +42,12 @@ function arm() {
 it('opens only after the requested authoritative pose is acknowledged, once', () => {
   arm();
   expect(intent.accept(snapshot({ ack: 3 }), 2, 200)).toBeNull();
-  expect(intent.accept(snapshot(), 2, 300)).toBe('memory-seat:0');
+  expect(intent.accept(snapshot(), 2, 300)).toEqual({
+    slot: 'memory-seat:0',
+    seq: 4,
+    stream: 2,
+    epoch,
+  });
   expect(intent.accept(snapshot(), 2, 400)).toBeNull();
 });
 it('does not react to a seated snapshot without a local request', () => {
@@ -82,6 +89,14 @@ it('cancels across reconnects, timeouts, manual interruption and superseding req
   intent.arm({ slot: 'other:0', seq: 5, epoch, stream: 2, now: 110 });
   expect(intent.accept(snapshot(), 2, 200)).toBeNull();
   expect(
-    intent.accept(snapshot({ ack: 5, you: { ...snapshot().you!, pose: 'other:0' } }), 2, 300)
-  ).toBe('other:0');
+    intent.accept(
+      snapshot({
+        ack: 5,
+        receipts: [{ seq: 5, kind: 'pose', result: 'accepted' }],
+        you: { ...snapshot().you!, pose: 'other:0' },
+      }),
+      2,
+      300
+    )
+  ).toEqual({ slot: 'other:0', seq: 5, stream: 2, epoch });
 });

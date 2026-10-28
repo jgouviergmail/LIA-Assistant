@@ -126,6 +126,48 @@ describe('LanguageSettings', () => {
     expect(mutate).not.toHaveBeenCalled();
   });
 
+  it.each<[keyof typeof languageNames, string]>([
+    ['fr', '/flags/fr.svg'],
+    ['en', '/flags/gb.svg'],
+    ['es', '/flags/es.svg'],
+    ['de', '/flags/de.svg'],
+    ['it', '/flags/it.svg'],
+    ['zh', '/flags/cn.svg'],
+  ])('draws %s with a decorative flag image, never an emoji in its name', (lang, asset) => {
+    // A flag emoji renders as two letters on Windows, and it was part of the
+    // option's accessible name ("🇫🇷 Français" read out letter by letter).
+    useAuth.mockReturnValue({ user: { id: 'u1', language: 'en' }, refreshUser: vi.fn() });
+    renderWithProviders(<LanguageSettings lng="en" />);
+
+    const option = screen.getByRole('button', { name: btn(lang) });
+    const flag = option.querySelector('img');
+    expect(flag).toHaveAttribute('src', asset);
+    expect(flag).toHaveAttribute('alt', '');
+    expect(flag).toHaveAttribute('aria-hidden', 'true');
+    expect(option).toHaveAccessibleName(
+      `${languageNames[lang].native} ${languageNames[lang].english}`
+    );
+  });
+
+  it('draws the current language and the browser suggestion with flag images', () => {
+    useAuth.mockReturnValue({ user: { id: 'u1', language: 'de' }, refreshUser: vi.fn() });
+    const browser = vi.spyOn(window.navigator, 'language', 'get').mockReturnValue('fr-FR');
+    try {
+      renderWithProviders(<LanguageSettings lng="de" />);
+
+      const suggestion = screen.getByRole('button', { name: /settings\.language\.use_browser/ });
+      expect(suggestion).toHaveAccessibleName(
+        `settings.language.use_browser (${languageNames.fr.native})`
+      );
+      expect(suggestion.querySelector('img')).toHaveAttribute('src', '/flags/fr.svg');
+      const current = screen.getByText('settings.language.current').closest('div');
+      expect(current?.querySelector('img')).toHaveAttribute('src', '/flags/de.svg');
+      expect(document.body).not.toHaveTextContent(/[\u{1F1E6}-\u{1F1FF}]/u);
+    } finally {
+      browser.mockRestore();
+    }
+  });
+
   it('renders nothing without an authenticated user', () => {
     useAuth.mockReturnValue({ user: null, refreshUser: vi.fn() });
     renderWithProviders(<LanguageSettings lng="en" />);

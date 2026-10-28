@@ -6,7 +6,7 @@
 
 **Version** : 5.6
 **Date** : 2026-10-23
-**Application** : LIA v4.0.0
+**Application** : LIA v4.1.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -73,8 +73,8 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Auto-hébergement ARM64 | Docker multi-arch, embeddings sémantiques (multilingues), Playwright chromium cross-platform |
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), identifiants chiffrés avec Fernet, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
-| Transparence totale | 635 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 363 ADRs, plus de 68 000 tests automatisés côté backend et frontend, observabilité native, HITL à 6 niveaux |
+| Transparence totale | 640 métriques Prometheus, debug panel embarqué, suivi token par token |
+| Fiabilité en production | 363 ADRs, plus de 69 000 tests automatisés côté backend et frontend, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -92,11 +92,11 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | Plus de 68 000 tests automatisés avec pytest et Vitest (seuils de couverture verrouillés, ADR-116) |
+| Tests | Plus de 69 000 tests automatisés avec pytest et Vitest (seuils de couverture verrouillés, ADR-116) |
 | Fixtures pytest | 1 391, dont 58 partagées via conftest |
 | Documents de documentation | 835 |
 | ADRs (Architecture Decision Records) | 363 |
-| Métriques Prometheus | 635 définitions |
+| Métriques Prometheus | 640 définitions |
 | Dashboards Grafana | 32 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -125,8 +125,8 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Technologie | Version | Rôle |
 |-------------|---------|------|
-| Next.js | 16.4.1 | App Router, SSR, ISR |
-| React | 19.3.0 | UI avec Server Components |
+| Next.js | 16.4.2 | App Router, SSR, ISR |
+| React | 19.3.1 | UI avec Server Components |
 | TypeScript | 6.0.3 | Typage strict |
 | TailwindCSS | 4.3.3 | Utility-first CSS |
 | TanStack Query | 5.x | Server state management, cache, mutations |
@@ -1169,15 +1169,15 @@ Le contenu tiers voyage dans une enveloppe que le modèle sait ne pas obéir ; s
 
 | Technologie | Rôle |
 |-------------|------|
-| Prometheus | 635 métriques custom (RED pattern) |
-| Grafana | 32 dashboards production-ready |
+| Prometheus | 640 métriques custom (RED pattern) |
+| Grafana | 33 dashboards production-ready |
 | Loki | Logs structurés JSON agrégés, collectés par Grafana Alloy (même masquage à la collecte) |
 | Tempo | Traces distribuées cross-service (OTLP gRPC), nommées par le gabarit de la route |
 | Langfuse | LLM-specific tracing (prompt versions, token usage) |
 | Alertmanager | Noyau d'alertes vitales notifiées par e-mail (runbooks liés, seuils par environnement) + webhook vers LIA : chaque alerte devient un incident dans le produit (ADR-247) |
 | structlog | Logging structuré avec PII filtering |
 
-**Une métrique qui n'atteint aucun tableau de bord est une métrique sur laquelle personne n'agit.** L'écart entre ce que le code émet et ce qu'un opérateur peut voir est mesuré, jamais supposé : `scripts/audit/measure_metric_coverage.py` analyse chaque définition de métrique (par AST et non par expression régulière — une regex lit `ZoneInfo("UTC")` comme une métrique `Info`) et confronte chaque nom à tous les panels, règles d'enregistrement et expressions d'alerte. 635 définies ; les métriques qui n'atteignent rien sont listées explicitement dans une base **shrink-only**, si bien qu'une métrique nouvellement aveugle fait rougir le build et qu'une métrique devenue visible doit quitter la liste — sinon la prochaine aveugle prend sa place en silence. Sans cette garde, une source de heartbeat qui tombe en panne ouverte peut effacer une partie des signaux de santé pendant des jours sans qu'aucune métrique ne s'en aperçoive (ADR-148). Deux pièges que la garde ferme par construction — un compteur à labels qui n'a jamais été incrémenté n'expose **aucune série**, donc un panel qui guette une panne rare a besoin de `or vector(0)`, faute de quoi il affiche « No data » là où l'opérateur attend un zéro vert ; et la couverture est lue dans les **expressions** de panels et de règles uniquement, car une métrique citée dans un commentaire n'est pas câblée.
+**Une métrique qui n'atteint aucun tableau de bord est une métrique sur laquelle personne n'agit.** L'écart entre ce que le code émet et ce qu'un opérateur peut voir est mesuré, jamais supposé : `scripts/audit/measure_metric_coverage.py` analyse chaque définition de métrique (par AST et non par expression régulière — une regex lit `ZoneInfo("UTC")` comme une métrique `Info`) et confronte chaque nom à tous les panels, règles d'enregistrement et expressions d'alerte. 640 définies ; les métriques qui n'atteignent rien sont listées explicitement dans une base **shrink-only**, si bien qu'une métrique nouvellement aveugle fait rougir le build et qu'une métrique devenue visible doit quitter la liste — sinon la prochaine aveugle prend sa place en silence. Sans cette garde, une source de heartbeat qui tombe en panne ouverte peut effacer une partie des signaux de santé pendant des jours sans qu'aucune métrique ne s'en aperçoive (ADR-148). Deux pièges que la garde ferme par construction — un compteur à labels qui n'a jamais été incrémenté n'expose **aucune série**, donc un panel qui guette une panne rare a besoin de `or vector(0)`, faute de quoi il affiche « No data » là où l'opérateur attend un zéro vert ; et la couverture est lue dans les **expressions** de panels et de règles uniquement, car une métrique citée dans un commentaire n'est pas câblée.
 
 ### 20.2. Debug Panel embarqué
 
@@ -1491,7 +1491,7 @@ L'application complète à la météo (`gettext.gettext(text, language)` avec pr
 
 ### 23.11. Architecture observabilité
 
-L'observabilité repose sur trois piliers : **émission défensive** sur le chemin critique, **dashboards Grafana** pré-câblés (32 dashboards / 847 panels couvrant l'application, l'infra et chaque sous-système métier), et **gauges DB-backed** entretenues par un updater périodique.
+L'observabilité repose sur trois piliers : **émission défensive** sur le chemin critique, **dashboards Grafana** pré-câblés (33 dashboards / 861 panels couvrant l'application, l'infra et chaque sous-système métier), et **gauges DB-backed** entretenues par un updater périodique.
 
 Un 26e dashboard transforme cette télémétrie en cockpit produit (ADR-178) : les résultats sont validés E1 (confirmation explicite de l'utilisateur) ou E2 (action restée non corrigée pendant une fenêtre comportementale complète), le comptage exact et dédupliqué vit dans PostgreSQL — des états mutables ne se dérivent jamais de compteurs Prometheus — et Grafana le lit via un rôle en lecture seule restreint aux vues agrégées avec un statement timeout épinglé.
 
@@ -2041,6 +2041,12 @@ Le monde propose une autre interface avec l’assistante existante : une maison 
 
 **Le texte humain a son propre cycle de vie.** Des corps privés temporaires dans Redis et des clôtures de tentative SQL sans contenu séparent les messages directs de l’historique et de l’apprentissage des assistantes. Le rôle dédié `world_message_translator` suit la résolution native des modèles, les contrôles de dépense et les reçus de consommation privés. Seul un choix explicite déclenche une traduction payante ; l’original reste conservé et une tentative échouée ou incertaine n’est jamais relancée automatiquement. Le serveur valide des messages stricts versionnés et des tailles bornées. Les parcours navigateur et contrôles d’accessibilité automatisés soutiennent l’objectif WCAG AA ; ils ne certifient ni les performances sur appareil physique ni la fidélité linguistique d’un fournisseur. La voix entre personnes et la fédération restent hors de cette implémentation.
 
+**Les jeux ont eux aussi une autorité.** Chaque borne est liée à un seul moteur de règles déterministe — morpion, Quatre à la suite ou Reversi — et l’autorité Redis qui arbitre les déplacements détient aussi consentement, coups, résultats, délais et revanches. Un joueur qui demande à rejoindre n’est admis que sur acceptation explicite de l’hôte. Chaque commande porte sa manche, sa révision, son contrôleur et l’identité de son opération, de sorte qu’un accusé de réception incertain est relancé à l’identique et ne rejoue jamais un coup sur un nouveau plateau. L’ordinateur est une recherche locale bornée, avec un coup de repli légal, préparée avant toute prise de verrou ; il n’appelle aucun modèle. Seuls les participants actuels reçoivent le plateau, et l’effacement du compte supprime participations, demandes et reçus.
+
+**Une photo est une projection, pas une capture d’écran.** Copier le Canvas en direct capturerait les visiteurs et les éléments superposés ; une image fixe limitée à une liste blanche — l’apparence et la pose du propriétaire, LIA, la caméra et le décor public — est donc dessinée par un moteur de rendu indépendant, puis exportée en JPEG borné avec une signature fixe. Les coques mobiles annoncent une capacité de partage native, valident les octets et les gardent dans un cache privé qui expire ; rien n’est téléversé.
+
+**Gestes et signaux restent bornés.** Six gestes sont confirmés par le serveur et limités en fréquence. Les objets affichent des compteurs bornés des rappels, messages, tickets et fichiers générés du propriétaire lui-même, lus via les endpoints natifs. Saisons, réactions du décor et expression de LIA relèvent de la présentation locale : elles ne conservent rien et n’appellent aucun fournisseur.
+
 Le **canal Tout le monde** fige les destinataires vivants éligibles à l’acceptation du message, hors comptes bloqués et maisons privées. Une arrivée ultérieure ne reçoit pas les anciennes diffusions. La traduction regroupe les langues nécessaires dans le même rôle dédié, avec coût pour l’émetteur et aucune relance payante automatique. Fils publics et privés gardent des brouillons, consentements et positions de lecture séparés.
 
 Le **son local facultatif** utilise des fichiers originaux statiques pour les pièces et le jardin, avec un volume indépendant propre au compte. La lecture démarre sur choix, n’appelle aucun fournisseur et cède la place au micro, à la voix de l’assistante, au Live et à la Radio. Quitter, passer en arrière-plan ou perdre l’autorité suspend le cycle sonore.
@@ -2051,8 +2057,8 @@ Le **son local facultatif** utilise des fichiers originaux statiques pour les pi
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 363 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Plus de 68 000 tests automatisés, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 363 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Plus de 69 000 tests automatisés, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (800+ documents), des 363 ADRs, et du changelog (v1.0 à v4.0.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (800+ documents), des 363 ADRs, et du changelog (v1.0 à v4.1.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

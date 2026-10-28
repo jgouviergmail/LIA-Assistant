@@ -4,7 +4,7 @@
 
 **Version**: 2.6
 **Datum**: 2026-10-23
-**Anwendung**: LIA v4.0.0
+**Anwendung**: LIA v4.1.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Indikator | Wert |
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
-| Quellcodezeilen (ohne Tests) — 60 Backend-Domänenpakete | **1.038.000+** |
-| Inventarisierte automatisierte Tests; passende Suiten für Commit und Release | **68.000+** |
+| Quellcodezeilen (ohne Tests) — 60 Backend-Domänenpakete | **1.051.000+** |
+| Inventarisierte automatisierte Tests; passende Suiten für Commit und Release | **69.000+** |
 | Dokumentierte Architekturentscheidungen (ADR) | **363** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **290** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **291** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **7,9/10** |
 
@@ -72,6 +72,8 @@ Das Projekt wird inzwischen mit mehreren Entwicklungsagenten parallel geführt �
 Eine gemeinsame Welt gibt der Assistentin eine räumliche Sprache: Bibliothek für Wissen, Multimedia-Studio zum Gestalten, Garten zum gemeinsamen Erkunden. Die wichtige technische Entscheidung ist, was eine Grenze überschreitet. Ein öffentlicher Avatar drückt eine bewusste Wahl aus; er veröffentlicht weder Assistentenkontext noch privates Zuhause. Ein Raum öffnet ein bestehendes Werkzeug ohne neue Berechtigung.
 
 Dasselbe gilt für Gespräche. Menschliche Nachrichten haben eine getrennte, vorübergehende Lebensdauer. Übersetzung wird gewählt und abgerechnet; Bewegung und Zeichnung benötigen kein Modell. Eine reichere Oberfläche bleibt steuerbar, wenn Kosten, Eigentum und Bestätigungen dieselbe Bedeutung behalten.
+
+Spielen folgt derselben Regel. Die Züge einer Partie bestätigt der Server, und der Computergegner ist eine begrenzte Suche, kein Modell; ein Foto entsteht aus dem, was die Person zeigen wollte, und wird nie vom Bildschirm kopiert.
 
 ---
 

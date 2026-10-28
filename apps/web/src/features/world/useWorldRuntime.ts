@@ -1,15 +1,19 @@
 'use client';
 import type { WorldSpeech } from './speech';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 import type { SceneHost } from './scene-interactions';
 import { WORLD } from './definition';
 import { createRuntime, type WorldRuntime } from './runtime';
-import type { Quality, WorldSnapshot } from './types';
+import type { Quality, WorldActingState, WorldSnapshot } from './types';
 import type { WorldDriver } from './shared-simulation';
 import type { HomeSkin } from './home-projection';
 import { NEUTRAL_ATMOSPHERE, type Atmosphere } from './atmosphere';
+import type { PrivateSignalPresentation } from './private-signal-projection';
+import type { WorldActingSource } from './useWorldActingSource';
+import type { Season } from './season';
+import type { CosmeticActionId } from './cosmetic-interactions';
 
 const INITIAL: WorldSnapshot = {
   player: WORLD.spawn,
@@ -21,6 +25,12 @@ const INITIAL: WorldSnapshot = {
   metrics: { fps: 0, frameP95: 0, renderP95: 0, sprites: 0, textureBytes: 0 },
 };
 interface Options {
+  onCosmeticCue?(action: CosmeticActionId, current: () => boolean, targetId: string): void;
+  season?: Season;
+  onActingState?(state: WorldActingState): void;
+  conversationOpen?: boolean;
+  acting?: WorldActingSource;
+  privateSignals?: readonly PrivateSignalPresentation[];
   speech?: WorldSpeech;
   onInteract?: () => void;
   scene?: SceneHost;
@@ -33,9 +43,16 @@ interface Options {
   reducedMotion: boolean;
   paused: boolean;
   quality: Quality;
+  showRoute?: boolean;
 }
 
 export function useWorldRuntime({
+  onCosmeticCue,
+  season = 'neutral',
+  onActingState,
+  conversationOpen = false,
+  acting,
+  privateSignals,
   ownerId,
   player,
   bip,
@@ -48,15 +65,27 @@ export function useWorldRuntime({
   onInteract,
   speech,
   scene,
+  showRoute = true,
 }: Options) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cosmeticCue = useEffectEvent(
+    (action: CosmeticActionId, current: () => boolean, targetId: string) =>
+      onCosmeticCue?.(action, current, targetId)
+  );
   const runtimeRef = useRef<WorldRuntime | null>(null);
   const { isCurrent } = useApplicationAccountLifetime(ownerId);
   const [snapshot, setSnapshot] = useState(INITIAL);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const publishActing = useEffectEvent((state: WorldActingState) => onActingState?.(state));
+  // Every visual setter must reach a replacement runtime, including a new scene port.
+  const binding = useMemo(
+    () => ({ ownerId, player, bip, driver, onInteract, scene, speech, attempt, isCurrent }),
+    [ownerId, player, bip, driver, onInteract, scene, speech, attempt, isCurrent]
+  );
 
   useEffect(() => {
+    const { player, bip, driver, onInteract, scene, speech, isCurrent } = binding;
     const canvas = canvasRef.current;
     if (!canvas) return;
     let active = true;
@@ -65,11 +94,15 @@ export function useWorldRuntime({
         onInteract,
         speech,
         scene,
+        onCosmeticCue: cosmeticCue,
         driver,
         labels: { player, bip },
         reducedMotion: false,
         onSnapshot: value => {
-          if (active && isCurrent()) setSnapshot(value);
+          if (active && isCurrent()) {
+            setSnapshot(value);
+            publishActing(value.acting ?? 'idle');
+          }
         },
         onFailure: () => {
           if (active && isCurrent()) setFailed(true);
@@ -89,22 +122,37 @@ export function useWorldRuntime({
         active = false;
       };
     }
-  }, [ownerId, player, bip, isCurrent, attempt, driver, onInteract, scene, speech]);
+  }, [binding]);
   useEffect(() => {
     runtimeRef.current?.setPaused(paused);
-  }, [paused, attempt, ownerId, player, bip, driver]);
+  }, [paused, binding]);
   useEffect(() => {
     runtimeRef.current?.setReducedMotion(reducedMotion);
-  }, [reducedMotion, attempt, ownerId, player, bip, driver]);
+  }, [reducedMotion, binding]);
   useEffect(() => {
     runtimeRef.current?.setQuality(quality);
-  }, [quality, attempt, ownerId, player, bip, driver]);
+  }, [quality, binding]);
   useEffect(() => {
     runtimeRef.current?.setHome(home ?? null);
-  }, [home, attempt, ownerId, player, bip, driver]);
+  }, [home, binding]);
   useEffect(() => {
     runtimeRef.current?.setAtmosphere(atmosphere ?? NEUTRAL_ATMOSPHERE);
-  }, [atmosphere, attempt, ownerId, player, bip, driver]);
+  }, [atmosphere, binding]);
+  useEffect(() => {
+    runtimeRef.current?.setRouteVisible(showRoute);
+  }, [showRoute, binding]);
+  useEffect(() => {
+    runtimeRef.current?.setPrivateSignals(privateSignals ?? []);
+  }, [privateSignals, binding]);
+  useEffect(() => {
+    runtimeRef.current?.setActingSource(acting);
+  }, [acting, binding]);
+  useEffect(() => {
+    runtimeRef.current?.setConversationOpen(conversationOpen);
+  }, [conversationOpen, binding]);
+  useEffect(() => {
+    runtimeRef.current?.setSeason(season);
+  }, [season, binding]);
 
   const command = useCallback(
     (action: (runtime: WorldRuntime) => void) => {
@@ -113,7 +161,11 @@ export function useWorldRuntime({
     },
     [isCurrent]
   );
+  const focusScene = useCallback(() => {
+    if (isCurrent()) canvasRef.current?.focus();
+  }, [isCurrent]);
   return {
+    focusScene,
     canvasRef,
     snapshot,
     failed,

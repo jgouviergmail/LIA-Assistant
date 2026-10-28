@@ -81,7 +81,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     # 2. Metrics server, then fail-fast validations + tool schemas, before
     #    anything touches LLM or tools: die at boot, not at first request.
     # 3. Redis before the pricing caches, leader election and the cache
-    #    invalidation subscriber (they all need the connection).
+    #    invalidation subscriber and disabled-arcade withdrawal (they need the connection).
     # 4. LLM config + model capabilities caches before any get_llm() call
     #    (agent registry, semantic selector, graph build, currency sync).
     # 5. Checkpointer before AgentRegistry (injected at construction).
@@ -139,6 +139,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     registries.init_response_feedback_hooks()
 
     await caches.init_redis()
+    await caches.withdraw_disabled_world_games()
     await caches.init_pricing_caches()
     checkpointer = await agents.init_checkpointer()
     await caches.init_config_caches()

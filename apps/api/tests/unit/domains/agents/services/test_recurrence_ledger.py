@@ -34,6 +34,9 @@ from src.infrastructure.observability.metrics_agents import recurrence_ledger_wr
 
 SUPPORTED = ("fr", "en", "es", "de", "it", "zh-CN")
 TODAY = date(2026, 8, 4)  # a Tuesday
+#: The operator's habits switch, read by every habit act (ADR-280); its OFF side
+#: is pinned in ``tests/unit/domains/habits/test_capability_at_the_act.py``.
+HABITS_SWITCH = "src.domains.habits.capability.is_capability_enabled"
 
 
 def _settings(**overrides):
@@ -567,6 +570,8 @@ class TestPromotionCap:
         monkeypatch.setattr(repo_module, "HabitsRepository", _Repo)
         monkeypatch.setattr(app_settings, "habits_enabled", True, raising=False)
         monkeypatch.setattr(app_settings, "habits_max_habits_per_kind", 2, raising=False)
+        # The operator switch reads as its declared default (on).
+        monkeypatch.setattr(HABITS_SWITCH, AsyncMock(return_value=True))
 
         user = MagicMock()
         user.habits_enabled = True
@@ -623,6 +628,7 @@ class TestPromotionCarriesTheUsualIntent:
         monkeypatch.setattr(repo_module, "HabitsRepository", _Repo)
         monkeypatch.setattr(app_settings, "habits_enabled", True, raising=False)
         monkeypatch.setattr(app_settings, "habits_max_habits_per_kind", 8, raising=False)
+        monkeypatch.setattr(HABITS_SWITCH, AsyncMock(return_value=True))
         user = MagicMock()
         user.habits_enabled = True
         session = MagicMock()

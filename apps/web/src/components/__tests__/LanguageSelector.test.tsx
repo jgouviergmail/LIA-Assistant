@@ -25,7 +25,7 @@ vi.mock('@/lib/logger', () => ({
 }));
 
 import { LanguageSelector } from '../LanguageSelector';
-import { languageNames, languageFlags } from '@/i18n/settings';
+import { languageNames, type Language } from '@/i18n/settings';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -33,23 +33,32 @@ beforeEach(() => {
 });
 
 describe('LanguageSelector', () => {
-  it('shows the current flag alone on the trigger — the name lives in the popup and the accessible name', () => {
-    renderWithProviders(<LanguageSelector currentLocale="en" />);
-    expect(screen.getByText(languageFlags.en)).toBeInTheDocument();
-    expect(screen.queryByText(languageNames.en.native)).not.toBeInTheDocument();
+  it.each<[Language, string]>([
+    ['fr', '/flags/fr.svg'],
+    ['en', '/flags/gb.svg'],
+    ['es', '/flags/es.svg'],
+    ['de', '/flags/de.svg'],
+    ['it', '/flags/it.svg'],
+    ['zh', '/flags/cn.svg'],
+  ])('renders %s as a local flag image instead of a platform-dependent emoji', (locale, asset) => {
+    renderWithProviders(<LanguageSelector currentLocale={locale} />);
+    const flag = screen.getByRole('button').querySelector('img');
+    expect(flag).toHaveAttribute('src', asset);
+    expect(flag).toHaveAttribute('alt', '');
+    expect(flag).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.queryByText(languageNames[locale].native)).not.toBeInTheDocument();
   });
 
   it('exposes the trigger as a menu button', () => {
     renderWithProviders(<LanguageSelector currentLocale="fr" />);
     const trigger = screen.getByRole('button');
     expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
-    expect(screen.getByText(languageFlags.fr)).toBeInTheDocument();
+    expect(trigger).not.toHaveTextContent(/FR|🇫🇷/);
   });
 
   /**
    * Header reachability (S10): only the flag renders, and a flag
-   * emoji is not an accessible name — a screen-reader user would hear "🇫🇷"
-   * or nothing. The trigger therefore carries an explicit name at every
+   * image is decorative. The trigger therefore carries an explicit name at every
    * viewport. The i18n stub echoes keys, so the key is what is asserted.
    */
   it('names the trigger independently of the visible label', () => {

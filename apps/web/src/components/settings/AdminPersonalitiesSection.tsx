@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback, useTransition } from 'react';
+import { useEffectRequest } from '@/hooks/useEffectRequest';
+
+import { useState, useCallback, useTransition } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -70,24 +72,29 @@ export default function AdminPersonalitiesSection({ lng }: BaseSettingsProps) {
     sort_order: 0,
   });
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await fetchPersonalitiesAdmin();
-      setPersonalities(data.sort((a, b) => a.sort_order - b.sort_order));
-    } catch (error) {
-      logger.error('personalities_fetch_failed', error instanceof Error ? error : undefined, {
-        component: 'AdminPersonalitiesSection',
-      });
-      toast.error(t('settings.admin.personalities.errors.loading'));
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
+  // The mount read and every re-read after a change share one generation
+  // (`useEffectRequest`): a newer read aborts an older one at its transport.
+  const fetchData = useCallback(
+    async (signal: AbortSignal) => {
+      setLoading(true);
+      try {
+        const data = await fetchPersonalitiesAdmin(signal);
+        if (signal.aborted) return;
+        setPersonalities(data.sort((a, b) => a.sort_order - b.sort_order));
+      } catch (error) {
+        if (signal.aborted) return;
+        logger.error('personalities_fetch_failed', error instanceof Error ? error : undefined, {
+          component: 'AdminPersonalitiesSection',
+        });
+        toast.error(t('settings.admin.personalities.errors.loading'));
+      } finally {
+        if (!signal.aborted) setLoading(false);
+      }
+    },
+    [t]
+  );
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const refreshPersonalities = useEffectRequest(fetchData);
 
   /**
    * Re-read this panel's list AND the catalogue users pick from.
@@ -99,9 +106,9 @@ export default function AdminPersonalitiesSection({ lng }: BaseSettingsProps) {
    * every settings page load for a change that has not happened.
    */
   const reloadAfterChange = useCallback(async () => {
-    await fetchData();
+    await refreshPersonalities();
     await usePersonalityStore.getState().refetch();
-  }, [fetchData]);
+  }, [refreshPersonalities]);
 
   const openCreateDialog = () => {
     setEditingPersonality(null);
@@ -315,176 +322,177 @@ export default function AdminPersonalitiesSection({ lng }: BaseSettingsProps) {
         </Button>
       </div>
 
-      {/* Personalities Table */}
-      {loading ? (
-        <TableSkeleton rows={5} />
-      ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="min-w-full divide-y divide-border" role="table">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-12">
-                  {t('settings.admin.personalities.table.order')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  {t('settings.admin.personalities.table.personality')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  {t('settings.admin.personalities.table.code')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  {t('settings.admin.personalities.table.translations')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  {t('settings.admin.personalities.table.status')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  {t('settings.admin.personalities.table.actions')}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-background divide-y divide-border">
-              {personalities.map(personality => {
-                const frTranslation = personality.translations.find(
-                  t => t.language_code === fallbackLng
-                );
-                const translationCount = personality.translations.length;
+      {/* Personalities Table — the first load has its skeleton above; a re-read
+          after a change keeps the rows on screen and says it is busy, never a
+          visible reload. */}
+      <div
+        className="overflow-x-auto rounded-lg border border-border"
+        aria-busy={loading || undefined}
+      >
+        <table className="min-w-full divide-y divide-border" role="table">
+          <thead className="bg-muted/50">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-12">
+                {t('settings.admin.personalities.table.order')}
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                {t('settings.admin.personalities.table.personality')}
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                {t('settings.admin.personalities.table.code')}
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                {t('settings.admin.personalities.table.translations')}
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                {t('settings.admin.personalities.table.status')}
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                {t('settings.admin.personalities.table.actions')}
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-background divide-y divide-border">
+            {personalities.map(personality => {
+              const frTranslation = personality.translations.find(
+                t => t.language_code === fallbackLng
+              );
+              const translationCount = personality.translations.length;
 
-                return (
-                  <tr
-                    key={personality.id}
-                    className={`transition-colors hover:bg-muted/30 ${isPending ? 'opacity-60' : ''}`}
-                  >
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <GripVertical className="h-4 w-4" />
-                        {personality.sort_order}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      {/* sr-only column label (F012): the cell's real text (the
+              return (
+                <tr
+                  key={personality.id}
+                  className={`transition-colors hover:bg-muted/30 ${isPending ? 'opacity-60' : ''}`}
+                >
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <GripVertical className="h-4 w-4" />
+                      {personality.sort_order}
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    {/* sr-only column label (F012): the cell's real text (the
                           personality title) is all expressions, which static
                           analysis cannot treat as a label; the header context
                           also helps linear screen-reader navigation. */}
-                      <span className="sr-only">
-                        {t('settings.admin.personalities.table.personality')}
-                      </span>
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{personality.emoji}</span>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">
-                              {frTranslation?.title || personality.code}
-                            </span>
-                            {personality.is_default && (
-                              <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground line-clamp-1 max-w-xs">
-                            {frTranslation?.description}
-                          </p>
+                    <span className="sr-only">
+                      {t('settings.admin.personalities.table.personality')}
+                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{personality.emoji}</span>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">
+                            {frTranslation?.title || personality.code}
+                          </span>
+                          {personality.is_default && (
+                            <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                          )}
                         </div>
+                        <p className="text-xs text-muted-foreground line-clamp-1 max-w-xs">
+                          {frTranslation?.description}
+                        </p>
                       </div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm font-mono text-muted-foreground">
-                      {personality.code}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm">
-                          {translationCount}/{languages.length}
-                        </span>
-                        {translationCount < languages.length && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleTranslate(personality)}
-                            disabled={isPending}
-                            className="h-7 px-2"
-                            title={t('settings.admin.personalities.tooltips.generate_translations')}
-                          >
-                            <Languages className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          personality.is_active
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border border-green-200 dark:border-green-800'
-                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border border-red-200 dark:border-red-800'
-                        }`}
-                      >
-                        {personality.is_active
-                          ? t('settings.admin.personalities.status.active')
-                          : t('settings.admin.personalities.status.inactive')}
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm font-mono text-muted-foreground">
+                    {personality.code}
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">
+                        {translationCount}/{languages.length}
                       </span>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1">
+                      {translationCount < languages.length && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => openEditDialog(personality)}
+                          onClick={() => handleTranslate(personality)}
                           disabled={isPending}
-                          className="h-8 w-8 p-0"
-                          title={t('settings.admin.personalities.tooltips.edit')}
+                          className="h-7 px-2"
+                          title={t('settings.admin.personalities.tooltips.generate_translations')}
                         >
-                          <Pencil className="h-4 w-4" />
+                          <Languages className="h-4 w-4" />
                         </Button>
-                        <div
-                          className="inline-flex h-8 items-center px-2"
-                          title={
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <span
+                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        personality.is_active
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border border-green-200 dark:border-green-800'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border border-red-200 dark:border-red-800'
+                      }`}
+                    >
+                      {personality.is_active
+                        ? t('settings.admin.personalities.status.active')
+                        : t('settings.admin.personalities.status.inactive')}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openEditDialog(personality)}
+                        disabled={isPending}
+                        className="h-8 w-8 p-0"
+                        title={t('settings.admin.personalities.tooltips.edit')}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <div
+                        className="inline-flex h-8 items-center px-2"
+                        title={
+                          personality.is_active
+                            ? t('settings.admin.personalities.tooltips.deactivate')
+                            : t('settings.admin.personalities.tooltips.activate')
+                        }
+                      >
+                        <Switch
+                          checked={personality.is_active}
+                          onCheckedChange={() => handleToggleActive(personality)}
+                          disabled={isPending}
+                          aria-label={
                             personality.is_active
                               ? t('settings.admin.personalities.tooltips.deactivate')
                               : t('settings.admin.personalities.tooltips.activate')
                           }
-                        >
-                          <Switch
-                            checked={personality.is_active}
-                            onCheckedChange={() => handleToggleActive(personality)}
-                            disabled={isPending}
-                            aria-label={
-                              personality.is_active
-                                ? t('settings.admin.personalities.tooltips.deactivate')
-                                : t('settings.admin.personalities.tooltips.activate')
-                            }
-                          />
-                        </div>
-                        {!personality.is_default && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleSetDefault(personality)}
-                              disabled={isPending}
-                              className="h-8 w-8 p-0"
-                              title={t('settings.admin.personalities.tooltips.set_default')}
-                            >
-                              <Star className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(personality)}
-                              disabled={isPending}
-                              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                              title={t('settings.admin.personalities.tooltips.delete')}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
+                        />
                       </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+                      {!personality.is_default && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleSetDefault(personality)}
+                            disabled={isPending}
+                            className="h-8 w-8 p-0"
+                            title={t('settings.admin.personalities.tooltips.set_default')}
+                          >
+                            <Star className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(personality)}
+                            disabled={isPending}
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                            title={t('settings.admin.personalities.tooltips.delete')}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

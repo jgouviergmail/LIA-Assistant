@@ -14,9 +14,10 @@ import { renderHook, waitFor } from '@testing-library/react';
 const mockUseAuth = vi.hoisted(() => vi.fn());
 
 vi.mock('@/hooks/useAuth', () => ({ useAuth: mockUseAuth }));
-vi.mock('@/lib/logging-context', () => ({
-  useLoggingContext: () => ({ withContext: (o: Record<string, unknown>) => o }),
-}));
+vi.mock('@/lib/logging-context', () => {
+  const withContext = (context: Record<string, unknown>) => context;
+  return { useLoggingContext: () => ({ withContext }) };
+});
 vi.mock('@/lib/logger', () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
@@ -39,6 +40,16 @@ afterEach(() => {
 });
 
 describe('useUserStatistics', () => {
+  it('cannot restart an unmounted reader through a retained refresh callback', async () => {
+    const fetchMock = vi.fn(async () => Response.json(STATS));
+    vi.stubGlobal('fetch', fetchMock);
+    const { result, unmount } = renderHook(() => useUserStatistics());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    const refresh = result.current.refetch;
+    unmount();
+    await refresh();
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
   it('fetches and exposes statistics on success', async () => {
     const fetchMock = vi.fn().mockImplementation(
       async () =>

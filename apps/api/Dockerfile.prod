@@ -196,12 +196,12 @@ RUN printf '%s\n' \
       > /etc/dpkg/dpkg.cfg.d/zz-lia-runtime-alternatives-manpages
 
 # Install prerequisites for repository setup (curl, gnupg needed for apt key imports).
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends curl gnupg xz-utils \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends curl gnupg xz-utils libatomic1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js from the OFFICIAL nodejs.org distribution, on the 24 LTS line
-# — the same line the web image, CI (node-version: "24") and the `engines` lock
-# (>=24.0.0, enforced by engine-strict) already run on.
+# Install Node.js from the OFFICIAL nodejs.org distribution, at the skills
+# sandbox's version. These CLI tools share that runtime; web and CI retain
+# their independently qualified Node 24 runtime.
 #
 # NodeSource is deliberately NOT used, and the reason is the FAILURE MODE, not
 # the outage that revealed it. `curl -fsSL <url> | bash -` cannot fail loudly: a
@@ -222,9 +222,9 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
 # (Dockerfile.sandbox) by test_one_value_one_owner_guard.py: the pull request
 # Dependabot opens for that image cannot merge until this follows — the version
 # and both lines of https://nodejs.org/dist/v<version>/SHASUMS256.txt.
-ARG NODE_VERSION=24.21.0
-ARG NODE_SHA256_AMD64=fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6
-ARG NODE_SHA256_ARM64=6ad1325edbdb5649c379b75a237147a666c95d4f9ae8d340fef2d1575d289ad2
+ARG NODE_VERSION=26.10.0
+ARG NODE_SHA256_AMD64=ca70e9e349de048b9522abb3adc05b3bd6f43c5ffd3ec57916c7da292f59f022
+ARG NODE_SHA256_ARM64=7a6353f63eb3d04765004b4adf172616243e4522434635cb1d26288658b04ab5
 RUN set -eux; \
     arch="$(dpkg --print-architecture)"; \
     case "$arch" in \

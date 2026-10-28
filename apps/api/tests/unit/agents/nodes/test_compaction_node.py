@@ -12,6 +12,7 @@ Phase: F4 — Intelligent Context Compaction
 Created: 2026-03-16
 """
 
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -25,6 +26,23 @@ from src.domains.agents.services.compaction_service import (
     CompactionResult,
     SafetyCheckResult,
 )
+
+
+@pytest.fixture(autouse=True)
+def _stream_writer() -> Iterator[MagicMock]:
+    """Hand the node the stream writer a LangGraph run would.
+
+    These tests call ``compaction_node`` outside any run, where
+    ``get_stream_writer()`` raises and the node falls back to a no-op with a
+    WARNING meant for a misconfigured graph. The SSE tests below install their
+    own capturing writer.
+    """
+    with patch(
+        "src.domains.agents.nodes.compaction_node.get_stream_writer",
+        return_value=MagicMock(),
+    ) as get_writer:
+        yield get_writer
+
 
 # ============================================================================
 # _is_resume_command

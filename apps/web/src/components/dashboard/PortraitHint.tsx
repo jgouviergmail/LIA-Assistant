@@ -1,4 +1,5 @@
 'use client';
+import { useDashboardRoute } from './DashboardNavigation';
 
 /**
  * PortraitHint — "I refined my understanding of you" dashboard line (QW-10).
@@ -50,6 +51,7 @@ export function isPortraitHintVisible(
 
 export function PortraitHint() {
   const router = useRouter();
+  const navigate = useDashboardRoute(router.push);
   const { t, i18n } = useTranslation();
   const lng = (i18n.language || 'fr').split('-')[0];
   const { config } = useAppConfig(true);
@@ -75,7 +77,7 @@ export function PortraitHint() {
         type="button"
         onClick={() => {
           markSeen();
-          router.push(`/${lng}/dashboard/settings?section=journals`);
+          navigate(`/${lng}/dashboard/settings?section=journals`);
         }}
         className="font-semibold text-primary hover:text-primary/80 underline decoration-primary/40 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >

@@ -37,6 +37,7 @@ export interface AppConfig {
   };
   features: {
     world_enabled?: boolean;
+    world_arcade_enabled?: boolean;
     interactive_route_maps_enabled?: boolean;
     tool_approval_enabled: boolean;
     attachments_enabled: boolean;

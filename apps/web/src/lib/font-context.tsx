@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useHydrated } from '@/hooks/useHydrated';
 import {
   type FontFamilyName,
   FONT_FAMILY_NAMES,
@@ -47,22 +48,15 @@ function writeStorage(key: string, value: string): void {
 }
 
 export function FontProvider({ children }: { children: React.ReactNode }) {
-  const [fontFamily, setFontFamilyState] = React.useState<FontFamilyName>(DEFAULT_FONT_FAMILY);
-  const [fontSize, setFontSizeState] = React.useState<number>(DEFAULT_FONT_SIZE_PX);
-  const [mounted, setMounted] = React.useState(false);
-
-  // Load the stored preferences on mount (the pre-paint script already applied them)
-  React.useEffect(() => {
-    const stored = readStorage(FONT_STORAGE_KEY);
-    if (stored && isValidFontFamily(stored)) {
-      setFontFamilyState(stored);
-    }
-    const storedSize = parseStoredFontSize(readStorage(FONT_SIZE_STORAGE_KEY));
-    if (storedSize !== null) {
-      setFontSizeState(storedSize);
-    }
-    setMounted(true);
-  }, []);
+  const mounted = useHydrated();
+  const storedFamily = mounted ? readStorage(FONT_STORAGE_KEY) : null;
+  const storedSize = mounted ? parseStoredFontSize(readStorage(FONT_SIZE_STORAGE_KEY)) : null;
+  const [chosenFamily, setFontFamilyState] = React.useState<FontFamilyName | null>(null);
+  const [chosenSize, setFontSizeState] = React.useState<number | null>(null);
+  const fontFamily =
+    chosenFamily ??
+    (storedFamily && isValidFontFamily(storedFamily) ? storedFamily : DEFAULT_FONT_FAMILY);
+  const fontSize = chosenSize ?? storedSize ?? DEFAULT_FONT_SIZE_PX;
 
   // Apply data-font attribute to html element
   React.useEffect(() => {
@@ -91,21 +85,27 @@ export function FontProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fontSize, mounted]);
 
-  const setFontFamily = React.useCallback((font: FontFamilyName) => {
-    const validFont = isValidFontFamily(font) ? font : DEFAULT_FONT_FAMILY;
-    if (validFont !== font) {
-      console.warn(`Invalid font family: ${font}. Using default.`);
-    }
-    setFontFamilyState(validFont);
-    writeStorage(FONT_STORAGE_KEY, validFont);
-  }, []);
+  const setFontFamily = React.useCallback(
+    (font: FontFamilyName) => {
+      const validFont = isValidFontFamily(font) ? font : DEFAULT_FONT_FAMILY;
+      if (validFont !== font) {
+        console.warn(`Invalid font family: ${font}. Using default.`);
+      }
+      setFontFamilyState(validFont);
+      writeStorage(FONT_STORAGE_KEY, validFont);
+    },
+    [setFontFamilyState]
+  );
 
-  const setFontSize = React.useCallback((px: number) => {
-    // Refused, never clamped: the settings only offer valid steps.
-    if (!isValidFontSize(px)) return;
-    setFontSizeState(px);
-    writeStorage(FONT_SIZE_STORAGE_KEY, String(px));
-  }, []);
+  const setFontSize = React.useCallback(
+    (px: number) => {
+      // Refused, never clamped: the settings only offer valid steps.
+      if (!isValidFontSize(px)) return;
+      setFontSizeState(px);
+      writeStorage(FONT_SIZE_STORAGE_KEY, String(px));
+    },
+    [setFontSizeState]
+  );
 
   const value = React.useMemo(
     () => ({ fontFamily, setFontFamily, fontSize, setFontSize }),

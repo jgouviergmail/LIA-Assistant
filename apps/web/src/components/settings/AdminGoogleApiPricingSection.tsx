@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback, useOptimistic, useTransition } from 'react';
+import { useEffectRequest } from '@/hooks/useEffectRequest';
+
+import { useState, useCallback, useOptimistic, useTransition } from 'react';
 import { toast } from 'sonner';
 import { Coins, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -98,9 +100,11 @@ export default function AdminGoogleApiPricingSection({ lng }: BaseSettingsProps)
   );
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
-  // Fetch entries with AbortController
+  // Every read of the grid — the automatic one and the re-read after a change —
+  // belongs to one generation (`useEffectRequest`): a newer read aborts an older
+  // one, which then neither replaces the newer rows nor ends its loading state.
   const fetchEntries = useCallback(
-    async (signal?: AbortSignal) => {
+    async (signal: AbortSignal) => {
       setLoading(true);
       try {
         const params = new URLSearchParams({
@@ -118,10 +122,12 @@ export default function AdminGoogleApiPricingSection({ lng }: BaseSettingsProps)
           `/admin/google-api/pricing?${params.toString()}`,
           { signal }
         );
+        if (signal.aborted) return;
         setEntries(response.entries);
         setTotal(response.total);
         setTotalPages(response.total_pages);
       } catch (error) {
+        if (signal.aborted) return;
         const err = error as { name?: string };
         if (err.name === 'AbortError' || err.name === 'CanceledError') {
           return;
@@ -135,20 +141,13 @@ export default function AdminGoogleApiPricingSection({ lng }: BaseSettingsProps)
         });
         toast.error(t('settings.admin.google_api.errors.loading'));
       } finally {
-        setLoading(false);
+        if (!signal.aborted) setLoading(false);
       }
     },
     [page, pageSize, sortBy, sortOrder, searchQuery, t]
   );
 
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchEntries(controller.signal);
-
-    return () => {
-      controller.abort();
-    };
-  }, [fetchEntries]);
+  const refreshEntries = useEffectRequest(fetchEntries);
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
@@ -206,7 +205,7 @@ export default function AdminGoogleApiPricingSection({ lng }: BaseSettingsProps)
 
         if (result.success) {
           setShowAddModal(false);
-          await fetchEntries();
+          await refreshEntries();
           toast.success(result.message!);
         } else {
           toast.error(result.error!);
@@ -245,7 +244,7 @@ export default function AdminGoogleApiPricingSection({ lng }: BaseSettingsProps)
 
         if (result.success) {
           setEditingEntry(null);
-          await fetchEntries();
+          await refreshEntries();
           toast.success(result.message!);
         } else {
           toast.error(result.error!);

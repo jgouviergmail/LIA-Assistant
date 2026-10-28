@@ -11,7 +11,7 @@ export function useApplicationAccountQuery<T>(
   componentName: string,
   enabled = true,
   onData?: (data: T) => void,
-  options: Pick<UseApiQueryOptions<T>, 'params' | 'deps'> = {}
+  options: Pick<UseApiQueryOptions<T>, 'params' | 'deps' | 'autoFetch'> = {}
 ) {
   const { user } = useAuth();
   const ownerId = user?.id;
@@ -34,6 +34,7 @@ export function useApplicationAccountQuery<T>(
   const query = useApiQuery<T>(endpoint, {
     componentName,
     enabled: enabled && !!ownerId,
+    autoFetch: options.autoFetch,
     params: options.params,
     deps: [ownerId, ...(options.deps ?? [])],
     onSuccess,

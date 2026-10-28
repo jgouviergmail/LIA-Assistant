@@ -52,6 +52,14 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+        <provider
+            android:name=".WorldPhotoProvider"
+            android:authorities="${applicationId}.worldshare"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/world_share_paths" />
+        </provider>
     </application>
 
     <!-- Permissions -->

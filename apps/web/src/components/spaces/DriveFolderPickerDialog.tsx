@@ -1,7 +1,13 @@
 /**
  * Dialog for browsing and selecting a Google Drive folder.
  *
- * Uses breadcrumb navigation to traverse the folder hierarchy.
+ * Uses breadcrumb navigation to traverse the folder hierarchy. The dialog
+ * stays mounted while closed (its parent keeps it), so the listing is read
+ * only while it is open, and read again at every opening.
+ *
+ * A failed listing keeps its message and its retry on screen while the retry
+ * runs: the button that holds the focus is the one that reports the next
+ * answer, a second failure included.
  *
  * Phase: evolution — RAG Spaces (Google Drive sync)
  * Created: 2026-03-18
@@ -11,8 +17,9 @@
 
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Folder, FileText, ChevronRight, Loader2, FolderOpen } from 'lucide-react';
+import { Folder, FileText, ChevronRight, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import {
   Dialog,
   DialogContent,
@@ -21,7 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { useDriveFolderBrowser } from '@/hooks/useDriveSources';
+import { useDriveFolderBrowser, type DriveBreadcrumbEntry } from '@/hooks/useDriveSources';
 
 interface DriveFolderPickerDialogProps {
   open: boolean;
@@ -47,9 +54,12 @@ export function DriveFolderPickerDialog({
     navigateToFolder,
     navigateBack,
     reset,
-  } = useDriveFolderBrowser(spaceId);
+    refetch,
+  } = useDriveFolderBrowser(spaceId, open);
 
-  const currentFolderName = breadcrumb[breadcrumb.length - 1].name;
+  // The root has no Drive name of its own: it reads in the person's language.
+  const folderLabel = (entry: DriveBreadcrumbEntry) => entry.name ?? t('spaces.drive.picker_root');
+  const currentFolderName = folderLabel(breadcrumb[breadcrumb.length - 1]);
 
   const handleSelect = useCallback(() => {
     onSelect(currentFolderId, currentFolderName);
@@ -88,7 +98,7 @@ export function DriveFolderPickerDialog({
                 onClick={() => navigateBack(index)}
                 disabled={index === breadcrumb.length - 1}
               >
-                {entry.name}
+                {folderLabel(entry)}
               </button>
             </span>
           ))}
@@ -96,21 +106,28 @@ export function DriveFolderPickerDialog({
 
         {/* Folder list */}
         <div className="min-h-[200px] max-h-[320px] overflow-y-auto rounded-md border bg-card">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : error ? (
+          {error ? (
             <div className="flex flex-col items-center justify-center py-12 text-sm text-destructive">
-              <p>{error}</p>
+              <p>{t('spaces.drive.picker_error')}</p>
+              {/* A retry of the SAME folder: the breadcrumb stays where it is,
+                  and the busy button keeps the focus until the answer lands. */}
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 className="mt-2"
-                onClick={() => navigateBack(breadcrumb.length - 1)}
+                isLoading={loading}
+                onClick={() => void refetch()}
               >
                 {t('errors.try_again')}
               </Button>
+            </div>
+          ) : loading ? (
+            <div className="flex items-center justify-center py-12">
+              <LoadingSpinner
+                size="md"
+                spinnerColor="muted"
+                label={t('spaces.drive.picker_loading')}
+              />
             </div>
           ) : folders.length === 0 && files.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-sm text-muted-foreground">

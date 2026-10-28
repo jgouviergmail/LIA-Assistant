@@ -4,12 +4,27 @@ import unicodedata
 from typing import Annotated, Literal, TypedDict
 from uuid import uuid4
 
-from pydantic import ConfigDict, Field, TypeAdapter, field_validator, with_config
+from pydantic import ConfigDict, Field, TypeAdapter, field_validator, model_validator, with_config
 
+from src.core.constants import WORLD_RECEIPT_RING_SIZE
 from src.domains.world.avatar import AvatarAppearance
+from src.domains.world.game_commands import GameCommand
+from src.domains.world.game_models import CabinetId
+from src.domains.world.game_state import GameTable
+from src.domains.world.game_views import CabinetView, GameView, GameWaitingView
+from src.domains.world.socket_models import (
+    CommandReceipt,
+    EmoteCommand,
+    EmoteState,
+    SocketVersionedModel,
+)
+from src.domains.world.wire_models import (
+    PoseResult as PoseResult,
+)
 from src.domains.world.wire_models import (
     StrictModel,
     VersionedModel,
+    require_integer_version,
 )
 from src.domains.world.wire_models import (
     explicit_consent as validate_consent,
@@ -22,9 +37,9 @@ class Position(TypedDict):
     y: Annotated[float, Field(description="Vertical ground coordinate in authored world tiles.")]
 
 
-class MoveCommand(VersionedModel):
+class MoveCommand(SocketVersionedModel):
     type: Literal["move"] = Field(description="Discriminated World wire message or command type.")
-    version: Literal[1] = Field(description="Explicit supported wire or preference schema version.")
+    version: Literal[2] = Field(description="Required explicit supported socket generation.")
     seq: int = Field(
         ge=1,
         le=2**31 - 1,
@@ -87,8 +102,8 @@ class TicketRequest(StrictModel):
         return validate_consent(value)
 
 
-class AuthFrame(VersionedModel):
-    version: Literal[1] = Field(description="Explicit supported wire or preference schema version.")
+class AuthFrame(SocketVersionedModel):
+    version: Literal[2] = Field(description="Required explicit supported socket generation.")
     type: Literal["authenticate"] = Field(
         description="Discriminated World wire message or command type."
     )
@@ -110,8 +125,8 @@ class AuthFrame(VersionedModel):
     )
 
 
-class HeartbeatCommand(VersionedModel):
-    version: Literal[1] = Field(description="Explicit supported wire or preference schema version.")
+class HeartbeatCommand(SocketVersionedModel):
+    version: Literal[2] = Field(description="Required explicit supported socket generation.")
     type: Literal["heartbeat"] = Field(
         description="Discriminated World wire message or command type."
     )
@@ -129,8 +144,8 @@ class HeartbeatCommand(VersionedModel):
     )
 
 
-class PoseCommand(VersionedModel):
-    version: Literal[1] = Field(description="Explicit supported wire or preference schema version.")
+class PoseCommand(SocketVersionedModel):
+    version: Literal[2] = Field(description="Required explicit supported socket generation.")
     type: Literal["pose"] = Field(description="Discriminated World wire message or command type.")
     epoch: str = Field(
         min_length=36,
@@ -149,11 +164,8 @@ class PoseCommand(VersionedModel):
     )
 
 
-PoseResult = Literal["accepted", "occupied", "out_of_reach", "invalid"]
-
-
-class ControlCommand(VersionedModel):
-    version: Literal[1] = Field(description="Explicit supported wire or preference schema version.")
+class ControlCommand(SocketVersionedModel):
+    version: Literal[2] = Field(description="Required explicit supported socket generation.")
     type: Literal["takeover", "leave", "accept"] = Field(
         description="Discriminated World wire message or command type."
     )
@@ -165,13 +177,17 @@ class ControlCommand(VersionedModel):
 
 
 WorldCommand = Annotated[
-    MoveCommand | HeartbeatCommand | ControlCommand | PoseCommand,
+    MoveCommand | HeartbeatCommand | ControlCommand | PoseCommand | EmoteCommand | GameCommand,
     Field(discriminator="type"),
 ]
 COMMAND_ADAPTER: TypeAdapter[WorldCommand] = TypeAdapter(WorldCommand)
 
 
 class PublicActor(StrictModel):
+    emote: EmoteState | None = Field(
+        default=None,
+        description="Unexpired finite public gesture, without account or controller data.",
+    )
     appearance: AvatarAppearance = Field(
         default_factory=AvatarAppearance,
         description="Explicitly selected, catalogue-validated public avatar appearance.",
@@ -198,6 +214,26 @@ class PublicActor(StrictModel):
 
 
 class ActorState(StrictModel):
+    visible: bool = Field(default=True, description="Latest controller-declared tab visibility.")
+    emote: EmoteState | None = Field(
+        default=None, description="Latest finite social event, if any."
+    )
+    emote_serial: int = Field(
+        default=0,
+        ge=0,
+        le=2**31 - 1,
+        description="Actor-lifetime event counter, retained across controller rotation.",
+    )
+    emote_after: float = Field(
+        default=0,
+        ge=0,
+        description="Redis-time social cooldown deadline, retained across takeover.",
+    )
+    receipts: list[CommandReceipt] = Field(
+        default_factory=list,
+        max_length=WORLD_RECEIPT_RING_SIZE,
+        description="Bounded exact command outcomes belonging only to the current controller.",
+    )
     appearance: AvatarAppearance = Field(
         default_factory=AvatarAppearance,
         description="Explicitly selected, catalogue-validated public avatar appearance.",
@@ -294,10 +330,9 @@ class PresenceLease(StrictModel):
     )
 
 
-class WorldState(VersionedModel):
-    version: Literal[1] = Field(
-        default=1, description="Explicit supported wire or preference schema version."
-    )
+class WorldStateShape(StrictModel):
+    """Shared authority structure; a persistence generation owns its own version field."""
+
     epoch: str = Field(
         default_factory=lambda: str(uuid4()),
         description="Authoritative scene lifetime identifier fencing stale commands and correspondence.",
@@ -323,14 +358,58 @@ class WorldState(VersionedModel):
     )
 
 
-class WorldView(VersionedModel):
+class WorldState(WorldStateShape):
+    """Current authority generation, distinct from the socket's public projections."""
+
+    games: dict[CabinetId, GameTable] = Field(
+        default_factory=dict,
+        max_length=3,
+        description="Bounded active/tombstone table records, one per authored cabinet; never durable history.",
+    )
+    version: Literal[3] = Field(
+        default=3,
+        description="Internal persistence generation, independently versioned from the public socket.",
+    )
+
+    @field_validator("version", mode="before")
+    @classmethod
+    def integer_version(cls, value: object) -> object:
+        """Refuse coercion before checking the internal persistence generation."""
+        return require_integer_version(value)
+
+    @model_validator(mode="after")
+    def game_keys(self) -> WorldState:
+        """A cabinet key cannot carry another cabinet's otherwise valid rule position."""
+        if any(cabinet != table.cabinet for cabinet, table in self.games.items()):
+            raise ValueError("game_cabinet_integrity")
+        return self
+
+
+class WorldView(SocketVersionedModel):
+    cabinets: list[CabinetView] = Field(
+        default_factory=list,
+        max_length=3,
+        description="Coarse cabinet availability; spectators never receive boards or scores.",
+    )
+    game: GameView | None = Field(
+        default=None, description="Only this controlling consenting participant's game."
+    )
+    game_request: GameWaitingView | None = Field(
+        default=None, description="Owner's pending request, without host board access."
+    )
+    server_time: float = Field(
+        ge=0, description="Redis Unix-seconds anchor for ephemeral event deadlines."
+    )
+    receipts: list[CommandReceipt] = Field(
+        default_factory=list,
+        max_length=WORLD_RECEIPT_RING_SIZE,
+        description="Exact command outcomes for this controlling connection alone.",
+    )
     pose_result: PoseResult | None = Field(
         default=None,
         description="Outcome of the latest authoritative pose command, or null before a result.",
     )
-    version: Literal[1] = Field(
-        default=1, description="Explicit supported wire or preference schema version."
-    )
+    version: Literal[2] = Field(default=2, description="Explicit supported socket generation.")
     type: Literal["snapshot"] = Field(
         default="snapshot",
         description="Discriminated World wire message or command type.",
@@ -390,7 +469,7 @@ class TicketResponse(VersionedModel):
     )
 
 
-class ReadyFrame(VersionedModel):
+class ReadyFrame(SocketVersionedModel):
     type: Literal["ready"] = Field(
         default="ready", description="Discriminated World wire message or command type."
     )

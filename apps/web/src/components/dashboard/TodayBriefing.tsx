@@ -1,10 +1,10 @@
 'use client';
 
-import Link from 'next/link';
-import { Fragment, type ReactNode } from 'react';
+import { DashboardLink as Link } from './DashboardNavigation';
+import { Fragment, useRef, type ReactNode } from 'react';
 import { Sunrise } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useBriefing, type UseBriefingResult } from '@/hooks/useBriefing';
+import type { UseBriefingResult } from '@/hooks/useBriefing';
 import { useBriefingPreferences } from '@/hooks/useBriefingPreferences';
 import type {
   BriefingPreferences,
@@ -38,6 +38,7 @@ import { RemindersCard } from './cards/RemindersCard';
 import { WeatherCard } from './cards/WeatherCard';
 import { WorkboardCard } from './cards/WorkboardCard';
 import { CardsGridSkeleton, SynthesisSkeleton } from './BriefingSkeleton';
+import { BriefingTextRecovery } from './BriefingTextRecovery';
 
 /**
  * Today briefing — orchestrates the full home page flow with NON-BLOCKING rendering.
@@ -158,25 +159,28 @@ function BriefingCardsGrid({
   );
 }
 
-export function TodayBriefing({
-  aboveBriefing,
-}: {
+interface TodayBriefingProps {
   /** Independent page content below the welcome, kept available on briefing failure. */
   aboveBriefing?: ReactNode;
-}) {
+  /** The briefing controller its host owns (`useBriefing`), so a suspended host keeps it. */
+  briefing: UseBriefingResult;
+}
+export function TodayBriefing({ aboveBriefing, briefing }: TodayBriefingProps) {
   const { t, i18n } = useTranslation();
+  const heading = useRef<HTMLHeadingElement>(null);
   const {
     cards,
     windows,
     text,
     cardsLoading,
     textLoading,
+    textUnavailable,
     error,
     refetchAll,
     refetchSection,
     invalidateSection,
     refreshingSections,
-  } = useBriefing();
+  } = briefing;
   // UXR Lot 5 (B4): grid preferences (visibility + order) — NULL/loading
   // falls back to the historical layout inside visibleOrderedSections.
   const { preferences } = useBriefingPreferences();
@@ -222,6 +226,8 @@ export function TodayBriefing({
       <section className="space-y-4" aria-labelledby="briefing-section-heading">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2
+            ref={heading}
+            tabIndex={-1}
             id="briefing-section-heading"
             className="flex items-center gap-2 text-base sm:text-lg font-semibold tracking-tight text-foreground"
           >
@@ -246,6 +252,12 @@ export function TodayBriefing({
             <BriefingPoint text={text} loading={textLoading} />
           </div>
         )}
+        <BriefingTextRecovery
+          unavailable={textUnavailable}
+          loading={textLoading}
+          onRetry={refetchAll}
+          onRecovered={() => heading.current?.focus()}
+        />
 
         {error && cards && (
           <p

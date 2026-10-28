@@ -111,16 +111,18 @@ export function useWorkboard(
   const [isUnavailable, setIsUnavailable] = useState(false);
   const guard = useStaleGuard();
   const nativeDirty = useRef(false);
-  useEffect(() => {
-    guard.begin();
+  if (!owned) {
     dispatch({ type: 'restored', snapshot: initialWorkboardState });
     setSnapshotOwner(lifetime);
     setFirstLoad(true);
     setLoading(!!ownerId);
     setError(null);
     setIsUnavailable(false);
+  }
+  useEffect(() => {
+    guard.begin();
     nativeDirty.current = false;
-  }, [guard, lifetime, ownerId]);
+  }, [guard, lifetime]);
 
   // Two LATEST-VALUE refs, updated POST-COMMIT like `useApiQuery` does: a ref
   // written during render is a render-phase side effect React is free to
@@ -212,10 +214,16 @@ export function useWorkboard(
   useApplicationResourceSync(ownerId, 'workboard', nativeRefresh, release);
 
   useEffect(() => {
-    void refetch();
-    // `filterKey` is the VALUE of the filters, not their identity: a literal
-    // rebuilt on every render would otherwise re-fetch forever.
-  }, [refetch, filterKey]);
+    const lifetime = new AbortController();
+    queueMicrotask(() => {
+      if (!lifetime.signal.aborted) void refetch();
+    });
+    return () => {
+      lifetime.abort();
+      release();
+    };
+    // `filterKey` is the VALUE of the filters, not their identity.
+  }, [refetch, filterKey, release]);
 
   // Remote peer changes are re-read on focus; this account's confirmed changes
   // also publish the addressed resource hint above.

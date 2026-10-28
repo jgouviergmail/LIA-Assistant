@@ -26,6 +26,7 @@ import { AssistantAvatar } from '@/components/psyche/AssistantAvatar';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { liveAvatarPsyche, usePsycheStore } from '@/stores/psycheStore';
 import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
+import { useCompanionActivityStore, COMPANION_WORK_POLL_MS } from '@/stores/companionActivityStore';
 import { useSmsReceivedToast } from '@/hooks/useSmsReceivedToast';
 import { useNotifications, type NotificationType } from '@/hooks/useNotifications';
 import { fetchActiveRun } from '@/lib/api/chat';
@@ -42,7 +43,6 @@ const COUNTED_TYPES: ReadonlySet<NotificationType> = new Set<NotificationType>([
   'scheduled_action',
 ]);
 
-const ACTIVE_RUN_POLL_MS = 6000;
 const BELL_RING_MS = 650;
 
 /** True when the path is the chat page (any locale) — the companion hides there. */
@@ -237,24 +237,29 @@ export function CompanionPresence({
   useEffect(() => {
     if (!active) {
       setWorking(false);
+      if (ownerId) useCompanionActivityStore.getState().clearSample(ownerId);
       return;
     }
     let cancelled = false;
     const check = async () => {
       try {
         const status = await fetchActiveRun();
-        if (!cancelled) setWorking(Boolean(status.active));
+        if (!cancelled) {
+          setWorking(Boolean(status.active));
+          if (ownerId) useCompanionActivityStore.getState().record(ownerId, Boolean(status.active));
+        }
       } catch {
         /* transient — keep the previous value */
       }
     };
     check();
-    const id = setInterval(check, ACTIVE_RUN_POLL_MS);
+    const id = setInterval(check, COMPANION_WORK_POLL_MS);
     return () => {
       cancelled = true;
       clearInterval(id);
+      if (ownerId) useCompanionActivityStore.getState().clearSample(ownerId);
     };
-  }, [active]);
+  }, [active, ownerId]);
 
   if (
     !companionPresentationVisible({

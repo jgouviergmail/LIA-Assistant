@@ -7398,6 +7398,36 @@ WORLD_AUTH_TIMEOUT_DEFAULT = 3
 WORLD_SEND_TIMEOUT_DEFAULT = 2
 WORLD_AUTHORITY_TIMEOUT_DEFAULT = 2
 WORLD_POLICY_TIMEOUT_DEFAULT = 3
+WORLD_ARCADE_ENABLED_DEFAULT = True
+WORLD_ARCADE_INPUT_RATE_DEFAULT = 3
+WORLD_ARCADE_WAIT_SECONDS_DEFAULT = 60
+WORLD_ARCADE_REQUEST_SECONDS_DEFAULT = 20
+WORLD_ARCADE_RECONNECT_SECONDS_DEFAULT = 30
+WORLD_ARCADE_TURN_SECONDS_DEFAULT = 120
+WORLD_ARCADE_ROUND_SECONDS_DEFAULT = 1200
+WORLD_ARCADE_RESULT_SECONDS_DEFAULT = 30
+WORLD_ARCADE_BOT_SECONDS_DEFAULT = 0.75
+# Hard search bound: every child the computer expands is charged against it.
+WORLD_ARCADE_BOT_MAX_NODES = 6000
+# Computer searches running at once per worker; a busy worker plays a legal fallback.
+WORLD_ARCADE_BOT_CONCURRENCY = 2
+# Ground distance, in authored tiles, within which an actor stands at a cabinet.
+# The browser keeps its own copy (apps/web/src/features/world/game-client.ts).
+WORLD_ARCADE_CABINET_REACH = 1.25
+# A public gesture's display time, which is also its sender's cooldown.
+WORLD_EMOTE_SECONDS = 2.0
+# One bound for every receipt ring: an actor's command outcomes (and the snapshot
+# carrying them) and a cabinet's exact-duplicate operation receipts.
+WORLD_RECEIPT_RING_SIZE = 16
+# World socket close codes. 1008 refuses a client frame, 1011 is a server defect,
+# 1013 asks to retry later, 4401 ends a revoked session, and 4426 tells a client
+# speaking another socket protocol generation to reload rather than retry.
+WORLD_SOCKET_CLOSE_NORMAL = 1000
+WORLD_SOCKET_CLOSE_POLICY = 1008
+WORLD_SOCKET_CLOSE_INTERNAL = 1011
+WORLD_SOCKET_CLOSE_TRY_AGAIN = 1013
+WORLD_SOCKET_CLOSE_UNAUTHORIZED = 4401
+WORLD_SOCKET_CLOSE_UPGRADE_REQUIRED = 4426
 REDIS_KEY_WORLD_RUNTIME_PREFIX = "world:runtime:"
 REDIS_KEY_WORLD_TICKET_PREFIX = "world:ticket:"
 REDIS_KEY_WORLD_MESSAGE_PREFIX = "world:message:"

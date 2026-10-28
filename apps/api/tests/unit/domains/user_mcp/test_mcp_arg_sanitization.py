@@ -11,6 +11,7 @@ from uuid import uuid4
 
 import pytest
 
+from src.domains.agents.effects.treatments import treatment_collector
 from src.infrastructure.mcp.tool_adapter import MCPToolAdapter
 from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
 from src.infrastructure.mcp.utils import drop_none_values
@@ -87,6 +88,9 @@ class TestAdminAdapterStripsNone:
         with (
             installed_shared_mcp_access() as actor,
             installed_runtime_context(user_id=actor.id),
+            # A real turn publishes its consultation register; without one the
+            # gate schedules an integrity write the loop teardown cuts short.
+            treatment_collector(run_id="mcp-admin-adapter"),
             patch(
                 "src.infrastructure.mcp.client_manager.get_mcp_client_manager",
                 return_value=mock_manager,

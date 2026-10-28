@@ -1,5 +1,7 @@
 'use client';
 
+import { useHydrated } from '@/hooks/useHydrated';
+
 import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -55,8 +57,9 @@ export function RegisterForm() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [timezone, setTimezone] = useState<string | null>(null);
-  const [language, setLanguage] = useState<string | null>(null);
+  const hydrated = useHydrated();
+  const timezone = hydrated ? getBrowserTimezone() : null;
+  const language = hydrated ? getBrowserLanguageForBackend() : null;
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const botCheck = useTurnstileDoor('register');
@@ -65,13 +68,11 @@ export function RegisterForm() {
   useEffect(() => {
     const detectedTimezone = getBrowserTimezone();
     if (detectedTimezone) {
-      setTimezone(detectedTimezone);
       logger.info('Timezone detected', { timezone: detectedTimezone, component: 'RegisterForm' });
     }
 
     const detectedLanguage = getBrowserLanguageForBackend();
     if (detectedLanguage) {
-      setLanguage(detectedLanguage);
       logger.info('Language detected', { language: detectedLanguage, component: 'RegisterForm' });
     }
   }, []);

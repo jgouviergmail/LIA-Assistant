@@ -13,13 +13,22 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 pytestmark = pytest.mark.integration
 
 
-async def test_avatar_migration_round_trip_preserves_existing_users(
+@pytest.mark.parametrize(
+    ("filename", "column"),
+    [
+        ("2026_10_25_1700-a85f7c4d2e19_world_avatar_preferences.py", "world_avatar_preferences"),
+        (
+            "2026_10_27_0259-e5f51d793219_add_private_world_experience_preferences.py",
+            "world_experience_preferences",
+        ),
+    ],
+)
+async def test_world_preference_migration_round_trip_preserves_existing_users(
     async_engine: AsyncEngine,
+    filename: str,
+    column: str,
 ) -> None:
-    path = (
-        Path(__file__).parents[3]
-        / "alembic/versions/2026_10_25_1700-a85f7c4d2e19_world_avatar_preferences.py"
-    )
+    path = Path(__file__).parents[3] / "alembic/versions" / filename
     spec = importlib.util.spec_from_file_location("world_avatar_migration", path)
     assert spec and spec.loader
     migration = importlib.util.module_from_spec(spec)
@@ -34,12 +43,9 @@ async def test_avatar_migration_round_trip_preserves_existing_users(
         def exercise(sync: Connection) -> None:
             with Operations.context(MigrationContext.configure(sync)):
                 migration.upgrade()
-                assert (
-                    sync.execute(text("SELECT world_avatar_preferences FROM users")).scalar_one()
-                    is None
-                )
+                assert sync.execute(text(f"SELECT {column} FROM users")).scalar_one() is None
                 sync.execute(
-                    text("UPDATE users SET world_avatar_preferences = cast(:prefs as jsonb)"),
+                    text(f"UPDATE users SET {column} = cast(:prefs as jsonb)"),
                     {"prefs": '{"version":1}'},
                 )
                 migration.downgrade()
@@ -48,10 +54,7 @@ async def test_avatar_migration_round_trip_preserves_existing_users(
                     == "Existing account"
                 )
                 migration.upgrade()
-                assert (
-                    sync.execute(text("SELECT world_avatar_preferences FROM users")).scalar_one()
-                    is None
-                )
+                assert sync.execute(text(f"SELECT {column} FROM users")).scalar_one() is None
 
         await connection.run_sync(exercise)
         await connection.execute(text("SET LOCAL search_path TO public"))

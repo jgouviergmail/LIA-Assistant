@@ -44,11 +44,11 @@ async def test_idle_resume_preserves_released_capacity_and_fences_old_teardown(
     assert state.presences[identity.account_id].controller == resumed.controller
     expiry = state.presences[identity.account_id].expires_at
     await service.command(
-        resumed, HeartbeatCommand(version=1, type="heartbeat", epoch=str(uuid4()), visible=True)
+        resumed, HeartbeatCommand(version=2, type="heartbeat", epoch=str(uuid4()), visible=True)
     )
     state, _ = await store.read()
     assert state.presences[identity.account_id].expires_at == expiry
-    await service.command(resumed, ControlCommand(version=1, type="accept", epoch=state.epoch))
+    await service.command(resumed, ControlCommand(version=2, type="accept", epoch=state.epoch))
     state, now = await store.read()
     assert peer_presence(state, identity.account_id, now) == "online"
     await service.disconnect(WorldConnection(identity, "forged"))

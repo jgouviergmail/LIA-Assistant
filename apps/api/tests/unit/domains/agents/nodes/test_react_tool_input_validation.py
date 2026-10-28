@@ -11,6 +11,7 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import BaseTool, StructuredTool
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.domains.agents.effects.treatments import treatment_collector
 from src.domains.agents.nodes.react_egress_question import invoke_with_settlement
 from src.domains.agents.orchestration.parallel_executor import _build_tool_runtime
 from src.domains.agents.tools.common import ToolErrorCode
@@ -131,6 +132,9 @@ async def test_mcp_extra_arguments_follow_the_server_schema(
     with (
         installed_shared_mcp_access() as actor,
         installed_runtime_context(user_id=actor.id),
+        # A real turn publishes its consultation register; without one the
+        # gate schedules an integrity write the loop teardown cuts short.
+        treatment_collector(run_id="mcp-extra-arguments"),
         patch("src.domains.agents.effects.runtime.resolve_policy", return_value="read"),
         patch("src.infrastructure.mcp.client_manager.get_mcp_client_manager", return_value=manager),
     ):
@@ -191,6 +195,8 @@ async def test_both_mcp_adapters_keep_wire_aliases_converted_values_and_extras(
     with (
         installed_shared_mcp_access() as actor,
         installed_runtime_context(user_id=actor.id),
+        # The turn's consultation register, published as in the test above.
+        treatment_collector(run_id="mcp-wire-aliases"),
         patch("src.domains.agents.effects.runtime.resolve_policy", return_value="read"),
         patch(
             "src.infrastructure.mcp.client_manager.get_mcp_client_manager", return_value=provider

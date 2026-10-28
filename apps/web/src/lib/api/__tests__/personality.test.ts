@@ -260,6 +260,7 @@ describe('personality API — read lifetime', () => {
   it.each([
     ['catalogue', fetchPersonalities],
     ['current preference', fetchCurrentPersonality],
+    ['admin catalogue', fetchPersonalitiesAdmin],
   ] as const)('propagates caller cancellation for the %s read', async (_name, read) => {
     const owner = new AbortController();
     const pending = read(owner.signal);

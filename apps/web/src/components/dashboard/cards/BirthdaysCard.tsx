@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
 import { CardItemRow } from './CardItemRow';
 import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
-import { openChatDeepLink } from '@/lib/chat-deep-link';
+import { useDashboardChat } from '../DashboardNavigation';
 import type { BirthdaysData, BriefingWindows, CardSection } from '@/types/briefing';
 
 interface BirthdaysCardProps {
@@ -25,6 +25,7 @@ export function BirthdaysCard({
   staggerIndex,
 }: BirthdaysCardProps) {
   const { i18n } = useTranslation();
+  const openChat = useDashboardChat();
   const lng = (i18n.language || 'fr').split('-')[0];
   return (
     <BriefingCard<BirthdaysData>
@@ -39,8 +40,8 @@ export function BirthdaysCard({
       renderContent={data => (
         <BirthdaysContent
           data={data}
-          onOpenChat={draft => openChatDeepLink(chatDraftHref(lng, draft))}
-          onExecute={intent => openChatDeepLink(chatIntentHref(lng, intent))}
+          onOpenChat={draft => openChat(chatDraftHref(lng, draft))}
+          onExecute={intent => openChat(chatIntentHref(lng, intent))}
         />
       )}
       staggerIndex={staggerIndex}
@@ -81,7 +82,12 @@ function BirthdaysContent({
             onSelect={() => onOpenChat(intent)}
             contentClassName="flex flex-col gap-1.5 leading-snug"
             actions={[
-              { icon: Gift, label: messageIntent, onSelect: () => onExecute(messageIntent) },
+              {
+                icon: Gift,
+                label: messageIntent,
+                opensChat: true,
+                onSelect: () => onExecute(messageIntent),
+              },
             ]}
           >
             <span className="flex items-center gap-1.5 text-xs font-medium text-rose-600 dark:text-rose-300 tabular-nums">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { LoaderCircle, Minus, Plus, Sparkles, Square, Volume2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { LLMUsageBadge } from '@/components/ui/llm-usage-badge';
 import { UpdatedAtBadge } from './UpdatedAtBadge';
 import { useBriefingAudio } from '@/hooks/useBriefingAudio';
+import { useFlashOnChange } from '@/hooks/useFlashOnChange';
 import { useLiaGender } from '@/hooks/useLiaGender';
 import type { TextSection } from '@/types/briefing';
 
@@ -23,8 +24,8 @@ export function BriefingSynthesis({ synthesis }: BriefingSynthesisProps) {
   const [expanded, setExpanded] = useState(true);
   const contentId = useId();
   const titleId = useId();
-  const [showJustUpdated, setShowJustUpdated] = useState(false);
-  const previousGeneratedAt = useRef<string | null>(null);
+  // « Just updated » for a moment after a NEW synthesis replaced the one shown.
+  const showJustUpdated = useFlashOnChange(synthesis.generated_at, JUST_UPDATED_VISIBLE_MS);
   // A2: read the displayed synthesis aloud (server-side TTS, cost-tracked).
   const { playing, loading, error, toggle } = useBriefingAudio();
   const { isMale: liaIsMale } = useLiaGender();
@@ -32,20 +33,6 @@ export function BriefingSynthesis({ synthesis }: BriefingSynthesisProps) {
   useEffect(() => {
     if (error) toast.error(t('dashboard.briefing.synthesis_audio_error'));
   }, [error, t]);
-
-  useEffect(() => {
-    if (previousGeneratedAt.current === null) {
-      previousGeneratedAt.current = synthesis.generated_at;
-      return;
-    }
-    if (previousGeneratedAt.current !== synthesis.generated_at) {
-      previousGeneratedAt.current = synthesis.generated_at;
-      setShowJustUpdated(true);
-      const id = setTimeout(() => setShowJustUpdated(false), JUST_UPDATED_VISIBLE_MS);
-      return () => clearTimeout(id);
-    }
-    return undefined;
-  }, [synthesis.generated_at]);
 
   return (
     <section aria-labelledby={titleId} className="min-w-0 space-y-2">

@@ -1,13 +1,8 @@
 'use client';
 
-import {
-  useState,
-  useEffect,
-  useCallback,
-  useOptimistic,
-  useTransition,
-  type ReactNode,
-} from 'react';
+import { useEffectRequest } from '@/hooks/useEffectRequest';
+
+import { useState, useCallback, useOptimistic, useTransition, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { SearchInput } from '@/components/ui/search-input';
@@ -224,11 +219,13 @@ export default function AdminUsersSection({ lng }: BaseSettingsProps) {
           params,
           signal,
         });
+        if (signal?.aborted) return;
         setUsers(response.users);
         setTotal(response.total);
         setPage(response.page);
         setTotalPages(response.total_pages);
       } catch (error) {
+        if (signal?.aborted) return;
         const err = error as { name?: string };
         // ✅ Don't show error if request was aborted (normal behavior)
         if (err.name === 'AbortError' || err.name === 'CanceledError') {
@@ -243,21 +240,14 @@ export default function AdminUsersSection({ lng }: BaseSettingsProps) {
         });
         toast.error(t('settings.admin.users.errors.loading'));
       } finally {
-        setLoading(false);
+        if (!signal?.aborted) setLoading(false);
       }
     },
     [page, pageSize, sortBy, sortOrder, searchQuery, t]
   );
 
   // ✅ FIXED: useEffect with cleanup for AbortController
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchUsers(controller.signal);
-
-    return () => {
-      controller.abort();
-    };
-  }, [fetchUsers]);
+  useEffectRequest(fetchUsers);
 
   // ✅ REMOVED: Duplicate autoDismiss useEffect
   // Alert component now handles autoDismiss via autoDismiss={5000} prop

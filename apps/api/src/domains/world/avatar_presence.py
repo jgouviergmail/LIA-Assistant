@@ -8,7 +8,7 @@ from redis.exceptions import RedisError
 from src.domains.world.avatar import AvatarPreferences
 from src.domains.world.configuration import configured_store
 from src.domains.world.schemas import WorldState
-from src.domains.world.store import WorldUnavailable
+from src.domains.world.store import WorldIntegrityError, WorldUnavailable
 from src.infrastructure.cache.redis import get_redis_cache
 
 logger = structlog.get_logger(__name__)
@@ -31,6 +31,7 @@ async def refresh_avatar_presence(owner: UUID, preferences: AvatarPreferences) -
         if str(owner) not in state.actors:
             return
         await store.update(lambda current, _now: apply_appearance(current, str(owner), preferences))
-    except (RedisError, WorldUnavailable, TimeoutError, ValueError) as exc:
-        # Persistence succeeded. The existing fresh policy loop repairs this view.
+    except (RedisError, WorldUnavailable, WorldIntegrityError, TimeoutError, ValueError) as exc:
+        # Persistence succeeded. The existing fresh policy loop repairs this view
+        # (an integrity failure was already logged and counted by the store).
         logger.warning("world_avatar_presence_deferred", reason=type(exc).__name__)

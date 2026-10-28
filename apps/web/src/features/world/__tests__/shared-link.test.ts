@@ -4,10 +4,32 @@ import { parseWorldFrame } from '../protocol';
 
 const EPOCH = '4010c2c2-4bd0-4d21-9c08-b4502db25d72';
 const SCENE = 'lia-campus:1';
+
+it('shares one monotonically increasing sequence between movement, games and gestures', async () => {
+  const { link } = setup();
+  const socket = await connect(link);
+  expect(link.motion({ x: 1, y: 0 })).toBe(1);
+  const action = {
+    cabinet: 'arcade-tic-tac-toe' as const,
+    action_id: EPOCH,
+    action: 'wait' as const,
+    round_id: null,
+    expected_revision: 0,
+  };
+  expect(link.game(action)).toEqual({ seq: 2, epoch: EPOCH, stream: 1 });
+  expect(link.emote('wave')).toBe(3);
+  const packet = JSON.parse(socket.sent[2]);
+  expect(packet).toEqual({ version: 2, type: 'game', epoch: EPOCH, seq: 2, ...action });
+  socket.frame({ ...view(), revision: 2, controlling: false });
+  expect(link.game(action)).toBeNull();
+  link.stop();
+});
 export function view() {
   return {
+    server_time: 100,
+    receipts: [],
     type: 'snapshot',
-    version: 1,
+    version: 2,
     epoch: EPOCH,
     revision: 1,
     status: 'active',
@@ -24,6 +46,7 @@ class Socket extends EventTarget {
   static OPEN = 1;
   static sockets: Socket[] = [];
   readyState = 0;
+  bufferedAmount = 0;
   sent: string[] = [];
   constructor(readonly url: string) {
     super();
@@ -52,6 +75,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 function setup(ticket = vi.fn(async (_signal: AbortSignal) => 't'.repeat(43))) {
@@ -69,7 +93,7 @@ async function connect(link: WorldLink) {
   await Promise.resolve();
   const socket = Socket.sockets.at(-1)!;
   socket.open();
-  socket.frame({ type: 'ready', version: 1, scene: SCENE, resume: 'r'.repeat(43) });
+  socket.frame({ type: 'ready', version: 2, scene: SCENE, resume: 'r'.repeat(43) });
   socket.frame(view());
   return socket;
 }
@@ -126,7 +150,7 @@ describe('world connection ownership', () => {
     expect(socket.url).not.toContain('ticket');
     expect(JSON.parse(socket.sent[0])).toEqual({
       type: 'authenticate',
-      version: 1,
+      version: 2,
       scene: SCENE,
       ticket: 't'.repeat(43),
       resume: null,
@@ -134,7 +158,7 @@ describe('world connection ownership', () => {
     expect(link.motion({ x: 1, y: 0 })).toBe(1);
     expect(JSON.parse(socket.sent.at(-1)!)).toEqual({
       type: 'move',
-      version: 1,
+      version: 2,
       epoch: EPOCH,
       seq: 1,
       dx: 1,
@@ -168,7 +192,7 @@ describe('world connection ownership', () => {
     const resumed = Socket.sockets.at(-1)!;
     resumed.open();
     expect(JSON.parse(resumed.sent[0]).resume).toBe('r'.repeat(43));
-    resumed.frame({ type: 'ready', version: 1, scene: SCENE, resume: 's'.repeat(43) });
+    resumed.frame({ type: 'ready', version: 2, scene: SCENE, resume: 's'.repeat(43) });
     resumed.frame({ ...view(), revision: 2 });
     old.frame({ ...view(), revision: 100, controlling: false });
     expect(link.view?.revision).toBe(2);
@@ -227,13 +251,157 @@ describe('world connection ownership', () => {
     socket.open();
     socket.frame({
       type: 'ready',
-      version: 1,
+      version: 2,
       scene: 'lia-campus:obsolete',
       resume: 'r'.repeat(43),
     });
     socket.frame(view());
     expect(link.canMove).toBe(false);
-    expect(onStatus).toHaveBeenLastCalledWith('unavailable');
+    expect(onStatus).toHaveBeenLastCalledWith('outdated');
     expect(vi.getTimerCount()).toBe(0);
   });
+});
+
+it('shares the monotonic sequence across movement, emotes and poses and refuses hidden gestures', async () => {
+  const { link } = setup();
+  const socket = await connect(link);
+  expect(link.emote('wave')).toBe(1);
+  expect(link.serverTime).toBe(100);
+  vi.advanceTimersByTime(500);
+  expect(link.serverTime).toBeCloseTo(100.5);
+  expect(link.pose(null)).toBe(2);
+  expect(link.motion({ x: 1, y: 0 })).toBe(3);
+  expect(JSON.parse(socket.sent[1])).toMatchObject({
+    type: 'emote',
+    version: 2,
+    seq: 1,
+    emote: 'wave',
+  });
+  expect(link.emote('thanks')).toBe('rate_limited');
+  expect(socket.sent.filter(frame => JSON.parse(frame).type === 'emote')).toHaveLength(1);
+  vi.advanceTimersByTime(1500);
+  socket.frame({ ...view(), revision: 2 });
+  expect(link.emote('thanks')).toBe(4);
+  vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
+  vi.advanceTimersByTime(2000);
+  socket.frame({ ...view(), revision: 3 });
+  expect(link.canMove).toBe(true);
+  expect(link.emote('celebrate')).toBe('unavailable');
+  expect(socket.sent.filter(frame => JSON.parse(frame).type === 'emote')).toHaveLength(2);
+  link.stop();
+});
+
+it('keeps a burst of gestures inside the frame budget, across a reconnect too', async () => {
+  const { link } = setup();
+  const socket = await connect(link);
+  const sent = () => socket.sent.filter(frame => JSON.parse(frame).type === 'emote').length;
+  expect(link.emote('wave')).toBe(1);
+  for (let tap = 0; tap < 40; tap++) expect(link.emote('laugh')).toBe('rate_limited');
+  expect(sent()).toBe(1);
+  socket.close(1006);
+  await vi.advanceTimersByTimeAsync(500);
+  const resumed = Socket.sockets.at(-1)!;
+  resumed.open();
+  resumed.frame({ type: 'ready', version: 2, scene: SCENE, resume: 's'.repeat(43) });
+  resumed.frame({ ...view(), revision: 2 });
+  expect(link.emote('laugh')).toBe('rate_limited');
+  await vi.advanceTimersByTimeAsync(1500);
+  resumed.frame({ ...view(), revision: 3 });
+  expect(link.emote('laugh')).toBe(1);
+  link.stop();
+});
+
+it('offers reload for obsolete socket generations without retrying or retaining authority', async () => {
+  const { link, onStatus } = setup();
+  const socket = await connect(link);
+  socket.frame({ ...view(), version: 1 });
+  expect(onStatus).toHaveBeenLastCalledWith('outdated');
+  expect(link.view).toBeNull();
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it.each(['backpressure', 'send failure'] as const)(
+  'withdraws authority on %s instead of acknowledging an uncertain command',
+  async mode => {
+    const { link } = setup();
+    const socket = await connect(link);
+    if (mode === 'backpressure') socket.bufferedAmount = 16385;
+    else
+      vi.spyOn(socket, 'send').mockImplementation(() => {
+        throw new Error('network');
+      });
+    expect(link.emote('wave')).toBe('unavailable');
+    expect(link.view).toBeNull();
+    expect(link.canMove).toBe(false);
+    link.stop();
+    expect(vi.getTimerCount()).toBe(0);
+  }
+);
+
+it('sends visibility-only heartbeats without claiming activity and stops on a required upgrade', async () => {
+  const { link, onStatus } = setup();
+  const socket = await connect(link);
+  const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
+  document.dispatchEvent(new Event('visibilitychange'));
+  expect(JSON.parse(socket.sent.at(-1)!)).toMatchObject({
+    type: 'heartbeat',
+    visible: false,
+    active: false,
+  });
+  hidden.mockReturnValue(false);
+  document.dispatchEvent(new Event('visibilitychange'));
+  expect(JSON.parse(socket.sent.at(-1)!)).toMatchObject({
+    type: 'heartbeat',
+    visible: true,
+    active: false,
+  });
+  socket.close(4426);
+  expect(onStatus).toHaveBeenLastCalledWith('outdated');
+  await vi.advanceTimersByTimeAsync(30000);
+  expect(Socket.sockets).toHaveLength(1);
+  expect(vi.getTimerCount()).toBe(0);
+  hidden.mockRestore();
+});
+
+it.each([1008, 1011])(
+  'treats close %i as transient: bounded reconnects, then unavailable, never outdated',
+  async code => {
+    const { link, onStatus } = setup();
+    const socket = await connect(link);
+    socket.close(code);
+    expect(onStatus).toHaveBeenLastCalledWith('reconnecting');
+    await vi.advanceTimersByTimeAsync(500);
+    const recovered = Socket.sockets.at(-1)!;
+    expect(recovered).not.toBe(socket);
+    recovered.open();
+    recovered.frame({ type: 'ready', version: 2, scene: SCENE, resume: 's'.repeat(43) });
+    recovered.frame({ ...view(), revision: 2 });
+    expect(onStatus).toHaveBeenLastCalledWith('online');
+    expect(link.canMove).toBe(true);
+    for (const delay of [500, 1000, 2000, 4000]) {
+      Socket.sockets.at(-1)!.close(code);
+      expect(onStatus).toHaveBeenLastCalledWith('reconnecting');
+      await vi.advanceTimersByTimeAsync(delay);
+    }
+    Socket.sockets.at(-1)!.close(code);
+    expect(onStatus).toHaveBeenLastCalledWith('unavailable');
+    expect(onStatus).not.toHaveBeenCalledWith('outdated');
+    expect(Socket.sockets).toHaveLength(6);
+    expect(vi.getTimerCount()).toBe(0);
+  }
+);
+
+it('rejects duplicate ready or binary data and never rolls an epoch revision backwards', async () => {
+  const { link, onStatus } = setup();
+  const socket = await connect(link);
+  socket.frame({ ...view(), revision: 5 });
+  socket.frame({ ...view(), revision: 2 });
+  expect(link.view?.revision).toBe(5);
+  socket.frame({ type: 'ready', version: 2, scene: SCENE, resume: 'r'.repeat(43) });
+  expect(onStatus).toHaveBeenLastCalledWith('unavailable');
+  const other = setup();
+  const second = await connect(other.link);
+  second.dispatchEvent(new MessageEvent('message', { data: new ArrayBuffer(4) }));
+  expect(other.onStatus).toHaveBeenLastCalledWith('unavailable');
+  expect(other.link.view).toBeNull();
 });

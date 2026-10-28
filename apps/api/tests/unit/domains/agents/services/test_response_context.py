@@ -293,6 +293,18 @@ class TestUserRagDebugPayload:
         async def _fake_retrieve(**_kw: Any) -> Any:
             return result
 
+        # The neighbouring injections are not under test. Memory and journals are
+        # off for this account, so no reader needs the message embedding; the
+        # rhythm block of an account with nothing learned is empty. Patched
+        # before the session factory below: importing the ambient module here
+        # binds the real factory, never this test's double.
+        monkeypatch.setattr(
+            "src.infrastructure.llm.user_message_embedding.get_or_compute_embedding",
+            AsyncMock(return_value=None),
+        )
+        monkeypatch.setattr(
+            "src.domains.habits.ambient.build_habits_rhythm_block", AsyncMock(return_value="")
+        )
         monkeypatch.setattr(
             "src.domains.relations.debrief.injection._directory",
             AsyncMock(return_value=([], None)),

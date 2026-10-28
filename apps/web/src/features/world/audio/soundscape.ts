@@ -1,4 +1,4 @@
-import type { Ambience, SoundId } from './catalogue';
+import type { Ambience, SoundId, EffectSoundId } from './catalogue';
 export interface SoundVoice {
   fade(level: number, seconds: number): void;
   stop(afterSeconds?: number): void;
@@ -28,12 +28,17 @@ export class Soundscape {
   private current: SoundVoice | null = null;
   private retiring: SoundVoice | null = null;
   private cue: SoundVoice | null = null;
+  /** What the single cue voice plays or loads: a message outranks every decor cue. */
+  private cueKind: SoundId | null = null;
+  private cueUntil = -Infinity;
+  private pendingKind: SoundId | null = null;
   private request = 0;
   private pending: AbortController | null = null;
   private noticePending: AbortController | null = null;
   private cache = new Map<SoundId, DecodedSound>();
   private phoneTimer: ReturnType<typeof setTimeout> | null = null;
   private lastCue = -Infinity;
+  private lastNotice = -Infinity;
   constructor(
     private backend: SoundBackend,
     private clock = { random: Math.random, now: () => performance.now() }
@@ -114,8 +119,17 @@ export class Soundscape {
   private stopCue(): void {
     this.noticePending?.abort();
     this.noticePending = null;
+    this.pendingKind = null;
     this.cue?.stop();
     this.cue = null;
+    this.cueKind = null;
+    this.cueUntil = -Infinity;
+  }
+  private messageHeld(): boolean {
+    return (
+      this.pendingKind === 'message' ||
+      (this.cueKind === 'message' && this.clock.now() < this.cueUntil)
+    );
   }
   private async reconcile(): Promise<void> {
     if (!this.allowed()) return;
@@ -192,21 +206,50 @@ export class Soundscape {
   }
   async notify(): Promise<void> {
     const at = this.clock.now();
-    if (!this.allowed() || at - this.lastCue < 800) return;
+    if (!this.allowed() || at - this.lastNotice < 800) return;
+    this.lastNotice = at;
+    await this.playCue('message', () => true);
+  }
+  async effect(id: EffectSoundId, current: () => boolean): Promise<void> {
+    const at = this.clock.now();
+    if (
+      !this.allowed() ||
+      !current() ||
+      this.messageHeld() ||
+      at - this.lastNotice < 1200 ||
+      at - this.lastCue < 800
+    )
+      return;
     this.lastCue = at;
+    await this.playCue(id, current);
+  }
+  private async playCue(id: SoundId, current: () => boolean): Promise<void> {
+    const at = this.clock.now();
     const controller = new AbortController();
     this.noticePending?.abort();
     this.noticePending = controller;
+    this.pendingKind = id;
     try {
-      const clip = await this.read('message', controller.signal);
-      if (!this.allowed() || controller.signal.aborted || this.clock.now() - at > 3000) return;
+      const clip = await this.read(id, controller.signal);
+      if (
+        !this.allowed() ||
+        !current() ||
+        controller.signal.aborted ||
+        this.clock.now() - at > 3000
+      )
+        return;
       this.cue?.stop();
       this.cue = clip.start(false, 0);
-      this.cue.fade(0.7, 0.02);
+      this.cueKind = id;
+      this.cueUntil = this.clock.now() + clip.duration * 1000;
+      this.cue.fade(id === 'message' ? 0.7 : 0.6, 0.02);
     } catch {
       /* A missing cue must never interrupt reading a message. */
     } finally {
-      if (this.noticePending === controller) this.noticePending = null;
+      if (this.noticePending === controller) {
+        this.noticePending = null;
+        this.pendingKind = null;
+      }
     }
   }
   destroy(): void {

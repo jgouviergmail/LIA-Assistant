@@ -33,6 +33,18 @@ TZ = ZoneInfo("Europe/Paris")
 NOW = datetime(2026, 8, 4, 10, 30, tzinfo=TZ)
 
 
+@pytest.fixture(autouse=True)
+def _habits_switch_on(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The operator's habits switch reads as its declared default (on).
+
+    Its OFF side is pinned in ``tests/unit/domains/habits/test_capability_at_the_act.py``;
+    a real read here would reach the settings store (Redis, then PostgreSQL).
+    """
+    monkeypatch.setattr(
+        "src.domains.habits.capability.is_capability_enabled", AsyncMock(return_value=True)
+    )
+
+
 def _settings(**overrides: Any) -> SimpleNamespace:
     defaults = {
         "habits_enabled": True,

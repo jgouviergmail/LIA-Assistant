@@ -15,6 +15,7 @@ import {
 } from './avatar-catalogue';
 import { avatarAppearanceSchema } from './avatar-protocol';
 import { WorldAvatarPreview } from './WorldAvatarPreview';
+import { WorldAvatarPresets } from './WorldAvatarPresets';
 
 interface Props {
   lng: Language;
@@ -34,11 +35,17 @@ export function WorldAvatarFields(props: Props) {
     <div className="world-avatar-fields">
       <WorldAvatarPreview lng={lng} appearance={appearance} />
       <div className="min-w-0 space-y-4">
+        <WorldAvatarPresets {...props} />
         <ChoiceField {...props} field="skin" values={AVATAR_SKIN_IDS} />
         <Tabs defaultValue="hair">
           <TabsList className="grid min-h-11 w-full grid-cols-3">
             {(['hair', 'outfit', 'accessories'] as const).map(tab => (
-              <TabsTrigger key={tab} value={tab} aria-label={t('world.avatar.tabs.' + tab)} className="min-h-11 min-w-0 truncate px-1 text-xs">
+              <TabsTrigger
+                key={tab}
+                value={tab}
+                aria-label={t('world.avatar.tabs.' + tab)}
+                className="min-h-11 min-w-0 truncate px-1 text-xs"
+              >
                 {t('world.avatar.tabs.' + tab)}
               </TabsTrigger>
             ))}

@@ -19,7 +19,7 @@ import { BriefingCard } from '../BriefingCard';
 import type { CardItemAction } from './CardItemActions';
 import { CardItemRow } from './CardItemRow';
 import { chatDraftHref } from '@/lib/briefing-utils';
-import { openChatDeepLink } from '@/lib/chat-deep-link';
+import { useDashboardChat } from '../DashboardNavigation';
 import { haptic } from '@/lib/haptics';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import type { CardSection, ReminderItem, RemindersData } from '@/types/briefing';
@@ -59,6 +59,7 @@ export function RemindersCard({
   staggerIndex,
 }: RemindersCardProps) {
   const { i18n } = useTranslation();
+  const openChat = useDashboardChat();
   const lng = (i18n.language || 'fr').split('-')[0];
   return (
     <BriefingCard<RemindersData>
@@ -72,7 +73,7 @@ export function RemindersCard({
       renderContent={data => (
         <RemindersContent
           data={data}
-          onOpenChat={() => openChatDeepLink(chatDraftHref(lng))}
+          onOpenChat={() => openChat(chatDraftHref(lng))}
           onCancelled={onInvalidate ?? onRefresh}
         />
       )}

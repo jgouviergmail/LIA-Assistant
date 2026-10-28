@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useLayoutEffect, useRef } from 'react';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
 import { useApplicationAccountState } from '@/hooks/useApplicationAccountState';
@@ -14,7 +14,9 @@ export function useSmsPreferenceUpdate(
 ) {
   const { ownerId, lifetime, isCurrent, acceptData } = query;
   const latestData = useRef(query.data);
-  latestData.current = query.data;
+  useLayoutEffect(() => {
+    latestData.current = query.data;
+  }, [query.data]);
   const inFlight = useRef<ApplicationAccountLifetime | null>(null);
   const [saving, setSaving] = useApplicationAccountState(ownerId, false);
   const [error, setError] = useApplicationAccountState(ownerId, false);

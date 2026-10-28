@@ -663,6 +663,18 @@ class TestDescriptionGenerationKnowsAuthentication:
     as the connected account.
     """
 
+    @pytest.fixture(autouse=True)
+    def _no_operator_ceiling(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """No daily ceiling is set (the operator setting's declared default).
+
+        The generator asks the spend ceilings before calling the model; the real
+        read of the operator's ceiling would reach the settings store.
+        """
+        monkeypatch.setattr(
+            "src.domains.system_settings.service.get_instance_daily_budget_eur",
+            AsyncMock(return_value=None),
+        )
+
     def _llm(self):
         llm = AsyncMock()
         llm.ainvoke = AsyncMock(return_value=MagicMock(content="A fine description."))

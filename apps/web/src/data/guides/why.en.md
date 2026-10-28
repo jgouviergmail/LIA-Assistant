@@ -4,7 +4,7 @@
 
 **Version**: 6.6
 **Date**: 2026-10-23
-**Application**: LIA v4.0.0
+**Application**: LIA v4.1.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -298,6 +298,8 @@ LIA World gives your instance a shared house and garden. You move with your chos
 
 Sharing a place does not share your assistant. Entry asks your permission to display your name and avatar in the world; accepted connections can also see your coarse presence and home status. Your home, its colours, documents and assistant panels remain private. A room opens the same native functions with the same permissions, costs and confirmations; walking in never executes a prepared action.
 
+The world is also a place to spend time together. Three arcade cabinets — tic-tac-toe, four-in-a-row and Reversi — invite a game with another person or against the computer, and six gestures say hello, thanks or well done without a word. Sit at a table and LIA offers your full dashboard; you may decline and simply stay seated. Familiar objects carry your own signals — a reminder that fired, a message, a ticket waiting for you — and a private photo keeps the moment: your avatar, LIA and the scenery, never the other visitors.
+
 You can also exchange private text with another available, unblocked participant or deliberately choose the Everyone channel for people present in shared areas. The original stays available. Translating a message is an explicit paid choice, counted in your usage; a failed or uncertain attempt is not replayed automatically. These temporary human messages stay separate from LIA’s conversation history and memory. Availability depends on the features enabled on your instance; human voice between avatars is outside this version’s scope.
 
 ---
@@ -410,7 +412,7 @@ The same requirement governs what LIA retains of your instructions: every lastin
 
 ### 6.8. A surface that describes the product is held to it
 
-Transparency has a failure mode nobody notices: a screen that quietly stops telling the truth. Nothing breaks, no test goes red, and the page that existed to be current becomes the least current in the application. So the capability map — the page answering _what can my assistant do for me?_ — is no longer maintained by hand: every capability the platform can switch on or off must have its declared place on it, and a capability that ships without that decision stops the application from starting. The same conviction, one notch further: what a screen says about your data must be **exact or absent**. A tally is the number the database returns, never a length that happens to be at hand; and while an answer is still on its way, or when it failed, the card says nothing rather than guessing. "Nothing set up yet" is a claim about your account — one worth being sure of before making it. The FAQ obeys the same rule: every feature a person can use has its section there — 518 questions, in six languages —, and a translated section the display order forgot fails the tests instead of staying invisible.
+Transparency has a failure mode nobody notices: a screen that quietly stops telling the truth. Nothing breaks, no test goes red, and the page that existed to be current becomes the least current in the application. So the capability map — the page answering _what can my assistant do for me?_ — is no longer maintained by hand: every capability the platform can switch on or off must have its declared place on it, and a capability that ships without that decision stops the application from starting. The same conviction, one notch further: what a screen says about your data must be **exact or absent**. A tally is the number the database returns, never a length that happens to be at hand; and while an answer is still on its way, or when it failed, the card says nothing rather than guessing. "Nothing set up yet" is a claim about your account — one worth being sure of before making it. The FAQ obeys the same rule: every feature a person can use has its section there — 523 questions, in six languages —, and a translated section the display order forgot fails the tests instead of staying invisible.
 
 Transparency also applies to the assistant's internal rules. A constraint the system enforces must be published to whoever it affects: when habit learning detects nothing, Settings display the threshold actually required — stricter on weekends, where observed days are fewer — instead of an unexplained silence. And when a setting tunes itself, like the threshold deciding that a journal note enters a reply, it does so inside strict bounds, one small step per day, with a kill switch and every adjustment counted: a learning system is only acceptable if it stays observable and stoppable.
 

@@ -94,6 +94,14 @@
 	<key>NSCameraUsageDescription</key>
 	<string>LIA opens the camera only when you choose to take a photo to attach to a message.</string>
 	<!--
+		The World photo reaches the system share sheet as an image file, and the
+		sheet offers "Save Image": iOS terminates an application that writes to
+		the photo library without stating why. Add-only access is all it needs;
+		the shell never reads the library.
+	-->
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>LIA saves a World photo to your library only when you choose Save Image.</string>
+	<!--
 		The way back from the system browser after a provider sign-in.
 
 		A custom scheme, not a Universal Link: Universal Links pin domains at

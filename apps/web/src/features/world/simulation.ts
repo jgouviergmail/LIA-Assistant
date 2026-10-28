@@ -15,6 +15,8 @@ export interface Simulation {
   visitors: Visitor[];
   bip: Actor;
   bipFollowing: boolean;
+  /** An explicit approach holds only the local companion; peers remain authoritative. */
+  bipInteractionHeld: boolean;
   noticeFollowing?: boolean;
   patrolIndex: number;
   wait: number;
@@ -33,6 +35,7 @@ export function createSimulation(world: WorldDefinition): Simulation {
     visitors: [],
     bip: actor(world.bipSpawn),
     bipFollowing: false,
+    bipInteractionHeld: false,
     patrolIndex: 0,
     wait: 1.5,
     time: 0,
@@ -120,14 +123,25 @@ export function stepSimulation(sim: Simulation, elapsed: number, input: Point): 
   if (Math.hypot(input.x, input.y)) sim.player.running = false;
   move(sim, sim.player, dt, input, sim.player.running ? MOVEMENT.run : SPEED);
   if (!sim.player.path.length) sim.player.running = false;
+  stepBip(sim, dt);
+}
+function stepBip(sim: Simulation, dt: number): void {
+  if (sim.bipInteractionHeld) {
+    sim.bip.walking = false;
+    facePlayer(sim);
+    return;
+  }
   directBip(sim, dt);
   move(sim, sim.bip, dt, idle, SPEED * 0.8);
-  if ((sim.bipFollowing || sim.noticeFollowing) && !sim.bip.walking) {
-    sim.bip.facing = facingFromMotion({
-      x: sim.player.position.x - sim.bip.position.x,
-      y: sim.player.position.y - sim.bip.position.y,
-    });
-  }
+  if ((sim.bipFollowing || sim.noticeFollowing) && !sim.bip.walking) facePlayer(sim);
+}
+function facePlayer(sim: Simulation): void {
+  const direction = {
+    x: sim.player.position.x - sim.bip.position.x,
+    y: sim.player.position.y - sim.bip.position.y,
+  };
+  sim.bip.facing = facingFromMotion(direction);
+  sim.bip.heading = headingFromMotion(direction, sim.bip.heading ?? sim.bip.facing * 2);
 }
 export function currentZone(sim: Simulation): ZoneId {
   return zoneAt(sim.world, sim.player.position);

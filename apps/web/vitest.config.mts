@@ -55,6 +55,164 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
+        'src/lib/native/photo.ts': {
+          statements: 98,
+          branches: 98,
+          functions: 98,
+          lines: 98,
+        },
+        // Private still projection, bounded encoding, cancellation and preview URL lifetime.
+        'src/features/world/{photo-*,usePhotoPreview}.ts': {
+          statements: 95,
+          branches: 88,
+          functions: 96,
+          lines: 96,
+        },
+        'src/features/world/WorldPhotoPanel.tsx': {
+          statements: 100,
+          branches: 95,
+          functions: 100,
+          lines: 100,
+        },
+        // Freeze measured arcade consent/transport coverage without relaxing other floors.
+        'src/features/world/{game-client,useWorldArcade,useWorldArcadeActivity}.ts': {
+          statements: 89,
+          branches: 87,
+          functions: 90,
+          lines: 92,
+        },
+        // Legal coordinates, keyboard focus, explicit pass and authoritative status.
+        'src/features/world/games/*.{ts,tsx}': {
+          statements: 89,
+          branches: 81,
+          functions: 90,
+          lines: 95,
+        },
+        'src/features/world/WorldArcade{Panel,Content}.tsx': {
+          statements: 89,
+          branches: 83,
+          functions: 87,
+          lines: 93,
+        },
+        // Participant-only game contract: measured 100% on all four axes.
+        'src/features/world/game-protocol.ts': {
+          statements: 98,
+          branches: 98,
+          functions: 98,
+          lines: 98,
+        },
+        // Authored cabinet/rule correspondence and reachable approaches: measured 100% throughout.
+        'src/features/world/game-catalogue.ts': {
+          statements: 98,
+          branches: 98,
+          functions: 98,
+          lines: 98,
+        },
+        // Socket event timing/projection: 100% statements/functions/lines; branches above 92%.
+        'src/features/world/{emote-timeline,emote-presentation}.ts': {
+          statements: 98,
+          branches: 91,
+          functions: 98,
+          lines: 98,
+        },
+        // Native gesture menu: measured 92.59/84.21/100/100.
+        'src/features/world/WorldEmoteControls.tsx': {
+          statements: 90,
+          branches: 82,
+          functions: 98,
+          lines: 98,
+        },
+        // Authored presets/civil seasons: measured 100% on all four axes.
+        'src/features/world/{avatar-presets,season}.ts': {
+          statements: 98,
+          branches: 98,
+          functions: 98,
+          lines: 98,
+        },
+        // Local cosmetic cancellation, bounded cooldowns and closed authored bindings.
+        'src/features/world/cosmetic-effects.ts': {
+          statements: 100,
+          branches: 96,
+          functions: 100,
+          lines: 100,
+        },
+        'src/features/world/cosmetic-interactions.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        // Current visible targets, photo projection, cancellation and painted picking.
+        'src/features/world/cosmetic-scene.ts': {
+          statements: 100,
+          branches: 95,
+          functions: 100,
+          lines: 100,
+        },
+        'src/features/world/cosmetic-controller.ts': {
+          statements: 97,
+          branches: 93,
+          functions: 95,
+          lines: 100,
+        },
+        // Native preset/season forms: measured 96.77/77.27/100/96.15 combined.
+        'src/features/world/{WorldAvatarPresets,WorldSeasonControls}.tsx': {
+          statements: 94,
+          branches: 75,
+          functions: 98,
+          lines: 94,
+        },
+        // Confirmed seat offers: measured 100% on every axis in the full suite.
+        'src/features/world/seat-dashboard-intent.ts': {
+          statements: 98,
+          branches: 98,
+          functions: 98,
+          lines: 98,
+        },
+        // Typed activity families, permission gates and atomic seating lifetime.
+        'src/features/world/{activity-entry,useWorldActivityState}.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        // Native dashboard adapter: 94.28/85.36/100/100 in the full suite.
+        'src/components/dashboard/DashboardNavigation.tsx': {
+          statements: 92,
+          branches: 83,
+          functions: 98,
+          lines: 98,
+        },
+        // Paid text and private invalidation lifetimes: 96.47/88.28/96.87/98.64.
+        'src/hooks/useBriefing.ts': {
+          statements: 94,
+          branches: 86,
+          functions: 94,
+          lines: 96,
+        },
+        // Private experience parsing: 100% on all four axes (2026-10-28, after the
+        // retired discovery and introduction modules left with their tests).
+        'src/features/world/experience-protocol.ts': {
+          statements: 98,
+          branches: 98,
+          functions: 98,
+          lines: 98,
+        },
+        // Explicit seat/table bindings: 100 / 92.85 / 100 / 100.
+        'src/features/world/seat-context.ts': {
+          statements: 98,
+          branches: 90,
+          functions: 98,
+          lines: 98,
+        },
+        // Prediction reconciles authoritative corrections and replacement epochs:
+        // 98.11 / 90.27 / 100 / 100. Retain the established two-point margin.
+        'src/features/world/shared-simulation.ts': {
+          statements: 96,
+          branches: 88,
+          functions: 98,
+          lines: 98,
+        },
         // g30: asynchronous room sound policy and recipient-only notification lifecycle.
         'src/features/world/audio/{catalogue,message-chime,soundscape,sound-preference}.ts': {
           statements: 97,
@@ -161,17 +319,69 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
-        // Contextual scene intent: measured 100% across all four metrics.
-        'src/features/world/scene-interactions.ts': {
+        // Owner-local signal projection, native reads and evidence-driven acting.
+        // Floors keep at least two points below the retained complete lot-4 run.
+        // Conversation framing: measured 100% across all four instruments.
+        'src/features/world/conversation-layout.ts': {
           statements: 98,
           branches: 98,
           functions: 98,
           lines: 98,
         },
-        // Pointer affordances and bounded social pursuit: measured 100/94.11/100/100.
+        'src/features/world/private-signal-projection.ts': {
+          statements: 98,
+          branches: 96,
+          functions: 98,
+          lines: 98,
+        },
+        'src/features/world/world-acting.ts': {
+          statements: 94,
+          branches: 93,
+          functions: 98,
+          lines: 98,
+        },
+        'src/features/world/useWorldPrivateSignals.ts': {
+          statements: 93,
+          branches: 88,
+          functions: 98,
+          lines: 95,
+        },
+        'src/features/world/useWorldSignalReads.ts': {
+          statements: 94,
+          branches: 80,
+          functions: 98,
+          lines: 98,
+        },
+        'src/stores/companionActivityStore.ts': {
+          statements: 98,
+          branches: 98,
+          functions: 98,
+          lines: 98,
+        },
+        'src/features/world/useWorldActingSource.ts': {
+          statements: 98,
+          branches: 98,
+          functions: 98,
+          lines: 98,
+        },
+        'src/features/world/useWorldSignalHost.ts': {
+          statements: 98,
+          branches: 93,
+          functions: 98,
+          lines: 98,
+        },
+        // Contextual scene intent: measured 100% across all four metrics.
+        'src/features/world/scene-interactions.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        // Pointer affordances and bounded social pursuit: 100/96.72/100/100
+        // in the complete 2026-10-27 suite; branches rise 92 -> 94.
         'src/features/world/{scene-pointer,social-approach}.ts': {
           statements: 98,
-          branches: 92,
+          branches: 94,
           functions: 98,
           lines: 98,
         },

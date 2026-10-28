@@ -5,6 +5,112 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.0] - 2026-10-28
+
+**A livelier world. Play, gesture and keep the moment.**
+LIA World gains three arcade cabinets, social gestures, private photos, seasons and
+scenery that answers back, while its private panels, permissions and spending rules stay
+those of the application. An exhaustive cold review of that delivery and of v4.0.0 found
+the defects listed below; every one is closed with a test that fails without its fix.
+
+### Added
+
+- 🕹️ **Arcade cabinets** (ADR-365): tic-tac-toe, four-in-a-row and Reversi, each on its
+  own cabinet, for two people or one person against a bounded deterministic computer.
+  Shared Redis authority owns consent, moves, results, deadlines and rematches (colours
+  alternate); a joining person is admitted only by the host's explicit acceptance; a
+  reconnection keeps a bounded grace and asks for an explicit rejoin, also on the result
+  screen. No model, prompt, memory or token is involved, and account erasure removes
+  every trace. New `WORLD_ARCADE_*` settings and the « World arcade » Grafana dashboard.
+- 👋 **Social gestures**: six finite public gestures (wave, thanks, applause, laugh,
+  question, celebrate), confirmed by the server, paced in the browser and announced to
+  assistive technology; a refused gesture says why, in the person's language.
+- 📸 **Private photos**: an allowlisted still of your avatar, LIA and the scenery — never
+  other visitors, names, bubbles or private panels — previewed locally, downloaded as a
+  bounded JPEG with the mandatory LIA World signature, or shared through the system sheet
+  of the Android and iOS shells (narrow private cache, validated bytes, no upload).
+- 🪑 **The dashboard at a table**: sitting at an ordinary table offers your full native
+  dashboard; declining keeps you seated and loads nothing, accepting opens it privately
+  with its usual briefing, radio, results and consumption.
+- 🎭 **A world that answers**: LIA's expression follows real listening, processing,
+  reading, creating, waiting, failure and completion; familiar objects show your own fired
+  reminders, messages, tickets and new files; an optional saved route; seasons with a mode
+  and a hemisphere; ten editable starting appearances; approached scenery — fishing at the
+  pond, a coin in the fountain, lamps, screens, machines with their own sounds, workout
+  benches — all local, with no model call.
+- 💬 **Quick social bar**: a compact conversation that addresses the nearest reachable
+  person, otherwise everyone present; the destination is shown, can be changed and stays
+  put while you write or a message is sending.
+- 🏳️ **Language flags** in the language selector and the language settings, decorative
+  and never part of the accessible name.
+- 🗺️ **The functional map gains an overview**, and the landing hero a constellation.
+
+### Changed
+
+- 🔌 **World socket protocol v2** with honest endings: an older protocol is told to
+  reload (close 4426), an invalid frame or the frame-rate refusal reconnects within the
+  bounded retry budget (1008), and a transition the strict reader refuses is never
+  published — it is logged by its rule code, counted and closed 1011 instead of being
+  mistaken for an outdated client.
+- 🧭 **Private experience preferences** (route, seasons) persisted per account with
+  revision fences, exported and erased with the account; the document is exactly
+  `{version, revision, show_route, season_mode, hemisphere}`.
+- 🔒 **Fences that order without blocking**: the World game fence and the peers pair fence
+  take `FOR NO KEY UPDATE`, so they still serialise policy writers but never block an
+  insert that merely references an account; a refused game or gesture frame commits only
+  its receipt, without lock, revalidation or computer search.
+- 🧩 **Dashboard workspace**: one workspace serves the ordinary route and the World, with
+  a typed navigation port; an interrupted synthesis needs an explicit retry.
+- 📦 **Dependencies**: Next.js 16.4.2, React 19.3.1, Radix, ElevenLabs client 1.27,
+  Capacitor 8.5.3, Playwright 1.64, axe-core 4.13, TypeScript 6 in the E2E package,
+  Prometheus 3.15.0 and the GitHub Actions pins; the API image and the skills sandbox move
+  to Node 26.10.0 with `libatomic1`, while web and CI stay on Node 24.
+- 🔭 **Alerts name their host** (`OBSERVABILITY_HOST`); the installer writes the
+  machine's name when the observability profile is selected.
+- 🧮 **Derived Grafana counts**: the dashboard and panel totals quoted by the README, the
+  guides, the blog and the docs are computed from the provisioned dashboards.
+
+### Removed
+
+- 🧹 The discovery list, the introduction and the decorative-actions menu, retired before
+  release, with their components, runtime entry points, preferences and translations;
+  the homepage-only mode of the chat mockup.
+
+### Fixed
+
+- 🛡️ **World**: returning to the window or a reconnection no longer interrupts a streamed
+  answer or ends a Live session; the retained seated dashboard survives the conversation
+  panel and is never bought twice; accepting a player after a solo rematch no longer
+  disconnects the host; a cabinet hidden by a block reads as full instead of disclosing
+  it; focused controls keep their focus while saving or paused; signal markers no longer
+  blink on a refresh; a decor sound never cuts a message notification; a cancelled workout
+  can start again at once; photos keep their size whatever the browser zoom; a moment of
+  silence from the server no longer cancels a walk to a cabinet, a seat or a person — the
+  walk waits and resumes.
+- 🔌 **Gemini**: the one-attempt copy used by World translation no longer closes the
+  cached client of concurrent callers.
+- 🔒 **Privacy**: the hallucinated-tool registry keeps a request's length, never its words.
+- 🤝 **Connections**: sharing and blocking can no longer deadlock each other.
+- 📁 **Drive picker**: Retry really reloads the folder, reopening it lists the folders
+  again, and its root and error messages are translated.
+- 🧮 **Admin pricing**: on the model, Google API and image tables, a slow refresh can no
+  longer overwrite a newer search.
+- 📱 **Mobile shells**: saving a shared photo on iOS declares its photo-library use; the
+  Android share call is released after use.
+- 🧾 **Today briefing**: no flash on the first render, and one configuration request.
+- ✅ **CI**: a duplicated workflow key is refused by a guard before GitHub rejects the file;
+  the development reloader ignores the registry the planner rewrites mid-turn.
+
+### Tests
+
+- 🧪 Hermetic browser journeys for the arcade, gestures, photo and the seated-dashboard
+  offer, with axe checks on desktop and phone, and an arcade walk crossing a stalled
+  server; the scene helper reads the compact layout from the viewport, never from what has
+  rendered yet, and the compact-controls check measures the nearby action LIA's roaming
+  brings and takes away in one snapshot; strengthened World oracles; the inherited backend
+  fixture diagnostics of #309 cleaned up (unit tests no longer reach a database, an
+  operator setting or a provider without a fixture).
+
 ## [4.0.0] - 2026-10-27
 
 **A world to explore. Your assistant, still yours.**

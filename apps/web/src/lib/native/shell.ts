@@ -24,6 +24,12 @@ const VERIFIER_BYTES = 32;
 
 interface ShellPlugin {
   openExternal(options: { url: string }): Promise<void>;
+  get?(): Promise<unknown>;
+  shareImage?(options: {
+    base64: string;
+    mimeType: 'image/jpeg';
+    filename: string;
+  }): Promise<unknown>;
 }
 
 interface CapacitorGlobal {
@@ -34,6 +40,20 @@ interface CapacitorGlobal {
 
 function capacitor(): CapacitorGlobal | undefined {
   return (window as unknown as { Capacitor?: CapacitorGlobal }).Capacitor;
+}
+
+/** A method proxy alone is not proof that an older native binary implements it. */
+export function nativeImageBridge() {
+  if (!isNativeShell()) return null;
+  const plugin = capacitor()?.Plugins?.LiaShell;
+  const get = plugin?.get;
+  const shareImage = plugin?.shareImage;
+  if (typeof get !== 'function' || typeof shareImage !== 'function') return null;
+  return {
+    get: () => get.call(plugin),
+    shareImage: (options: { base64: string; mimeType: 'image/jpeg'; filename: string }) =>
+      shareImage.call(plugin, options),
+  };
 }
 
 /**

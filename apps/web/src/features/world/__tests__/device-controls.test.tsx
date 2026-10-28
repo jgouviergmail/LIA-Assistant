@@ -1,13 +1,16 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { createRef, useState } from 'react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { makeUser } from '@/__tests__/factories';
 import type { UseNotificationsOptions } from '@/hooks/useNotifications';
-import { WorldDeviceControls } from '../WorldDeviceControls';
+import { WorldDeviceControls, type WorldDeviceHandle } from '../WorldDeviceControls';
+import { useWorldPrivateSignals } from '../useWorldPrivateSignals';
 const owner = 'ef910df4-a74c-4007-a41c-88dc9a43655d';
 const state = vi.hoisted(() => ({
   options: {} as UseNotificationsOptions,
   user: undefined as ReturnType<typeof makeUser> | undefined,
   run: vi.fn(),
+  readers: [] as UseNotificationsOptions[],
 }));
 vi.mock('@/components/theme-toggle', () => ({
   ThemeToggle: () => <button aria-label="Native theme control" />,
@@ -16,6 +19,7 @@ vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: state.user }) }));
 vi.mock('@/hooks/useNotifications', () => ({
   useNotifications: (options: UseNotificationsOptions) => {
     state.options = options;
+    state.readers.push(options);
     return {};
   },
 }));
@@ -46,6 +50,7 @@ const props = {
 };
 beforeEach(() => {
   vi.clearAllMocks();
+  state.readers = [];
   state.user = makeUser({ id: owner, is_active: true });
 });
 const sms = {
@@ -54,6 +59,82 @@ const sms = {
   message_id: '51bb9a96-5f4f-431e-9887-a5922ac6fa8a',
   occurrence_id: 'ed84f7c8-1a66-4eb7-a606-c5e3ce3253ba',
 };
+it('keeps the toolbar opener available while interacting with its native photo panel', () => {
+  render(
+    <>
+      <WorldDeviceControls {...props} />
+      <div data-world-native-panel>
+        <button>Photo format</button>
+      </div>
+    </>
+  );
+  const tools = screen.getByRole('button', { name: 'world.device.tools' });
+  fireEvent.click(tools);
+  expect(tools).toHaveAttribute('aria-expanded', 'true');
+  fireEvent.pointerDown(screen.getByRole('button', { name: 'Photo format' }));
+  expect(tools).toHaveAttribute('aria-expanded', 'true');
+});
+it('expanding the widget toolbar keeps sibling actions usable while a private phone panel pauses them', () => {
+  function Host() {
+    const [privateOpen, setPrivateOpen] = useState(false);
+    return (
+      <WorldDeviceControls
+        {...props}
+        onOpen={setPrivateOpen}
+        extras={<button disabled={privateOpen}>Photo sibling</button>}
+      />
+    );
+  }
+  render(<Host />);
+  const sibling = screen.getByRole('button', { name: 'Photo sibling' });
+  fireEvent.click(screen.getByRole('button', { name: 'world.device.tools' }));
+  expect(sibling).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Phone 0 0' }));
+  expect(sibling).toBeDisabled();
+});
+it('uses one shared World receiver for both the phone and physical object signals', () => {
+  function SharedDevices() {
+    const signals = useWorldPrivateSignals(owner, true);
+    return <WorldDeviceControls {...props} signals={signals} />;
+  }
+  render(<SharedDevices />);
+  expect(new Set(state.readers.map(options => options.onSmsReceived)).size).toBe(1);
+  act(() => state.options.onSmsReceived?.(sms));
+  fireEvent.click(screen.getByRole('button', { name: 'Phone 1 0' }));
+  fireEvent.click(screen.getByRole('button', { name: 'sms.new_received' }));
+  expect(screen.getByText('Native private message')).toBeVisible();
+  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape', code: 'Escape' });
+  expect(screen.getByRole('button', { name: 'Phone 0 0' })).toBeVisible();
+});
+it('returns focus to the scene after a physical reminder reader closes', async () => {
+  const deviceRef = createRef<WorldDeviceHandle>();
+  const canvas = document.createElement('canvas');
+  canvas.className = 'world-canvas';
+  canvas.tabIndex = 0;
+  document.body.append(canvas);
+  try {
+    render(<WorldDeviceControls {...props} deviceRef={deviceRef} />);
+    act(() =>
+      state.options.onNotification?.({
+        id: 'reminder',
+        type: 'reminder',
+        reminder_id: 'reminder',
+        content: 'Private reminder',
+        timestamp: new Date(),
+        read: false,
+      })
+    );
+    canvas.focus();
+    act(() => {
+      expect(deviceRef.current?.openNotice('reminder:1')).toBe(true);
+    });
+    expect(screen.getByText('Private reminder')).toBeVisible();
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape', code: 'Escape' });
+    await waitFor(() => expect(canvas).toHaveFocus());
+  } finally {
+    canvas.remove();
+  }
+});
 it('drafts a call only after a deliberate tap and reuses the one native radio command', () => {
   render(<WorldDeviceControls {...props} />);
   expect(props.onActivity).not.toHaveBeenCalled();

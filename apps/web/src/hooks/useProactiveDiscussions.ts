@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
 import { useApplicationAccountState } from '@/hooks/useApplicationAccountState';
 import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
@@ -137,11 +137,13 @@ export function useProactiveDiscussions(contextOpen: boolean) {
   const [error, setError] = useApplicationAccountState(ownerId, false);
   const inFlight = useRef<ApplicationAccountLifetime | null>(null);
   const latest = useRef(settings.data);
-  latest.current = settings.data;
   const epoch = useRef(context.data?.context_epoch);
-  epoch.current = context.data?.context_epoch;
   const generation = useRef(context.data?.generation);
-  generation.current = context.data?.generation;
+  useLayoutEffect(() => {
+    latest.current = settings.data;
+    epoch.current = context.data?.context_epoch;
+    generation.current = context.data?.generation;
+  }, [settings.data, context.data]);
   const { mutate: patch } = useApiMutation<object, unknown>({
     method: 'PATCH',
     componentName: 'useProactiveDiscussions',

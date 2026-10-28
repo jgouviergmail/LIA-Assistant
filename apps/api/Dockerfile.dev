@@ -114,6 +114,7 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     gnupg \
     xz-utils \
+    libatomic1 \
     && curl -fsSL --retry 8 --retry-all-errors --retry-max-time 600 \
          -o /tmp/docker.asc https://download.docker.com/linux/debian/gpg \
     && echo "${DOCKER_GPG_SHA256}  /tmp/docker.asc" | sha256sum -c - \
@@ -124,14 +125,14 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* \
     && pip install uv==0.13.4
 
-# Install Node.js from the OFFICIAL nodejs.org distribution, on the 24 LTS line
-# — same line as the web image, CI and the `engines` lock. See Dockerfile.prod
+# Install Node.js from the OFFICIAL nodejs.org distribution, matching the
+# production API and skills sandbox. See Dockerfile.prod
 # for why NodeSource is no longer used (`| bash -` cannot fail loudly, so a
 # transient outage silently left a Debian Node without npm) and why the version
 # and its checksums are exact; these are held equal to its own.
-ARG NODE_VERSION=24.21.0
-ARG NODE_SHA256_AMD64=fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6
-ARG NODE_SHA256_ARM64=6ad1325edbdb5649c379b75a237147a666c95d4f9ae8d340fef2d1575d289ad2
+ARG NODE_VERSION=26.10.0
+ARG NODE_SHA256_AMD64=ca70e9e349de048b9522abb3adc05b3bd6f43c5ffd3ec57916c7da292f59f022
+ARG NODE_SHA256_ARM64=7a6353f63eb3d04765004b4adf172616243e4522434635cb1d26288658b04ab5
 RUN set -eux; \
     arch="$(dpkg --print-architecture)"; \
     case "$arch" in \
@@ -201,4 +202,4 @@ ENTRYPOINT ["/app/docker-entrypoint.sh"]
 # logs « ConnectionClosedError: keepalive ping timeout » at ERROR for a normal
 # close. The sans-I/O implementation has no such future. One choice for every
 # launch (dev, dev image, prod image), held by tests/unit/test_serve_launcher.py.
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--ws", "websockets-sansio"]
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "src", "--reload-include=*.json", "--reload-exclude=hallucinated_tools.json", "--ws", "websockets-sansio"]

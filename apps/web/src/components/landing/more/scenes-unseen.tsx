@@ -675,8 +675,8 @@ function CapabilityHonestyScene({ active, labels }: SceneProps) {
         />
         <span
           className={cn(
-            'flex-1 text-px-10 font-medium transition-opacity duration-300',
-            off ? 'opacity-40' : 'opacity-100'
+            'flex-1 text-px-10 font-medium transition-colors duration-300',
+            off ? 'text-muted-foreground' : 'text-foreground'
           )}
         >
           {labels.capability}
@@ -741,8 +741,8 @@ function HabitStatusHoldsScene({ active, labels }: SceneProps) {
         />
         <span
           className={cn(
-            'flex-1 truncate text-px-10 font-medium transition-opacity duration-300',
-            paused ? 'opacity-40' : 'opacity-100'
+            'flex-1 truncate text-px-10 font-medium transition-colors duration-300',
+            paused ? 'text-muted-foreground' : 'text-foreground'
           )}
         >
           {labels.habit}

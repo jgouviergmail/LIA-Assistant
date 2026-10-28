@@ -1,5 +1,7 @@
 'use client';
 
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+
 import { useAuth } from '@/hooks/useAuth';
 import { useChat } from '@/hooks/useChat';
 import { useConversation, type ConversationTotals } from '@/hooks/useConversation';
@@ -28,7 +30,7 @@ import { sentHistoryOf } from '@/lib/sent-history';
 import { chatListActivity, hitlAwaitsUser, visibleChatSurfaces } from '@/lib/chat-surfaces';
 import { visibleFollowups, visibleMotivation } from '@/components/chat/FollowupChips';
 import { ChatConditionalSurfaces } from '@/components/chat/ChatConditionalSurfaces';
-import { useEyesChatState } from '@/components/eyes/useEyesChatState';
+import { useAuthenticatedEyesChatState } from '@/components/eyes/useEyesChatState';
 import { useEyesChatWiring } from '@/components/eyes/useEyesChatWiring';
 import { SelectionActions } from '@/components/chat/SelectionActions';
 import { ResetConversationConfirm } from '@/components/chat/ResetConversationConfirm';
@@ -162,14 +164,7 @@ export function ChatWorkspace({
   const [historySettled, setHistorySettled] = useState(false);
 
   // Debug panel requires desktop viewport (≥1024px) - not suitable for mobile
-  const [isDesktop, setIsDesktop] = useState(false);
-  useEffect(() => {
-    const mql = window.matchMedia('(min-width: 1024px)');
-    setIsDesktop(mql.matches);
-    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
-    mql.addEventListener('change', handler);
-    return () => mql.removeEventListener('change', handler);
-  }, []);
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
   const showDebugPanel = debugPanelEnabled && isDesktop;
 
   const {
@@ -279,7 +274,11 @@ export function ChatWorkspace({
   // typing activity, notification pings). Lives in its own hook — the page's
   // render function sits under the complexity ratchet.
   const eyesWiring = useEyesChatWiring(chatStatus, messages);
-  useEyesChatState({ chatStatus, streamPhase, hitlAwaiting: hitl.status === 'awaiting' });
+  useAuthenticatedEyesChatState({
+    chatStatus,
+    streamPhase,
+    hitlAwaiting: hitl.status === 'awaiting',
+  });
 
   // Handle message change from ChatInput (geolocation prompt detection +
   // draft persistence — debounced, empty clears immediately).
@@ -606,7 +605,14 @@ export function ChatWorkspace({
     setMessages([...fresh, ...current]);
     setHasMoreOlder(page.hasMore);
     setOldestCursor(page.nextCursor);
-  }, [oldestCursor, hasMoreOlder, loadOlderMessages, setMessages]);
+  }, [
+    oldestCursor,
+    hasMoreOlder,
+    loadOlderMessages,
+    setMessages,
+    setHasMoreOlder,
+    setOldestCursor,
+  ]);
 
   // Verify that the user is active
   useEffect(() => {

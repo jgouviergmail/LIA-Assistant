@@ -1,5 +1,6 @@
 """The public batch enters the same single-attempt, quota and native-accounting door."""
 
+from contextlib import nullcontext
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
@@ -63,7 +64,7 @@ async def test_public_batch_accounts_once_and_never_repairs_bad_output(
     monkeypatch.setattr(native, "get_llm_config_for_agent", lambda *args: config)
     monkeypatch.setattr(native, "get_effective_context_window_for_slot", lambda *args: 65536)
     monkeypatch.setattr(native, "get_llm", lambda *args, **kwargs: provider)
-    monkeypatch.setattr(native, "single_async_attempt", lambda value: value)
+    monkeypatch.setattr(native, "single_async_attempt", nullcontext)
     monkeypatch.setattr(native, "TrackingContext", Tracker)
     monkeypatch.setattr(native, "TokenTrackingCallback", lambda *args: object())
     monkeypatch.setattr(native, "file_translation", filing)

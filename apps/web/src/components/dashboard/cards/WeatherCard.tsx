@@ -1,4 +1,5 @@
 'use client';
+import { useDashboardRoute } from '../DashboardNavigation';
 
 import {
   CloudDrizzle,
@@ -68,6 +69,7 @@ interface WeatherCardProps {
 
 export function WeatherCard({ section, isRefreshing, onRefresh, staggerIndex }: WeatherCardProps) {
   const router = useRouter();
+  const navigate = useDashboardRoute(router.push);
   const { i18n } = useTranslation();
   const lng = (i18n.language || 'fr').split('-')[0];
   return (
@@ -79,7 +81,7 @@ export function WeatherCard({ section, isRefreshing, onRefresh, staggerIndex }: 
       isRefreshing={isRefreshing}
       onRefresh={onRefresh}
       emptyStateKey="dashboard.briefing.cards.weather.empty"
-      onErrorCta={() => router.push(`/${lng}/dashboard/settings?section=connectors`)}
+      onErrorCta={() => navigate(`/${lng}/dashboard/settings?section=connectors`)}
       renderContent={data => <WeatherContent data={data} />}
       staggerIndex={staggerIndex}
     />

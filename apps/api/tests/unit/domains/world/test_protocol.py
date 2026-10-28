@@ -33,7 +33,7 @@ def test_authentication_rejects_a_client_selected_account() -> None:
         AuthFrame.model_validate(
             {
                 "type": "authenticate",
-                "version": 1,
+                "version": 2,
                 "scene": "lia-campus:1",
                 "ticket": str(uuid4()),
                 "user_id": str(uuid4()),
@@ -41,7 +41,7 @@ def test_authentication_rejects_a_client_selected_account() -> None:
         )
 
 
-@pytest.mark.parametrize("version", [True, 1.0, "1", 2])
+@pytest.mark.parametrize("version", [True, 2.0, "2", 1])
 def test_protocol_version_is_an_integer_literal_not_a_coercible_value(version: object) -> None:
     with pytest.raises(ValidationError):
         AuthFrame.model_validate(
@@ -70,7 +70,7 @@ def test_commands_cannot_supply_an_actor_coordinate_or_business_dispatch(
         COMMAND_ADAPTER.validate_python(
             {
                 "type": "move",
-                "version": 1,
+                "version": 2,
                 "seq": 1,
                 "epoch": str(uuid4()),
                 "dx": 0,

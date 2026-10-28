@@ -52,7 +52,7 @@ try {
     Invoke-Docker -DockerArgs @('run', '--rm', '-d', '--name', $browser,
         '--network', "container:$WebContainer", '-v', "${repo}:/repo", '-w', '/capture',
         '-e', "LANDING_PROOF_SOURCE_COMMIT=$sourceCommit", '-e', "LANDING_PROOF_LOCAL_CHANGES=$($sourceChanges.ToString().ToLowerInvariant())",
-        'mcr.microsoft.com/playwright:v1.63.0-noble', 'sleep', 'infinity')
+        'mcr.microsoft.com/playwright:v1.64.0-noble', 'sleep', 'infinity')
     # Install in the disposable container; leave the repository's node_modules alone.
     Invoke-Docker -DockerArgs @('exec', $browser, 'sh', '-c',
         'cp /repo/apps/web/e2e/package*.json /capture/; cp -r /repo/apps/web/e2e/capture /repo/apps/web/e2e/fixtures /repo/apps/web/e2e/scripts /capture/; npm ci --no-audit --no-fund')

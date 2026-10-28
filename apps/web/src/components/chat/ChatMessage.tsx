@@ -1,3 +1,4 @@
+import { useHydrated } from '@/hooks/useHydrated';
 import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -971,6 +972,25 @@ function MessageAttachments({ attachments }: { attachments: MessageAttachmentMet
 }
 
 /**
+ * Whether a proactive notification's avatar plays its arrival ring (F4).
+ *
+ * "Just arrived" is captured once, when the bubble first renders, and exposed
+ * only after hydration: a row loaded from history is already stale on arrival
+ * and never rings.
+ */
+function useProactiveArrivalRing(
+  interest: boolean,
+  proactive: boolean,
+  timestamp: number
+): boolean {
+  const hydrated = useHydrated();
+  const [freshOnArrival] = useState(
+    () => (interest || proactive) && isFreshProactive(timestamp, Date.now())
+  );
+  return hydrated && freshOnArrival;
+}
+
+/**
  * ChatMessage component - Memoized to prevent unnecessary re-renders during streaming.
  * Issue #64: Without memo, images would flash on every token because React recreates the DOM.
  */
@@ -1041,19 +1061,13 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
     (message.metadata.type as string).startsWith('proactive_');
   const feedbackRow = proactiveFeedbackProps(message.metadata, justSubmittedVerdict);
   // F4: the avatar wobbles once when a proactive notification lands live — never
-  // on history rows. Captured in a mount effect (not in render) so the "now"
-  // read stays pure; a history-loaded row is already stale at mount.
-  const [proactiveRing, setProactiveRing] = useState(false);
-  useEffect(() => {
-    if (
-      (isProactiveInterest || isProactiveMessage) &&
-      isFreshProactive(message.timestamp.getTime(), Date.now())
-    ) {
-      setProactiveRing(true);
-    }
-    // Mount-only capture of "just arrived"; intentionally no dependencies.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // on history rows. Capture once in the state initializer, and expose it only
+  // after hydration; a history-loaded row is already stale on arrival.
+  const proactiveRing = useProactiveArrivalRing(
+    isProactiveInterest,
+    isProactiveMessage,
+    message.timestamp.getTime()
+  );
 
   // Token data — proactive-vs-ordinary resolution extracted to a pure helper.
   const { tokensIn, tokensOut, tokensCache, costEur } = resolveTokenFields(

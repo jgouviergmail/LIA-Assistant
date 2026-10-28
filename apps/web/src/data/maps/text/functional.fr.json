@@ -330,7 +330,7 @@
     },
     "f.world": {
       "name": "Le monde LIA",
-      "role": "Un campus isométrique partagé avec déplacements, carte, LIA et échanges écrits publics ou directs. Ton nom de compte et ton apparence sont visibles avec ton accord ; les fonctions et la maison restent privées, et les traductions consenties suivent les quotas habituels.",
+      "role": "Un campus isométrique partagé avec déplacements, carte, LIA, échanges écrits publics ou directs, gestes, bornes d’arcade et photos privées. Ton nom de compte et ton apparence sont visibles avec ton accord ; les fonctions et la maison restent privées, et les traductions consenties suivent les quotas habituels.",
       "goal": "Retrouver les autres et utiliser son propre LIA dans un espace agréable, sans partager ses données personnelles."
     }
   },

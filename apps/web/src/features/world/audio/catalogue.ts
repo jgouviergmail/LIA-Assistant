@@ -15,9 +15,26 @@ export const SOUND_FILES = {
   gym: 'gym',
   phone: 'phone',
   message: 'message',
+  leaves: 'leaves',
+  billiards: 'billiards',
+  splash: 'splash',
+  'machine-start': 'machine-start',
+  'machine-gantry': 'machine-gantry',
+  'machine-printer': 'machine-printer',
+  'cat-meow': 'cat-meow',
+  'workout-effort': 'workout-effort',
 } as const;
 export type SoundId = keyof typeof SOUND_FILES;
-export type Ambience = Exclude<SoundId, 'message'>;
+export type EffectSoundId =
+  | 'leaves'
+  | 'billiards'
+  | 'splash'
+  | 'machine-start'
+  | 'machine-gantry'
+  | 'machine-printer'
+  | 'cat-meow'
+  | 'workout-effort';
+export type Ambience = Exclude<SoundId, 'message' | EffectSoundId>;
 const INDOORS: Readonly<Record<string, Ambience | null>> = {
   arrival: 'atrium',
   meeting: 'typewriters',
@@ -33,7 +50,7 @@ const INDOORS: Readonly<Record<string, Ambience | null>> = {
   restroom: 'water',
 };
 export function soundUrl(id: SoundId): string {
-  return '/world/audio/v1/' + SOUND_FILES[id] + '.mp3?v=3';
+  return '/world/audio/v1/' + SOUND_FILES[id] + '.mp3?v=6';
 }
 export function ambientFor(zone: string | null, a: Atmosphere): Ambience | null {
   if (zone && Object.hasOwn(INDOORS, zone)) return INDOORS[zone];

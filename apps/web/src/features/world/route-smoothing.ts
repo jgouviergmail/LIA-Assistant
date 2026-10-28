@@ -25,7 +25,7 @@ function crossesCell(from: Point, to: Point, x: number, y: number, radius: numbe
   return true;
 }
 
-function clearSegment(nav: Navigation, from: Point, to: Point, radius: number): boolean {
+export function clearSegment(nav: Navigation, from: Point, to: Point, radius: number): boolean {
   const left = Math.max(0, Math.floor(Math.min(from.x, to.x) - radius));
   const top = Math.max(0, Math.floor(Math.min(from.y, to.y) - radius));
   const right = Math.min(nav.width - 1, Math.floor(Math.max(from.x, to.x) + radius));

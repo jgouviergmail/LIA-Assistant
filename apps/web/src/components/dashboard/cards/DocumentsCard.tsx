@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
 import { CardItemRow } from './CardItemRow';
 import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
-import { openChatDeepLink } from '@/lib/chat-deep-link';
+import { useDashboardChat } from '../DashboardNavigation';
 import type { CardSection, DocumentsData } from '@/types/briefing';
 
 interface DocumentsCardProps {
@@ -29,6 +29,7 @@ export function DocumentsCard({
   staggerIndex,
 }: DocumentsCardProps) {
   const { i18n } = useTranslation();
+  const openChat = useDashboardChat();
   const lng = (i18n.language || 'fr').split('-')[0];
   return (
     <BriefingCard<DocumentsData>
@@ -42,8 +43,8 @@ export function DocumentsCard({
       renderContent={data => (
         <DocumentsContent
           data={data}
-          onOpenChat={draft => openChatDeepLink(chatDraftHref(lng, draft))}
-          onExecute={intent => openChatDeepLink(chatIntentHref(lng, intent))}
+          onOpenChat={draft => openChat(chatDraftHref(lng, draft))}
+          onExecute={intent => openChat(chatIntentHref(lng, intent))}
         />
       )}
       staggerIndex={staggerIndex}
@@ -102,6 +103,7 @@ function DocumentsContent({
               {
                 icon: Sparkles,
                 label: summarizeIntent,
+                opensChat: true,
                 onSelect: () => onExecute(summarizeIntent),
               },
               {

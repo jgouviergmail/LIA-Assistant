@@ -32,7 +32,7 @@ function buildAndroid() {
   const wrapper = join(androidDir, WIN ? 'gradlew.bat' : 'gradlew');
   // Node refuses to spawn a `.bat` without a shell (CVE-2024-27980); quoting
   // the absolute path is what keeps a space in it from splitting the command.
-  execFileSync(WIN ? `"${wrapper}"` : wrapper, ['assembleDebug', '--no-daemon'], {
+  execFileSync(WIN ? `"${wrapper}"` : wrapper, ['testDebugUnitTest', 'assembleDebug', '--no-daemon'], {
     cwd: androidDir,
     stdio: 'inherit',
     shell: WIN,

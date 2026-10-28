@@ -4,7 +4,7 @@
 
 **Versione**: 2.6
 **Data**: 2026-10-23
-**Applicazione**: LIA v4.0.0
+**Applicazione**: LIA v4.1.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | Indicatore | Valore |
 | --- | --- |
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
-| Righe di codice sorgente (esclusi i test) — 60 pacchetti di dominio backend | **1.038.000+** |
-| Test automatizzati inventariati; suite adeguate a commit e rilascio | **68.000+** |
+| Righe di codice sorgente (esclusi i test) — 60 pacchetti di dominio backend | **1.051.000+** |
+| Test automatizzati inventariati; suite adeguate a commit e rilascio | **69.000+** |
 | Decisioni di architettura documentate (ADR) | **363** |
-| Versioni rilasciate a ritmo regolare | **290** |
+| Versioni rilasciate a ritmo regolare | **291** |
 | Lingue, parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **7,9/10** |
 
@@ -72,6 +72,8 @@ Il progetto è ora condotto con più agenti di sviluppo in parallelo — ciascun
 Un mondo condiviso dà all’assistente un vocabolario di luoghi: biblioteca per la conoscenza, sala multimediale per creare, giardino da esplorare insieme. La decisione tecnica utile riguarda ciò che attraversa ogni confine. Un avatar pubblico esprime una scelta; non espone il contesto dell’assistente né la casa privata. Una stanza apre uno strumento esistente senza concedere un nuovo permesso.
 
 La conversazione segue la stessa logica. I messaggi umani hanno una vita temporanea e separata. La traduzione si sceglie e si contabilizza; movimento e disegno non chiamano modelli. Un’interfaccia più ricca resta governabile quando costi, proprietà e conferme mantengono lo stesso significato.
+
+Il gioco segue la stessa regola. Le mosse di una partita sono confermate dal server e l’avversario computer è una ricerca limitata, non un modello; una foto è disegnata a partire da ciò che la persona ha scelto di mostrare, mai copiata dallo schermo.
 
 ---
 

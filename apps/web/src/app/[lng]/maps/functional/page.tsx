@@ -37,6 +37,7 @@ export default async function FunctionalMapPage({ params }: PageProps) {
   return (
     <MapsShell
       lng={lng}
+      contentClassName="lm-functional-frame"
       breadcrumb={[
         { name: 'LIA', url: siteUrl('/', lng) },
         { name: t('maps.section'), url: siteUrl(MAPS_HOME_PATH, lng) },

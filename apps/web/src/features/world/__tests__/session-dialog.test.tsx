@@ -10,6 +10,9 @@ const base: SessionPresentation = {
   offer: null,
   zone: 'arrival',
   participants: [],
+  nearbyParticipants: [],
+  pose: null,
+  epoch: null,
 };
 it('offers explicit readmission for an expired presence instead of an ineffective controller takeover', () => {
   const accept = vi.fn(),

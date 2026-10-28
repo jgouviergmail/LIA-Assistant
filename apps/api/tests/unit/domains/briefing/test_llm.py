@@ -145,6 +145,11 @@ class TestPromptTodayIsoInjection:
                 "src.domains.briefing.llm._resolve_personality",
                 new=AsyncMock(return_value=""),
             ),
+            # Nothing learned yet: the rhythm block of the user model is empty.
+            patch(
+                "src.domains.habits.ambient.build_habits_rhythm_block",
+                new=AsyncMock(return_value=""),
+            ),
         ):
             await generate_synthesis(user=user, user_tz=PARIS, cards=bundle, language="fr")
 

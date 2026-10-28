@@ -2,7 +2,7 @@ import { compilePoseSlots } from '../pose-slots';
 import { describe, expect, it, vi } from 'vitest';
 import { WORLD } from '../definition';
 import { createSimulation, stepSimulation } from '../simulation';
-import { SceneInteractions, type SceneTarget } from '../scene-interactions';
+import { SCENE_APPROACH_SECONDS, SceneInteractions, type SceneTarget } from '../scene-interactions';
 
 const workboard = WORLD.props.find(prop => prop.key === 'workboard')!;
 const desk: SceneTarget = { kind: 'object', id: workboard.id };
@@ -96,6 +96,97 @@ it('expires an unfinished approach instead of opening an old intent on a later a
   value.scene.update();
   expect(value.sim.player.path).toEqual([]);
   arrive(value);
+  expect(value.host.open).not.toHaveBeenCalled();
+});
+
+/** A snapshot gap turns every authority predicate false at once, as `canMove` does. */
+function silentSetup() {
+  const sim = createSimulation(WORLD);
+  const state = { ready: true };
+  const host = {
+    ready: () => state.ready,
+    canOpen: vi.fn((_target: SceneTarget) => state.ready),
+    open: vi.fn(() => true),
+  };
+  return { sim, host, state, scene: new SceneInteractions(sim, host) };
+}
+it('freezes an approach while its authority is momentarily silent, then resumes it', () => {
+  const { sim, host, state, scene } = silentSetup();
+  expect(scene.choose(desk)).toBe(true);
+  stepSimulation(sim, 1 / 60, { x: 0, y: 0 });
+  state.ready = false;
+  const held = { ...sim.player.position };
+  for (let i = 0; i < 180; i++) {
+    scene.update();
+    stepSimulation(sim, 1 / 60, { x: 0, y: 0 });
+  }
+  expect(sim.player.path).toEqual([]);
+  expect(sim.player.position).toEqual(held);
+  expect(host.open).not.toHaveBeenCalled();
+  state.ready = true;
+  arrive({ sim, host, scene });
+  expect(host.open).toHaveBeenCalledExactlyOnceWith(desk);
+});
+it('withdraws a frozen approach at its own deadline', () => {
+  const { sim, host, state, scene } = silentSetup();
+  expect(scene.choose(desk)).toBe(true);
+  state.ready = false;
+  sim.time += SCENE_APPROACH_SECONDS + 1;
+  scene.update();
+  state.ready = true;
+  arrive({ sim, host, scene });
+  expect(host.open).not.toHaveBeenCalled();
+  expect(sim.player.path).toEqual([]);
+});
+it('keeps a stand-then-approach intent through a silent authority', () => {
+  const { sim, host, state, scene } = silentSetup();
+  const slot = compilePoseSlots(WORLD)[0];
+  sim.player.pose = slot;
+  sim.player.position = slot.position;
+  expect(scene.choose(desk)).toBe(true);
+  expect(host.open).toHaveBeenCalledExactlyOnceWith({ kind: 'stand' });
+  state.ready = false;
+  sim.player.pose = null;
+  sim.player.position = slot.approach;
+  scene.update();
+  expect(sim.player.path).toEqual([]);
+  state.ready = true;
+  scene.update();
+  expect(sim.player.path.length).toBeGreaterThan(0);
+  host.open.mockClear();
+  arrive({ sim, host, scene });
+  expect(host.open).toHaveBeenCalledExactlyOnceWith(desk);
+});
+
+it('resumes the same approach when authority corrects a consumed final segment', () => {
+  const value = setup();
+  const slot = compilePoseSlots(WORLD).find(item => item.id === 'atrium-n:0')!;
+  const target: SceneTarget = { kind: 'pose', id: slot.id, action: slot.kind };
+  value.host.open.mockReturnValue(false);
+  value.scene.choose(target);
+  arrive(value);
+  expect(value.sim.player.path).toEqual([]);
+  // The last prediction is not confirmation: a later snapshot can place us back.
+  value.sim.player.position = { x: slot.approach.x - 0.8, y: slot.approach.y };
+  value.host.open.mockClear().mockReturnValue(true);
+  value.scene.update();
+  expect(value.sim.player.path.length).toBeGreaterThan(0);
+  expect(value.host.open).not.toHaveBeenCalled();
+  arrive(value);
+  expect(value.host.open).toHaveBeenCalledExactlyOnceWith(target);
+});
+
+it('cancels a corrected approach if its destination is no longer reachable', () => {
+  const value = setup();
+  value.scene.choose(desk);
+  const goal = value.sim.player.path.at(-1)!;
+  value.sim.player.path = [];
+  value.sim.navigation.blocked.fill(1);
+  value.scene.update();
+  value.sim.navigation.blocked.fill(0);
+  value.sim.player.position = goal;
+  value.scene.update();
+  expect(value.sim.player.path).toEqual([]);
   expect(value.host.open).not.toHaveBeenCalled();
 });
 
@@ -218,4 +309,64 @@ it('never starts a conversation through an impassable wall', () => {
   value.sim.navigation.blocked.fill(1);
   expect(value.scene.choose({ kind: 'lia' })).toBe(false);
   expect(value.host.open).not.toHaveBeenCalled();
+});
+it('replans a moving decorative target through a reachable candidate before opening it', () => {
+  const sim = createSimulation(WORLD);
+  let goals = [{ ...WORLD.spawn }];
+  const host = {
+    canOpen: vi.fn((_target: SceneTarget) => true),
+    open: vi.fn(() => true),
+    approaches: () => goals,
+  };
+  const scene = new SceneInteractions(sim, host);
+  expect(scene.choose(desk)).toBe(true);
+  const arrival = WORLD.zones.find(zone => zone.id === 'cafeteria')?.arrival;
+  if (!arrival) throw new Error('Missing reachable cafeteria');
+  goals = [{ x: -1, y: -1 }, arrival];
+  scene.update();
+  expect(sim.player.path.at(-1)).toEqual(arrival);
+  expect(host.open).not.toHaveBeenCalled();
+  arrive({ sim, host, scene });
+  expect(host.open).toHaveBeenCalledExactlyOnceWith(desk);
+});
+it('cancels a moving target that becomes unreachable and never resurrects its old intent', () => {
+  const sim = createSimulation(WORLD);
+  let goals = [{ ...WORLD.spawn }];
+  const host = {
+    canOpen: vi.fn((_target: SceneTarget) => true),
+    open: vi.fn(() => true),
+    approaches: () => goals,
+  };
+  const scene = new SceneInteractions(sim, host);
+  expect(scene.choose(desk)).toBe(true);
+  goals = [{ x: -1, y: -1 }];
+  scene.update();
+  expect(sim.player.path).toEqual([]);
+  goals = [{ ...WORLD.spawn }];
+  scene.update();
+  expect(host.open).not.toHaveBeenCalled();
+});
+it('keeps workout clicks as exercise intents and does not confuse a walking visitor with an occupied seat', () => {
+  const value = setup();
+  const bench = WORLD.props.find(prop => prop.key === 'workout-1');
+  if (!bench) throw new Error('Missing workout');
+  const target: SceneTarget = { kind: 'object', id: bench.id };
+  expect(value.scene.resolve(target)).toEqual(target);
+  value.sim.visitors = [
+    {
+      ...value.sim.player,
+      id: 'walking',
+      label: 'Walker',
+      pose: undefined,
+      from: WORLD.spawn,
+      target: WORLD.spawn,
+      blend: 1,
+    },
+  ];
+  const seat = compilePoseSlots(WORLD).find(slot => slot.id === 'atrium-n:0');
+  if (!seat) throw new Error('Missing seat');
+  expect(value.scene.resolve({ kind: 'object', id: seat.prop })).toMatchObject({
+    kind: 'pose',
+    action: 'sit',
+  });
 });

@@ -594,6 +594,8 @@ body:has(.world-prototype[data-world-status='shared']) [data-companion-presence]
   left: 12px;
   top: 148px;
   display: flex;
+  flex-wrap: wrap;
+  max-width: calc(100vw - 32px);
   align-items: center;
   gap: 2px;
   padding: 4px;
@@ -627,6 +629,10 @@ body:has(.world-prototype[data-world-status='shared']) [data-companion-presence]
   color: var(--color-primary-foreground);
   background: var(--color-primary);
 }
+.world-widget-button[aria-pressed='true'] .world-device-icon {
+  color: var(--color-primary-foreground);
+  background: var(--color-primary);
+}
 .world-device-controls .btn-scale:active {
   transform: none;
   scale: 1 !important;
@@ -636,6 +642,7 @@ body:has(.world-prototype[data-world-status='shared']) [data-companion-presence]
 }
 .world-sky-badge {
   margin-top: 4px;
+  margin-bottom: 8px;
 }
 .world-actions-menu [role='menuitem'] {
   min-height: 44px;

@@ -609,7 +609,6 @@ async def diagnose_incidents(
     if await _tick_may_not_spend(cap, incidents):
         return 0
 
-    budget_key = _budget_key()
     llm = get_llm("diagnostician")
     prom = prom_client or PrometheusClient(
         base_url=settings.diagnostics_prometheus_url,

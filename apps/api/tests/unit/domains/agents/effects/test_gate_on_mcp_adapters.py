@@ -28,6 +28,7 @@ import pytest
 from src.domains.agents.effects import runtime as gate_runtime
 from src.domains.agents.effects.runtime import EFFECT_GATED_ATTR
 from src.domains.agents.effects.scope import EffectScope, effect_scope
+from src.domains.agents.effects.treatments import treatment_collector
 from src.infrastructure.mcp.tool_adapter import MCPToolAdapter
 from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
 from tests.helpers.mcp_access import installed_shared_mcp_access
@@ -71,6 +72,9 @@ def _attended_user() -> Any:
                 is_automated_source=False,
             ),
         ),
+        # A real turn publishes its consultation register; without one a read
+        # schedules an integrity write the loop teardown cuts short.
+        treatment_collector(run_id="gate-on-mcp-adapters"),
     ):
         yield
 

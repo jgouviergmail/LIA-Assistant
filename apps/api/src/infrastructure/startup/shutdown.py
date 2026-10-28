@@ -7,7 +7,8 @@ handling. Order matters:
    dependencies closing under it. Jobs already running go on.
 1. Drain in-flight chat producers (ADR-117) — they need the checkpointer, DB
    pool and Redis that are torn down below.
-2. Generic fire-and-forget background tasks, for the same reason.
+2. Generic fire-and-forget background tasks, for the same reason, then the
+   World arcade's computer searches that outlived their caller's deadline.
 3. Stop the scheduler (leader lock release), cancelling what still runs,
    before any dependency of its jobs closes — the push relay and Langfuse
    used to close first, under jobs still firing.
@@ -102,6 +103,24 @@ async def stop_radio_loops(*, enabled: bool) -> None:
     await stop_loops()
 
 
+async def stop_world_game_compute(*, enabled: bool) -> None:
+    """Await the World arcade's computer searches before the loop closes.
+
+    A search whose caller fell back at the deadline keeps its thread until it
+    returns; its owner awaits it here, cancelling only what outlives one more
+    deadline. A deployment without World mounted no arcade, so nothing ran here:
+    nothing is imported to find that out.
+
+    Args:
+        enabled: Whether the deployment ships World (``WORLD_ENABLED``).
+    """
+    if not enabled:
+        return
+    from src.domains.world.game_compute import drain_game_compute
+
+    await drain_game_compute(timeout=settings.world_arcade_bot_seconds)
+
+
 async def shutdown_application(handles: StartupHandles) -> None:
     """Run the full shutdown sequence, in the order the module docstring states.
 
@@ -141,6 +160,10 @@ async def shutdown_application(handles: StartupHandles) -> None:
         await wait_all_background_tasks(timeout=settings.shutdown_background_tasks_timeout_seconds)
     except Exception as exc:
         logger.error("background_tasks_drain_failed", error=str(exc))
+
+    # World arcade searches outlive a caller that fell back at the deadline (a
+    # thread cannot be cancelled): their single owner awaits them, bounded.
+    await stop_world_game_compute(enabled=settings.world_enabled)
 
     # Stop the scheduler and release the leader lock BEFORE anything its jobs
     # need closes: the push relay and Langfuse below used to close first.

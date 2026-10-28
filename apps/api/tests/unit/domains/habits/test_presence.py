@@ -104,6 +104,11 @@ def _wire(redis: _FakeRedis, repo: MagicMock, monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr(presence, "settings", _settings())
     monkeypatch.setattr(presence, "HabitsRepository", lambda db: repo)
     monkeypatch.setattr(presence, "_redis_or_none", AsyncMock(return_value=redis))
+    # The operator's habits switch reads as its declared default (on); its OFF
+    # side is pinned in ``test_capability_at_the_act.py``.
+    monkeypatch.setattr(
+        "src.domains.habits.capability.is_capability_enabled", AsyncMock(return_value=True)
+    )
 
 
 class TestPresenceIsOnByDefault:

@@ -49,7 +49,7 @@ describe('useUsageLimits', () => {
     );
     expect(result.current.isBlocked).toBe(true);
     expect(result.current.blockReason).toBe('quota');
-    expect(mockGet).toHaveBeenCalledWith('/usage-limits/me');
+    expect(mockGet).toHaveBeenCalledWith('/usage-limits/me', { signal: expect.any(AbortSignal) });
   });
 
   it('defaults isBlocked/blockReason to false/null when not blocked', async () => {

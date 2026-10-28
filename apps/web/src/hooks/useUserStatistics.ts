@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffectRequest } from '@/hooks/useEffectRequest';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
@@ -51,74 +52,85 @@ export const useUserStatistics = (): UseUserStatisticsReturn => {
   // Staleness guard (audit F037): drop out-of-order poll responses and never
   // commit state after unmount — shared, tested helper (useStaleGuard).
   const guard = useStaleGuard();
+  const polling = useRef<AbortController | null>(null);
 
-  const fetchStatistics = useCallback(async () => {
-    // Claim a request id up-front so `isStale()` guards EVERY exit — including the
-    // finally below: only the current request (not a superseded one) may clear
-    // loading, otherwise an older poll finishing first cuts the newer one's
-    // loading state (audit F037).
-    const isStale = guard.begin();
+  const fetchStatistics = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!guard.isMounted() || signal?.aborted) return;
+      // Claim a request id up-front so `isStale()` guards EVERY exit — including the
+      // finally below: only the current request (not a superseded one) may clear
+      // loading, otherwise an older poll finishing first cuts the newer one's
+      // loading state (audit F037).
+      const superseded = guard.begin();
+      const isStale = () => signal?.aborted || superseded();
 
-    if (!user) {
-      if (!isStale()) setIsLoading(false);
-      return;
-    }
-
-    try {
-      // Through `apiClient`, like every other data call: an expired session
-      // must eject to the localized login rather than leave the statistics
-      // panel showing a bare "Failed to fetch statistics: 401".
-      const data = await apiClient.get<UserStatistics>('/chat/users/me/statistics');
-      if (isStale()) return;
-      setStatistics(data);
-      setError(null);
-
-      logger.debug(
-        'user_statistics_fetched',
-        withContext({
-          component: 'useUserStatistics',
-          totalMessages: data.total_messages,
-          cycleMessages: data.cycle_messages,
-        })
-      );
-    } catch (err) {
-      if (isStale()) return;
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setError(errorMessage);
-      logger.error(
-        'user_statistics_fetch_error',
-        err as Error,
-        withContext({
-          component: 'useUserStatistics',
-        })
-      );
-    } finally {
-      if (!isStale()) {
-        setIsLoading(false);
+      if (!user) {
+        if (!isStale()) setIsLoading(false);
+        return;
       }
-    }
-  }, [user, withContext, guard]);
+
+      try {
+        // Through `apiClient`, like every other data call: an expired session
+        // must eject to the localized login rather than leave the statistics
+        // panel showing a bare "Failed to fetch statistics: 401".
+        const data = await apiClient.get<UserStatistics>('/chat/users/me/statistics', { signal });
+        if (isStale()) return;
+        setStatistics(data);
+        setError(null);
+
+        logger.debug(
+          'user_statistics_fetched',
+          withContext({
+            component: 'useUserStatistics',
+            totalMessages: data.total_messages,
+            cycleMessages: data.cycle_messages,
+          })
+        );
+      } catch (err) {
+        if (isStale()) return;
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        setError(errorMessage);
+        logger.error(
+          'user_statistics_fetch_error',
+          err as Error,
+          withContext({
+            component: 'useUserStatistics',
+          })
+        );
+      } finally {
+        if (!isStale()) {
+          setIsLoading(false);
+        }
+      }
+    },
+    [user, withContext, guard]
+  );
 
   // Initial fetch
-  useEffect(() => {
-    fetchStatistics();
-  }, [fetchStatistics]);
+  useEffectRequest(fetchStatistics);
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
     if (!user) return;
-
+    const lifetime = new AbortController();
+    polling.current = lifetime;
     const interval = setInterval(() => {
-      fetchStatistics();
+      void fetchStatistics(lifetime.signal);
     }, 30000); // 30 seconds
 
-    return () => clearInterval(interval);
+    return () => {
+      lifetime.abort();
+      clearInterval(interval);
+      if (polling.current === lifetime) polling.current = null;
+    };
   }, [user, fetchStatistics]);
+
+  const refetch = useCallback(() => fetchStatistics(polling.current?.signal), [fetchStatistics]);
 
   return {
     statistics,
     isLoading,
     error,
-    refetch: fetchStatistics,
+    refetch,
   };
 };

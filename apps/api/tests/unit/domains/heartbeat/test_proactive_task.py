@@ -5,6 +5,7 @@ Tests the HeartbeatProactiveTask protocol compliance, token capture, and behavio
 """
 
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
@@ -57,9 +58,22 @@ class TestCheckEligibility:
         task = HeartbeatProactiveTask()
         user_settings = {"heartbeat_enabled": True}
 
-        result = await task.check_eligibility(
-            user_id=uuid4(), user_settings=user_settings, now=datetime.now(UTC)
-        )
+        # The two deferrals answer as they do for an account with no calendar and
+        # nothing learned: no verdict, no deferral. Their hooks are pinned in
+        # test_moment_source.py and test_habit_tick_scoring.py.
+        with (
+            patch(
+                "src.domains.heartbeat.proactive_task.agenda_verdict",
+                AsyncMock(return_value=None),
+            ),
+            patch(
+                "src.domains.heartbeat.proactive_task.should_defer_tick_for_rhythm",
+                AsyncMock(return_value=False),
+            ),
+        ):
+            result = await task.check_eligibility(
+                user_id=uuid4(), user_settings=user_settings, now=datetime.now(UTC)
+            )
 
         assert result is True
 

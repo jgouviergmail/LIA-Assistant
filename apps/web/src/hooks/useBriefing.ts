@@ -1,5 +1,5 @@
 /** Independent cards and text reads keep the dashboard progressive. */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import apiClient from '@/lib/api-client';
 import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
 import { subscribeApplicationResource } from '@/lib/application-resources';
@@ -28,6 +28,8 @@ export interface UseBriefingResult {
   loading: boolean;
   cardsLoading: boolean;
   textLoading: boolean;
+  /** A previous text attempt ended without usable text; only explicit retry may regenerate it. */
+  textUnavailable: boolean;
   error: Error | null;
   /** Retry independent initial reads after an error. */
   refetchAll: () => Promise<void>;
@@ -48,17 +50,81 @@ function visibleCards(cards: CardsBundle | undefined, hideSms: boolean): CardsBu
   return { ...cards, sms: { ...sms, data: { ...sms.data, items: [] } } };
 }
 
-export function useBriefing(): UseBriefingResult {
+/** What the text read has done in this lifetime, as the two states the page draws. */
+interface TextProgress {
+  enabled: boolean;
+  /** An account owns this lifetime, so its initial text read will be issued. */
+  owned: boolean;
+  /** The initial text read of this lifetime has been issued. */
+  requested: boolean;
+  loading: boolean;
+  hasText: boolean;
+}
+
+/**
+ * The text's derived states. The initial read is issued after the first
+ * commit, so the query is idle on the first frames: a text this lifetime WILL
+ * ask for is loading from the first render — the welcome and the synthesis
+ * hold their skeletons instead of flashing absent, then shifting when the read
+ * starts. A text asked for that ended without one is unavailable: only an
+ * explicit retry may buy another.
+ */
+function textStatus(progress: TextProgress): { textLoading: boolean; textUnavailable: boolean } {
+  const { enabled, owned, requested, loading, hasText } = progress;
+  const awaited = enabled && owned && !requested && !hasText;
+  return {
+    textLoading: loading || awaited,
+    textUnavailable: enabled && requested && !loading && !hasText,
+  };
+}
+
+export function useBriefing(enabled = true): UseBriefingResult {
   const cardsQuery = useApplicationAccountQuery<CardsResponse>(
     ENDPOINT_CARDS,
-    'TodayBriefing.cards'
+    'TodayBriefing.cards',
+    enabled
   );
   const synthesisQuery = useApplicationAccountQuery<SynthesisResponse>(
     ENDPOINT_SYNTHESIS,
-    'TodayBriefing.synthesis'
+    'TodayBriefing.synthesis',
+    enabled,
+    undefined,
+    { autoFetch: false }
   );
-  const { ownerId, lifetime, isCurrent, acceptData: acceptCards } = cardsQuery;
-  const { acceptData: acceptText, refetch: rereadText } = synthesisQuery;
+  const { ownerId, lifetime, isCurrent: isOwnerCurrent, acceptData: acceptCards } = cardsQuery;
+  const { acceptData: acceptText, setData: setText, refetch: rereadText } = synthesisQuery;
+  const activity = useMemo(() => ({ enabled, lifetime }), [enabled, lifetime]);
+  const requestScope = useRef<{ activity: typeof activity; controller: AbortController } | null>(
+    null
+  );
+  useEffect(() => {
+    const scope = { activity, controller: new AbortController() };
+    requestScope.current = scope;
+    return () => {
+      scope.controller.abort();
+      if (requestScope.current === scope) requestScope.current = null;
+    };
+  }, [activity]);
+  const isCurrent = useCallback(
+    () => enabled && isOwnerCurrent() && requestScope.current?.activity === activity,
+    [enabled, isOwnerCurrent, activity]
+  );
+  const initialText = useRef<typeof lifetime | null>(null);
+  const [textRequested, setTextRequested] = useState<typeof lifetime | null>(null);
+  useEffect(() => {
+    let current = true;
+    queueMicrotask(() => {
+      if (!current || !isCurrent() || initialText.current === lifetime) return;
+      initialText.current = lifetime;
+      setTextRequested(lifetime);
+      // This attempt may already have cost money when aborted. Only an explicit
+      // retry may issue another text request; the query publishes its own error.
+      void rereadText().catch(() => {});
+    });
+    return () => {
+      current = false;
+    };
+  }, [isCurrent, lifetime, rereadText]);
   const [smsBarrier, setSmsBarrier] = useState({ lifetime, closed: false });
   const [refreshing, setRefreshing] = useState({ lifetime, sections: new Set<RefreshScope>() });
   const pending = useRef({ lifetime, sections: new Set<RefreshScope>() });
@@ -80,11 +146,14 @@ export function useBriefing(): UseBriefingResult {
   const textRevision = useRef(0);
   const beginCardsRead = useCallback(() => {
     const revision = ++cardsRevision.current;
-    return () => isCurrent() && cardsRevision.current === revision;
+    const scope = requestScope.current;
+    return () =>
+      isCurrent() && requestScope.current === scope && cardsRevision.current === revision;
   }, [isCurrent]);
   const beginTextRead = useCallback(() => {
     const revision = ++textRevision.current;
-    return () => isCurrent() && textRevision.current === revision;
+    const scope = requestScope.current;
+    return () => isCurrent() && requestScope.current === scope && textRevision.current === revision;
   }, [isCurrent]);
 
   // Matching forced builds share a server-side single_flight snapshot. A read
@@ -117,9 +186,13 @@ export function useBriefing(): UseBriefingResult {
   const readForcedCards = useCallback(
     async (dirty: Set<BriefingSection>, current: () => boolean) => {
       if (!dirty.size) return;
-      const fresh = await apiClient.post<CardsResponse>(ENDPOINT_REFRESH_CARDS, {
-        sections: [...dirty],
-      } satisfies RefreshRequest);
+      const fresh = await apiClient.post<CardsResponse>(
+        ENDPOINT_REFRESH_CARDS,
+        {
+          sections: [...dirty],
+        } satisfies RefreshRequest,
+        { signal: requestScope.current?.controller.signal }
+      );
       if (current()) {
         acceptCards(fresh);
         setSmsBarrier({ lifetime, closed: false });
@@ -131,10 +204,14 @@ export function useBriefing(): UseBriefingResult {
 
   const invalidateSection = useCallback(
     async (section: BriefingSection) => {
-      if (!isCurrent()) return;
+      if (!isOwnerCurrent()) return;
       const dirty = dirtySections();
       if (cardsQuery.data?.cards[section]?.status === 'hidden') return;
       dirty.add(section);
+      if (!isCurrent()) {
+        waitingForCards.current = true;
+        return;
+      }
       const current = beginCardsRead();
       setRefreshFailure({ lifetime, error: null });
       if (!cardsQuery.data) {
@@ -147,6 +224,7 @@ export function useBriefing(): UseBriefingResult {
     },
     [
       isCurrent,
+      isOwnerCurrent,
       dirtySections,
       cardsQuery.data,
       beginCardsRead,
@@ -157,11 +235,11 @@ export function useBriefing(): UseBriefingResult {
   );
 
   useEffect(() => {
-    if (!cardsQuery.data || !waitingForCards.current) return;
+    if (!cardsQuery.data || !waitingForCards.current || !isCurrent()) return;
     waitingForCards.current = false;
     const [section] = dirtySections();
     if (section) void invalidateSection(section);
-  }, [cardsQuery.data, dirtySections, invalidateSection]);
+  }, [cardsQuery.data, dirtySections, invalidateSection, isCurrent]);
   useEffect(() => {
     if (!ownerId) return;
     const reminders = subscribeApplicationResource(ownerId, 'reminders', () => {
@@ -172,14 +250,16 @@ export function useBriefing(): UseBriefingResult {
       // The next text generation remains an explicit user action.
       textRevision.current += 1;
       setSmsBarrier({ lifetime, closed: true });
-      acceptText(undefined);
+      // A suspended query cannot accept external data. Clearing its owner-local
+      // cache still prevents withdrawn SMS text resurfacing on reactivation.
+      if (!acceptText(undefined)) setText(undefined);
       void invalidateSection('sms');
     });
     return () => {
       reminders();
       sms();
     };
-  }, [ownerId, lifetime, invalidateSection, acceptText]);
+  }, [ownerId, lifetime, invalidateSection, acceptText, setText]);
 
   const refetchSection = useCallback(
     async (section: RefreshScope) => {
@@ -206,9 +286,13 @@ export function useBriefing(): UseBriefingResult {
           () => current() || textCurrent(),
           async () => {
             if (section !== 'all') return readForcedCards(dirty, current);
-            const fresh = await apiClient.post<BriefingResponse>(ENDPOINT_REFRESH, {
-              sections: ['all'],
-            });
+            const fresh = await apiClient.post<BriefingResponse>(
+              ENDPOINT_REFRESH,
+              {
+                sections: ['all'],
+              },
+              { signal: requestScope.current?.controller.signal }
+            );
             // A first successful bundle also supplies visibility for invalidations
             // held during an initial GET failure. Keep dirty until its forced drain.
             if (current() || (isCurrent() && waitingForCards.current)) {
@@ -272,6 +356,13 @@ export function useBriefing(): UseBriefingResult {
     rereadText,
   ]);
 
+  const { textLoading, textUnavailable } = textStatus({
+    enabled,
+    owned: !!lifetime.ownerId,
+    requested: textRequested === lifetime,
+    loading: synthesisQuery.loading,
+    hasText: !!synthesisQuery.data,
+  });
   return {
     cards: visibleCards(
       cardsQuery.data?.cards,
@@ -279,9 +370,10 @@ export function useBriefing(): UseBriefingResult {
     ),
     windows: cardsQuery.data?.windows,
     text: synthesisQuery.data,
-    loading: cardsQuery.loading || synthesisQuery.loading,
+    loading: cardsQuery.loading || textLoading,
     cardsLoading: cardsQuery.loading,
-    textLoading: synthesisQuery.loading,
+    textLoading,
+    textUnavailable,
     error:
       cardsQuery.error ||
       synthesisQuery.error ||

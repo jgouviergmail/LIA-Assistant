@@ -98,8 +98,14 @@ export function SettingsPaneFrame({
   const mountable = isSectionAvailable(meta.gate, availability);
   const loaded = useSettingsSection(token, lng, mountable);
 
-  React.useEffect(() => {
+  const settleKey = `${accordionValue}:${focusRequest}`;
+  const [previousSettleKey, setPreviousSettleKey] = React.useState(settleKey);
+  if (previousSettleKey !== settleKey) {
+    setPreviousSettleKey(settleKey);
     setSettled('pending');
+  }
+
+  React.useEffect(() => {
     const startedAt = Date.now();
     let timer = 0;
 

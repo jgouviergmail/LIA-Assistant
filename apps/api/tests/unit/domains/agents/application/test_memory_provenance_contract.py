@@ -9,6 +9,7 @@ from langgraph.store.memory import InMemoryStore
 from pydantic import ValidationError
 
 from src.domains.agents.application.memory_provenance_schemas import MemoryProvenanceRequest
+from src.domains.agents.effects.treatments import treatment_collector
 from src.domains.agents.tools.application_memory_tools import get_lia_memory_provenance_tool
 from src.domains.shared.schemas import ProvenanceResponse
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
@@ -43,8 +44,11 @@ async def test_corrupt_source_data_is_not_misreported_as_a_user_input_error() ->
         yield MagicMock()
 
     owner = uuid4()
+    # A real turn publishes its consultation register; once a registration has
+    # gated this tool, a call without one schedules a real database write.
     with (
         installed_runtime_context(user_id=owner),
+        treatment_collector(run_id="memory-provenance-tool"),
         patch("src.domains.agents.tools.application_memory_tools.get_db_context", session),
         patch(
             "src.domains.agents.tools.application_memory_tools.read_memory_provenance",

@@ -10,7 +10,9 @@
 
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffectRequest } from '@/hooks/useEffectRequest';
+
+import { useCallback, useState } from 'react';
 
 import apiClient from '@/lib/api-client';
 import type { GmailLabel, RAGMailSource } from '@/types/rag-spaces';
@@ -71,32 +73,44 @@ export function useMailSources(spaceId: string) {
  * The user's own Gmail labels, fetched when the picker opens.
  *
  * `enabled` keeps the request off the page's critical path: a closed picker
- * asks Gmail nothing.
+ * asks Gmail nothing. The automatic read and the retry share one generation
+ * (`useEffectRequest`): closing the picker, or a newer read, aborts the one in
+ * flight at its transport, and a retry of a closed picker sends nothing.
  */
 export function useGmailLabels(spaceId: string, enabled: boolean) {
   const [labels, setLabels] = useState<GmailLabel[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchLabels = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await apiClient.get<GmailLabel[]>(`/rag-spaces/${spaceId}/mail-labels`);
-      setLabels(data ?? []);
-    } catch {
-      setError('failed');
-      setLabels([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [spaceId]);
+  const fetchLabels = useCallback(
+    async (signal: AbortSignal) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await apiClient.get<GmailLabel[]>(`/rag-spaces/${spaceId}/mail-labels`, {
+          signal,
+        });
+        if (signal.aborted) return;
+        setLabels(data ?? []);
+      } catch {
+        if (signal.aborted) return;
+        setError('failed');
+        setLabels([]);
+      } finally {
+        if (!signal.aborted) setLoading(false);
+      }
+    },
+    [spaceId]
+  );
 
-  useEffect(() => {
-    if (enabled) {
-      fetchLabels();
-    }
-  }, [enabled, fetchLabels]);
+  const readLabels = useCallback(
+    (signal: AbortSignal) => {
+      if (enabled) return fetchLabels(signal);
+    },
+    [enabled, fetchLabels]
+  );
+  const rerun = useEffectRequest(readLabels);
 
-  return { labels, loading, error, refetch: fetchLabels };
+  const refetch = useCallback(() => void rerun(), [rerun]);
+  return { labels, loading, error, refetch };
 }

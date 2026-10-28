@@ -4,6 +4,7 @@ import { WorldRenderer } from '../renderer';
 import { createCamera, project } from '../geometry';
 import { createSimulation } from '../simulation';
 import { WORLD } from '../definition';
+import type { LiaAtlas } from '../art/lia-atlas';
 
 const art = vi.hoisted(() => ({ actor: vi.fn() }));
 vi.mock('../art/props', () => ({
@@ -29,7 +30,13 @@ vi.mock('../art/floors', () => ({
   }),
 }));
 vi.mock('../art/lia-atlas', () => ({
-  LiaAtlas: class {
+  LiaAtlas: class implements Pick<LiaAtlas, keyof LiaAtlas> {
+    prepareImage() {
+      return Promise.resolve();
+    }
+    textureBytes = 0;
+    setVisible() {}
+    setActing() {}
     draw() {
       return false;
     }
@@ -44,7 +51,10 @@ vi.mock('../art/atmosphere', () => ({
 }));
 vi.mock('../art/ambient-life', () => ({ paintAmbientLife: vi.fn() }));
 vi.mock('../art/pond-motion', () => ({ paintPondMotion: vi.fn() }));
-vi.mock('../world-life', () => ({ catAt: () => null }));
+vi.mock('../world-life', async importOriginal => ({
+  ...(await importOriginal<typeof import('../world-life')>()),
+  catAt: () => null,
+}));
 
 afterEach(() => {
   vi.restoreAllMocks();

@@ -56,16 +56,26 @@ class _TurnState(TypedDict):
 @pytest.fixture(autouse=True)
 def _running_turn() -> Any:
     gate_runtime.reset_policy_cache()
+    turn = SimpleNamespace(
+        user_id="11111111-1111-4111-8111-111111111111",
+        thread_id="thread-1",
+        execution_mode="pipeline",
+        is_automated_source=False,
+        # No stream is subscribed to this turn, so no activity is drawn.
+        side_channel_queue=None,
+    )
     with (
         patch.object(gate_runtime, "resolve_policy", lambda _n: "read"),
         patch(
             "src.domains.agents.context.runtime_context.runtime_context_if_running",
-            return_value=SimpleNamespace(
-                user_id="11111111-1111-4111-8111-111111111111",
-                thread_id="thread-1",
-                execution_mode="pipeline",
-                is_automated_source=False,
-            ),
+            return_value=turn,
+        ),
+        # The activity decoration imported the reader at module load: it gets the
+        # same turn. The real reader raises in this bare graph, which carries no
+        # LIA run context.
+        patch(
+            "src.domains.agents.expressivity.activity.runtime_context_if_running",
+            return_value=turn,
         ),
     ):
         yield

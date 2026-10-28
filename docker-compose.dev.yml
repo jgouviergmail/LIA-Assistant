@@ -239,7 +239,7 @@ services:
     # import, which is the other way this container reaches SIGSEGV.
     # Open audio WebSockets can outlive a source edit. Bound the worker's drain
     # so --reload reaches the new code instead of leaving /health unavailable.
-    command: python -Xfrozen_modules=off ${DEV_API_DEBUGPY:-} -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir src --reload-exclude=*.pyc --reload-exclude=*/__pycache__/* --timeout-graceful-shutdown 20 --ssl-keyfile=/certs/key.pem --ssl-certfile=/certs/cert.pem --ws websockets-sansio
+    command: python -Xfrozen_modules=off ${DEV_API_DEBUGPY:-} -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir src --reload-include=*.json --reload-exclude=hallucinated_tools.json --reload-exclude=*.pyc --reload-exclude=*/__pycache__/* --timeout-graceful-shutdown 20 --ssl-keyfile=/certs/key.pem --ssl-certfile=/certs/cert.pem --ws websockets-sansio
     depends_on:
       postgres:
         condition: service_healthy
@@ -400,12 +400,14 @@ services:
   # target from BLACKBOX_PUBLIC_PROBE_URL at startup. Leave the variable unset
   # in development — zero probe targets, PublicEndpointDown stays silent.
   prometheus:
-    image: prom/prometheus:v3.13.3@sha256:6976aa8a60fec930796ce5772b8d12da7a318a5daa8d40d69c5c7819a05eeed7
+    image: prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
     container_name: lia-prometheus-dev
     security_opt:
       - no-new-privileges:true
     environment:
       BLACKBOX_PUBLIC_PROBE_URL: ${BLACKBOX_PUBLIC_PROBE_URL:-}
+      OBSERVABILITY_ENVIRONMENT: development
+      OBSERVABILITY_HOST: ${OBSERVABILITY_HOST:-${COMPUTERNAME:-${HOSTNAME:-unknown}}}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |

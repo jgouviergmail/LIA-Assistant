@@ -1,5 +1,8 @@
 """One asynchronous HTTP attempt, without mutating a factory-cached client."""
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from anthropic import AsyncAnthropic
 from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -11,7 +14,46 @@ from openai import AsyncOpenAI
 from src.infrastructure.llm.providers.anthropic_hooks import install_claude_hooks
 
 
-def single_async_attempt(llm: BaseChatModel) -> BaseChatModel:
+@asynccontextmanager
+async def single_async_attempt(llm: BaseChatModel) -> AsyncIterator[BaseChatModel]:
+    """Lend a one-attempt copy of a factory-cached model for the duration of one call.
+
+    The copy keeps the cached instance's transport and connection pool. Gemini's
+    adapter closes ``self.client`` when an instance is garbage-collected, and the
+    copy shares that client: its borrowed reference is released when the call
+    ends, so the cached instance keeps an open client for every concurrent and
+    later caller.
+
+    Args:
+        llm: The factory-cached chat model; never mutated.
+
+    Yields:
+        A copy that performs exactly one HTTP attempt and runs no factory callback.
+
+    Raises:
+        ValueError: The provider exposes no transport whose retries can be bounded.
+    """
+    bounded = _bounded_copy(llm)
+    try:
+        yield bounded
+    finally:
+        if isinstance(bounded, ChatGoogleGenerativeAI):
+            # Released, not reconfigured: bypass the model's assignment hooks.
+            object.__setattr__(bounded, "client", None)
+
+
+def _bounded_copy(llm: BaseChatModel) -> BaseChatModel:
+    """Copy ``llm`` with its provider retries disabled and no factory callback.
+
+    Args:
+        llm: The factory-cached chat model; never mutated.
+
+    Returns:
+        The bounded copy.
+
+    Raises:
+        ValueError: The provider exposes no transport whose retries can be bounded.
+    """
     if isinstance(llm, BaseChatOpenAI) and isinstance(llm.root_async_client, AsyncOpenAI):
         transport = llm.root_async_client.with_options(max_retries=0)
         return llm.model_copy(

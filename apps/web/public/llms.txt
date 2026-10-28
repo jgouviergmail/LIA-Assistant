@@ -39,9 +39,9 @@
 - **Frontend**: Next.js 16 / React 19 / TypeScript strict / TailwindCSS
 - **Orchestration**: LangGraph 1.x state machine — conditional routing, parallel execution waves, PostgreSQL checkpointing
 - **Database**: PostgreSQL 16 + pgvector (state, vectors) + Redis (cache, rate limiting, sessions)
-- **Observability**: 635 Prometheus metrics, 32 Grafana dashboards, Loki logs, Tempo traces, Langfuse LLM tracing
+- **Observability**: 640 Prometheus metrics, 32 Grafana dashboards, Loki logs, Tempo traces, Langfuse LLM tracing
 - **Security**: OAuth 2.1 with PKCE, BFF pattern (HTTP-only cookies), Fernet encryption, PII filtering, GDPR compliant
-- **Engineering**: 67,000+ automated tests, 363 Architecture Decision Records, 290 releases, 360° technical audit (7.9/10 across 24 areas, security assessed separately)
+- **Engineering**: 69,000+ automated tests, 363 Architecture Decision Records, 291 releases, 360° technical audit (7.9/10 across 24 areas, security assessed separately)
 - **Self-hosting**: multi-arch Docker images (amd64/arm64) — runs in production on a Raspberry Pi 5
 
 ## How It Works

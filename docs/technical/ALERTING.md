@@ -93,6 +93,30 @@ passed to the containers by docker-compose. Templates: section `[20]` of
 
 **Optional:** `ALERTMANAGER_{SECURITY,ML}_TEAM_EMAIL` (a team is told in addition to the backend, and only on an address of its own), `ALERTMANAGER_SLACK_WEBHOOK_*`, `ALERTMANAGER_PAGERDUTY_ROUTING_KEY` (each adds its channel; one left empty renders nothing), `ALERTMANAGER_HOST_PORT` (default 9094), `BLACKBOX_PUBLIC_PROBE_URL` (public URL probe; leave empty in dev).
 
+### Environment and host identity
+
+Each compose file passes its own `OBSERVABILITY_ENVIRONMENT` to Prometheus:
+`development` or `production`. Set `OBSERVABILITY_HOST` in the active `.env`
+to the Docker host's name, especially when deploying from another machine.
+If unset, compose uses the invoking machine's `COMPUTERNAME`, then `HOSTNAME`,
+then `unknown`. For example, a workstation can use `dev-workstation` and the
+production server `prod-server`.
+
+Prometheus expands these variables in `global.external_labels` as
+`environment` and `host` when sending alerts to Alertmanager. They identify
+the installation independently of a scraped target's `instance` label.
+Email subjects and bodies, Slack titles and messages, and PagerDuty incidents
+show both labels; a missing label is shown as `unknown`. Resolved notifications
+carry the same identity. Grouping and inhibition include both labels, so an
+alert from one installation cannot group with or silence another's alert.
+
+Changing these inputs requires recreating Prometheus; a configuration reload
+alone cannot change its container environment. Alertmanager renders its
+configuration at startup, so recreate it after changing notification templates.
+Verify Prometheus's `/api/v1/status/config` and Alertmanager's received labels
+after applying the change. `/api/v1/alerts` on Prometheus lists rule labels
+before external labels are added, so it cannot verify the delivered identity.
+
 **SMTP provider notes:**
 - **Gmail**: `smtp.gmail.com:587`, requires an App Password (2FA enabled), ~500 mails/day limit.
 - **Brevo / SendGrid / SES**: use the relay host and API-key-based credentials; prefer a dedicated sender identity so DMARC passes.

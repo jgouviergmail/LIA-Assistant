@@ -43,43 +43,56 @@ interface StepUpDialogProps {
  * enrolls a first factor) — and reports success to the guard, which
  * replays the parked action.
  */
-export function StepUpDialog({ open, onVerified, onCancel }: StepUpDialogProps) {
-  const { t } = useTranslation();
-  const { initiateGoogleOAuth } = useAuth();
-  const [methods, setMethods] = useState<string[]>([]);
+function useStepUpFields(open: boolean) {
   const [loaded, setLoaded] = useState(false);
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
-
-  useEffect(() => {
+  const [previousOpen, setPreviousOpen] = useState(open);
+  if (previousOpen !== open) {
+    setPreviousOpen(open);
     if (!open) {
       setPassword('');
       setCode('');
       setError(false);
       setLoaded(false);
-      return;
     }
+  }
+  return { loaded, setLoaded, password, setPassword, code, setCode, error, setError };
+}
+
+export function StepUpDialog({ open, onVerified, onCancel }: StepUpDialogProps) {
+  const { t } = useTranslation();
+  const { initiateGoogleOAuth } = useAuth();
+  const [methods, setMethods] = useState<string[]>([]);
+  const { loaded, setLoaded, password, setPassword, code, setCode, error, setError } =
+    useStepUpFields(open);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const controller = new AbortController();
     (async () => {
       try {
-        const status = await apiClient.get<StepUpStatus>('/auth/step-up/status');
-        setMethods(status.methods);
-      } catch (err) {
-        logger.error('Step-up status fetch failed', err as Error, {
-          component: 'StepUpDialog',
+        const status = await apiClient.get<StepUpStatus>('/auth/step-up/status', {
+          signal: controller.signal,
         });
+        if (!controller.signal.aborted) setMethods(status.methods);
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        logger.error('Step-up status fetch failed', err as Error, { component: 'StepUpDialog' });
         setMethods(['password']);
       } finally {
-        setLoaded(true);
+        if (!controller.signal.aborted) setLoaded(true);
       }
     })();
-  }, [open]);
+    return () => controller.abort();
+  }, [open, setLoaded]);
 
   const succeed = useCallback(() => {
     setError(false);
     onVerified();
-  }, [onVerified]);
+  }, [onVerified, setError]);
 
   const verifyPassword = async () => {
     setBusy(true);

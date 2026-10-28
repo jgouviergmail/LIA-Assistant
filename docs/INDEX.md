@@ -52,7 +52,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [WORKBOARD.md](./technical/WORKBOARD.md) | Le tableau de tickets (ADR-276) : sept colonnes, un porteur, un résultat ; LIA exécute les tickets qui lui sont affectés |
 | [LIVE_MODE.md](./technical/LIVE_MODE.md) | Le mode Live vocal (ADR-299, ADR-300, ADR-301) : parole à parole sur la clé de la personne, Gemini Live, GPT-Live ET ElevenLabs Agents (catégorie additive, deux fils sous une couture — jeton ou offre SDP, fonction ou délégation native), la voix délègue toute demande au moteur du chat, la session DIRECTE qui tient les outils de lecture elle-même, une session par compte, silence et plafond par modèle, le compteur indicatif du fournisseur (facturation `vendor` : montrée, jamais enregistrée), la dépense de LIA sur la carte de clôture, le mode direct relayé à la fin comme au téléphone |
 | [RADIO.md](./technical/RADIO.md) | La radio personnelle (ADR-324) : une rédaction d'instance sans modèle et une antenne par auditeur qui ne tourne que pendant qu'il écoute ; grille déterministe, modèles qui n'écrivent que ce que des faits citent, voix et mixage, coût en direct ; routes et refus codés, réglages, tâches de fond, métriques et alerte |
-| [WORLD_PROTOTYPE.md](./technical/WORLD_PROTOTYPE.md) | Monde isométrique natif (ADR-365) : admission et mouvements sous autorité Redis, panneaux privés, correspondance humaine et traduction consentie, présence entre pairs ; activation et qualification matérielle séparées |
+| [WORLD_PROTOTYPE.md](./technical/WORLD_PROTOTYPE.md) | Monde isométrique natif (ADR-365) : admission et mouvements sous autorité Redis, panneaux privés, correspondance humaine et traduction consentie, présence entre pairs, bornes d’arcade sous autorité serveur, gestes, photos privées, tableau de bord à table ; activation et qualification matérielle séparées ([registre interactions et jeux](./superpowers/qualification/2026-10-27-world-interactions-and-play.md)) |
 | [BOOKMARKS.md](./technical/BOOKMARKS.md) | Les réponses qu'une personne conserve hors de ses conversations (ADR-282) : une copie, pas un pointeur ; l'onglet « Bookmarks » de « Mes fichiers générés » ; chaque réponse conservée projetée dans l'espace de connaissances « Réponses conservées » du compte, réclamée, comptée, retirée avec le bookmark (ADR-291) |
 | [PROACTIVE_DISCUSSIONS.md](./technical/PROACTIVE_DISCUSSIONS.md) | Les discussions proactives (ADR-358, ADR-359, ADR-360) : une exécution de bout en bout, et surtout le contexte — ce qui est lu, admis, interprété, gardé et oublié ; une reconstruction qui couvre tout ce qu'elle peut payer, la réservation dimensionnée à la marge du jour, la mesure sans écriture |
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
@@ -288,7 +288,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 |----------|-------------|--------|
 | [OBSERVABILITY_AGENTS.md](./technical/OBSERVABILITY_AGENTS.md) | Stack Prometheus/Grafana/Loki/Tempo | ✅ |
 | [METRICS_REFERENCE.md](./technical/METRICS_REFERENCE.md) | 500+ métriques documentées | ✅ |
-| [GRAFANA_DASHBOARDS.md](./technical/GRAFANA_DASHBOARDS.md) | 32 dashboards Grafana | ✅ |
+| [GRAFANA_DASHBOARDS.md](./technical/GRAFANA_DASHBOARDS.md) | 33 dashboards Grafana | ✅ |
 | [GUIDE_OBSERVABILITY.md](./guides/GUIDE_OBSERVABILITY.md) | Guide observabilité quickstart | ✅ |
 | [GRAFANA_LANGFUSE_DASHBOARD.md](./technical/GRAFANA_LANGFUSE_DASHBOARD.md) | Intégration Grafana + Langfuse | ✅ |
 | [ALERTING.md](./technical/ALERTING.md) | Chaîne d'alerte (ADR-119) : Alertmanager e-mail, validation, troubleshooting | ✅ |
@@ -623,8 +623,8 @@ section ne référence.
 
 | Technologie | Version | Usage |
 |-------------|---------|-------|
-| Next.js | 16.4.1 | Framework React |
-| React | 19.3.0 | UI Library |
+| Next.js | 16.4.2 | Framework React |
+| React | 19.3.1 | UI Library |
 | TypeScript | 6.0.3 | Typage |
 | Tailwind CSS | 4.3.3 | Styling |
 | Radix UI | v1–v2 | Composants UI |
@@ -636,7 +636,7 @@ section ne référence.
 | Technologie | Usage |
 |-------------|-------|
 | Prometheus | 500+ métriques |
-| Grafana | 32 dashboards |
+| Grafana | 33 dashboards |
 | Loki | Logs agrégés |
 | Tempo | Traces distribuées |
 | Langfuse | LLM observability |

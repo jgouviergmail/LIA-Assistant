@@ -13,6 +13,8 @@ import { Soundscape } from './audio/soundscape';
 import { soundPreference, volumePreference } from './audio/sound-preference';
 import type { WorldMailbox } from './message-protocol';
 import type { Atmosphere } from './atmosphere';
+import type { CosmeticActionId } from './cosmetic-interactions';
+import { cosmeticCue } from './audio/cosmetic-cues';
 export interface WorldSoundControl {
   enabled: boolean;
   failed: boolean;
@@ -112,5 +114,13 @@ export function useWorldSound(
     },
     [isCurrent, loudness]
   );
-  return { enabled, volume, setVolume, failed, toggle, wake, receive };
+  const effect = useCallback(
+    (action: CosmeticActionId, current: () => boolean, targetId: string) => {
+      const cue = cosmeticCue(action, targetId);
+      if (!cue || !active || priority || document.hidden || !isCurrent()) return;
+      void player.current?.effect(cue, () => isCurrent() && current());
+    },
+    [active, priority, isCurrent]
+  );
+  return { enabled, volume, setVolume, failed, toggle, wake, receive, effect };
 }

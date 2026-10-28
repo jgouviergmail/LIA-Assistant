@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
+import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import dynamic from 'next/dynamic';
-import { ArrowLeft, BookOpen, Bot, LayoutGrid, Settings2, UsersRound } from 'lucide-react';
+import { BookOpen, Bot, LayoutGrid, Settings2, UsersRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -12,24 +12,22 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { FeatureErrorBoundary } from '@/components/errors/FeatureErrorBoundary';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { useAppConfig } from '@/hooks/useAppConfig';
 import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 import { MeetingNavigationProvider } from '@/components/meetings/MeetingNavigation';
+import type { DashboardDestination } from '@/components/dashboard/DashboardNavigation';
+import type { BoardFilters } from '@/types/workboard';
 import type { GeneratedAssetTab } from '@/types/generated-assets';
 import { isSettingsSectionToken } from '@/lib/settings-sections';
 import {
   activityEntry,
+  activityPresentation,
   catalogueSelection,
   activityAvailable,
   workspaceFromSelection,
   WORKSPACE_SELECTION,
+  dashboardEntry,
+  workspaceAvailable,
   type WorldSelection,
 } from './activity-entry';
 import { WorldLiaMenu } from './WorldLiaMenu';
@@ -38,13 +36,23 @@ import { useSettingsAvailability } from '@/hooks/useSettingsAvailability';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { worldCatalogue, worldActions, functionSurface } from './functions';
-import { useWorldConversationDock, returnWorldFocus } from './useWorldConversationDock';
+import { useWorldConversationDock } from './useWorldConversationDock';
 import type { SceneActivity } from './scene-activities';
-import type { ZoneId } from './types';
+import type { WorldActingState, ZoneId } from './types';
 import { WorldCatalogue } from './WorldCatalogue';
 import type { MailboxScope } from './message-protocol';
 import type { SettingsSearchAvailability } from '@/lib/settings-search';
-import { useWorldAccountIdentity, WorldPrivateActivity } from './WorldAccountGuard';
+import { useWorldAccountIdentity } from './WorldAccountGuard';
+import { useWorldActivityState } from './useWorldActivityState';
+import { WorldActivityPanel } from './WorldActivityPanel';
+import type { WorldGameClient } from './game-client';
+import type { CabinetId } from './game-catalogue';
+import { useWorldArcadeActivity } from './useWorldArcadeActivity';
+
+const ArcadePanel = dynamic(
+  () => import('./WorldArcadePanel').then(module => module.WorldArcadePanel),
+  { ssr: false }
+);
 
 const AvatarPanel = dynamic(
   () => import('./WorldAvatarPanel').then(module => module.WorldAvatarPanel),
@@ -52,6 +60,10 @@ const AvatarPanel = dynamic(
     ssr: false,
     loading: () => <Skeleton className="h-80 w-full" />,
   }
+);
+const DashboardPanel = dynamic(
+  () => import('./WorldDashboardPanel').then(module => module.WorldDashboardPanel),
+  { ssr: false }
 );
 const RadioPanel = dynamic(
   () => import('@/components/radio/RadioPage').then(module => module.RadioPage),
@@ -73,19 +85,15 @@ const PeersPanel = dynamic(() => import('./WorldPeerPanel').then(module => modul
   loading: () => <Skeleton className="h-40 w-full" />,
 });
 type Selection = WorldSelection;
-interface ActivityEntry {
-  selection: Selection | null;
-  openingDraft?: string;
-  galleryTab?: GeneratedAssetTab;
-  meetingId?: string;
-}
-type EntryContext = Omit<ActivityEntry, 'selection'>;
 export interface WorldFunctionHandle {
+  openDestination(destination: DashboardDestination): boolean;
   canOpen(activity: SceneActivity | 'lia'): boolean;
   openPlace(): boolean;
   openScene(activity: SceneActivity | 'lia'): boolean;
 }
 interface Props {
+  arcade?: WorldGameClient;
+  actingState?: WorldActingState;
   functionRef?: Ref<WorldFunctionHandle>;
   lng: Language;
   ownerId: string;
@@ -95,11 +103,16 @@ interface Props {
   onOpen(open: boolean, conversation: boolean): void;
   getScope?: () => MailboxScope | null;
   presenceKey?: string;
+  dashboardSeatKey?: string | null;
 }
 export function WorldFunctionControls(props: Props) {
-  return <OwnedWorldFunctionControls key={props.ownerId + String(props.enabled)} {...props} />;
+  // Keyed by owner only: Discuter or home editing toggles `enabled`, and a remount
+  // there would drop the retained seated dashboard and buy a second paid synthesis.
+  return <OwnedWorldFunctionControls key={props.ownerId} {...props} />;
 }
 function OwnedWorldFunctionControls({
+  arcade,
+  actingState,
   lng,
   ownerId,
   enabled,
@@ -109,6 +122,7 @@ function OwnedWorldFunctionControls({
   getScope,
   presenceKey,
   functionRef,
+  dashboardSeatKey = null,
 }: Props) {
   const { t } = useTranslation(lng);
   const { user } = useAuth();
@@ -117,16 +131,33 @@ function OwnedWorldFunctionControls({
   const availability = useSettingsAvailability();
   const { config } = useAppConfig();
   const catalogue = worldCatalogue(availability);
-  // A launch payload belongs to its activity, including when going back.
-  const [entry, setEntry] = useState<ActivityEntry>({ selection: null });
+  const { authorized, presentable, available } = activityAuthorization(
+    enabled,
+    user,
+    ownerId,
+    verified,
+    suspended
+  );
+  // A launch payload belongs to its activity, including when going back. A loss of
+  // authority closes the activity explicitly; the retained seated dashboard survives.
+  const {
+    entry,
+    history,
+    dashboardStarted,
+    activate: activateEntry,
+    navigate,
+    back,
+    close,
+    complete,
+  } = useWorldActivityState(dashboardSeatKey, authorized);
   const selection = entry.selection;
-  const [history, setHistory] = useState<ActivityEntry[]>([]);
+  const arcadeActivity = useWorldArcadeActivity(arcade, entry, t);
   const opener = useRef<HTMLElement | null>(null);
-  const authorized = enabled && user?.id === ownerId && user.is_active;
-  const available = authorized && verified && !suspended;
-  const open = authorized && selection !== null;
-  const conversation = selection === 'lia';
-  const dock = useWorldConversationDock(open && conversation);
+  const { open, conversation, dashboardOpen, nativeOpen, dockActive } = activityPresentation(
+    selection,
+    authorized
+  );
+  const dock = useWorldConversationDock(dockActive);
   useEffect(() => {
     onOpen(open, conversation);
     return () => onOpen(false, false);
@@ -138,23 +169,33 @@ function OwnedWorldFunctionControls({
         : button instanceof HTMLElement
           ? button
           : null;
-    setEntry({ selection: value });
-    setHistory([]);
-  }
-  function navigate(next: Selection, context: EntryContext = {}) {
-    if (entry.selection && next !== entry.selection)
-      setHistory(previous => [...previous, entry].slice(-16));
-    setEntry({ selection: next, ...context });
-  }
-  function back() {
-    setEntry(history.at(-1) ?? { selection: 'catalogue' });
-    setHistory(previous => previous.slice(0, -1));
+    activateEntry({ selection: value });
   }
   function openMeeting(id: string) {
     if (!isCurrent() || !available) return;
     navigate(WORKSPACE_SELECTION.meetings, { meetingId: id });
   }
+  function openDashboardDestination(destination: DashboardDestination): boolean {
+    if (!isCurrent() || !available) return false;
+    const { selection: next, ...context } = dashboardEntry(destination);
+    const workspace = workspaceFromSelection(next);
+    if (workspace && !workspaceAvailable(workspace, config)) return false;
+    if (isSettingsSectionToken(next) && !catalogue.some(item => item.token === next)) return false;
+    if (!open && document.activeElement instanceof HTMLElement)
+      opener.current = document.activeElement;
+    navigate(next, context);
+    return true;
+  }
   function canOpen(activity: SceneActivity | 'lia'): boolean {
+    if (activity !== 'lia' && activity.kind === 'arcade' && !arcade?.canOpen(activity.id))
+      return false;
+    if (
+      activity !== 'lia' &&
+      activity.kind === 'workspace' &&
+      activity.id === 'dashboard' &&
+      !dashboardSeatKey
+    )
+      return false;
     return (
       available &&
       activityAvailable(activity, {
@@ -177,11 +218,11 @@ function OwnedWorldFunctionControls({
     if (!available) return false;
     if (!open && document.activeElement instanceof HTMLElement)
       opener.current = document.activeElement;
-    setEntry({ selection: value });
-    setHistory([]);
+    activateEntry({ selection: value });
     return true;
   }
   useImperativeHandle(functionRef, () => ({
+    openDestination: openDashboardDestination,
     canOpen,
     openPlace: () => openSelection('place'),
     openScene(activity) {
@@ -189,17 +230,12 @@ function OwnedWorldFunctionControls({
       if (!open && document.activeElement instanceof HTMLElement)
         opener.current = document.activeElement;
       const target = activityEntry(activity, t);
-      setEntry({
-        selection: target.selection,
-        openingDraft: target.draft,
-        galleryTab: target.tab,
-      });
-      setHistory([]);
+      activateEntry(target);
       return true;
     },
   }));
-  const title = selectionTitle(selection, catalogue, t);
-  const showBack = history.length > 0;
+  const title = arcadeActivity.title ?? selectionTitle(selection, catalogue, t);
+  const onBack = history.length > 0 ? back : undefined;
   return (
     <>
       <FunctionTriggers
@@ -210,77 +246,64 @@ function OwnedWorldFunctionControls({
         getScope={getScope}
         activate={activate}
       />
-      <WorldPrivateActivity visible={!suspended}>
-        <Dialog
-          open={open}
-          modal={!conversation}
-          onOpenChange={value => {
-            if (!value) setEntry({ selection: null });
-          }}
-        >
-          <DialogContent
-            ref={dock}
-            data-world-native-panel
-            className={
-              conversation
-                ? 'world-conversation flex flex-col overflow-hidden p-3 sm:p-4'
-                : 'flex h-[min(52rem,calc(100dvh-1.5rem))] w-[calc(100%-1.5rem)] max-w-5xl flex-col overflow-hidden p-4 sm:p-6'
-            }
-            onInteractOutside={event => {
-              if (conversation) event.preventDefault();
-            }}
-            onCloseAutoFocus={event => {
-              returnWorldFocus(event, opener.current);
-            }}
-          >
-            <DialogHeader className="shrink-0">
-              <DialogTitle className="flex items-center gap-2">
-                {conversation ? (
-                  <Bot className="size-5 text-primary" aria-hidden="true" />
-                ) : (
-                  <LayoutGrid className="size-5 text-primary" aria-hidden="true" />
-                )}
-                {title}
-              </DialogTitle>
-              <DialogDescription>{t('world.functions.private')}</DialogDescription>
-            </DialogHeader>
-            {showBack && (
-              <Button variant="ghost" className="min-h-11 w-fit shrink-0" onClick={back}>
-                <ArrowLeft className="size-4" aria-hidden="true" />
-                {t('common.back')}
-              </Button>
-            )}
-            <div className="min-h-0 flex-1">
-              {open && (
-                <FeatureErrorBoundary key={selection} feature="world-private-activity">
-                  <MeetingNavigationProvider onOpen={openMeeting}>
-                    <FunctionContent
-                      lng={lng}
-                      ownerId={ownerId}
-                      selection={selection}
-                      zone={zone}
-                      availability={availability}
-                      openingDraft={entry.openingDraft}
-                      galleryTab={entry.galleryTab}
-                      initialMeetingId={entry.meetingId}
-                      getScope={getScope}
-                      presenceKey={presenceKey}
-                      onSelect={navigate}
-                      onBack={back}
-                      onDone={() =>
-                        setEntry(current =>
-                          current.selection === 'world-avatar' ? { selection: null } : current
-                        )
-                      }
-                      onCompose={draft => navigate('lia', { openingDraft: draft })}
-                    />
-                  </MeetingNavigationProvider>
-                </FeatureErrorBoundary>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-      </WorldPrivateActivity>
+      {dashboardStarted && (
+        <DashboardPanel
+          lng={lng}
+          ownerId={ownerId}
+          active={presentable && dashboardOpen}
+          suspended={suspended}
+          opener={opener}
+          onClose={close}
+          onBack={onBack}
+          onNavigate={openDashboardDestination}
+        />
+      )}
+      <WorldActivityPanel
+        lng={lng}
+        ownerId={ownerId}
+        open={nativeOpen}
+        suspended={suspended}
+        conversation={conversation}
+        actingState={actingState}
+        title={title}
+        description={arcadeActivity.description}
+        compact={arcadeActivity.cabinet !== undefined}
+        icon={arcadeActivity.icon}
+        opener={opener}
+        fallbackToScene
+        dock={dock}
+        onClose={close}
+        onBack={onBack}
+      >
+        {nativeOpen && selection && (
+          <FeatureErrorBoundary key={selection} feature="world-private-activity">
+            <MeetingNavigationProvider onOpen={openMeeting}>
+              <FunctionContent
+                arcade={arcade}
+                cabinet={arcadeActivity.cabinet}
+                onClose={close}
+                lng={lng}
+                ownerId={ownerId}
+                selection={selection}
+                zone={zone}
+                availability={availability}
+                openingDraft={entry.draft}
+                galleryTab={entry.tab}
+                initialMeetingId={entry.meetingId}
+                initialFilters={entry.workboardFilters}
+                initialTicketId={entry.ticketId}
+                initialMessageId={entry.smsMessageId}
+                getScope={getScope}
+                presenceKey={presenceKey}
+                onSelect={navigate}
+                onBack={back}
+                onDone={() => complete('world-avatar')}
+                onCompose={draft => navigate('lia', { draft })}
+              />
+            </MeetingNavigationProvider>
+          </FeatureErrorBoundary>
+        )}
+      </WorldActivityPanel>
     </>
   );
 }
@@ -305,6 +328,9 @@ function selectionTitle(
 }
 
 function FunctionContent({
+  arcade,
+  cabinet,
+  onClose,
   lng,
   ownerId,
   selection,
@@ -313,6 +339,9 @@ function FunctionContent({
   openingDraft,
   galleryTab,
   initialMeetingId,
+  initialFilters,
+  initialTicketId,
+  initialMessageId,
   getScope,
   presenceKey,
   onSelect,
@@ -320,6 +349,9 @@ function FunctionContent({
   onCompose,
   onDone,
 }: {
+  arcade?: WorldGameClient;
+  cabinet?: CabinetId;
+  onClose(): void;
   lng: Language;
   ownerId: string;
   selection: Selection;
@@ -328,6 +360,9 @@ function FunctionContent({
   openingDraft?: string;
   galleryTab?: GeneratedAssetTab;
   initialMeetingId?: string;
+  initialFilters?: BoardFilters;
+  initialTicketId?: string;
+  initialMessageId?: string;
   getScope?: () => MailboxScope | null;
   presenceKey?: string;
   onSelect(selection: Selection): void;
@@ -335,6 +370,16 @@ function FunctionContent({
   onDone(): void;
   onCompose(draft: string): void;
 }) {
+  if (selection === 'world-arcade')
+    return (
+      <ArcadeContent
+        lng={lng}
+        ownerId={ownerId}
+        arcade={arcade}
+        cabinet={cabinet}
+        onClose={onClose}
+      />
+    );
   if (selection === 'world-avatar')
     return <AvatarPanel lng={lng} ownerId={ownerId} onDone={onDone} />;
   if (selection === 'configuration')
@@ -358,13 +403,16 @@ function FunctionContent({
       </div>
     );
   const workspace = workspaceFromSelection(selection);
-  if (workspace)
+  if (workspace && workspace !== 'dashboard')
     return (
       <WorkspacePanel
         lng={lng}
         ownerId={ownerId}
         workspace={workspace}
         initialMeetingId={initialMeetingId}
+        initialFilters={initialFilters}
+        initialTicketId={initialTicketId}
+        initialMessageId={initialMessageId}
         onNavigate={next => onSelect(WORKSPACE_SELECTION[next])}
         onCompose={() => onCompose('')}
       />
@@ -397,7 +445,7 @@ function FunctionContent({
         presenceKey={presenceKey}
       />
     ) : null;
-  if (selection !== 'lia' && !isSettingsSectionToken(selection)) return null;
+  if (!isNativeSelection(selection)) return null;
   return (
     <NativePanel
       key={ownerId + selection}
@@ -407,6 +455,47 @@ function FunctionContent({
       onBack={onBack}
       openingDraft={openingDraft}
       galleryTab={galleryTab}
+    />
+  );
+}
+
+function isNativeSelection(selection: Selection) {
+  return selection === 'lia' || isSettingsSectionToken(selection);
+}
+function activityAuthorization(
+  enabled: boolean,
+  user: { id: string; is_active: boolean } | null,
+  ownerId: string,
+  verified: boolean,
+  suspended: boolean
+) {
+  const authorized = enabled && user?.id === ownerId && user.is_active;
+  // A suspended transport keeps every open panel presentable; only new actions wait.
+  const presentable = authorized && verified;
+  return { authorized, presentable, available: presentable && !suspended };
+}
+function ArcadeContent({
+  lng,
+  ownerId,
+  arcade,
+  cabinet,
+  onClose,
+}: {
+  lng: Language;
+  ownerId: string;
+  arcade?: WorldGameClient;
+  cabinet?: CabinetId;
+  onClose(): void;
+}) {
+  if (!arcade || !cabinet) return null;
+  return (
+    <ArcadePanel
+      key={ownerId + cabinet}
+      lng={lng}
+      ownerId={ownerId}
+      cabinet={cabinet}
+      client={arcade}
+      onClose={onClose}
     />
   );
 }

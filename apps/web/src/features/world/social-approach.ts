@@ -1,9 +1,10 @@
 import type { SceneHost } from './scene-interactions';
 /** Scene conversation intent. Proximity never grants access to private data. */
-import { findRoute } from './navigation';
+import { findRoute, type Navigation } from './navigation';
 import type { Simulation } from './simulation';
 import type { Point } from './types';
 export type PersonTarget = { kind: 'lia' } | { kind: 'peer'; id: string };
+export const SOCIAL_APPROACH_SECONDS = 30;
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 export function personPosition(sim: Simulation, target: PersonTarget): Point | null {
   return target.kind === 'lia'
@@ -11,16 +12,24 @@ export function personPosition(sim: Simulation, target: PersonTarget): Point | n
     : (sim.visitors.find(person => person.id === target.id)?.position ?? null);
 }
 export function conversationRoute(sim: Simulation, at: Point): Point[] {
-  const from = sim.player.position;
-  if (distance(from, at) > 2.5) return [];
-  const route = findRoute(sim.navigation, from, at, 64);
+  return shortConversationRoute(sim.navigation, sim.player.position, at, 2.5);
+}
+/** Bound conversational reach by a walkable route, never a line through a wall. */
+export function shortConversationRoute(
+  navigation: Navigation,
+  from: Point,
+  at: Point,
+  maximum: number
+): Point[] {
+  if (distance(from, at) > maximum) return [];
+  const route = findRoute(navigation, from, at, 64);
   let previous = from,
     length = 0;
   for (const next of route) {
     length += distance(previous, next);
     previous = next;
   }
-  return length <= 2.5 ? route : [];
+  return length <= maximum ? route : [];
 }
 export class SocialApproach {
   private intent: { target: PersonTarget; expires: number; nextCheck: number } | null = null;
@@ -29,9 +38,11 @@ export class SocialApproach {
     private host?: SceneHost
   ) {}
   cancel(): void {
+    if (this.intent?.target.kind === 'lia') this.sim.bipInteractionHeld = false;
     this.intent = null;
   }
   start(target: PersonTarget): boolean {
+    this.cancel();
     if (!this.host?.canOpen(target)) return false;
     const at = personPosition(this.sim, target);
     if (!at) return false;
@@ -40,14 +51,30 @@ export class SocialApproach {
       return this.host.open(target);
     }
     if (this.sim.player.pose || !this.approach(at)) return false;
-    this.intent = { target, expires: this.sim.time + 30, nextCheck: this.sim.time + 0.5 };
+    this.intent = {
+      target,
+      expires: this.sim.time + SOCIAL_APPROACH_SECONDS,
+      nextCheck: this.sim.time + 0.5,
+    };
+    if (target.kind === 'lia') this.sim.bipInteractionHeld = true;
     return true;
   }
   update(): void {
     const intent = this.intent;
     if (!intent) return;
     const at = personPosition(this.sim, intent.target);
-    if (!at || this.sim.time > intent.expires || !this.host?.canOpen(intent.target)) {
+    if (!at || this.sim.time > intent.expires) {
+      this.sim.player.path = [];
+      this.cancel();
+      return;
+    }
+    // A snapshot gap freezes the approach; authority back replans at once.
+    if (this.host?.ready?.() === false) {
+      this.sim.player.path = [];
+      intent.nextCheck = this.sim.time;
+      return;
+    }
+    if (!this.host?.canOpen(intent.target)) {
       this.sim.player.path = [];
       this.cancel();
       return;

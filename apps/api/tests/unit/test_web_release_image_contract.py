@@ -73,14 +73,41 @@ def test_release_bakes_the_commit_sha_as_the_proof_sha() -> None:
     assert "NEXT_PUBLIC_PUBLIC_SHOWROOM_VARIANT=" in body
 
 
-def test_no_source_module_hardcodes_the_hosted_origin() -> None:
-    web_src = ROOT / "apps/web/src"
-    offenders: list[str] = []
-    for path in web_src.rglob("*.ts*"):
+# The project's own website is an attribution mark, not this deployment's origin
+# (the World photo signature, an owner decision). It lives in ONE declared module
+# and its readers are declared too, so it can never become a hostname fallback.
+PROJECT_ATTRIBUTION = "apps/web/src/lib/project-attribution.ts"
+ATTRIBUTION_READERS = {"apps/web/src/features/world/photo-renderer.ts"}
+
+
+def _web_source_modules() -> list[tuple[str, str]]:
+    """Return ``(repo-relative POSIX path, text)`` for every non-test web module."""
+    modules: list[tuple[str, str]] = []
+    for path in (ROOT / "apps/web/src").rglob("*.ts*"):
         if "__tests__" in path.parts or path.suffix not in {".ts", ".tsx"}:
             continue
-        if "lia.jeyswork.com" in path.read_text(encoding="utf-8"):
-            offenders.append(str(path.relative_to(ROOT)))
+        modules.append((path.relative_to(ROOT).as_posix(), path.read_text(encoding="utf-8")))
+    return modules
+
+
+def test_no_source_module_hardcodes_the_hosted_origin() -> None:
+    offenders = [
+        name
+        for name, text in _web_source_modules()
+        if name != PROJECT_ATTRIBUTION and "lia.jeyswork.com" in text
+    ]
     assert offenders == [], (
         "hardcoded deployment hostnames must resolve through site-origin: " f"{offenders}"
+    )
+
+
+def test_the_project_attribution_is_read_only_where_declared() -> None:
+    readers = {
+        name
+        for name, text in _web_source_modules()
+        if name != PROJECT_ATTRIBUTION and "LIA_PROJECT_SITE_URL" in text
+    }
+    assert readers == ATTRIBUTION_READERS, (
+        "the project's website is an attribution mark, never a deployment origin; "
+        f"declare a new reader here with its reason: {sorted(readers)}"
     )

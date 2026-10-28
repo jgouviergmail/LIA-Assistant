@@ -1,25 +1,9 @@
 'use client';
 
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useImperativeHandle,
-  useRef,
-  useState,
-  type Ref,
-} from 'react';
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import dynamic from 'next/dynamic';
-import { MessageCircle, ShieldCheck, ChevronDown, Megaphone } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
@@ -30,9 +14,12 @@ import { useWorldMessages } from './useWorldMessages';
 import { useWorldAccountIdentity, WorldPrivateActivity } from './WorldAccountGuard';
 import { useWorldConversationDock, returnWorldFocus } from './useWorldConversationDock';
 import { MessageScrollStore } from './message-scroll-store';
-import type { MailboxClientState } from './mailbox-client';
+import { ConversationLauncher, ConversationHeading } from './WorldConversationChrome';
 import { PUBLIC_THREAD } from './public-message-protocol';
 import { conversationDirectory } from './conversation-directory';
+import { WorldCompactConversation } from './WorldCompactConversation';
+import { useCompactRecipient, AUTOMATIC_RECIPIENT } from './useCompactRecipient';
+import { useCompactConversationDock } from './useCompactConversationDock';
 
 const MessagePanel = dynamic(
   () => import('./WorldMessagePanel').then(module => module.WorldMessagePanel),
@@ -43,6 +30,11 @@ export interface WorldConversationHandle {
   openFor(recipient: string): boolean;
 }
 interface Props {
+  compactHost?: HTMLElement | null;
+  compactEnabled?: boolean;
+  compactOnDemand?: boolean;
+  onCompactOpen?(): void;
+  nearbyParticipants?: readonly WorldParticipant[];
   conversationRef?: Ref<WorldConversationHandle>;
   lng: Language;
   ownerId: string;
@@ -60,15 +52,28 @@ export function WorldMessageControls(props: Props) {
 function OwnedMessageControls(props: Props) {
   const { user } = useAuth();
   const { verified } = useWorldAccountIdentity();
-  const authorized = props.enabled && user?.id === props.ownerId && user.is_active;
   const [open, setOpen] = useState(false);
+  const [compactOpen, setCompactOpen] = useState(false);
+  const { authorized, available, shown, compactShown } = messageVisibility(
+    props,
+    user,
+    verified,
+    open,
+    compactOpen
+  );
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [recipient, setRecipient] = useState('');
   const [aliases, setAliases] = useState<Record<string, string>>({});
   const publicMode = recipient === PUBLIC_THREAD;
-  const [consent, setConsent] = useThreadConsent(publicMode);
+  const privateConsent = useState(false),
+    publicConsent = useState(false);
+  const [consent, setConsent] = publicMode ? publicConsent : privateConsent;
+  const [compactReading, setCompactReading] = useState(true);
+  const [compactFocus, setCompactFocus] = useState(0);
+  const compactFocused = useRef(0);
   const [feedback, setFeedback] = useState(false);
   const opener = useRef<HTMLElement | null>(null);
+  const sendRecipient = useRef<string | null>(null);
   const [scrollStores, setScrollStores] = useState<Record<string, MessageScrollStore>>(() => ({
     '': new MessageScrollStore(),
   }));
@@ -83,13 +88,27 @@ function OwnedMessageControls(props: Props) {
   }, []);
   const mailbox = useWorldMessages(props.ownerId, authorized, props.getScope, accepted);
   const { state, setReading } = mailbox;
+  const busy = state.sending === 'sending' || state.sending === 'uncertain';
+  const compact = useCompactRecipient(props.nearbyParticipants?.[0], drafts, busy);
+  const [compactConsent, setCompactConsent] =
+    compact.person.id === PUBLIC_THREAD ? publicConsent : privateConsent;
   const { onMailbox } = props;
   useEffect(() => {
     if (state.mailbox) onMailbox?.(state.mailbox);
   }, [state.mailbox, onMailbox]);
   const { onOpen } = props;
-  const available = authorized && props.canOpen;
-  const shown = open && available;
+  useCompactConversationDock(props.compactHost ?? null, compactShown);
+  const { compactHost } = props;
+  useEffect(() => {
+    // The launcher that opens the bar hands it the keyboard, once per press: the bar
+    // sits before the session strip, where Tab from the launcher would never reach it.
+    if (compactFocus <= compactFocused.current) return;
+    compactFocused.current = compactFocus;
+    if (compactShown)
+      compactHost
+        ?.querySelector<HTMLTextAreaElement>('textarea[name="world-message"]')
+        ?.focus({ preventScroll: true });
+  }, [compactFocus, compactShown, compactHost]);
   const dock = useWorldConversationDock(shown, 680, 640);
   const conversations = conversationDirectory(
     props.participants,
@@ -110,13 +129,14 @@ function OwnedMessageControls(props: Props) {
     return () => onOpen(false);
   }, [shown, onOpen]);
   useEffect(() => {
-    setReading(shown && verified && Boolean(recipient), recipient || null);
-  }, [shown, verified, recipient, setReading]);
+    const reading =
+      shown && verified ? recipient : compactShown && compactReading ? compact.person.id : '';
+    setReading(Boolean(reading), reading || null);
+  }, [shown, verified, recipient, setReading, compactShown, compactReading, compact.person.id]);
   function changeOpen(value: boolean) {
     setOpen(value);
     setFeedback(false);
   }
-  const busy = state.sending === 'sending' || state.sending === 'uncertain';
   function selectRecipient(value: string): boolean {
     if (!available || !verified || busy) return false;
     if (
@@ -131,6 +151,7 @@ function OwnedMessageControls(props: Props) {
     const alias = conversations.find(person => person.id === value)?.alias;
     if (alias) setAliases(current => ({ ...current, [value]: alias }));
     setRecipient(value);
+    if (value && props.compactHost) compact.select({ id: value, alias: alias ?? '' });
     setFeedback(false);
     return true;
   }
@@ -138,10 +159,10 @@ function OwnedMessageControls(props: Props) {
     canOpen(value) {
       return Boolean(
         value &&
-          available &&
-          verified &&
-          !busy &&
-          props.participants.some(person => person.id === value)
+        available &&
+        verified &&
+        !busy &&
+        props.participants.some(person => person.id === value)
       );
     },
     openFor(value) {
@@ -152,23 +173,122 @@ function OwnedMessageControls(props: Props) {
       return true;
     },
   }));
-  async function send() {
-    const outcome = publicMode
-      ? await mailbox.sendPublic(draft, consent)
-      : await mailbox.send(recipient, draft, consent);
+  async function sendTo(thread: string, text: string, permitted: boolean) {
+    if (busy) return;
+    sendRecipient.current = thread;
+    const outcome =
+      thread === PUBLIC_THREAD
+        ? await mailbox.sendPublic(text, permitted)
+        : await mailbox.send(thread, text, permitted);
     setFeedback(outcome === 'unavailable');
   }
   async function translate(id: string) {
     const outcome = await mailbox.translate(id, consent);
     setFeedback(outcome === 'unavailable');
   }
+  function openCompactThread(element: HTMLElement) {
+    compact.hold();
+    compact.blur();
+    setRecipient(compact.person.id);
+    setScrollStores(current =>
+      current[compact.person.id]
+        ? current
+        : { ...current, [compact.person.id]: new MessageScrollStore() }
+    );
+    if (compact.person.alias)
+      setAliases(current => ({ ...current, [compact.person.id]: compact.person.alias }));
+    opener.current = element;
+    changeOpen(true);
+  }
+  function closeCompact() {
+    setCompactOpen(false);
+    compact.blur();
+    props.compactHost?.parentElement
+      ?.querySelector<HTMLButtonElement>('[data-world-conversations]')
+      ?.focus({ preventScroll: true });
+  }
+  function discard() {
+    const thread = sendRecipient.current ?? (shown ? recipient : compact.person.id);
+    if (state.operation === 'send') setDrafts(current => ({ ...current, [thread]: '' }));
+    mailbox.discard();
+  }
   return (
     <>
+      <WorldCompactConversation
+        host={props.compactHost}
+        shown={compactShown}
+        dismissible={props.compactOnDemand}
+        onClose={closeCompact}
+        lng={props.lng}
+        state={state}
+        participants={props.participants}
+        conversations={conversations}
+        tokensVisible={false}
+        canSend={props.canSend}
+        draft={drafts[compact.person.id] ?? ''}
+        recipient={compact.person.id}
+        recipientAlias={compact.person.alias}
+        selection={compact.value}
+        consent={compactConsent}
+        feedback={feedback}
+        onReadingChange={setCompactReading}
+        historyVisible={compactReading}
+        onFocus={compact.focus}
+        onBlur={compact.blur}
+        onDraft={value => {
+          compact.hold();
+          setDrafts(current => ({ ...current, [compact.person.id]: value }));
+          if (compact.person.alias)
+            setAliases(current => ({
+              ...current,
+              [compact.person.id]: compact.person.alias,
+            }));
+        }}
+        onRecipient={value => {
+          if (busy) return;
+          if (value === AUTOMATIC_RECIPIENT) compact.select(null);
+          else if (value === PUBLIC_THREAD && state.mailbox?.public_available)
+            compact.select({ id: value, alias: '' });
+          else {
+            const person = conversations.find(item => item.id === value);
+            if (person) compact.select(person);
+          }
+          setFeedback(false);
+        }}
+        onConsent={setCompactConsent}
+        onExpand={openCompactThread}
+        onSubmit={() => {
+          void sendTo(compact.person.id, drafts[compact.person.id] ?? '', compactConsent);
+        }}
+        onTranslate={id => {
+          void mailbox.translate(id, compactConsent);
+        }}
+        onCheck={() => {
+          void mailbox.check();
+        }}
+        onDiscard={discard}
+        onRetry={() => {
+          setFeedback(false);
+          mailbox.retry();
+        }}
+      />
       <ConversationLauncher
         lng={props.lng}
         unread={state.unread}
         disabled={!available || !verified}
         onOpen={element => {
+          if (props.compactOnDemand) {
+            props.onCompactOpen?.();
+            setCompactOpen(true);
+            setCompactFocus(value => value + 1);
+            compact.blur();
+            changeOpen(false);
+            return;
+          }
+          if (compactShown) {
+            openCompactThread(element);
+            return;
+          }
           opener.current = element;
           changeOpen(true);
         }}
@@ -181,7 +301,12 @@ function OwnedMessageControls(props: Props) {
             className="world-conversation flex flex-col overflow-hidden p-3 sm:p-4"
             onInteractOutside={event => event.preventDefault()}
             onCloseAutoFocus={event => {
-              returnWorldFocus(event, opener.current);
+              const target = opener.current?.isConnected
+                ? opener.current
+                : (props.compactHost?.querySelector<HTMLButtonElement>(
+                    '[data-world-compact-expand]'
+                  ) ?? null);
+              returnWorldFocus(event, target);
             }}
           >
             <ConversationHeading
@@ -209,7 +334,7 @@ function OwnedMessageControls(props: Props) {
                 onRecipient={selectRecipient}
                 onConsent={setConsent}
                 onSubmit={() => {
-                  void send();
+                  void sendTo(recipient, draft, consent);
                 }}
                 onTranslate={id => {
                   void translate(id);
@@ -217,10 +342,7 @@ function OwnedMessageControls(props: Props) {
                 onCheck={() => {
                   void mailbox.check();
                 }}
-                onDiscard={() => {
-                  if (state.operation === 'send') setDraft('');
-                  mailbox.discard();
-                }}
+                onDiscard={discard}
                 onRetry={() => {
                   setFeedback(false);
                   mailbox.retry();
@@ -234,10 +356,25 @@ function OwnedMessageControls(props: Props) {
   );
 }
 
-function useThreadConsent(publicMode: boolean) {
-  const privateConsent = useState(false),
-    publicConsent = useState(false);
-  return publicMode ? publicConsent : privateConsent;
+function messageVisibility(
+  props: Props,
+  user: ReturnType<typeof useAuth>['user'],
+  verified: boolean,
+  open: boolean,
+  compactOpen: boolean
+) {
+  const authorized = props.enabled && user?.id === props.ownerId && user.is_active;
+  const available = authorized && props.canOpen;
+  const shown = open && available;
+  const compactShown =
+    !!props.compactHost &&
+    props.compactEnabled !== false &&
+    available &&
+    verified &&
+    props.canSend &&
+    !shown &&
+    (!props.compactOnDemand || compactOpen);
+  return { authorized, available, shown, compactShown };
 }
 
 function selectedConversationAlias(
@@ -248,95 +385,4 @@ function selectedConversationAlias(
 ): string {
   if (recipient === PUBLIC_THREAD) return publicTitle;
   return conversations.find(person => person.id === recipient)?.alias ?? aliases[recipient] ?? '';
-}
-
-function ConversationLauncher({
-  lng,
-  unread,
-  disabled,
-  onOpen,
-}: {
-  lng: Language;
-  unread: number;
-  disabled: boolean;
-  onOpen(element: HTMLButtonElement): void;
-}) {
-  const { t } = useTranslation(lng);
-  const unreadId = useId();
-  const hasUnread = unread > 0;
-  return (
-    <Button
-      size="sm"
-      variant="ghost"
-      data-world-conversations
-      className="relative min-h-11 min-w-11"
-      disabled={disabled}
-      aria-label={t('world.messages.action')}
-      aria-describedby={hasUnread ? unreadId : undefined}
-      onClick={event => {
-        onOpen(event.currentTarget);
-      }}
-    >
-      <MessageCircle className="size-4" aria-hidden="true" />
-      <span className="hidden sm:inline">{t('world.messages.short')}</span>
-      {hasUnread && (
-        <>
-          <span
-            className="world-message-unread rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground"
-            aria-hidden="true"
-          >
-            {unread}
-          </span>
-          <span id={unreadId} className="sr-only">
-            {t('world.messages.unread', { count: unread })}
-          </span>
-        </>
-      )}
-    </Button>
-  );
-}
-
-function ConversationHeading({
-  lng,
-  alias,
-  mailbox,
-  publicMode,
-}: {
-  lng: Language;
-  alias: string;
-  mailbox: MailboxClientState['mailbox'];
-  publicMode: boolean;
-}) {
-  const { t } = useTranslation(lng);
-  return (
-    <DialogHeader className="shrink-0 text-left">
-      <DialogTitle className="flex items-center gap-2">
-        <MessageCircle className="size-5 text-primary" aria-hidden="true" />
-        <span className="truncate">{alias || t('world.messages.title')}</span>
-      </DialogTitle>
-      <DialogDescription className="sr-only">
-        {publicMode
-          ? t('world.public.description')
-          : t('world.messages.privacy', { minutes: (mailbox?.ttl_seconds ?? 1800) / 60 })}
-      </DialogDescription>
-      <details className="text-xs text-muted-foreground">
-        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2">
-          {publicMode ? (
-            <Megaphone className="size-4 shrink-0 text-primary" aria-hidden="true" />
-          ) : (
-            <ShieldCheck className="size-4 shrink-0 text-primary" aria-hidden="true" />
-          )}
-          {publicMode
-            ? t('world.public.caption')
-            : t('world.messages.privacy_short', { minutes: (mailbox?.ttl_seconds ?? 1800) / 60 })}
-          <ChevronDown className="ml-auto size-3 shrink-0" aria-hidden="true" />
-        </summary>
-        <p className="pb-2 leading-relaxed">
-          {publicMode
-            ? t('world.public.description')
-            : t('world.messages.privacy', { minutes: (mailbox?.ttl_seconds ?? 1800) / 60 })}
-        </p>
-      </details>
-    </DialogHeader>
-  );
 }

@@ -1,10 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import { useTheme } from 'next-themes';
 
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useAuth } from '@/hooks/useAuth';
+import { useHydrated } from '@/hooks/useHydrated';
 import {
   type DisplayMode,
   type ThemeModeState,
@@ -47,11 +48,20 @@ export interface UseThemeMode {
  * The mount effect adopts whatever the blocking script already applied, so the
  * hook never contradicts the paint that already happened.
  */
+function subscribeOled(onChange: () => void): () => void {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-oled'] });
+  return () => observer.disconnect();
+}
+const readOled = () => document.documentElement.hasAttribute('data-oled');
+const serverOled = () => false;
+
 export function useThemeMode(): UseThemeMode {
   const { theme, resolvedTheme, setTheme } = useTheme();
-  const [oled, setOled] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const oled = useSyncExternalStore(subscribeOled, readOled, serverOled);
+  const mounted = useHydrated();
   const { user, refreshUser } = useAuth();
+  const userId = user?.id;
   const lastAccountTheme = useRef<{ id: string; theme: string } | null>(null);
 
   const { mutate: updateTheme } = useApiMutation<{ theme: string }, User>({
@@ -63,19 +73,9 @@ export function useThemeMode(): UseThemeMode {
   });
 
   useEffect(() => {
-    setOled(readStoredOled());
-    setMounted(true);
-    // Multiple native controls share the already-applied DOM refinement.
-    // Observing its one writer avoids a second theme store or preference PATCH.
-    const root = document.documentElement;
-    const observer = new MutationObserver(() => setOled(root.hasAttribute('data-oled')));
-    observer.observe(root, { attributes: true, attributeFilter: ['data-oled'] });
-    return () => observer.disconnect();
+    applyOledAttribute(readStoredOled());
   }, []);
 
-  // One-way sync, server → local. Keyed on the owner and persisted value: adding
-  // the local state to the deps would re-run this after every toggle and undo
-  // the user's own click before they saw it.
   useEffect(() => {
     if (!user?.theme) return;
     const hadAccountValue = lastAccountTheme.current?.id === user.id;
@@ -89,7 +89,6 @@ export function useThemeMode(): UseThemeMode {
     if ((stored.mode !== 'system' || hadAccountValue || changedAccount) && stored.mode !== theme)
       setTheme(stored.mode);
     if (stored.oled !== readStoredOled()) {
-      setOled(stored.oled);
       writeStoredOled(stored.oled);
       applyOledAttribute(stored.oled);
     }
@@ -147,18 +146,17 @@ export function useThemeMode(): UseThemeMode {
         // before the next paint stops the two halves of an OLED → light press
         // from animating against each other.
         if (next.oled !== oled) {
-          setOled(next.oled);
           writeStoredOled(next.oled);
           applyOledAttribute(next.oled);
         }
         setTheme(next.mode);
       }, origin);
 
-      if (user?.id) {
-        await persist(user.id, toPersistedTheme(next));
+      if (userId) {
+        await persist(userId, toPersistedTheme(next));
       }
     },
-    [oled, setTheme, user?.id, persist]
+    [oled, setTheme, userId, persist]
   );
 
   return {

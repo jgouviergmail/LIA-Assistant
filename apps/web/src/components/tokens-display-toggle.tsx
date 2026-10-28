@@ -1,5 +1,7 @@
 'use client';
 
+import { useHydrated } from '@/hooks/useHydrated';
+
 import * as React from 'react';
 import { CircleDollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,13 +20,10 @@ interface TokensDisplayToggleProps {
 export function TokensDisplayToggle({ lng = 'fr' }: TokensDisplayToggleProps) {
   const { user, refreshUser } = useAuth();
   const { t } = useTranslation(lng);
-  const [mounted, setMounted] = React.useState(false);
+  const mounted = useHydrated();
   const [isLoading, setIsLoading] = React.useState(false);
 
   // Avoid hydration mismatch
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const handleToggle = async () => {
     if (!user || isLoading) return;

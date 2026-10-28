@@ -9,7 +9,7 @@ import { BriefingCard } from '../BriefingCard';
 import type { CardItemAction } from './CardItemActions';
 import { CardItemRow } from './CardItemRow';
 import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
-import { openChatDeepLink } from '@/lib/chat-deep-link';
+import { useDashboardChat, useDashboardRoute } from '../DashboardNavigation';
 import type { AgendaData, AgendaEventItem, CardSection } from '@/types/briefing';
 
 interface AgendaCardProps {
@@ -21,7 +21,9 @@ interface AgendaCardProps {
 
 export function AgendaCard({ section, isRefreshing, onRefresh, staggerIndex }: AgendaCardProps) {
   const router = useRouter();
+  const navigate = useDashboardRoute(router.push);
   const { i18n } = useTranslation();
+  const openChat = useDashboardChat();
   const lng = (i18n.language || 'fr').split('-')[0];
   return (
     <BriefingCard<AgendaData>
@@ -33,12 +35,12 @@ export function AgendaCard({ section, isRefreshing, onRefresh, staggerIndex }: A
       isRefreshing={isRefreshing}
       onRefresh={onRefresh}
       emptyStateKey="dashboard.briefing.cards.agenda.empty"
-      onErrorCta={() => router.push(`/${lng}/dashboard/settings?section=connectors`)}
+      onErrorCta={() => navigate(`/${lng}/dashboard/settings?section=connectors`)}
       renderContent={data => (
         <AgendaContent
           data={data}
-          onOpenChat={draft => openChatDeepLink(chatDraftHref(lng, draft))}
-          onExecute={intent => openChatDeepLink(chatIntentHref(lng, intent))}
+          onOpenChat={draft => openChat(chatDraftHref(lng, draft))}
+          onExecute={intent => openChat(chatIntentHref(lng, intent))}
         />
       )}
       staggerIndex={staggerIndex}
@@ -176,13 +178,23 @@ function AgendaEntry({
     time: event.start_local,
   });
   const actions: CardItemAction[] = [
-    { icon: NotebookPen, label: prepareIntent, onSelect: () => onExecute(prepareIntent) },
+    {
+      icon: NotebookPen,
+      label: prepareIntent,
+      opensChat: true,
+      onSelect: () => onExecute(prepareIntent),
+    },
   ];
   if (event.location) {
     const routeIntent = t('dashboard.briefing.intents_exec.event_route', {
       location: event.location,
     });
-    actions.push({ icon: Navigation, label: routeIntent, onSelect: () => onExecute(routeIntent) });
+    actions.push({
+      icon: Navigation,
+      label: routeIntent,
+      opensChat: true,
+      onSelect: () => onExecute(routeIntent),
+    });
   }
   return (
     <CardItemRow

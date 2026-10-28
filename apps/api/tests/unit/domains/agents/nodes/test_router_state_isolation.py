@@ -318,6 +318,21 @@ class TestRouterPublishesTheExchangeRhythm:
     the tools bound at setup and the layout of every later call cannot disagree.
     """
 
+    @pytest.fixture(autouse=True)
+    def _no_response_prefetch(self, monkeypatch: pytest.MonkeyPatch) -> MagicMock:
+        """The router's response-context prefetch is not under test.
+
+        With a person in the run context, it would start a background task that
+        embeds the message with the provider and opens database sessions, which
+        nothing in this test awaits.
+        """
+        prefetch = MagicMock()
+        monkeypatch.setattr(
+            "src.domains.agents.services.response_context.start_response_context_prefetch",
+            prefetch,
+        )
+        return prefetch
+
     @pytest.mark.parametrize("rhythm", ["frequent", "occasional"])
     async def test_the_run_s_rhythm_lands_in_the_state(self, rhythm: str) -> None:
         from src.core.exchange_rhythm import ExchangeRhythm

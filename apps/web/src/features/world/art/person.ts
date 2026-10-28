@@ -12,9 +12,16 @@ import { personHair } from './person-hair';
 import { personOutfit } from './person-outfit';
 import { personHeadwear, personGlasses } from './person-accessories';
 import { ACCENTS } from './palette';
+import { personArms } from './person-arms';
+import type { PersonInteraction } from '../decor-presentation';
 
-function personLegs(mesh: ActorMesh, stride: number, pose?: import('../pose-slots').PoseSlot | null): void {
-  const box = mesh.box.bind(mesh), front = mesh.front.bind(mesh);
+function personLegs(
+  mesh: ActorMesh,
+  stride: number,
+  pose?: import('../pose-slots').PoseSlot | null
+): void {
+  const box = mesh.box.bind(mesh),
+    front = mesh.front.bind(mesh);
   for (const [x, step] of [
     [0.27, stride],
     [0.57, -stride],
@@ -41,7 +48,8 @@ export function paintPerson(
   tone: Tone,
   heading = facing * 2,
   pose?: import('../pose-slots').PoseSlot | null,
-  appearance?: AvatarAppearance
+  appearance?: AvatarAppearance,
+  interaction?: PersonInteraction
 ): Sprite {
   const mesh = new ActorMesh(heading, pose?.kind === 'lie' ? pose.elevation : undefined);
   const stride = Math.sin((phase * Math.PI) / 4) * 0.11;
@@ -55,23 +63,11 @@ export function paintPerson(
   personLegs(mesh, stride, pose);
   box(0.19, 0.23, 0.53 + bob, 0.64, 0.53, 0.65, cloth);
   front(0.22, 0.765, 0.55 + bob, 0.58, 0.035, shade(cloth, -20));
-  for (const [x, step] of [
-    [0.02, -stride],
-    [0.84, stride],
-  ]) {
-    box(x, 0.27 + step, 0.76 + bob, 0.17, 0.24, 0.36, cloth);
-    box(x + 0.015, 0.29 + step, 0.57 + bob, 0.14, 0.21, 0.21, skin);
-    box(x, 0.27 + step, 0.75 + bob, 0.17, 0.24, 0.055, shade(cloth, 18));
-  }
+  personArms(mesh, stride, bob, cloth, skin, interaction);
   personOutfit(mesh, chosen.outfit, cloth, bob, pose?.kind === 'sit');
   box(0.4, 0.38, 1.17 + bob, 0.23, 0.28, 0.12, skin);
   box(0.18, 0.17, 1.28 + bob, 0.7, 0.68, 0.6, skin);
-  personHair(
-    mesh,
-    visibleHair(chosen),
-    hair,
-    bob
-  );
+  personHair(mesh, visibleHair(chosen), hair, bob);
   for (const x of [0.32, 0.63]) {
     front(x, 0.855, 1.54 + bob, 0.09, 0.085, '#f4f3e9');
     front(x + 0.025, 0.86, 1.55 + bob, 0.045, 0.065, '#272b31');

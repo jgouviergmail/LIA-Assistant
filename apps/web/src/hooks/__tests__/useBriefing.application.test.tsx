@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { publishApplicationResources } from '@/lib/application-resources';
 import type { BriefingResponse, CardSection, SectionData } from '@/types/briefing';
+import { Activity, type ReactNode } from 'react';
 
 const { get, post, useAuth } = vi.hoisted(() => ({
   get: vi.fn(),
@@ -122,6 +123,127 @@ async function ready() {
 }
 
 describe('briefing reads and recovery', () => {
+  it('rejects a pre-suspension POST after Activity restores the same enabled hook instance', async () => {
+    let visible = true;
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <Activity mode={visible ? 'visible' : 'hidden'}>{children}</Activity>
+    );
+    const pending = Promise.withResolvers<BriefingResponse>();
+    post.mockReturnValue(pending.promise);
+    const { result, rerender } = renderHook(() => useBriefing(), { wrapper });
+    await waitFor(() => expect(result.current.text).toBeDefined());
+    let refresh = Promise.resolve();
+    act(() => {
+      refresh = result.current.refetchSection('all');
+    });
+    await waitFor(() => expect(post).toHaveBeenCalledOnce());
+    visible = false;
+    rerender();
+    await act(async () => {});
+    visible = true;
+    rerender();
+    await waitFor(() =>
+      expect(get.mock.calls.filter(call => call[0].endsWith('/cards'))).toHaveLength(2)
+    );
+    await act(async () => {
+      pending.resolve(response('obsolete-after-activity'));
+      await refresh;
+    });
+    expect(result.current.cards?.reminders?.data?.items[0].id).toBe('saved');
+  });
+  it('withdraws SMS-derived text while suspended without fetching or restoring it on resume', async () => {
+    const initial = smsResponse();
+    get.mockImplementation((path: string) =>
+      Promise.resolve(path.endsWith('/cards') ? initial : initial)
+    );
+    const { result, rerender } = renderHook(({ enabled }) => useBriefing(enabled), {
+      initialProps: { enabled: true },
+    });
+    await waitFor(() => expect(result.current.text).toBeDefined());
+    rerender({ enabled: false });
+    act(() => publishApplicationResources('one', new Set(['sms'])));
+    expect(result.current.text).toBeUndefined();
+    expect(result.current.cards?.sms?.data?.items).toEqual([]);
+    expect(post).not.toHaveBeenCalled();
+    rerender({ enabled: true });
+    await waitFor(() =>
+      expect(get.mock.calls.filter(call => call[0].endsWith('/cards'))).toHaveLength(2)
+    );
+    expect(result.current.text).toBeUndefined();
+    expect(get.mock.calls.filter(call => call[0].endsWith('/synthesis'))).toHaveLength(1);
+  });
+  it('pauses both reads and resumes cards without purchasing another initial synthesis', async () => {
+    post.mockResolvedValue(response('fresh-after-suspension'));
+    const { result, rerender } = renderHook(({ enabled }) => useBriefing(enabled), {
+      initialProps: { enabled: false },
+    });
+    await act(async () => {});
+    expect(get).not.toHaveBeenCalled();
+    rerender({ enabled: true });
+    await waitFor(() => expect(result.current.text?.greeting.text).toBe('Good morning'));
+    rerender({ enabled: false });
+    act(() => publishApplicationResources('one', new Set(['reminders'])));
+    expect(post).not.toHaveBeenCalled();
+    rerender({ enabled: true });
+    await waitFor(() =>
+      expect(get.mock.calls.filter(call => call[0].endsWith('/cards'))).toHaveLength(2)
+    );
+    expect(get.mock.calls.filter(call => call[0].endsWith('/synthesis'))).toHaveLength(1);
+    expect(result.current.text?.greeting.text).toBe('Good morning');
+    await waitFor(() =>
+      expect(result.current.cards?.reminders?.data?.items[0].id).toBe('fresh-after-suspension')
+    );
+    expect(post.mock.calls.map(call => call[0])).toEqual(['/briefing/refresh-cards']);
+  });
+
+  it('aborts a suspended manual refresh and rejects its late result and retained retry', async () => {
+    const pending = Promise.withResolvers<BriefingResponse>();
+    post.mockReturnValue(pending.promise);
+    const { result, rerender } = renderHook(({ enabled }) => useBriefing(enabled), {
+      initialProps: { enabled: true },
+    });
+    await waitFor(() => expect(result.current.text).toBeDefined());
+    const retained = result.current.refetchSection;
+    let refresh: Promise<void>;
+    act(() => {
+      refresh = retained('all');
+    });
+    await waitFor(() => expect(post).toHaveBeenCalledOnce());
+    const signal: AbortSignal = post.mock.calls[0][2].signal;
+    rerender({ enabled: false });
+    expect(signal.aborted).toBe(true);
+    rerender({ enabled: true });
+    await act(async () => {
+      pending.resolve(response('obsolete'));
+      await refresh;
+      await retained('all');
+    });
+    expect(result.current.cards?.reminders?.data?.items[0].id).toBe('saved');
+    expect(post).toHaveBeenCalledOnce();
+  });
+
+  it('does not automatically retry a paid initial request aborted on suspension', async () => {
+    const pending = Promise.withResolvers<BriefingResponse>();
+    get.mockImplementation((path: string) =>
+      path.endsWith('/cards') ? Promise.resolve(cards) : pending.promise
+    );
+    const { result, rerender } = renderHook(({ enabled }) => useBriefing(enabled), {
+      initialProps: { enabled: true },
+    });
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+    const signal: AbortSignal = get.mock.calls.find(call => call[0].endsWith('/synthesis'))![1]
+      .signal;
+    rerender({ enabled: false });
+    expect(signal.aborted).toBe(true);
+    rerender({ enabled: true });
+    await act(async () => pending.resolve(cards));
+    expect(result.current.text).toBeUndefined();
+    expect(get.mock.calls.filter(call => call[0].endsWith('/synthesis'))).toHaveLength(1);
+    expect(result.current.textLoading).toBe(false);
+    expect(result.current.textUnavailable).toBe(true);
+    await act(async () => result.current.refetchAll());
+    expect(get.mock.calls.filter(call => call[0].endsWith('/synthesis'))).toHaveLength(2);
+  });
   it('withdraws SMS previews immediately and keeps them hidden when source rereading fails', async () => {
     const initial = smsResponse();
     get.mockImplementation((path: string) =>
@@ -472,6 +594,54 @@ describe('briefing server build ordering', () => {
     expect(result.current.text?.synthesis).toEqual(paid.synthesis);
     expect(post.mock.calls.filter(call => call[0] === '/briefing/refresh')).toHaveLength(1);
     expect(get).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('briefing text from the first frame', () => {
+  it('holds the text it will ask for as loading from the first render to its answer', async () => {
+    // The initial text read is issued after the first commit; idle on those
+    // frames, the welcome and the synthesis flashed absent and then shifted.
+    const text = Promise.withResolvers<BriefingResponse>();
+    get.mockImplementation((path: string) =>
+      path.endsWith('/cards') ? Promise.resolve(cards) : text.promise
+    );
+    const frames: { loading: boolean; unavailable: boolean }[] = [];
+    const { result } = renderHook(() => {
+      const briefing = useBriefing();
+      frames.push({ loading: briefing.textLoading, unavailable: briefing.textUnavailable });
+      return briefing;
+    });
+
+    expect(frames[0]).toEqual({ loading: true, unavailable: false });
+    await waitFor(() =>
+      expect(get.mock.calls.filter(call => call[0].endsWith('/synthesis'))).toHaveLength(1)
+    );
+    await waitFor(() => expect(result.current.cards).toEqual(cards.cards));
+    expect(frames.every(frame => frame.loading && !frame.unavailable)).toBe(true);
+
+    await act(async () => text.resolve(cards));
+
+    expect(result.current.textLoading).toBe(false);
+    expect(result.current.text?.greeting.text).toBe('Good morning');
+  });
+
+  it('holds nothing as loading while the briefing is suspended', async () => {
+    const { result } = renderHook(() => useBriefing(false));
+
+    expect(result.current.textLoading).toBe(false);
+    expect(result.current.loading).toBe(false);
+    await act(async () => {});
+    expect(get).not.toHaveBeenCalled();
+  });
+
+  it('holds nothing as loading without an account to read for', async () => {
+    useAuth.mockReturnValue({ user: null });
+    const { result } = renderHook(() => useBriefing());
+
+    expect(result.current.textLoading).toBe(false);
+    await act(async () => {});
+    expect(result.current.textLoading).toBe(false);
+    expect(get).not.toHaveBeenCalled();
   });
 });
 

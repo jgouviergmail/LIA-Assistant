@@ -6,6 +6,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import androidx.core.content.ContextCompat;
+import androidx.activity.result.ActivityResult;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -13,6 +14,7 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
+import com.getcapacitor.annotation.ActivityCallback;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
@@ -33,6 +35,7 @@ import java.net.URL;
     }
 )
 public class LiaShellPlugin extends Plugin {
+    private final WorldImageShare imageShare = new WorldImageShare();
 
     /** Long enough for a home server behind a tunnel, short enough to fail visibly. */
     private static final int PROBE_TIMEOUT_MS = 8000;
@@ -49,7 +52,44 @@ public class LiaShellPlugin extends Plugin {
     public void get(PluginCall call) {
         JSObject result = new JSObject();
         result.put("url", ServerUrlStore.read(getContext()));
+        JSObject capabilities = new JSObject();
+        capabilities.put("shareImage", 1);
+        result.put("capabilities", capabilities);
         call.resolve(result);
+    }
+
+    /** Receive only a bounded already-previewed JPEG, never a filesystem path. */
+    @PluginMethod
+    public void shareImage(PluginCall call) { imageShare.share(this, call); }
+
+    /**
+     * Settle the share once the chooser returns.
+     *
+     * <p>{@code startActivityForResult} saved the call on the bridge so this
+     * callback could find it again, and resolving does not unsave it: unreleased,
+     * every share stayed on the bridge for the rest of the session, each with its
+     * ~2.8 MB base64 payload (which {@link WorldImageShare} now also drops as soon
+     * as it is decoded).
+     *
+     * @param call The saved share call, or null when the bridge no longer holds it.
+     * @param result The chooser's result, which says nothing reliable (see below).
+     */
+    @ActivityCallback
+    private void imageShared(PluginCall call, ActivityResult result) {
+        imageShare.finished();
+        // Android does not reliably report target publication or user cancellation.
+        if (call != null) {
+            JSObject response = new JSObject();
+            response.put("status", "offered");
+            call.resolve(response);
+            getBridge().releaseCall(call);
+        }
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        imageShare.destroy();
+        super.handleOnDestroy();
     }
 
     /**

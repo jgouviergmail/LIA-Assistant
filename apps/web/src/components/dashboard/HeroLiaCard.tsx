@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import { ArrowRight, Plug, Sparkles } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
+import { DashboardLink as Link } from './DashboardNavigation';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';

@@ -5,7 +5,11 @@ global:
   evaluation_interval: 30s   # 15s -> 30s
   external_labels:
     cluster: 'lia'
-    environment: 'production'
+    # Prometheus expands these from its container environment. The compose
+    # service owns the environment; OBSERVABILITY_HOST names the Docker host,
+    # never the container or a scraped service's `instance` address.
+    environment: '${OBSERVABILITY_ENVIRONMENT}'
+    host: '${OBSERVABILITY_HOST}'
 
 # Exemplars link a metric's point to the trace it came from: Tempo's span
 # metrics carry them. Read only under --enable-feature=exemplar-storage (the

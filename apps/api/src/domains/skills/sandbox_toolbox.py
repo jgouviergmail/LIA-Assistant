@@ -62,7 +62,7 @@ SANDBOX_COMMANDS: tuple[SandboxCommand, ...] = (
     SandboxCommand("bash", "", "shell"),
     SandboxCommand("python3", "", "Python 3.14"),
     SandboxCommand("pip", "", "Python packages"),
-    SandboxCommand("node", "", "Node.js 24"),
+    SandboxCommand("node", "", "Node.js 26"),
     SandboxCommand("npm", "", "Node packages"),
     SandboxCommand("npx", "", "Node package runner"),
     SandboxCommand("git", "git", "repositories"),

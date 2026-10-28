@@ -245,7 +245,8 @@ class TestRecordHallucination:
         entry = saved_data["history"][0]
         assert entry["tool"] == "new_tool"
         assert entry["domain"] == "test_domain"
-        assert "query_preview" in entry
+        assert "query_preview" not in entry
+        assert entry["query_chars"] == len("test query")
         assert "timestamp" in entry
 
     def test_auto_adds_new_tool(self, mock_registry_ops):
@@ -255,13 +256,15 @@ class TestRecordHallucination:
         saved_data = mock_registry_ops["mock_save"].call_args[0][0]
         assert "brand_new_tool" in saved_data["exact_tools"]
 
-    def test_truncates_query_preview(self, mock_registry_ops):
-        """Test query is truncated for privacy."""
+    def test_keeps_only_the_query_length(self, mock_registry_ops):
+        """The registry is a tracked file: a person's words never reach it."""
         long_query = "x" * 200
         record_hallucination("tool", query=long_query, auto_add=False)
 
         saved_data = mock_registry_ops["mock_save"].call_args[0][0]
-        assert len(saved_data["history"][0]["query_preview"]) == 80
+        entry = saved_data["history"][0]
+        assert entry["query_chars"] == 200
+        assert long_query[:10] not in json.dumps(entry)
 
     def test_limits_history_size(self):
         """Test history is limited to 100 entries."""
@@ -856,7 +859,7 @@ class TestRecordHallucinationEnhanced:
                     # Verify structure
                     assert "tool" in entry
                     assert "domain" in entry
-                    assert "query_preview" in entry
+                    assert "query_chars" in entry
                     assert "timestamp" in entry
                     assert "was_new" in entry
 

@@ -33,6 +33,8 @@ export interface UseApiQueryOptions<T> {
   initialData?: T;
   /** Whether to fetch on mount (default: true) */
   enabled?: boolean;
+  /** Keep manual reads available without an automatic effect read. */
+  autoFetch?: boolean;
   /** Request parameters */
   params?: Record<string, QueryParamValue>;
   /** Additional request config */
@@ -96,6 +98,7 @@ export function useApiQuery<T = unknown>(
     componentName,
     initialData,
     enabled = true,
+    autoFetch = true,
     params,
     config,
     onSuccess,
@@ -104,7 +107,7 @@ export function useApiQuery<T = unknown>(
   } = options;
 
   const [data, setData] = useState<T | undefined>(initialData);
-  const [loading, setLoading] = useState<boolean>(enabled);
+  const [loading, setLoading] = useState<boolean>(enabled && autoFetch);
   const [error, setError] = useState<Error | null>(null);
   const activeRequest = useRef<AbortController | null>(null);
 
@@ -190,7 +193,8 @@ export function useApiQuery<T = unknown>(
     // Strict Mode probe (or an immediate unmount) then cancels an unsent read,
     // rather than aborting a request the server may already be handling.
     queueMicrotask(() => {
-      void fetchData(abortController.signal);
+      if (autoFetch) void fetchData(abortController.signal);
+      else if (!abortController.signal.aborted && !activeRequest.current) setLoading(false);
     });
 
     return () => {
@@ -200,7 +204,7 @@ export function useApiQuery<T = unknown>(
       activeEffect.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- deps spread is intentional for dynamic dependencies
-  }, [fetchData, ...deps]);
+  }, [fetchData, autoFetch, ...deps]);
 
   // A mutation may retain this callback across a navigation or an unmount.
   // It must not restart the old query or cancel the new screen's read.

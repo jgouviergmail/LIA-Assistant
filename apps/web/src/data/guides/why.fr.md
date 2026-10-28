@@ -4,7 +4,7 @@
 
 **Version** : 6.6
 **Date** : 2026-10-23
-**Application** : LIA v4.0.0
+**Application** : LIA v4.1.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -298,6 +298,8 @@ Le monde de LIA offre à ton instance une maison et un jardin partagés. Tu te d
 
 Partager un lieu ne partage pas ton assistante. L’entrée demande ton autorisation pour montrer ton nom et ton avatar dans le monde ; tes connexions acceptées voient aussi une présence générale et si tu es chez toi. Ta maison, ses couleurs, tes documents et les panneaux de ton assistante restent privés. Une pièce ouvre les mêmes fonctions natives, avec les mêmes droits, coûts et confirmations ; y entrer n’exécute jamais une action préparée.
 
+Le monde est aussi un lieu où passer du temps ensemble. Trois bornes d’arcade — morpion, Quatre à la suite et Reversi — invitent à une partie avec une autre personne ou contre l’ordinateur, et six gestes disent bonjour, merci ou bravo sans un mot. Assieds-toi à une table et LIA te propose ton dashboard complet ; tu peux refuser et simplement rester assis. Des objets familiers affichent tes propres signaux — un rappel qui s’est déclenché, un message, un ticket qui t’attend — et une photo privée immortalise l’instant : ton avatar, LIA et le décor, jamais les autres visiteurs.
+
 Tu peux aussi échanger par texte privé avec un participant disponible non bloqué ou choisir volontairement le canal Tout le monde pour les personnes présentes dans les espaces partagés. L’original reste disponible. Traduire un message est un choix payant explicite, compté dans ta consommation ; une tentative échouée ou incertaine n’est pas rejouée automatiquement. Ces messages humains temporaires restent séparés de l’historique de conversation et de la mémoire de LIA. La disponibilité dépend des fonctions activées sur ton instance ; la voix entre avatars reste hors du périmètre de cette version.
 
 ---
@@ -410,7 +412,7 @@ La même exigence gouverne ce que LIA retient de tes consignes : chaque règle d
 
 ### 6.8. Une surface qui décrit le produit y est tenue
 
-La transparence a un mode de défaillance que personne ne remarque : un écran qui cesse discrètement de dire vrai. Rien ne casse, aucun test ne vire au rouge, et la page qui existait pour être à jour devient la moins à jour de l'application. La carte des capacités — celle qui répond _qu'est-ce que mon assistant sait faire pour moi ?_ — ne se maintient donc plus à la main : chaque capacité que la plateforme sait activer ou couper doit y avoir sa place déclarée, et une capacité livrée sans cette décision empêche l'application de démarrer. La même conviction, d'un cran plus loin : ce qu'un écran affirme de tes données doit être **exact ou absent**. Un décompte est le nombre que rend la base, jamais une longueur qui traînait à portée de main ; et tant que la réponse est en route, ou quand elle a échoué, la carte ne dit rien plutôt que de deviner. « Rien de configuré » est une affirmation sur ton compte — de celles dont il vaut mieux être sûr avant de les prononcer. La FAQ obéit à la même exigence : chaque fonction qu'une personne peut utiliser y a sa section — 518 questions, en six langues —, et une section traduite que l'ordre d'affichage oublierait fait échouer les tests au lieu de rester invisible.
+La transparence a un mode de défaillance que personne ne remarque : un écran qui cesse discrètement de dire vrai. Rien ne casse, aucun test ne vire au rouge, et la page qui existait pour être à jour devient la moins à jour de l'application. La carte des capacités — celle qui répond _qu'est-ce que mon assistant sait faire pour moi ?_ — ne se maintient donc plus à la main : chaque capacité que la plateforme sait activer ou couper doit y avoir sa place déclarée, et une capacité livrée sans cette décision empêche l'application de démarrer. La même conviction, d'un cran plus loin : ce qu'un écran affirme de tes données doit être **exact ou absent**. Un décompte est le nombre que rend la base, jamais une longueur qui traînait à portée de main ; et tant que la réponse est en route, ou quand elle a échoué, la carte ne dit rien plutôt que de deviner. « Rien de configuré » est une affirmation sur ton compte — de celles dont il vaut mieux être sûr avant de les prononcer. La FAQ obéit à la même exigence : chaque fonction qu'une personne peut utiliser y a sa section — 523 questions, en six langues —, et une section traduite que l'ordre d'affichage oublierait fait échouer les tests au lieu de rester invisible.
 
 La transparence vaut aussi pour les règles internes de l'assistant. Une contrainte que le système applique doit être publiée à qui la subit : quand l'apprentissage des habitudes ne détecte rien, les Réglages affichent le seuil réellement exigé — plus strict le week-end, où les jours observés sont moins nombreux — au lieu d'un silence inexpliqué. Et quand un réglage s'ajuste tout seul, comme le seuil qui décide qu'une note du journal entre dans une réponse, il le fait dans des bornes strictes, un petit pas par jour, avec un interrupteur d'arrêt et chaque ajustement compté : un système qui apprend n'est acceptable que s'il reste observable et débrayable.
 

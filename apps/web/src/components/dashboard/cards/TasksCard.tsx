@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
 import { CardItemRow } from './CardItemRow';
 import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
-import { openChatDeepLink } from '@/lib/chat-deep-link';
+import { useDashboardChat } from '../DashboardNavigation';
 import type { CardSection, TaskItem, TasksData } from '@/types/briefing';
 
 interface TasksCardProps {
@@ -25,6 +25,7 @@ interface TasksCardProps {
  */
 export function TasksCard({ section, isRefreshing, onRefresh, staggerIndex }: TasksCardProps) {
   const { i18n } = useTranslation();
+  const openChat = useDashboardChat();
   const lng = (i18n.language || 'fr').split('-')[0];
   return (
     <BriefingCard<TasksData>
@@ -38,8 +39,8 @@ export function TasksCard({ section, isRefreshing, onRefresh, staggerIndex }: Ta
       renderContent={data => (
         <TasksContent
           data={data}
-          onOpenChat={draft => openChatDeepLink(chatDraftHref(lng, draft))}
-          onExecute={intent => openChatDeepLink(chatIntentHref(lng, intent))}
+          onOpenChat={draft => openChat(chatDraftHref(lng, draft))}
+          onExecute={intent => openChat(chatIntentHref(lng, intent))}
         />
       )}
       staggerIndex={staggerIndex}
@@ -110,10 +111,16 @@ function TasksContent({
             onSelect={() => onOpenChat(intent)}
             contentClassName="flex flex-col gap-1.5 leading-snug"
             actions={[
-              { icon: Check, label: completeIntent, onSelect: () => onExecute(completeIntent) },
+              {
+                icon: Check,
+                label: completeIntent,
+                opensChat: true,
+                onSelect: () => onExecute(completeIntent),
+              },
               {
                 icon: CalendarClock,
                 label: postponeIntent,
+                opensChat: true,
                 onSelect: () => onExecute(postponeIntent),
               },
             ]}
